@@ -573,6 +573,7 @@ impl Compiler {
         let pool = self.fetch(self.objects(objects)?);
         let count = self.fetch(self.select_count(count)?);
         writeln!(out, "let permanents = {pool}; let count = {count}; {M}::choose::object_as_enters(g, entering, permanents, {M}::select::Selection::of(count, &[]))?;").unwrap();
+        self.chose_object_as_enters = true;
         Ok(true)
     }
     /// "You may tap any number of ...".
@@ -1189,6 +1190,11 @@ impl Compiler {
                 terms => {
                     self.choose_value_terms(id, actor, *kind, terms, out)?;
                     self.chosen_number_performed(*kind, result);
+                    // Objects chosen on terms are what "each creature chosen this
+                    // way" reads back: the hole's own stand-in, not a hole of its own.
+                    if matches!(kind, ValueKind::Object) && out.contains(&format!("let chosen_{id} =")) {
+                        self.selections.insert(result.0, format!("chosen_{id}"));
+                    }
                 }
             },
             Operation::CopyCards {
@@ -3563,6 +3569,7 @@ impl Compiler {
                 Some("Subtype::Plains")
             }
             ValueKind::Player => Some("asker.controller"),
+            ValueKind::Object => Some("Vec::<ObjectId>::new()"),
             _ => None,
         };
         match placeholder {

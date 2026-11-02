@@ -309,6 +309,12 @@ pub(super) struct Notes {
 fn acted_on(op: &Operation) -> &'static [&'static str] {
     match op {
         Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
+        // "Chooses a card in your graveyard", "secretly chooses a creature": objects
+        // chosen on terms, which "each creature chosen this way" reads back.
+        Operation::ChooseValueWith {
+            kind: ValueKind::Object,
+            ..
+        } => &["Selected"],
         Operation::Sacrifice { .. } => &["Sacrificed", "PutInGraveyard"],
         Operation::PayCost { cost, optional: true, .. }
             if matches!(cost.parts.as_slice(), [CostPart::Sacrifice { .. }]) =>
@@ -325,9 +331,10 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
         Operation::Manifest { .. } => &["Manifested"],
-        Operation::Reveal { .. }
-        | Operation::RevealUntil { .. }
-        | Operation::RevealFromHand { .. } => &["Revealed"],
+        Operation::Reveal { .. } | Operation::RevealUntil { .. } => &["Revealed"],
+        // "Reveals a nonland card at random from their hand. It perpetually gains":
+        // the card revealed is the card chosen in the hand.
+        Operation::RevealFromHand { .. } => &["Revealed", "Selected"],
         Operation::Search { .. } => &["Found"],
         Operation::Tap { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
@@ -692,6 +699,19 @@ impl Compiler {
         if matches!(what, EarlierObjects::Unattached) && unattaches_granter {
             return Ok("vec![asker.source]".into());
         }
+        // "As an additional cost to cast this spell, choose a creature you control":
+        // what was chosen is what that cost part chose, and the part's own hole
+        // (cost part PlayerAction) already says what the file waits on.
+        let chooses = |cost: &Cost| {
+            let cost = format!("{cost:?}");
+            cost.contains("PlayerAction") && cost.contains("ChooseObjects")
+        };
+        let chose_as_cost = self.activation_cost.as_ref().is_some_and(chooses)
+            || self.casting_costs.values().any(chooses)
+            || self.option_cost.as_ref().is_some_and(chooses);
+        if matches!(what, EarlierObjects::Selected) && chose_as_cost {
+            return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+        }
         let Some((payment, at)) = by_activation.or(by_casting) else {
             if exiled {
                 return Ok(format!("q.exiled_with({})", self.linked()));
@@ -723,7 +743,30 @@ impl Compiler {
             // "The last chosen card", read by a static ability: an ability that
             // resolved chose it, and a resolving ability can keep only a name on
             // its permanent (`Game::remember_chosen_name`), never an object.
-            if matches!(what, EarlierObjects::Selected) && self.reader == Reader::Layer {
+            // "As this Aura enters, choose a creature. Enchanted creature is a copy
+            // of the chosen creature": what it chose as it entered, which it keeps.
+            if matches!(what, EarlierObjects::Selected)
+                && self.chose_object_as_enters
+                && self.reader != Reader::Resolution
+            {
+                return Ok(format!(
+                    "q.state().chosen_object({}).into_iter().collect::<Vec<ObjectId>>()",
+                    self.linked()
+                ));
+            }
+            // "Choose an exiled creature card used to craft this Equipment" as it
+            // becomes attached: the choice is that ability's, whose own hole says
+            // what the file waits on.
+            if matches!(what, EarlierObjects::Selected)
+                && self.functions.contains("AttachAction::ChooseAnExiledCardToCopy")
+            {
+                return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+            }
+            // Read by a static or a trigger's event: an ability that resolved chose
+            // it ("When Zenos enters, choose a creature ... When the chosen creature
+            // leaves the battlefield"), and a resolving ability can keep only a name
+            // on its permanent (`Game::remember_chosen_name`), never an object.
+            if matches!(what, EarlierObjects::Selected) && self.reader != Reader::Resolution {
                 return Err(gap("a chosen object outside its body"));
             }
             // "Each player turns face up all cards they own exiled with this, then

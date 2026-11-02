@@ -610,6 +610,12 @@ struct Compiler {
     activation_cost: Option<Cost>,
     /// Each additional cost this card declares, by its ability's index.
     casting_costs: BTreeMap<u32, Cost>,
+    /// The cost of the option of a choice of costs whose body is being compiled
+    /// ("as an additional cost, choose a creature you control or ...").
+    option_cost: Option<Cost>,
+    /// "As this enters, choose a creature": the permanent keeps the object chosen
+    /// (`Entering::chosen_object`), which its other abilities read (CR 607.2d).
+    chose_object_as_enters: bool,
     /// What a mechanic's cost of this card's own spell took, by earlier objects' word.
     cast_pays: Vec<&'static str>,
     /// "As this enters, sacrifice any number": how many is what it keeps.
@@ -1058,6 +1064,8 @@ impl Compiler {
             asking: None,
             activation_cost: None,
             casting_costs: BTreeMap::new(),
+            option_cost: None,
+            chose_object_as_enters: false,
             cast_pays: Vec::new(),
             enters_sacrifices: false,
             damages_once: false,

@@ -3882,8 +3882,14 @@ impl Compiler {
                 let mut ways = Vec::new();
                 for (i, (cost, then)) in options.iter().enumerate() {
                     let label = format!("{label}_option_{i}");
-                    let then = self.resolved_body(then, &label)?;
-                    ways.push(format!("({}, {then})", self.cost(cost, &label)?));
+                    // The cost first: what its body reads of the cost ("the creature
+                    // chosen this way") follows what the cost could not say.
+                    let paid = self.cost(cost, &label);
+                    let outer = self.option_cost.replace(cost.clone());
+                    let then = self.resolved_body(then, &label);
+                    self.option_cost = outer;
+                    let then = then?;
+                    ways.push(format!("({}, {then})", paid?));
                 }
                 self.plan_entry(
                     &feature,
