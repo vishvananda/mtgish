@@ -568,6 +568,11 @@ impl Compiler {
             parts.table("infect_damage_to", format!("{label}_infect"));
             return Ok(());
         }
+        if let [arm] = arms.as_slice() {
+            if arm.kind == "BeginTurn" && matches!(active, ReplacementActive::Battlefield) {
+                return self.turn_begin_rule(label, arm, frame, &extra, &changes, &rest, hint, parts);
+            }
+        }
         let (kind, applies, apply, then) =
             self.reshaping(label, &arms, frame, &extra, &changes, &rest, false)?;
         let mut def = format!("replacement(ReplacementKind::{kind}, {applies}, {apply}, {hint})");
@@ -581,6 +586,47 @@ impl Compiler {
             def.push_str(&format!(".optional(&{ask})"));
         }
         self.add_replacement(def, parts);
+        Ok(())
+    }
+    /// "If you would begin your turn while ..., you may skip that turn instead"
+    /// (CR 614.10): no proposal carries a turn's beginning, so the effect is a
+    /// `TurnBeginRule` (Time Vault), which its controller may decline, and what it
+    /// does besides skipping the turn is its `on_skip`. Only a turn of the
+    /// effect's controller: `on_skip` is told no player.
+    #[allow(clippy::too_many_arguments)]
+    fn turn_begin_rule(
+        &mut self,
+        label: &str,
+        arm: &Watched,
+        frame: Frame,
+        extra: &[String],
+        changes: &[EventChange],
+        rest: &[Instruction],
+        hint: String,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        const YOURS: &str = "Some(asker.controller) == Some(p.player)";
+        let skips = matches!(changes, [EventChange::Cancel]);
+        let Some(may) = self.replacing.may.take().filter(|_| skips && arm.tests.iter().any(|t| t == YOURS)) else {
+            return Err(gap("replacement of BeginTurn other than a turn of yours you may skip"));
+        };
+        // The rule asks its own question: the generic "instead" one goes.
+        let asked = format!("static {may}: Question");
+        if let Some(at) = self.functions.find(&asked) {
+            let end = self.functions[at..].find('\n').map_or(self.functions.len(), |n| at + n + 1);
+            self.functions.replace_range(at..end, "");
+        }
+        self.replacing.planned = None;
+        let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {label}_turn_begins(q: &dyn Query, asker: &Asker, player: PlayerId) -> bool {{ struct Seen {{ player: PlayerId }} let p = Seen {{ player }}; {} {} }}", arm.locals, tests.join(" && ")).unwrap();
+        let out = self.then_steps(frame, rest, None)?;
+        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {label}_on_skip(g: &mut dyn Game, asker: &Asker) -> Result<(), Suspend> {{ let subject = Target::Player(asker.controller); let data = [u32::MAX; 2]; {out} Ok(()) }}").unwrap();
+        let question = format!("{}_SKIP", label.to_uppercase());
+        writeln!(self.functions, "static {question}: Question = Question::new(\"SkipTurn\", \"skip this turn?\", {hint}, \"Skip the turn\", \"Take the turn\").no_default();").unwrap();
+        parts.table(
+            "turn_begin",
+            format!("TurnBeginRule {{ applies: {label}_turn_begins, on_skip: {label}_on_skip, question: &{question}, hint: {hint} }}"),
+        );
         Ok(())
     }
     /// What decides a replacement program and what it does: "if it does X,

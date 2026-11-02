@@ -401,6 +401,18 @@ impl Compiler {
             parts.table("cost_bans", format!("{function}_ban"));
             return Ok(true);
         }
+        // "This Equipment's equip ability costs {2} less to activate if it targets
+        // a colorless creature" (Ghostfire Blade): the equip ability's own cost
+        // change, the target read as the total cost is determined (CR 601.2f).
+        if let RuleChange::OwnActivationCost { abilities, change } = rule {
+            if let Some(reduced) = self.own_equip_cost(function, affected, abilities, change)? {
+                let equips: Vec<usize> = (0..parts.abilities.len()).filter(|&i| parts.abilities[i].contains(".equip()")).collect();
+                if let [one] = equips.as_slice() {
+                    parts.abilities[*one].push_str(&format!(".cost_change({reduced})"));
+                    return Ok(true);
+                }
+            }
+        }
         let code = self.rule_code(rule).map_err(|_| gap(&feature))?;
         let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
@@ -411,6 +423,42 @@ impl Compiler {
             parts,
         );
         Ok(true)
+    }
+    /// The cost change of "this Equipment's equip ability costs {N} less to
+    /// activate if it targets [a permanent]": its own equip ability's, judged of
+    /// its one target. None for any other shape.
+    fn own_equip_cost(
+        &mut self,
+        function: &str,
+        affected: &ObjectSet,
+        abilities: &ObjectFilter,
+        change: &ActivationCostChange,
+    ) -> Result<Option<String>> {
+        if !matches!(affected, ObjectSet::One(ObjectRef::Source)) || self.static_guard.is_some() {
+            return Ok(None);
+        }
+        let ObjectFilter::All(filters) = abilities else { return Ok(None) };
+        let [ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Equip)), ObjectFilter::TargetsAny(recipients)] =
+            filters.as_slice()
+        else {
+            return Ok(None);
+        };
+        let Recipients::Objects(ObjectSet::Battlefield(filter)) = &**recipients else { return Ok(None) };
+        let ActivationCostChange::Reduce(amount) = change else { return Ok(None) };
+        let Operand::List(symbols) = &**amount else { return Ok(None) };
+        let [Operand::Term { form, operands, .. }] = symbols.as_slice() else { return Ok(None) };
+        let ("CostReduceGeneric", [Operand::Integer(n)]) = (form.as_str(), operands.as_slice()) else {
+            return Ok(None);
+        };
+        let Ok(n) = u8::try_from(*n) else { return Ok(None) };
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let test = self.filter(filter, &Candidate::of("id"));
+        (self.reader, self.event_at) = saved;
+        let test = test?;
+        let name = format!("{function}_cost");
+        writeln!(self.functions, "#[allow(unused_variables)] fn {name}(q: &dyn Query, asker: &Asker, costed: Costed, targets: &[Target]) -> CostDelta {{ match targets.first() {{ Some(&Target::Object(id)) if {test} => CostDelta::less({n}), _ => CostDelta::NONE }} }}").unwrap();
+        Ok(Some(name))
     }
     /// A rule on a set that can still gain members (CR 611.2c): the effect holds
     /// the test, and applies to whatever passes it while it lasts.
@@ -1947,6 +1995,20 @@ impl Compiler {
                 let player = self.player(player)?;
                 L::of("Control", planned(format!("chars.controller = {player}")))
             }
+            Change::ChosenAbility if !self.ability_sets.is_empty() && self.reader == Reader::Layer => {
+                let mut arms = Vec::new();
+                for (i, set) in self.ability_sets.iter().enumerate() {
+                    let words = set
+                        .iter()
+                        .map(|&k| match &self.ability_choice[k] {
+                            Ability::Keyword(word) => keyword(word),
+                            other => Err(gap(format!("the ability {}", form(other)))),
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    arms.push(format!("Some({i}) => Keywords::of(&[{}]),", words.join(", ")));
+                }
+                L::of("Ability", format!("let kept = match q.state().chosen_option(q.linked_to(asker.source)).filter(|c| std::ptr::eq(q.cards().get(c.card), &CARD)).map(|c| c.index) {{ {} _ => Keywords::NONE }}; chars.keywords = Keywords(chars.keywords.0 | kept.0);", arms.join(" ")))
+            }
             Change::ChosenAbility => {
                 let kept = self.chosen_keywords()?;
                 L::of("Ability", planned(format!("chars.keywords = chars.keywords.with_all({kept})")))
@@ -2030,11 +2092,11 @@ impl Compiler {
             ObjectSet::One(ObjectRef::Chosen) => {
                 format!("q.state().chosen_object({}) == Some({id})", self.linked())
             }
-            ObjectSet::Matching { .. } | ObjectSet::Take { .. } => planned::planned_value(
-                &format!("static subjects {}", form(set)),
-                "false",
-                &format!("({}).contains(&{id})", self.objects(set)?),
-            ),
+            // "The top card of your library" (Fblthp), "creature cards from a
+            // single graveyard" (Night Soil): those objects, read as they are now.
+            ObjectSet::Matching { .. } | ObjectSet::Take { .. } => {
+                format!("({}).contains(&{id})", self.objects(set)?)
+            }
             other => return Err(gap(format!("static subjects {}", form(other)))),
         })
     }
@@ -2124,10 +2186,14 @@ impl Compiler {
                 "{}.and_then(|p: PlayerId| q.other_chosen_player(asker, p))",
                 self.player(of)?
             ),
-            PlayerRef::SoleTargetOf(of) => format!(
-                "{}.and_then(|o: ObjectId| q.sole_target_player(o))",
-                self.object(of)?
-            ),
+            // Every target the spell has, as announced, the one player (601.2c),
+            // as `ObjectRef::SoleTargetOf` reads the one object.
+            PlayerRef::SoleTargetOf(of) => {
+                return Ok(format!(
+                    "{}.and_then(|spell: ObjectId| {{ let state = q.state(); let item = state.stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).or_else(|| state.left_stack(spell))?; let mut chosen = state.targets(item).iter(); let Target::Player(first) = *chosen.next()? else {{ return None }}; match chosen.any(|t| *t != Target::Player(first)) {{ true => None, false => Some(first) }} }})",
+                    self.object(of)?
+                ))
+            }
             other => return Err(gap(format!("player reference {}", form(other)))),
         };
         Ok(planned::planned_value(

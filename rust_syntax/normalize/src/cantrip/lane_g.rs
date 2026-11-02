@@ -18,6 +18,20 @@ enum Optional {
 }
 
 /// A cost worked out from the game each time it is asked.
+/// A cost's objects that leave nothing to choose, and how many of them it
+/// takes: "it" is one (`None`), "the top six cards" exactly six (`Some(6)`).
+fn fixed_selection(selection: &CostObjectSelection) -> Option<Option<&Expr>> {
+    match (&selection.objects, &selection.choose) {
+        (ObjectSet::One(_), None) => Some(None),
+        (ObjectSet::Take { count, .. }, Some(Count::Exactly(n)))
+            if format!("{count:?}") == format!("{n:?}") =>
+        {
+            Some(Some(n))
+        }
+        _ => None,
+    }
+}
+
 fn reading_cost(code: &str) -> String {
     planned::planned_value(
         "engine: no cost sized by the game",
@@ -1264,6 +1278,49 @@ impl Compiler {
                 writeln!(out, "let shuffled_{id} = g.put_into_library(&{picked}, LibraryPlace::ShuffledIn); let paid_{id} = !shuffled_{id}.is_empty();").unwrap();
                 self.moved.insert(result.0, format!("shuffled_{id}"));
                 self.left_behind(result, format!("{picked}.clone()"));
+            }
+            // "[+2], then ..." in a resolving ability (Comet, Stellar Pup): loyalty
+            // counters put on or removed from the source (CR 606.4 by analogy),
+            // paid only with as many to remove.
+            CostPart::Loyalty(n) => {
+                let delta = self.fetch(self.number(n)?.code);
+                writeln!(out, "let delta_{id}: i64 = {delta}; let paid_{id} = if delta_{id} >= 0 {{ g.add_counters(asker.source, CounterKind::Loyalty, delta_{id}.min(i64::from(i16::MAX)) as i16); true }} else {{ let owed = (-delta_{id}).min(i64::from(i16::MAX)) as i16; g.remove_counters(asker.source, CounterKind::Loyalty, owed) == owed }};").unwrap();
+            }
+            // "Exile it and the top six cards of your library in a face-down pile.
+            // If you do" (Triumph of Saint Katherine): fixed objects, no choice
+            // among them, exiled face down together (CR 406.3). Worded as a cost,
+            // it is paid whole or not at all (CR 118.3): with any of them missing,
+            // nothing moves and "you do" is false.
+            CostPart::Move {
+                selections,
+                destination: Destination::Exile,
+                entry,
+                face_down: true,
+            } if entry.tapped == false
+                && entry.counters.is_empty()
+                && entry.states.iter().all(|s| matches!(s, EntryState::ExilePile { .. }))
+                && selections.iter().all(|s| fixed_selection(s).is_some()) =>
+            {
+                let mut parts = Vec::new();
+                for selection in selections {
+                    let wanted = fixed_selection(selection).expect("checked");
+                    let wanted = match wanted {
+                        Some(n) => self.fetch(self.number(n)?.code),
+                        None => "1i64".into(),
+                    };
+                    parts.push(format!(
+                        "{{ let part: Vec<ObjectId> = {}; whole_{id} &= part.len() as i64 >= {wanted}; part }}",
+                        self.fetch(self.objects(&selection.objects)?)
+                    ));
+                }
+                writeln!(
+                    out,
+                    "let mut whole_{id} = true; let objects_{id}: Vec<ObjectId> = [{}].concat(); let moved_{id}: Vec<ObjectId> = if whole_{id} {{ g.exile_face_down(&objects_{id}, None) }} else {{ Vec::new() }}; let paid_{id} = whole_{id} && moved_{id}.iter().any(|&o| g.obj(o).zone.is(ZoneKind::Exile));",
+                    parts.join(", ")
+                )
+                .unwrap();
+                self.moved.insert(result.0, format!("moved_{id}"));
+                self.left_behind(result, format!("objects_{id}.clone()"));
             }
             // "Pay {E}{E}. If you can't, ...": whoever can pay does (Greenbelt Rampager).
             CostPart::Energy(n) => {

@@ -767,6 +767,9 @@ struct Compiler {
     option_labels: bool,
     /// The abilities the body's `ChooseValue` offered.
     ability_choice: Vec<Ability>,
+    /// "Choose two abilities from among ...": the sets of `ability_choice`
+    /// offered, each one of the card's words, by index.
+    ability_sets: Vec<Vec<usize>>,
     granting: bool,
     /// What `plan_entry` holds for the granted ability being compiled.
     holding: Option<Vec<(&'static str, String)>>,
@@ -1135,6 +1138,7 @@ impl Compiler {
             choice_labels: Vec::new(),
             option_labels: false,
             ability_choice: Vec::new(),
+            ability_sets: Vec::new(),
             granting: false,
             holding: None,
             granted_rules: 0,

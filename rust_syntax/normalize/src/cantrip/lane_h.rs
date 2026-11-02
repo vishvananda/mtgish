@@ -28,6 +28,15 @@ fn play_expiry(duration: &crate::ir::Duration) -> Result<String> {
     })
 }
 
+/// A plain keyword as a card says it, "first strike": none for one with a
+/// quality of its own (protection, ward).
+pub(super) fn keyword_words(keyword: &Keyword) -> Option<String> {
+    match keyword {
+        Keyword::Protection(_) | Keyword::Ward(_) => None,
+        other => Some(camel_words(&form(other))),
+    }
+}
+
 /// `FirstStrike` as a card says it.
 fn camel_words(word: &str) -> String {
     let mut out = String::new();

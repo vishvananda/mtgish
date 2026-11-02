@@ -325,6 +325,23 @@ fn returns_with_source(result: &ResultId, rest: &[Instruction], subject_is_sourc
     )
 }
 
+/// The target whose leaving the battlefield sends a move back, when the next
+/// thing after the move says so: "until target enchantment you control leaves
+/// the battlefield".
+fn returns_with_holder<'a>(result: &ResultId, rest: &'a [Instruction]) -> Option<&'a ObjectRef> {
+    match rest.first() {
+        Some(Instruction::Effect {
+            operation:
+                Operation::ReturnAfter {
+                    objects: ObjectSet::Transition { result: moved, phase: ObjectPhase::After },
+                    duration: crate::ir::Duration::WhileOnBattlefield(holder @ ObjectRef::Target { .. }),
+                },
+            ..
+        }) if moved.0 == result.0 => Some(holder),
+        _ => None,
+    }
+}
+
 /// Whether a token copy's adjustment changes anything about the copy.
 fn adjusts(adjustment: &Operand) -> bool {
     !matches!(adjustment, Operand::Term { form, .. } if form == "NoTokenCopyEffects")
@@ -630,6 +647,65 @@ impl Compiler {
     }
     /// One instruction of `body`, or its hole. What it half bound goes, and a
     /// later read of its result stands in for it: see `planned::unreported`.
+    /// Exile `objects` until `holder` leaves the battlefield (CR 610.3): each
+    /// card exiled waits on a delayed "until" ability whose source is the
+    /// holder, and returns under its owner's control when the holder leaves.
+    /// A holder already gone, or no longer a legal target, has no leaving to
+    /// wait for, and nothing is exiled (CR 610.3c, 608.2b).
+    fn exile_until_holder_leaves(
+        &mut self,
+        objects: &ObjectSet,
+        holder: &ObjectRef,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let ObjectRef::Target { slot, index } = holder else {
+            return Err(gap("an exile until another object leaves"));
+        };
+        let slot = self.slot(slot)?;
+        let objects = self.fetch(self.objects(objects)?);
+        let id = self.fresh();
+        let (_, controller, card) = self.maker();
+        let words = self
+            .line_text()
+            .map(|line| match line.split_once(": ") {
+                // A loyalty ability's cost is not its sentence.
+                Some((cost, rest)) if cost.trim_start_matches(['[', '+', '−', '-']).trim_end_matches(']').chars().all(|c| c.is_ascii_digit() || c == 'X') => rest.to_string(),
+                _ => line.to_string(),
+            })
+            .and_then(|line| {
+                line.split_inclusive(". ")
+                    .find(|sentence| sentence.contains(" until "))
+                    .map(|sentence| sentence.trim().to_string())
+            })
+            .unwrap_or_else(|| "Exile it until that permanent leaves the battlefield.".into());
+        writeln!(
+            self.functions,
+            "#[allow(unused_variables)] fn until_{id}_leaves(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{ match event {{ Event::ZoneChange {{ old, from, .. }} if *old == asker.source && from.is(ZoneKind::Battlefield) => Fired::PLAIN, _ => None }} }}"
+        )
+        .unwrap();
+        writeln!(
+            self.functions,
+            "fn until_{id}_return(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ if let Target::Object(card) = item.subject {{ let owner = g.obj(card).owner; g.put_onto_battlefield(card, owner, false)?; }} Ok(()) }}"
+        )
+        .unwrap();
+        self.delayed.push(format!(
+            "triggered(when_asked(EventMask::ZONE_CHANGE, until_{id}_leaves), until_{id}_return, {})",
+            quoted(&words)
+        ));
+        let at = self.delayed.len() - 1;
+        writeln!(
+            out,
+            "let objects_{id} = {objects}; let holder_{id} = t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t)).and_then(|t: Target| t.object()).filter(|&h: &ObjectId| g.state().obj(h).zone.is(ZoneKind::Battlefield)); \
+             let moved_{id} = match holder_{id} {{ Some(_) => {{ let by_{id} = g.linked(item); g.exile_with(&objects_{id}, by_{id}, false) }} None => Vec::new() }}; \
+             if let Some(holder) = holder_{id} {{ for &card in &moved_{id} {{ g.delayed_trigger(DelayedWhen::UntilEvent, holder, {controller}, AbilityRef::delayed({card}, {at}), Target::Object(card)); }} }}"
+        )
+        .unwrap();
+        self.moved.insert(result.0, format!("moved_{id}"));
+        self.left_behind(result, gone(&format!("objects_{id}")));
+        self.returning.insert(result.0);
+        Ok(())
+    }
     pub(super) fn step(&mut self, body: &Program, i: usize, out: &mut String) {
         let instruction = &body.instructions[i];
         let mark = out.len();
@@ -1000,6 +1076,25 @@ impl Compiler {
                 self.left_behind(result, gone(&format!("objects_{id}")));
                 self.returning.insert(result.0);
                 Ok(())
+            }
+            // "Exile it until that other permanent leaves the battlefield" (Calix,
+            // Destiny's Hand): an "until" wait on that permanent (CR 610.3), as
+            // Palace Jailer's is on an opponent becoming the monarch.
+            Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        objects,
+                        destination: Destination::Exile,
+                        entry,
+                        face_down: false,
+                    },
+                result,
+            } if plain_entry(entry)
+                && self.stack_item
+                && returns_with_holder(result, &body.instructions[i + 1..]).is_some() =>
+            {
+                let holder = returns_with_holder(result, &body.instructions[i + 1..]).expect("matched");
+                self.exile_until_holder_leaves(objects, holder, result, out)
             }
             Instruction::Effect {
                 operation:
