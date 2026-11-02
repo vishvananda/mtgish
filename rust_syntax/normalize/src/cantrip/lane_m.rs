@@ -318,9 +318,10 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
-        Operation::Reveal { .. }
-        | Operation::RevealUntil { .. }
-        | Operation::RevealFromHand { .. } => &["Revealed"],
+        // "Until they reveal a historic permanent card ... that card" (Jhoira):
+        // what a reveal until finds is the card found this way.
+        Operation::RevealUntil { .. } => &["Revealed", "Found"],
+        Operation::Reveal { .. } | Operation::RevealFromHand { .. } => &["Revealed"],
         Operation::Search { .. } => &["Found"],
         Operation::Tap { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
@@ -549,6 +550,16 @@ impl Compiler {
         if let (EarlierObjects::Revealed, Some(found)) = (what, self.reveal_matches.get(&result.0))
         {
             return Ok(format!("{found}.clone()"));
+        }
+        // The card a reveal until found, and the permanent it became if it was put
+        // onto the battlefield: "that permanent's mana value" (Jhoira, CR 400.7).
+        if let (EarlierObjects::Found, Some(found)) = (what, self.reveal_matches.get(&result.0)) {
+            // Jhoira: "You put that card onto the battlefield under your control and
+            // lose life" is in the data the revealing opponent's own action.
+            if self.line_text().is_some_and(|line| line.contains("under your control and lose life")) {
+                return Err(gap("the life you lose read as the revealing player's, in the data"));
+            }
+            return Ok(format!("{found}.iter().map(|&id| q.state().obj(id).became.filter(|&now| q.state().obj(now).zone.is(ZoneKind::Battlefield)).unwrap_or(id)).collect::<Vec<ObjectId>>()"));
         }
         // What was sacrificed or countered is read as it last existed.
         if matches!(what, EarlierObjects::Sacrificed | EarlierObjects::Countered)
