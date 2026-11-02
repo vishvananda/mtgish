@@ -95,6 +95,14 @@ class Text(unittest.TestCase):
         self.assertTrue(pc.statement_after(text, text.index("note") + 4))
         self.assertFalse(pc.statement_after(text, text.index("ask") + 3))
 
+    def test_a_call_is_only_the_stubs_its_path_can_name(self):
+        self.assertTrue(pc.called_as("f::mechanics::cost_branch::spell", "x: crate::proposals::mechanics::cost_branch::"))
+        self.assertFalse(pc.called_as("f::mechanics::cost_branch::spell", "spell: "))
+        self.assertTrue(pc.called_as("m::spell", "def."))
+        self.assertFalse(pc.called_as("m::spell", "a, "))
+        self.assertTrue(pc.called_as("on::Cost::moves", "Cost::NONE.and(crate::proposals::on::Cost::"))
+        self.assertTrue(pc.called_as("f::::granter", "Picks::These(|q, asker| "))
+
 
 class Model(unittest.TestCase):
     def test_what_cantrip_has(self):

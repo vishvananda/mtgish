@@ -192,6 +192,21 @@ def fields_of(body):
     return names
 
 
+def called_as(key, before):
+    """Whether a call whose name `before` leads up to can be the stub `key` (`m::name`, `f::module::name`,
+    `on::Type::name`, `t::Type::name`): a method after a `.`, a module's function after its module, an associated
+    function after its type, a function of no module bare."""
+    parts = key.split("::")
+    lead = re.search(r"(\.|(\w+)\s*(?:::<[^()]*>)?\s*::)\s*$", before)
+    if parts[0] == "m":
+        return bool(lead) and lead.group(1) == "."
+    owner = [p for p in parts[1:-1] if p]
+    if parts[0] == "f" and owner == ["mechanics"] or not owner:
+        # A function of the proposals' root module is named by it, or bare where the card imports it.
+        return not lead or lead.group(2) in ("mechanics", "proposals")
+    return bool(lead) and lead.group(2) == owner[-1]
+
+
 def statement_after(text, at):
     """Whether the call whose name ends at `at` is a whole statement: nothing reads its value."""
     use = re.compile(r"\s*(?:::<[^(]*>)?\s*\(").match(text, at)
@@ -584,7 +599,10 @@ class Spec:
         """A stub whose return type the call site doesn't settle: `bool` for a question, `()` for a statement."""
         for m in re.finditer(r"(\w+)\s*(?:::<[^(]*>)?\s*\(", text[start : max(end, start + 200)]):
             name = m.group(1)
-            keys = [k for k in self.stub_keys() if k.split("::")[-1] == name]
+            # Only the stubs the call can be: a stub's name alone also names Cantrip's own function of that name
+            # (`spell(..)` beside a proposed `cost_branch::spell(..)`).
+            before = text[max(0, start + m.start(1) - 200) : start + m.start(1)]
+            keys = [k for k in self.stub_keys() if k.split("::")[-1] == name and called_as(k, before)]
             if not keys:
                 continue
             at = start + m.start(1) + len(name)
