@@ -4487,6 +4487,22 @@ impl Compiler {
                 let filter = self.cost_filter(filter, label)?;
                 return Ok(format!("Cost::sacrifice(({n}).max(0) as u32, {filter})"));
             }
+            // "As an additional cost to cast this spell, sacrifice half the lands you
+            // control": a spell's additional cost is worked out as its total cost is
+            // determined (`cost_of_targets`, CR 601.2f), so the count is read then.
+            Some(Count::Exactly(n))
+                if spell
+                    && label != lane_g::PAID
+                    && !matches!(n, Expr::AnnouncedX | Expr::Constant(_)) =>
+            {
+                let saved = (self.reader, self.event_at);
+                (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+                let n = self.number(n).map(|n| n.code);
+                (self.reader, self.event_at) = saved;
+                let filter = self.cost_filter(filter, label)?;
+                self.cost_reads_board = true;
+                return Ok(format!("Cost::sacrifice(({}).max(0) as u32, {filter})", n?));
+            }
             Some(Count::Exactly(Expr::AnnouncedX)) if spell => "SacrificeX",
             Some(Count::Exactly(Expr::AnnouncedX)) => {
                 let filter = self.cost_filter(filter, label)?;

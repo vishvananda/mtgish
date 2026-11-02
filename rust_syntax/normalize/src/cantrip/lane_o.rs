@@ -2824,6 +2824,18 @@ impl Compiler {
         failed: Diagnostic,
         out: &mut String,
     ) -> Result<()> {
+        // "Add mana equal to enchanted permanent's mana cost": a mana of each colored
+        // and Phyrexian symbol's color, {C} for each generic, and for a symbol of two
+        // kinds ({W/U}, {C/W}, {2/W}: CR 107.4e) the kind its controller chooses.
+        if let (ManaProduction::ManaCostOf(object), None, None) =
+            (mana, restriction, &self.wanted_labels)
+        {
+            let object = self.fetch(self.object(object).map_err(|_| failed.clone())?);
+            let players = self.fetch(self.players(players).map_err(|_| failed.clone())?);
+            self.wanted_labels = Some("&[\"White\", \"Blue\", \"Black\", \"Red\", \"Green\", \"Colorless\", \"Two colorless\"]".into());
+            writeln!(out, "for player in {players} {{ if let Some(o) = {object} {{ let cost = g.mana_cost(o); let card = g.card_id(&CARD); let mut adds: Vec<(Mana, u32)> = vec![(Mana::C, u32::from(cost.generic))]; for (i, &n) in cost.symbols.iter().enumerate() {{ adds.push((Mana::ALL[i], u32::from(n))); }} for (i, &n) in cost.phyrexian.iter().enumerate() {{ adds.push((Mana::ALL[i], u32::from(n))); }} for (a, b) in cost.hybrid.into_iter().flatten() {{ let pick = cantrip_mechanics::choose::one_of(g, player, asker.source, vec![Label::Card(card, a as u8), Label::Card(card, b as u8)])?; adds.push((if pick == 0 {{ a }} else {{ b }}, 1)); }} for (i, &n) in cost.twobrid.iter().enumerate() {{ for _ in 0..n {{ let pick = cantrip_mechanics::choose::one_of(g, player, asker.source, vec![Label::Card(card, i as u8), Label::Card(card, 6)])?; adds.push(if pick == 0 {{ (Mana::ALL[i], 1) }} else {{ (Mana::C, 2) }}); }} }} for (mana, n) in adds {{ if n > 0 {{ g.add_mana(player, mana, n); }} }} }} }}").unwrap();
+            return Ok(());
+        }
         let production = self.production(mana).map_err(|_| failed.clone())?;
         let (lasting, restriction) = lane_g::mana_lasting(restriction);
         let rule = match restriction {

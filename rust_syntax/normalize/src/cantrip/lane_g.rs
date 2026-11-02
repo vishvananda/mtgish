@@ -1785,6 +1785,14 @@ impl Compiler {
                     &format!("({inner}).chosen_under(&[{}])", rules.join(", ")),
                 )
             }
+            // Tariff: "sacrifices the creature ... unless they pay that creature's mana
+            // cost". The data pays the cost of any creature that ties and then has the
+            // sacrifice choose among them again, so the creature paid for and the one
+            // sacrificed are not one choice.
+            CostPart::ObjectAction {
+                action: CostObjectAction::PayManaCost,
+                ..
+            } => return Err(gap("a mana cost paid for one creature and a sacrifice choosing again")),
             other => return Err(gap(format!("cost part {}", form(other)))),
         })
     }

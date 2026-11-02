@@ -438,9 +438,22 @@ impl Compiler {
                     }
                 } else {
                     self.paid_for = PaidFor::Spell;
+                    self.cost_reads_board = false;
                     let cost = self.cost(cost, label);
                     self.paid_for = PaidFor::Ability;
-                    one_field(parts, "additional_cost", format!("Some({})", cost?))?;
+                    let cost = cost?;
+                    // A cost whose size reads the game ("sacrifice half the lands you
+                    // control") is worked out as the total cost is (CR 601.2f).
+                    if std::mem::take(&mut self.cost_reads_board) {
+                        if parts.fields.contains_key("cost_of_targets") {
+                            return Err(gap("two rules for cost_of_targets"));
+                        }
+                        let function = format!("{label}_of_board");
+                        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, targets: &[Target]) -> Cost {{ {cost} }}").unwrap();
+                        parts.field("cost_of_targets", format!("Some({function})"));
+                    } else {
+                        one_field(parts, "additional_cost", format!("Some({cost})"))?;
+                    }
                 }
             }
             CastingRule::ReduceCost(reductions) => {
