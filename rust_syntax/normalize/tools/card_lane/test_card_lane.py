@@ -507,6 +507,23 @@ class Streams(unittest.TestCase):
             self.assertIn(words, text)
 
 
+class Rulings(unittest.TestCase):
+    """As Cantrip's add-cards skill: a scenario is owed only to a ruling the card's own code decides."""
+
+    def problems(self, ruling):
+        report = {"validation": [], "test_points": [], "rulings": [dict(ruling, ruling="Exiling a card with suspend isn't casting it.")],
+                  "look_answers": [], "equivalent_mutants": []}
+        with mock.patch.multiple(lane, report_of=mock.Mock(return_value=report), content_file=mock.Mock(return_value=mock.Mock(read_text=mock.Mock(return_value='{"oracleText": ""}'))),
+                                 expectation_problem=mock.Mock(return_value="ruling: no such line")):
+            return lane.report_problems("A", [], [], [])
+
+    def test_a_ruling_left_empty_is_owed_nothing(self):
+        self.assertEqual(self.problems({"scenario": "", "line": 0, "no_decision": ""}), [])
+
+    def test_a_ruling_paired_must_name_an_expectation(self):
+        self.assertEqual(len(self.problems({"scenario": "a-suspend", "line": 3, "no_decision": ""})), 1)
+
+
 class PointsNoGameCanShow(unittest.TestCase):
     def problems(self, pair):
         report = {"validation": [], "test_points": [dict(pair, id=1)], "rulings": [], "look_answers": [], "equivalent_mutants": []}

@@ -853,8 +853,9 @@ def expectation_problem(pair, label):
 
 
 def report_problems(name, points, looks, survivors):
-    """The worker's report against what the tools found: every test point paired with a line that can catch it, and every
-    ruling with one, or with why the card's own code decides nothing there."""
+    """The worker's report against what the tools found: every test point paired with a line that can catch it, and each
+    ruling it pairs with a scenario paired with a line there. A ruling the card's own code does not decide is owed nothing:
+    Cantrip's add-cards skill retests no corner case the engine or a shared mechanic handles for every card."""
     report = report_of(name)
     if report is None:
         return [f"no report at {card_dir(name) / 'report.json'}"]
@@ -878,8 +879,8 @@ def report_problems(name, points, looks, survivors):
         problem = expectation_problem(pair, f"test point {number}")
         if problem:
             problems.append(problem)
-    for entry in report.get("rulings") or []:
-        if not isinstance(entry, dict) or len(str(entry.get("no_decision", ""))) >= 20:
+    for entry in report.get("rulings") or []:  # only a ruling the card's own code decides is owed a scenario
+        if not isinstance(entry, dict) or not str(entry.get("scenario", "")).strip() or entry.get("no_decision"):
             continue
         problem = expectation_problem(entry, f"ruling \"{str(entry.get('ruling'))[:60]}\"")
         if problem:
@@ -1662,14 +1663,15 @@ REPORT_FORMAT = """Write the reports to `{path}`, one JSON object for all the ca
 ```json
 {{"Card Name": {{"decision": "done", "lines": ["what implements printed line 1", "..."],
   "points": [["scenario-file-name", "? Bot2.Life = 17"], ["..."]],
-  "rulings": [["scenario-file-name", "Bot1.Graveyard.Count = 2"], "why the card's own code decides nothing here"],
+  "rulings": [["scenario-file-name", "Bot1.Graveyard.Count = 2"], null],
   "looks": ["line 12: why it is right"], "equivalent": [{{"mutant": "line 6: 4 to 5", "why": "..."}}], "notes": ""}}}}
 ```
 
 `lines` has one entry per printed line, `points` one per test point, `rulings` one per ruling, in order. A `points` or `rulings`
 pair is a scenario and the exact text of the expectation in it that catches the thing: a `?`, a `!` or a line under `[Expect]`.
-In place of a pair, either may be a sentence saying why no game can show it, as the order of a search and the shuffle after it,
-which all ends the same. Spend one attempt on such a point, not rounds: test points come from the card's words by rule of thumb.
+In place of a pair, a point may be a sentence saying why no game can show it, as the order of a search and the shuffle after it,
+which all ends the same. A ruling is `null` unless the card's own code decides it: one about the engine or a shared mechanic
+(how suspend, madness or a Food works) is tested where that is built, as Cantrip's add-cards skill says, and needs nothing here. Spend one attempt on such a point, not rounds: test points come from the card's words by rule of thumb.
 
 Validation comes first: before writing a card's scenarios work out from its words what must happen, then read its file and the
 shared code and say in `lines` what implements each printed line. Read bodies, not names: amounts and who gets them, what is

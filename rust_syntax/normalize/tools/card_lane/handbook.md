@@ -142,7 +142,10 @@ A few short scenarios that together run every line and take every branch of the 
 - A spell or creature with a mana cost gets `? Bot1.Mana =`, nothing after the `=`, right after its cast, paid exactly, so a cost
   too low fails. A `!` with a positive control proves a limit the card's own code enforces.
 - A keyword gets a scenario that fails without it: the flier that cannot be blocked, the first striker that takes no damage back. The gates take each keyword off the card and play the scenarios, so a card that only checks its power and toughness does not pass.
-- **Rulings are specification.** Each gets an expectation unless the card's own code decides nothing there.
+- **Rulings are specification**: read each before you validate, since the card must be right by all of them. A scenario is
+  owed only to a ruling the card's own code decides, where it could get an interaction wrong (a value read that can change,
+  last-known information, a rule its own code applies). One about the engine or a shared mechanic is tested where that was
+  built: leave it `null`.
 - **Order.** If swapping two of the card's steps leaves the end state the same, add a `?` between them. Where nothing can be asked
   between them, as a search and the shuffle after it, say so in the report instead.
 - **Last-known information.** If the code reads `old`, use something whose answer differs on the battlefield and in the graveyard.

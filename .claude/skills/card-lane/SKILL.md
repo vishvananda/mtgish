@@ -91,8 +91,9 @@ A card that is wrong is worse than a card that is missing.
 
    The gate breaks numbers and comparisons, not meaning, so ask the card these yourself. An independent review blocked
    pilot cards on each of them:
-   - **Every ruling is specification.** Each gets an expectation, unless the card's own code decides nothing there. A ruling
-     with two halves gets both.
+   - **Every ruling is specification**: the card must be right by each. A scenario is owed only to a ruling the card's own
+     code decides, as Cantrip's add-cards skill asks; one about the engine or a shared mechanic is tested where that was
+     built. A ruling the card decides with two halves gets both.
    - **Order.** If swapping two of the card's steps leaves the end state the same, add a `?` at the point between them,
      usually at the question the second one asks. A sequence the text states must be able to fail.
    - **Last-known information.** If the code reads `old` rather than `new`, or a value that can change, use something whose
@@ -113,7 +114,7 @@ A card that is wrong is worse than a card that is missing.
    wrong one there is a generator bug. Do not run the whole corpus.
 5. **Fill in `report.json`.** Set `decision` to `done`. Give each test point its `scenario`, the file's name, and `line`, the
    line of that file holding the expectation that catches it, counted from 1: a `?`, a `!` or a line under `[Expect]`. Do the
-   same for each ruling, or say in `no_decision` why the card's own code decides nothing there. Each entry of `look_answers`
+   same for each ruling the card's own code decides, and leave the others empty. Each entry of `look_answers`
    names the LOOK's line as `line 12`, or the other card's file for a repeated function. `equivalent_mutants` stays empty
    unless the full gate reports a mutant that means the same thing: then add `{"mutant": "line 6: 4 to 5", "why": "..."}`, and
    only if it truly changes nothing the rules can see. Run `check --fast` again: it passes when the report does.
