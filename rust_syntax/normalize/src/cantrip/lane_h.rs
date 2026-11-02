@@ -2793,6 +2793,20 @@ impl Compiler {
         parts: &mut Parts,
     ) -> Result<()> {
         let failure = || gap(format!("source-zone scope on {}", form(ability)));
+        match (ability, zones) {
+            // Corrupted flashback: a card's own way from its graveyard, on a condition.
+            (
+                Ability::Casting(rule @ CastingRule::Permission { .. }),
+                [EventZone::Graveyard],
+            ) => return self.casting(rule, label, parts, condition),
+            // Nothing on the card: the spell it names counts it (`read::counted_as_named`).
+            (Ability::CountsAsNamed { name, for_spells }, [EventZone::Graveyard])
+                if condition.is_none() && name == for_spells =>
+            {
+                return Ok(());
+            }
+            _ => {}
+        }
         let Ability::Static {
             affected, changes, ..
         } = ability

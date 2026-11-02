@@ -162,6 +162,17 @@ pub(super) enum EventAt {
 
 /// Whether `changes` read the object each is applied to, `ObjectRef::Affected`,
 /// rather than what an earlier result affected, `ObjectSet::Affected`.
+/// What a spell reading its own name also counts. "If this card is in a graveyard, effects from
+/// spells named Muscle Burst count it as a card named Muscle Burst" is a rule of the reader, and
+/// no card's module sees another's.
+fn counted_as_named(reader: &str, named: &str) -> Option<&'static str> {
+    match (reader, named) {
+        ("Muscle Burst", "Muscle Burst") => Some("Diligent Farmhand"),
+        ("Flame Burst", "Flame Burst") => Some("Pardic Firecat"),
+        _ => None,
+    }
+}
+
 pub(super) fn reads_affected(changes: impl std::fmt::Debug) -> bool {
     format!("{changes:?}")
         .replace("Affected(", "")
@@ -1732,7 +1743,13 @@ impl Compiler {
             ObjectFilter::HasKeyword(k) => {
                 format!("{chars}.keywords.has({})", keyword(k)?)
             }
-            ObjectFilter::Name(words) => format!("{chars}.name == {}", quoted(words)),
+            ObjectFilter::Name(words) => {
+                let named = format!("{chars}.name == {}", quoted(words));
+                match counted_as_named(&self.card_name, words) {
+                    Some(other) => format!("({named} || {chars}.name == {})", quoted(other)),
+                    None => named,
+                }
+            }
             ObjectFilter::Property {
                 property,
                 comparison,

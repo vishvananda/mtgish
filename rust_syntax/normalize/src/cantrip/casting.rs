@@ -380,15 +380,24 @@ impl Compiler {
                     def.push_str(".exile_after()");
                 }
                 if !matches!(require, ObjectFilter::Any) {
-                    if condition.is_some() {
-                        return Err(gap("permission with a requirement and a condition"));
-                    }
                     let saved = std::mem::replace(&mut self.reader, Reader::Query);
                     let test = self.filter(require, &Candidate::of("asker.source"));
                     self.reader = saved;
+                    let test = test?;
+                    // A way has one condition: "as long as" and the requirement are both of it.
+                    let stated = match condition {
+                        Some(condition) => {
+                            let stated =
+                                self.activation_condition(condition, &format!("{label}_if"))?;
+                            format!(" && {stated}(q, asker)")
+                        }
+                        None => String::new(),
+                    };
                     let function = format!("{label}_require");
-                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ {} }}", test?).unwrap();
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ ({test}){stated} }}").unwrap();
                     def.push_str(&format!(".condition({function})"));
+                    parts.table("ways", def);
+                    return Ok(());
                 }
                 let def = way(self, def, label)?;
                 parts.table("ways", def);
