@@ -1470,6 +1470,52 @@ fn land_filter(land: &ObjectFilter) -> Option<String> {
     })
 }
 
+/// A measure over what matched, where its reads can be of the thing as it was. `test`
+/// is the event's test of a record and `scope` the records it asks of.
+pub(super) fn history_measured(
+    measure: &HistoryMeasure,
+    scope: &str,
+    test: &str,
+) -> Option<String> {
+    const DAMAGE: &str = "if let Event::Damage { source, target, amount, kind, .. } = event { let (source, amount, combat) = (*source, *amount, kind.is_combat());";
+    let spells = test.contains("Event::SpellCast {");
+    // What a spell was as it was cast (CR 601.2i), not what its card is now.
+    let as_cast = test.replace(
+        "q.chars(id)",
+        "cast_of(q, id).map_or_else(|| q.chars(id), |cast| cast.chars(q))",
+    );
+    let casts = format!("{scope}.filter_map({as_cast}).filter_map(|f: Fired| f.subject.object()).filter_map(|id| cast_of(q, id))");
+    Some(match measure {
+        // Each source once, by what it was as it dealt the damage and who controlled
+        // it then, whatever it has become since (CR 120.3, 609.7).
+        HistoryMeasure::DistinctSources if test.contains(DAMAGE) => {
+            let test = test
+                .replace(DAMAGE, "if let Event::Damage { source, target, amount, kind, controller, known, .. } = event { let (source, amount, combat, controller) = (*source, *amount, kind.is_combat(), *controller); let dealt = DamageDealt { source, target: *target, amount, combat, controller, known: *known };")
+                .replace("q.chars(source)", "dealt.chars(q)")
+                .replace("q.controller(source)", "controller");
+            format!("{{ let mut sources: Vec<ObjectId> = {scope}.filter(|r: &&Record| ({test})(*r).is_some()).filter_map(|r: &Record| if let Event::Damage {{ source, .. }} = r.event {{ Some(source) }} else {{ None }}).collect(); sources.sort(); sources.dedup(); sources.len() as i64 }}")
+        }
+        HistoryMeasure::Distinct(DistinctProperty::CardTypes) if spells => format!(
+            "{casts}.fold(TypeSet::NONE, |all, cast| cast.types.iter().fold(all, |all, t| all.with(t))).iter().count() as i64"
+        ),
+        HistoryMeasure::Property(Property::ManaValue, Aggregation::Sum) if spells => {
+            format!("{casts}.map(|cast| i64::from(cast.value(q))).sum::<i64>()")
+        }
+        HistoryMeasure::Property(Property::ManaValue, Aggregation::Maximum) if spells => {
+            format!("{casts}.map(|cast| i64::from(cast.value(q))).max().unwrap_or(0)")
+        }
+        // "Permanents you've sacrificed": no player in the data says whose.
+        HistoryMeasure::Distinct(_) if test.contains("ZoneReason::Sacrifice") => {
+            planned::planned_value(
+                "a sacrifice history with its player lost in the data",
+                "0i64",
+                "0i64",
+            )
+        }
+        _ => return None,
+    })
+}
+
 /// What a history question asks, past how many and how much.
 pub(super) fn history_measure(measure: &HistoryMeasure, hits: &str) -> String {
     let feature = format!("history measure {}", form(measure));

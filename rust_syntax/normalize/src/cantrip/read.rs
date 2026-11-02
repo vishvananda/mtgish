@@ -1173,7 +1173,8 @@ impl Compiler {
                     {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
-                    other => lane_p::history_measure(other, &hits),
+                    other => lane_p::history_measured(other, scope, &matched.history_test())
+                        .unwrap_or_else(|| lane_p::history_measure(other, &hits)),
                 };
                 // The event is one the engine will have: the question is stated.
                 let answer = match matched.planned.first() {

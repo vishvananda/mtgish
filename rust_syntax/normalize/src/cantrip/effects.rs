@@ -1618,6 +1618,15 @@ impl Compiler {
                     },
                 destination: Destination::OwnersGraveyard,
             } => self.counter_all_on_stack(id, players, result, out)?,
+            // "On your choice of the top or bottom": the question has no one in the data
+            // to ask, and the card says who.
+            Operation::Counter {
+                objects,
+                destination: Destination::OwnersLibraryTopOrBottom,
+            } if self.line_text().is_some_and(|line| line.contains("your choice of the top or bottom")) => {
+                writeln!(self.functions, "static TOP_OR_BOTTOM_{id}: Question = Question::new(\"PutOnTop\", \"put it on top of its owner's library?\", \"If you don't, it goes on the bottom\", \"Top\", \"Bottom\");").unwrap();
+                writeln!(out, "let objects_{id} = {}; let top_{id} = cantrip_mechanics::effects::ask_may(g, asker.controller, asker.source, Purpose::Ask(&TOP_OR_BOTTOM_{id}))?; cantrip_api::instruction(g, |g| {{ for spell in objects_{id} {{ g.counter_to(spell, if top_{id} {{ CounterTo::LibraryTop }} else {{ CounterTo::LibraryBottom }}); }} }});", self.fetch(self.objects(objects)?)).unwrap();
+            }
             Operation::Counter {
                 objects,
                 destination,

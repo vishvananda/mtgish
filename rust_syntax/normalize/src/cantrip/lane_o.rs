@@ -1875,14 +1875,7 @@ impl Compiler {
                 mode: ChangeMode::Add,
             } => L::of(
                 "Type",
-                format!(
-                    "{};",
-                    planned::planned_value(
-                        &feature,
-                        "()",
-                        "chars.subtypes = chars.subtypes.union(SubtypeSet::NONBASIC_LAND_TYPES)",
-                    )
-                ),
+                "chars.subtypes = chars.subtypes.union(SubtypeSet::LAND_TYPES.minus(SubtypeSet::of(&[Subtype::Plains, Subtype::Island, Subtype::Swamp, Subtype::Mountain, Subtype::Forest])));".into(),
             ),
             // Being all of them leaves nothing for "in addition" to add.
             Change::CreatureTypes {
