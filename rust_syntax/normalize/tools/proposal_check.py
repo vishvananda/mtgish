@@ -1178,8 +1178,10 @@ impl<T: std::fmt::Debug + ?Sized> Data for T {{}}
 pub trait TableEntry: Copy + Sync + 'static {{}}
 impl<T: Copy + Sync + 'static> TableEntry for T {{}}
 
-/// An entry of a list `CardDef` does not have yet, as the card's static would hold it.
-pub const fn new_card_entry<T: TableEntry>(_: T) {{}}
+/// An entry of a list `CardDef` does not have yet, as the card's static would hold it: in a static of its own, so what
+/// it borrows lives as long as a static's initializer makes it (a `const` given it as an argument would not).
+pub trait NewCardEntry: Sync {{}}
+impl<T: TableEntry> NewCardEntry for T {{}}
 '''
 
 
@@ -1205,14 +1207,27 @@ class Compiler:
         env = dict(os.environ, CANTRIP_PROPOSALS=str(probe), CARGO_TARGET_DIR=str(self.target))
         env.update(CARGO_INCREMENTAL="0", CARGO_PROFILE_DEV_DEBUG="0")
         run = subprocess.run(
-            ["cargo", "check", "-v", "-p", "cantrip-generated", "--features", "proposals"],
+            ["cargo", "check", "-v", "-p", "cantrip-generated", "--features", "proposals", "--message-format=json"],
             cwd=self.cantrip, env=env, capture_output=True, text=True,
         )
+        # The stubs name a type of the state's that `cantrip_api` doesn't re-export by its own crate
+        # (`cantrip_state::object::Player`), as the card crate's own build would once it depends on it: the metadata cargo
+        # made for that crate in this build.
+        state = []
+        for line in run.stdout.splitlines():
+            try:
+                message = json.loads(line)
+            except ValueError:
+                continue
+            if message.get("reason") == "compiler-artifact" and message.get("target", {}).get("name") == "cantrip_state":
+                state = [f for f in message.get("filenames", []) if f.endswith(".rmeta")]
         cache = self.work / "rustc.json"
         for line in run.stderr.splitlines():
             m = re.search(r"Running `(.*--crate-name cantrip_generated .*)`$", line.strip())
             if m:
                 words = shlex.split(m.group(1))
+                if state:
+                    words += ["--extern", f"cantrip_state={state[0]}"]
                 cache.write_text(json.dumps(words))
                 break
         else:
