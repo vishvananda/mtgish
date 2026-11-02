@@ -100,8 +100,8 @@ fn clause_of(left: &str) -> &str {
         "you may ",
         "that player may ",
         "may ",
-        "choose ",
         "instead ",
+        "choose ",
     ] {
         clause = clause.strip_prefix(lead).unwrap_or(clause);
     }
@@ -268,7 +268,7 @@ fn joins(sentence: &str) -> Vec<usize> {
         }
         // "Target permanent or suspended card": what one target may be.
         let named = clause_of(left).contains("target ") || clause_of(left).contains("that ");
-        if named && !opens_clause(right) && !is_article(after) && after != "up" {
+        if named && (KINDS.contains(&after) || matches!(after, "card" | "suspended")) {
             continue;
         }
         found.push(at);
@@ -305,6 +305,16 @@ pub(super) fn printed_options(lines: &[String], count: usize) -> Option<Vec<Stri
         }
         if count == 2 && line.contains("second from the top or on the bottom") {
             return Some(vec!["Second from the top".into(), "On the bottom".into()]);
+        }
+        // `text_change::LABELS`. Printed with a duration, the source gives it to the
+        // land type alone, and the choice stays a hole.
+        if count == 2 && line.contains("one color word with another or one basic land type") {
+            return (!line.contains(" until ")).then(|| {
+                vec![
+                    "Replace a color word".into(),
+                    "Replace a basic land type".into(),
+                ]
+            });
         }
         sentences(line).into_iter().find_map(|sentence| {
             joins(sentence)
