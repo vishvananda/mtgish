@@ -722,6 +722,18 @@ impl Compiler {
                 self.word_options = vec!["left".into(), "right".into()];
                 writeln!(out, "let player_{id} = {player}; let card_{id} = g.card_id(&CARD); let {local}: u8 = {M}::choose::option(g, player_{id}, {source}, card_{id}, 0..2)?;").unwrap();
             }
+            // "As this enters, choose left or right" (Pramikon): the word, kept as
+            // its chosen option for its static ability to read (CR 607.2d).
+            ValueKind::Direction
+                if entering
+                    && self.entering_labels.is_none()
+                    && self.choice_labels.is_empty()
+                    && self.word_options.is_empty() =>
+            {
+                self.entering_labels = Some("&[\"left\", \"right\"]".into());
+                self.word_options = vec!["left".into(), "right".into()];
+                writeln!(out, "{M}::choose::option_as_enters(g, entering, &CARD, 0..2)?; let {local}: u8 = entering.chosen_option.map_or(0, |chosen| chosen.index);").unwrap();
+            }
             ValueKind::Direction => {
                 let code = format!("{M}::choose::direction(g, {player}, {source})?");
                 let value = planned::planned_value(&feature, "0u8", &code);
