@@ -1701,6 +1701,11 @@ impl Compiler {
             {
                 self.event(&EventSpec::FirstForObjectEachTurn(event.clone()))
             }
+            // The total power is the declaration's own: the earlier ones are read
+            // from their `Attacks` records.
+            EventSpec::FirstEachTurn(event) if matches!(&**event, EventSpec::AttacksAsGroup { .. }) => {
+                self.first_of(event, "q.history().this_turn().iter()", false)
+            }
             EventSpec::FirstEachTurn(event) => {
                 self.ordinal_event(event, &Comparison::Equal, &Expr::Constant(1), false)
             }

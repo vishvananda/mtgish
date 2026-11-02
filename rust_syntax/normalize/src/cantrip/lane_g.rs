@@ -1264,6 +1264,13 @@ impl Compiler {
                 self.moved.insert(result.0, format!("shuffled_{id}"));
                 self.left_behind(result, format!("{picked}.clone()"));
             }
+            // "[+2], then ..." in a resolving ability (Comet, Stellar Pup): loyalty
+            // counters put on or removed from the source (CR 606.4 by analogy),
+            // paid only with as many to remove.
+            CostPart::Loyalty(n) => {
+                let delta = self.fetch(self.number(n)?.code);
+                writeln!(out, "let delta_{id}: i64 = {delta}; let paid_{id} = if delta_{id} >= 0 {{ g.add_counters(asker.source, CounterKind::Loyalty, delta_{id}.min(i64::from(i16::MAX)) as i16); true }} else {{ let owed = (-delta_{id}).min(i64::from(i16::MAX)) as i16; g.remove_counters(asker.source, CounterKind::Loyalty, owed) == owed }};").unwrap();
+            }
             // "Pay {E}{E}. If you can't, ...": whoever can pay does (Greenbelt Rampager).
             CostPart::Energy(n) => {
                 let owed = self.fetch(self.number(n)?.amount(255, "u8")?);

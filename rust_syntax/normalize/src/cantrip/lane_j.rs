@@ -1356,11 +1356,18 @@ impl Compiler {
     }
 
     /// The first such event in `scope`, of its own subject when `by_subject`.
-    fn first_of(&mut self, event: &EventSpec, scope: &str, by_subject: bool) -> Result<Matched> {
+    pub(super) fn first_of(&mut self, event: &EventSpec, scope: &str, by_subject: bool) -> Result<Matched> {
         if self.history.is_some() {
             return Err(gap("an ordinal event in a history question"));
         }
         let mut matched = self.event(event)?;
+        if let EventSpec::AttacksAsGroup { by, attackers, group } = event {
+            let test = self.attacked_as_group_before(by, attackers, group, scope)?;
+            for arm in &mut matched.arms {
+                arm.tests.push(test.clone());
+            }
+            return Ok(matched);
+        }
         let mut asked = self.clone();
         asked.history = Some(History {
             outer: None,
@@ -1679,6 +1686,36 @@ impl Compiler {
             },
             frame,
             "Whenever this attacks",
+        ))
+    }
+
+    /// That no earlier declaration of attackers in `scope` had creatures with
+    /// the total power (Desert Were-Worm's "for the first time each turn"): a
+    /// declaration's `Attacks` records come just before its `AttackersDeclared`,
+    /// each attacker as it was declared (`Attacked::chars`, CR 508.1m).
+    fn attacked_as_group_before(
+        &mut self,
+        by: &PlayerSet,
+        attackers: &ObjectFilter,
+        group: &Operand,
+        scope: &str,
+    ) -> Result<String> {
+        const FEATURE: &str = "who attacked together, in a history question";
+        let Operand::Term { form, operands, .. } = group else {
+            return Err(gap(FEATURE));
+        };
+        // Every attacker is a creature (CR 508.1a): no filter to read as it was.
+        let ("TotalPowerIs", [Operand::Comparison(comparison, value)], ObjectFilter::CardType(CardType::Creature)) =
+            (form.as_str(), operands.as_slice(), attackers)
+        else {
+            return Err(gap(FEATURE));
+        };
+        let (declarer, least) = self.matching(about_player(), |c| {
+            Ok((c.player_in(by, "declarer")?, c.number(value)?.code))
+        })?;
+        let met = compare("total", comparison, &least);
+        Ok(format!(
+            "{{ let mut declared: i64 = 0; {scope}.all(|r| match r.event {{ Event::Attacks {{ attacker, known, .. }} => {{ declared += i64::from(Attacked {{ attacker, known }}.chars(q).power.unwrap_or_default()); true }} Event::AttackersDeclared {{ player: declarer, .. }} => {{ let total = std::mem::take(&mut declared); !({declarer} && {met}) }} _ => true }}) }}"
         ))
     }
 
