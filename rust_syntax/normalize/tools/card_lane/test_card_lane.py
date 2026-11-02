@@ -657,14 +657,14 @@ class Counters(unittest.TestCase):
                 lane.add_counters("CounterKind::Spore CounterKind::Verse")
                 worktree = (root / lane.COUNTER_TABLE).read_text(encoding="utf-8")
                 self.assertTrue(lane.only_counter_lines())
-                lane.commit_counters("Some Card")
+                lane.commit_brought("Some Card")
                 self.assertEqual((root / lane.COUNTER_TABLE).read_text(encoding="utf-8"), worktree)
                 committed = lane.git("show", f"HEAD:{lane.COUNTER_TABLE}")
                 self.assertIn('    Verse = 2, "verse", "Verse";', committed)
                 self.assertNotIn("Spore", committed)
                 self.assertEqual(lane.git("log", "-1", "--format=%s").strip(), "Engine: the verse counter (CR 122.1), for Some Card")
                 self.assertTrue(lane.only_counter_lines())
-                lane.commit_counters("Some Card")
+                lane.commit_brought("Some Card")
                 self.assertEqual(lane.git("rev-list", "--count", "HEAD").strip(), "2")
 
     def test_a_card_of_keywords_alone_has_no_file_and_brings_no_counter(self):
@@ -674,8 +674,34 @@ class Counters(unittest.TestCase):
             with mock.patch.object(lane, "CANTRIP", root), mock.patch.object(lane, "shell", shell), \
                     mock.patch.object(lane, "card_file", lambda _: root / "noble_elephant.rs"):
                 before = lane.git("rev-parse", "HEAD")
-                lane.commit_counters("Noble Elephant")
+                lane.commit_brought("Noble Elephant")
                 self.assertEqual(lane.git("rev-parse", "HEAD"), before)
+
+    def test_a_new_token_is_a_commit_of_its_own_before_the_card(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            shell = self.repository(root)
+            table = root / lane.TOKEN_TABLE
+            table.parent.mkdir(parents=True)
+            table.write_text("pub static OLD: CardDef = x;\n\n#[cfg(test)]\nmod tests {}\n", encoding="utf-8")
+            shell("git", "-C", root, "add", "-A")
+            shell("git", "-C", root, "commit", "-q", "-m", "tokens")
+            (root / "card.rs").write_text("use cantrip_mechanics::tokens::{NEW, OLD};\n", encoding="utf-8")
+            token = {"title": "the 1/1 Thing token", "cards": 2, "source": "/// A thing.\npub static NEW: CardDef = y;\n"}
+            with mock.patch.object(lane, "CANTRIP", root), mock.patch.object(lane, "shell", shell), \
+                    mock.patch.object(lane, "card_file", lambda _: root / "card.rs"), \
+                    mock.patch.dict(tree.NEW_TOKENS, {"NEW": token}, clear=True):
+                lane.add_tokens((root / "card.rs").read_text(encoding="utf-8"))
+                self.assertTrue(lane.only_new_tokens())
+                worktree = table.read_text(encoding="utf-8")
+                self.assertLess(worktree.index("pub static NEW"), worktree.index("#[cfg(test)]"))
+                lane.commit_brought("Some Card")
+                self.assertEqual(lane.git("show", f"HEAD:{lane.TOKEN_TABLE}"), worktree)
+                self.assertEqual(lane.git("log", "-1", "--format=%s").strip(), "Mechanics: the 1/1 Thing token, for Some Card")
+                lane.commit_brought("Some Card")
+                self.assertEqual(lane.git("log", "-1", "--format=%s").strip(), "Mechanics: the 1/1 Thing token, for Some Card")
+                table.write_text(worktree.replace("OLD", "OLDER"), encoding="utf-8")
+                self.assertFalse(lane.only_new_tokens())
 
     def test_anything_else_in_the_table_is_out_of_scope(self):
         with tempfile.TemporaryDirectory() as scratch:

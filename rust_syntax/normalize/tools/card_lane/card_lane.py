@@ -50,7 +50,7 @@ HERE = Path(__file__).resolve().parent
 TOOLS = HERE.parent
 sys.path.insert(0, str(TOOLS))
 sys.dont_write_bytecode = True
-from cantrip_tree import COUNTER_TABLE, counter_name, counters_wanted, with_counters  # noqa: E402
+from cantrip_tree import COUNTER_TABLE, TOKEN_TABLE, counter_name, counters_wanted, new_tokens, tokens_wanted, with_counters, with_tokens  # noqa: E402
 
 MTGISH = HERE.parents[3]
 LANE = Path(os.environ.get("CARD_LANE", Path.home() / "card-lane"))
@@ -478,6 +478,7 @@ def prepare(card, build=True):
     if source:
         card_file(name).write_text(source, encoding="utf-8", newline="\n")
         add_counters(source)
+        add_tokens(source)
     else:
         card_file(name).unlink(missing_ok=True)
     problems = (style_problems(name, source) + shared_copies(source)) if source else []
@@ -500,13 +501,23 @@ def prepare(card, build=True):
 
 
 def add_counters(source):
-    """The counters a card uses that Cantrip has no line for go in the worktree, so the card builds. `commit_counters`
+    """The counters a card uses that Cantrip has no line for go in the worktree, so the card builds. `commit_brought`
     commits each one just before the first card that uses it."""
     path = CANTRIP / COUNTER_TABLE
     table = path.read_text(encoding="utf-8")
     wanted = counters_wanted(source, table)
     if wanted:
         path.write_text(with_counters(table, wanted), encoding="utf-8", newline="\n")
+
+
+def add_tokens(source):
+    """The tokens several cards make that Cantrip has no static for go in the worktree, so the card builds. `commit_tokens`
+    commits each one just before the first card that names it."""
+    path = CANTRIP / TOKEN_TABLE
+    table = path.read_text(encoding="utf-8")
+    wanted = tokens_wanted(source, table)
+    if wanted:
+        path.write_text(with_tokens(table, wanted), encoding="utf-8", newline="\n")
 
 
 def run_corpus(name):
@@ -612,9 +623,17 @@ def only_counter_lines():
     return all(re.fullmatch(r'[+-] {4}\w+ = \d+, "[^"]+", "\w+";', line) for line in changed)
 
 
+def only_new_tokens():
+    """Whether the worktree's tokens.rs differs from HEAD by nothing but the definitions of tokens the lane brings."""
+    known = {line for token in new_tokens().values() for line in token["source"].split("\n")}
+    changed = [line for line in git("diff", "-U0", "HEAD", "--", TOKEN_TABLE).splitlines()
+               if line[:1] in "+-" and line[:3] not in ("+++", "---")]
+    return all(line[0] == "+" and line[1:] in known for line in changed)
+
+
 def scope_problems(name):
     """Paths a card may not touch. One new content file, one new card file, new scenarios, an owner's note deleted, the
-    lines of the counters it brings with it."""
+    lines of the counters it brings with it, the tokens it brings with it."""
     allowed, notes = set(), set()
     for each in BATCH or [name]:
         stem, slug, _ = names_of(each)
@@ -625,7 +644,8 @@ def scope_problems(name):
         scenario = path.startswith(SCENARIOS_DIR + "/") and path.endswith(".cantrip") and status == "??"
         note = path in notes and "D" in status
         counters = path == COUNTER_TABLE and only_counter_lines()
-        if not (path in allowed or scenario or note or counters):
+        tokens = path == TOKEN_TABLE and only_new_tokens()
+        if not (path in allowed or scenario or note or counters or tokens):
             problems.append(f"{status} {path}")
         elif scenario and BATCH and owner(Path(path).name) is None:
             problems.append(f"{path}: its name starts with no card of this batch")
@@ -1053,33 +1073,41 @@ def cmd_check(args):
 
 # ---- Landing a card, or setting it aside ------------------------------------------------------------------------------
 
-def commit_counters(name):
-    """A commit for each counter the card uses and HEAD has no line for, as Cantrip's own are made. It is built from HEAD,
-    not the worktree: a card of the batch that was set aside leaves its line there, and a number must not skip it. The
-    worktree stays as it is, since touching vocab.rs would rebuild every crate."""
+def commit_table(path, text, message):
+    """`text` as `path` at HEAD, in a commit of its own, the worktree left alone."""
+    blob = subprocess.run(["git", "-C", str(CANTRIP), "hash-object", "-w", "--stdin"], input=text, encoding="utf-8",
+                          capture_output=True, check=True).stdout.strip()
+    git("update-index", "--cacheinfo", f"100644,{blob},{path}")
+    code, out = shell("git", "-C", CANTRIP, "commit", "-q", "-m", message)
+    if code != 0:
+        raise RuntimeError(out[-1000:])
+
+
+def commit_brought(name):
+    """A commit for each counter and token the card uses and HEAD does not have, as Cantrip's own are made. Each is built
+    from HEAD, not the worktree: a card of the batch that was set aside leaves its lines there, and a counter's number must not
+    skip it. The worktree stays as it is, since touching it would rebuild every crate above it."""
     path = card_file(name)
-    if not path.exists():  # a card of keywords alone is its content file, and names no counter
+    if not path.exists():  # a card of keywords alone is its content file, and brings nothing
         return
     source = path.read_text(encoding="utf-8")
     for word in counters_wanted(source, git("show", f"HEAD:{COUNTER_TABLE}")):
-        table = with_counters(git("show", f"HEAD:{COUNTER_TABLE}"), [word])
-        blob = subprocess.run(["git", "-C", str(CANTRIP), "hash-object", "-w", "--stdin"], input=table, encoding="utf-8",
-                              capture_output=True, check=True).stdout.strip()
-        git("update-index", "--cacheinfo", f"100644,{blob},{COUNTER_TABLE}")
-        code, out = shell("git", "-C", CANTRIP, "commit", "-q", "-m", f"Engine: the {counter_name(word)} counter (CR 122.1), for {name}\n")
-        if code != 0:
-            raise RuntimeError(out[-1000:])
+        commit_table(COUNTER_TABLE, with_counters(git("show", f"HEAD:{COUNTER_TABLE}"), [word]),
+                     f"Engine: the {counter_name(word)} counter (CR 122.1), for {name}\n")
+    for token in tokens_wanted(source, git("show", f"HEAD:{TOKEN_TABLE}")):
+        commit_table(TOKEN_TABLE, with_tokens(git("show", f"HEAD:{TOKEN_TABLE}"), [token]),
+                     f"Mechanics: {new_tokens()[token]['title']}, for {name}\n")
 
 
 def commit_card(card):
-    """One commit, `Card: <Name>`, holding the card's own paths, after a commit for each counter it brings. Refuses
+    """One commit, `Card: <Name>`, holding the card's own paths, after a commit for each counter and token it brings. Refuses
     anything else in the tree. It carries no Co-Authored-By: the lane's commits say who ran them, and the report says which
     model wrote them."""
     name = card["name"]
     problems = scope_problems(name)
     if problems:
         raise RuntimeError("out of scope: " + "; ".join(problems))
-    commit_counters(name)
+    commit_brought(name)
     before = git("rev-parse", "HEAD").strip()
     git("add", "--", *owned_paths(name))
     message = f"Card: {name}\n" + (f"\nCloses #{card['issue']}\n" if card.get("issue") else "")

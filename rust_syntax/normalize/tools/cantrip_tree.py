@@ -164,6 +164,32 @@ def with_counters(table, words):
     return table[:end] + lines + table[end:]
 
 
+TOKEN_TABLE = "crates/cantrip-mechanics/src/tokens.rs"
+NEW_TOKENS = {}
+
+
+def new_tokens():
+    """The tokens several cards make that Cantrip has no static for: {static: {title, cards, source}}, from shared_tokens.py."""
+    if not NEW_TOKENS:
+        path = Path(__file__).resolve().parents[3] / "data/cantrip_new_tokens.json"
+        NEW_TOKENS.update(json.loads(path.read_text(encoding="utf-8")))
+    return NEW_TOKENS
+
+
+def tokens_wanted(code, table):
+    """The shared tokens `code` names that `table`, the text of tokens.rs, does not define, first named first."""
+    used = re.findall(r"\btokens::([A-Z][A-Z0-9_]*)\b", code)
+    for names in re.findall(r"\btokens::\{([^}]*)\}", code):
+        used += [name.strip() for name in names.split(",")]
+    return [name for name in dict.fromkeys(used) if name in new_tokens() and f"pub static {name}:" not in table]
+
+
+def with_tokens(table, names):
+    """`table` with the definitions of `names`, after the last of its own and before its tests."""
+    at = table.rindex("#[cfg(test)]")
+    return table[:at] + "".join(new_tokens()[name]["source"] + "\n" for name in names) + table[at:]
+
+
 def status_of(card):
     if not card["faces"]:
         return "data"
@@ -369,10 +395,14 @@ def tracker(args):
     hand = written_by_hand(args.cantrip)
     table = (Path(args.cantrip) / COUNTER_TABLE).read_text(encoding="utf-8")
     counters = {}
+    token_table = (Path(args.cantrip) / TOKEN_TABLE).read_text(encoding="utf-8")
+    tokens = {}
     for card in read_rows(args.rows):
         status = status_of(card)
         for word in counters_wanted(whole(card), table):
             counters.setdefault(word, []).append(card["name"])
+        for token in tokens_wanted(whole(card), token_table):
+            tokens.setdefault(token, []).append(card["name"])
         totals["cards"] += 1
         totals[status] += 1
         layouts.setdefault(card["layout"], [0, 0])
@@ -390,6 +420,8 @@ def tracker(args):
                 if len(row["examples"]) < 5:
                     row["examples"].append(card["name"])
     totals["written"] = len(written)
+    totals["new_tokens"] = len(tokens)
+    totals["cards_with_new_tokens"] = len({name for names in tokens.values() for name in names})
     totals["counter_lines"] = len(counters)
     totals["cards_with_counter_lines"] = len({name for names in counters.values() for name in names})
     audit = json.loads((root / "data/cantrip_audit.json").read_text(encoding="utf-8"))
@@ -415,7 +447,7 @@ def tracker(args):
         fix = hardest([fix_by_id[i] for i in ids])
         by_fix[fix] = by_fix.get(fix, 0) + 1
     tracked = {"cantrip": base, "totals": totals, "layouts": {k: {"ready": v[0], "planned": v[1]} for k, v in sorted(layouts.items())},
-               "classes": summary, "fixes": by_fix, "features": features, "counters": {word: sorted(names) for word, names in sorted(counters.items())},
+               "classes": summary, "fixes": by_fix, "features": features, "new_tokens": {token: sorted(names) for token, names in sorted(tokens.items())}, "counters": {word: sorted(names) for word, names in sorted(counters.items())},
                "requirements": rows, "cards": blocked, "written": written}
     out = Path(args.out) if args.out else root
     (out / "data").mkdir(exist_ok=True)
@@ -440,6 +472,9 @@ def tracker(args):
     lines += [f"| {k} | {by_fix.get(k, 0)} | {meaning[k]} |" for k in FIXES]
     lines += ["", "| class | requirements | cards |", "|---|---|---|"]
     lines += [f"| {k} | {v['requirements']} | {v['cards']} |" for k, v in sorted(summary.items())]
+    lines += ["", f"{totals['new_tokens']} tokens are made by several cards and Cantrip has no static for them, and "
+              f"{totals['cards_with_new_tokens']} cards name them. The lane commits each to `tokens.rs` before the first card that needs it, "
+              "as it does a counter: `tools/shared_tokens.py` finds them."]
     shared = [f for f in features if f["cards"] > 1 or len(f["forms"]) > 1]
     single = [f for f in features if f["cards"] == 1 and len(f["forms"]) == 1]
     lines += ["", "## Features", "", f"What the forms below come to: {len(shared)} features more than one card or form shares, most cards first.", "",
@@ -500,14 +535,23 @@ def todo(args):
 def swap(args):
     """Replace each hand-written plain card that has whole generated code, so Cantrip's own scenarios judge it."""
     cards = Path(args.cantrip) / "crates/cantrip-cards/src/cards"
-    swapped = []
+    counter_path, token_path = Path(args.cantrip) / COUNTER_TABLE, Path(args.cantrip) / TOKEN_TABLE
+    counter_table, token_table = counter_path.read_text(encoding="utf-8"), token_path.read_text(encoding="utf-8")
+    swapped, counters, tokens = [], {}, {}
     for card in read_rows(args.rows):
         path = cards / f"{stem_of(card['name'])}.rs"
         if status_of(card) == "ready" and card["layout"] == "Card" and path.exists():
-            path.write_text(card.get("file") or (header(card) + body(card)), encoding="utf-8")
+            code = card.get("file") or (header(card) + body(card))
+            path.write_text(code, encoding="utf-8")
             swapped.append(card["name"])
+            counters.update(dict.fromkeys(counters_wanted(code, counter_table)))
+            tokens.update(dict.fromkeys(tokens_wanted(code, token_table)))
+    if counters:
+        counter_path.write_text(with_counters(counter_table, list(counters)), encoding="utf-8", newline="\n")
+    if tokens:
+        token_path.write_text(with_tokens(token_table, list(tokens)), encoding="utf-8", newline="\n")
     (Path(args.cantrip) / "swapped.txt").write_text("".join(n + "\n" for n in swapped))
-    print(f"{len(swapped)} hand-written cards replaced")
+    print(f"{len(swapped)} hand-written cards replaced, {len(counters)} counters and {len(tokens)} tokens added")
 
 
 def show(args):
