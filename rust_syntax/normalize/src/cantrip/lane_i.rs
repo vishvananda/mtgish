@@ -102,6 +102,8 @@ fn walks_whole(instruction: &Instruction) -> bool {
 #[derive(Clone)]
 enum Guard {
     May,
+    /// A "may" that draws its player this many cards, not offered to one who can't (CR 121.2b).
+    MayDraw(i64),
     /// A "may" that is its choice: choosing nothing is declining.
     Chooses,
     If(Condition),
@@ -734,7 +736,7 @@ impl Compiler {
             else {
                 continue;
             };
-            if matches!(guards[guard], Guard::May) {
+            if matches!(guards[guard], Guard::May | Guard::MayDraw(_)) {
                 let took = (format!("players_{id}"), format!("guard_{id}_{guard}[at]"));
                 self.notes.took.entry(result.0).or_insert(took);
             }
@@ -850,7 +852,10 @@ impl Compiler {
                 {
                     guards.push(match lane_k::chooses_first(decider, body) {
                         true => Guard::Chooses,
-                        false => Guard::May,
+                        false => match faces::may_draws(&body.instructions, decider) {
+                            Some(n) => Guard::MayDraw(n),
+                            None => Guard::May,
+                        },
                     });
                     let inner = guards.len() - 1;
                     self.flatten(each, &body.instructions, Some(inner), flat, steps, guards);
@@ -932,6 +937,7 @@ impl Compiler {
         let player = format!("bound_{}", each.binding.0);
         let test = match &guards[guard] {
             Guard::May => format!("cantrip_mechanics::effects::ask_may(g, {player}, asker.source, Purpose::Optional)?"),
+            Guard::MayDraw(n) => format!("!cant_draw(g, {player}, {n}) && cantrip_mechanics::effects::ask_may(g, {player}, asker.source, Purpose::Optional)?"),
             Guard::Chooses => {
                 self.may_choose = true;
                 "true".to_string()

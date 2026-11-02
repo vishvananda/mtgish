@@ -1787,6 +1787,9 @@ impl Compiler {
         announcement: &Announcement,
         body: &Program,
     ) -> Result<String> {
+        if faces::each_for_one_or_more(self.line_text(), event, limits) {
+            return Err(gap("one or more that die read as each in the data"));
+        }
         if let Some(total) = limits.total {
             // "This ability triggers only once": the engine records a triggering
             // only of an ability limited each turn, and its text tells it from any
