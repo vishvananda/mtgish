@@ -756,6 +756,9 @@ struct Compiler {
     granted_rules: usize,
     /// Rules of granted abilities, once `plan_entry` lands them.
     late: Vec<String>,
+    /// Entries of the card's own tables that ask whether an object has a
+    /// granted ability (Tomik, Orzhov Lawmage's attack limit).
+    late_tables: Vec<(&'static str, String)>,
     /// `CardDef::becomes_aura_enchant`.
     aura: Option<String>,
     /// `player` is the player a stated rule is asked of.
@@ -1111,6 +1114,7 @@ impl Compiler {
             holding: None,
             granted_rules: 0,
             late: Vec::new(),
+            late_tables: Vec::new(),
             aura: None,
             rule_player: false,
             functions: String::new(),
@@ -2440,6 +2444,9 @@ fn emit_face(
             let feature = gap("engine: X in a mana cost beside a kicker");
             c.plan_trait("kicker", feature, kicker.clone());
         }
+    }
+    for (table, entry) in std::mem::take(&mut c.late_tables) {
+        parts.table(table, entry);
     }
     parts
         .tables

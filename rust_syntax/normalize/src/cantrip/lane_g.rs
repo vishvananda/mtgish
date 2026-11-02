@@ -26,6 +26,31 @@ fn reading_cost(code: &str) -> String {
     )
 }
 
+/// Whether a cost is "tap an untapped creature you control" and nothing else.
+fn taps_a_creature_you_control(cost: &Cost) -> bool {
+    let [CostPart::ChangeTapState {
+        selections,
+        tapped: true,
+        symbol: false,
+    }] = cost.parts.as_slice()
+    else {
+        return false;
+    };
+    let [CostObjectSelection {
+        objects: ObjectSet::Battlefield(ObjectFilter::All(filters)),
+        choose: Some(Count::Exactly(Expr::Constant(1))),
+    }] = selections.as_slice()
+    else {
+        return false;
+    };
+    let [ObjectFilter::Not(untapped), ObjectFilter::CardType(crate::mtg_types::CardType::Creature), ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController))] =
+        filters.as_slice()
+    else {
+        return false;
+    };
+    matches!(**untapped, ObjectFilter::Tapped)
+}
+
 /// Forecast (CR 702.57): the ability is whole, and the keyword is the requirement.
 pub(super) fn forecast(def: String) -> String {
     planned::planned_value("engine: no Forecast", &def, &format!("{def}.forecast()"))
@@ -1876,6 +1901,11 @@ impl Compiler {
                     &format!("{def}.mana_spent({portion}, {rule})"),
                 )
             }
+            // "Tap an untapped creature you control rather than pay that mana"
+            // (CR 118.3), as Heirloom Epic prints it.
+            ActivationRule::ManaInstead(cost) if taps_a_creature_you_control(cost) => {
+                format!("{def}.tap_creatures_for_mana()")
+            }
             ActivationRule::ManaInstead(cost) => {
                 let cost = self.cost(cost, label)?;
                 planned::planned_value(
@@ -2591,6 +2621,12 @@ impl Compiler {
         };
         // What Cantrip has: the card lists it as the mechanic says.
         match mechanic {
+            K::AnnihilatorX => {
+                let amount = amount.ok_or_else(|| gap(feature.clone()))?;
+                let ability = self.annihilator_x(amount, label)?;
+                parts.abilities.push(ability);
+                return Ok(());
+            }
             K::StartYourEngines => {
                 parts.field("start_your_engines", "true".into());
                 return Ok(());

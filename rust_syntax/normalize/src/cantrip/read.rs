@@ -1453,11 +1453,11 @@ impl Compiler {
                     DistinctProperty::CounterTypes => format!(
                         "{{ let mut seen = Vec::new(); for id in {objects} {{ for kind in CounterKind::ALL {{ if q.state().obj(id).counters(kind) > 0 && !seen.contains(&kind) {{ seen.push(kind); }} }} }} seen.len() as i64 }}"
                     ),
-                    DistinctProperty::PlaneswalkerTypes => planned::planned_value(
-                        "distinct PlaneswalkerTypes",
-                        "0i64",
-                        &subtypes("kind.is_planeswalker_type()"),
-                    ),
+                    // A planeswalker's subtypes of the planeswalker kind (CR 205.3j,
+                    // 306.3): a creature type an effect gave it is not one.
+                    DistinctProperty::PlaneswalkerTypes => {
+                        subtypes("kind.card_types().has(CardType::Planeswalker)")
+                    }
                     // "Different color pairs among permanents ... that are exactly
                     // two colors": a pair is the two colors of one such permanent
                     // (Niv-Mizzet, Guildpact's ruling), so one of more colors has none.

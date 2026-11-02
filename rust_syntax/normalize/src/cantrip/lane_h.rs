@@ -3202,11 +3202,13 @@ impl Compiler {
         if let [Change::Copiable(list)] = changes {
             if let [Change::GrantAbility(ability)] = list.as_slice() {
                 if lane_n::every_creature_type(ability) {
-                    self.plan_code(
-                        "event change as it enters Copiable GrantAbility",
-                        "entering.copy = entering.copy.map(|values| values.with_every_creature_type());",
+                    // Changeling is a characteristic-defining ability (CR 702.73a),
+                    // which the copy has as an exception (Omni-Changeling).
+                    writeln!(
                         out,
-                    );
+                        "entering.copy = entering.copy.map(|values| values.with_keyword(Keyword::Changeling));"
+                    )
+                    .unwrap();
                     return Ok(());
                 }
             }

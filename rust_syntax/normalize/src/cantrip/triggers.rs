@@ -1720,7 +1720,7 @@ impl Compiler {
         }
     }
     /// A callback the engine asks with no event in reach.
-    fn condition_function(&mut self, condition: &Condition, label: &str) -> Result<String> {
+    pub(super) fn condition_function(&mut self, condition: &Condition, label: &str) -> Result<String> {
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let compiled = self.condition(condition);

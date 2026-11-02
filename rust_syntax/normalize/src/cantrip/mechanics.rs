@@ -239,6 +239,15 @@ impl Compiler {
                 let creature = "cantrip_mechanics::targets::filters::creature";
                 parts.table("ways", format!("way(Cost {{ mana: {}, permanents: Some(PermanentCost {{ count: 1, filter: {creature}, action: PermanentAction::Sacrifice, tapped: false }}), emerge: true, ..Cost::NONE }}, ZoneKind::Hand, \"Emerge\")", mana(symbols)?));
             }
+            // "Emerge from artifact": an artifact sacrificed, as Crabomination prints it.
+            K::EmergeFromArtifact => {
+                let [CostPart::Mana(symbols)] = cost.map_or(&[][..], |c| &c.parts) else {
+                    return Err(gap("Emerge cost other than mana"));
+                };
+                let artifact = "cantrip_mechanics::targets::filters::artifact";
+                let text = quoted(&self.said_word(format!("{mechanic:?}")));
+                parts.table("ways", format!("way(Cost {{ mana: {}, permanents: Some(PermanentCost {{ count: 1, filter: {artifact}, action: PermanentAction::Sacrifice, tapped: false }}), emerge: true, ..Cost::NONE }}, ZoneKind::Hand, {text})", mana(symbols)?));
+            }
             K::Banding | K::SplitSecond | K::Decayed | K::Retrace | K::Phasing => {
                 parts.keywords.push(format!("Keyword::{mechanic:?}"));
             }

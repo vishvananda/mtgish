@@ -3227,6 +3227,12 @@ impl Compiler {
                 "Duration::UntilNextTurnOf({})",
                 self.fetch(self.certain_player(player)?)
             ),
+            // "Until its controller's next untap step": the untap step is the
+            // first step of a turn (CR 502.1), so it ends as that turn begins.
+            D::UntilNextUntapStep(player) => format!(
+                "Duration::UntilNextTurnOf({})",
+                self.fetch(self.certain_player(player)?)
+            ),
             D::UntilEndOfNextTurn(player) => format!(
                 "Duration::EndOfNextTurnOf({})",
                 self.fetch(self.certain_player(player)?)
@@ -3573,10 +3579,14 @@ impl Compiler {
                     color(c)?;
                     mask |= 1 << color_index(c)?;
                 }
-                vec![format!(
-                    "EffectKind::SetColors({})",
-                    lane_k::word_colors(mask)
-                )]
+                // "Becomes all colors" names no color word, so no text change
+                // touches it (CR 612.2; Tam, Mindful First-Year).
+                let all = mask == 31 && self.lines_said().iter().any(|line| line.contains("all colors"));
+                let set = match all {
+                    true => "ColorSet(31)".to_string(),
+                    false => lane_k::word_colors(mask),
+                };
+                vec![format!("EffectKind::SetColors({set})")]
             }
             // Set to none: "loses all creature types".
             Change::CreatureTypes {

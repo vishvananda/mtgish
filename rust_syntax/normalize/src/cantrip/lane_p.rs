@@ -1751,6 +1751,8 @@ pub(super) fn landwalk_rule(land: &ObjectFilter) -> bool {
         ObjectFilter::All(parts) => {
             matches!(parts.as_slice(), [a, b] if (snow(a) && of_a_type(b)) || (snow(b) && of_a_type(a)))
         }
+        // "Snow landwalk" (Zombie Musher): no keyword of Cantrip's says it.
+        filter if snow(filter) => true,
         _ => false,
     }
 }
@@ -2006,10 +2008,16 @@ impl Compiler {
             return Err(gap("a count of modes a spell or an activated ability reads"));
         }
         let told = |code: String| code.replace("i64::from(item.x)", "q.told_amount(asker)");
+        let none_least = matches!(least, Expr::Constant(0));
         let (least, most) = (
             told(self.number(least)?.code),
             told(self.number(most)?.code),
         );
+        // "When you do, choose up to that many": the count its reflexive trigger
+        // was told (CR 603.12a, 700.2; Tranquil Frillback).
+        if none_least && most == "q.told_amount(asker)" {
+            return Ok(format!("{listed}.up_to_that_many()"));
+        }
         Ok(planned::planned_value(
             "mode count that is not a constant",
             &format!("{listed}.choose(1, 1)"),
@@ -2759,6 +2767,18 @@ impl Compiler {
             &feature,
             "q.history().all().iter()",
             &code,
+        ))
+    }
+    /// "This has annihilator X, where X is ..." (CR 702.86a): the trigger
+    /// Annihilator has, X read as it resolves, of the creature as it is then or
+    /// as it last was on the battlefield (Ulamog, the Defiler's ruling).
+    pub(super) fn annihilator_x(&mut self, amount: &Expr, label: &str) -> Result<String> {
+        let n = self.number_fn(amount)?;
+        let text = quoted(self.line_text().unwrap_or("Annihilator X"));
+        let function = format!("{label}_annihilate");
+        writeln!(self.functions, "fn {function}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ let asker = &Asker::new(item.object, item.controller); let n = {{ let q: &dyn Query = g; ({n})(q, asker) }}.clamp(0, i64::from(u8::MAX)) as u8; {M}::triggers::annihilate_n(g, item, n) }}").unwrap();
+        Ok(format!(
+            "triggered({M}::triggers::ANNIHILATOR, {function}, {text})"
         ))
     }
     /// A number the game works out when it is needed.

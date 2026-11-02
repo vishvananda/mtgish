@@ -95,6 +95,49 @@ pub(super) fn capture_slot(event: &mut ReplacementEvent, found: &mut Vec<Slot>) 
 }
 
 /// A replacement runs after the ability that made it, without its targets.
+/// "All damage is dealt to you as though its source had infect" (CR 702.90b,
+/// 120.3b): a rule asked of the player as damage is dealt to them, as Phyrexian
+/// Unlife prints it, not a replacement of the event. Only when nothing but the
+/// player decides it.
+fn infect_rule(
+    label: &str,
+    active: &ReplacementActive,
+    arms: &[Watched],
+    extra: &[String],
+    changes: &[EventChange],
+    rest: &[Instruction],
+) -> Option<String> {
+    if !matches!(changes, [EventChange::DamageAsInfect])
+        || !rest.is_empty()
+        || !matches!(active, ReplacementActive::Battlefield)
+    {
+        return None;
+    }
+    let [arm] = arms else { return None };
+    if arm.kind != "Damage" {
+        return None;
+    }
+    let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
+    let reads = |test: &str, local: &str| {
+        test.match_indices(local).any(|(at, _)| {
+            let before = test[..at].chars().next_back();
+            let after = test[at + local.len()..].chars().next();
+            let word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+            !word(before) && before != Some('.') && !word(after)
+        })
+    };
+    if tests
+        .iter()
+        .any(|test| ["source", "amount", "combat", "data", "e"].iter().any(|local| reads(test, local)))
+    {
+        return None;
+    }
+    Some(format!(
+        "fn {label}_infect(q: &dyn Query, asker: &Asker, player: PlayerId) -> bool {{ let target = &Target::Player(player); let subject = *target; {} }}",
+        tests.join(" && ")
+    ))
+}
+
 fn names_target(recipients: &Recipients) -> bool {
     match recipients {
         Recipients::Targets(_) | Recipients::Target { .. } => true,
@@ -519,6 +562,11 @@ impl Compiler {
                     return self.prevention(label, &arms, &extra, amount, hint, then, parts);
                 }
             }
+        }
+        if let Some(rule) = infect_rule(label, active, &arms, &extra, &changes, &rest) {
+            writeln!(self.functions, "#[allow(unused_variables)] {rule}").unwrap();
+            parts.table("infect_damage_to", format!("{label}_infect"));
+            return Ok(());
         }
         let (kind, applies, apply, then) =
             self.reshaping(label, &arms, frame, &extra, &changes, &rest, false)?;
