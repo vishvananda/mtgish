@@ -1066,6 +1066,19 @@ impl Compiler {
         }
         Ok(())
     }
+    /// `body` as one of the card's `delayed` abilities, for the engine to put on
+    /// the stack when something it keeps says (the start of an added phase): its
+    /// `AbilityRef`, data the game state can hold where a closure can't be.
+    pub(super) fn delayed_program(&mut self, body: &Program) -> Result<String> {
+        let label = format!("delayed_{}", self.fresh());
+        self.closure(&label, false, None, &None, body)?;
+        let text = self.delayed_words(false, ability_text(body));
+        self.delayed
+            .push(format!("delayed_trigger({label}, {})", quoted(&text)));
+        let index = self.delayed.len() - 1;
+        let (_, _, card) = self.maker();
+        Ok(format!("AbilityRef::delayed({card}, {index})"))
+    }
     /// `Operation::CreateDelayedTrigger`.
     pub(super) fn create_delayed(
         &mut self,

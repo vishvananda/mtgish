@@ -2659,8 +2659,26 @@ impl Compiler {
                         writeln!(out, "for _ in 0..({count}) {{ g.add_combat_phase(); }}").unwrap()
                     }
                     (phases, at_start) => {
-                        let at_start = at_start.as_ref().map(|o| self.operand_code(o));
-                        self.plan_code(&feature, &format!("g.add_phases({player}, AddedPhases::{phases:?}, {count}, {at_start:?})"), out);
+                        // What happens at the start of the added phase is an
+                        // ability of the card's the engine triggers then.
+                        let at_start = match at_start.as_deref() {
+                            None => "None".to_string(),
+                            Some(Operand::Program(body)) => {
+                                let (gaps, functions) = (self.gaps.len(), self.functions.len());
+                                let delayed = self.delayed.len();
+                                match self.delayed_program(body) {
+                                    Ok(ability) => format!("Some({ability})"),
+                                    Err(_) => {
+                                        self.gaps.truncate(gaps);
+                                        self.functions.truncate(functions);
+                                        self.delayed.truncate(delayed);
+                                        format!("Some({})", quoted(&format!("{body:?}")))
+                                    }
+                                }
+                            }
+                            Some(other) => format!("Some({})", self.operand_code(other)),
+                        };
+                        self.plan_code(&feature, &format!("g.add_phases({player}, AddedPhases::{phases:?}, {count}, {at_start})"), out);
                     }
                 }
             }

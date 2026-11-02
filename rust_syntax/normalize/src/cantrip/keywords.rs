@@ -679,8 +679,13 @@ impl Compiler {
                 self.plan_for_actor("engine: no skipped step or phase", action, &call, out)?;
             }
             K::AdditionalPhase(phases) => {
-                let code = format!("g.add_phases(AddedPhases::{phases:?});");
-                self.plan_code("engine: no additional phase but combat", &code, out);
+                // One of each, as `Operation::AddPhases` asks for them.
+                let call = format!("g.add_phases(player, AddedPhases::{phases:?}, 1, None)");
+                let mut code = String::new();
+                if self.actor_action(action, &call, &mut code).is_err() {
+                    code = format!("{{ let player = asker.controller; {call}; }}");
+                }
+                self.plan_code("engine: no additional phase but combat", code.trim(), out);
             }
             K::Planeswalk => self.plan_for_actor(
                 "engine: no planar deck",
