@@ -1656,7 +1656,7 @@ impl Compiler {
     }
     /// Whether stack item `e` passes `filter`. A word about a card reads a
     /// spell, and "from a [type] source" reads what an ability came from.
-    fn stack_filter(&self, filter: &ObjectFilter) -> Result<String> {
+    pub(super) fn stack_filter(&self, filter: &ObjectFilter) -> Result<String> {
         let join = |c: &Self, filters: &[ObjectFilter], with: &str| -> Result<String> {
             let tests = filters
                 .iter()

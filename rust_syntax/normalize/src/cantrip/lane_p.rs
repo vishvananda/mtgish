@@ -1114,6 +1114,12 @@ impl Compiler {
         Ok(match f {
             ObjectFilter::ChosenFilter => {
                 let Some((local, filters)) = &self.notes.filters else {
+                    // "Choose artifact or enchantment. Destroy all permanents of
+                    // the chosen type" (Season of Gathering): a card type chosen
+                    // in this body.
+                    if let Ok(local) = self.chosen_local(ValueKind::CardType) {
+                        return Ok(format!("{chars}.is({local})"));
+                    }
                     return Ok(held(
                         &feature,
                         &format!("q.state().chosen_filter(asker.source).is_some_and(|f| f(q, asker, {id}))"),
@@ -1400,6 +1406,12 @@ impl Compiler {
                     "{}.is_some_and(|spell: ObjectId| q.targetable_by(spell, {id}))",
                     self.object(object)?
                 ),
+            ),
+            // "The target of an ability from ..." (CR 115.1): a spell or
+            // ability on the stack that targets it, read as the stack item.
+            ObjectFilter::TargetedBy(filter) if self.stack_filter(filter).is_ok() => format!(
+                "q.state().stack.iter().any(|e| q.state().targets(e).contains(&Target::Object({id})) && {})",
+                self.stack_filter(filter)?
             ),
             ObjectFilter::TargetedBy(filter) => held(
                 &feature,

@@ -2616,6 +2616,15 @@ impl Compiler {
                 "q.state().obj({id}).made_by == {}",
                 self.object(object)?
             )),
+            // "Has an activated ability other than this activated ability"
+            // (Tazri's grant): every ability of an object is of that object, so
+            // the shape names the ability asking, which is on asker.source.
+            ObjectFilter::HasActivatedAbility(ActivationFilter::Not(inner))
+                if !layer
+                    && matches!(&**inner, ActivationFilter::Of(of) if matches!(&**of, ObjectFilter::SameObject(ObjectRef::Source))) =>
+            {
+                format!("{chars}.abilities().filter(|&a| q.activated_ability(a).is_some_and(|d| !d.special_action)).count() > usize::from({id} == asker.source)")
+            }
             ObjectFilter::HasActivatedAbility(which) => match activation_test(which) {
                 Some(test) if layer => {
                     let mut code = format!("{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Activated(d) if !d.special_action{test}))");
