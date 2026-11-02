@@ -57,7 +57,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Martyrdom", "replacement made by a granted ability"),
     // A spell as a source of damage is an object on the stack.
     ("Suffocation", "q.state().obj(source).zone.is(ZoneKind::Stack)"),
-    ("Primeval Spawn", "as-enters replacement of another event"),
+    // Its as-enters exile reads its cast record: only the play is left.
+    ("Primeval Spawn", "feature: \"operation PlayWith\""),
     ("Quarum Trench Gnomes", "ReplacementKind::ManaProduction"),
     // A granted exalted is the word its grant prints.
     ("First Sliver's Chosen", "subject_gets_plus_one, \"Exalted\")"),
