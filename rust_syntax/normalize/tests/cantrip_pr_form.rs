@@ -1,6 +1,6 @@
 //! `pr_form` keeps what a generated card does and says it as a card file does.
 #![cfg(feature = "cantrip")]
-use mtgish_ast::cantrip::pr_form::{render, Characteristics};
+use mtgish_ast::cantrip::pr_form::{render, render_two_faces, Characteristics};
 
 const ONE_TARGET: &str = r#"
 #[allow(unused_imports)] use cantrip_api::*;
@@ -502,4 +502,45 @@ fn mana_of_any_color_is_the_shared_ability() {
         assert!(!file.contains("yields_any"), "{file}");
         assert!(!file.contains("fn "), "{file}");
     }
+}
+
+const TWO_FACES: &str = r#"
+#[allow(unused_imports)] use cantrip_api::*;
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> { g.may_pay(item.controller, item.object, item.object, life(1), &PAY_QUESTION)?; g.draw(item.controller, 1); Ok(()) }
+static PAY_QUESTION: Question = Question::new("Pay", "pay {cost}?", "", "Pay {cost}", "Decline");
+pub static CARD: CardDef = CardDef { name: "Front Face", oracle: true, spell: spell(&[], ability_0), back: Some(&back::CARD), ..CardDef::BLANK };
+pub static EXTRA: &[&CardDef] = &[];
+pub mod back {
+#[allow(unused_imports)] use cantrip_api::*;
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> { g.may_pay(item.controller, item.object, item.object, life(1), &PAY_QUESTION)?; g.gain_life(item.controller, 2); Ok(()) }
+static PAY_QUESTION: Question = Question::new("Pay", "pay {cost}?", "", "Pay {cost}", "Decline");
+pub static CARD: CardDef = CardDef { name: "Back Face", oracle: true, spell: spell(&[], ability_0), ..CardDef::BLANK };
+pub static EXTRA: &[&CardDef] = &[];
+}
+"#;
+
+#[test]
+fn two_faces_are_one_file_with_one_namespace() {
+    let faces = [("Back Face", "You gain 2 life."), ("Front Face", "Draw a card.")];
+    let file = render_two_faces(TWO_FACES, "back", faces).unwrap();
+    println!("{file}");
+    assert!(!file.contains("mod "), "{file}");
+    assert!(!file.contains("back::CARD"), "{file}");
+    assert!(file.contains("pub static BACK: CardDef"), "{file}");
+    assert!(file.contains("back: Some(&BACK)"), "{file}");
+    assert!(file.contains("..oracle::BACK_FACE"), "{file}");
+    assert!(file.contains("..oracle::FRONT_FACE"), "{file}");
+    // What the faces share is there once.
+    assert_eq!(file.matches("static PAY_QUESTION").count(), 1, "{file}");
+    assert!(file.find("pub static BACK").unwrap() < file.find("pub static CARD").unwrap(), "{file}");
+    syn::parse_file(&file).unwrap();
+}
+
+#[test]
+fn faces_whose_names_collide_stay_two_modules() {
+    let inner = "static PAY_QUESTION: Question = Question::new(\"Pay\", \"pay {cost}?\", \"\", \"Pay {cost}\", \"Decline\");\npub static CARD: CardDef = CardDef { name: \"Back Face\"";
+    let other = inner.replace("\"Pay\", \"pay", "\"Other\", \"pay");
+    let raw = TWO_FACES.replace(inner, &other);
+    let faces = [("Front Face", "Draw a card."), ("Back Face", "You gain 2 life.")];
+    assert_eq!(render_two_faces(&raw, "back", faces), None);
 }
