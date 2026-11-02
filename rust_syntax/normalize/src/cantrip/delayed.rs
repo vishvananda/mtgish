@@ -57,28 +57,6 @@ const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list
 /// with an object nothing can be.
 pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
 
-/// `body` of an ability at a step of each player's turn with its event's player,
-/// the turn's (`EventSubject`), read as the active player. A turn event names no
-/// object, so every `EventSubject` in it is that player.
-fn turn_player_is_active(body: &Program) -> Program {
-    fn walk(value: &mut serde_json::Value) {
-        match value {
-            serde_json::Value::Object(map) => {
-                if map.len() == 1 && map.get("kind").and_then(|k| k.as_str()) == Some("EventSubject") {
-                    map.insert("kind".into(), "Active".into());
-                    return;
-                }
-                map.values_mut().for_each(walk);
-            }
-            serde_json::Value::Array(items) => items.iter_mut().for_each(walk),
-            _ => {}
-        }
-    }
-    let mut value = serde_json::to_value(body).expect("a program serializes");
-    walk(&mut value);
-    serde_json::from_value(value).expect("a program with Active for EventSubject")
-}
-
 impl Compiler {
     /// Whether `object` of the maker is the object this ability is asked of.
     fn watched_by(outer: &Outer, object: &ObjectRef) -> bool {
@@ -753,44 +731,14 @@ impl Compiler {
         }
         // "For as long as any of those cards remain exiled, at the beginning of each
         // player's upkeep" (Dimensional Breach), "at the beginning of each of that
-        // player's upkeeps, if that card is exiled" (Ertai's Meddling): at each such
-        // step (`DelayedWhen::EachStep`), triggering only while the cards are still
-        // there. A card that leaves exile is a new object (CR 400.7), so once none is
-        // the effect is over for good and the ability never triggers again.
+        // player's upkeeps, if that card is exiled" (Ertai's Meddling): Cantrip's
+        // ability at each step (`DelayedWhen::EachStep`) is never used up and is put
+        // on the stack with no check, so it would go on triggering once the cards
+        // have left exile.
         if let (EventSpec::Turn { .. }, D::WhileExiled(_) | D::WhileAnyExiled(_), false) =
             (event, duration, once)
         {
-            let exiled = ObjectFilter::InZone(ZoneScope::Shared(EventZone::Exile));
-            let lasting = match duration {
-                D::WhileExiled(object) => Condition::ObjectMatches {
-                    object: object.clone(),
-                    filter: exiled,
-                },
-                D::WhileAnyExiled(set) => Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Matching {
-                        objects: Box::new(set.clone()),
-                        filter: exiled,
-                    })),
-                    comparison: Comparison::Greater,
-                    right: Expr::Constant(0),
-                },
-                _ => unreachable!(),
-            };
-            let condition = match intervening_if {
-                Some(given) if format!("{given:?}") == format!("{lasting:?}") => given.clone(),
-                Some(given) => Condition::All(vec![lasting, given.clone()]),
-                None => lasting,
-            };
-            let when = self
-                .delayed_when(event, &DelayedStart::Immediately, &None)?
-                .replacen("DelayedWhen::Step {", "DelayedWhen::EachStep {", 1);
-            // "That player" of each player's step is the player whose turn it is: the
-            // engine gives such an ability no subject of its own.
-            let body = match event {
-                EventSpec::Turn { players: PlayerSet::All, .. } => turn_player_is_active(body),
-                _ => body.clone(),
-            };
-            return self.make_delayed(&when, &DelayedStart::Immediately, &Some(condition), &body, out);
+            return Err(gap("a delayed ability at each step for as long as cards remain exiled"));
         }
         let when = match (duration, once) {
             (D::EndOfTurn, false) => "DelayedWhen::ThisTurn".to_string(),
@@ -1113,18 +1061,6 @@ impl Compiler {
             return self.delayed_on_event(event, start, expires, intervening_if, body, out);
         }
         let when = self.delayed_when(event, start, expires)?;
-        self.make_delayed(&when, start, intervening_if, body, out)
-    }
-    /// A delayed ability at a step, `when` it triggers, `body` closed over the
-    /// instruction making it.
-    fn make_delayed(
-        &mut self,
-        when: &str,
-        start: &DelayedStart,
-        intervening_if: &Option<Condition>,
-        body: &Program,
-        out: &mut String,
-    ) -> Result<()> {
         let label = format!("delayed_{}", self.fresh());
         let (outer, _) = self.closure(&label, false, None, intervening_if, body)?;
         let text = self.delayed_words(false, ability_text(body));

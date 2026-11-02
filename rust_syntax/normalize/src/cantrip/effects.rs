@@ -3393,6 +3393,14 @@ impl Compiler {
             .map(|k| format!("g.add_effect(source, object, {k}, duration_{id}); "))
             .collect();
         writeln!(out, "if let Some(source) = source_{id} {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ {adds}{each_player} }} }}); }}").unwrap();
+        // "It gains 'When this token deals combat damage to a player, ... return the
+        // exiled card'": the card is linked to the ability as the token has it, by the
+        // effect just made (CR 607.5), for that ability's `exiled_with` to find.
+        if changes.iter().any(|c| matches!(c, Change::GrantAbility(_))) {
+            if let Some(exiled) = self.notes.exiled_for_grant.take() {
+                writeln!(out, "if source_{id}.is_some() {{ let exiled_{id}: Vec<ObjectId> = {exiled}; for &object in &objects_{id} {{ let given = g.state().effects.iter().rev().find_map(|e| match e.kind {{ EffectKind::AddAbility(a) if e.affected == object => Some((a.card, e.timestamp)), _ => None }}); if let Some((card, stamp)) = given {{ let text = g.linked_card(card); g.link_exiled(&exiled_{id}, Linked {{ object, text, acquired: Acquired {{ by: AcquiredBy::Grant, stamp, part: 0 }} }}); }} }} }}").unwrap();
+            }
+        }
         Ok(())
     }
     /// What a resolving effect's change is in the engine's vocabulary. Each
