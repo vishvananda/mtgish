@@ -12,6 +12,25 @@ use crate::mtg_types::CardType;
 
 const ONE: &str = "let subject = Target::Player(*player); let data = [0u32; 2];";
 
+/// Where the zone change a trigger matcher is shown came from, before the history it is not yet in.
+const SHOWN_FROM: &str = "match event { Event::ZoneChange { new, from, to, .. } if *new == ";
+const SHOWN_THEN: &str = " => Some(*from), _ => None }.or_else(|| ";
+
+/// A matcher's test as a replacement asks it: its callbacks are told a proposal, with no event to read, so "entered
+/// from" is read from the history alone (Don't Blink).
+pub(super) fn without_the_event(test: &str) -> String {
+    let mut out = String::with_capacity(test.len());
+    let mut rest = test;
+    while let Some(at) = rest.find(SHOWN_FROM) {
+        let Some(end) = rest[at..].find(SHOWN_THEN) else { break };
+        out.push_str(&rest[..at]);
+        out.push('(');
+        rest = &rest[at + end + SHOWN_THEN.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Gemstone Caverns's terms for beginning the game on the battlefield (CR 103.6a),
 /// as `OpeningHandAction` says them: a condition on the player, a counter it
 /// enters with, and "if you do, exile [n] cards from your hand".
@@ -2768,10 +2787,11 @@ impl Compiler {
                 };
                 // A matcher is asked of the zone change before the history holds it: "whenever a creature enters, if it
                 // entered from your graveyard" (Prized Amalgam) reads where the event it is shown came from.
+                // A replacement's callbacks are told a proposal, not an event: `without_the_event` takes it out of theirs.
                 let shown = match self.event_at {
-                    EventAt::Matcher => format!(
-                        "match event {{ Event::ZoneChange {{ new, from, to, .. }} if *new == {id} && to.is(ZoneKind::Battlefield) => Some(*from), _ => None }}.or_else(|| "
-                    ),
+                    EventAt::Matcher if self.history.is_none() => {
+                        format!("{SHOWN_FROM}{id} && to.is(ZoneKind::Battlefield){SHOWN_THEN}")
+                    }
                     _ => String::new(),
                 };
                 let close = if shown.is_empty() { "" } else { ")" };

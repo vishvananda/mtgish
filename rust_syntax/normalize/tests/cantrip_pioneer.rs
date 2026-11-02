@@ -34,10 +34,6 @@ const CARDS: &[(&str, &str)] = &[
     ("Prized Amalgam", "match event { Event::ZoneChange { new, from, to, .. } if *new == candidate && to.is(ZoneKind::Battlefield) => Some(*from)"),
     // "If it's a creature" is the copy as it enters (CR 707.2).
     ("Spark Double", "entering.copy.as_ref().is_some_and(|c| c.extra_types.has(CardType::Creature) || !c.types_stated() && q.card(c.card).is(CardType::Creature))"),
-    // One search across graveyard, hand and library (CR 701.23a).
-    ("Unmoored Ego", "let searches_1 = g.may_search(searcher_1, owner_1); let mut shown_1: Vec<ObjectId> = match searches_1 { true => cantrip_mechanics::library::searched_cards(g, owner_1), false => Vec::new() }; shown_1.extend(g.state().zone(Zone::graveyard(owner_1)).iter().copied());shown_1.extend(g.state().zone(Zone::hand(owner_1)).iter().copied());"),
-    ("Unmoored Ego", "cantrip_mechanics::select::Count::UpTo({ let q: &dyn Query = g; (4i64)"),
-    ("Unmoored Ego", "match g.ask(searcher_1, RequestKind::SearchLibrary { source: asker.source, library: shown_1.clone(), rule: Box::new(rule_1), destination: SearchDestination::Exile })?"),
     // "Up to one": always asked.
     ("Enigmatic Incarnation", "let taken = cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible,"),
 ];
@@ -59,9 +55,8 @@ const GONE: &[(&str, &str)] = &[
     ("Emergent Ultimatum", "play_land_during_resolution"),
     // "Up to" never takes all without asking.
     ("Enigmatic Incarnation", "AsManyAsCan(n) if"),
-    ("Unmoored Ego", "left_1"),
-    ("Unmoored Ego", "Zone::hand(owner_1)).to_vec()"),
-    ("Unmoored Ego", "choose::select(g, searcher_1"),
+    // A replacement is told a proposal, not an event: "entered from" is the history's.
+    ("Don't Blink", "match event { Event::ZoneChange { new, from, to, .. }"),
 ];
 
 fn modules(names: &[&str]) -> Option<BTreeMap<String, String>> {
