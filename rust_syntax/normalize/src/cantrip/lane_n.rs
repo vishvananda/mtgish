@@ -645,6 +645,15 @@ impl Compiler {
                 return Ok(());
             }
             if let Some((variant, binding, frame)) = self.replacing.event {
+                // "Prevent all combat damage that would be dealt by that creature
+                // this turn unless its controller pays {2}{R}" (Heroism): a payment
+                // asked as the damage would be dealt, which decides the prevention.
+                let feature = match (variant, change) {
+                    ("Damage", EventChange::PreventDamage | EventChange::PreventSomeDamage(_)) => {
+                        "damage prevented by what the effect asks as it would be dealt"
+                    }
+                    _ => "event change in the program of another event",
+                };
                 let edit = match change {
                     EventChange::PreventDamage => format!("{binding}.prevent(None);"),
                     EventChange::PreventSomeDamage(n) => {
@@ -656,7 +665,7 @@ impl Compiler {
                     other => self.reshape(lane_n::shape_of(variant, variant), other, frame)?,
                 };
                 self.plan_code(
-                    "event change in the program of another event",
+                    feature,
                     &format!(
                         "g.change_event(|q, proposal| {{ if let Proposal::{variant}({binding}) = proposal {{ {edit} }} }});"
                     ),
@@ -693,12 +702,28 @@ impl Compiler {
             Some(Carried::Subject) => alone,
             _ => (alone.1, alone.0),
         };
-        if (!subject_alone && out.contains("subject")) || (!second_alone && out.contains("data[1]"))
-        {
-            return Err(gap("the rest of a prevention read for each of its parts"));
-        }
         let pass = if about.is_empty() { "" } else { "affected, " };
         writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2], done_prevented: u16) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
+        // Words that read "that source" or "that creature" where the parts have
+        // several are about each one (Comeuppance: each creature is dealt the
+        // damage prevented from it): the rest runs once for each, with its total.
+        let (by_subject, by_second) = (
+            !subject_alone && out.contains("subject"),
+            !second_alone && out.contains("data[1]"),
+        );
+        if by_subject || by_second {
+            let subject_is_source = matches!(frame.damage_source, Some(Carried::Subject));
+            let mut keys = Vec::new();
+            if (by_subject && subject_is_source) || (by_second && !subject_is_source) {
+                keys.push("k.source == p.source");
+            }
+            if (by_subject && !subject_is_source) || (by_second && subject_is_source) {
+                keys.push("k.target == p.target");
+            }
+            let keys = keys.join(" && ");
+            writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}parts: &[Prevented]) {{ let mut each: Vec<Prevented> = Vec::new(); for p in parts {{ match each.iter_mut().find(|k| {keys}) {{ Some(k) => k.amount = k.amount.saturating_add(p.amount), None => each.push(*p) }} }} for e in &each {{ let prevented = e.amount; let q: &dyn Query = g; {locals} if {then}_steps(g, asker, {pass}subject, data, prevented).is_err() {{ return; }} }} }}").unwrap();
+            return Ok(Some(then));
+        }
         writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}parts: &[Prevented]) {{ let Some(first) = parts.first() else {{ return }}; let prevented = Prevented::total(parts).min(u16::MAX.into()) as u16; let e = &Prevented {{ amount: prevented, ..*first }}; let q: &dyn Query = g; {locals} let _ = {then}_steps(g, asker, {pass}subject, data, prevented); }}").unwrap();
         Ok(Some(then))
     }
@@ -1873,19 +1898,45 @@ impl Compiler {
         body: &Program,
     ) -> Result<String> {
         let mut defs = Vec::new();
+        let sharing = self.once_shared.replace(None);
         for (i, event) in events.iter().enumerate() {
             let each = format!("{label}_or_{i}");
-            let def = self.triggered(&each, event, intervening_if, limits, announcement, body)?;
-            // "This ability triggers only once each turn" is of the one ability.
-            defs.push(match limits.per_turn {
-                Some(_) => planned::planned_value(
+            let def = self.triggered(&each, event, intervening_if, limits, announcement, body);
+            let def = match def {
+                Ok(def) => def,
+                Err(e) => {
+                    self.once_shared = sharing;
+                    return Err(e);
+                }
+            };
+            // "Do this only once each turn": a thing done, not a triggering, so
+            // all of the sentence's abilities spend one key (603.2h).
+            if matches!(self.once_shared, Some(Some(_))) {
+                defs.push(def);
+                continue;
+            }
+            // "This ability triggers only once each turn" is of the one ability
+            // the sentence prints (Bill Potts): each counts its triggerings
+            // (`triggers_each_turn` records them), and each triggers only while
+            // those of the sentence's text, both together, are under the limit.
+            let text = first_literal(&def);
+            defs.push(match (limits.per_turn, text) {
+                (Some(n), Some(text)) if def.starts_with("triggered(") && !def.contains(".only_if(") && def.contains(".triggers_each_turn(") => {
+                    let function = format!("{label}_shared_limit");
+                    if i == 0 {
+                        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ q.history().this_turn().iter().filter(|r| matches!(r.event, Event::Triggered {{ source, ability }} if source == asker.source && q.triggered_ability(ability).is_some_and(|t| t.text == {text}))).count() < {n} }}").unwrap();
+                    }
+                    format!("{def}.only_if({function})")
+                }
+                (Some(_), _) => planned::planned_value(
                     "a limit shared by the abilities of one sentence",
                     &def,
                     &format!("{def}.limit_shared_with({})", quoted(label)),
                 ),
-                None => def,
+                (None, _) => def,
             });
         }
+        self.once_shared = sharing;
         Ok(defs.join(", "))
     }
     /// What a replacement made by an effect will be where no event of Cantrip's
@@ -1919,9 +1970,26 @@ impl Compiler {
                     ..
                 }],
             ) => {
+                let lasting = match duration {
+                    crate::ir::Duration::Indefinite => true,
+                    crate::ir::Duration::WhileOnBattlefield(on) => format!("{on:?}") == format!("{object:?}"),
+                    _ => false,
+                };
                 let object = self.fetch(self.object(object)?);
-                let until = self.stated_until(duration)?;
                 let (color, instead) = (lane_j::mana_letter(color), lane_j::mana_letter(instead));
+                // "(This effect lasts indefinitely.)": a replacement effect on that
+                // land (CR 614.1a, 106.12b), each mana of the type it would produce
+                // that type instead, for as long as the land is the object it was.
+                if self.stack_item && lasting {
+                    let id = self.fresh();
+                    writeln!(self.functions, "#[allow(unused_variables)] fn produces_{id}_applies(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &Proposal) -> bool {{ matches!(proposal, Proposal::ManaProduction(m) if m.permanent == affected && m.mana.get(Mana::{color}) > 0) }}").unwrap();
+                    writeln!(self.functions, "#[allow(unused_variables)] fn produces_{id}_apply(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &mut Proposal) {{ if let Proposal::ManaProduction(m) = proposal {{ let n = std::mem::take(&mut m.mana.0[Mana::{color} as usize]); m.mana.0[Mana::{instead} as usize] += n; }} }}").unwrap();
+                    self.add_made_replacement(format!("granted_replacement(ReplacementKind::ManaProduction, produces_{id}_applies, produces_{id}_apply, \"produces another type of mana instead\")"));
+                    let index = self.made_replacements.len() - 1;
+                    writeln!(out, "if let Some(object) = {object} {{ g.add_effect(item.object, object, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, Duration::Indefinite); }}").unwrap();
+                    return Ok(true);
+                }
+                let until = self.stated_until(duration)?;
                 self.plan_code(
                     "replacement event ProduceColor",
                     &format!("if let Some(object) = {object} {{ g.add_effect(asker.source, object, EffectKind::ProducesInstead {{ color: Mana::{color}, instead: Mana::{instead} }}, {until}); }}"),
@@ -2491,4 +2559,19 @@ fn player_proposal(event: ReplacedPlayerEvent) -> (&'static str, bool) {
         E::UntapPermanents => ("StepUntapPermanents", false),
         _ => ("Unsupported", false),
     }
+}
+
+/// The first string literal in generated code, quotes and escapes kept: a
+/// definition's text, where nothing before it is quoted.
+fn first_literal(code: &str) -> Option<&str> {
+    let start = code.find('"')?;
+    let mut escaped = false;
+    for (at, ch) in code[start + 1..].char_indices() {
+        match ch {
+            '\\' if !escaped => escaped = true,
+            '"' if !escaped => return Some(&code[start..start + 1 + at + 1]),
+            _ => escaped = false,
+        }
+    }
+    None
 }

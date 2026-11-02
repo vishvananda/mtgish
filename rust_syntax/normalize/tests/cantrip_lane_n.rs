@@ -23,10 +23,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Twinning Staff", "replacement event CopySpell"),
     ("Vedalken Squirrel-Whacker", "replacement of RollD6"),
     ("Grifter's Blade", "what a permanent could be attached to"),
-    (
-        "\"Lifetime\" Pass Holder",
-        "amount of an event its trigger does not carry",
-    ),
+    // The amount follows the event Cantrip lacks.
+    ("\"Lifetime\" Pass Holder", "trigger event Player RollsToVisit"),
     // "If those permanents are exchanged this way".
     ("Gauntlets of Chaos", "traded_"),
     // "For each counter you put on a creature this way": once per counter.
@@ -43,10 +41,8 @@ const CARDS: &[(&str, &str)] = &[
         "Sacred Boon",
         "damage prevented by an effect of this ability",
     ),
-    (
-        "Bill Potts",
-        "a limit shared by the abilities of one sentence",
-    ),
+    // The sentence's limit, shared by its two abilities' triggerings.
+    ("Bill Potts", ".only_if(ability_0_shared_limit)"),
     ("Market Gnome", "trigger event WhileActivating"),
     (
         "Divine Deflection",
@@ -66,7 +62,7 @@ const CARDS: &[(&str, &str)] = &[
     // A spell as a source of damage is an object on the stack.
     ("Suffocation", "q.state().obj(source).zone.is(ZoneKind::Stack)"),
     ("Primeval Spawn", "as-enters replacement of another event"),
-    ("Quarum Trench Gnomes", "replacement event ProduceColor"),
+    ("Quarum Trench Gnomes", "ReplacementKind::ManaProduction"),
     // A granted exalted is the word its grant prints.
     ("First Sliver's Chosen", "subject_gets_plus_one, \"Exalted\")"),
 ];

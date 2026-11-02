@@ -212,7 +212,15 @@ impl Context {
                     let PlayerSet::One(decider) = players else {
                         return Err(invalid("optional choice requires one decider"));
                     };
-                    let outer = context.iterated.replace(decider.clone());
+                    // "For each opponent, you may put ... from that player's
+                    // graveyard" (Sepulchral Primordial): under your "may", the
+                    // player walked is still that player.
+                    let walked = matches!(context.iterated, Some(PlayerRef::Bound(_)))
+                        && matches!(decider, PlayerRef::AbilityController);
+                    let outer = match walked {
+                        true => context.iterated.clone(),
+                        false => context.iterated.replace(decider.clone()),
+                    };
                     // After an earlier creation "those tokens" could name either.
                     let shadowing = context.created_tokens.is_some();
                     let body = context.nested_program_recipe(body, players);

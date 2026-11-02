@@ -7,7 +7,7 @@ use super::*;
 /// What a delayed ability's body takes along from the instruction making it.
 pub(super) struct Outer {
     /// The making instruction's view, to read references as they stand then.
-    compiler: Compiler,
+    pub(super) compiler: Compiler,
     /// `Vec<ObjectId>` code for each list carried.
     pub(super) objects: RefCell<Vec<String>>,
     /// `Option<PlayerId>` code for the player carried.
@@ -55,6 +55,10 @@ const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list
 
 /// The lists a delayed ability carries are one list to the engine, so each ends
 /// with an object nothing can be.
+/// The object a triggered ability's source became as it moved, carried in its data:
+/// "this card" of "when this creature dies".
+const DIED_AS: &str = "Some(ObjectId(item.data[0])).filter(|o| *o != ObjectId::NONE).into_iter().collect::<Vec<ObjectId>>()";
+
 pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
 
 impl Compiler {
@@ -545,6 +549,16 @@ impl Compiler {
                 other => return Err(gap(format!("delayed trigger on turns of {}", form(other)))),
             })
         };
+        // "At the beginning of your next main phase" (Mana Drain): from that
+        // player's own precombat main phase or combat it is that turn's
+        // postcombat main phase, from anywhere else their next precombat main
+        // phase (CR 505.1), as `delayed::at_your_next_main_phase` reads it.
+        if let (TurnPoint::MainPhaseBegins, PlayerSet::One(player), DelayedStart::Immediately, None) =
+            (point, players, start, expires)
+        {
+            let me = self.fetch(self.certain_player(player)?);
+            return Ok(format!("DelayedWhen::Step {{ step: {{ let q: &dyn Query = g; let turn = q.state().turn; if turn.active == {me} && (Step::PrecombatMain as u8..Step::PostcombatMain as u8).contains(&(turn.step() as u8)) {{ Step::PostcombatMain }} else {{ Step::PrecombatMain }} }}, on_turn_of: Some({me}) }}"));
+        }
         if let TurnPoint::MainPhaseBegins = point {
             let turn = turn_of(self)?;
             return Ok(planned::planned_value(
@@ -728,6 +742,17 @@ impl Compiler {
         use crate::ir::Duration as D;
         if self.reader != Reader::Resolution {
             return Err(gap("event trigger outside a resolving ability"));
+        }
+        // "For as long as any of those cards remain exiled, at the beginning of each
+        // player's upkeep" (Dimensional Breach), "at the beginning of each of that
+        // player's upkeeps, if that card is exiled" (Ertai's Meddling): Cantrip's
+        // ability at each step (`DelayedWhen::EachStep`) is never used up and is put
+        // on the stack with no check, so it would go on triggering once the cards
+        // have left exile.
+        if let (EventSpec::Turn { .. }, D::WhileExiled(_) | D::WhileAnyExiled(_), false) =
+            (event, duration, once)
+        {
+            return Err(gap("a delayed ability at each step for as long as cards remain exiled"));
         }
         let when = match (duration, once) {
             (D::EndOfTurn, false) => "DelayedWhen::ThisTurn".to_string(),
@@ -963,6 +988,19 @@ impl Compiler {
         let closed = self.closing(true, |c| {
             c.reset_results();
             let counts = std::mem::replace(&mut c.slot_counts, target_counts::SlotCounts::Delayed);
+            // "Another target permanent or opponent": one slot, and the mode is
+            // what the target turns out to be.
+            let implied = match body.instructions.is_empty() {
+                true => c.implied_slots(announcement, &label, Some(Frame::default())),
+                false => Ok(None),
+            };
+            if let Ok(Some(targets)) = implied {
+                c.slot_counts = counts;
+                let effect = c.implied_effect(announcement, &label)?;
+                writeln!(c.functions, "fn {label}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {effect}(g, item) }}").unwrap();
+                return Ok((Some(targets), Ok(None)));
+            }
+            implied?;
             let targets = c.targets_for(&announced, &label, Frame::default());
             c.slot_counts = counts;
             let targets = targets?;
@@ -1102,6 +1140,35 @@ impl Compiler {
                             true => writeln!(out, "{make}").unwrap(),
                             false => self.plan_code(KEEPS_NO_LIST, &make, out),
                         }
+                    }
+                    // "When this creature dies, choose target opponent. That player
+                    // puts this card ... onto the battlefield ... at the beginning of
+                    // the next end step" (Endless Whispers): the card is what the
+                    // ability's source became as it died, which the delayed ability
+                    // finds from its own source, so its subject can be the player.
+                    Some(player)
+                        if source == "item.object"
+                            && lists.len() == 1
+                            && lists[0].trim() == DIED_AS
+                            && lane_k::printed_otherwise(self.line_text(), "When this creature dies")
+                            && self.functions.contains(&format!("fn {label}(")) =>
+                    {
+                        let start = self.functions.find(&format!("fn {label}(")).unwrap_or(0);
+                        let end = self.functions[start..].find("\nfn ").map_or(self.functions.len(), |n| start + n);
+                        let function = self.functions[start..end].replace(
+                            "about(q, item, 0)",
+                            "q.state().obj(item.object).became.into_iter().collect::<Vec<ObjectId>>()",
+                        );
+                        self.functions.replace_range(start..end, &function);
+                        if !self.functions.contains("about(q, item,") {
+                            self.helpers.remove("about");
+                        }
+                        writeln!(
+                            out,
+                            "{open}if let Some(player) = {} {{ g.delayed_trigger({when}, {source}, {controller}, {ability}, Target::Player(player)); }}{close}",
+                            self.fetch(player)
+                        )
+                        .unwrap();
                     }
                     Some(player) => self.plan_code(
                         "delayed ability about objects and a player",

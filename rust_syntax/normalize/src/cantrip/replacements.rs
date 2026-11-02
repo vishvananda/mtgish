@@ -4,6 +4,11 @@
 //! ability about the source's own arrival is a part of `CardDef::enters`.
 use super::*;
 
+/// The X a number read with no stack item holds as a hole.
+const ANNOUNCED_X_HELD: &str = "planned_value!(\"numeric expression AnnouncedX\",";
+/// The same X in an effect a resolving ability made: the effect has no number of its own.
+const MADE_EFFECT_X: &str = "planned_value!(\"the X of the ability that made a replacement effect\",";
+
 /// One alternative of the pending event, as `Arm` is for a trigger: `locals`
 /// bind `subject` and `data` from `binding`, a proposal's payload.
 pub(super) struct Watched {
@@ -90,6 +95,49 @@ pub(super) fn capture_slot(event: &mut ReplacementEvent, found: &mut Vec<Slot>) 
 }
 
 /// A replacement runs after the ability that made it, without its targets.
+/// "All damage is dealt to you as though its source had infect" (CR 702.90b,
+/// 120.3b): a rule asked of the player as damage is dealt to them, as Phyrexian
+/// Unlife prints it, not a replacement of the event. Only when nothing but the
+/// player decides it.
+fn infect_rule(
+    label: &str,
+    active: &ReplacementActive,
+    arms: &[Watched],
+    extra: &[String],
+    changes: &[EventChange],
+    rest: &[Instruction],
+) -> Option<String> {
+    if !matches!(changes, [EventChange::DamageAsInfect])
+        || !rest.is_empty()
+        || !matches!(active, ReplacementActive::Battlefield)
+    {
+        return None;
+    }
+    let [arm] = arms else { return None };
+    if arm.kind != "Damage" {
+        return None;
+    }
+    let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
+    let reads = |test: &str, local: &str| {
+        test.match_indices(local).any(|(at, _)| {
+            let before = test[..at].chars().next_back();
+            let after = test[at + local.len()..].chars().next();
+            let word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+            !word(before) && before != Some('.') && !word(after)
+        })
+    };
+    if tests
+        .iter()
+        .any(|test| ["source", "amount", "combat", "data", "e"].iter().any(|local| reads(test, local)))
+    {
+        return None;
+    }
+    Some(format!(
+        "fn {label}_infect(q: &dyn Query, asker: &Asker, player: PlayerId) -> bool {{ let target = &Target::Player(player); let subject = *target; {} }}",
+        tests.join(" && ")
+    ))
+}
+
 fn names_target(recipients: &Recipients) -> bool {
     match recipients {
         Recipients::Targets(_) | Recipients::Target { .. } => true,
@@ -515,6 +563,16 @@ impl Compiler {
                 }
             }
         }
+        if let Some(rule) = infect_rule(label, active, &arms, &extra, &changes, &rest) {
+            writeln!(self.functions, "#[allow(unused_variables)] {rule}").unwrap();
+            parts.table("infect_damage_to", format!("{label}_infect"));
+            return Ok(());
+        }
+        if let [arm] = arms.as_slice() {
+            if arm.kind == "BeginTurn" && matches!(active, ReplacementActive::Battlefield) {
+                return self.turn_begin_rule(label, arm, frame, &extra, &changes, &rest, hint, parts);
+            }
+        }
         let (kind, applies, apply, then) =
             self.reshaping(label, &arms, frame, &extra, &changes, &rest, false)?;
         let mut def = format!("replacement(ReplacementKind::{kind}, {applies}, {apply}, {hint})");
@@ -528,6 +586,47 @@ impl Compiler {
             def.push_str(&format!(".optional(&{ask})"));
         }
         self.add_replacement(def, parts);
+        Ok(())
+    }
+    /// "If you would begin your turn while ..., you may skip that turn instead"
+    /// (CR 614.10): no proposal carries a turn's beginning, so the effect is a
+    /// `TurnBeginRule` (Time Vault), which its controller may decline, and what it
+    /// does besides skipping the turn is its `on_skip`. Only a turn of the
+    /// effect's controller: `on_skip` is told no player.
+    #[allow(clippy::too_many_arguments)]
+    fn turn_begin_rule(
+        &mut self,
+        label: &str,
+        arm: &Watched,
+        frame: Frame,
+        extra: &[String],
+        changes: &[EventChange],
+        rest: &[Instruction],
+        hint: String,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        const YOURS: &str = "Some(asker.controller) == Some(p.player)";
+        let skips = matches!(changes, [EventChange::Cancel]);
+        let Some(may) = self.replacing.may.take().filter(|_| skips && arm.tests.iter().any(|t| t == YOURS)) else {
+            return Err(gap("replacement of BeginTurn other than a turn of yours you may skip"));
+        };
+        // The rule asks its own question: the generic "instead" one goes.
+        let asked = format!("static {may}: Question");
+        if let Some(at) = self.functions.find(&asked) {
+            let end = self.functions[at..].find('\n').map_or(self.functions.len(), |n| at + n + 1);
+            self.functions.replace_range(at..end, "");
+        }
+        self.replacing.planned = None;
+        let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {label}_turn_begins(q: &dyn Query, asker: &Asker, player: PlayerId) -> bool {{ struct Seen {{ player: PlayerId }} let p = Seen {{ player }}; {} {} }}", arm.locals, tests.join(" && ")).unwrap();
+        let out = self.then_steps(frame, rest, None)?;
+        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {label}_on_skip(g: &mut dyn Game, asker: &Asker) -> Result<(), Suspend> {{ let subject = Target::Player(asker.controller); let data = [u32::MAX; 2]; {out} Ok(()) }}").unwrap();
+        let question = format!("{}_SKIP", label.to_uppercase());
+        writeln!(self.functions, "static {question}: Question = Question::new(\"SkipTurn\", \"skip this turn?\", {hint}, \"Skip the turn\", \"Take the turn\").no_default();").unwrap();
+        parts.table(
+            "turn_begin",
+            format!("TurnBeginRule {{ applies: {label}_turn_begins, on_skip: {label}_on_skip, question: &{question}, hint: {hint} }}"),
+        );
         Ok(())
     }
     /// What decides a replacement program and what it does: "if it does X,
@@ -759,6 +858,7 @@ impl Compiler {
         let about = about.first().map(|o| self.object(o)).transpose()?;
         let hint = quoted(&self.said(lane_k::Said::Sentence, ability_text(body)));
         let label = format!("made_{}", self.fresh());
+        let functions_from = self.functions.len();
         let results = self.results();
         let scope = self.affected_in_scope;
         self.reset_results();
@@ -821,6 +921,14 @@ impl Compiler {
         self.affected_in_scope = scope;
         self.restore_results(results);
         let kind = compiled?;
+        // "{X}, {T}: ... this turn, it deals that much damage plus X instead" (Taii
+        // Wakeen), "the next time you would draw a card this turn, instead look at
+        // the top X cards" (Aladdin's Lamp): the effect is asked with no stack item,
+        // and `EffectKind::ReplacementRule` keeps no number of the ability that made it.
+        if self.functions.get(functions_from..).is_some_and(|made| made.contains(ANNOUNCED_X_HELD)) {
+            let made = self.functions.split_off(functions_from);
+            self.functions.push_str(&made.replace(ANNOUNCED_X_HELD, MADE_EFFECT_X));
+        }
         let to = to.map_or_else(
             || "Some(Target::None)".to_string(),
             |to| self.fetch(format!("({to}).first().copied()")),

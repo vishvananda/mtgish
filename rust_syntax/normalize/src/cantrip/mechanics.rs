@@ -180,7 +180,13 @@ impl Compiler {
         };
         // "Freerunning—Return a blue creature you control to its owner's hand."
         let freerunning_cost = matches!(mechanic, K::Freerunning) && mana_alone(cost, mechanic).is_err();
-        if freerunning_cost {
+        // "Warp—{B}, Pay 2 life" (Timeline Culler): warp::way_with_cost.
+        let warp_cost = matches!(mechanic, K::Warp) && mana_alone(cost, mechanic).is_err();
+        if warp_cost {
+            let cost = self.mechanic_cost(cost, mechanic, label)?;
+            let text = quoted(&self.said_word("Warp".to_string()));
+            parts.table("ways", format!("{M}::warp::way_with_cost({cost}, {text})"));
+        } else if freerunning_cost {
             let cost = self.mechanic_cost(cost, mechanic, label)?;
             let text = quoted(&self.said_word(format!("{mechanic:?}")));
             parts.table("ways", format!("way({cost}, ZoneKind::Hand, {text}).condition({M}::freerunning::assassin_dealt_combat_damage).kind(WayKind::Freerunning)"));
@@ -238,6 +244,15 @@ impl Compiler {
                 };
                 let creature = "cantrip_mechanics::targets::filters::creature";
                 parts.table("ways", format!("way(Cost {{ mana: {}, permanents: Some(PermanentCost {{ count: 1, filter: {creature}, action: PermanentAction::Sacrifice, tapped: false }}), emerge: true, ..Cost::NONE }}, ZoneKind::Hand, \"Emerge\")", mana(symbols)?));
+            }
+            // "Emerge from artifact": an artifact sacrificed, as Crabomination prints it.
+            K::EmergeFromArtifact => {
+                let [CostPart::Mana(symbols)] = cost.map_or(&[][..], |c| &c.parts) else {
+                    return Err(gap("Emerge cost other than mana"));
+                };
+                let artifact = "cantrip_mechanics::targets::filters::artifact";
+                let text = quoted(&self.said_word(format!("{mechanic:?}")));
+                parts.table("ways", format!("way(Cost {{ mana: {}, permanents: Some(PermanentCost {{ count: 1, filter: {artifact}, action: PermanentAction::Sacrifice, tapped: false }}), emerge: true, ..Cost::NONE }}, ZoneKind::Hand, {text})", mana(symbols)?));
             }
             K::Banding | K::SplitSecond | K::Decayed | K::Retrace | K::Phasing => {
                 parts.keywords.push(format!("Keyword::{mechanic:?}"));
@@ -539,6 +554,53 @@ impl Compiler {
                 parts.field("labels", format!("{M}::riot::LABELS"));
                 parts.statics.push(format!("{M}::riot::HASTE_STATIC"));
             }
+            // "Reconfigure—Pay {2} or {E}{E}{E}" (Razorfield Ripper): the two
+            // abilities reconfigure is (CR 702.151a) at each price, each worded
+            // with its own, as Transmogrant's Crown's two equips.
+            K::Reconfigure if mana_alone(cost, mechanic).is_err() => {
+                let options = match cost.map(|c| c.parts.as_slice()) {
+                    Some([CostPart::Choice(options)]) => options.clone(),
+                    Some(_) => vec![cost.expect("matched").clone()],
+                    None => return Err(gap("Reconfigure cost other than mana")),
+                };
+                let said = self.said_word("Reconfigure".into());
+                let price = said
+                    .strip_prefix("Reconfigure\u{2014}")
+                    .or_else(|| said.strip_prefix("Reconfigure "))
+                    .map(|p| p.split(" (").next().unwrap_or(p).trim_end_matches('.'))
+                    .ok_or_else(|| gap("Reconfigure cost other than mana"))?;
+                let (pay, price) = match price.strip_prefix("Pay ") {
+                    Some(rest) => ("Pay ", rest),
+                    None => ("", price),
+                };
+                let prices: Vec<&str> = price.split(" or ").collect();
+                if prices.len() != options.len() {
+                    return Err(gap("Reconfigure cost other than mana"));
+                }
+                parts.field("reconfigure", "true".into());
+                let (unattach, attached) = (format!("{label}_unattach"), format!("{label}_attached"));
+                writeln!(self.functions, "fn {unattach}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ g.unattach(item.object); Ok(()) }}").unwrap();
+                writeln!(self.functions, "fn {attached}(q: &dyn Query, asker: &Asker) -> bool {{ q.obj(asker.source).attached_to.is_some() }}").unwrap();
+                for (i, (option, printed)) in options.iter().zip(&prices).enumerate() {
+                    let code = self.cost(option, &format!("{label}_or_{i}"))?;
+                    let word = format!("Reconfigure\u{2014}{pay}{printed}");
+                    let (attach_text, unattach_text) = (
+                        format!("{word} ({pay}{printed}: Attach this permanent to another target creature you control. Reconfigure only as a sorcery.)"),
+                        format!("{word} ({pay}{printed}: Unattach this permanent. Reconfigure only if it is attached to a creature and only as a sorcery.)"),
+                    );
+                    ability(
+                        parts,
+                        format!("ability({code}, {M}::attach::attach_to_target, {}).sorcery_speed().targets(&[{M}::targets::OTHER_CREATURE_YOU_CONTROL])", quoted(&attach_text)),
+                    );
+                    ability(
+                        parts,
+                        format!("ability({code}, {unattach}, {}).sorcery_speed().condition({attached})", quoted(&unattach_text)),
+                    );
+                }
+                parts
+                    .statics
+                    .push(format!("{M}::reconfigure::NOT_A_CREATURE_WHILE_ATTACHED"));
+            }
             K::Reconfigure => {
                 let cost = mana_alone(cost, mechanic)?;
                 parts.field("reconfigure", "true".into());
@@ -576,8 +638,22 @@ impl Compiler {
                 parts.table("own_cost_changes", function);
             }
             K::Bestow | K::BestowX => {
-                let cost = mana_alone(cost, mechanic)?;
-                self.bestow = Some(cost);
+                // "Bestow—{R}, Collect evidence 6" (Detective's Phoenix): the mana is
+                // the bestow cost, the rest an additional cost of casting it bestowed.
+                let parts = cost.map(|c| c.parts.as_slice()).unwrap_or_default();
+                let (mana_parts, rest): (Vec<CostPart>, Vec<CostPart>) =
+                    parts.iter().cloned().partition(|part| matches!(part, CostPart::Mana(_)));
+                let mana_cost = match mana_parts.as_slice() {
+                    [mana_part] => Cost { parts: vec![mana_part.clone()] },
+                    _ => return Err(gap(format!("{mechanic:?} cost other than mana"))),
+                };
+                let mana_code = mana_alone(Some(&mana_cost), mechanic)?;
+                let extra = match rest.is_empty() {
+                    true => None,
+                    false => Some(self.cost(&Cost { parts: rest }, label)?),
+                };
+                self.bestow = Some(mana_code);
+                self.bestow_extra = extra;
             }
             K::Escape => {
                 let (mana, exiled) = escape_cost(cost)?;

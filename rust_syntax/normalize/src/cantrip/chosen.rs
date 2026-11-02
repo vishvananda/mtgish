@@ -142,6 +142,24 @@ pub(super) fn enters_choosing(card: &Card) -> Vec<ValueKind> {
             } = instruction
             {
                 kinds.push(*kind);
+                // One of printed pairs: both are chosen.
+                if *kind == ValueKind::ColorAndCreatureType {
+                    kinds.extend([ValueKind::Color, ValueKind::CreatureType]);
+                }
+            }
+            if let Instruction::Effect {
+                operation:
+                    Operation::ChooseValueWith {
+                        kind: ValueKind::CardType,
+                        terms,
+                        ..
+                    },
+                ..
+            } = instruction
+            {
+                if lane_p::entering_card_types_but(terms).is_some() {
+                    kinds.push(ValueKind::CardType);
+                }
             }
         }
     }
@@ -306,6 +324,31 @@ impl Compiler {
         let linked = self.linked();
         format!("[q.state().chosen_color({linked}), q.state().chosen_number({linked}).map(|n| Color::ALL[n as usize])]")
     }
+    /// The `index`th choice this body made, in the order it made them (each local
+    /// is numbered as it is written), and its `Option` read.
+    pub(super) fn nth_chosen_local(&self, index: u32) -> Option<(ValueKind, String)> {
+        let number = |local: &str| -> Option<usize> {
+            let name = local.strip_suffix(KEPT).unwrap_or(local);
+            name.rsplit('_').next()?.parse().ok()
+        };
+        let mut made: Vec<(usize, ValueKind, &String)> = self
+            .chosen
+            .iter()
+            .filter_map(|(kind, local)| Some((number(local)?, *kind, local)))
+            .collect();
+        made.sort_by_key(|(n, ..)| *n);
+        made.dedup_by_key(|(n, ..)| *n);
+        let (_, kind, local) = made.get(index as usize)?;
+        // Only a lone value (a list is no one choice).
+        if local.starts_with("colors_") || local.contains(['(', ' ', '[']) && !local.ends_with(KEPT) {
+            return None;
+        }
+        let read = match local.strip_suffix(KEPT) {
+            Some(kept) => kept.to_string(),
+            None => format!("Some({local})"),
+        };
+        Some((*kind, read))
+    }
     /// The local that holds this choice, in the body that made it.
     pub(super) fn chosen_local(&self, kind: ValueKind) -> Result<String> {
         // A land type is what "a basic land type" chose too.
@@ -321,6 +364,26 @@ impl Compiler {
             .map(|(_, local)| local.clone())
             .ok_or_else(|| gap(format!("a choice of {kind:?} outside its body")))
     }
+    /// A choice read outside the body that made it, where what makes it is
+    /// itself a hole of this card: a commander's color chosen before the game
+    /// begins ("a deck rule a commander sets"), a color chosen as protection is
+    /// given ("keyword action ChooseProtection"), or a color chosen as an
+    /// Equipment becomes attached (`AttachAction::ChooseAColor`, "ability
+    /// AsEvent"). That hole already says what the file waits on, so the read
+    /// follows it instead of naming a hole of its own.
+    pub(super) fn follows_choice(&self, kind: ValueKind, read: String) -> String {
+        let made_by_a_hole = kind == ValueKind::Color
+            && (self.gaps.iter().any(|g| {
+                g.feature == "a deck rule a commander sets"
+                    || g.feature == "keyword action ChooseProtection"
+            }) || self.functions.contains("AttachAction::ChooseAColor")
+                || self.gaps.iter().any(|g| g.feature == "ability AsEvent"));
+        if !made_by_a_hole {
+            return read;
+        }
+        let feature = format!("planned_value!({:?}", format!("a choice of {kind:?} outside its body"));
+        read.replace(&feature, &format!("planned_value!({FOLLOWS_GAP:?}"))
+    }
     /// `Option` of the choice: this body's, or what was chosen as the source
     /// entered, to the ability reading it.
     pub(super) fn chosen_value(&self, kind: ValueKind) -> Result<String> {
@@ -333,10 +396,32 @@ impl Compiler {
                 None => format!("Some({local})"),
             });
         }
+        // The choice itself is a hole, so this read follows it.
+        if self.as_event_chooses && kind == ValueKind::CardType {
+            return lane_p::chosen_elsewhere(self.linked(), kind).map(|read| read.replacen("a choice of CardType outside its body", FOLLOWS_GAP, 1));
+        }
         // The engine keeps a permanent's choices as it entered, and no other.
         if !self.enters_choosing.contains(&kind) {
-            return lane_p::chosen_elsewhere(self.linked(), kind)
-                .or_else(|_| self.chosen_elsewhere(kind));
+            // "Choose a color. Whenever this becomes blocked by a creature of that
+            // color this turn" (Zombie Boa): the ability that chose it creates the
+            // one that reads it, and Cantrip keeps no resolution's choice for it.
+            // "{2}, {T}, Choose flying, first strike, trample, or shadow: target
+            // creature with the chosen ability" (Phyrexian Splicer): chosen as
+            // its cost, before its targets, and Cantrip announces no such choice.
+            let cost = format!("{:?}", self.activation_cost);
+            if cost.contains("ChooseValue") && cost.contains(&format!("kind: {kind:?},")) {
+                return Err(gap("a value chosen as an activation cost, read by its targets"));
+            }
+            if self.stack_item
+                && self.line_text().is_some_and(|line| {
+                    line.contains("hoose a ") && line.contains("henever")
+                })
+            {
+                return Err(gap("a resolution's choice read by the trigger it creates"));
+            }
+            let read = lane_p::chosen_elsewhere(self.linked(), kind)
+                .or_else(|_| self.chosen_elsewhere(kind))?;
+            return Ok(self.follows_choice(kind, read));
         }
         let read = match kind {
             ValueKind::Color => "chosen_color",

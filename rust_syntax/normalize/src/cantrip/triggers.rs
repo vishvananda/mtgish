@@ -800,6 +800,27 @@ impl Compiler {
                             Ok(format!("{}.contains(&by)", c.objects(sources)?))
                         })?)
                     }
+                    // "An ability that targets only it" (Agrus Kos): the ability just put
+                    // on the stack, the item at the top as it became the target (CR 601.2c
+                    // by way of 602.2b, 603.3d), has targets and each is this object
+                    // (CR 115.9c: the same object chosen more than once still is only it).
+                    ("TargetsOnlySinglePermanent", [Operand::Object(it)])
+                        if matches!(kind, TargetingKind::Ability) =>
+                    {
+                        let it = self.matching(frame, |c| c.object(it))?;
+                        tests.push(format!(
+                            "{it}.is_some_and(|it: ObjectId| q.state().stack.last().is_some_and(|i| {{ let n = q.state().targets(i).len(); n > 0 && (0..n).all(|k| q.state().target(i, k) == Target::Object(it)) }}))"
+                        ));
+                    }
+                    // "The target of an activated ability" (Professor Hojo): the
+                    // event names only the source and that it was an ability, so
+                    // which is the newest item of that source targeting it, as one
+                    // that has just been activated, copied or retargeted is.
+                    ("ActivatedAbility", []) if !matches!(kind, TargetingKind::Spell) => {
+                        tests.push(self.matching(frame, |_| {
+                            Ok("q.state().stack.iter().rev().find(|i| i.object == by && q.state().targets(i).contains(&Target::Object(id))).is_some_and(|i| i.kind == StackKind::Activated)".into())
+                        })?)
+                    }
                     (other, operands) => {
                         let feature = format!("targeted by {other}");
                         let operands = self.stated_operands(operands);
@@ -908,8 +929,58 @@ impl Compiler {
                 let of = self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?;
                 format!("(def.is_some_and(|d| d.from == ZoneKind::Battlefield) && {of})")
             }
+            // The ability as it was put on the stack, its targets chosen and its
+            // costs paid (CR 602.2b, 601.2c-h) before it counts as activated: the
+            // item `serial` names (`activated_event`). A mana ability has none.
+            other if frame.activated == Some(Carried::Data(1)) && self.activation_item_test(other)?.is_some() => {
+                self.activation_item_test(other)?.expect("just seen")
+            }
             other => return self.activated_stated(other),
         })
+    }
+    /// What an activation trigger reads of the activated ability's stack item:
+    /// its targets (Ertha Jo, Bill Potts), the mana spent to activate it, as
+    /// each payment recorded it after the item was put on the stack (Dynaheir,
+    /// Vazi: CR 106.3, 601.2h, 602.2b).
+    fn activation_item_test(&self, filter: &ObjectFilter) -> Result<Option<String>> {
+        const ITEM: &str = "q.state().stack.iter().find(|i| serial != 0 && i.serial == serial && i.kind == StackKind::Activated)";
+        const SPENT: &str = "i.since as usize..).unwrap_or(&[]).iter().filter_map(|r| match r.event { Event::ManaSpent { on, cast: false, source, mana, .. } if on == id => Some((source, mana)), _ => None })";
+        Ok(Some(match filter {
+            ObjectFilter::TargetsAny(targets) => format!(
+                "{ITEM}.is_some_and(|i| q.state().targets(i).iter().any(|t: &Target| {}))",
+                self.targeted(targets)?
+            ),
+            // "Targets only [it]": however many times it was chosen (CR 115.9c).
+            ObjectFilter::OnStack(StackTrait::SingleTarget)
+                if self.line_text().is_some_and(|line| line.contains("targets only")) =>
+            {
+                format!("{ITEM}.is_some_and(|i| {{ let chosen = q.state().targets(i); !chosen.is_empty() && chosen.iter().all(|t| *t == chosen[0]) }})")
+            }
+            ObjectFilter::OnStack(StackTrait::SingleTarget) => {
+                format!("{ITEM}.is_some_and(|i| q.state().targets(i).len() == 1)")
+            }
+            ObjectFilter::ManaSpent {
+                color: None,
+                sources: None,
+                payers: None,
+                comparison,
+                value,
+            } => format!(
+                "{ITEM}.is_some_and(|i| {})",
+                read::compare(
+                    &format!("q.history().all().get({SPENT}.map(|(_, mana)| i64::from(mana.total())).sum::<i64>()"),
+                    comparison,
+                    &self.number(value)?.code,
+                )
+            ),
+            // A Treasure sacrificed for its mana is gone: what it was then
+            // (CR 608.2h), as `spent::mana_from_a_treasure_spent_to_cast` reads it.
+            ObjectFilter::ManaSpentFrom(sources) => format!(
+                "{ITEM}.is_some_and(|i| q.history().all().get({SPENT}.any(|(source, _)| source != ObjectId::NONE && {}))",
+                self.filter(sources, &Candidate::of("source"))?
+            ),
+            _ => return Ok(None),
+        }))
     }
     /// `EventSpec::Attack`. `data` is the attacker's controller, then its
     /// defending player, which is what a batch of them is split by.
@@ -1179,6 +1250,12 @@ impl Compiler {
                 matched
             }
         };
+        // "Whenever a player attacks you with one or more creatures, ... that
+        // many": a batch kept apart by its defender (`batch_by_data`) holds the
+        // creatures attacking that one, and how many is its members' count.
+        if *per == BatchPer::Defender && matches!(event, EventSpec::Attack { .. }) {
+            matched.frame.members = matched.frame.object == Some(Carried::Subject);
+        }
         // No one of a whole batch is the event's, however the form binds it.
         if *per == BatchPer::Whole {
             matched.frame.members = matched.frame.object == Some(Carried::Subject)
@@ -1646,6 +1723,11 @@ impl Compiler {
             {
                 self.event(&EventSpec::FirstForObjectEachTurn(event.clone()))
             }
+            // The total power is the declaration's own: the earlier ones are read
+            // from their `Attacks` records.
+            EventSpec::FirstEachTurn(event) if matches!(&**event, EventSpec::AttacksAsGroup { .. }) => {
+                self.first_of(event, "q.history().this_turn().iter()", false)
+            }
             EventSpec::FirstEachTurn(event) => {
                 self.ordinal_event(event, &Comparison::Equal, &Expr::Constant(1), false)
             }
@@ -1715,7 +1797,7 @@ impl Compiler {
         }
     }
     /// A callback the engine asks with no event in reach.
-    fn condition_function(&mut self, condition: &Condition, label: &str) -> Result<String> {
+    pub(super) fn condition_function(&mut self, condition: &Condition, label: &str) -> Result<String> {
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let compiled = self.condition(condition);
@@ -1744,6 +1826,13 @@ impl Compiler {
         announcement: &Announcement,
         body: &Program,
     ) -> Result<String> {
+        // Expedited Inheritance: "its controller may exile that many cards", which
+        // its data has them do with no choice.
+        if lane_k::printed_otherwise(self.line_text(), "its controller may exile that many")
+            && !format!("{body:?}").contains("Optional")
+        {
+            return Err(gap("a may the card prints read as a must, in the data"));
+        }
         let counts = match self.slot_counts {
             target_counts::SlotCounts::Delayed => target_counts::SlotCounts::Delayed,
             _ => Compiler::counts_of_trigger(event),
@@ -1756,7 +1845,9 @@ impl Compiler {
             && announcement.targets.iter().all(|slot| format!("{:?}", slot.chooser) == format!("{:?}", announcement.targets[0].chooser))
             && announcement.targets[0].chooser.is_some();
         self.subject_chooses = false;
+        let planned = std::mem::replace(&mut self.event_planned, false);
         let def = self.triggered_def(label, event, intervening_if, limits, announcement, body);
+        self.event_planned = planned;
         let read = self.count_read.take().map(|(_, call)| call);
         let by_subject = self.subject_chooses;
         (self.slot_counts, self.count_read) = outer;
@@ -1903,6 +1994,7 @@ impl Compiler {
                 false,
             )?;
         }
+        self.event_planned = !matched.planned.iter().all(|f| planned::landed(f));
         let implied = match body.instructions.is_empty() {
             true => self.implied_slots(announcement, label, Some(matched.frame))?,
             false => None,
@@ -1982,6 +2074,10 @@ impl Compiler {
         let trigger = self.trigger(&matched, &format!("{label}_event"), &extra);
         let members = self.members_targeted(event, label, matched.frame, body)?;
         self.grouped = matched.batch.is_some() || members.is_some();
+        // "That many" of what it targeted is how many members it keeps.
+        if members.is_some() && matched.frame.amount.is_none() {
+            self.frame.members = true;
+        }
         let effect = match guard {
             Some(_) if implied_by_target => Err(gap("a condition on modes a target implies")),
             Some(condition) => self.guarded_effect(condition, body, label),
@@ -2051,20 +2147,35 @@ impl Compiler {
     ) -> Result<Option<String>> {
         let EventSpec::SpellTargeting {
             targets: Some(targets),
+            players,
             ..
         } = event
         else {
             return Ok(None);
         };
-        if !format!("{body:?}").contains("EventGroup") {
+        // "Those creatures", or "that many" of them (Arcee, Acrobatic Coupe).
+        let body = format!("{body:?}");
+        if !body.contains("EventGroup") && !body.contains("EventAmount") {
             return Ok(None);
         }
         let wanted = self.matching(frame, |c| c.objects(targets))?;
+        // "Whenever you cast a spell that targets one or more creatures you
+        // control": the ability's controller is the spell's.
+        let yours = matches!(players, PlayerSet::One(PlayerRef::AbilityController));
+        let wanted = match yours {
+            true => wanted.replace("asker.controller", "q.controller(spell)"),
+            false => wanted,
+        };
+        // `TriggerMembers` is told the event's subject alone, so a filter that
+        // reads its source (the words a text change gives it) can't be one.
+        if wanted.contains("asker") && !body.contains("EventGroup") {
+            return Err(gap("the members a trigger keeps, read through its source"));
+        }
         if wanted.contains("asker") || wanted.contains("event") {
             return Ok(None);
         }
         let function = format!("{label}_members");
-        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, subject: Target) -> Vec<ObjectId> {{ let wanted: Vec<ObjectId> = {wanted}; subject.object().map(|spell| cantrip_mechanics::targets::permanents_targeted_as_cast(q, spell).into_iter().filter(|o| wanted.contains(o)).collect()).unwrap_or_default() }}").unwrap();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, subject: Target) -> Vec<ObjectId> {{ subject.object().map(|spell| {{ let wanted: Vec<ObjectId> = {wanted}; cantrip_mechanics::targets::permanents_targeted_as_cast(q, spell).into_iter().filter(|o| wanted.contains(o)).collect() }}).unwrap_or_default() }}").unwrap();
         Ok(Some(function))
     }
     fn modal_triggered(

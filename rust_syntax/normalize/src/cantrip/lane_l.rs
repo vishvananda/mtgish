@@ -56,6 +56,15 @@ fn total_mana_value_at_least(constraints: &[SelectionConstraint]) -> Option<i64>
     }
 }
 
+/// A body where "you" is only who gains control: then "you" is the doer. One that
+/// also says "a creature you control" (Infernal Denizen) can't tell the doer from
+/// the ability's controller.
+fn you_only_gains_control(body: &[Operand]) -> bool {
+    let text = format!("{body:?}");
+    let gains = text.matches("SetController(AbilityController)").count();
+    gains > 0 && text.matches("AbilityController").count() == gains
+}
+
 /// What "do this only once each turn" offers, under a "may" that already asks it.
 pub(super) fn once_offered(body: &Program) -> Option<&Program> {
     match body.instructions.as_slice() {
@@ -498,6 +507,15 @@ impl Compiler {
                 writeln!(out, "for player in {from} {{ let (poison, energy, experience) = {{ let counters = g.state().player(player); (u32::from(counters.poison()), u32::from(counters.energy()), u32::from(counters.experience())) }}; let n = poison; if n > 0 {{ g.give_poison(player, {more}); }} let n = energy; if n > 0 {{ g.change_energy(player, {energy}); }} let n = experience; if n > 0 {{ g.give_experience(player, {more}); }} }}").unwrap();
                 return Ok(());
             }
+            // "Choose a counter on target player. Give that player another counter
+            // of that kind" (Animation Module): the kind is one of the three a
+            // player can have, asked of this ability's controller among those
+            // the player has, as a permanent's kind is asked.
+            if let (C::One, true, None, None) = (copies, from == to, kind, &self.wanted_labels) {
+                self.wanted_labels = Some("&[\"Poison counter\", \"Energy counter\", \"Experience counter\"]".into());
+                writeln!(out, "for player in {from} {{ let have = {{ let counters = g.state().player(player); [counters.poison() > 0, counters.energy() > 0, counters.experience() > 0] }}; let offered: Vec<u8> = (0..3u8).filter(|&i| have[usize::from(i)]).collect(); if !offered.is_empty() {{ let card = g.card_id(&CARD); let pick = offered[{M}::choose::one_of(g, asker.controller, asker.source, offered.iter().map(|&i| Label::Card(card, i)).collect())? as usize]; match pick {{ 0 => g.give_poison(player, 1), 1 => g.change_energy(player, 1), _ => g.give_experience(player, 1) }} }} }}").unwrap();
+                return Ok(());
+            }
             let call = format!("let from: Vec<PlayerId> = {from}; let to: Vec<PlayerId> = {to}; {M}::counters::duplicate_on_players(g, asker, &from, &to, {})?;", quoted(&format!("{copies:?}")));
             self.plan_code("counters a player has, by kind", &call, out);
             return Ok(());
@@ -555,6 +573,7 @@ impl Compiler {
         let pool = self.fetch(self.objects(objects)?);
         let count = self.fetch(self.select_count(count)?);
         writeln!(out, "let permanents = {pool}; let count = {count}; {M}::choose::object_as_enters(g, entering, permanents, {M}::select::Selection::of(count, &[]))?;").unwrap();
+        self.chose_object_as_enters = true;
         Ok(true)
     }
     /// "You may tap any number of ...".
@@ -610,11 +629,16 @@ impl Compiler {
         if !self.reads_paid_objects(result) {
             return;
         }
-        let paid = planned::planned_value(
-            "objects that paid a cost at resolution",
-            "Vec::<ObjectId>::new()",
-            "g.objects_that_paid()",
-        );
+        // A payment its own hole stands for (a cost part, a cost of moving cards
+        // Cantrip has no call for): what paid it is known only once it is paid.
+        let asked = format!("let paid_{id} = ");
+        let start = out.rfind(&asked).or_else(|| out.rfind("g.end_sentence();"));
+        let sentence = &out[start.unwrap_or(0)..];
+        let feature = match sentence.contains("planned") {
+            true => FOLLOWS_GAP,
+            false => "objects that paid a cost at resolution",
+        };
+        let paid = planned::planned_value(feature, "Vec::<ObjectId>::new()", "g.objects_that_paid()");
         writeln!(out, "let paid_objects_{id}: Vec<ObjectId> = {paid};").unwrap();
         self.moved.insert(result.0, format!("paid_objects_{id}"));
         self.before
@@ -850,7 +874,18 @@ impl Compiler {
                 format!(".between({n}, cantrip_mechanics::ANY_NUMBER)")
             }
             Count::Exactly(n) => {
-                let n = planned::planned_value("target cardinality Exactly", "1u32", &read(n)?);
+                // A spell's slot counts only `TargetSpec::COUNTED`: its X, or else the
+                // times it was kicked (CR 601.2c). Comet Storm's "another target for
+                // each time this spell was kicked" beside its X, and Primitive Justice's
+                // counts of each additional cost paid, are no such count.
+                let code = read(n)?;
+                if code.contains(".kicked") {
+                    return Err(gap("a spell's target count of times kicked, beside an X or added to"));
+                }
+                if code.contains("additional_cost_paid") {
+                    return Err(gap("a spell's target count of an additional cost paid any number of times"));
+                }
+                let n = planned::planned_value("target cardinality Exactly", "1u32", &code);
                 format!(".between({n}, {n})")
             }
             Count::AtLeast(n) => {
@@ -863,7 +898,12 @@ impl Compiler {
     /// What `ModalDef` has no word for yet.
     pub(super) fn modes_to_come(&self, selection: &ModeSelection, modal: String) -> Result<String> {
         let mut planned: Vec<(&str, String)> = Vec::new();
-        if selection.implied {
+        // Modes each open only under a requirement are told apart by it
+        // (`ModalDef::allowed`), not by a target.
+        let flat = lane_p::flat_modes(selection);
+        let told_by_requirements =
+            flat.as_ref().unwrap_or(&selection.modes).iter().all(|mode| mode.requires.is_some());
+        if selection.implied && !told_by_requirements {
             planned.push((
                 "modes implied by the target chosen",
                 ".implied_by_target()".to_string(),
@@ -950,6 +990,17 @@ impl Compiler {
             }
             Operation::ChooseAtRandom { kind, options } => {
                 self.choose_at_random(id, *kind, options, out)?
+            }
+            // "Choose a player or planeswalker that opponent is attacking": among what
+            // that player's attacking creatures attack (CR 506.2, 508.1b), asked only
+            // when there is more than one.
+            Operation::ChooseDefender {
+                actor: PlayerSet::One(chooser),
+                attacker,
+            } => {
+                let chooser = self.fetch(self.certain_player(chooser)?);
+                let attacker = self.fetch(self.certain_player(attacker)?);
+                writeln!(out, "let chooser_{id} = {chooser}; let attacker_{id} = {attacker}; let candidates_{id}: Vec<Target> = {{ let q: &dyn Query = g; let mut seen: Vec<Target> = Vec::new(); for a in q.state().attackers.iter() {{ let attacked = match a.target {{ Target::Player(_) => true, Target::Object(o) => q.chars(o).is(CardType::Planeswalker), _ => false }}; if attacked && q.controller(a.id) == attacker_{id} && !seen.contains(&a.target) {{ seen.push(a.target); }} }} seen }}; let defender_{id}: Option<Target> = {M}::combat::choose_among(g, chooser_{id}, asker.source, &candidates_{id})?;").unwrap();
             }
             Operation::Exchange {
                 kind,
@@ -1085,13 +1136,15 @@ impl Compiler {
                 self.selections.insert(result.0, format!("chosen_{id}"));
                 self.open_guard(&format!("chosen_{id}"), out);
             }
-            // "Attach an Equipment to it", of a token that may be more than one.
+            // "Attach an Equipment to it", of a token that may be more than one, and
+            // "attach one of them to a Samurai you control": the attachments are
+            // chosen, then the host among those there are (CR 701.3a).
             Operation::AttachChosen {
                 actor,
                 attachments,
                 count,
-                hosts: hosts @ ObjectSet::Created(_),
-            } => {
+                hosts,
+            } if !matches!(hosts, ObjectSet::One(_)) => {
                 let player = self.one_actor(actor, "operation AttachChosen")?;
                 let count = self.offered_count(count);
                 let count = self.fetch(self.select_count(&count)?);
@@ -1139,15 +1192,52 @@ impl Compiler {
                     ordered: false,
                     up_to: false,
                 } if except.is_empty() => {
+                    // Apex Observatory: "choose a card type shared among two exiled
+                    // cards used to craft it" offers only the types those cards share.
+                    if *kind == ValueKind::CardType && options.iter().any(|o| matches!(o, Operand::Objects(_))) {
+                        self.as_event_chooses = true;
+                        return Err(gap("a card type shared among the cards used to craft it"));
+                    }
                     let mut code = String::new();
                     match self.choose_value(id, actor, *kind, 1, options, &mut code) {
                         Ok(()) => out.push_str(&code),
                         Err(_) => self.choose_value_terms(id, actor, *kind, terms, out)?,
                     }
                 }
+                ChoiceTerms {
+                    options,
+                    except,
+                    count: Some(Expr::Constant(k)),
+                    secret: false,
+                    unchosen: false,
+                    random: false,
+                    ordered: false,
+                    up_to: false,
+                } if *kind == ValueKind::Ability
+                    && except.is_empty()
+                    && self.pending == Pending::Entering
+                    && *k > 1
+                    && (*k as usize) < options.len() =>
+                {
+                    self.abilities_as_enters(*k as usize, options, out)?
+                }
+                // "As this enters, choose a card type other than creature": the
+                // other types, kept as its chosen option, as Arachne's.
+                terms if *kind == ValueKind::CardType
+                    && self.pending == Pending::Entering
+                    && lane_p::entering_card_types_but(terms).is_some() =>
+                {
+                    let options = lane_p::entering_card_types_but(terms).unwrap_or_default();
+                    self.choose_value(id, actor, *kind, 1, &options, out)?;
+                }
                 terms => {
                     self.choose_value_terms(id, actor, *kind, terms, out)?;
                     self.chosen_number_performed(*kind, result);
+                    // Objects chosen on terms are what "each creature chosen this
+                    // way" reads back: the hole's own stand-in, not a hole of its own.
+                    if matches!(kind, ValueKind::Object) && out.contains(&format!("let chosen_{id} =")) {
+                        self.selections.insert(result.0, format!("chosen_{id}"));
+                    }
                 }
             },
             Operation::CopyCards {
@@ -1459,6 +1549,14 @@ impl Compiler {
                 objects,
                 targets: targets @ (NewTargets::May | NewTargets::Same),
             } => {
+                // "Copy all other activated and triggered abilities you control"
+                // (Ulalek, Fused Atrocity): copies made in the order the copier
+                // chooses, of stack items an object doesn't name apart (one source's
+                // several abilities); `choose` picks among objects only.
+                let asked = format!("{objects:?}");
+                if asked.contains("OnStack(Activated)") || asked.contains("OnStack(Triggered)") {
+                    return Err(gap("copies of each of several abilities on the stack"));
+                }
                 let player = self.one_actor(actor, &feature)?;
                 let test = self.filter(objects, &Candidate::of("id"))?;
                 let spells = self.fetch(format!("q.state().stack.iter().filter(|i| i.kind == StackKind::Spell).map(|i| i.object).filter(|&id| {test}).collect::<Vec<ObjectId>>()"));
@@ -1825,12 +1923,48 @@ impl Compiler {
             {
                 return Err(gap("destroyed together, some that can't be regenerated"));
             }
-            Operation::Together(operations) => {
-                self.plan_code(&feature, "g.begin_simultaneous()", out);
+            // "Choose a land type and a basic land type": choices change nothing, so
+            // made one after the other they are made together.
+            Operation::Together(operations)
+                if operations
+                    .iter()
+                    .all(|operation| matches!(operation, Operation::ChooseValue { .. })) =>
+            {
                 for operation in operations {
                     self.operation(operation, result, out)?;
                 }
-                self.plan_code(&feature, "g.end_simultaneous()", out);
+            }
+            Operation::Together(operations) => {
+                let mut parts = String::new();
+                let before = self.gaps.len();
+                for operation in operations {
+                    self.operation(operation, result, &mut parts)?;
+                }
+                // A part that can't be written yet already names what the file waits
+                // on; doing the parts at once is asked of them only once they can be.
+                if self.gaps.len() > before || parts.contains("planned") {
+                    let follows = planned::requirement(FOLLOWS_GAP);
+                    writeln!(out, "planned!({follows:?} => g.begin_simultaneous());").unwrap();
+                    out.push_str(&parts);
+                    writeln!(out, "planned!({follows:?} => g.end_simultaneous());").unwrap();
+                } else if operations
+                    .iter()
+                    .all(|operation| matches!(operation, Operation::DealDamage { .. }))
+                    && parts.matches("g.damage_together(&batch);").count() == operations.len()
+                {
+                    // "Each of those creatures deals damage equal to its toughness to the
+                    // other": every amount read first, then one event of damage (CR 120.3).
+                    writeln!(out, "let mut together_{id}: Vec<(ObjectId, Target, u16)> = Vec::new();").unwrap();
+                    out.push_str(&parts.replace(
+                        "g.damage_together(&batch);",
+                        &format!("together_{id}.extend(batch);"),
+                    ));
+                    writeln!(out, "g.damage_together(&together_{id});").unwrap();
+                } else {
+                    self.plan_code(&feature, "g.begin_simultaneous()", out);
+                    out.push_str(&parts);
+                    self.plan_code(&feature, "g.end_simultaneous()", out);
+                }
             }
             Operation::GameEffect { until, effect } => {
                 let until = self.duration(until)?;
@@ -1917,26 +2051,60 @@ impl Compiler {
                 self.block(&offered, out, true)?;
             }
             // "An opponent creates two Treasure tokens and they scry 2": you choose
-            // which (its ruling), and in `body` the doer is "you".
+            // which (its ruling), and in `body` the doer is "you". "Another player
+            // of your choice may gain control of it" (Stardew Valley): the one you
+            // chose decides.
             Operation::PlayersDo {
                 players,
                 any_one: true,
-                optional: false,
+                optional,
                 once_each_turn: false,
                 body,
                 otherwise,
             } if otherwise.is_empty()
-                && body.iter().all(|step| matches!(step, Operand::Program(_))) =>
+                && body.iter().all(|step| matches!(step, Operand::Program(_)))
+                && (!*optional || you_only_gains_control(body)) =>
             {
+                let optional = *optional;
                 let among = self.fetch(self.players(players)?);
                 writeln!(out, "let among_{id}: Vec<PlayerId> = {among}; let Some(doer_{id}) = (if among_{id}.len() > 1 {{ {M}::choose::player(g, asker.controller, asker.source, among_{id}, \"Choose\", 0)? }} else {{ among_{id}.first().copied() }}) else {{ return Ok(()); }}; {{ let asker = &Asker::new(asker.source, doer_{id});").unwrap();
                 for step in body {
                     let Operand::Program(program) = step else {
                         unreachable!("just matched");
                     };
-                    self.block(program, out, true)?;
+                    if optional {
+                        let mut offered = program.clone();
+                        offered.instructions = vec![Instruction::Optional {
+                            decider: PlayerRef::AbilityController,
+                            body: program.clone(),
+                        }];
+                        self.block(&offered, out, true)?;
+                    } else {
+                        self.block(program, out, true)?;
+                    }
                 }
                 writeln!(out, "}}").unwrap();
+            }
+            // "Repeat the following process for each opponent in turn order ...
+            // That player may pay": the walk names the player, who is "that
+            // player" in the body, and "you" stays you (Protection Racket).
+            Operation::PlayersDo {
+                players: PlayerSet::One(PlayerRef::Bound(binding)),
+                any_one: false,
+                optional: false,
+                once_each_turn: false,
+                body,
+                otherwise,
+            } if otherwise.is_empty()
+                && self.bound_players.contains(&binding.0)
+                && body.iter().all(|step| matches!(step, Operand::Program(_))) =>
+            {
+                for step in body {
+                    let Operand::Program(program) = step else {
+                        unreachable!("just matched");
+                    };
+                    self.block(program, out, true)?;
+                }
             }
             Operation::PlayersDo {
                 players,
@@ -2040,6 +2208,36 @@ impl Compiler {
                 writeln!(out, "let separator_{id} = {player}; let cards_{id} = {objects}; let (face_down_{id}, face_up_{id}) = {M}::choose::separate_face_down_and_face_up(g, separator_{id}, asker.source, cards_{id})?;").unwrap();
                 self.face_piles = Some(id);
             }
+            // "Separates them into two piles" (CR 700.3a): the separator puts each
+            // pile together from what is left, so any of them may be empty (CR
+            // 700.3d). The piles are kept as rows for what chooses among them and
+            // what reads "the chosen pile"; face-down piles are shown to no one else.
+            Operation::Piles {
+                actor,
+                objects,
+                count: Some(Expr::Constant(n)),
+                names,
+                chooser,
+            } if *n >= 2
+                && (names.is_empty() || names.iter().all(|name| name == "face down"))
+                && (self.piles_walk.is_some() || chooser.is_none()) =>
+            {
+                let player = self.one_actor(actor, &feature)?;
+                let objects = self.fetch(self.objects(objects)?);
+                let choosers = match chooser {
+                    Some(chooser) => self.fetch(self.players(chooser)?),
+                    None => "Vec::<PlayerId>::new()".to_string(),
+                };
+                writeln!(out, "let separator_{id} = {player}; let mut rest_{id}: Vec<ObjectId> = {objects}; let mut piles_{id}: Vec<Vec<ObjectId>> = Vec::new(); for _ in 1..{n} {{ let (first, second) = {M}::choose::separate(g, Some(separator_{id}), asker.source, rest_{id})?; piles_{id}.push(first); rest_{id} = second; }} piles_{id}.push(rest_{id}); let choosers_{id}: Vec<PlayerId> = {choosers};").unwrap();
+                match self.piles_walk.clone() {
+                    Some(rows) => writeln!(out, "{rows}.push((separator_{id}, piles_{id}, None, choosers_{id}));").unwrap(),
+                    None => {
+                        writeln!(out, "let mut rows_{id}: Vec<(PlayerId, Vec<Vec<ObjectId>>, Option<usize>, Vec<PlayerId>)> = vec![(separator_{id}, piles_{id}, None, choosers_{id})];").unwrap();
+                        self.piles = Some(format!("rows_{id}"));
+                    }
+                }
+                self.pile_shape = (*n, !names.is_empty());
+            }
             Operation::Piles {
                 actor,
                 objects,
@@ -2059,6 +2257,10 @@ impl Compiler {
                 let chooser = match chooser {
                     Some(chooser) => format!("Some({})", self.fetch(self.players(chooser)?)),
                     None => "None".to_string(),
+                };
+                let feature = match labeled_piles(names) {
+                    true => LABELED_PILES.to_string(),
+                    false => feature,
                 };
                 self.plan_code(&feature, &format!("{M}::choose::into_piles(g, {player}, asker.source, {objects}, {count}, &{names:?}, {chooser})?"), out);
             }
@@ -2087,6 +2289,42 @@ impl Compiler {
                 };
                 writeln!(out, "if !(face_down_{piles}.is_empty() && face_up_{piles}.is_empty()) {{ {chooser} let (keep_{id}, _) = {M}::choose::face_down_or_face_up_pile(g, chooser_{id}, asker.source, face_down_{piles}, face_up_{piles}.clone())?; if keep_{id} == face_up_{piles} {{ g.return_to_hand_revealed(&keep_{id}); }} else {{ g.return_to_hand(&keep_{id}); }} }}").unwrap();
             }
+            // "For each opponent, you choose one of their piles", "each player
+            // chooses one of their piles at random", "exile one of those piles": a
+            // pile of each row of the separators named. A face-down pile shows the
+            // chooser only how many cards it holds.
+            Operation::ChoosePile {
+                actor: PlayerSet::One(chooser),
+                from,
+                random,
+                names,
+                object: None,
+                then: then @ (None | Some(Destination::Exile)),
+            } if names.is_empty() && self.piles.is_some() => {
+                let rows = self.piles.clone().unwrap_or_default();
+                let chooser = self.fetch(self.certain_player(chooser)?);
+                let from = match from {
+                    Some(from) => format!("Some({})", self.fetch(self.players(from)?)),
+                    None => "None::<Vec<PlayerId>>".to_string(),
+                };
+                let (count, face_down) = self.pile_shape;
+                let pick = if *random {
+                    "g.choose_at_random(row.1.len())".to_string()
+                } else if face_down {
+                    format!("usize::from({M}::choose::one_of(g, chooser_{id}, asker.source, row.1.iter().map(|pile| Label::FaceDownPile {{ count: pile.len() as u16 }}).collect())?)")
+                } else if count == 2 {
+                    format!("{{ let (chosen, _) = {M}::choose::pile(g, chooser_{id}, asker.source, row.1[0].clone(), row.1[1].clone())?; usize::from(chosen != row.1[0]) }}")
+                } else {
+                    return Err(gap(feature));
+                };
+                let chooser = if *random { String::new() } else { format!("let chooser_{id} = {chooser}; ") };
+                writeln!(out, "{chooser}let from_{id} = {from}; let mut chosen_{id}: Vec<ObjectId> = Vec::new(); for row in {rows}.iter_mut() {{ if from_{id}.as_ref().is_some_and(|from| !from.contains(&row.0)) {{ continue; }} let at = {pick}; row.2 = Some(at); chosen_{id}.extend(row.1[at].iter().copied()); }}").unwrap();
+                if let Some(Destination::Exile) = then {
+                    writeln!(out, "let moved_{id} = g.exile_all(&chosen_{id});").unwrap();
+                    self.moved.insert(result.0, format!("moved_{id}"));
+                }
+                self.selections.insert(result.0, format!("chosen_{id}"));
+            }
             Operation::ChoosePile {
                 actor,
                 from,
@@ -2105,7 +2343,23 @@ impl Compiler {
                     None => "None".to_string(),
                 };
                 let then = then.as_ref().map(|d| form(d).to_string());
-                self.plan_code(&feature, &format!("{M}::choose::of_piles(g, {player}, asker.source, {from}, {random}, &{names:?}, {object}, {then:?})?"), out);
+                let code = format!("{M}::choose::of_piles(g, {player}, asker.source, {from}, {random}, &{names:?}, {object}, {then:?})?");
+                // "An opponent chooses one of those piles" of piles exiled by an
+                // instruction with a hole of its own (Abstract Performance,
+                // Hostile Negotiations, The Celestial Toymaker): the arm above
+                // writes the choice once that instruction keeps its piles.
+                if names.is_empty() && self.piles.is_none() && self.exiled_piles {
+                    let follows = planned::requirement(FOLLOWS_GAP);
+                    writeln!(out, "planned!({follows:?} => {code});").unwrap();
+                    // What reads the chosen pile follows the same hole.
+                    self.failed.insert(result.0);
+                    return Ok(());
+                }
+                let feature = match labeled_piles(names) {
+                    true => LABELED_PILES.to_string(),
+                    false => feature,
+                };
+                self.plan_code(&feature, &code, out);
             }
             Operation::PutStickers {
                 actor,
@@ -2233,6 +2487,22 @@ impl Compiler {
                 .unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
                 self.values.insert(result.0, format!("bound_{id}"));
+            }
+            // "For each creature, its controller ... unless they pay {1}": each
+            // player in turn pays as many times as they like, up to that many (CR
+            // 118.12), and what they left unpaid is kept for the step that reads it.
+            Operation::PlayersPayRepeatedly {
+                players: PlayerSet::One(player),
+                cost,
+                at_most,
+            } if self.unpaid_rows.contains(&result.0)
+                && matches!(cost.parts.as_slice(), [CostPart::Mana(_)]) =>
+            {
+                self.helpers.insert("pay_question");
+                let player = self.fetch(self.certain_player(player)?);
+                let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
+                let one = self.cost(cost, super::lane_g::PAID)?;
+                writeln!(out, "let payer_{id} = {player}; let most_{id}: u16 = {most}; let paid_{id} = if most_{id} == 0 {{ 0 }} else {{ g.may_pay_times(payer_{id}, asker.source, asker.source, ({one}).mana, most_{id}, &PAY_QUESTION)? }}; unpaid_{}.extend(std::iter::repeat(payer_{id}).take(usize::from(most_{id}.saturating_sub(paid_{id}))));", result.0).unwrap();
             }
             Operation::PlayersPayRepeatedly {
                 players,
@@ -2412,15 +2682,20 @@ impl Compiler {
                 self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, Destination::{}, &[{}]); }}", form(destination), entry.join(", ")), out);
             }
             // "An opponent gains control": the controller picks one, unasked if
-            // there is only one. The new controller keeps it (CR 611.2).
+            // there is only one. The new controller keeps it (CR 611.2), or has it
+            // for as long as it says ("until end of turn").
             Operation::GiveControl {
                 players,
                 objects,
-                until: None,
+                until,
             } if matches!(players, PlayerSet::One(_) | PlayerSet::OpponentsOf(_)) => {
+                let until = match until {
+                    Some(until) => self.duration(until)?,
+                    None => "Duration::Indefinite".to_string(),
+                };
                 let players = self.fetch(self.players(players)?);
                 let objects = self.fetch(self.objects(objects)?);
-                writeln!(out, "let players_{id}: Vec<PlayerId> = {players}; let objects_{id} = {objects}; let who_{id} = match players_{id}.as_slice() {{ [one] => Some(*one), _ => {M}::choose::player(g, asker.controller, asker.source, players_{id}.clone(), \"GainControl\", 0)? }}; if let Some(who) = who_{id} {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.gain_control(asker.source, object, who, Duration::Indefinite); }} }}); }}").unwrap();
+                writeln!(out, "let players_{id}: Vec<PlayerId> = {players}; let objects_{id} = {objects}; let who_{id} = match players_{id}.as_slice() {{ [one] => Some(*one), _ => {M}::choose::player(g, asker.controller, asker.source, players_{id}.clone(), \"GainControl\", 0)? }}; if let Some(who) = who_{id} {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.gain_control(asker.source, object, who, {until}); }} }}); }}").unwrap();
             }
             Operation::GiveControl {
                 players,
@@ -2517,11 +2792,25 @@ impl Compiler {
                     (None, None) => "None".to_string(),
                     (Some(_), Some(_)) => return Err(gap(feature)),
                 };
-                if *may_stop || *called {
+                // "Flip a coin until you lose a flip or choose to stop flipping":
+                // after each flip won, the flipper may stop (CR 705).
+                if *may_stop && *until_lost && !*called && times == "None" {
+                    let call = self.flip_call()?;
+                    writeln!(out, "let player_{id} = {player}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; loop {{ static ASK: Question = Question::new(\"Flip\", \"flip again?\", \"\", \"Flip\", \"Stop\"); flips_{id} += 1; if !g.{call}(player_{id}) {{ break; }} done_{id} += 1; if !{M}::effects::ask_may(g, player_{id}, asker.source, Purpose::Ask(&ASK))? {{ break; }} }}").unwrap();
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.coins = Some((
+                        format!("done_{id}"),
+                        format!("(i64::from(flips_{id}) - done_{id})"),
+                    ));
+                    return Ok(());
+                }
+                if *may_stop {
                     self.plan_code(&feature, &format!("{M}::coins::flips(g, {player}, {times}, {until_lost}, {may_stop}, {called})?"), out);
                     return Ok(());
                 }
-                let call = self.flip_call()?;
+                // A called flip is won or lost (CR 705.2), whatever its line says of
+                // heads or tails.
+                let call = if *called { "flip_coin" } else { self.flip_call()? };
                 writeln!(out, "let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.{call}(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
                 self.coins = Some((
@@ -2715,9 +3004,26 @@ impl Compiler {
             SelectionConstraint::CommonProperty(DistinctProperty::CardTypes) => {
                 format!("{M}::select::SHARE_A_CARD_TYPE")
             }
+            // "That share a land type" (CR 205.3i): some one land type every card
+            // chosen has, as SHARE_A_CARD_TYPE asks of card types (Myriad Landscape).
+            SelectionConstraint::CommonProperty(DistinctProperty::LandTypes) => {
+                const NAME: &str = "share_a_land_type";
+                if !self.functions.contains(&format!("fn {NAME}(")) {
+                    writeln!(self.functions, "fn {NAME}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ let all_have = |t: Subtype| choice.selected.iter().all(|&c| q.chars(c).subtypes.has(t)); let complete = choice.selected.is_empty() || SubtypeSet::LAND_TYPES.iter().any(all_have); let addable = Bits::of(choice.candidates.len(), |i| {{ let candidate = q.chars(choice.candidates[i]); choice.selected.is_empty() || SubtypeSet::LAND_TYPES.iter().any(|t| all_have(t) && candidate.subtypes.has(t)) }}); Verdict {{ complete, addable }} }}\nfn largest_{NAME}(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> {{ SubtypeSet::LAND_TYPES.iter().map(|t| choice.candidates.iter().copied().filter(|&c| q.chars(c).subtypes.has(t)).collect::<Vec<ObjectId>>()).max_by_key(Vec::len).unwrap_or_default() }}").unwrap();
+                }
+                format!("cantrip_api::select::set_part(&({NAME} as SelectFn), &(largest_{NAME} as cantrip_api::select::LargestFn), 0, \"that share a land type\")")
+            }
             SelectionConstraint::NoCommonProperty(DistinctProperty::CreatureTypes) => {
                 self.helpers.insert("no_common_creature_type");
                 "cantrip_api::select::set_part(&(no_common_creature_type as SelectFn), &(largest_no_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share no creature types\")".to_string()
+            }
+            // "For each color pair, choose a card that's exactly those colors": each
+            // card two colors, no two the same two.
+            SelectionConstraint::NoCommonProperty(DistinctProperty::ColorPairs) => {
+                if !self.functions.contains("fn one_of_each_color_pair(") {
+                    writeln!(self.functions, "fn color_pair_of(q: &dyn Query, id: ObjectId) -> Option<ColorSet> {{ let colors = q.chars(id).colors; (colors.iter().count() == 2).then_some(colors) }}\nfn one_of_each_color_pair(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ let used: Vec<Option<ColorSet>> = choice.selected.iter().map(|&c| color_pair_of(q, c)).collect(); let complete = used.iter().enumerate().all(|(i, k)| k.is_some() && !used[..i].contains(k)); Verdict {{ complete, addable: Bits::of(choice.candidates.len(), |i| {{ let k = color_pair_of(q, choice.candidates[i]); k.is_some() && !used.contains(&k) }}) }} }}").unwrap();
+                }
+                "cantrip_api::select::part(&(one_of_each_color_pair as SelectFn), 0, \"one for each color pair\")".to_string()
             }
             SelectionConstraint::DifferentControllers => distinct_rule(
                 &mut self.functions,
@@ -2742,6 +3048,15 @@ impl Compiler {
                     Expr::Constant(n) if *n >= 0 => n.to_string(),
                     Expr::AnnouncedX => "TargetSpec::COUNTED".to_string(),
                     other if self.counts_own_x(other) => "TargetSpec::COUNTED".to_string(),
+                    // "When you do, ... with total mana value X or less, where X is
+                    // the result": the number a reflexive ability was given, which
+                    // its `COUNTED` reads (CR 603.12; Fire Lord Sozin).
+                    Expr::Performed(result) | Expr::CountersRemoved(result) | Expr::DieResult(result)
+                        if self.counted == Some(result.0)
+                            && self.slot_counts == target_counts::SlotCounts::Delayed =>
+                    {
+                        "TargetSpec::COUNTED".to_string()
+                    }
                     _ => return None,
                 };
                 match property {
@@ -2807,7 +3122,7 @@ impl Compiler {
     /// One rule over the cards of a search for several things: the most it can
     /// take, and a judge that tells them off among the clauses, each with its own
     /// quality and number. `None` where a clause is more than that.
-    fn clauses_judge(
+    pub(super) fn clauses_judge(
         &self,
         id: usize,
         choices: &[SearchChoice],
@@ -2915,8 +3230,41 @@ impl Compiler {
             self.selections.insert(result.0, format!("picked_{id}"));
             return Ok(());
         }
-        let Some(part) = self.set_rule(constraint) else {
+        // "Each opponent chooses a different card": not one an earlier turn of the
+        // walk picked, which the walk keeps (`unpicked_{walk}`).
+        if let (SelectionConstraint::Unpicked, Some((_, players))) =
+            (constraint, self.notes.walking.as_ref())
+        {
+            let walk = players.trim_start_matches("players_").to_string();
+            let count = self.fetch(self.select_count(count)?);
+            writeln!(out, "let player_{id} = {chooser}; let pool_{id}: Vec<ObjectId> = {pool}.into_iter().filter(|o| !unpicked_{walk}.contains(o)).collect(); let count_{id} = {count}; let picked_{id} = {M}::choose::select(g, player_{id}, asker.source, Purpose::{purpose}, pool_{id}, {M}::select::Selection::of(count_{id}, &[]))?; unpicked_{walk}.extend(picked_{id}.iter().copied());").unwrap();
+            self.selections.insert(result.0, format!("picked_{id}"));
+            return Ok(());
+        }
+        // "With total mana value less than or equal to the sacrificed artifact's":
+        // the bound is read as the effect resolves, before the choice.
+        let dynamic = match constraint {
+            SelectionConstraint::TotalProperty {
+                property: Property::ManaValue,
+                comparison: Comparison::LessOrEqual,
+                amount,
+            } if !matches!(amount, Expr::Constant(_) | Expr::AnnouncedX)
+                && self.reader == Reader::Resolution =>
+            {
+                let most = self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?);
+                writeln!(out, "let most_{id}: u32 = {most};").unwrap();
+                Some(format!("{M}::select::total_mana_value_at_most(most_{id})"))
+            }
+            _ => None,
+        };
+        let Some(part) = dynamic.or_else(|| self.set_rule(constraint)) else {
             return Err(gap(format!("selection constraint {}", form(constraint))));
+        };
+        // A card for each color pair there is one of: as many as can be, of the ten.
+        let pairs = Count::AsManyAsCan(Expr::Constant(10));
+        let count = match (constraint, count) {
+            (SelectionConstraint::NoCommonProperty(DistinctProperty::ColorPairs), Count::AnyNumber) => &pairs,
+            _ => count,
         };
         let count = self.fetch(self.select_count(count)?);
         let pool = match constraint {
@@ -3109,6 +3457,46 @@ impl Compiler {
         }
         Ok((least, most))
     }
+    /// "As this enters, choose two abilities from among first strike, vigilance,
+    /// and lifelink" (Greymond): choosing `k` of them is choosing one set of `k`,
+    /// each set one of the card's words (CR 607.2f), kept as `chosen_option`.
+    fn abilities_as_enters(&mut self, k: usize, options: &[Operand], out: &mut String) -> Result<()> {
+        let failure = || gap("a choice of several abilities as it enters");
+        if self.entering_labels.is_some() || !self.choice_labels.is_empty() {
+            return Err(failure());
+        }
+        let mut abilities = Vec::new();
+        let mut names = Vec::new();
+        for option in options {
+            let Operand::Ability(ability) = option else { return Err(failure()) };
+            let Ability::Keyword(word) = &**ability else { return Err(failure()) };
+            keyword(word)?;
+            names.push(super::lane_h::keyword_words(word).ok_or_else(failure)?);
+            abilities.push((**ability).clone());
+        }
+        let mut sets: Vec<Vec<usize>> = vec![Vec::new()];
+        for _ in 0..k {
+            sets = sets
+                .into_iter()
+                .flat_map(|set| {
+                    let from = set.last().map_or(0, |&i| i + 1);
+                    (from..abilities.len()).map(move |i| [set.clone(), vec![i]].concat())
+                })
+                .collect();
+        }
+        let labels: Vec<String> = sets
+            .iter()
+            .map(|set| {
+                let words: Vec<&str> = set.iter().map(|&i| names[i].as_str()).collect();
+                quoted(&words.join(" and "))
+            })
+            .collect();
+        self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+        writeln!(out, "{M}::choose::option_as_enters(g, entering, &CARD, 0..{})?;", sets.len()).unwrap();
+        self.ability_choice = abilities;
+        self.ability_sets = sets;
+        Ok(())
+    }
     /// What `choose_value` has no arm of its own for.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn choose_value_rest(
@@ -3281,6 +3669,7 @@ impl Compiler {
                 Some("Subtype::Plains")
             }
             ValueKind::Player => Some("asker.controller"),
+            ValueKind::Object => Some("Vec::<ObjectId>::new()"),
             _ => None,
         };
         match placeholder {
@@ -3295,6 +3684,22 @@ impl Compiler {
     }
     /// Objects exiled with counters: the counters come with them, as they arrive.
     pub(super) fn exile_with_counters(&mut self, id: usize, entry: &EntrySpec) -> Result<String> {
+        // "With a number of time counters on it equal to its mana value": each
+        // card's own, read as it arrives.
+        self.moving_one = Some("moved_o".into());
+        let each: Result<Vec<String>> = entry
+            .counters
+            .iter()
+            .map(|(kind, n)| {
+                let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+                Ok(format!("({}, {n})", counter_kind(kind)?))
+            })
+            .collect();
+        self.moving_one = None;
+        let each = each?;
+        if each.iter().any(|c| c.contains("moved_o")) {
+            return Ok(format!("{{ let exiled = g.exile_all(&objects_{id}); let puts: Vec<(ObjectId, CounterKind, i16)> = {{ let q: &dyn Query = g; exiled.iter().flat_map(|&moved_o| [{}].into_iter().map(move |(kind, n): (CounterKind, i16)| (moved_o, kind, n))).collect() }}; g.add_counters_together(&puts); exiled }}", each.join(", ")));
+        }
         let mut counters = Vec::new();
         for (kind, n) in &entry.counters {
             let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
@@ -3331,6 +3736,7 @@ impl Compiler {
         until: Option<&crate::ir::Duration>,
         out: &mut String,
     ) -> Result<()> {
+        let on_objects = matches!(subject, EffectSubject::Objects(_));
         let subject = match subject {
             EffectSubject::Objects(objects) => {
                 format!("EffectOn::Objects({})", self.fetch(self.objects(objects)?))
@@ -3357,7 +3763,26 @@ impl Compiler {
             Some(until) => format!("Some({})", self.duration(until)?),
             None => "None".to_string(),
         };
-        let effects: Vec<String> = effects.iter().map(|o| self.operand_code(o)).collect();
+        // "Exile that card instead ... as it resolves" (Feather): what an effect
+        // on objects does is done to the object it is on, which it is handed.
+        let saved = match on_objects {
+            true => self.affected_object.replace("affected"),
+            false => self.affected_object,
+        };
+        let effects: Vec<String> = effects
+            .iter()
+            .map(|o| {
+                let code = self.operand_code(o);
+                match on_objects {
+                    true => code.replace(
+                        "|g: &mut dyn Game| -> Result<(), Suspend>",
+                        "|g: &mut dyn Game, affected: ObjectId| -> Result<(), Suspend>",
+                    ),
+                    false => code,
+                }
+            })
+            .collect();
+        self.affected_object = saved;
         self.plan_code(
             "operation EffectOn",
             &format!(
@@ -3474,6 +3899,20 @@ impl Compiler {
                     writeln!(out, "entering.chosen_number = Some({local});").unwrap();
                 }
             }
+            // "A random color that it isn't": one of the colors none of them has, each
+            // as likely; none when they are all colors.
+            (ValueKind::Color, [Operand::Term { family, form, operands }])
+                if family == "ChoosableColor" && form == "NotColorAmoungPermanents" =>
+            {
+                let [Operand::Objects(objects)] = operands.as_slice() else {
+                    return Err(gap("operation ChooseAtRandom"));
+                };
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let held_{id} = {{ let q: &dyn Query = g; ({objects}).into_iter().fold(ColorSet::NONE, |set, o: ObjectId| ColorSet(set.0 | q.chars(o).colors.0)) }}; let pool_{id}: Vec<Color> = Color::ALL.into_iter().filter(|&c| !held_{id}.has(c)).collect(); if pool_{id}.is_empty() {{ return Ok(()); }} let {local} = pool_{id}[g.choose_at_random(pool_{id}.len())];").unwrap();
+                if entering {
+                    writeln!(out, "entering.chosen_color = Some({local});").unwrap();
+                }
+            }
             _ => return Err(gap("operation ChooseAtRandom")),
         }
         self.chosen.push((kind, local));
@@ -3509,4 +3948,10 @@ impl Compiler {
         }
         Ok(())
     }
+}
+/// "A 'left' pile and a 'right' pile" (Raging River): piles told apart by the
+/// names a later choice and a rule that lasts past the resolution read.
+const LABELED_PILES: &str = "a pile's name kept on its objects for a lasting rule";
+fn labeled_piles(names: &[String]) -> bool {
+    !names.is_empty() && names.iter().all(|n| !n.starts_with("face "))
 }

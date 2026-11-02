@@ -7,6 +7,9 @@ const M: &str = "cantrip_mechanics";
 const PERPETUAL: &str = "cantrip_mechanics::perpetual::Perpetual";
 /// The label of a cost paid as something resolves, where any number can be read.
 pub(super) const PAID: &str = "paid";
+/// "Remove X storage counters from this land: Add X mana": a mana ability that
+/// announces how many counters it removes, which Cantrip's mana abilities don't.
+pub(super) const MANA_COUNTERS_X: &str = "removing X counters to activate a mana ability";
 
 /// What an optional additional cost sets on the card.
 enum Optional {
@@ -15,12 +18,51 @@ enum Optional {
 }
 
 /// A cost worked out from the game each time it is asked.
+/// A cost's objects that leave nothing to choose, and how many of them it
+/// takes: "it" is one (`None`), "the top six cards" exactly six (`Some(6)`).
+fn fixed_selection(selection: &CostObjectSelection) -> Option<Option<&Expr>> {
+    match (&selection.objects, &selection.choose) {
+        (ObjectSet::One(_), None) => Some(None),
+        (ObjectSet::Take { count, .. }, Some(Count::Exactly(n)))
+            if format!("{count:?}") == format!("{n:?}") =>
+        {
+            Some(Some(n))
+        }
+        _ => None,
+    }
+}
+
 fn reading_cost(code: &str) -> String {
     planned::planned_value(
         "engine: no cost sized by the game",
         "Cost::NONE",
         &format!("Cost::reading(|q, asker, targets| {code})"),
     )
+}
+
+/// Whether a cost is "tap an untapped creature you control" and nothing else.
+fn taps_a_creature_you_control(cost: &Cost) -> bool {
+    let [CostPart::ChangeTapState {
+        selections,
+        tapped: true,
+        symbol: false,
+    }] = cost.parts.as_slice()
+    else {
+        return false;
+    };
+    let [CostObjectSelection {
+        objects: ObjectSet::Battlefield(ObjectFilter::All(filters)),
+        choose: Some(Count::Exactly(Expr::Constant(1))),
+    }] = selections.as_slice()
+    else {
+        return false;
+    };
+    let [ObjectFilter::Not(untapped), ObjectFilter::CardType(crate::mtg_types::CardType::Creature), ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController))] =
+        filters.as_slice()
+    else {
+        return false;
+    };
+    matches!(**untapped, ObjectFilter::Tapped)
 }
 
 /// Forecast (CR 702.57): the ability is whole, and the keyword is the requirement.
@@ -673,7 +715,27 @@ impl Compiler {
         let ask = |source: &str, subject: &str, cost: &str| {
             format!("g.may_pay(payer_{id}, {source}, {subject}, {cost}, &PAY_QUESTION)?")
         };
+        let beholds: Vec<&CostPart> = cost
+            .parts
+            .iter()
+            .filter(|part| !matches!(part, CostPart::Mana(symbols) if symbols.is_empty()))
+            .collect();
         let paid = match cost.parts.as_slice() {
+            // "You may behold an Elf. If you do, ..." (CR 701.4a, 608.2d): nobody is
+            // asked with nothing to behold (Elven Passage, Sarkhan); "as this enters"
+            // leaves the entering card out (Theorist's Sanctum).
+            _ if matches!(beholds.as_slice(), [CostPart::Behold { count: Expr::Constant(1), .. }]) => {
+                let [CostPart::Behold { what, .. }] = beholds.as_slice() else {
+                    unreachable!("one behold");
+                };
+                let (test, quality) = behold_words(what)?;
+                let function = format!("behold_{}", self.fresh());
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {test} }}").unwrap();
+                match self.pending == Pending::Entering {
+                    true => format!("{M}::behold::as_enters(g, entering, {function}, {})?", quoted(&quality)),
+                    false => format!("{M}::behold::on_resolution(g, payer_{id}, asker.source, {function}, {})?", quoted(&quality)),
+                }
+            }
             [CostPart::Choice(_)]
                 if lane_k::printed_otherwise(self.line_text(), "for each blight counter") =>
             {
@@ -772,12 +834,10 @@ impl Compiler {
         let Some((object, price)) = exile_beside_a_price(cost) else {
             return Err(gap("cost part Move"));
         };
-        // The link is to the exiling ability's object, not to the token that was
-        // given the ability that reads it.
+        // An ability given later to a token reads the card as linked to it: the
+        // grant links it (`exiled_for_grant`).
         let later = format!("{:?}", self.after);
-        if later.contains("GrantAbility") && later.contains("Earlier { what: Exiled") {
-            return Err(gap("an exiled card read by an ability given to a token"));
-        }
+        let for_grant = later.contains("GrantAbility") && later.contains("Earlier { what: Exiled");
         let evidence = price
             .parts
             .iter()
@@ -792,6 +852,9 @@ impl Compiler {
         self.moved.insert(result.0, format!("moved_{id}"));
         self.left_behind(result, format!("moved_{id}.clone()"));
         self.notes.exiled_source = Some(format!("moved_{id}.clone()"));
+        if for_grant {
+            self.notes.exiled_for_grant = Some(format!("moved_{id}.clone()"));
+        }
         Ok(())
     }
     /// "You may discard your hand and draw two cards. If you do": one decision.
@@ -927,6 +990,25 @@ impl Compiler {
         rest: &[Instruction],
         label: &str,
     ) -> Result<Option<String>> {
+        // "Add two mana of different colors" (CR 106.1b): each a color the ones
+        // before it aren't, chosen as the ability resolves (Wizards' Rockets asks
+        // its colors the same way).
+        if let (ManaProduction::DifferentColors(n @ 1..=5), []) = (mana, rest) {
+            let (lasting, restriction) = mana_lasting(restriction);
+            if lasting.is_some() {
+                return Ok(None);
+            }
+            let rule = restriction.map(|r| self.mana_use(r)).transpose()?;
+            let (add, only) = match &rule {
+                Some(rule) => (
+                    format!("g.add_restricted_mana(asker.controller, color.mana(), 1, {rule});"),
+                    format!(".only_for({rule})"),
+                ),
+                None => ("g.add_mana(asker.controller, color.mana(), 1);".to_string(), String::new()),
+            };
+            writeln!(self.functions, "fn {label}(g: &mut dyn Game, asker: &Asker, _: Option<Color>) -> Result<(), Suspend> {{ let mut left = ColorSet(0b11111); for _ in 0..{n} {{ let color = cantrip_mechanics::choose_colors(g, asker.controller, asker.source, left, 1)?[0]; left = ColorSet(left.0 & !ColorSet::of(color).0); {add} }} Ok(()) }}").unwrap();
+            return Ok(Some(format!("add_by({label}).yields_any({n}){only}")));
+        }
         let among = matches!(
             mana,
             ManaProduction::ColorsAmong { .. }
@@ -1217,11 +1299,75 @@ impl Compiler {
                 self.moved.insert(result.0, format!("shuffled_{id}"));
                 self.left_behind(result, format!("{picked}.clone()"));
             }
+            // "[+2], then ..." in a resolving ability (Comet, Stellar Pup): loyalty
+            // counters put on or removed from the source (CR 606.4 by analogy),
+            // paid only with as many to remove.
+            CostPart::Loyalty(n) => {
+                let delta = self.fetch(self.number(n)?.code);
+                writeln!(out, "let delta_{id}: i64 = {delta}; let paid_{id} = if delta_{id} >= 0 {{ g.add_counters(asker.source, CounterKind::Loyalty, delta_{id}.min(i64::from(i16::MAX)) as i16); true }} else {{ let owed = (-delta_{id}).min(i64::from(i16::MAX)) as i16; g.remove_counters(asker.source, CounterKind::Loyalty, owed) == owed }};").unwrap();
+            }
+            // "Exile it and the top six cards of your library in a face-down pile.
+            // If you do" (Triumph of Saint Katherine): fixed objects, no choice
+            // among them, exiled face down together (CR 406.3). Worded as a cost,
+            // it is paid whole or not at all (CR 118.3): with any of them missing,
+            // nothing moves and "you do" is false.
+            CostPart::Move {
+                selections,
+                destination: Destination::Exile,
+                entry,
+                face_down: true,
+            } if entry.tapped == false
+                && entry.counters.is_empty()
+                && entry.states.iter().all(|s| matches!(s, EntryState::ExilePile { .. }))
+                && selections.iter().all(|s| fixed_selection(s).is_some()) =>
+            {
+                let mut parts = Vec::new();
+                for selection in selections {
+                    let wanted = fixed_selection(selection).expect("checked");
+                    let wanted = match wanted {
+                        Some(n) => self.fetch(self.number(n)?.code),
+                        None => "1i64".into(),
+                    };
+                    parts.push(format!(
+                        "{{ let part: Vec<ObjectId> = {}; whole_{id} &= part.len() as i64 >= {wanted}; part }}",
+                        self.fetch(self.objects(&selection.objects)?)
+                    ));
+                }
+                writeln!(
+                    out,
+                    "let mut whole_{id} = true; let objects_{id}: Vec<ObjectId> = [{}].concat(); let moved_{id}: Vec<ObjectId> = if whole_{id} {{ g.exile_face_down(&objects_{id}, None) }} else {{ Vec::new() }}; let paid_{id} = whole_{id} && moved_{id}.iter().any(|&o| g.obj(o).zone.is(ZoneKind::Exile));",
+                    parts.join(", ")
+                )
+                .unwrap();
+                self.moved.insert(result.0, format!("moved_{id}"));
+                self.left_behind(result, format!("objects_{id}.clone()"));
+            }
             // "Pay {E}{E}. If you can't, ...": whoever can pay does (Greenbelt Rampager).
             CostPart::Energy(n) => {
                 let owed = self.fetch(self.number(n)?.amount(255, "u8")?);
                 let payer = self.fetch(self.certain_player(player)?);
                 writeln!(out, "let owed_{id}: u8 = {owed}; let payer_{id} = {payer}; let paid_{id} = g.state().player(payer_{id}).energy() >= owed_{id}; if paid_{id} {{ g.change_energy(payer_{id}, -i32::from(owed_{id})); }}").unwrap();
+            }
+            // "Remove a counter from a creature you control. If you do" (Mister
+            // Hyde): one counter of any kind off one of them, its player's choice.
+            CostPart::RemoveCounters { removals }
+                if matches!(
+                    removals.as_slice(),
+                    [CounterRemoval {
+                        recipients: Recipients::Objects(_),
+                        kind: None,
+                        amount: CounterAmount::Count(Count::Exactly(Expr::Constant(1))),
+                        selection: Some(_),
+                        ..
+                    }]
+                ) =>
+            {
+                let [CounterRemoval { player: remover, recipients: Recipients::Objects(objects), .. }] = removals.as_slice() else {
+                    unreachable!("one counter off one of a set");
+                };
+                let remover = self.fetch(self.certain_player(remover)?);
+                let among = self.fetch(self.objects(objects)?);
+                writeln!(out, "let remover_{id} = {remover}; let among_{id}: Vec<ObjectId> = {among}; let paid_{id} = g.remove_a_counter_from_among(remover_{id}, asker.source, &among_{id})?;").unwrap();
             }
             CostPart::RemoveCounters { removals } if removes_one_counter(removals) => {
                 self.remove_counters(id, removals, result, out)?;
@@ -1286,6 +1432,21 @@ impl Compiler {
                     return Err(gap(format!("resolution cost {}", form(part))));
                 };
                 writeln!(out, "let paid_{id} = !{applied}.is_empty();").unwrap();
+            }
+            // "Move one or more counters from this onto another target permanent
+            // you control. If you do": how many of each kind it has, a question for
+            // each (as moving any number of each kind is asked), the last kind
+            // asked for at least one while none has moved (CR 122.5, 608.2c).
+            CostPart::MoveCounters {
+                from,
+                to,
+                kind: None,
+                amount: MovedCounters::AtLeast(Expr::Constant(1)),
+            } => {
+                let actor = self.fetch(self.certain_player(player)?);
+                let sources = self.acted_on(from)?;
+                let recipient = self.acted_on(to)?;
+                writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let from_{id}: Option<ObjectId> = ({sources}).first().copied(); let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let (Some(from), Some(to)) = (from_{id}, to_{id}) {{ let kinds: Vec<CounterKind> = CounterKind::ALL.into_iter().filter(|&kind| g.state().obj(from).counters(kind) > 0).collect(); let last = kinds.len(); for (i, kind) in kinds.into_iter().enumerate() {{ let most = g.state().obj(from).counters(kind).clamp(0, 255) as u32; let least = u32::from(done_{id} == 0 && i + 1 == last); if most >= least {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, least, most, \"Move counters\")? as i16; done_{id} += i64::from(g.move_counters(from, to, kind, amount)); }} }} }} let paid_{id} = done_{id} > 0;").unwrap();
             }
             other => {
                 let feature = format!("resolution cost {}", form(other));
@@ -1382,6 +1543,15 @@ impl Compiler {
                 CounterAmount::Count(Count::Exactly(Expr::AnnouncedX)),
             ) if label != PAID && kind.is_some() => {
                 let kind = kind.ok_or_else(|| gap(SHAPE))?;
+                // A mana ability announces only its {X} (`activate_mana_as`): no
+                // number of counters to remove, nor an X its effect could read.
+                if self.paid_for == lane_j::PaidFor::Mana {
+                    return Ok(planned::planned_value(
+                        MANA_COUNTERS_X,
+                        "Cost::NONE",
+                        &format!("Cost {{ variable: Some(VariableCost::RemoveAnyNumberOfCounters({kind})), ..Cost::NONE }}"),
+                    ));
+                }
                 format!("Cost {{ variable: Some(VariableCost::RemoveAnyNumberOfCounters({kind})), ..Cost::NONE }}")
             }
             // How many is read as the cost is paid, while the effect resolves.
@@ -1667,6 +1837,17 @@ impl Compiler {
                     mana(symbols)?
                 )
             }
+            CostPart::Choice(_) if self.activation_cost.is_some() => {
+                return Err(gap(super::costs::ACTIVATED_COST_CHOICE));
+            }
+            // "You may reveal a Dragon card from your hand or choose a Dragon you
+            // control" (Dragon's Fire): a cost no `Cost` pays (a reveal, card.rs
+            // `Cost`) can't be one of the choices, whatever offers the choice.
+            CostPart::Choice(costs)
+                if costs.iter().any(|c| c.parts.iter().any(|p| matches!(p, CostPart::Reveal { .. }))) =>
+            {
+                return Err(gap("engine: no reveal cost"));
+            }
             CostPart::Choice(costs) => {
                 let mut options = Vec::new();
                 for (i, option) in costs.iter().enumerate() {
@@ -1745,6 +1926,14 @@ impl Compiler {
                     &format!("({inner}).chosen_under(&[{}])", rules.join(", ")),
                 )
             }
+            // Tariff: "sacrifices the creature ... unless they pay that creature's mana
+            // cost". The data pays the cost of any creature that ties and then has the
+            // sacrifice choose among them again, so the creature paid for and the one
+            // sacrificed are not one choice.
+            CostPart::ObjectAction {
+                action: CostObjectAction::PayManaCost,
+                ..
+            } => return Err(gap("a mana cost paid for one creature and a sacrifice choosing again")),
             other => return Err(gap(format!("cost part {}", form(other)))),
         })
     }
@@ -1815,6 +2004,11 @@ impl Compiler {
                     &def,
                     &format!("{def}.mana_spent({portion}, {rule})"),
                 )
+            }
+            // "Tap an untapped creature you control rather than pay that mana"
+            // (CR 118.3), as Heirloom Epic prints it.
+            ActivationRule::ManaInstead(cost) if taps_a_creature_you_control(cost) => {
+                format!("{def}.tap_creatures_for_mana()")
             }
             ActivationRule::ManaInstead(cost) => {
                 let cost = self.cost(cost, label)?;
@@ -1961,7 +2155,13 @@ impl Compiler {
                 );
             }
             (CastingRule::ReduceForEachPaid { reductions, cost }, None) => {
-                self.reduce_for_each_paid(reductions, cost, label, parts)?;
+                // The spell's own cost (Gorex, "exile any number of creature
+                // cards from your graveyard"): what it exiles is exiled with the
+                // permanent (CR 607.2q).
+                let was = std::mem::replace(&mut self.spell_cost, true);
+                let paid = self.reduce_for_each_paid(reductions, cost, label, parts);
+                self.spell_cost = was;
+                paid?;
             }
             (CastingRule::RestrictMana { portion, filter }, None) => {
                 let rule = match filter {
@@ -2454,17 +2654,27 @@ impl Compiler {
         };
         let id = self.fresh();
         let mut code = format!("let objects_{id}: Vec<ObjectId> = {objects};\n");
+        // What each change reads of "it" (Teyo's "equal to its toughness") is
+        // of the object it is on, so each is made for that object.
+        let saved = self.affected_object.replace("object");
         let mut kinds = Vec::new();
         for change in changes {
-            for kind in self.perpetual_kinds(change)? {
-                let local = format!("kind_{id}_{}", kinds.len());
-                writeln!(code, "let {local} = {};", self.fetch(kind)).unwrap();
-                kinds.push(local);
+            match self.perpetual_kinds(change) {
+                Ok(made) => kinds.extend(made),
+                Err(failed) => {
+                    self.affected_object = saved;
+                    return Err(failed);
+                }
             }
         }
+        self.affected_object = saved;
         let applies: String = kinds
-            .iter()
-            .map(|k| format!("{M}::perpetual::apply(g, asker.source, object, {k}); "))
+            .into_iter()
+            .enumerate()
+            .map(|(i, kind)| {
+                let kind = self.fetch(kind);
+                format!("let kind_{id}_{i} = {kind}; {M}::perpetual::apply(g, asker.source, object, kind_{id}_{i}); ")
+            })
             .collect();
         write!(code, "for &object in &objects_{id} {{ {applies}}}").unwrap();
         self.plan_code(FEATURE, &code, out);
@@ -2531,6 +2741,12 @@ impl Compiler {
         };
         // What Cantrip has: the card lists it as the mechanic says.
         match mechanic {
+            K::AnnihilatorX => {
+                let amount = amount.ok_or_else(|| gap(feature.clone()))?;
+                let ability = self.annihilator_x(amount, label)?;
+                parts.abilities.push(ability);
+                return Ok(());
+            }
             K::StartYourEngines => {
                 parts.field("start_your_engines", "true".into());
                 return Ok(());

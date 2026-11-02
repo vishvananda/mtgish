@@ -98,6 +98,62 @@ impl Compiler {
         ));
         Ok(true)
     }
+    /// "Each enchantment card in your hand has miracle. Its miracle cost is equal
+    /// to its mana cost reduced by {4}" (Aminatou, Veil Piercer; CR 702.94a): a
+    /// `GrantedMiracle`, whose cost is the card's mana cost less the generic mana.
+    pub(super) fn miracle_granted(
+        &mut self,
+        label: &str,
+        affected: &ObjectSet,
+        changes: &[Change],
+        parts: &mut Parts,
+    ) -> Result<bool> {
+        let [Change::GrantAbility(ability)] = changes else {
+            return Ok(false);
+        };
+        let Ability::Mechanic {
+            mechanic: Mechanic::Miracle,
+            cost: Some(cost),
+            amount: None,
+            filter: None,
+        } = &**ability
+        else {
+            return Ok(false);
+        };
+        let less = match cost.parts.as_slice() {
+            [CostPart::ManaCostReduced { object: None, reduction }] => {
+                let words = format!("{reduction:?}");
+                if !words.contains("CostReduceGeneric") {
+                    return Ok(false);
+                }
+                let digits: String = words
+                    .split("Integer(")
+                    .nth(1)
+                    .unwrap_or("")
+                    .chars()
+                    .take_while(char::is_ascii_digit)
+                    .collect();
+                match digits.parse::<u8>() {
+                    Ok(n) => n,
+                    Err(_) => return Ok(false),
+                }
+            }
+            _ => return Ok(false),
+        };
+        let Some(test) = self.outside_subject(affected, &Candidate::of("card"))? else {
+            return Ok(false);
+        };
+        let guard = self.guard()?;
+        let has = format!("{label}_miracle");
+        writeln!(self.functions, "#[allow(unused_variables)] fn {has}(q: &dyn Query, asker: &Asker, card: ObjectId) -> bool {{ {guard}{test} }}").unwrap();
+        let name = self.card_name.clone();
+        writeln!(self.functions, "fn {label}_miracle_cost(q: &dyn Query, card: CardId) -> Option<ManaCost> {{ let def = q.card(card); def.has_cost.then_some(def.cost) }}").unwrap();
+        parts.table(
+            "granted_miracles",
+            format!("GrantedMiracle {{ text: {:?}, has: {has}, cost: {label}_miracle_cost, less: {less} }}", format!("{name}'s miracle: its mana cost reduced by {{{less}}}")),
+        );
+        Ok(true)
+    }
     pub(super) fn player_static(
         &mut self,
         label: &str,
@@ -190,13 +246,18 @@ impl Compiler {
                 let delta = self.cost_delta(modifier);
                 self.costed_spell = false;
                 let delta = delta?;
+                // "The first noncreature spell each opponent casts each turn": the
+                // player the rule is about is the one casting, `player` here.
+                let outer = std::mem::replace(&mut self.rule_player, true);
                 let test = self.filter(
                     spells,
                     &Candidate {
                         announced: Some("targets".into()),
                         ..cast_card()
                     },
-                )?;
+                );
+                self.rule_player = outer;
+                let test = test?;
                 let (guard, member) = (self.guard()?, self.player_member(players)?);
                 self.table_entry(parts, "cost_changes", &function, format!(
                     "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}{member} && {test} {{ {delta} }} else {{ CostDelta::NONE }} }}"
@@ -635,6 +696,28 @@ impl Compiler {
                 let test = self.filter(objects, &Candidate::of("permanent"))?;
                 self.table_entry(parts, "cost_bans", function, format!(
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ {banned} && {paying} && matches!(payment, CostPayment::Sacrifice(permanent) if {test}) }}"
+                ));
+            }
+            // "Can't cast spells from anywhere other than their hands" (CR 601.3):
+            // the zone is all a rule of casting is told (Drannith Magistrate).
+            PlayerAction::CastOutside(zone) => {
+                let zone = zone_kind(zone)?;
+                self.table_entry(parts, "cast_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, from: ZoneKind) -> bool {{ !({banned} && from != {zone}) }}"
+                ));
+            }
+            // "Players can't get counters", "you can't get poison counters" (CR
+            // 122.1): a player's counters are poison, energy and experience.
+            PlayerAction::ReceiveCounters(kind) => {
+                use crate::counter::{CounterKind as K, CounterName as N};
+                let kind = match kind {
+                    None => "true",
+                    Some(K::Named(N::PoisonCounter)) => "matches!(kind, PlayerCounter::Poison)",
+                    Some(K::Named(N::ExperienceCounter)) => "matches!(kind, PlayerCounter::Experience)",
+                    Some(other) => return Err(gap(format!("prohibited action ReceiveCounters {other:?}"))),
+                };
+                self.table_entry(parts, "player_counter_bans", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, kind: PlayerCounter) -> bool {{ {banned} && {kind} }}"
                 ));
             }
             other => return Err(gap(format!("prohibited action {}", form(other)))),

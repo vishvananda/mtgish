@@ -28,6 +28,15 @@ fn play_expiry(duration: &crate::ir::Duration) -> Result<String> {
     })
 }
 
+/// A plain keyword as a card says it, "first strike": none for one with a
+/// quality of its own (protection, ward).
+pub(super) fn keyword_words(keyword: &Keyword) -> Option<String> {
+    match keyword {
+        Keyword::Protection(_) | Keyword::Ward(_) => None,
+        other => Some(camel_words(&form(other))),
+    }
+}
+
 /// `FirstStrike` as a card says it.
 fn camel_words(word: &str) -> String {
     let mut out = String::new();
@@ -1096,7 +1105,11 @@ impl Compiler {
                     self.frame.object = Some(Carried::Subject);
                     self.event_object = Some(ObjectRef::Source);
                 }
+                // "Only by creatures in the same sector" (Space Beleren): the
+                // object the effect is on is the one the rule is asked about.
+                let affected = self.affected_object.replace(subject);
                 let test = self.filter(filter, &Candidate::of(other));
+                self.affected_object = affected;
                 (self.frame, self.event_object) = event;
                 (self.reader, self.event_at) = saved;
                 if test.as_ref().is_ok_and(|code| self.reads_a_local(code)) {
@@ -1215,7 +1228,29 @@ impl Compiler {
             CardPlayAction::CastSpell => false,
             other => return Err(gap(format!("play permission to {}", form(other)))),
         };
-        let expiry = play_expiry(duration)?;
+        // "Until that player's next end step, they may play it" (Casey & Raph):
+        // the holder's own next end step, whoever the holder is.
+        let expiry = match duration {
+            crate::ir::Duration::UntilNext {
+                point: TurnPoint::EndStepBegins,
+                players: until,
+            } if matches!(players, PlayerSet::One(_))
+                && format!("{until:?}") == format!("{players:?}") =>
+            {
+                "Expiry::UntilYourNextEndStep".to_string()
+            }
+            // "For as long as it remains exiled" read as until it is cast: a
+            // permission for that card, which ends as it leaves exile (CR 400.7).
+            crate::ir::Duration::UntilCast(_) => "Expiry::Never".to_string(),
+            // "They may play those cards until the end of their next turn": the
+            // next turn of the player the permission is for.
+            crate::ir::Duration::UntilEndOfNextTurn(whose)
+                if matches!(players, PlayerSet::One(p) if form(p) == form(whose)) =>
+            {
+                "Expiry::EndOfYourNextTurn".to_string()
+            }
+            other => play_expiry(other)?,
+        };
         if terms.during.is_some() || terms.flash || terms.may_look {
             return Err(gap("play permission on other terms"));
         }
@@ -1296,6 +1331,11 @@ impl Compiler {
                     ..
                 }
             );
+        if matches!(duration, crate::ir::Duration::UntilCast(_))
+            && (exiled_with || terms.limit.is_some())
+        {
+            return Err(gap("play permission lasting UntilCast"));
+        }
         let one = match terms.limit {
             None => false,
             Some(PlayLimit::Total(1)) if exiled_with => true,
@@ -1329,6 +1369,25 @@ impl Compiler {
         if matches!(cards, ObjectSet::Zone { .. }) {
             // Cards that come there later are named too: no list of them today has it.
             return Err(gap("play permission on an open set of cards"));
+        }
+        // "Until end of turn, you may cast instant and sorcery spells from the top of
+        // your graveyard" (Bösium Strip): whatever card is on top as it is cast. A
+        // permission is for one object (`allow_play`), and the one lasting rule for a
+        // graveyard (`EffectKind::PlayFromGraveyard`) takes every card in it.
+        if let ObjectSet::Take { objects, .. } = cards {
+            if matches!(
+                &**objects,
+                ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Graveyard, players: PlayerSet::One(PlayerRef::Affected) }, .. }
+            ) {
+                return Err(gap("a lasting permission to cast from the top of a graveyard"));
+            }
+        }
+        // "Until end of turn, you may play cards from the top of your library"
+        // (Gwenom, The Belligerent): the same for a library, where the lasting
+        // rule a static ability has (`PlayRule::LibraryTop`) has no effect to
+        // give it for a while.
+        if top_of_their(cards, EventZone::Library) {
+            return Err(gap("a lasting permission to play from the top of a library"));
         }
         let chosen = match filter {
             ObjectFilter::Any => cards.clone(),
@@ -1732,6 +1791,13 @@ impl Compiler {
             return Ok(false);
         };
         let expiry = play_expiry(duration)?;
+        // "Until end of turn, you may look at the top card of your library any
+        // time" (Gwenom, The Belligerent): whatever card is on top as it changes,
+        // a rule for the player for a while. `allow_look` is for one object, and
+        // `PlayRule::LookAtLibraryTop` is a static ability's only.
+        if top_of_their(objects, EventZone::Library) {
+            return Err(gap("a lasting rule to look at the top card of a library"));
+        }
         let cards = self.fetch(self.objects(objects)?);
         let players = self.fetch(self.players(players)?);
         // What a player knows of a card face down in exile lasts as long as that
@@ -1952,6 +2018,12 @@ impl Compiler {
         on: &ManaPayment,
         parts: &mut Parts,
     ) -> Result<()> {
+        // Cantrip's spending rules recolor mana only (`spend_any_color`); "as though
+        // it were mana of any type" lets colorless or snow-less mana pay what its
+        // type wouldn't, which no rule reads (Sharkey, Tyrant of the Shire).
+        if matches!(spend_as, SpendAs::AnyType) {
+            return Err(gap("mana spent as though of any type"));
+        }
         let test = match on {
             ManaPayment::Anything => "true".to_string(),
             ManaPayment::Spells(filter) => format!(
@@ -1968,7 +2040,6 @@ impl Compiler {
         let body = format!("let player = s.player; {guard}{member} && {test}");
         let (table, feature): (&'static str, _) = match spend_as {
             SpendAs::AnyColor => ("spend_any_color", None),
-            SpendAs::AnyType => ("spend_any_type", Some("mana spent as though of any type")),
             other => return Err(gap(format!("player rule SpendManaAs {}", form(other)))),
         };
         self.permission_entry(
@@ -2109,8 +2180,66 @@ impl Compiler {
     }
     /// "Has all activated abilities of ...", "as long as a card exiled with this has
     /// flying, this has flying. The same is true for ..." (CR 613.1f, layer 6).
-    pub(super) fn gain_abilities_of(&mut self, change: &Change) -> Result<statics::LayerChange> {
+    pub(super) fn gain_abilities_of(
+        &mut self,
+        change: &Change,
+        spend_handled: bool,
+    ) -> Result<statics::LayerChange> {
         let failure = || gap("static change GainAbilitiesOf");
+        // The activated abilities a permanent has are its characteristics as the
+        // layers leave them (CR 613.1f), not its card's printed list, which is all
+        // `grant_activated_abilities_of` reads (Drana and Linvala, Scheming Fence,
+        // Sharkey, Experiment Kraj, Marvin, Robaran Mercenaries, Manascape
+        // Refractor): read each through the view, which in layer 6 is the object
+        // as the layer's effects applied so far leave it (CR 613.8, `LayerQuery::chars`).
+        // "You may spend mana as though it were mana of any color to activate those
+        // abilities" is a spending rule the caller writes (`spend_handled`).
+        if let Change::GainAbilitiesOf { objects, kinds, once_each_turn, spend_as } = change {
+            let on_battlefield = matches!(objects, ObjectSet::Battlefield(_));
+            let asked = format!("{kinds:?}");
+            let permanents = on_battlefield || asked.contains("AbilityOfPermanent");
+            let activated = asked.contains("ActivatedAbility") || asked.contains("AbilityOfPermanent");
+            if permanents && activated {
+                if *once_each_turn || (spend_as.is_some() && !spend_handled) {
+                    return Err(gap("the activated abilities of other permanents"));
+                }
+                fn kept(kinds: &Operand) -> Option<String> {
+                    match kinds {
+                        Operand::List(items) => items
+                            .iter()
+                            .map(kept)
+                            .collect::<Option<Vec<_>>>()
+                            .map(|tests| format!("({})", tests.join(" || "))),
+                        Operand::Term { form, operands, .. } => match (form.as_str(), operands.as_slice()) {
+                            ("ActivatedAbility", []) | ("AbilityOfPermanent", [_]) => Some("true".into()),
+                            ("NonManaAbility", []) => Some("!d.is_mana_ability()".into()),
+                            ("NonLoyaltyAbility", []) => Some("!d.is_loyalty_ability()".into()),
+                            ("And", parts) => parts
+                                .iter()
+                                .map(kept)
+                                .collect::<Option<Vec<_>>>()
+                                .map(|tests| format!("({})", tests.join(" && "))),
+                            _ => None,
+                        },
+                        _ => None,
+                    }
+                }
+                let Some(keep) = kept(kinds) else {
+                    return Err(gap("the activated abilities of other permanents"));
+                };
+                let ids = self.ids_in_layer(objects)?;
+                // Each ability is the object's own as written, so it is the
+                // ability's source and "this" means it (CR 113.7, 602.1); a special
+                // action is no ability (CR 116.2). A permanent doesn't gain its own,
+                // and what has left the battlefield has none to give.
+                return Ok(statics::LayerChange::of(
+                    "Ability",
+                    format!(
+                        "let ids: Vec<ObjectId> = {ids}; for id in ids {{ if id == source || !q.state().obj(id).zone.is(ZoneKind::Battlefield) {{ continue; }} let other = q.chars(id); for r in other.abilities() {{ if matches!(q.cards().ability(r), AbilityDef::Activated(d) if !d.special_action && {keep}) {{ if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(r); }} }} }} }}"
+                    ),
+                ));
+            }
+        }
         let Change::GainAbilitiesOf {
             objects,
             kinds,
@@ -2135,16 +2264,7 @@ impl Compiler {
             return Err(failure());
         }
         let ids = self.ids_in_layer(objects)?;
-        let on_battlefield = matches!(objects, ObjectSet::Battlefield(_));
         let body = match kinds_named.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
-            ["ActivatedAbility"] if on_battlefield => format!(
-                "let ids = {ids}; {};",
-                planned::planned_value(
-                    "the activated abilities of other permanents",
-                    "()",
-                    "cantrip_mechanics::statics::grant_activated_abilities_of_permanents(q, &ids, chars)",
-                )
-            ),
             ["ActivatedAbility"] if *once_each_turn => {
                 // "You may activate each of those abilities only once each turn"
                 // (CR 602.5b): one limited instance for each of the cards that
@@ -2176,6 +2296,17 @@ impl Compiler {
                     "cantrip_mechanics::statics::grant_loyalty_abilities_of(q, &ids, chars)",
                 )
             ),
+            // "Has all activated and triggered abilities of the exiled card"
+            // (Idris, CR 613.1f): each such ability its card prints, the
+            // object's own as written (CR 113.7); the core asks triggered
+            // abilities of what an object has (`Chars::abilities`).
+            ["ActivatedAbility", "TriggeredAbility"] | ["TriggeredAbility", "ActivatedAbility"] => format!(
+                "let cards: Vec<CardId> = ({ids}).into_iter().map(|id: ObjectId| q.state().obj(id).card).collect(); for card in cards {{ for (index, ability) in q.cards().get(card).abilities.iter().enumerate() {{ if matches!(ability, AbilityDef::Activated(a) if !a.special_action) || matches!(ability, AbilityDef::Triggered(_)) {{ if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(AbilityRef {{ card, index: index as u8 }}); }} }} }} }}"
+            ),
+            // Ability stickers (Unfinity, CR 123.4): Cantrip has no stickers.
+            names if names.iter().any(|n| n.contains("Sticker")) => {
+                return Err(gap("the abilities of ability stickers"))
+            }
             names if names.iter().any(|n| n.ends_with("Ability")) => return Err(failure()),
             names => {
                 let list = names
@@ -2229,6 +2360,22 @@ impl Compiler {
             PlayerAction::CastOutside(zone) => (
                 format!(
                     "EffectKind::CantCastSpellsFrom(player, ZoneKinds::all_but(&[{}]))",
+                    zone_kind(zone)?
+                ),
+                None,
+            ),
+            // "Can't cast spells from their graveyards" (Shaman's Trance): from
+            // that zone of any player, CR 601.3.
+            PlayerAction::CastSpell {
+                from:
+                    Some(ZoneScope::Players {
+                        zone,
+                        players: PlayerSet::All,
+                    }),
+                filter: ObjectFilter::Any,
+            } => (
+                format!(
+                    "EffectKind::CantCastSpellsFrom(player, ZoneKinds::of(&[{}]))",
                     zone_kind(zone)?
                 ),
                 None,
@@ -3178,6 +3325,9 @@ impl Compiler {
         )
         .unwrap();
         self.selections.insert(result.0, format!("picked_{id}"));
+        // "The copied creature": one object, which "when you do" carries.
+        self.single.insert(result.0);
+        self.notes.earlier.push(("Selected", result.clone()));
         if let Some(until) = until {
             let until = self.duration(until)?;
             self.plan_code(
@@ -3202,11 +3352,13 @@ impl Compiler {
         if let [Change::Copiable(list)] = changes {
             if let [Change::GrantAbility(ability)] = list.as_slice() {
                 if lane_n::every_creature_type(ability) {
-                    self.plan_code(
-                        "event change as it enters Copiable GrantAbility",
-                        "entering.copy = entering.copy.map(|values| values.with_every_creature_type());",
+                    // Changeling is a characteristic-defining ability (CR 702.73a),
+                    // which the copy has as an exception (Omni-Changeling).
+                    writeln!(
                         out,
-                    );
+                        "entering.copy = entering.copy.map(|values| values.with_keyword(Keyword::Changeling));"
+                    )
+                    .unwrap();
                     return Ok(());
                 }
             }
@@ -4159,6 +4311,9 @@ impl Compiler {
                 bonus: Expr::Constant(2),
             } => keyword("SaddlesAsThoughPowerTwoGreater"),
             R::Prohibit(ObjectAction::Counter) => keyword("CantBeCountered"),
+            // "Can't be attacked" (CR 508.1c): the keyword the attack rules read,
+            // as The Aetherspark grants it to itself.
+            R::Prohibit(ObjectAction::BeAttacked) => keyword("CantBeAttacked"),
             other => return Err(gap(format!("static rule {}", rule_name(other)))),
         })
     }
@@ -4198,4 +4353,13 @@ fn hasable_keyword(word: &str, operands: &[Operand]) -> Option<Ability> {
         _ => return None,
     };
     Some(Ability::Keyword(keyword))
+}
+/// "The top card of [the affected player's] library": the card on top of the
+/// zone of the player a rule is for, whichever card that is as it changes.
+fn top_of_their(objects: &ObjectSet, zone: EventZone) -> bool {
+    matches!(
+        objects,
+        ObjectSet::Take { objects, count: Expr::Constant(1), from: SequenceEnd::Top }
+            if matches!(&**objects, ObjectSet::Zone { scope: ZoneScope::Players { zone: z, players: PlayerSet::One(PlayerRef::Affected) }, .. } if *z == zone)
+    )
 }

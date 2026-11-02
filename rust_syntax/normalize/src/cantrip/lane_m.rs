@@ -224,9 +224,12 @@ impl Compiler {
             S::CouldntAttack => {
                 unrecorded("CouldntAttack", format!("!q.could_have_attacked({id})"))
             }
-            S::SnowManaOfOwnColorSpent => unrecorded(
-                "SnowManaOfOwnColorSpent",
-                format!("q.state().obj({id}).snow_spent.any_of({chars}.colors)"),
+            // "If {S} of any of that spell's colors was spent to cast it": mana from
+            // a snow source of one of its colors, by the source that made it (CR
+            // 106.3, 107.4h). The card tells snow mana apart (`faces::mana_told_apart`),
+            // so its payer chooses which mana is spent (CR 601.2h).
+            S::SnowManaOfOwnColorSpent => format!(
+                "q.history().mana_spent_to_cast({id}).any(|(source, mana)| source != ObjectId::NONE && q.chars(source).supertypes.snow && {chars}.colors.iter().any(|c: Color| mana.get(c.mana()) > 0))"
             ),
             // CR 305.8: the five basic land types, and no other.
             S::NonBasicLandType => format!(
@@ -262,6 +265,9 @@ pub(super) struct Notes {
     /// What a cost paid as this resolved exiled: "return this card" after "you may
     /// exile it", where the source has since left the object it was.
     pub exiled_source: Option<String>,
+    /// What a cost paid as this resolved exiled, for an ability given later in
+    /// it to read as "the exiled card" (Timothar, Baron of Bats).
+    pub exiled_for_grant: Option<String>,
     /// What each instruction acted on, by the word `EarlierObjects` has for it:
     /// the last of these is what "that card" or "those" was.
     pub earlier: Vec<(&'static str, ResultId)>,
@@ -303,19 +309,35 @@ pub(super) struct Notes {
 fn acted_on(op: &Operation) -> &'static [&'static str] {
     match op {
         Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
+        // "Chooses a card in your graveyard", "secretly chooses a creature": objects
+        // chosen on terms, which "each creature chosen this way" reads back.
+        Operation::ChooseValueWith {
+            kind: ValueKind::Object,
+            ..
+        } => &["Selected"],
         Operation::Sacrifice { .. } => &["Sacrificed", "PutInGraveyard"],
         Operation::PayCost { cost, optional: true, .. }
             if matches!(cost.parts.as_slice(), [CostPart::Sacrifice { .. }]) =>
         {
             &["Sacrificed"]
         }
+        Operation::PayCost { cost, optional: true, .. }
+            if matches!(cost.parts.as_slice(), [CostPart::UnattachFrom { .. }]) =>
+        {
+            &["Unattached"]
+        }
         Operation::Destroy { .. } => &["PutInGraveyard"],
         Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
-        Operation::Reveal { .. }
-        | Operation::RevealUntil { .. }
-        | Operation::RevealFromHand { .. } => &["Revealed"],
+        Operation::Manifest { .. } => &["Manifested"],
+        // "Until they reveal a historic permanent card ... that card" (Jhoira):
+        // what a reveal until finds is the card found this way.
+        Operation::RevealUntil { .. } => &["Revealed", "Found"],
+        Operation::Reveal { .. } => &["Revealed"],
+        // "Reveals a nonland card at random from their hand. It perpetually gains":
+        // the card revealed is the card chosen in the hand.
+        Operation::RevealFromHand { .. } => &["Revealed", "Selected"],
         Operation::Search { .. } => &["Found"],
         Operation::Tap { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
@@ -327,6 +349,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
                 &["Returned", "Entered"]
             }
             Destination::OwnersHand | Destination::Hand(_) => &["Returned"],
+            Destination::OwnersLibraryShuffled => &["Shuffled"],
             _ => &[],
         },
         _ => &[],
@@ -536,14 +559,44 @@ impl Compiler {
     /// leave it to be found. A step that couldn't be written reads as nothing, and
     /// its own hole says why.
     pub(super) fn earlier_objects(&self, what: &EarlierObjects) -> Result<String> {
+        if let (EarlierObjects::It, Some(one)) = (what, &self.moving_one) {
+            return Ok(format!("vec![{one}]"));
+        }
         let word = form(what);
+        // "The permanents this spell targets", read as its total cost is worked
+        // out (CR 601.2f): each permanent once, however many slots chose it.
+        if matches!(what, EarlierObjects::Targeted) && self.costing_targets {
+            return Ok("{ let mut chosen: Vec<ObjectId> = targets.iter().filter_map(|t| t.object()).collect(); chosen.sort_unstable(); chosen.dedup(); chosen }".into());
+        }
         let step = self.notes.earlier.iter().rev().find(|(w, _)| *w == word);
+        // "When you do, tap the copied creature": what the ability that made this
+        // one chose, carried to it as its other objects are.
+        if step.is_none() && matches!(what, EarlierObjects::Selected) {
+            let outer = self.carrying().and_then(|outer| {
+                outer.compiler.notes.earlier.iter().rev().find(|(w, _)| *w == word)
+            });
+            if let Some((_, result)) = outer {
+                if let Some(code) = self.outside_objects(&ObjectSet::Selected(result.clone()))? {
+                    return Ok(code);
+                }
+            }
+        }
         let Some((_, result)) = step.filter(|_| self.reader == Reader::Resolution) else {
             return self.earlier_paid(what);
         };
         if let (EarlierObjects::Revealed, Some(found)) = (what, self.reveal_matches.get(&result.0))
         {
             return Ok(format!("{found}.clone()"));
+        }
+        // The card a reveal until found, and the permanent it became if it was put
+        // onto the battlefield: "that permanent's mana value" (Jhoira, CR 400.7).
+        if let (EarlierObjects::Found, Some(found)) = (what, self.reveal_matches.get(&result.0)) {
+            // Jhoira: "You put that card onto the battlefield under your control and
+            // lose life" is in the data the revealing opponent's own action.
+            if self.line_text().is_some_and(|line| line.contains("under your control and lose life")) {
+                return Err(gap("the life you lose read as the revealing player's, in the data"));
+            }
+            return Ok(format!("{found}.iter().map(|&id| q.state().obj(id).became.filter(|&now| q.state().obj(now).zone.is(ZoneKind::Battlefield)).unwrap_or(id)).collect::<Vec<ObjectId>>()"));
         }
         // What was sacrificed or countered is read as it last existed.
         if matches!(what, EarlierObjects::Sacrificed | EarlierObjects::Countered)
@@ -564,6 +617,11 @@ impl Compiler {
             }
             EarlierObjects::Discarded if self.cast_pays.contains(&"Discarded") => {
                 "Event::Discarded { card, .. } => Some(card)"
+            }
+            // Web-slinging's return is the spell's only cost that returns a
+            // permanent, read as it last existed (CR 702.188a).
+            EarlierObjects::Webslung => {
+                "Event::ZoneChange { old, from, to, .. } if from.is(ZoneKind::Battlefield) && to.is(ZoneKind::Hand) => Some(old)"
             }
             _ => return None,
         };
@@ -614,7 +672,9 @@ impl Compiler {
             return None;
         }
         let Some((players, each)) = walked else {
-            return matches!(what, EarlierObjects::Revealed).then(|| {
+            // What a player shuffled into their library is what they own of it
+            // (CR 400.3), when the players' cards went together.
+            return matches!(what, EarlierObjects::Revealed | EarlierObjects::Shuffled).then(|| {
                 let list = self.earlier_objects(what).ok()?;
                 Some(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{binding}).collect::<Vec<ObjectId>>()"))
             })?;
@@ -666,6 +726,30 @@ impl Compiler {
         if let Some(paid) = self.paid_as_cast(what) {
             return Ok(paid);
         }
+        // "{T}, Unattach Shuriken": an ability Shuriken gave the creature it
+        // equips, so what Shuriken was unattached from is that ability's source
+        // (Shuriken, "unless it was unattached from a Ninja").
+        let unattaches_granter = self.activation_cost.as_ref().is_some_and(|cost| {
+            cost.parts
+                .iter()
+                .any(|part| matches!(part, CostPart::Unattach(ObjectRef::Granter)))
+        });
+        if matches!(what, EarlierObjects::Unattached) && unattaches_granter {
+            return Ok("vec![asker.source]".into());
+        }
+        // "As an additional cost to cast this spell, choose a creature you control":
+        // what was chosen is what that cost part chose, and the part's own hole
+        // (cost part PlayerAction) already says what the file waits on.
+        let chooses = |cost: &Cost| {
+            let cost = format!("{cost:?}");
+            cost.contains("PlayerAction") && cost.contains("ChooseObjects")
+        };
+        let chose_as_cost = self.activation_cost.as_ref().is_some_and(chooses)
+            || self.casting_costs.values().any(chooses)
+            || self.option_cost.as_ref().is_some_and(chooses);
+        if matches!(what, EarlierObjects::Selected) && chose_as_cost {
+            return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+        }
         let Some((payment, at)) = by_activation.or(by_casting) else {
             if exiled {
                 return Ok(format!("q.exiled_with({})", self.linked()));
@@ -693,6 +777,54 @@ impl Compiler {
                     }
                 }
                 _ => {}
+            }
+            // "The last chosen card", read by a static ability: an ability that
+            // resolved chose it, and a resolving ability can keep only a name on
+            // its permanent (`Game::remember_chosen_name`), never an object.
+            // "As this Aura enters, choose a creature. Enchanted creature is a copy
+            // of the chosen creature": what it chose as it entered, which it keeps.
+            if matches!(what, EarlierObjects::Selected)
+                && self.chose_object_as_enters
+                && self.reader != Reader::Resolution
+            {
+                return Ok(format!(
+                    "q.state().chosen_object({}).into_iter().collect::<Vec<ObjectId>>()",
+                    self.linked()
+                ));
+            }
+            // "Choose an exiled creature card used to craft this Equipment" as it
+            // becomes attached: the choice is that ability's, whose own hole says
+            // what the file waits on.
+            if matches!(what, EarlierObjects::Selected)
+                && self.functions.contains("AttachAction::ChooseAnExiledCardToCopy")
+            {
+                return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+            }
+            // Read by a static or a trigger's event: an ability that resolved chose
+            // it ("When Zenos enters, choose a creature ... When the chosen creature
+            // leaves the battlefield"), and a resolving ability can keep only a name
+            // on its permanent (`Game::remember_chosen_name`), never an object.
+            if matches!(what, EarlierObjects::Selected) && self.reader != Reader::Resolution {
+                return Err(gap("a chosen object outside its body"));
+            }
+            // "Each player turns face up all cards they own exiled with this, then
+            // puts all permanent cards among them onto the battlefield" (Pyxis of
+            // Pandemonium): each player's own cards of an earlier walk, which no
+            // walk keeps for one that turns cards face up.
+            if let (EarlierObjects::It, Some((walked, turned))) = (what, &self.turned_up) {
+                if self.bound_players.contains(walked) {
+                    return self.objects(&turned.clone());
+                }
+            }
+            // "Pay {X} rather than its mana cost, where X is its mana value": the
+            // card the cost is paid for, which a fixed cost can't read (a play
+            // grant's `instead` and a spell alternative's `InsteadOfManaCost`).
+            if matches!(what, EarlierObjects::It) && self.card_costed {
+                return Ok(planned::planned_value(
+                    "a cost reading the card it is paid for",
+                    "Vec::<ObjectId>::new()",
+                    "vec![card]",
+                ));
             }
             // Cantrip keeps no record of this for a read to find.
             return Ok(planned::planned_value(
@@ -815,8 +947,19 @@ impl Compiler {
                 self.selections.insert(picked.0, format!("random_{id}"));
             }
             Pick::Chosen(chooser, objects, count) => {
-                let PlayerSet::One(player) = chooser else {
-                    return Err(gap("object collection Chosen"));
+                let player = match chooser {
+                    PlayerSet::One(player) => player,
+                    // "Of an opponent's choice": the effect names no opponent, so the
+                    // controller says which one chooses (CR 608.2d), asked only when
+                    // there is more than one (`choose::opponent_chooses`).
+                    PlayerSet::OpponentsOf(_) => {
+                        let binding = ACTING + 100 + id as u32;
+                        let players = self.fetch(self.players(&chooser)?);
+                        writeln!(out, "let choosers_{id}: Vec<PlayerId> = {players}; let bound_{binding}: PlayerId = match choosers_{id}.len() {{ 0 => asker.controller, 1 => choosers_{id}[0], _ => cantrip_mechanics::choose::player(g, asker.controller, asker.source, choosers_{id}.clone(), \"Choose\", 0)?.unwrap_or(choosers_{id}[0]) }};").unwrap();
+                        self.bound_players.insert(binding);
+                        PlayerRef::Bound(Binding(binding))
+                    }
+                    _ => return Err(gap("object collection Chosen")),
                 };
                 let choice = Instruction::Effect {
                     result: picked,
@@ -893,6 +1036,81 @@ impl Compiler {
         .unwrap();
         Ok(true)
     }
+    /// "Each legendary card in your graveyard gains 'You may play this card from
+    /// your graveyard' until end of turn": the cards there as this resolves (CR
+    /// 611.2c), each playable from there by its owner, the "you" of an ability of
+    /// a card in a graveyard (CR 109.5), for its own cost and at its usual time
+    /// (CR 601.3, 305.1). A card that leaves is a new object without it (CR 400.7).
+    /// Case of the Uneaten Feast is written so. Whether the effect was that.
+    pub(super) fn play_this_until(
+        &mut self,
+        id: usize,
+        affected: &EffectSubjects,
+        changes: &[Change],
+        duration: &Duration,
+        out: &mut String,
+    ) -> Result<bool> {
+        let (EffectSubjects::Objects(cards), Duration::EndOfTurn, [Change::GrantAbility(ability)]) =
+            (affected, duration, changes)
+        else {
+            return Ok(false);
+        };
+        let Ability::Scoped { zones, condition: None, ability } = &**ability else {
+            return Ok(false);
+        };
+        let Ability::Static {
+            kind: StaticKind::Ordinary,
+            affected: EffectSubjects::Players(PlayerSet::One(PlayerRef::AbilityController)),
+            changes,
+        } = &**ability
+        else {
+            return Ok(false);
+        };
+        let [Change::PlayerRule(rule)] = changes.as_slice() else {
+            return Ok(false);
+        };
+        let (permission, plain) = match rule {
+            PlayerRule::PlayPermissionWith { permission, terms } => {
+                let plain = terms.limit.is_none()
+                    && terms.during.is_none()
+                    && matches!(terms.cost, PlayCost::Normal)
+                    && terms.spend_as.is_none()
+                    && !terms.into_exile
+                    && terms.condition.is_none()
+                    && terms.effects.is_empty()
+                    && !terms.flash
+                    && !terms.may_look
+                    && terms.then.is_none()
+                    && terms.face_down.is_none();
+                (&**permission, plain)
+            }
+            other => (other, true),
+        };
+        let PlayerRule::PlayPermission {
+            cards: ObjectSet::One(ObjectRef::Source),
+            from,
+            action,
+            filter: ObjectFilter::Any,
+        } = permission
+        else {
+            return Ok(false);
+        };
+        if !plain || zones.as_slice() != [from.clone()] || !matches!(from, EventZone::Graveyard) {
+            return Ok(false);
+        }
+        let lands = match action {
+            CardPlayAction::CastSpell => "",
+            CardPlayAction::Either => "lands: true, ",
+            CardPlayAction::PlayLand => return Ok(false),
+        };
+        let cards = self.fetch(self.objects(cards)?);
+        writeln!(
+            out,
+            "let cards_{id}: Vec<ObjectId> = {cards}; for card in cards_{id} {{ let owner = g.obj(card).owner; g.allow_play(card, owner, PlayGrant {{ {lands}expiry: Expiry::EndOfTurn, ..PlayGrant::CAST }}); }}"
+        )
+        .unwrap();
+        Ok(true)
+    }
     /// "Each instant and sorcery card in your graveyard has flashback" (CR 702.34a):
     /// a way of casting them, for as long as this is here. A card with no mana cost
     /// has one that can't be paid (CR 118.6). Whether the ability was that.
@@ -903,7 +1121,10 @@ impl Compiler {
         changes: &[Change],
         parts: &mut Parts,
     ) -> Result<bool> {
-        if !gives_flashback(changes) {
+        // "Flashback {1}": a price of its own (CR 118.9; Iroh, Grand Lotus).
+        let price = flashback_price(changes);
+        let escape = granted_escape(changes);
+        if !gives_flashback(changes) && price.is_none() && escape.is_none() {
             return Ok(false);
         }
         let EffectSubjects::Objects(ObjectSet::Zone {
@@ -922,10 +1143,41 @@ impl Compiler {
         let tests = self.permission_tests(players, &ObjectFilter::Any, filter, "card");
         self.reader = reader;
         let printed = "q.card(q.chars(card).card)";
-        let body = format!(
-            "({} && {printed}.has_cost).then(|| Cost::mana({printed}.cost))",
-            tests?.join(" && ")
-        );
+        // "Each nonland card in your graveyard has escape. The escape cost is
+        // equal to the card's mana cost plus exile three other cards from your
+        // graveyard" (Underworld Breach; CR 702.138a, 113.6): the cost of the
+        // face cast, for a card that has a mana cost.
+        if let Some(exiled) = escape {
+            let body = format!(
+                "({} && {printed}.has_cost).then(|| cantrip_mechanics::escape::cost({printed}.cost, {exiled}))",
+                tests?.join(" && ")
+            );
+            self.permission_entry(
+                None,
+                "granted_ways",
+                &format!("{label}_escape_cost"),
+                (
+                    "q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId",
+                    "q, asker, card, player",
+                    "Option<Cost>",
+                ),
+                &body,
+                |cost| format!("cantrip_mechanics::escape::granted({cost})"),
+                parts,
+            );
+            return Ok(true);
+        }
+        let body = match price {
+            Some(symbols) => format!(
+                "({}).then(|| Cost::mana({}))",
+                tests?.join(" && "),
+                mana(symbols)?
+            ),
+            None => format!(
+                "({} && {printed}.has_cost).then(|| Cost::mana({printed}.cost))",
+                tests?.join(" && ")
+            ),
+        };
         self.permission_entry(
             None,
             "granted_ways",
@@ -1547,6 +1799,41 @@ pub(super) fn spells_joined(card: &Card) -> Option<Card> {
 
 /// Whether all these do is give flashback for the card's own mana cost.
 /// The mana a grant of flashback names as its cost, when it names one.
+/// "Has escape. The escape cost is equal to the card's mana cost plus exile N
+/// other cards from your graveyard": N.
+fn granted_escape(changes: &[Change]) -> Option<u8> {
+    let [Change::GrantAbility(ability)] = changes else {
+        return None;
+    };
+    let Ability::Mechanic {
+        mechanic: Mechanic::Escape,
+        cost: Some(cost),
+        amount: None,
+        filter: None,
+    } = &**ability
+    else {
+        return None;
+    };
+    let [CostPart::ManaCostOf(ObjectRef::Source), CostPart::Move {
+        selections,
+        destination: Destination::Exile,
+        ..
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    let [selection] = selections.as_slice() else {
+        return None;
+    };
+    let Some(Count::Exactly(Expr::Constant(exiled))) = &selection.choose else {
+        return None;
+    };
+    let shape = format!("{:?}", selection.objects);
+    let others = shape.contains("Graveyard")
+        && shape.contains("Not(SameObject(Source))")
+        && shape.contains("AbilityController");
+    others.then_some(u8::try_from(*exiled).ok()?)
+}
 fn flashback_price(changes: &[Change]) -> Option<&[ManaSymbol]> {
     let [Change::GrantAbility(ability)] = changes else {
         return None;

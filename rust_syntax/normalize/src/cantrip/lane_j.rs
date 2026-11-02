@@ -12,6 +12,117 @@ use crate::mtg_types::CardType;
 
 const ONE: &str = "let subject = Target::Player(*player); let data = [0u32; 2];";
 
+/// Gemstone Caverns's terms for beginning the game on the battlefield (CR 103.6a),
+/// as `OpeningHandAction` says them: a condition on the player, a counter it
+/// enters with, and "if you do, exile [n] cards from your hand".
+fn begins_with_terms(body: &Program) -> Option<(Option<&Condition>, Option<String>, i64)> {
+    let (condition, program) = match body.instructions.as_slice() {
+        [Instruction::If {
+            condition,
+            then,
+            otherwise,
+        }] if otherwise.instructions.is_empty() => (Some(condition), then),
+        _ => (None, body),
+    };
+    let [Instruction::Effect {
+        result: paid,
+        operation:
+            Operation::PayCost {
+                player: PlayerRef::AbilityController,
+                cost,
+                optional: true,
+            },
+    }, rest @ ..] = program.instructions.as_slice()
+    else {
+        return None;
+    };
+    let [CostPart::PlayerAction {
+        player: PlayerRef::AbilityController,
+        body: action,
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    let [Instruction::Effect {
+        operation:
+            Operation::BeginOnBattlefield {
+                actor: PlayerSet::One(PlayerRef::AbilityController),
+                flags,
+            },
+        ..
+    }] = action.instructions.as_slice()
+    else {
+        return None;
+    };
+    let Operand::List(flags) = &**flags else {
+        return None;
+    };
+    let counter = match flags.as_slice() {
+        [] => None,
+        [Operand::Term { form, operands, .. }] if form == "EntersWithACounter" => {
+            let [Operand::Vocabulary { form: word, .. }] = operands.as_slice() else {
+                return None;
+            };
+            let kind = word.strip_suffix("Counter").unwrap_or(word);
+            if !crate::cantrip_vocab::COUNTERS.contains(&kind) {
+                return None;
+            }
+            Some(kind.to_string())
+        }
+        _ => return None,
+    };
+    let exiled = match rest {
+        [] => 0,
+        [Instruction::If {
+            condition: Condition::PaymentChosen(chosen),
+            then,
+            otherwise,
+        }] if chosen.0 == paid.0 && otherwise.instructions.is_empty() => {
+            let steps = match then.instructions.as_slice() {
+                [Instruction::Group(group)] => group.instructions.as_slice(),
+                steps => steps,
+            };
+            let [Instruction::Effect {
+                result: picked,
+                operation:
+                    Operation::ChooseObjects {
+                        player: PlayerRef::AbilityController,
+                        objects:
+                            ObjectSet::Zone {
+                                scope:
+                                    ZoneScope::Players {
+                                        zone: EventZone::Hand,
+                                        players: PlayerSet::One(PlayerRef::AbilityController),
+                                    },
+                                filter: ObjectFilter::Any,
+                                ..
+                            },
+                        count: Count::AsManyAsCan(Expr::Constant(n)),
+                        constraints,
+                    },
+            }, Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        objects: ObjectSet::Selected(moved),
+                        destination: Destination::Exile,
+                        face_down: false,
+                        ..
+                    },
+                ..
+            }] = steps
+            else {
+                return None;
+            };
+            if moved.0 != picked.0 || !constraints.is_empty() || !(1..=7).contains(n) {
+                return None;
+            }
+            *n
+        }
+        _ => return None,
+    };
+    Some((condition, counter, exiled))
+}
+
 /// Frames of the rows below.
 fn plain() -> Frame {
     Frame {
@@ -1043,18 +1154,26 @@ impl Compiler {
                 let mut tests = vec![self.activation_test(abilities, frame)?];
                 tests.push(self.matching(frame, |c| c.player_in(players, "*player"))?);
                 let paid = match payment {
-                    ActivationPayment::Life => "paid.life > 0",
-                    _ => "!paid.sacrificed.is_empty()",
+                    ActivationPayment::Life => "life > 0",
+                    ActivationPayment::Sacrifice => "sacrificed",
                 };
                 tests.push(paid.into());
-                Ok(held_arm(
+                // What was paid to activate it (CR 602.2b, 601.2g-h): the records
+                // from its being put on the stack to its activation, after the mana
+                // abilities activated while paying (each its own AbilityActivated,
+                // its own costs before it), so a Treasure sacrificed for mana or a
+                // land's life for mana is no part of it. Life paid for Phyrexian
+                // mana comes after those mana abilities, and counts.
+                const PAID: &str = "let paid: &[Record] = match subject { Target::Ability(serial) => q.state().stack.iter().find(|i| i.kind == StackKind::Activated && i.serial == serial).map_or(&[][..], |i| { let after = q.history().all().get(i.since as usize..).unwrap_or(&[]); let end = after.iter().rposition(|r| matches!(r.event, Event::AbilityActivated { source: s, .. } if s == id)).unwrap_or(after.len()); let start = after[..end].iter().rposition(|r| matches!(r.event, Event::AbilityActivated { .. })).map_or(0, |k| k + 1); &after[start..end] }), _ => &[] }; let life: u32 = paid.iter().filter_map(|r| match r.event { Event::LifeChange { player: p, delta } if p == *player && delta < 0 => Some(delta.unsigned_abs()), _ => None }).sum(); let sacrificed = paid.iter().any(|r| matches!(r.event, Event::ZoneChange { reason: ZoneReason::Sacrifice, .. }));";
+                Ok(single(
                     "ABILITY_ACTIVATED",
-                    "Event::AbilityActivated { source, ability, player, .. }",
-                    "let id = *source; let def = q.activated_ability(*ability); let paid = q.paid_to_activate(event); let subject = cantrip_mechanics::triggers::activated_ability_on_stack(q, event).unwrap_or(Target::None); let data = [id.0, paid.life];",
-                    tests,
+                    Arm {
+                        pattern: "Event::AbilityActivated { source, ability, player, .. }".into(),
+                        locals: format!("let id = *source; let def = q.activated_ability(*ability); let subject = cantrip_mechanics::triggers::activated_ability_on_stack(q, event).unwrap_or(Target::None); {PAID} let data = [id.0, life];"),
+                        tests,
+                    },
                     frame,
                     "Whenever a player activates an ability",
-                    "trigger event PaysToActivate",
                 ))
             }
             EventSpec::Caused { cause, event } => self.caused(cause, event),
@@ -1237,11 +1356,18 @@ impl Compiler {
     }
 
     /// The first such event in `scope`, of its own subject when `by_subject`.
-    fn first_of(&mut self, event: &EventSpec, scope: &str, by_subject: bool) -> Result<Matched> {
+    pub(super) fn first_of(&mut self, event: &EventSpec, scope: &str, by_subject: bool) -> Result<Matched> {
         if self.history.is_some() {
             return Err(gap("an ordinal event in a history question"));
         }
         let mut matched = self.event(event)?;
+        if let EventSpec::AttacksAsGroup { by, attackers, group } = event {
+            let test = self.attacked_as_group_before(by, attackers, group, scope)?;
+            for arm in &mut matched.arms {
+                arm.tests.push(test.clone());
+            }
+            return Ok(matched);
+        }
         let mut asked = self.clone();
         asked.history = Some(History {
             outer: None,
@@ -1420,6 +1546,27 @@ impl Compiler {
                 "Event::ZoneChange { new, from, to, reason: ZoneReason::PlayLand, .. }".into();
             matched.arms[1].tests.push(format!("from.is({zone})"));
         }
+        // "When you play a card exiled with this creature": the card the spell or
+        // land was, in exile as the move took it out, was linked to this ability's
+        // text (CR 607.2a). That row keeps its link.
+        // A spell's move to the stack is recorded before it is cast; a land's move is
+        // the event itself, its `old` the card in exile.
+        if let Some(ObjectRef::Source) = exiled_with {
+            let linked = "q.state().obj(old).exiled.is_some_and(|l| l.is_by_in(q.state(), q.linked_to(asker)))";
+            let cast = format!("q.history().all().iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ old, new, from, .. }} if new == id && from.is(ZoneKind::Exile) => Some(old), _ => None }}).is_some_and(|old: ObjectId| {linked})");
+            let [spell, land] = matched.arms.as_mut_slice() else {
+                return Err(gap("a card played from among those exiled with an object"));
+            };
+            let Some(rest) = land.pattern.strip_prefix("Event::ZoneChange { ") else {
+                return Err(gap("a card played from among those exiled with an object"));
+            };
+            if !rest.starts_with("old") {
+                land.pattern = format!("Event::ZoneChange {{ old, {rest}");
+            }
+            spell.tests.push(cast);
+            land.tests.push(format!("{{ let old = *old; {linked} }}"));
+            return Ok(matched);
+        }
         if let Some(object) = exiled_with {
             let by = self.matching(matched.frame, |c| c.object(object))?;
             let test = planned::planned_value(
@@ -1560,6 +1707,36 @@ impl Compiler {
             },
             frame,
             "Whenever this attacks",
+        ))
+    }
+
+    /// That no earlier declaration of attackers in `scope` had creatures with
+    /// the total power (Desert Were-Worm's "for the first time each turn"): a
+    /// declaration's `Attacks` records come just before its `AttackersDeclared`,
+    /// each attacker as it was declared (`Attacked::chars`, CR 508.1m).
+    fn attacked_as_group_before(
+        &mut self,
+        by: &PlayerSet,
+        attackers: &ObjectFilter,
+        group: &Operand,
+        scope: &str,
+    ) -> Result<String> {
+        const FEATURE: &str = "who attacked together, in a history question";
+        let Operand::Term { form, operands, .. } = group else {
+            return Err(gap(FEATURE));
+        };
+        // Every attacker is a creature (CR 508.1a): no filter to read as it was.
+        let ("TotalPowerIs", [Operand::Comparison(comparison, value)], ObjectFilter::CardType(CardType::Creature)) =
+            (form.as_str(), operands.as_slice(), attackers)
+        else {
+            return Err(gap(FEATURE));
+        };
+        let (declarer, least) = self.matching(about_player(), |c| {
+            Ok((c.player_in(by, "declarer")?, c.number(value)?.code))
+        })?;
+        let met = compare("total", comparison, &least);
+        Ok(format!(
+            "{{ let mut declared: i64 = 0; {scope}.all(|r| match r.event {{ Event::Attacks {{ attacker, known, .. }} => {{ declared += i64::from(Attacked {{ attacker, known }}.chars(q).power.unwrap_or_default()); true }} Event::AttackersDeclared {{ player: declarer, .. }} => {{ let total = std::mem::take(&mut declared); !({declarer} && {met}) }} _ => true }}) }}"
         ))
     }
 
@@ -1973,9 +2150,18 @@ impl Compiler {
                 )),
             },
             Expr::Stickers { objects, measure } => {
+                // "The number of unique vowels on that sticker": "that sticker" is the
+                // one just put, which only stickers have; Cantrip leaves stickers out
+                // (its docs/rules-exceptions.md), so the measure is the stickers hole
+                // alone.
+                let objects = match self.objects(objects)? {
+                    read if read.contains("\"earlier objects It\"") => {
+                        "Vec::<ObjectId>::new()".to_string()
+                    }
+                    read => read,
+                };
                 let code = format!(
-                    "cantrip_mechanics::stickers::measure(q, &{}, StickerMeasure::{})",
-                    self.objects(objects)?,
+                    "cantrip_mechanics::stickers::measure(q, &{objects}, StickerMeasure::{})",
                     form(measure)
                 );
                 Number {
@@ -2057,13 +2243,17 @@ impl Compiler {
             }
             // What an instruction named did: the AST says which. One whose
             // `result` is empty leaves the instruction to be found, so stays a gap.
+            // "Put onto the battlefield by that player": of what entered, what
+            // entered under that player's control (Guild Feud).
             Expr::Earlier {
+                what,
                 measure,
                 result: Some(result),
                 filter,
-                by: None | Some(PlayerRef::AbilityController),
-                ..
-            } => {
+                by,
+            } if matches!(by, None | Some(PlayerRef::AbilityController))
+                || matches!(what, EarlierObjects::Entered) =>
+            {
                 let list = if self.selections.contains_key(&result.0) {
                     self.objects(&ObjectSet::Selected(result.clone()))?
                 } else {
@@ -2072,13 +2262,19 @@ impl Compiler {
                         phase: ObjectPhase::After,
                     })?
                 };
-                let keep = match filter {
+                let mut keep = match filter {
                     Some(filter) => format!(
                         ".filter(|&id| {})",
                         self.filter(filter, &Candidate::of("id"))?
                     ),
                     None => String::new(),
                 };
+                if let Some(by) = by.as_ref().filter(|by| !matches!(by, PlayerRef::AbilityController)) {
+                    let by = self.player(by)?;
+                    keep.push_str(&format!(
+                        ".filter(|&id| Some(q.state().obj(id).controller) == ({by}))"
+                    ));
+                }
                 let those = format!("({list}).into_iter(){keep}");
                 match measure {
                     ObjectMeasure::Count => counted(format!("{those}.count() as i64")),
@@ -2226,6 +2422,45 @@ impl Compiler {
                 "Event::Damage {{ source, target: Target::Object(hit), .. }} if hit == {id} && {} == Some(source)",
                 self.object(object)?
             ),
+            // "Dealt combat damage": damage it dealt in combat that was not
+            // prevented (CR 510.2, 120.3); an object that left and came back is
+            // a new one that has dealt none (CR 400.7).
+            H::DealtCombatDamage => format!(
+                "Event::Damage {{ source, amount, kind, .. }} if source == {id} && amount > 0 && kind.is_combat()"
+            ),
+            // "That you've put one or more +1/+1 counters on": the counters'
+            // putter is the event's (CR 122.6), as Kid Loki asks it.
+            H::CountersPutBy { kind, by } => format!(
+                "Event::CountersPut {{ object, kind: put, amount, by, .. }} if object == {id} && put == {} && amount > 0 && {}",
+                counter_kind(kind)?,
+                self.player_in(by, "by")?
+            ),
+            // "Exiled from your graveyard": the card the move made (CR 400.7).
+            H::ExiledFromGraveyard(players) => {
+                let owner = "q.state().obj(new).owner";
+                moved(
+                    "new, from, to",
+                    &format!(
+                        "new == {id} && from.is(ZoneKind::Graveyard) && to.is(ZoneKind::Exile) && {}",
+                        self.player_in(players, owner)?
+                    ),
+                )
+            }
+            // "Put onto it with this artifact", "phased out with": the record's
+            // cause is an ability of that object resolving (CR 113.7, 607.2).
+            H::CountersPutWith { kind, with } => format!(
+                "Event::CountersPut {{ object, kind: put, amount, .. }} if object == {id} && put == {} && amount > 0 && matches!(r.cause, Cause::Ability {{ source, .. }} if {} == Some(source))",
+                counter_kind(kind)?,
+                self.object(with)?
+            ),
+            H::PhasedOutWith(with) => format!(
+                "Event::PhasedOut {{ permanent, .. }} if permanent == {id} && matches!(r.cause, Cause::Ability {{ source, .. }} if {} == Some(source))",
+                self.object(with)?
+            ),
+            // The history records no counters removed (cantrip-api event.rs).
+            H::CountersRemovedWith { .. } => {
+                return Err(gap("counters removed from an object, which the history does not record"))
+            }
             other => return self.object_history_p(other, id, window),
         };
         Ok(format!(
@@ -2328,7 +2563,7 @@ impl Compiler {
             ObjectFilter::OnStack(StackTrait::SingleTarget) => match c.announced.as_deref() {
                 // "Targets only a single": however many times it was chosen (115.9c),
                 // where "with a single target" counts them.
-                None if self.line_text().is_some_and(|line| line.contains("only a single")) => {
+                None if self.line_text().is_some_and(|line| line.contains("only a single") || line.contains("targets only")) => {
                     format!("{on_stack}.is_some_and(|i| {{ let chosen = q.state().targets(i); !chosen.is_empty() && chosen.iter().all(|t| *t == chosen[0]) }})")
                 }
                 None => format!("{on_stack}.is_some_and(|i| q.state().targets(i).len() == 1)"),
@@ -2515,6 +2750,22 @@ impl Compiler {
                 "q.history().mana_spent_to_cast({id}).any(|(source, _)| {})",
                 self.filter(sources, &Candidate::of("source"))?
             ),
+            // "If another player spent mana to cast it" (Yume, assist): who paid
+            // is each Event::ManaSpent's player (CR 702.132a, 601.2h).
+            ObjectFilter::ManaSpent {
+                color: None,
+                sources: None,
+                payers: Some(payers),
+                comparison,
+                value,
+            } if !layer && c.announced.is_none() => compare(
+                &format!(
+                    "cast_of(q, {id}).map_or(0i64, |cast| q.history().this_turn().iter().filter_map(|r| match r.event {{ Event::ManaSpent {{ player: payer, on, cast: true, mana, .. }} if on == cast.spell && {} => Some(i64::from(mana.total())), _ => None }}).sum::<i64>())",
+                    self.player_in(payers, "payer")?
+                ),
+                comparison,
+                &self.number(value)?.code,
+            ),
             ObjectFilter::ManaSpent {
                 color,
                 sources,
@@ -2577,6 +2828,15 @@ impl Compiler {
                 "q.state().obj({id}).made_by == {}",
                 self.object(object)?
             )),
+            // "Has an activated ability other than this activated ability"
+            // (Tazri's grant): every ability of an object is of that object, so
+            // the shape names the ability asking, which is on asker.source.
+            ObjectFilter::HasActivatedAbility(ActivationFilter::Not(inner))
+                if !layer
+                    && matches!(&**inner, ActivationFilter::Of(of) if matches!(&**of, ObjectFilter::SameObject(ObjectRef::Source))) =>
+            {
+                format!("{chars}.abilities().filter(|&a| q.activated_ability(a).is_some_and(|d| !d.special_action)).count() > usize::from({id} == asker.source)")
+            }
             ObjectFilter::HasActivatedAbility(which) => match activation_test(which) {
                 Some(test) if layer => {
                     let mut code = format!("{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Activated(d) if !d.special_action{test}))");
@@ -4036,6 +4296,20 @@ impl Compiler {
                 return Ok(());
             }
         }
+        if let Some((condition, counter, exiled)) = begins_with_terms(body) {
+            let condition = match condition {
+                Some(condition) => {
+                    self.condition_function(condition, &format!("{label}_may_begin"))?
+                }
+                None => "|_, _| true".into(),
+            };
+            let counter = counter.map_or("None".into(), |kind| format!("Some((CounterKind::{kind}, 1))"));
+            parts.field(
+                "opening_hand",
+                format!("Some(OpeningHandAction {{ condition: {condition}, counter: {counter}, exile_from_hand: {exiled} }})"),
+            );
+            return Ok(());
+        }
         if format!("{body:?}").contains("BeginOnBattlefield") {
             return Err(gap("beginning the game on the battlefield with terms"));
         }
@@ -4284,6 +4558,18 @@ impl Compiler {
                     &format!("{{ {pairs} g.put_all_onto_battlefield_attached_to_chosen(&rows_{id}, |g, host| {hosts})? }}"),
                 ))
             }
+            // "Return it to the battlefield tapped and attacking": all enter together
+            // (CR 110.2a), then each attacks what its controller chooses (508.4).
+            [EntryState::Attacking {
+                player,
+                or_planeswalker,
+            }] => {
+                let defender = self.entering_defender(player.as_ref(), *or_planeswalker)?;
+                Ok(format!(
+                    "{{ let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, {})).collect(); let entered_{id} = g.put_all_onto_battlefield_with_counters(&rows_{id}, &[{counters}])?; for &entered in &entered_{id} {{ if g.is_on_battlefield(entered) {{ let controller = g.controller(entered); let defender = {defender}; g.enter_attacking(&[entered], defender); }} }} entered_{id} }}",
+                    entry.tapped
+                ))
+            }
             states if !states.is_empty() && !entry.tapped && counters.is_empty() => {
                 let mut tapped = Vec::new();
                 let mut plain = true;
@@ -4296,6 +4582,25 @@ impl Compiler {
                     }
                     plain &= entry.tapped && entry.counters.is_empty();
                     tapped.push(self.filter(filter, &Candidate::of("o"))?);
+                }
+                // "Each of them enters with an additional +1/+1 counter on it if it's a
+                // creature": a replacement on each (614.12), judged as it would exist
+                // on the battlefield, as for one object; then all enter together.
+                let counted = states.iter().all(|state| {
+                    matches!(state, EntryState::When { entry, .. } if !entry.tapped && entry.states.is_empty() && !entry.counters.is_empty())
+                });
+                if !plain && counted && self.stack_item && !self.granting {
+                    let mut grants = String::new();
+                    for state in states {
+                        let EntryState::When { filter, entry } = state else {
+                            unreachable!("checked above");
+                        };
+                        let index = self.arrival_counters(filter, &entry.counters)?;
+                        write!(grants, "g.add_effect(item.object, o, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, Duration::EndOfTurn); ").unwrap();
+                    }
+                    return Ok(format!(
+                        "{{ for &o in &objects_{id} {{ {grants}}} let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, false)).collect(); g.put_all_onto_battlefield_as(&rows_{id})? }}"
+                    ));
                 }
                 if !plain {
                     return Ok(planned::planned_value(
@@ -4456,6 +4761,22 @@ impl Compiler {
                 let filter = self.cost_filter(filter, label)?;
                 return Ok(format!("Cost::sacrifice(({n}).max(0) as u32, {filter})"));
             }
+            // "As an additional cost to cast this spell, sacrifice half the lands you
+            // control": a spell's additional cost is worked out as its total cost is
+            // determined (`cost_of_targets`, CR 601.2f), so the count is read then.
+            Some(Count::Exactly(n))
+                if spell
+                    && label != lane_g::PAID
+                    && !matches!(n, Expr::AnnouncedX | Expr::Constant(_)) =>
+            {
+                let saved = (self.reader, self.event_at);
+                (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+                let n = self.number(n).map(|n| n.code);
+                (self.reader, self.event_at) = saved;
+                let filter = self.cost_filter(filter, label)?;
+                self.cost_reads_board = true;
+                return Ok(format!("Cost::sacrifice(({}).max(0) as u32, {filter})", n?));
+            }
             Some(Count::Exactly(Expr::AnnouncedX)) if spell => "SacrificeX",
             Some(Count::Exactly(Expr::AnnouncedX)) => {
                 let filter = self.cost_filter(filter, label)?;
@@ -4562,9 +4883,7 @@ impl Compiler {
             (PaidFor::Ability, false) => Ok(format!(
                 "Cost {{ variable: Some(VariableCost::{variable}), ..Cost::NONE }}"
             )),
-            (PaidFor::Mana, _) => {
-                Self::planned_cost("removing X counters to activate a mana ability", variable)
-            }
+            (PaidFor::Mana, _) => Self::planned_cost(lane_g::MANA_COUNTERS_X, variable),
             (PaidFor::Ability, true) => Self::planned_cost(
                 "removing X counters where mana pays the same X",
                 format!("RemoveXCounters({kind})"),
@@ -4730,6 +5049,7 @@ impl Compiler {
             &mut self.creations,
             &mut self.performed,
             &mut self.values,
+            &mut self.reveal_matches,
         ] {
             if let Some(code) = map.get_mut(&result.0) {
                 let name = format!("carried_{id}_{}", names.len());

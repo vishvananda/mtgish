@@ -1096,11 +1096,43 @@ impl Compiler {
                 });
             }
         }
+        // "Each Aura you controlled that was attached to it": what was attached to it
+        // as it left the battlefield, the `Unattached` records just before its own
+        // move (CR 701.3d). Its Auras are in a graveyard by the time this is read
+        // (CR 704.5m), so each is judged as it last was there (CR 608.2h).
+        if let Expr::CountObjects(set) = n {
+            if let ObjectSet::Matching { objects, filter: ObjectFilter::WasAttachedTo(host) } = &**set {
+                if let ObjectSet::Battlefield(attached) = &**objects {
+                    let test = self.filter(attached, &Candidate::of("id"))?;
+                    return Ok(count(format!(
+                        "{}.map_or(0i64, |host: ObjectId| {{ let records = q.history().all(); records.iter().rposition(|r| matches!(r.event, Event::ZoneChange {{ old, from, .. }} if old == host && from.is(ZoneKind::Battlefield))).map_or(0i64, |left| records[..left].iter().rev().take_while(|r| matches!(r.event, Event::Unattached {{ .. }} | Event::ZoneChange {{ .. }})).filter_map(|r| match r.event {{ Event::Unattached {{ attachment, from }} if from == host => Some(attachment), _ => None }}).filter(|&id| {test}).count() as i64) }})",
+                        self.object(host)?
+                    )));
+                }
+            }
+        }
         Ok(match n {
             Expr::Primitive { name, .. } => {
                 return Err(gap(format!("primitive numeric expression {name}")))
             }
             Expr::Constant(n) => Number::integer(*n),
+            // "Sacrifice a creature with mana value X: Return target creature card
+            // with mana value X plus 1" (Sidisi): the X a cost's filter defines,
+            // which Cantrip announces none of (`costs::COST_FILTER_X`).
+            Expr::AnnouncedX
+                if self.activation_cost.as_ref().is_some_and(target_counts::x_in_cost_filter) =>
+            {
+                Number {
+                    code: planned::planned_value(
+                        costs::COST_FILTER_X,
+                        "0i64",
+                        "i64::from(q.announced_x().unwrap_or(0))",
+                    ),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
             Expr::AnnouncedX if self.notes.paid_x.is_some() => Number {
                 code: self.notes.paid_x.clone().unwrap_or_default(),
                 min: 0,
@@ -1141,6 +1173,26 @@ impl Compiler {
             {
                 Number {
                     code: "i64::from(q.obj(asker.source).x)".into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            // "Remove X storage counters from this land: Add X mana", "Sacrifice X
+            // Goats: Add X mana": a mana ability announces only an {X} (CR 605.3a,
+            // `activate_mana_as`), so this X is the hole its cost is
+            // (`lane_g::MANA_COUNTERS_X`, or the cost's own).
+            Expr::AnnouncedX
+                if self.mana_body
+                    && self.activation_cost.as_ref().is_some_and(|cost| !target_counts::has_mana_x(cost)) =>
+            {
+                let removes = self.activation_cost.as_ref().is_some_and(target_counts::removes_x_counters);
+                Number {
+                    code: planned::planned_value(
+                        if removes { lane_g::MANA_COUNTERS_X } else { FOLLOWS_GAP },
+                        "0i64",
+                        "i64::from(q.obj(asker.source).x)",
+                    ),
                     min: 0,
                     max: u16::MAX.into(),
                     dynamic: true,
@@ -1205,11 +1257,26 @@ impl Compiler {
             {
                 count(self.told_event_amount(n)?)
             }
+            // "The number of opponents dealt damage this way" (Hordewing Skaab,
+            // Malcolm): a "one or more" ability's batch keeps its sources as
+            // members, and not the players they dealt damage to.
+            Expr::EventAmount
+                if self.frame.amount.is_none()
+                    && self.event_at == EventAt::Item
+                    && self.frame.damage_source == Some(Carried::Subject)
+                    && self.frame.player == Some(Carried::Data(1)) =>
+            {
+                count(planned::planned_value(
+                    "the players a one-or-more damage trigger's batch dealt damage to",
+                    "0i64",
+                    "q.event_players(item).len() as i64",
+                ))
+            }
             // "That many" of an event the engine reports without the number, or of
             // several events the ability is one answer to.
             Expr::EventAmount if self.frame.amount.is_none() && self.event_at == EventAt::Item => {
                 count(planned::planned_value(
-                    "amount of an event its trigger does not carry",
+                    self.event_amount_feature(),
                     "0i64",
                     "q.event_total(item)",
                 ))
@@ -1220,11 +1287,15 @@ impl Compiler {
                     && self.frame != Frame::default()
                     && matches!(self.event_at, EventAt::Matcher | EventAt::TargetFilter) =>
             {
-                count(planned::planned_value(
-                    "amount of an event its trigger does not carry",
-                    "0i64",
-                    "q.event_total_at(asker)",
-                ))
+                // As targets are chosen, a filter, a count or a divided total reads
+                // the event's subject alone (`Query::event_subject`).
+                let feature = match self.event_at {
+                    EventAt::TargetFilter if !self.event_planned => {
+                        "event value in a target filter beyond its subject"
+                    }
+                    _ => self.event_amount_feature(),
+                };
+                count(planned::planned_value(feature, "0i64", "q.event_total_at(asker)"))
             }
             Expr::EventAmount => {
                 let (_, data) = self.carried(
@@ -1401,21 +1472,20 @@ impl Compiler {
                     DistinctProperty::CounterTypes => format!(
                         "{{ let mut seen = Vec::new(); for id in {objects} {{ for kind in CounterKind::ALL {{ if q.state().obj(id).counters(kind) > 0 && !seen.contains(&kind) {{ seen.push(kind); }} }} }} seen.len() as i64 }}"
                     ),
-                    DistinctProperty::PlaneswalkerTypes => planned::planned_value(
-                        "distinct PlaneswalkerTypes",
-                        "0i64",
-                        &subtypes("kind.is_planeswalker_type()"),
-                    ),
+                    // A planeswalker's subtypes of the planeswalker kind (CR 205.3j,
+                    // 306.3): a creature type an effect gave it is not one.
+                    DistinctProperty::PlaneswalkerTypes => {
+                        subtypes("kind.card_types().has(CardType::Planeswalker)")
+                    }
                     // "Different color pairs among permanents ... that are exactly
                     // two colors": a pair is the two colors of one such permanent
                     // (Niv-Mizzet, Guildpact's ruling), so one of more colors has none.
                     DistinctProperty::ColorPairs => format!(
                         "{{ let mut seen = Vec::new(); for id in {objects} {{ let value = q.chars(id).colors; if value.iter().count() == 2 && !seen.contains(&value) {{ seen.push(value); }} }} seen.len() as i64 }}"
                     ),
-                    DistinctProperty::UnlockedDoorNames => planned::planned_value(
-                        "distinct UnlockedDoorNames",
-                        "0i64",
-                        &format!("cantrip_mechanics::rooms::unlocked_door_names(q, &{objects})"),
+                    // A Room's names are its unlocked doors' alone (CR 709.5).
+                    DistinctProperty::UnlockedDoorNames => format!(
+                        "{{ let mut seen: Vec<&'static str> = Vec::new(); for id in {objects} {{ for name in cantrip_mechanics::library::object_names(q, id) {{ if !seen.contains(&name) {{ seen.push(name); }} }} }} seen.len() as i64 }}"
                     ),
                     other => return Err(gap(format!("distinct {}", form(other)))),
                 })
@@ -1761,6 +1831,17 @@ impl Compiler {
             ObjectFilter::Any => "true".into(),
             ObjectFilter::All(items) => combine(items, " && ", "true")?,
             ObjectFilter::Either(items) => combine(items, " || ", "false")?,
+            // "The other piles" (Bend or Break): in a pile of a row that was not
+            // the one chosen, not anything outside the piles.
+            ObjectFilter::Not(p)
+                if matches!(**p, ObjectFilter::InPile(None)) && self.piles.is_some() =>
+            {
+                format!(
+                    "{}.iter().any(|row| row.1.iter().enumerate().any(|(at, pile)| row.2.is_some_and(|chosen| chosen != at) && pile.contains(&{})))",
+                    self.piles.clone().unwrap_or_default(),
+                    c.id
+                )
+            }
             ObjectFilter::Not(p) => format!("!({})", self.predicate(p, c)?),
             ObjectFilter::TargetsAny(recipients) => {
                 let wanted = self.targeted(recipients)?;
@@ -1995,6 +2076,16 @@ impl Compiler {
             ObjectFilter::ExiledWith(ObjectRef::Source) if self.reader != Reader::Layer => {
                 format!("q.exiled_with(q.linked_to(asker)).contains(&{id})")
             }
+            // "Target creature with fewer than X +1/+1 counters on it": before X
+            // is announced, the filter allows what some X would, as a property's does.
+            ObjectFilter::Counters {
+                kind,
+                comparison,
+                value: Expr::AnnouncedX,
+            } if self.choosing.is_some() => format!(
+                "q.announced_x().map_or(true, |x| {})",
+                compare(&counters_on(id, kind.as_ref())?, comparison, "i64::from(x)")
+            ),
             ObjectFilter::Counters {
                 kind,
                 comparison,
@@ -2345,6 +2436,15 @@ impl Compiler {
         Ok(format!(
             "{{ let creatures: Vec<ObjectId> = q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == {player} && q.chars(id).is(CardType::Creature)).collect(); (0u8..16).map(|roles: u8| creatures.iter().filter(|&&id| [Subtype::Cleric, Subtype::Rogue, Subtype::Warrior, Subtype::Wizard].iter().enumerate().any(|(i, &role)| (roles >> i) & 1 == 1 && q.chars(id).has_subtype(role))).count() as i64 + 4 - i64::from(roles.count_ones())).min().unwrap_or(0) }}"
         ))
+    }
+    /// What "that many" of an event waits on: the event itself where Cantrip has
+    /// none yet ("whenever you roll to visit your Attractions, if you roll a 6"),
+    /// since the number is what that event will say; else the number alone.
+    fn event_amount_feature(&self) -> &'static str {
+        match self.event_planned {
+            true => FOLLOWS_GAP,
+            false => "amount of an event its trigger does not carry",
+        }
     }
 }
 

@@ -22,6 +22,10 @@ fn of_the_spell(filter: &ObjectFilter) -> bool {
 fn split(filter: &ObjectFilter) -> (Vec<ObjectFilter>, Vec<ObjectFilter>) {
     match filter {
         ObjectFilter::Any => (Vec::new(), Vec::new()),
+        // "Play lands and cast spells": a land or anything is anything.
+        ObjectFilter::Either(parts) if parts.iter().any(|p| matches!(p, ObjectFilter::Any)) => {
+            (Vec::new(), Vec::new())
+        }
         ObjectFilter::All(parts) => {
             let (spell, card) = parts.iter().map(split).unzip::<_, _, Vec<_>, Vec<_>>();
             (spell.concat(), card.concat())

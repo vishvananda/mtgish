@@ -18,6 +18,7 @@ mod costs;
 mod delayed;
 mod effects;
 mod faces;
+mod first_printed;
 mod keywords;
 mod lane_f;
 mod lane_g;
@@ -502,6 +503,9 @@ struct Compiler {
     stage_lines: Vec<lane_k::Line>,
     /// The next "may" is done once each turn, under this key.
     do_once: Option<u8>,
+    /// The abilities of one sentence are being written ("whenever this or that"):
+    /// the key of its "do this only once each turn", one for them all.
+    once_shared: Option<Option<u8>>,
     /// An "if it's the first time" the printed line asks of the object, as the
     /// resolving ability reads it (603.4).
     first_again: Option<String>,
@@ -530,6 +534,9 @@ struct Compiler {
     frame: Frame,
     /// A batch trigger's members are in reach: `Query::event_objects`.
     grouped: bool,
+    /// The trigger being written waits on an event Cantrip doesn't have yet, so
+    /// what that event would say ("that many") comes with it.
+    event_planned: bool,
     /// A trigger on damage to a player fires with that player as its subject.
     recipient_subject: bool,
     candidates: std::cell::RefCell<Vec<Candidate>>,
@@ -569,6 +576,22 @@ struct Compiler {
     countered: BTreeMap<u16, String>,
     /// The instruction that separated a face-down pile and a face-up pile.
     face_piles: Option<usize>,
+    /// An instruction exiled cards into piles ("in a face-down pile"), which
+    /// a later choice of "those piles" reads.
+    exiled_piles: bool,
+    /// The piles players separated (CR 700.3): the local of their rows, each a
+    /// separator, its piles, the pile chosen and who may choose it.
+    piles: Option<String>,
+    /// A separation inside a per-player walk pushes its row into this local.
+    piles_walk: Option<String>,
+    /// How many piles each row has, and whether they are face down.
+    pile_shape: (i64, bool),
+    /// The `PlayersPayRepeatedly` whose unpaid payments a walk keeps, one
+    /// entry of its payer for each.
+    unpaid_rows: BTreeSet<u32>,
+    /// What each player of a walk turned face up, as said for the walked player:
+    /// "among them" of a later walk of the same players (Pyxis of Pandemonium).
+    turned_up: Option<(u32, ObjectSet)>,
     /// The cards that ended each reveal, by the result that names all it showed.
     reveal_matches: BTreeMap<u32, String>,
     /// This resolution has revealed something. The AST does not always tie a
@@ -593,6 +616,14 @@ struct Compiler {
     activation_cost: Option<Cost>,
     /// Each additional cost this card declares, by its ability's index.
     casting_costs: BTreeMap<u32, Cost>,
+    /// A cost this card's spell pays beyond its additional costs is being written.
+    spell_cost: bool,
+    /// The cost of the option of a choice of costs whose body is being compiled
+    /// ("as an additional cost, choose a creature you control or ...").
+    option_cost: Option<Cost>,
+    /// "As this enters, choose a creature": the permanent keeps the object chosen
+    /// (`Entering::chosen_object`), which its other abilities read (CR 607.2d).
+    chose_object_as_enters: bool,
     /// What a mechanic's cost of this card's own spell took, by earlier objects' word.
     cast_pays: Vec<&'static str>,
     /// "As this enters, sacrifice any number": how many is what it keeps.
@@ -622,6 +653,8 @@ struct Compiler {
     known_one: BTreeSet<u32>,
     /// Some ability of the card reads what was exiled with its source.
     links_exile: bool,
+    /// Some ability of the card takes cards from one player's graveyard.
+    one_graveyard: bool,
     /// A face other than the definition an object's `card` names: `lane_f`.
     own_face: bool,
     /// Which door of its Room this face is.
@@ -649,6 +682,12 @@ struct Compiler {
     affected_object: Option<&'static str>,
     /// The bestow cost, which makes the card two definitions.
     bestow: Option<String>,
+    /// What a bestow cost asks besides mana, an additional cost of the Aura.
+    bestow_extra: Option<String>,
+    /// A choice this card makes is a hole: a planned as-event ability ("As this
+    /// creature transforms into Shinryu, choose an opponent") or a choice of a
+    /// card type the craft materials share. What reads that value follows it.
+    as_event_chooses: bool,
     /// Values this body chose, each in a local.
     chosen: Vec<(ValueKind, String)>,
     /// Values the card chooses as it enters, which its permanent keeps.
@@ -663,6 +702,12 @@ struct Compiler {
     enters_two: Option<ValueKind>,
     /// A rule on the cost of `spell` is being written.
     costed_spell: bool,
+    /// A cost paid for a card in place of its mana cost is being written ("{X}
+    /// rather than its mana cost, where X is its mana value"): "it" is that card.
+    card_costed: bool,
+    /// The local each object being moved is, while what it arrives with is read:
+    /// "exile a card with a number of time counters on it equal to its mana value".
+    moving_one: Option<String>,
     /// The card types it offers, if it chooses one as it enters.
     entering_card_type: Option<Vec<String>>,
     bound_objects: BTreeSet<u32>,
@@ -680,6 +725,9 @@ struct Compiler {
     paradigm: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// A spell's additional cost read the game for its size, so it is worked out
+    /// as the total cost is (`cost_of_targets`, CR 601.2f).
+    cost_reads_board: bool,
     /// An intervening "if" that reads the event, for each mode to ask again.
     mode_guard: Option<Condition>,
     /// What the cost being compiled is paid for.
@@ -748,6 +796,9 @@ struct Compiler {
     option_labels: bool,
     /// The abilities the body's `ChooseValue` offered.
     ability_choice: Vec<Ability>,
+    /// "Choose two abilities from among ...": the sets of `ability_choice`
+    /// offered, each one of the card's words, by index.
+    ability_sets: Vec<Vec<usize>>,
     granting: bool,
     /// What `plan_entry` holds for the granted ability being compiled.
     holding: Option<Vec<(&'static str, String)>>,
@@ -755,6 +806,9 @@ struct Compiler {
     granted_rules: usize,
     /// Rules of granted abilities, once `plan_entry` lands them.
     late: Vec<String>,
+    /// Entries of the card's own tables that ask whether an object has a
+    /// granted ability (Tomik, Orzhov Lawmage's attack limit).
+    late_tables: Vec<(&'static str, String)>,
     /// `CardDef::becomes_aura_enchant`.
     aura: Option<String>,
     /// `player` is the player a stated rule is asked of.
@@ -999,6 +1053,7 @@ impl Compiler {
             event_at: EventAt::Nowhere,
             frame: Frame::default(),
             grouped: false,
+            event_planned: false,
             recipient_subject: false,
             candidates: Default::default(),
             cast_fact: Default::default(),
@@ -1019,6 +1074,12 @@ impl Compiler {
             notes: Default::default(),
             countered: BTreeMap::new(),
             face_piles: None,
+            exiled_piles: false,
+            piles: None,
+            piles_walk: None,
+            pile_shape: (0, false),
+            unpaid_rows: BTreeSet::new(),
+            turned_up: None,
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
             player_words: None,
@@ -1030,6 +1091,9 @@ impl Compiler {
             asking: None,
             activation_cost: None,
             casting_costs: BTreeMap::new(),
+            spell_cost: false,
+            option_cost: None,
+            chose_object_as_enters: false,
             cast_pays: Vec::new(),
             enters_sacrifices: false,
             damages_once: false,
@@ -1043,6 +1107,7 @@ impl Compiler {
             single: BTreeSet::new(),
             known_one: BTreeSet::new(),
             links_exile: false,
+            one_graveyard: false,
             own_face: false,
             door: None,
             choosing: None,
@@ -1057,6 +1122,8 @@ impl Compiler {
             flips: BTreeMap::new(),
             affected_object: None,
             bestow: None,
+            bestow_extra: None,
+            as_event_chooses: false,
             chosen: Vec::new(),
             enters_choosing: Vec::new(),
             mana_body: false,
@@ -1064,6 +1131,8 @@ impl Compiler {
             each_color: None,
             enters_two: None,
             costed_spell: false,
+            card_costed: false,
+            moving_one: None,
             entering_card_type: None,
             bound_objects: BTreeSet::new(),
             reflexing: false,
@@ -1071,6 +1140,7 @@ impl Compiler {
             watching_object: None,
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            cost_reads_board: false,
             mode_guard: None,
             paying: lane_g::Paying::Ability,
             counted: None,
@@ -1106,10 +1176,12 @@ impl Compiler {
             choice_labels: Vec::new(),
             option_labels: false,
             ability_choice: Vec::new(),
+            ability_sets: Vec::new(),
             granting: false,
             holding: None,
             granted_rules: 0,
             late: Vec::new(),
+            late_tables: Vec::new(),
             aura: None,
             rule_player: false,
             functions: String::new(),
@@ -1142,6 +1214,7 @@ impl Compiler {
             stages: BTreeMap::new(),
             stage_lines: Vec::new(),
             do_once: None,
+            once_shared: None,
             first_again: None,
             cast_test: false,
             waiting_trigger: false,
@@ -1310,17 +1383,17 @@ impl Compiler {
                 }
             }
             // How many is read as the slot is chosen, and a slot's size is a constant.
-            Count::UpTo(n) => format!(
-                ".between(0, {})",
-                planned::planned_value(
-                    "target cardinality UpTo",
-                    "1u32",
-                    &format!(
-                        "TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {})",
-                        self.number(n)?.amount(u32::MAX.into(), "u32")?
-                    ),
+            Count::UpTo(n) => {
+                let read = self.number(n)?.amount(u32::MAX.into(), "u32")?;
+                format!(
+                    ".between(0, {})",
+                    planned::planned_value(
+                        target_counts::up_to_feature(self.slot_counts, self.activation_cost.is_some(), &read),
+                        "1u32",
+                        &format!("TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {read})"),
+                    )
                 )
-            ),
+            }
             other => return self.target_count_rest(other),
         })
     }
@@ -1410,6 +1483,8 @@ impl Compiler {
             let spec = oracle.as_ref().unwrap_or(spec);
             let each_player = target_counts::each_player_slot(spec);
             let spec = each_player.as_ref().unwrap_or(spec);
+            let told = self.told_mana_value_slot(spec);
+            let spec = told.as_ref().unwrap_or(spec);
             let doubled;
             let spec = if self.second_of_two.is_some() {
                 doubled = TargetSpec {
@@ -1446,7 +1521,18 @@ impl Compiler {
                     &format!("Divide::of_slot({i}, {total})"),
                 ));
             } else if let Some(total) = &spec.distribute {
+                // "X plus 1 damage divided as you choose" (Meteor Shower): the X
+                // announced, through a function of it (`Divide::of_x`, as
+                // Shatterskull Smashing's "twice X").
+                let of_x = match total {
+                    Expr::Constant(_) | Expr::AnnouncedX => None,
+                    other if i == 0 && self.slot_counts == Default::default() => {
+                        self.total_of_x(other, label)
+                    }
+                    _ => None,
+                };
                 let total = match total {
+                    _ if of_x.is_some() => "TargetSpec::COUNTED".to_string(),
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
                     Expr::AnnouncedX
                         if i == 0 && self.slot_counts == Default::default() =>
@@ -1460,6 +1546,15 @@ impl Compiler {
                         if i == 0
                             && self.slot_counts == target_counts::SlotCounts::Delayed
                             && self.counted.is_some() =>
+                    {
+                        "TargetSpec::COUNTED".to_string()
+                    }
+                    // "When you do, distribute that many": the number the
+                    // reflexive ability was given (CR 603.12).
+                    Expr::Performed(r) | Expr::CountersRemoved(r) | Expr::DieResult(r)
+                        if i == 0
+                            && self.slot_counts == target_counts::SlotCounts::Delayed
+                            && self.counted == Some(r.0) =>
                     {
                         "TargetSpec::COUNTED".to_string()
                     }
@@ -1480,14 +1575,36 @@ impl Compiler {
                     }
                     _ => return Err(gap("target with a divided amount").at(at)),
                 };
-                self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
+                let of_x = of_x.map_or_else(|| "None".to_string(), |f| format!("Some({f})"));
+                self.dividing = Some(format!("Divide {{ total: {total}, of_x: {of_x} }}"));
             }
             self.choosing = Some(i);
             let chosen_by = match &spec.chooser {
                 Some(chooser) => self.chosen_by_another(chooser, &mut rule),
                 None => Ok(()),
             };
-            let read = self.slot_up_to_read(spec, i, label).filter(|_| together.is_empty());
+            // "X damage divided as you choose among any number of targets": each target
+            // is given at least one of the total (CR 601.2d), so the total holds the
+            // slot to it, and the slot itself is of any number (`ask_divided`).
+            // A triggered ability's `counted_by` reads such a number itself, where it can.
+            let divided_any = matches!(
+                (&spec.distribute, &spec.count),
+                (Some(total), Count::UpTo(n))
+                    if !matches!(n, Expr::Constant(_) | Expr::AnnouncedX)
+                        && format!("{total:?}") == format!("{n:?}")
+            );
+            const ANY: &str = ".between(0, cantrip_api::TargetSpec::ANY_NUMBER)";
+            let read = match divided_any {
+                true if self.slot_counts == Default::default() => Some(ANY.to_string()),
+                true => Some(match self.counted_read(&spec.count, &format!("{label}_{i}")) {
+                    Some(count) => count,
+                    None => match self.target_count(&spec.count) {
+                        Ok(count) if !count.contains("planned_value!") => count,
+                        _ => ANY.to_string(),
+                    },
+                }),
+                false => self.slot_up_to_read(spec, i, label).filter(|_| together.is_empty()),
+            };
             let count = match read {
                 Some(count) => Ok(count),
                 None => self.slot_count(&spec.count, &format!("{label}_{i}")),
@@ -2300,14 +2417,19 @@ fn emit_face(
     {
         parts.field("reads_graveyard_order", "true".into());
     }
-    c.links_exile =
-        place.links_exile || format!("{:?}", card.abilities).contains("ExiledWith(Source)");
+    let abilities = format!("{:?}", card.abilities);
+    // "Exiled with this" (CR 607.2a), and "they exiled with this" (Uba Mask).
+    c.links_exile = place.links_exile
+        || abilities.contains("ExiledWith(Source)")
+        || abilities.contains("with: Some(Source)");
+    c.one_graveyard = abilities.contains("InZone(Players { zone: Graveyard, players: One(");
     c.own_face = place.own_face;
     c.door = place.door;
     c.printed_mana = card.characteristics.mana_cost.clone();
     c.sorcery = (card.characteristics.card_types.iter())
         .any(|t| matches!(t, crate::mtg_types::CardType::Sorcery));
     c.enters_choosing = chosen::enters_choosing(card);
+    c.enters_choosing.extend(place.keeps.iter().copied());
     c.enters_two = chosen::enters_two(card);
     c.entering_card_type = lane_p::entering_card_type(card);
     c.cast_pays = lane_p::cast_pays(card);
@@ -2383,6 +2505,9 @@ fn emit_face(
             let feature = gap("engine: X in a mana cost beside a kicker");
             c.plan_trait("kicker", feature, kicker.clone());
         }
+    }
+    for (table, entry) in std::mem::take(&mut c.late_tables) {
+        parts.table(table, entry);
     }
     parts
         .tables
@@ -2571,6 +2696,15 @@ fn emit_face(
         });
         parts.field("labels", labels);
     }
+    // "Loyalty X" (Nissa, Steward of Elements): it enters with the X its spell was cast
+    // with in loyalty counters, and with none put onto the battlefield uncast (CR
+    // 306.5b, 107.3m), as an artifact enters with X charge counters (Chalice of the Void).
+    let loyalty_x = matches!(ch.loyalty, Some(Expr::AnnouncedX))
+        && ch.mana_cost.iter().flatten().any(|s| matches!(s, ManaSymbol::X));
+    if loyalty_x {
+        writeln!(c.functions, "fn enters_with_x_loyalty(_: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ entering.counters[CounterKind::Loyalty as usize] += entering.x as i16; Ok(()) }}").unwrap();
+        parts.enters.push("enters_with_x_loyalty".into());
+    }
     let door_refused = parts.door_refused();
     let rest = parts.rest() + &place.fields;
     let Parts {
@@ -2594,6 +2728,7 @@ fn emit_face(
     let pt = ch.power_toughness;
     let loyalty = match &ch.loyalty {
         Some(Expr::Constant(n)) => Some(*n),
+        Some(_) if loyalty_x => None,
         Some(other) => {
             c.plan_loyalty(other);
             None
@@ -2640,6 +2775,10 @@ fn emit_face(
     let mut listed = BTreeSet::new();
     c.extras.retain(|path| listed.insert(path.clone()));
     let bestow = c.bestow.take();
+    let bestowed = match c.bestow_extra.take() {
+        Some(extra) => format!("CardDef {{ additional_cost: Some({extra}), ..FACE }}"),
+        None => "FACE".to_string(),
+    };
     if bestow.is_some() {
         c.extras.push("BESTOWED".into());
     }
@@ -2686,7 +2825,7 @@ fn emit_face(
             let own = "pub static CARD: CardDef = CardDef {";
             let at = rust.rfind(own).expect("a module defines its card");
             format!("{}const FACE: CardDef = CardDef {{{}", &rust[..at], &rust[at + own.len()..])
-                + &format!("\npub static BESTOWED: CardDef = cantrip_mechanics::bestow::bestowed(FACE);\npub static CARD: CardDef = CardDef {{ bestow: Some(&BESTOWED), bestow_cost: {cost}, ..FACE }};\n")
+                + &format!("\npub static BESTOWED: CardDef = cantrip_mechanics::bestow::bestowed({bestowed});\npub static CARD: CardDef = CardDef {{ bestow: Some(&BESTOWED), bestow_cost: {cost}, ..FACE }};\n")
         }
         None => rust,
     };
@@ -2694,7 +2833,9 @@ fn emit_face(
     let mut gaps = c.gaps;
     gaps.extend(planned::value_gaps(&rust));
     // A stand-in leans on some other hole's report: with none, the card isn't whole.
-    if gaps.is_empty() && rust.contains(FOLLOWS_GAP) {
+    if gaps.is_empty()
+        && (rust.contains(FOLLOWS_GAP) || rust.contains(&planned::requirement(FOLLOWS_GAP)))
+    {
         gaps.push(gap("result this instruction does not report"));
     }
     Ok(EmittedModule {

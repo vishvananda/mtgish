@@ -50,6 +50,14 @@ fn held_object(feature: &str, code: &str) -> String {
     planned::planned_value(feature, "None::<ObjectId>", code)
 }
 
+impl Compiler {
+    /// "If a player would draw a card, that player exiles that card ... instead"
+    /// (Uba Mask): each card it exiles is the exiling player's own.
+    fn exiles_own_draw(&self) -> bool {
+        self.card_prints("would draw a card, that player exiles that card")
+    }
+}
+
 /// A list of mana colors, as code: `Color::White, Color::Red`.
 pub(super) fn colors_code(colors: &[ManaColor]) -> Result<String> {
     let colors = colors
@@ -272,7 +280,12 @@ pub(super) fn only_their_own(objects: &ObjectSet) -> bool {
             _ => false,
         }
     }
-    matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter))
+    match objects {
+        // "Each player exiles the top card of their library" (Rocco, Street Chef).
+        ObjectSet::Zone { scope, .. } if theirs(&ObjectFilter::InZone(scope.clone())) => true,
+        ObjectSet::Take { objects, .. } => only_their_own(objects),
+        _ => matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter)),
+    }
 }
 
 /// "(Artifact, battle, creature, enchantment, instant, kindred, land, planeswalker,
@@ -336,14 +349,38 @@ pub(super) fn cast_pays(card: &Card) -> Vec<&'static str> {
 }
 
 /// An instant or sorcery with one spell ability and one instruction in it that deals
-/// damage, and no other ability of its own: its object deals no other damage.
+/// damage, and no other ability that deals damage: its object deals no other damage
+/// (Demonfire's hellbent rule deals none).
 pub(super) fn damages_once(card: &Card) -> bool {
     use crate::mtg_types::CardType as T;
     let types = &card.characteristics.card_types;
     let words = format!("{:?}", card.abilities);
+    // The most damage instructions one resolution can do: of an "if", the branch
+    // it takes (Demonfire's hellbent damage or its other).
+    fn most(program: &Program) -> usize {
+        program
+            .instructions
+            .iter()
+            .map(|i| match i {
+                Instruction::If { then, otherwise, .. } => most(then).max(most(otherwise)),
+                Instruction::Group(inner) => most(inner),
+                other => format!("{other:?}").matches("DealDamage").count(),
+            })
+            .sum()
+    }
+    let spells: Vec<&Program> = card
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
+            Ability::Spell { body, .. } => Some(body),
+            _ => None,
+        })
+        .collect();
     types.iter().any(|t| matches!(t, T::Instant | T::Sorcery))
-        && matches!(card.abilities.as_slice(), [Ability::Spell { .. }])
-        && words.matches("DealDamage").count() == 1
+        && matches!(spells.as_slice(), [body] if most(body) == 1)
+        && card.abilities.iter().all(|a| {
+            matches!(a, Ability::Spell { .. }) || !format!("{a:?}").contains("Damage")
+        })
         && !words.contains("Fight")
 }
 
@@ -371,6 +408,47 @@ pub(super) fn enters_sacrifices(card: &Card) -> bool {
     })
 }
 
+/// "Choose a card type other than creature or land" (Stenn, Arachne): the card
+/// types but those, as the options of a plain choice. `None` where `except`
+/// holds anything but card types.
+pub(super) fn card_types_but(except: &[Operand]) -> Option<Vec<Operand>> {
+    let but: Vec<&str> = except
+        .iter()
+        .map(|word| match word {
+            Operand::Vocabulary { family, form } if family == "CardType" => Some(form.as_str()),
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    Some(
+        CARD_TYPES
+            .iter()
+            .filter(|word| !but.contains(word))
+            .map(|word| Operand::Vocabulary {
+                family: "CardType".into(),
+                form: word.to_string(),
+            })
+            .collect(),
+    )
+}
+
+/// The card types but `except`, chosen as it enters on no other terms.
+pub(super) fn entering_card_types_but(terms: &ChoiceTerms) -> Option<Vec<Operand>> {
+    let ChoiceTerms {
+        options,
+        except,
+        count: None,
+        secret: false,
+        unchosen: false,
+        random: false,
+        ordered: false,
+        up_to: false,
+    } = terms
+    else {
+        return None;
+    };
+    (options.is_empty() && !except.is_empty()).then(|| card_types_but(except)).flatten()
+}
+
 pub(super) fn entering_card_type(card: &Card) -> Option<Vec<String>> {
     card.abilities.iter().find_map(|ability| {
         let Ability::Replacement {
@@ -391,6 +469,15 @@ pub(super) fn entering_card_type(card: &Card) -> Option<Vec<String>> {
                     },
                 ..
             } => Some(entering_types(options)),
+            Instruction::Effect {
+                operation:
+                    Operation::ChooseValueWith {
+                        kind: ValueKind::CardType,
+                        terms,
+                        ..
+                    },
+                ..
+            } => entering_card_types_but(terms).map(|options| entering_types(&options)),
             _ => None,
         })
     })
@@ -476,12 +563,21 @@ impl Compiler {
             ValueKind::Ability => ("chosen_ability", "Keyword::Flying"),
             _ => return Err(gap(feature.as_str())),
         };
-        Ok(planned::planned_value(
-            &feature,
-            placeholder,
-            &format!(
-                "q.state().{read}({}).expect(\"it chose one\")",
-                self.linked()
+        // Chosen as the source entered: the permanent keeps it for its linked
+        // abilities (CR 607.2d), and the engine reads it there.
+        let code = format!("q.state().{read}({}).expect(\"it chose one\")", self.linked());
+        if self.enters_choosing.contains(&kind) && kind != ValueKind::Ability {
+            return Ok(code);
+        }
+        Ok(self.follows_choice(
+            kind,
+            planned::planned_value(
+                &feature,
+                placeholder,
+                &format!(
+                    "q.state().{read}({}).expect(\"it chose one\")",
+                    self.linked()
+                ),
             ),
         ))
     }
@@ -615,6 +711,17 @@ impl Compiler {
                 }
                 writeln!(out, "let player_{id} = {player}; let {local} = if {M}::effects::ask_may(g, player_{id}, {source}, Purpose::Optional)? {{ None }} else {{ Some({M}::choose_color(g, player_{id}, {source})?) }};").unwrap();
             }
+            // "Choose left or right" (CR 101.4: turn order goes to the left): the
+            // card's own words, 0 for left and 1 for right.
+            ValueKind::Direction
+                if self.stack_item
+                    && self.entering_labels.is_none()
+                    && self.word_options.is_empty() =>
+            {
+                self.entering_labels = Some("&[\"left\", \"right\"]".into());
+                self.word_options = vec!["left".into(), "right".into()];
+                writeln!(out, "let player_{id} = {player}; let card_{id} = g.card_id(&CARD); let {local}: u8 = {M}::choose::option(g, player_{id}, {source}, card_{id}, 0..2)?;").unwrap();
+            }
             ValueKind::Direction => {
                 let code = format!("{M}::choose::direction(g, {player}, {source})?");
                 let value = planned::planned_value(&feature, "0u8", &code);
@@ -622,6 +729,47 @@ impl Compiler {
             }
             ValueKind::Filter => {
                 return self.choose_filter(player, source, options, local, id, out)
+            }
+            // "As this enters, choose white Citizen, blue Camarid, ...": the pairs
+            // are the card's options, and the one chosen is its chosen color and
+            // its chosen creature type (Sarpadian Empires, Vol. VII).
+            ValueKind::ColorAndCreatureType if entering => {
+                if !self.choice_labels.is_empty() || self.entering_labels.is_some() {
+                    return Err(gap(feature.as_str()));
+                }
+                let pairs: Option<Vec<(String, String)>> = options
+                    .iter()
+                    .map(|option| match option {
+                        Operand::Term { family, operands, .. } if family == "ColorAndCreatureType" => {
+                            match operands.as_slice() {
+                                [Operand::Vocabulary { family: c, form: color }, Operand::Vocabulary { family: t, form: kind }]
+                                    if c == "Color" && t == "CreatureType" =>
+                                {
+                                    Some((color.clone(), kind.clone()))
+                                }
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                let pairs = pairs.filter(|pairs| !pairs.is_empty()).ok_or_else(|| gap(feature.as_str()))?;
+                self.choice_labels.extend(
+                    pairs.iter().map(|(color, kind)| format!("{} {kind}", color.to_lowercase())),
+                );
+                let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+                let table: Vec<String> = pairs
+                    .iter()
+                    .map(|(color, kind)| format!("(Color::{color}, Subtype::{kind})"))
+                    .collect();
+                writeln!(
+                    out,
+                    "{M}::choose::option_as_enters(g, entering, &CARD, 0..{})?; let {local}: (Color, Subtype) = [{}][usize::from(entering.chosen_option.map_or(0, |chosen| chosen.index))]; entering.chosen_color = Some({local}.0); entering.chosen_subtype = Some({local}.1);",
+                    pairs.len(),
+                    table.join(", ")
+                )
+                .unwrap();
             }
             other => return Err(gap(format!("a choice of {other:?}"))),
         }
@@ -697,6 +845,18 @@ impl Compiler {
                 "{}.and_then(|spell: ObjectId| {{ let state = q.state(); let item = state.stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).or_else(|| state.left_stack(spell))?; let mut chosen = state.targets(item).iter(); let first = chosen.next()?.object()?; match chosen.any(|t| t.object() != Some(first)) {{ true => None, false => Some(first) }} }})",
                 self.object(of)?
             ),
+            // "Counter target activated ability ... That permanent's activated
+            // abilities can't be activated" (Interdict, Ouphe Vandals): the
+            // ability's source (CR 113.7, 602.1), read from its stack item, which
+            // a countered activated ability leaves among `left_stack` (CR 608.2h).
+            ObjectRef::SourceOf(of)
+                if matches!(&**of, ObjectRef::Target { slot, .. } if self.stack_slot(slot))
+                    && self.line_text().is_some_and(|line| line.contains("activated ability") && !line.contains("triggered")) =>
+            {
+                let ObjectRef::Target { slot, index } = &**of else { unreachable!("just matched") };
+                let at = self.slot(slot)?;
+                format!("t_{at}_raw.get({index}).copied().and_then(|t: Target| match t {{ Target::Ability(serial) => {{ let s = q.state(); s.stack.iter().find(|e| e.kind == StackKind::Activated && e.serial == serial).or_else(|| s.left_ability(serial)).map(|e| e.object) }} _ => None }})")
+            }
             ObjectRef::SourceOf(of) => held_object(
                 &feature,
                 &format!("{}.and_then(|o: ObjectId| q.ability_source(o))", self.object(of)?),
@@ -852,12 +1012,10 @@ impl Compiler {
             {
                 "{ let mut objects: Vec<ObjectId> = Vec::new(); for o in targets.iter().filter_map(|t| t.object()) { if !objects.contains(&o) { objects.push(o); } } objects }".to_string()
             }
-            ObjectSet::TargetsOf(of) => held_objects(
-                &feature,
-                &format!(
-                    "{}.map_or_else(Vec::new, |o: ObjectId| q.targets_of(o))",
-                    self.object(of)?
-                ),
+            // The objects a spell on the stack targets (CR 115.1), each once.
+            ObjectSet::TargetsOf(of) => format!(
+                "{}.map_or_else(Vec::new, |o: ObjectId| {{ let mut objects: Vec<ObjectId> = Vec::new(); if let Some(i) = q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == o) {{ for t in q.state().targets(i).iter().filter_map(|t| t.object()) {{ if !objects.contains(&t) {{ objects.push(t); }} }} }} objects }})",
+                self.object(of)?
             ),
             // "Each player exiles ..., then puts all cards they exiled this way
             // ...": a player's share of a walk over the players.
@@ -984,8 +1142,25 @@ impl Compiler {
                 let part = u8::from(*toughness);
                 held_number(feature, &format!("i64::from(chosen_pt_{}.{part})", result.0))
             }
+            Expr::ClampedDamage(result) if self.performed.contains_key(&result.0) => {
+                counted(format!("clamped_damage_{}", result.0))
+            }
             Expr::ClampedDamage(result) => {
                 held_number(feature, &format!("clamped_damage_{}", result.0))
+            }
+            // "If you removed two or more loyalty counters to activate it" (Way of
+            // the Mind Sculptor): the loyalty cost of the ability activated, a -X
+            // as X was announced (CR 606.4). It is fixed as it is activated, so an
+            // ability that left the stack before this resolves keeps the count it
+            // triggered on (CR 603.4).
+            Expr::CountersPaid { object, kind }
+                if counter_kind(kind)? == "CounterKind::Loyalty"
+                    && self.object(object)?.contains("the ability an event is about") =>
+            {
+                counted(format!(
+                    "q.state().stack.iter().find(|i| Target::Ability(i.serial) == {}).map_or(i64::MAX, |i| match q.activated_ability(i.ability).and_then(|d| d.cost.loyalty) {{ Some(cost) if cost == LOYALTY_MINUS_X => i64::from(i.x), Some(cost) => (-i64::from(cost)).max(0), None => 0 }})",
+                    self.carried_ability()?
+                ))
             }
             Expr::CountersPaid { object, kind } => held_number(
                 feature,
@@ -1013,6 +1188,18 @@ impl Compiler {
                         filter.snow
                     ),
                 )
+            }
+            Expr::RepeatedCostsUnpaid { result, player } if self.unpaid_rows.contains(&result.0) => {
+                Number {
+                    code: format!(
+                        "{}.map_or(0i64, |p: PlayerId| unpaid_{}.iter().filter(|who| **who == p).count() as i64)",
+                        self.player(player)?,
+                        result.0
+                    ),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
             }
             Expr::RepeatedCostsUnpaid { result, player } => held_number(
                 feature,
@@ -1116,6 +1303,12 @@ impl Compiler {
         Ok(match f {
             ObjectFilter::ChosenFilter => {
                 let Some((local, filters)) = &self.notes.filters else {
+                    // "Choose artifact or enchantment. Destroy all permanents of
+                    // the chosen type" (Season of Gathering): a card type chosen
+                    // in this body.
+                    if let Ok(local) = self.chosen_local(ValueKind::CardType) {
+                        return Ok(format!("{chars}.is({local})"));
+                    }
                     return Ok(held(
                         &feature,
                         &format!("q.state().chosen_filter(asker.source).is_some_and(|f| f(q, asker, {id}))"),
@@ -1187,12 +1380,26 @@ impl Compiler {
             // every graveyard offered isn't what the card says.
             ObjectFilter::ChosenBy { kind, player }
                 if self.chosen_lists.iter().any(|(k, _)| k == kind)
-                    && !lane_k::printed_otherwise(self.line_text(), "their graveyard") =>
+                    && (self.one_graveyard
+                        || !lane_k::printed_otherwise(self.line_text(), "their graveyard")) =>
             {
                 *self.own_choice.borrow_mut() = Some(self.player(player)?);
                 let test = self.chosen_filter(*kind, chars, id);
                 *self.own_choice.borrow_mut() = None;
                 test?
+            }
+            // Grave Sifter: its data takes the cards from every graveyard, where the
+            // card says each player's own.
+            ObjectFilter::ChosenBy { kind, player }
+                if self.chosen_lists.iter().any(|(k, _)| k == kind) =>
+            {
+                held(
+                    "every graveyard where the card says their graveyard, in the data",
+                    &format!(
+                        "{}.is_some_and(|p: PlayerId| q.chosen_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
+                        self.player(player)?
+                    ),
+                )
             }
             ObjectFilter::ChosenBy { kind, player } => held(
                 &feature,
@@ -1235,6 +1442,30 @@ impl Compiler {
                     self.object(object)?
                 ),
             ),
+            // "Cards they exiled with this artifact this turn" (Uba Mask), where what
+            // exiles them is the drawing player exiling the card they would draw:
+            // linked to this ability's text (CR 607.2a), and their own card.
+            ObjectFilter::ExiledBy {
+                player: player @ PlayerRef::Affected,
+                with: Some(ObjectRef::Source),
+                this_turn,
+            } if self.exiles_own_draw() => {
+                let turn = if *this_turn {
+                    format!(" && q.history().this_turn().iter().any(|r| matches!(r.event, Event::ZoneChange {{ new, to, .. }} if new == {id} && to.is(ZoneKind::Exile)))")
+                } else {
+                    String::new()
+                };
+                format!(
+                    "(q.exiled_with(q.linked_to(asker)).contains(&{id}) && {}.is_some_and(|p: PlayerId| q.obj({id}).owner == p){turn})",
+                    self.player(player)?
+                )
+            }
+            // Shared Fate: the card is another player's, and nothing keeps who exiled it.
+            ObjectFilter::ExiledBy {
+                player: PlayerRef::Affected,
+                with: Some(ObjectRef::Source),
+                ..
+            } => return Err(gap("the player who exiled a card another player owns")),
             ObjectFilter::ExiledBy {
                 player,
                 with,
@@ -1252,6 +1483,11 @@ impl Compiler {
                     ),
                 )
             }
+            // "The chosen pile": in the pile chosen of any row kept.
+            ObjectFilter::InPile(None) if self.piles.is_some() => format!(
+                "{}.iter().any(|row| row.2.is_some_and(|at| row.1[at].contains(&{id})))",
+                self.piles.clone().unwrap_or_default()
+            ),
             ObjectFilter::InPile(object) => {
                 let of = match object {
                     Some(object) => self.object(object)?,
@@ -1274,6 +1510,16 @@ impl Compiler {
                         "q.state().obj({id}).in_starting_deck && {}",
                         self.player_in(players, &owner)?
                     ),
+                )
+            }
+            // "With mana cost {0} or {1}" (CR 202.1): exactly those symbols, of a
+            // card that has a mana cost (Urza's Saga).
+            ObjectFilter::ManaCostIs(symbols)
+                if self.reader != Reader::Layer && mana_cost_is(symbols).is_some() =>
+            {
+                format!(
+                    "{{ let values = q.copiable_values({id}); q.card(values.card).has_cost && !values.has_no_cost() && q.mana_cost({id}) == {} }}",
+                    mana_cost_is(symbols).expect("checked")?
                 )
             }
             ObjectFilter::ManaCostIs(symbols) => {
@@ -1330,22 +1576,31 @@ impl Compiler {
                     test(sources, "source")?
                 ),
             ),
-            ObjectFilter::ManaSymbolInCost(symbol) => held(
-                &feature,
-                &format!(
-                    "{}.has_symbol({})",
-                    self.cost_of(id, chars),
-                    colors_code(std::slice::from_ref(symbol))?
-                ),
-            ),
+            // "With one or more blue mana symbols in its mana cost" (CR 202.2):
+            // hybrid, monocolored hybrid and Phyrexian symbols of the color
+            // count, as `devotion::symbols_of` counts them (Namor).
+            ObjectFilter::ManaSymbolInCost(symbol) => {
+                let mana = match symbol {
+                    ManaColor::Colorless => "Mana::C".to_string(),
+                    other => format!("Color::{}.mana()", color(other)?),
+                };
+                format!(
+                    "{{ let cost = {}; let m = {mana}; let i = m as usize; cost.symbols[i] > 0 || cost.twobrid.get(i).is_some_and(|&n| n > 0) || cost.phyrexian.get(i).is_some_and(|&n| n > 0) || cost.hybrid.iter().flatten().any(|&(a, b)| a == m || b == m) }}",
+                    self.cost_of(id, chars)
+                )
+            }
             ObjectFilter::MostCommonCreatureTypeIn(player) => format!(
                 "{}.is_some_and(|p: PlayerId| {{ let kinds: Vec<SubtypeSet> = q.state().zone(Zone::library(p)).iter().map(|&card| q.chars(card).subtypes).collect(); let count = |kind: Subtype| kinds.iter().filter(|set| set.has(kind)).count(); let most = SubtypeSet::CREATURE_TYPES.iter().map(count).max().unwrap_or(0); most > 0 && SubtypeSet::CREATURE_TYPES.iter().any(|kind| {chars}.has_subtype(kind) && count(kind) == most) }})",
                 self.player(player)?
             ),
-            ObjectFilter::NameFirstPrintedIn(set) => held(
-                &feature,
-                &format!("{chars}.first_printing == Printing::{}", form(set)),
-            ),
+            // Cantrip keeps no printings: the names the set first printed, each.
+            ObjectFilter::NameFirstPrintedIn(set) => {
+                let names: Vec<String> = super::first_printed::names(set)
+                    .iter()
+                    .map(|name| format!("{name:?}"))
+                    .collect();
+                format!("matches!({chars}.name, {})", names.join(" | "))
+            }
             ObjectFilter::Noted(kind) => held(
                 &feature,
                 &format!("q.noted(asker, ChoiceKind::{kind:?}).matches({id})"),
@@ -1370,6 +1625,38 @@ impl Compiler {
                     ),
                 )
             }
+            // "Each land of the first chosen type": the choices this body made, in
+            // the order it made them.
+            ObjectFilter::NthChosen(index) if self.nth_chosen_local(*index).is_some() => {
+                let (kind, value) = self.nth_chosen_local(*index).expect("just seen");
+                let test = match kind {
+                    ValueKind::Color => format!("{chars}.colors.has(chosen)"),
+                    ValueKind::CreatureType
+                    | ValueKind::BasicLandType
+                    | ValueKind::LandType
+                    | ValueKind::NonbasicLandType
+                    | ValueKind::PlaneswalkerType => format!("{chars}.has_subtype(chosen)"),
+                    ValueKind::CardType | ValueKind::PermanentType => format!("{chars}.is(chosen)"),
+                    other => return Err(gap(format!("object filter NthChosen {other:?}"))),
+                };
+                format!("{value}.is_some_and(|chosen| {test})")
+            }
+            // The choices are themselves a hole (several values chosen in order, Rite
+            // of Ruin's order, Illusionary Terrain's two types): which one is first
+            // is known once they are made.
+            ObjectFilter::NthChosen(index)
+                if self.gaps.iter().any(|g| {
+                    g.feature == "a choice of several values"
+                        || g.feature.starts_with("operation ChooseValueWith")
+                        || g.feature.starts_with("a choice of two ")
+                }) || self.functions.contains("planned_value!(\"a choice of several values\"") =>
+            {
+                planned::planned_value(
+                    FOLLOWS_GAP,
+                    "false",
+                    &format!("q.nth_chosen_value(asker, {index}).matches({id})"),
+                )
+            }
             ObjectFilter::NthChosen(index) => held(
                 &feature,
                 &format!("q.nth_chosen_value(asker, {index}).matches({id})"),
@@ -1388,6 +1675,12 @@ impl Compiler {
                     self.object(object)?
                 ),
             ),
+            // "The target of an ability from ..." (CR 115.1): a spell or
+            // ability on the stack that targets it, read as the stack item.
+            ObjectFilter::TargetedBy(filter) if self.stack_filter(filter).is_ok() => format!(
+                "q.state().stack.iter().any(|e| q.state().targets(e).contains(&Target::Object({id})) && {})",
+                self.stack_filter(filter)?
+            ),
             ObjectFilter::TargetedBy(filter) => held(
                 &feature,
                 &format!(
@@ -1395,22 +1688,27 @@ impl Compiler {
                     test(filter, "by")?
                 ),
             ),
-            ObjectFilter::TargetCount(comparison, value) => held(
-                &feature,
-                &compare(
-                    &format!("q.targets_of({id}).len() as i64"),
-                    comparison,
-                    &self.number(value)?.code,
+            // How many targets a spell on the stack has (CR 115.1), players
+            // among them; none for an object that is no spell there.
+            ObjectFilter::TargetCount(comparison, value) => compare(
+                &format!(
+                    "q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == {id}).map_or(0i64, |i| q.state().targets(i).len() as i64)"
                 ),
+                comparison,
+                &self.number(value)?.code,
             ),
             // What left it as it left the battlefield: those records just before
             // its own, among others of the same move (CR 701.3d, 704.5n). An Aura has
-            // gone to a graveyard by the time anything reads this.
+            // gone to a graveyard by the time anything reads this (CR 704.5m), as a
+            // new object (CR 400.7): "Aura cards that were attached to it" are the
+            // cards those Auras became as they left the battlefield. A line that
+            // counts Auras still on the battlefield reads none of them so.
             ObjectFilter::WasAttachedTo(host)
-                if !lane_k::printed_otherwise(self.line_text(), "Aura") =>
+                if !lane_k::printed_otherwise(self.line_text(), "Aura")
+                    || lane_k::printed_otherwise(self.line_text(), "Aura cards") =>
             {
                 format!(
-                    "{}.is_some_and(|host: ObjectId| {{ let records = q.history().all(); records.iter().rposition(|r| matches!(r.event, Event::ZoneChange {{ old, from, .. }} if old == host && from.is(ZoneKind::Battlefield))).is_some_and(|left| records[..left].iter().rev().take_while(|r| matches!(r.event, Event::Unattached {{ .. }} | Event::ZoneChange {{ .. }})).any(|r| matches!(r.event, Event::Unattached {{ attachment, from }} if attachment == {id} && from == host))) }})",
+                    "{}.is_some_and(|host: ObjectId| {{ let records = q.history().all(); records.iter().rposition(|r| matches!(r.event, Event::ZoneChange {{ old, from, .. }} if old == host && from.is(ZoneKind::Battlefield))).is_some_and(|left| {{ let was: Vec<ObjectId> = records[..left].iter().rev().take_while(|r| matches!(r.event, Event::Unattached {{ .. }} | Event::ZoneChange {{ .. }})).filter_map(|r| match r.event {{ Event::Unattached {{ attachment, from }} if from == host => Some(attachment), _ => None }}).collect(); was.contains(&{id}) || records[left..].iter().any(|r| matches!(r.event, Event::ZoneChange {{ old, new, from, .. }} if new == {id} && was.contains(&old) && from.is(ZoneKind::Battlefield))) }}) }})",
                     self.object(host)?
                 )
             }
@@ -1559,7 +1857,7 @@ impl Compiler {
                     self.object(card)?,
                     compare(
                         &format!(
-                            "cards[..at].iter().copied().filter(|&id| {}).count() as i64",
+                            "cards[at + 1..].iter().copied().filter(|&id| {}).count() as i64",
                             self.filter(above, &Candidate::of("id"))?
                         ),
                         comparison,
@@ -1567,13 +1865,18 @@ impl Compiler {
                     )
                 ),
             ),
-            // Among the cards discarded this way, ties included.
+            // Among the cards discarded, revealed or exiled this way, ties included: "the
+            // player who reveals the card with the greatest mana value" (Psychic
+            // Battle, Stronghold Gambit).
             Condition::HadExtreme {
                 player,
-                what: what @ EarlierObjects::Discarded,
+                what: what @ (EarlierObjects::Discarded | EarlierObjects::Revealed | EarlierObjects::Exiled),
                 filter: None,
                 highest,
-            } if self.earlier_objects(what).is_ok() => {
+            } if self
+                .earlier_objects(what)
+                .is_ok_and(|those| !those.contains("planned")) =>
+            {
                 let those = self.earlier_objects(what)?;
                 let extreme = if *highest { "max" } else { "min" };
                 format!(
@@ -1591,6 +1894,11 @@ impl Compiler {
                     Some(filter) => self.filter(filter, &Candidate::of("id"))?,
                     None => "true".to_string(),
                 };
+                // What the cards were is itself a hole (Stronghold Gambit's cards
+                // chosen in secret and revealed): this follows it.
+                let follows = matches!(what, EarlierObjects::Discarded | EarlierObjects::Revealed | EarlierObjects::Exiled)
+                    && self.earlier_objects(what).is_ok_and(|those| those.contains("planned"));
+                let feature = if follows { FOLLOWS_GAP.to_string() } else { feature };
                 held(
                     &feature,
                     &format!(
@@ -1682,7 +1990,7 @@ impl Compiler {
                 linked = self.linked()
             ),
             Condition::ValueChosenIs(player) => held(
-                &feature,
+                if self.as_event_chooses { FOLLOWS_GAP } else { &feature },
                 &format!(
                     "{}.is_some_and(|p: PlayerId| q.state().chosen_players({}).contains(&p))",
                     self.player(player)?,
@@ -1747,6 +2055,8 @@ pub(super) fn landwalk_rule(land: &ObjectFilter) -> bool {
         ObjectFilter::All(parts) => {
             matches!(parts.as_slice(), [a, b] if (snow(a) && of_a_type(b)) || (snow(b) && of_a_type(a)))
         }
+        // "Snow landwalk" (Zombie Musher): no keyword of Cantrip's says it.
+        filter if snow(filter) => true,
         _ => false,
     }
 }
@@ -1994,10 +2304,16 @@ impl Compiler {
             return Err(gap("a count of modes a spell or an activated ability reads"));
         }
         let told = |code: String| code.replace("i64::from(item.x)", "q.told_amount(asker)");
+        let none_least = matches!(least, Expr::Constant(0));
         let (least, most) = (
             told(self.number(least)?.code),
             told(self.number(most)?.code),
         );
+        // "When you do, choose up to that many": the count its reflexive trigger
+        // was told (CR 603.12a, 700.2; Tranquil Frillback).
+        if none_least && most == "q.told_amount(asker)" {
+            return Ok(format!("{listed}.up_to_that_many()"));
+        }
         Ok(planned::planned_value(
             "mode count that is not a constant",
             &format!("{listed}.choose(1, 1)"),
@@ -2185,6 +2501,9 @@ impl Compiler {
         if !planned {
             return Err(failed);
         }
+        if let Some(made) = self.chosen_kind_tokens(id, players, tokens, entry, result, out)? {
+            return Ok(made);
+        }
         let mut orders = Vec::new();
         for token in tokens {
             let amount = self.fetch(self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?);
@@ -2241,6 +2560,59 @@ impl Compiler {
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(())
     }
+    /// "Create a 2/2 creature token of the chosen color and type" (Volrath's
+    /// Laboratory): the token's copiable values are its definition's with the
+    /// chosen color and creature type (CR 111.4, 707.9b), and it is named for
+    /// that type, which Cantrip's token names are.
+    fn chosen_kind_tokens(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        tokens: &[TokenSpec],
+        entry: &EntrySpec,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<Option<()>> {
+        let [token] = tokens else { return Ok(None) };
+        let TokenRecipe::Defined(definition) = &token.recipe else {
+            return Ok(None);
+        };
+        let plain_entry = !entry.tapped && entry.counters.is_empty() && entry.states.is_empty();
+        if !(definition.chosen_color || definition.chosen_creature_type)
+            || definition.abilities_of.is_some()
+            || !plain_entry
+        {
+            return Ok(None);
+        }
+        let mut plain = definition.clone();
+        plain.chosen_color = false;
+        plain.chosen_creature_type = false;
+        let mut values = String::new();
+        if let Some((p, t)) = &definition.power_toughness {
+            if !matches!((p, t), (Expr::Constant(_), Expr::Constant(_))) {
+                let (p, t) = (self.fetch(self.number(p)?.code), self.fetch(self.number(t)?.code));
+                values.push_str(&format!(".sized(({p}).clamp(0, i64::from(i16::MAX)) as i16, ({t}).clamp(0, i64::from(i16::MAX)) as i16)"));
+                plain.power_toughness = None;
+            }
+        }
+        if definition.chosen_color {
+            let color = self.fetch(self.chosen_read(ValueKind::Color)?);
+            values.push_str(&format!(".colored(ColorSet::of({color}))"));
+        }
+        if definition.chosen_creature_type {
+            let kind = self.fetch(self.chosen_read(ValueKind::CreatureType)?);
+            values.push_str(&format!(
+                ".with_subtype(kind_{id}).named(kind_{id}.name())"
+            ));
+            writeln!(out, "let kind_{id}: Subtype = {kind};").unwrap();
+        }
+        let path = self.token_definition(&plain)?;
+        let amount = self.fetch(self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?);
+        let players = self.fetch(self.players(players)?);
+        writeln!(out, "let values_{id} = Copiable::of(g.card_id(&{path})){values}; let mut created_{id}: Vec<ObjectId> = Vec::new(); let count_{id} = {amount}; for player in {players} {{ created_{id}.extend(g.create_token_copies_of(values_{id}, player, count_{id})?); }}").unwrap();
+        self.creations.insert(result.0, format!("created_{id}"));
+        Ok(Some(()))
+    }
     /// `move_objects`, or the call it will be for an arrival Cantrip can't make yet.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn move_objects_p(
@@ -2256,16 +2628,58 @@ impl Compiler {
         let mut code = String::new();
         // "Exile them in a face-down pile, shuffle that pile": the pile's order, which
         // is all a shuffle of it can change, is taken as it is exiled.
-        if let (true, Destination::Exile, false, [EntryState::ExilePile { shuffled: true }]) =
-            (face_down, destination, entry.tapped, entry.states.as_slice())
+        if let (Destination::Exile, false, [EntryState::ExilePile { shuffled }]) =
+            (destination, entry.tapped, entry.states.as_slice())
         {
-            if entry.counters.is_empty() {
+            if entry.counters.is_empty() && (face_down && *shuffled || !self.links_exile) {
                 let pool = self.fetch(self.objects(objects)?);
-                writeln!(out, "let mut pool_{id} = {pool}; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); objects_{id}.push(pool_{id}.remove(at)); }} let moved_{id} = g.exile_face_down(&objects_{id}, None);").unwrap();
+                match (face_down, shuffled) {
+                    (true, true) => writeln!(out, "let mut pool_{id} = {pool}; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); objects_{id}.push(pool_{id}.remove(at)); }} let moved_{id} = g.exile_face_down(&objects_{id}, None);").unwrap(),
+                    // "Exile the top four cards of your library in a face-down
+                    // pile": a pile is the cards it holds, kept as what moved;
+                    // the order of an unshuffled pile is no secret.
+                    (true, false) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_face_down(&objects_{id}, None);").unwrap(),
+                    // A face-up pile's order is seen by all: a shuffle hides nothing.
+                    (false, _) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_all(&objects_{id});").unwrap(),
+                }
                 self.moved.insert(result.0, format!("moved_{id}"));
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
                 return Ok(());
             }
+        }
+        // "Look at the top three cards of your library. Exile one of them face down
+        // with a hatching counter on it": exiled face down, the counters put on it
+        // there (as suspend's are), and the player who looked at it may go on
+        // looking at it (CR 406.3).
+        if let (true, Destination::Exile, false, [], false) = (
+            face_down,
+            destination,
+            entry.tapped,
+            entry.states.as_slice(),
+            self.links_exile,
+        ) {
+            let pool = self.fetch(self.objects(objects)?);
+            let mut counters = String::new();
+            for (kind, n) in &entry.counters {
+                let n = self.fetch(self.number(n)?.code);
+                write!(counters, "g.add_counters(o, {}, ({n}) as i16); ", counter_kind(kind)?).unwrap();
+            }
+            // The last player this resolution had look at cards, who chose among them.
+            let looked = out
+                .rfind("g.look_at(")
+                .map(|at| &out[at + "g.look_at(".len()..])
+                .and_then(|rest| rest.split_once(','))
+                .map(|(player, _)| player.trim().to_string())
+                .filter(|player| {
+                    player.starts_with("player_") && player[7..].chars().all(|c| c.is_ascii_digit())
+                });
+            let look = looked.map_or(String::new(), |player| {
+                format!(" g.look_at({player}, &moved_{id});")
+            });
+            writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_face_down(&objects_{id}, None); for &o in &moved_{id} {{ if g.obj(o).zone.is(ZoneKind::Exile) {{ {counters}}} }}{look}").unwrap();
+            self.moved.insert(result.0, format!("moved_{id}"));
+            self.left_behind(result, effects::gone(&format!("objects_{id}")));
+            return Ok(());
         }
         let failed = match face_down {
             true => gap("operation Move"),
@@ -2406,6 +2820,7 @@ impl Compiler {
             || failed.feature == "search with cards from outside the game"
             || failed.feature == "cards found in two zones put on top of a library"
             || failed.feature == "search with several find clauses"
+            || failed.feature.starts_with("the chosen cards of a search of more than the library")
             || failed.feature.starts_with("search constraint ");
         if !planned {
             return Err(failed);
@@ -2488,6 +2903,31 @@ fn filter_word(filter: &ObjectFilter) -> Option<String> {
     })
 }
 
+/// A printed mana cost as the symbols the data lists, where each is one the
+/// generator can write: `None` for any other.
+fn mana_cost_is(symbols: &[Operand]) -> Option<Result<String>> {
+    let mut out = Vec::new();
+    for symbol in symbols {
+        let Operand::Term { form, operands, .. } = symbol else {
+            return None;
+        };
+        out.push(match (form.as_str(), operands.as_slice()) {
+            ("ManaCostGeneric", [Operand::Integer(n)]) => {
+                ManaSymbol::Generic(u32::try_from(*n).ok()?)
+            }
+            ("ManaCostW", []) => ManaSymbol::Color(ManaColor::White),
+            ("ManaCostU", []) => ManaSymbol::Color(ManaColor::Blue),
+            ("ManaCostB", []) => ManaSymbol::Color(ManaColor::Black),
+            ("ManaCostR", []) => ManaSymbol::Color(ManaColor::Red),
+            ("ManaCostG", []) => ManaSymbol::Color(ManaColor::Green),
+            ("ManaCostC", []) => ManaSymbol::Color(ManaColor::Colorless),
+            ("ManaCostX", []) => ManaSymbol::X,
+            _ => return None,
+        });
+    }
+    Some(super::mana(&out))
+}
+
 /// The rest of `sharing`: `a` and `b` are the characteristics of two objects.
 pub(super) fn sharing_p(property: &DistinctProperty) -> Result<&'static str> {
     Ok(match property {
@@ -2523,7 +2963,11 @@ pub(super) fn property_p(property: &Property, id: &str) -> Result<Number> {
             "{{ let kinds = q.chars({id}).supertypes; i64::from(kinds.basic) + i64::from(kinds.legendary) + i64::from(kinds.snow) }}"
         )),
         Property::BushidoValue => held(format!("i64::from(q.chars({id}).bushido)")),
-        Property::ColorSymbolCount => held(format!("i64::from(q.mana_cost({id}).color_symbols())")),
+        // "Colored mana symbols in its mana cost" (CR 107.4, 202.2): every
+        // symbol with a color - colored, hybrid, monocolored hybrid, Phyrexian.
+        Property::ColorSymbolCount => lane_j::counted(format!(
+            "{{ let cost = q.mana_cost({id}); i64::from(cost.symbols[..5].iter().map(|&n| u32::from(n)).sum::<u32>() + cost.twobrid.iter().map(|&n| u32::from(n)).sum::<u32>() + cost.phyrexian.iter().map(|&n| u32::from(n)).sum::<u32>()) + cost.hybrid.iter().flatten().count() as i64 }}"
+        )),
         Property::CrewCount => held(format!("q.crewed_by({id}).len() as i64")),
         // The ability's own link where it asks of its source (CR 607.5), and the
         // text of any other object.
@@ -2584,10 +3028,19 @@ pub(super) fn flat_modes(selection: &ModeSelection) -> Option<Vec<Mode>> {
     let mut flat = Vec::new();
     for mode in &selection.modes {
         match inner(mode) {
+            // Each inner mode is available only while the outer one would be
+            // ("if you discarded a card this turn, you choose one instead").
             Some(modes)
                 if mode.announcement.targets.is_empty() && mode.body.instructions.is_empty() =>
             {
-                flat.extend(modes)
+                flat.extend(modes.into_iter().map(|inner| {
+                    let requires = match (&mode.requires, inner.requires) {
+                        (None, own) => own,
+                        (Some(outer), None) => Some(outer.clone()),
+                        (Some(outer), Some(own)) => Some(Condition::All(vec![outer.clone(), own])),
+                    };
+                    Mode { requires, ..inner }
+                }))
             }
             Some(_) => return None,
             None => flat.push(mode.clone()),
@@ -2746,6 +3199,18 @@ impl Compiler {
             &feature,
             "q.history().all().iter()",
             &code,
+        ))
+    }
+    /// "This has annihilator X, where X is ..." (CR 702.86a): the trigger
+    /// Annihilator has, X read as it resolves, of the creature as it is then or
+    /// as it last was on the battlefield (Ulamog, the Defiler's ruling).
+    pub(super) fn annihilator_x(&mut self, amount: &Expr, label: &str) -> Result<String> {
+        let n = self.number_fn(amount)?;
+        let text = quoted(self.line_text().unwrap_or("Annihilator X"));
+        let function = format!("{label}_annihilate");
+        writeln!(self.functions, "fn {function}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ let asker = &Asker::new(item.object, item.controller); let n = {{ let q: &dyn Query = g; ({n})(q, asker) }}.clamp(0, i64::from(u8::MAX)) as u8; {M}::triggers::annihilate_n(g, item, n) }}").unwrap();
+        Ok(format!(
+            "triggered({M}::triggers::ANNIHILATOR, {function}, {text})"
         ))
     }
     /// A number the game works out when it is needed.

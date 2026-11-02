@@ -7,6 +7,9 @@
 use super::*;
 
 const M: &str = "cantrip_mechanics";
+/// `CardDef::becomes_aura_enchant` of an Aura that enchants the creature it put
+/// onto the battlefield (Necromancy).
+const AURA_PUT_WITH_THIS: &str = "Some(cantrip_mechanics::targets::CREATURE_PUT_ONTO_THE_BATTLEFIELD_WITH_THIS)";
 
 /// "Loses all other abilities and has this", as the two changes it is: they keep
 /// their order in the ability layer, so what it has it keeps (CR 613.1f).
@@ -392,6 +395,27 @@ impl Compiler {
             parts.table("face_up_bans", function.to_string());
             return Ok(true);
         }
+        // "Can't be beamed up": beam me up's cost is the only way to beam a
+        // permanent up (CR 118.3), so the ban is of that payment (Marooned).
+        if matches!(rule, RuleChange::Prohibit(ObjectAction::BeBeamedUp)) {
+            let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}_ban(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ matches!(payment, CostPayment::BeamUp(permanent) if {function}(q, asker, permanent)) }}").unwrap();
+            parts.table("cost_bans", format!("{function}_ban"));
+            return Ok(true);
+        }
+        // "This Equipment's equip ability costs {2} less to activate if it targets
+        // a colorless creature" (Ghostfire Blade): the equip ability's own cost
+        // change, the target read as the total cost is determined (CR 601.2f).
+        if let RuleChange::OwnActivationCost { abilities, change } = rule {
+            if let Some(reduced) = self.own_equip_cost(function, affected, abilities, change)? {
+                let equips: Vec<usize> = (0..parts.abilities.len()).filter(|&i| parts.abilities[i].contains(".equip()")).collect();
+                if let [one] = equips.as_slice() {
+                    parts.abilities[*one].push_str(&format!(".cost_change({reduced})"));
+                    return Ok(true);
+                }
+            }
+        }
         let code = self.rule_code(rule).map_err(|_| gap(&feature))?;
         let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
@@ -402,6 +426,42 @@ impl Compiler {
             parts,
         );
         Ok(true)
+    }
+    /// The cost change of "this Equipment's equip ability costs {N} less to
+    /// activate if it targets [a permanent]": its own equip ability's, judged of
+    /// its one target. None for any other shape.
+    fn own_equip_cost(
+        &mut self,
+        function: &str,
+        affected: &ObjectSet,
+        abilities: &ObjectFilter,
+        change: &ActivationCostChange,
+    ) -> Result<Option<String>> {
+        if !matches!(affected, ObjectSet::One(ObjectRef::Source)) || self.static_guard.is_some() {
+            return Ok(None);
+        }
+        let ObjectFilter::All(filters) = abilities else { return Ok(None) };
+        let [ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Equip)), ObjectFilter::TargetsAny(recipients)] =
+            filters.as_slice()
+        else {
+            return Ok(None);
+        };
+        let Recipients::Objects(ObjectSet::Battlefield(filter)) = &**recipients else { return Ok(None) };
+        let ActivationCostChange::Reduce(amount) = change else { return Ok(None) };
+        let Operand::List(symbols) = &**amount else { return Ok(None) };
+        let [Operand::Term { form, operands, .. }] = symbols.as_slice() else { return Ok(None) };
+        let ("CostReduceGeneric", [Operand::Integer(n)]) = (form.as_str(), operands.as_slice()) else {
+            return Ok(None);
+        };
+        let Ok(n) = u8::try_from(*n) else { return Ok(None) };
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let test = self.filter(filter, &Candidate::of("id"));
+        (self.reader, self.event_at) = saved;
+        let test = test?;
+        let name = format!("{function}_cost");
+        writeln!(self.functions, "#[allow(unused_variables)] fn {name}(q: &dyn Query, asker: &Asker, costed: Costed, targets: &[Target]) -> CostDelta {{ match targets.first() {{ Some(&Target::Object(id)) if {test} => CostDelta::less({n}), _ => CostDelta::NONE }} }}").unwrap();
+        Ok(Some(name))
     }
     /// A rule on a set that can still gain members (CR 611.2c): the effect holds
     /// the test, and applies to whatever passes it while it lasts.
@@ -705,7 +765,7 @@ impl Compiler {
         ))
     }
     /// `part`, with the reader of a plain function: a rule asked of the game.
-    fn queried<T>(&mut self, part: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+    pub(super) fn queried<T>(&mut self, part: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let compiled = part(self);
@@ -777,7 +837,15 @@ impl Compiler {
                     "|g: &mut dyn Game, asker: &Asker| -> Result<(), Suspend> {{ {body} Ok(()) }}"
                 )
             }
+            // "It gains haste until end of turn" (Thundermane Dragon): a keyword
+            // is a word of `Keywords` (`EffectKind::AddKeywords`), not an ability
+            // of the card's to point at.
             Operand::Ability(ability) => {
+                if let Ability::Keyword(k) = &**ability {
+                    if let Ok(word) = keyword(k) {
+                        return Ok(format!("Keywords::of(&[{word}])"));
+                    }
+                }
                 let refs = self.granted_refs(ability)?;
                 match refs.as_slice() {
                     [one] => one.clone(),
@@ -924,7 +992,10 @@ impl Compiler {
             PlayCost::Normal => {}
             PlayCost::Free => grant.push_str("instead: Some(ManaCost::ZERO), "),
             PlayCost::Alternate(cost) => {
-                write!(grant, "alternate: Some({}), ", self.stated(cost)?).unwrap()
+                self.card_costed = true;
+                let stated = self.stated(cost);
+                self.card_costed = false;
+                write!(grant, "alternate: Some({}), ", stated?).unwrap()
             }
             PlayCost::Additional(cost) => {
                 write!(grant, "also: Some({}), ", self.stated(cost)?).unwrap()
@@ -1170,11 +1241,13 @@ impl Compiler {
                 format!("PlayerRule::ExtraLandPlays({})", self.asked(n)?)
             }
             R::AdditionalLandPlays(Count::AnyNumber) => "PlayerRule::AnyNumberOfLandPlays".into(),
-            R::SpellCost { spells, modifier } => format!(
-                "PlayerRule::SpellCost {{ spells: {}, change: {} }}",
-                self.over_played(spells, "spell")?,
-                self.cost_modifier(modifier)?
-            ),
+            R::SpellCost { spells, modifier } => {
+                let spells = self.over_played(spells, "spell")?;
+                self.card_costed = true;
+                let change = self.cost_modifier(modifier);
+                self.card_costed = false;
+                format!("PlayerRule::SpellCost {{ spells: {spells}, change: {} }}", change?)
+            }
             R::SpellTiming { spells, timing } => format!(
                 "PlayerRule::SpellTiming {{ spells: {}, timing: SpellTiming::{timing:?} }}",
                 self.over_played(spells, "spell")?
@@ -1497,7 +1570,20 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let code = self.player_rule_code(rule)?;
-        let until = self.stated_until(duration)?;
+        // A permission to play cards "for as long as they remain exiled" is a
+        // permission for those objects, which no longer exist once they leave
+        // exile (CR 400.7): it lasts as one that never ends, as `play_expiry`
+        // writes it (`Expiry::Never`).
+        use crate::ir::Duration as D;
+        let until = match (rule, duration) {
+            (
+                PlayerRule::PlayPermission { .. } | PlayerRule::PlayPermissionWith { .. },
+                D::WhileExiled(_) | D::WhileAnyExiled(_),
+            ) => {
+                "Duration::Indefinite".to_string()
+            }
+            _ => self.stated_until(duration)?,
+        };
         let players = self.fetch(self.players(players)?);
         let source = self.fetch(self.object(source)?);
         self.plan_code(
@@ -1624,10 +1710,13 @@ impl Compiler {
             grown.field("protection", colors);
         }
         let enters = self.enters(&grown.enters);
+        let rules = grown.card(&enters);
+        if let Some(granted) = self.granted_attack_limit(&rules) {
+            return Ok(vec![granted]);
+        }
         let index = self.granted_rules;
         self.granted_rules += 1;
         let feature = lane_g::grant_gap(ability).feature;
-        let rules = grown.card(&enters);
         let mut late = Parts::default();
         self.plan_entry(&feature, "granted_rules", &rules, &mut late);
         self.late
@@ -1637,6 +1726,30 @@ impl Compiler {
             &format!("AbilityRef::delayed({card}, 0)"),
             &format!("AbilityRef::granted_static({card}, {index})"),
         )])
+    }
+    /// A granted "No more than one creature can attack this planeswalker each
+    /// combat" (CR 508.1c), as Tomik, Orzhov Lawmage prints it: the grant is a
+    /// static ability that changes nothing of the object, and the card's own
+    /// attack limit asks whether what is attacked has it. The limit was written
+    /// as the object's own, so it is asked as the object.
+    fn granted_attack_limit(&mut self, rules: &str) -> Option<String> {
+        const EMPTY: &str = "CardDef { keywords: Keywords::of(&[]), abilities: &[], statics: &[], replacements: &[], preventions: &[], block_rules: &[], block_requirements: &[], attack_rules: &[], untap_bans: &[], enters: None, attack_limits: &[";
+        let limit = rules.strip_prefix(EMPTY)?.strip_suffix("], ..CardDef::BLANK }")?;
+        if limit.is_empty() || !limit.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return None;
+        }
+        let line = self.line_text()?;
+        let (open, close) = (line.find('"')?, line.rfind('"')?);
+        let text = quoted(line.get(open + 1..close).filter(|text| !text.is_empty())?);
+        let card = self.source_card();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {limit}_changes_nothing(q: &dyn LayerQuery, source: ObjectId, chars: &mut Chars) {{}}").unwrap();
+        self.delayed.push(format!(
+            "granted_static(Layer::Ability, {limit}_changes_nothing, {text})"
+        ));
+        let index = self.delayed.len() - 1;
+        writeln!(self.functions, "#[allow(unused_variables)] fn {limit}_held(q: &dyn Query, asker: &Asker, attacked: Target) -> Option<u32> {{ let Target::Object(id) = attacked else {{ return None; }}; let source = q.obj(asker.source); let granted = AbilityRef::delayed(source.copied_card().unwrap_or(source.card), {index}); if !q.chars(id).abilities.contains(&Some(granted)) {{ return None; }} {limit}(q, &Asker::new(id, q.controller(id)), attacked) }}").unwrap();
+        self.late_tables.push(("attack_limits", format!("{limit}_held")));
+        Some(format!("AbilityRef::delayed({card}, {index})"))
     }
     /// The statement that gives a layer's `chars` these abilities.
     pub(super) fn grant_in_layer(&mut self, ability: &Ability) -> Result<statics::LayerChange> {
@@ -1660,19 +1773,38 @@ impl Compiler {
         if let Ability::Enchant { hosts } = ability {
             return self.aura_enchant(hosts);
         }
+        // "Until end of turn, each creature card in your graveyard gains escape"
+        // (The Grim Captain's Locker): a way to cast a card lasts past its giver only
+        // as a `PlayGrant`, which has a mana cost to pay instead but no cards to exile
+        // and no escape to cast it by (CR 702.138a-c); `granted_ways` are a
+        // permanent's, while it's on the battlefield.
+        if matches!(ability, Ability::Mechanic { mechanic: Mechanic::Escape, .. }) {
+            return Err(gap("escape given by a resolving effect"));
+        }
         Ok(self
             .granted_refs(ability)?
             .into_iter()
             .map(|reference| format!("EffectKind::AddAbility({reference})"))
             .collect())
     }
+    /// Whether this card's Aura enchants what it puts onto the battlefield.
+    pub(super) fn aura_puts_its_host(&self) -> bool {
+        self.aura.as_deref() == Some(AURA_PUT_WITH_THIS)
+    }
     pub(super) fn aura_enchant(&mut self, hosts: &EnchantHosts) -> Result<Vec<String>> {
         let EnchantHosts::Permanents(filter) = hosts else {
             return Err(gap("granted Enchant"));
         };
-        // Necromancy puts its creature in with it, a move this reading can't say.
-        if format!("{filter:?}").contains("MadeBy") {
-            return Err(gap("an Aura that enchants what it put onto the battlefield"));
+        // Necromancy: "enchant creature put onto the battlefield with [this]" is
+        // the creature that entered with it as its Aura (CR 303.4a), and the put
+        // that follows is `put_onto_battlefield_with_aura` (CR 303.4f).
+        let words = format!("{filter:?}");
+        if words.contains("MadeBy") {
+            if !(words.starts_with("All([CardType(Creature), MadeBy(Source)") || words == "All([CardType(Creature), MadeBy(Source)])") {
+                return Err(gap("an Aura that enchants what it put onto the battlefield"));
+            }
+            self.aura = Some(AURA_PUT_WITH_THIS.to_string());
+            return Ok(vec![format!("EffectKind::Enchant({})", self.source_card())]);
         }
         let function = format!("becomes_aura_{}", self.fresh());
         let test = self.queried(|c| c.filter(filter, &Candidate::of("id")))?;
@@ -2013,6 +2145,15 @@ impl Compiler {
                     format!("EffectKind::AddAbilitiesOf({abilities})"),
                 )]
             }
+            // "Add one mana of any color. This creature becomes that color" (Foraging
+            // Wickermaw): the color named as the mana ability was activated, the
+            // mana's, and exactly that color (CR 105.3, 605.1a, 613.1e).
+            Change::ColorOfMana {
+                mode: ChangeMode::Set,
+                ..
+            } if self.mana_body => vec![
+                "EffectKind::SetColors(ColorSet::of(chosen.expect(\"mana activation selected a color\")))".to_string(),
+            ],
             // The instruction before it added the mana; nothing else is read.
             Change::ColorOfMana { mode, .. } => vec![lane_g::planned_kind(
                 "continuous change ColorOfMana",
@@ -2078,6 +2219,20 @@ impl Compiler {
             Change::SetController(player) => {
                 let player = self.player(player)?;
                 L::of("Control", planned(format!("chars.controller = {player}")))
+            }
+            Change::ChosenAbility if !self.ability_sets.is_empty() && self.reader == Reader::Layer => {
+                let mut arms = Vec::new();
+                for (i, set) in self.ability_sets.iter().enumerate() {
+                    let words = set
+                        .iter()
+                        .map(|&k| match &self.ability_choice[k] {
+                            Ability::Keyword(word) => keyword(word),
+                            other => Err(gap(format!("the ability {}", form(other)))),
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    arms.push(format!("Some({i}) => Keywords::of(&[{}]),", words.join(", ")));
+                }
+                L::of("Ability", format!("let kept = match q.state().chosen_option(q.linked_to(asker.source)).filter(|c| std::ptr::eq(q.cards().get(c.card), &CARD)).map(|c| c.index) {{ {} _ => Keywords::NONE }}; chars.keywords = Keywords(chars.keywords.0 | kept.0);", arms.join(" ")))
             }
             Change::ChosenAbility => {
                 let kept = self.chosen_keywords()?;
@@ -2162,11 +2317,11 @@ impl Compiler {
             ObjectSet::One(ObjectRef::Chosen) => {
                 format!("q.state().chosen_object({}) == Some({id})", self.linked())
             }
-            ObjectSet::Matching { .. } | ObjectSet::Take { .. } => planned::planned_value(
-                &format!("static subjects {}", form(set)),
-                "false",
-                &format!("({}).contains(&{id})", self.objects(set)?),
-            ),
+            // "The top card of your library" (Fblthp), "creature cards from a
+            // single graveyard" (Night Soil): those objects, read as they are now.
+            ObjectSet::Matching { .. } | ObjectSet::Take { .. } => {
+                format!("({}).contains(&{id})", self.objects(set)?)
+            }
             other => return Err(gap(format!("static subjects {}", form(other)))),
         })
     }
@@ -2228,6 +2383,11 @@ impl Compiler {
                     None if self.rule_player => "Some(player)".to_string(),
                     None => "Some(asker.controller)".to_string(),
                 };
+                if let (None, Ok(direction)) = (among, self.chosen_local(ValueKind::Direction)) {
+                    // The next player to the left is the next in turn order; to
+                    // the right, the one before (CR 101.4).
+                    return Ok(format!("{from}.and_then(|p: PlayerId| {{ let order: Vec<PlayerId> = q.state().turn_order_from(p).collect(); if order.len() < 2 {{ None }} else if {direction} == 0 {{ Some(order[1]) }} else {{ order.last().copied() }} }})"));
+                }
                 match among {
                     Some(among) => format!(
                         "q.nearest_in_chosen_direction(asker, {from}, {})",
@@ -2251,10 +2411,14 @@ impl Compiler {
                 "{}.and_then(|p: PlayerId| q.other_chosen_player(asker, p))",
                 self.player(of)?
             ),
-            PlayerRef::SoleTargetOf(of) => format!(
-                "{}.and_then(|o: ObjectId| q.sole_target_player(o))",
-                self.object(of)?
-            ),
+            // Every target the spell has, as announced, the one player (601.2c),
+            // as `ObjectRef::SoleTargetOf` reads the one object.
+            PlayerRef::SoleTargetOf(of) => {
+                return Ok(format!(
+                    "{}.and_then(|spell: ObjectId| {{ let state = q.state(); let item = state.stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).or_else(|| state.left_stack(spell))?; let mut chosen = state.targets(item).iter(); let Target::Player(first) = *chosen.next()? else {{ return None }}; match chosen.any(|t| *t != Target::Player(first)) {{ true => None, false => Some(first) }} }})",
+                    self.object(of)?
+                ))
+            }
             other => return Err(gap(format!("player reference {}", form(other)))),
         };
         Ok(planned::planned_value(
@@ -2683,6 +2847,14 @@ impl Compiler {
                 self.players(players)?,
                 self.stated(action)?
             ),
+            // Cantrip has no ante zone (Jeweled Bird), and `Game::attach` takes an
+            // object for the host: nothing attaches an Aura to a player (Lynde).
+            P::ObjectAction { action: CostObjectAction::Ante, .. } => {
+                return Err(gap("move to ante"))
+            }
+            P::ObjectAction { action: CostObjectAction::AttachToPlayer(_), .. } => {
+                return Err(gap("an Aura attached to a player by an effect"))
+            }
             P::ObjectAction { objects, action } => {
                 let action = match action {
                     CostObjectAction::AttachToPlayer(players) => format!(
@@ -2734,9 +2906,11 @@ impl Compiler {
         label: &str,
         failed: Diagnostic,
     ) -> Result<String> {
+        // What a part does that Cantrip has no place for is its own requirement.
+        let own = ["move to ante", "an Aura attached to a player by an effect"];
         let code = self
             .cost_part_code(part, label)
-            .map_err(|_| failed.clone())?;
+            .map_err(|e| if own.contains(&e.feature.as_str()) { e } else { failed.clone() })?;
         Ok(planned::planned_value(&failed.feature, "Cost::NONE", &code))
     }
     /// Paying a whole cost as an effect, which `Game` has a way to only for parts.
@@ -3000,6 +3174,18 @@ impl Compiler {
         failed: Diagnostic,
         out: &mut String,
     ) -> Result<()> {
+        // "Add mana equal to enchanted permanent's mana cost": a mana of each colored
+        // and Phyrexian symbol's color, {C} for each generic, and for a symbol of two
+        // kinds ({W/U}, {C/W}, {2/W}: CR 107.4e) the kind its controller chooses.
+        if let (ManaProduction::ManaCostOf(object), None, None) =
+            (mana, restriction, &self.wanted_labels)
+        {
+            let object = self.fetch(self.object(object).map_err(|_| failed.clone())?);
+            let players = self.fetch(self.players(players).map_err(|_| failed.clone())?);
+            self.wanted_labels = Some("&[\"White\", \"Blue\", \"Black\", \"Red\", \"Green\", \"Colorless\", \"Two colorless\"]".into());
+            writeln!(out, "for player in {players} {{ if let Some(o) = {object} {{ let cost = g.mana_cost(o); let card = g.card_id(&CARD); let mut adds: Vec<(Mana, u32)> = vec![(Mana::C, u32::from(cost.generic))]; for (i, &n) in cost.symbols.iter().enumerate() {{ adds.push((Mana::ALL[i], u32::from(n))); }} for (i, &n) in cost.phyrexian.iter().enumerate() {{ adds.push((Mana::ALL[i], u32::from(n))); }} for (a, b) in cost.hybrid.into_iter().flatten() {{ let pick = cantrip_mechanics::choose::one_of(g, player, asker.source, vec![Label::Card(card, a as u8), Label::Card(card, b as u8)])?; adds.push((if pick == 0 {{ a }} else {{ b }}, 1)); }} for (i, &n) in cost.twobrid.iter().enumerate() {{ for _ in 0..n {{ let pick = cantrip_mechanics::choose::one_of(g, player, asker.source, vec![Label::Card(card, i as u8), Label::Card(card, 6)])?; adds.push(if pick == 0 {{ (Mana::ALL[i], 1) }} else {{ (Mana::C, 2) }}); }} }} for (mana, n) in adds {{ if n > 0 {{ g.add_mana(player, mana, n); }} }} }} }}").unwrap();
+            return Ok(());
+        }
         let production = self.production(mana).map_err(|_| failed.clone())?;
         let (lasting, restriction) = lane_g::mana_lasting(restriction);
         let rule = match restriction {
@@ -3129,7 +3315,11 @@ impl Compiler {
     ) -> Result<()> {
         let read = |c: &mut Self| -> Result<String> {
             // The branch that failed may have left its own items under `label`.
-            let cost = c.cost(cost, &format!("{label}_branch_cost"))?;
+            // A spell's cost as it is cast (CR 601.2b), which may behold.
+            let paying = std::mem::replace(&mut c.paying, lane_g::Paying::Additional);
+            let cost = c.cost(cost, &format!("{label}_branch_cost"));
+            c.paying = paying;
+            let cost = cost?;
             let paid = c.resolved_body(paid, &format!("{label}_branch_paid"))?;
             let unpaid = c.resolved_body(unpaid, &format!("{label}_branch_unpaid"))?;
             Ok(format!(
@@ -3226,6 +3416,12 @@ impl Compiler {
             if let Some(list) = self.hurt_players.get(&result.0) {
                 return Ok(format!("{list}.clone()"));
             }
+        }
+        // An instant or sorcery that deals damage once: the players it dealt
+        // damage to are those it dealt damage to that way (CR 120.3), as
+        // `ObjectFilter::DamagedBy` reads the permanents.
+        if let (PlayerSet::DamagedBy(_), true) = (players, self.damages_once) {
+            return Ok("{ let mut hurt: Vec<PlayerId> = Vec::new(); for r in q.history().all() { if let Event::Damage { source: s, target: Target::Player(p), amount, .. } = r.event { if s == asker.source && amount > 0 && !hurt.contains(&p) { hurt.push(p); } } } hurt }".into());
         }
         let code = match players {
             PlayerSet::DamagedBy(result) => format!("q.players_damaged_by(asker, {})", result.0),
@@ -3341,6 +3537,31 @@ impl Compiler {
             ObjectFilter::OnStack(StackTrait::Keyword(word)) => {
                 format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
             }
+            // "The first activated ability of an artifact you activate each turn
+            // costs {2} less" (Tezzeret, Betrayer of Flesh): the activations of the
+            // turn so far, as the history records each once it is activated (CR
+            // 602.2i), this one not yet among them. What an earlier one targeted
+            // (Professor Hojo) no record says: `BecameTarget` doesn't tell an
+            // activated ability from a triggered one.
+            ObjectFilter::NthCast {
+                ordinal,
+                spells,
+                by,
+                scope: CastScope::Turn,
+            } if self.ability_filter(spells).is_ok() => {
+                let which = self.ability_filter(spells)?;
+                if which.contains("targets") {
+                    return Err(gap("the targets of abilities activated earlier this turn"));
+                }
+                let by = match by {
+                    Some(players) => format!("({}).contains(&p)", self.players(players)?),
+                    None => "true".to_string(),
+                };
+                return Ok(format!(
+                    "({which})(q, asker, permanent, def) && (q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, player: p, .. }} if {by} && ({which})(q, asker, source, q.activated_ability(ability)))).count() as i64) == ({}) - 1",
+                    self.asked(ordinal)?
+                ));
+            }
             ObjectFilter::NthCast {
                 ordinal,
                 spells,
@@ -3386,6 +3607,22 @@ impl Compiler {
             }
             ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Outlast)) => {
                 return Ok("def.is_some_and(|d| d.text.starts_with(\"Outlast\"))".into())
+            }
+            // `embalm::ability`, `eternalize::ability` and `craft::ability` take
+            // the printed line, "Embalm {3}{W} (...)", "Craft with artifact {3}{R}{R}".
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Embalm)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Embalm\"))".into())
+            }
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Eternalize)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Eternalize\"))".into())
+            }
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Craft)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Craft with\"))".into())
+            }
+            // A ninjutsu ability, printed or given (`ninjutsu::ninjutsu`), commander
+            // ninjutsu among them (CR 702.49d).
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Ninjutsu)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Ninjutsu\") || d.text.starts_with(\"Commander ninjutsu\"))".into())
             }
             ObjectFilter::OnStack(StackTrait::Keyword(word)) => {
                 format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
@@ -3511,7 +3748,28 @@ impl Compiler {
             Ok(code) => return Ok(code),
             Err(failed) => failed,
         };
+        // "Hexproof from activated and triggered abilities" (Volatile Stormdrake,
+        // CR 702.11e): `HexproofFrom` holds colors and card types of sources, and a
+        // targeting rule's `Forbid` is no hexproof that "as though it didn't have
+        // hexproof" lifts.
+        if let Protection::Objects { filter, .. } = quality {
+            let asked = format!("{filter:?}");
+            if asked.contains("OnStack(Activated)") || asked.contains("OnStack(Triggered)") {
+                return Err(gap("hexproof from a kind of ability"));
+            }
+        }
         let code = match quality {
+            // "Has hexproof from each of its colors" (Tam, Mindful First-Year): the
+            // colors the creature has once layer 5 is done (CR 613.1), read as the
+            // ability layer applies to it.
+            Protection::Objects {
+                kind: ObjectKind::Any,
+                filter: ObjectFilter::SharesColorWith(ObjectRef::Source),
+            } if self.reader == Reader::Layer
+                && self.lines_said().iter().any(|line| line.contains("hexproof from each of its colors")) =>
+            {
+                return Ok("HexproofFrom(chars.colors.0 as u32)".to_string());
+            }
             // "Hexproof from that color": the color this ability just chose.
             Protection::Objects { filter, .. } => {
                 let over = self.over(filter, "id")?;
@@ -3520,7 +3778,8 @@ impl Compiler {
                     .and_then(|o| o.rsplit_once("| Some("))
                     .and_then(|(_, chosen)| chosen.strip_suffix(')'))
                 {
-                    Some(chosen) => format!("HexproofFrom::color({chosen})"),
+                    // As Mondo Gecko grants it: the qualities add to any it has.
+                    Some(chosen) => return Ok(format!("HexproofFrom::color({chosen})")),
                     None => format!("HexproofFrom::of({over})"),
                 }
             }
@@ -3661,7 +3920,28 @@ impl Compiler {
                 };
                 let mut code = values.clone();
                 for operand in list {
+                    // "Except it has changeling" (Omni-Changeling), "the copy gains
+                    // haste" (Choreographed Sparks): a keyword the copy's values
+                    // have (CR 707.9b), as a characteristic-defining one too.
+                    let added_keyword = match operand {
+                        Operand::Ability(ability) if name == "AddAbility" => match &**ability {
+                            Ability::Keyword(k) => keyword(k).ok(),
+                            Ability::Static {
+                                kind: StaticKind::CharacteristicDefining { keyword: Some(k), .. },
+                                ..
+                            } => keyword(k).ok(),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    if let Some(k) = added_keyword {
+                        code = format!("{code}.with_keyword({k})");
+                        continue;
+                    }
                     match operand {
+                        Operand::Ability(ability) if lane_n::toxic_of(ability).is_some() => {
+                            return Err(gap("toxic as a copy exception"));
+                        }
                         Operand::Ability(ability) => {
                             let refs = self.granted_refs(ability).or_else(|failed| {
                                 let Ability::Mechanic {
@@ -3688,6 +3968,11 @@ impl Compiler {
                         }
                         _ => return Err(gap(feature)),
                     }
+                }
+                // `Copiable::with_ability` and `with_keyword` are what an added
+                // ability is; what the ability itself waits on is its own hole.
+                if name == "AddAbility" {
+                    return Ok(code);
                 }
                 code
             }
@@ -3768,6 +4053,9 @@ impl Compiler {
                     self.ability(trigger, &format!("{label}_{i}"), parts, None)?;
                 }
             }
+            Ability::FlashIf(condition) if format!("{condition:?}").contains("AnnouncedX") => {
+                return Err(gap("a limit on the X announced"));
+            }
             Ability::FlashIf(condition) => {
                 let function = format!("{label}_flash");
                 let test = self.queried(|c| c.activation_condition(condition, &function))?;
@@ -3841,6 +4129,7 @@ impl Compiler {
                 };
                 let object = self.fetch(self.object(object)?);
                 let actions = self.listed(actions)?;
+                self.as_event_chooses |= actions.contains("::Choose");
                 self.plan_entry(
                     &feature,
                     "as_events",
@@ -3929,8 +4218,14 @@ impl Compiler {
                 let mut ways = Vec::new();
                 for (i, (cost, then)) in options.iter().enumerate() {
                     let label = format!("{label}_option_{i}");
-                    let then = self.resolved_body(then, &label)?;
-                    ways.push(format!("({}, {then})", self.cost(cost, &label)?));
+                    // The cost first: what its body reads of the cost ("the creature
+                    // chosen this way") follows what the cost could not say.
+                    let paid = self.cost(cost, &label);
+                    let outer = self.option_cost.replace(cost.clone());
+                    let then = self.resolved_body(then, &label);
+                    self.option_cost = outer;
+                    let then = then?;
+                    ways.push(format!("({}, {then})", paid?));
                 }
                 self.plan_entry(
                     &feature,

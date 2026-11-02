@@ -316,6 +316,18 @@ pub(super) fn printed_options(lines: &[String], count: usize) -> Option<Vec<Stri
                 ]
             });
         }
+        // "Put your choice of a counter from among first strike, vigilance,
+        // deathtouch, and lifelink on it" (Aragorn, Company Leader): a kind each.
+        if let Some(at) = line.find("choice of a counter from among ") {
+            let list = &line[at + "choice of a counter from among ".len()..];
+            let list = list.split(" on ").next().unwrap_or(list);
+            let kinds: Vec<String> = list
+                .split(", ")
+                .map(|kind| kind.trim_start_matches("and ").trim_start_matches("or "))
+                .map(capitalized)
+                .collect();
+            return (kinds.len() == count && kinds.iter().all(|k| !k.is_empty())).then_some(kinds);
+        }
         sentences(line).into_iter().find_map(|sentence| {
             joins(sentence)
                 .into_iter()

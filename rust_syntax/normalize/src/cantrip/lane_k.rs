@@ -550,6 +550,29 @@ fn printed_many(n: i64, noun: &str) -> String {
     }
 }
 
+/// "Discard a card or pay {N}", either way round: N.
+pub(super) fn discard_or_pay(costs: &[Cost]) -> Option<u8> {
+    let [a, b] = costs else { return None };
+    let discard = |c: &Cost| {
+        matches!(
+            c.parts.as_slice(),
+            [CostPart::Discard { count: Expr::Constant(1), filter: ObjectFilter::Any, random: false }]
+        )
+    };
+    let generic = |c: &Cost| match c.parts.as_slice() {
+        [CostPart::Mana(symbols)] => match symbols.as_slice() {
+            [ManaSymbol::Generic(n)] => u8::try_from(*n).ok(),
+            _ => None,
+        },
+        _ => None,
+    };
+    match (discard(a), discard(b)) {
+        (true, false) => generic(b),
+        (false, true) => generic(a),
+        _ => None,
+    }
+}
+
 /// "Ward--Sacrifice a Food" and its like, where Cantrip has the ability.
 pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
     let [CostPart::Sacrifice {
@@ -1039,10 +1062,11 @@ pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String
             format!("!cant_draw(g, decider_{id}, {n}) && ")
         }
         // A search that can't be caused isn't offered (Ashiok, Dream Render's ruling).
+        // A search of other zones too still searches them (Agency Outfitter).
         Some(Instruction::Effect {
-            operation: Operation::Search { player, library, .. },
+            operation: Operation::Search { player, library, also, .. },
             ..
-        }) if same(player) && same(library) => {
+        }) if same(player) && same(library) && also.is_empty() => {
             format!("g.may_search(decider_{id}, decider_{id}) && ")
         }
         // Moving the source: it's a new object once it has moved (400.7).
@@ -1929,7 +1953,7 @@ impl Compiler {
             .as_ref()
             .is_some_and(|line| line.text.contains("Do this only once each turn"));
         if said && limits.per_turn == Some(1) && looks_then_may(body).is_some() {
-            let key = 200 + (self.fresh() % 50) as u8;
+            let key = self.once_key();
             self.do_once = Some(key);
             return Some(key);
         }
@@ -1943,14 +1967,26 @@ impl Compiler {
         if !said
             || limits.per_turn != Some(1)
             || tap_or_untap_only(offered)
-            || chooses_first(decider, offered)
             || !matches!(decider, PlayerRef::AbilityController)
         {
             return None;
         }
-        let key = 200 + (self.fresh() % 50) as u8;
+        let key = self.once_key();
         self.do_once = Some(key);
         Some(key)
+    }
+    /// A new key for a thing done once each turn, or the one its sentence's other
+    /// abilities spend: "whenever you cast ... or activate ..., you may ... Do
+    /// this only once each turn" is done once for both (Glava, Five-Advents Mage).
+    fn once_key(&mut self) -> u8 {
+        if let Some(Some(key)) = self.once_shared {
+            return key;
+        }
+        let key = 200 + (self.fresh() % 50) as u8;
+        if self.once_shared.is_some() {
+            self.once_shared = Some(Some(key));
+        }
+        key
     }
     /// Reads the printed lines of the counter stage starting at `minimum`.
     pub(super) fn on_stage(&mut self, minimum: i64) {

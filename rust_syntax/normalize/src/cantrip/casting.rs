@@ -333,6 +333,11 @@ impl Compiler {
             CastingRule::Flash {
                 additional_cost: None,
             } => match condition {
+                // "As though it had flash if X is 3 or less" (Silver Scrutiny):
+                // `flash_if` is judged before X is announced (CR 601.2b).
+                Some(condition) if format!("{condition:?}").contains("AnnouncedX") => {
+                    return Err(gap("a limit on the X announced"));
+                }
                 Some(condition) => {
                     let test = self.activation_condition(condition, &format!("{label}_if"))?;
                     one_field(parts, "flash_if", format!("Some({test})"))?;
@@ -436,11 +441,43 @@ impl Compiler {
                     if beholds && self.spell_targets {
                         parts.field("late_targets", "true".into());
                     }
+                } else if let [CostPart::Keyword {
+                    action: CostKeyword::CollectEvidence,
+                    amount: Some(amount),
+                }] = cost.parts.as_slice()
+                {
+                    // "Collect evidence X, where X is the total mana value of the
+                    // permanents this spell targets" (Urgent Necropsy): worked out
+                    // once the targets are announced (CR 601.2f, 701.59a).
+                    if parts.fields.contains_key("cost_of_targets") { return Err(gap("two rules for cost_of_targets")); }
+                    let saved = (self.reader, self.event_at);
+                    (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+                    self.costing_targets = true;
+                    let amount = self.number(amount).map(|n| n.code);
+                    self.costing_targets = false;
+                    (self.reader, self.event_at) = saved;
+                    let amount = amount?;
+                    let function = format!("{label}_of_targets");
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, targets: &[Target]) -> Cost {{ Cost {{ collect_evidence: ({amount}).clamp(0, 255) as u8, ..Cost::NONE }} }}").unwrap();
+                    parts.field("cost_of_targets", format!("Some({function})"));
                 } else {
                     self.paid_for = PaidFor::Spell;
+                    self.cost_reads_board = false;
                     let cost = self.cost(cost, label);
                     self.paid_for = PaidFor::Ability;
-                    one_field(parts, "additional_cost", format!("Some({})", cost?))?;
+                    let cost = cost?;
+                    // A cost whose size reads the game ("sacrifice half the lands you
+                    // control") is worked out as the total cost is (CR 601.2f).
+                    if std::mem::take(&mut self.cost_reads_board) {
+                        if parts.fields.contains_key("cost_of_targets") {
+                            return Err(gap("two rules for cost_of_targets"));
+                        }
+                        let function = format!("{label}_of_board");
+                        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, targets: &[Target]) -> Cost {{ {cost} }}").unwrap();
+                        parts.field("cost_of_targets", format!("Some({function})"));
+                    } else {
+                        one_field(parts, "additional_cost", format!("Some({cost})"))?;
+                    }
                 }
             }
             CastingRule::ReduceCost(reductions) => {
