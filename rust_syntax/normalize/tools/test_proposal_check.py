@@ -198,6 +198,17 @@ class Stubs(unittest.TestCase):
         self.assertIn("pub const fn grant_play<G0: ?Sized, A1: crate::proposals::Stored, "
                       "A2: crate::proposals::Stored, R>(a0: &mut G0, a1: A1, a2: A2) -> R", spec.write())
 
+    def test_a_free_function_with_no_game_to_change_keeps_nothing(self):
+        # A layer helper, as Cantrip's `grant_activated_abilities_of(view, &cards, chars)`: it reads `q` and writes
+        # `chars`, whatever its name says.
+        text = "grant_keywords_of(q, &ids, &[Keyword::Flying], chars); grant_to(|q: &dyn Query| true, k)"
+        spec = learnt(("E0425", "cannot find function `grant_keywords_of` in this scope", text, "grant_keywords_of"),
+                      ("E0425", "cannot find function `grant_to` in this scope", text, "grant_to"))
+        stubs = spec.write()
+        self.assertIn("pub const fn grant_keywords_of<G0: ?Sized, A1, A2, A3, R>(a0: &G0, a1: A1, a2: A2, a3: A3) -> R",
+                      stubs)
+        self.assertIn("pub const fn grant_to<A0, A1, R>(a0: A0, a1: A1) -> R", stubs)
+
     def test_a_call_followed_by_a_question_mark_returns_a_result(self):
         spec = learnt(method("choose_pile", "let pile = g.choose_pile(p)?;"))
         self.assertIn("-> Result<R, Suspend>", spec.write())

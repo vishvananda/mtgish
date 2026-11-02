@@ -19,7 +19,9 @@ The constraints come from how Cantrip stores and dispatches, never from the prop
 - A new field of a Cantrip struct holds what the struct derives; of a table (`CardDef`, `Cost`, ...: not `Hash`), what a
   static holds, `Copy + Sync + 'static`, so anything the engine calls later is a `fn`.
 - A free function (`cantrip_mechanics`, a `CardDef` helper) is called statically, so it may be generic; one that makes
-  or keeps something takes `Stored` data besides the game itself.
+  or keeps something takes `Stored` data besides the game itself. Only one given the game (`&mut dyn Game`) has a
+  state to keep it in: given `&dyn Query`, or no game, it keeps nothing, as Cantrip's layer helper
+  `grant_activated_abilities_of(view, &cards, chars)` doesn't.
 - A struct of the proposal's own holds what a table holds: a function its literal names is a `fn` pointer of that
   function's signature, a string a `&'static str`, a variant its enum; a field nothing settles stays generic.
 - A function the card defines, given by name to a method that takes data, is its `fn` pointer, as Cantrip's method
@@ -706,10 +708,11 @@ class Spec:
                     f"{{ panic!({PANIC_RS}) }}")
         arity = entry["arity"].most_common(1)[0][0]
         calls = sum(entry["arity"].values())
-        stores = bool(STORING & set(name.split("_")))
         # The game passed on (`g`, `q`): borrowed, as Cantrip's mechanics take `&mut dyn Game` or `&dyn Query`.
         handles = {i: kinds.most_common(1)[0][0] for i, kinds in entry["handles"].items()
                    if sum(kinds.values()) * 2 >= calls}
+        # What it keeps, it keeps in the game it is given to change.
+        stores = bool(STORING & set(name.split("_"))) and "mut" in handles.values()
         ret, generic = self.ret(f"f::{module}::{name}", entry.get("tried"))
         params, args, forget = [], [], ""
         for i in range(arity):
