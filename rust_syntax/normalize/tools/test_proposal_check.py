@@ -105,6 +105,23 @@ class Text(unittest.TestCase):
         self.assertFalse(pc.constant_of_proposed_ctors("[EffectKind::AddKeywords(Keywords::of(&[Keyword::Haste]))]", spec))
         self.assertFalse(pc.constant_of_proposed_ctors("[Duration::EndOfTurn]", spec))
 
+    def test_a_described_value_or_a_result_no_hole_binds_is_not_proposed(self):
+        ron = '"(kind:Searched,args:(0))"'
+        text = f'if planned_value!("condition Searched", false => {ron}) {{ }}'
+        self.assertTrue(pc.described_value(text, text.index(ron), ron))
+        code = 'if planned_value!("a test", false => q.searched(0)) { }'
+        self.assertFalse(pc.described_value(code, code.index("q.s"), "q.searched(0)"))
+        read = 'planned_value!("depends on an instruction with a gap", false => result_0)'
+        described = 'fn ability_1(g: G) { planned!("pay", PayCost, "cost" = "x");\ng.end_sentence();\nif ' + read
+        bracket = described.replace("\ng.end", '\nplanned!("pay" => g.end_batch());\ng.end')
+        coded = 'fn ability_1(g: G) { planned!("pay" => g.pay(x));\nif ' + read
+        bound = 'fn ability_1(g: G) { planned!("pay" => let result_0 = g.pay(x););\nif ' + read
+        for text, want in ((described, True), (bracket, True), (coded, False), (bound, False)):
+            self.assertEqual(pc.reads_a_described_result(text, text.rindex("result_0"), "result_0"), want, text)
+        # A hole of another function says nothing of this one's.
+        other = 'fn ability_0(g: G) { planned!("pay", PayCost); }\nfn ability_1(g: G) { if ' + read
+        self.assertFalse(pc.reads_a_described_result(other, other.rindex("result_0"), "result_0"))
+
     def test_a_call_is_only_the_stubs_its_path_can_name(self):
         self.assertTrue(pc.called_as("f::mechanics::cost_branch::spell", "x: crate::proposals::mechanics::cost_branch::"))
         self.assertFalse(pc.called_as("f::mechanics::cost_branch::spell", "spell: "))

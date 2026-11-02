@@ -1393,6 +1393,44 @@ def constant_of_proposed_ctors(snippet, spec):
     return any((m.group(1), m.group(2)) in ctors for m in re.finditer(r"\b([A-Z]\w*)::([A-Z]\w*)\s*\(", bare))
 
 
+FOLLOWS_GAP = "depends on an instruction with a gap"
+
+
+def in_value_code(text, at):
+    """Whether `text[at]` begins the code of a `planned_value!`, after its `=>`, and the feature it is for."""
+    head = text[:at]
+    v = head.rfind("planned_value!(")
+    if v < 0 or not head.rstrip().endswith("=>") or head.rfind("planned!(") > v:
+        return None
+    m = re.match(r'planned_value!\("((?:\\.|[^"\\])*)"', head[v:])
+    return m.group(1) if m else None
+
+
+def described_value(text, at, snippet):
+    """Whether `snippet` at `text[at]`, all the code of a `planned_value!`, is the RON the generator describes a value
+    with where it has no code for it (`planned_read`): a description, as a `planned!("id", Form, ..)` hole is, not code."""
+    return bool(text) and re.fullmatch(r'"\((?:\\.|[^"\\])*\)"', snippet or "") is not None and \
+        in_value_code(text, at) is not None and text[at + len(snippet) :].lstrip().startswith(")")
+
+
+def reads_a_described_result(text, at, snippet):
+    """Whether `result_N` at `text[at]`, what a later instruction reads of one with a gap (`planned::unreported`), is
+    made by an instruction whose hole describes it (`planned!("id", Form, ..)`) and holds no code to bind it: the read
+    is the code the card will have, and only that hole's code, when it has some, can say what `result_N` is."""
+    if not text or not re.fullmatch(r"result_\d+", snippet or "") or in_value_code(text, at) != FOLLOWS_GAP:
+        return False
+    if re.search(rf"\blet\s+(?:mut\s+)?{snippet}\b", text):
+        return False
+    head = text[:at]
+    starts = [m.start() for m in re.finditer(r"(?:^|\n|\] )fn \w+\(", head)]
+    holes = list(re.finditer(r'planned!\("[^"]*"(?:(, \w+)| => (.{0,40}))', head[starts[-1] if starts else 0 :]))
+    for hole in reversed(holes):
+        if hole.group(2) is not None and re.match(r"g\.(begin|end)_\w+\(\)", hole.group(2)):
+            continue
+        return hole.group(1) is not None
+    return False
+
+
 def classify(d, text, spec):
     """(class, stub_fault) for one error."""
     code = (d.get("code") or {}).get("code")
@@ -1452,6 +1490,10 @@ def classify(d, text, spec):
         trait, _ = bound_in(d)
         owner = trait[8:] if trait and trait.startswith("Derives_") else "its type"
         return f"inside {owner} but without what it derives (variant {m.group(1)})", False
+    if code == "E0425" and reads_a_described_result(text, span["byte_start"], snippet):
+        return "described, not proposed: a result read of an instruction whose hole has no code to bind it", True
+    if code == "E0308" and described_value(text, span["byte_start"], snippet):
+        return "described, not proposed: a value the generator has only the RON of", True
     if code == "E0425" and re.match(r"cannot find value `[a-z_]\w*`", msg):
         return "a local the hole names isn't in scope", False
     if code is None:
