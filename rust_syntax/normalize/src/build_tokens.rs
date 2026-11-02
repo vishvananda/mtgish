@@ -16,7 +16,7 @@ fn write_vocabularies() {
     let path =
         PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("../src/mtg_types.rs");
     println!("cargo:rerun-if-changed={}", path.display());
-    let names: Vec<String> = syn::parse_file(&fs::read_to_string(path).unwrap())
+    let names: Vec<String> = syn::parse_file(&fs::read_to_string(&path).unwrap())
         .unwrap()
         .items
         .iter()
@@ -32,9 +32,30 @@ fn write_vocabularies() {
             _ => None,
         })
         .collect();
+    // Variants whose one field is a list: their JSON args are the list's items,
+    // as a tuple variant's are its fields, so only the type tells them apart.
+    let lists: Vec<(String, String)> = syn::parse_file(&fs::read_to_string(&path).unwrap())
+        .unwrap()
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            syn::Item::Enum(e) => Some(e),
+            _ => None,
+        })
+        .flat_map(|e| {
+            e.variants.iter().filter_map(move |v| match &v.fields {
+                syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                    let list = matches!(&fields.unnamed[0].ty, syn::Type::Path(p)
+                        if p.path.segments.last().is_some_and(|s| s.ident == "Vec"));
+                    list.then(|| (e.ident.to_string(), v.ident.to_string()))
+                }
+                _ => None,
+            })
+        })
+        .collect();
     fs::write(
         PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("vocabularies.rs"),
-        format!("const VOCABULARIES: &[&str] = &{names:?};"),
+        format!("const VOCABULARIES: &[&str] = &{names:?};\n/// (enum, variant) of each variant whose one field is a `Vec`.\npub const LIST_VARIANTS: &[(&str, &str)] = &{lists:?};"),
     )
     .unwrap();
 }

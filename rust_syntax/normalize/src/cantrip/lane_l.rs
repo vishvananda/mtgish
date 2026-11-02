@@ -2946,7 +2946,11 @@ impl Compiler {
                 operands,
             } => {
                 let operands: Vec<String> = operands.iter().map(|o| self.operand_code(o)).collect();
+                // A variant of one list holds the list ("And" of any number of
+                // filters), not as many fields.
+                let listed = crate::lower::LIST_VARIANTS.contains(&(family.as_str(), form.as_str()));
                 match operands.is_empty() {
+                    _ if listed => format!("{family}::{form}(&[{}])", operands.join(", ")),
                     true => format!("{family}::{form}"),
                     false => format!("{family}::{form}({})", operands.join(", ")),
                 }
