@@ -1148,6 +1148,12 @@ impl Compiler {
                     ordered: false,
                     up_to: false,
                 } if except.is_empty() => {
+                    // Apex Observatory: "choose a card type shared among two exiled
+                    // cards used to craft it" offers only the types those cards share.
+                    if *kind == ValueKind::CardType && options.iter().any(|o| matches!(o, Operand::Objects(_))) {
+                        self.as_event_chooses = true;
+                        return Err(gap("a card type shared among the cards used to craft it"));
+                    }
                     let mut code = String::new();
                     match self.choose_value(id, actor, *kind, 1, options, &mut code) {
                         Ok(()) => out.push_str(&code),

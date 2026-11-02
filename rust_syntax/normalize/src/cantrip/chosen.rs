@@ -355,6 +355,10 @@ impl Compiler {
                 None => format!("Some({local})"),
             });
         }
+        // The choice itself is a hole, so this read follows it.
+        if self.as_event_chooses && kind == ValueKind::CardType {
+            return lane_p::chosen_elsewhere(self.linked(), kind).map(|read| read.replacen("a choice of CardType outside its body", FOLLOWS_GAP, 1));
+        }
         // The engine keeps a permanent's choices as it entered, and no other.
         if !self.enters_choosing.contains(&kind) {
             return lane_p::chosen_elsewhere(self.linked(), kind)

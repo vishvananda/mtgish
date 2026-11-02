@@ -652,8 +652,9 @@ struct Compiler {
     bestow: Option<String>,
     /// What a bestow cost asks besides mana, an additional cost of the Aura.
     bestow_extra: Option<String>,
-    /// A planned as-event ability chooses a value ("As this creature transforms
-    /// into Shinryu, choose an opponent"), so what reads that value follows it.
+    /// A choice this card makes is a hole: a planned as-event ability ("As this
+    /// creature transforms into Shinryu, choose an opponent") or a choice of a
+    /// card type the craft materials share. What reads that value follows it.
     as_event_chooses: bool,
     /// Values this body chose, each in a local.
     chosen: Vec<(ValueKind, String)>,
