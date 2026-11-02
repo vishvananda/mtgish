@@ -282,6 +282,11 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
     match op {
         Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
         Operation::Sacrifice { .. } => &["Sacrificed", "PutInGraveyard"],
+        Operation::PayCost { cost, optional: true, .. }
+            if matches!(cost.parts.as_slice(), [CostPart::Sacrifice { .. }]) =>
+        {
+            &["Sacrificed"]
+        }
         Operation::Destroy { .. } => &["PutInGraveyard"],
         Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
@@ -304,6 +309,42 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         },
         _ => &[],
     }
+}
+
+/// A walk of players who each just discard, as the one discard it is.
+pub(super) fn each_discards(
+    players: &PlayerSet,
+    binding: &Binding,
+    body: &Program,
+) -> Option<Instruction> {
+    let [Instruction::Effect {
+        result,
+        operation:
+            Operation::PayCost {
+                player: PlayerRef::Bound(payer),
+                cost,
+                optional: false,
+            },
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let [CostPart::Discard {
+        count,
+        filter: ObjectFilter::Any,
+        random: false,
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    (payer.0 == binding.0).then(|| Instruction::Effect {
+        result: result.clone(),
+        operation: Operation::Discard {
+            players: players.clone(),
+            amount: count.clone(),
+            random: false,
+        },
+    })
 }
 
 /// A player's move of what they choose among several zones, as the choice and the
@@ -490,6 +531,25 @@ impl Compiler {
         }
         self.named(result)
     }
+    /// What a mechanic of this object's own spell paid with, from the records just
+    /// before it became cast: the whole is paid after any mana is made (CR
+    /// 601.2g-h), so what a mana ability cost comes before it. A copy's is the
+    /// original's (CR 707.10).
+    fn paid_as_cast(&self, what: &EarlierObjects) -> Option<String> {
+        let event = match what {
+            EarlierObjects::Sacrificed if self.cast_pays.contains(&"Sacrificed") => {
+                "Event::ZoneChange { old, from, reason: ZoneReason::Sacrifice, .. } if from.is(ZoneKind::Battlefield) => Some(old)"
+            }
+            EarlierObjects::Discarded if self.cast_pays.contains(&"Discarded") => {
+                "Event::Discarded { card, .. } => Some(card)"
+            }
+            _ => return None,
+        };
+        let me = if self.stack_item { "item.object" } else { "asker.source" };
+        Some(format!(
+            "{{ let records = q.history().all(); let spell = q.history().original_spell(records.iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ old, new, reason: ZoneReason::Resolve, .. }} if new == {me} => Some(old), _ => None }}).unwrap_or({me})); records.iter().rposition(|r| matches!(r.event, Event::Cast(c) if c.spell == spell)).map_or_else(Vec::new, |cast| records[..cast].iter().rev().filter_map(|r| match r.event {{ {event}, _ => None }}).take(1).collect::<Vec<ObjectId>>()) }}"
+        ))
+    }
     /// The sacrifice of several players that put what's last read in a graveyard.
     pub(super) fn earlier_sacrifice(&self) -> Option<ResultId> {
         let word = "PutInGraveyard";
@@ -581,6 +641,9 @@ impl Compiler {
             let at = cost.parts.iter().position(pays)?;
             Some((PaymentRef::Casting { ability: *ability }, at))
         });
+        if let Some(paid) = self.paid_as_cast(what) {
+            return Ok(paid);
+        }
         let Some((payment, at)) = by_activation.or(by_casting) else {
             if exiled {
                 return Ok(format!("q.exiled_with({})", self.linked()));
@@ -978,6 +1041,17 @@ impl Compiler {
                 measure: ObjectMeasure::Count,
                 ..
             } => counted("i64::from(q.state().obj(asker.source).paid)".into()),
+            // "The number of Forests sacrificed as it entered": all it sacrificed.
+            Expr::Earlier {
+                what: EarlierObjects::Sacrificed,
+                measure: ObjectMeasure::Count,
+                result: None,
+                by: None,
+                ..
+            } if self.enters_sacrifices && self.reader != Reader::Resolution => counted(format!(
+                "q.state().chosen_number({}).map_or(0i64, i64::from)",
+                self.linked()
+            )),
             Expr::Earlier {
                 what,
                 measure,

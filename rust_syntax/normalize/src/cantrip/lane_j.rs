@@ -2344,6 +2344,11 @@ impl Compiler {
             ObjectFilter::DamagedBy(result) if self.moved.contains_key(&result.0) => {
                 format!("{}.contains(&{id})", self.moved[&result.0])
             }
+            // An instant or sorcery that deals damage once: what it dealt damage to
+            // is what it dealt damage to that way, read from the events (CR 120.3).
+            ObjectFilter::DamagedBy(_) if self.damages_once => format!(
+                "cantrip_mechanics::history::permanents_dealt_damage_by(q.history(), asker.source, 0).contains(&{id})"
+            ),
             ObjectFilter::DamagedBy(_) => held(format!(
                 "cantrip_mechanics::history::permanents_dealt_damage_by(q.history(), asker.source, since).contains(&{id})"
             )),

@@ -309,6 +309,68 @@ pub(super) fn entering_types(options: &[Operand]) -> Vec<String> {
     }
 }
 /// The options of the card type `card` chooses as it enters.
+/// What the costs of this card's mechanics take when its spell is cast: emerge's
+/// sacrifice, and the one card a kicker discards.
+pub(super) fn cast_pays(card: &Card) -> Vec<&'static str> {
+    let mut pays = Vec::new();
+    for ability in &card.abilities {
+        match ability {
+            Ability::Mechanic {
+                mechanic: Mechanic::Emerge,
+                ..
+            } => pays.push("Sacrificed"),
+            Ability::Mechanic {
+                mechanic: Mechanic::Kicker,
+                cost: Some(cost),
+                ..
+            } if cost.parts.iter().any(|part| {
+                matches!(part, CostPart::Discard { count: Expr::Constant(1), .. })
+            }) =>
+            {
+                pays.push("Discarded")
+            }
+            _ => {}
+        }
+    }
+    pays
+}
+
+/// An instant or sorcery with one spell ability and one instruction in it that deals
+/// damage, and no other ability of its own: its object deals no other damage.
+pub(super) fn damages_once(card: &Card) -> bool {
+    use crate::mtg_types::CardType as T;
+    let types = &card.characteristics.card_types;
+    let words = format!("{:?}", card.abilities);
+    types.iter().any(|t| matches!(t, T::Instant | T::Sorcery))
+        && matches!(card.abilities.as_slice(), [Ability::Spell { .. }])
+        && words.matches("DealDamage").count() == 1
+        && !words.contains("Fight")
+}
+
+/// "As this creature enters, sacrifice any number of ...".
+pub(super) fn enters_sacrifices(card: &Card) -> bool {
+    card.abilities.iter().any(|ability| {
+        let Ability::Replacement {
+            active: ReplacementActive::SourceEntering,
+            body,
+            ..
+        } = ability
+        else {
+            return false;
+        };
+        matches!(
+            body.instructions.as_slice(),
+            [Instruction::Effect {
+                operation: Operation::Sacrifice {
+                    choose: Some(Count::AnyNumber),
+                    ..
+                },
+                ..
+            }]
+        )
+    })
+}
+
 pub(super) fn entering_card_type(card: &Card) -> Option<Vec<String>> {
     card.abilities.iter().find_map(|ability| {
         let Ability::Replacement {

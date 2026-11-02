@@ -782,6 +782,14 @@ impl Compiler {
                     ("ControlledByAPlayer", [Operand::Players(players)]) => {
                         tests.push(self.matching(frame, |c| c.player_in(players, "controller"))?)
                     }
+                    // "An ability of a land you control named ...": its source, as `by`.
+                    ("AbilityOfAPermanent", [Operand::Objects(sources)])
+                        if matches!(kind, TargetingKind::Ability) =>
+                    {
+                        tests.push(self.matching(frame, |c| {
+                            Ok(format!("{}.contains(&by)", c.objects(sources)?))
+                        })?)
+                    }
                     (other, operands) => {
                         let feature = format!("targeted by {other}");
                         let operands = self.stated_operands(operands);

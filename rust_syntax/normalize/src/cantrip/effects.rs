@@ -994,6 +994,21 @@ impl Compiler {
                 if self.each_discards_two(players, binding, steps, out) {
                     return Ok(());
                 }
+                // "Each opponent discards a card, then each who didn't discard ...":
+                // together (CR 101.4), and what they discarded read by whose it was.
+                let asked = |i: &Instruction| format!("{i:?}").contains("Earlier { what: Discarded");
+                let together = self
+                    .after
+                    .iter()
+                    .any(asked)
+                    .then(|| lane_m::each_discards(players, binding, steps))
+                    .flatten();
+                if let Some(together) = together {
+                    self.note_step(&together);
+                    if let Instruction::Effect { operation, result } = &together {
+                        return self.operation(operation, result, out);
+                    }
+                }
                 let split = lane_m::chosen_then_moved(steps, 1_000_000 + i as u32);
                 let each = lane_i::EachPlayer {
                     players,
@@ -2755,6 +2770,10 @@ impl Compiler {
     ) -> Result<()> {
         self.sacrifice_picks(id, players, objects, choose, out)?;
         writeln!(out, "let sacrificed_{id} = g.sacrifice_each(&picks_{id});").unwrap();
+        // Kept with the text that read it (CR 607.2d).
+        if self.enters_sacrifices && self.pending == Pending::Entering {
+            writeln!(out, "entering.chosen_number = Some(sacrificed_{id}.len() as u32);").unwrap();
+        }
         self.moved.insert(result.0, format!("sacrificed_{id}"));
         self.shares.insert(
             result.0,

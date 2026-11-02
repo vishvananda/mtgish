@@ -937,7 +937,13 @@ impl Compiler {
         };
         // A "you may" that opened a guard in this turn closes it in this turn.
         let shut = "}".repeat(std::mem::replace(&mut self.guard_opened, guards_around));
-        writeln!(out, "{open} for (index_{id}, bound_{binding}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
+        // "And you draw a card" for each of them reads none of them.
+        let walked = format!("bound_{binding}");
+        let walked = match body.contains(&walked) || tail.contains(&walked) || closing.contains(&walked) {
+            true => walked,
+            false => "_".to_string(),
+        };
+        writeln!(out, "{open} for (index_{id}, {walked}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
     }
     /// A player's turn at a step that adds to a batch.
     fn gather(

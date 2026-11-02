@@ -573,6 +573,12 @@ struct Compiler {
     activation_cost: Option<Cost>,
     /// Each additional cost this card declares, by its ability's index.
     casting_costs: BTreeMap<u32, Cost>,
+    /// What a mechanic's cost of this card's own spell took, by earlier objects' word.
+    cast_pays: Vec<&'static str>,
+    /// "As this enters, sacrifice any number": how many is what it keeps.
+    enters_sacrifices: bool,
+    /// An instant or sorcery whose one instruction that deals damage is all it deals.
+    damages_once: bool,
     /// Moves that already said when they end, in one call with the move.
     returning: BTreeSet<u32>,
     /// The `Divide` of the announcement just compiled, until a definition that
@@ -996,6 +1002,9 @@ impl Compiler {
             asking: None,
             activation_cost: None,
             casting_costs: BTreeMap::new(),
+            cast_pays: Vec::new(),
+            enters_sacrifices: false,
+            damages_once: false,
             returning: BTreeSet::new(),
             dividing: None,
             hoisted: None,
@@ -2228,6 +2237,9 @@ fn emit_face(
     c.enters_choosing = chosen::enters_choosing(card);
     c.enters_two = chosen::enters_two(card);
     c.entering_card_type = lane_p::entering_card_type(card);
+    c.cast_pays = lane_p::cast_pays(card);
+    c.enters_sacrifices = lane_p::enters_sacrifices(card);
+    c.damages_once = lane_p::damages_once(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
             c.casting_costs.insert(i as u32, cost.clone());

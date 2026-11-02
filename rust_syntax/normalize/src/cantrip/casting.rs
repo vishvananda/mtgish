@@ -223,8 +223,11 @@ impl Compiler {
         }
         // Kicked or not, the same targets: nothing waits for the kicker.
         if format!("{:?}", paid.targets) == format!("{:?}", unpaid.targets) {
+            // A slot for each player is the announcement's own, either way.
             for spec in &paid.targets {
-                target_range(&spec.count)?;
+                if !matches!(spec.count, Count::PerPlayer { .. }) {
+                    target_range(&spec.count)?;
+                }
             }
             let targets = self.announcement(unpaid, &format!("{label}_unpaid"))?;
             self.announced_filters.clear();
