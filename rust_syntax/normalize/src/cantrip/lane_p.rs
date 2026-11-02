@@ -4123,6 +4123,17 @@ impl Compiler {
             D::WhileItMatches(filter) => {
                 format!("Duration::WhileItMatches({})", self.filter_fn(filter)?)
             }
+            // What these name is read as the effect begins, as the rest are.
+            D::DuringNextTurn(player) | D::UntilNextUntapStep(player) => {
+                match self.certain_player(player) {
+                    Ok(player) => format!("Duration::{}({})", form(duration), self.fetch(player)),
+                    Err(_) => return lane_m::duration_more(duration),
+                }
+            }
+            D::WhileOnBattlefield(object) | D::UntilCast(object) => match self.object(object) {
+                Ok(object) => format!("Duration::{}({})", form(duration), self.fetch(object)),
+                Err(_) => return lane_m::duration_more(duration),
+            },
             other => return lane_m::duration_more(other),
         };
         Ok(planned::planned_value(&feature, later, &code))
