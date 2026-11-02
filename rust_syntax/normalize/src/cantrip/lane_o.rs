@@ -529,7 +529,7 @@ impl Compiler {
         ))
     }
     /// `part`, with the reader of a plain function: a rule asked of the game.
-    fn queried<T>(&mut self, part: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+    pub(super) fn queried<T>(&mut self, part: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let compiled = part(self);
@@ -1510,6 +1510,14 @@ impl Compiler {
         // gives is `CardDef::becomes_aura_enchant` (CR 303.4, 613.1f).
         if let Ability::Enchant { hosts } = ability {
             return self.aura_enchant(hosts);
+        }
+        // "Until end of turn, each creature card in your graveyard gains escape"
+        // (The Grim Captain's Locker): a way to cast a card lasts past its giver only
+        // as a `PlayGrant`, which has a mana cost to pay instead but no cards to exile
+        // and no escape to cast it by (CR 702.138a-c); `granted_ways` are a
+        // permanent's, while it's on the battlefield.
+        if matches!(ability, Ability::Mechanic { mechanic: Mechanic::Escape, .. }) {
+            return Err(gap("escape given by a resolving effect"));
         }
         Ok(self
             .granted_refs(ability)?
@@ -3204,6 +3212,31 @@ impl Compiler {
             ObjectFilter::OnStack(StackTrait::Keyword(word)) => {
                 format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
             }
+            // "The first activated ability of an artifact you activate each turn
+            // costs {2} less" (Tezzeret, Betrayer of Flesh): the activations of the
+            // turn so far, as the history records each once it is activated (CR
+            // 602.2i), this one not yet among them. What an earlier one targeted
+            // (Professor Hojo) no record says: `BecameTarget` doesn't tell an
+            // activated ability from a triggered one.
+            ObjectFilter::NthCast {
+                ordinal,
+                spells,
+                by,
+                scope: CastScope::Turn,
+            } if self.ability_filter(spells).is_ok() => {
+                let which = self.ability_filter(spells)?;
+                if which.contains("targets") {
+                    return Err(gap("the targets of abilities activated earlier this turn"));
+                }
+                let by = match by {
+                    Some(players) => format!("({}).contains(&p)", self.players(players)?),
+                    None => "true".to_string(),
+                };
+                return Ok(format!(
+                    "({which})(q, asker, permanent, def) && (q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, player: p, .. }} if {by} && ({which})(q, asker, source, q.activated_ability(ability)))).count() as i64) == ({}) - 1",
+                    self.asked(ordinal)?
+                ));
+            }
             ObjectFilter::NthCast {
                 ordinal,
                 spells,
@@ -3249,6 +3282,11 @@ impl Compiler {
             }
             ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Outlast)) => {
                 return Ok("def.is_some_and(|d| d.text.starts_with(\"Outlast\"))".into())
+            }
+            // A ninjutsu ability, printed or given (`ninjutsu::ninjutsu`), commander
+            // ninjutsu among them (CR 702.49d).
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Ninjutsu)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Ninjutsu\") || d.text.starts_with(\"Commander ninjutsu\"))".into())
             }
             ObjectFilter::OnStack(StackTrait::Keyword(word)) => {
                 format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
@@ -3374,6 +3412,16 @@ impl Compiler {
             Ok(code) => return Ok(code),
             Err(failed) => failed,
         };
+        // "Hexproof from activated and triggered abilities" (Volatile Stormdrake,
+        // CR 702.11e): `HexproofFrom` holds colors and card types of sources, and a
+        // targeting rule's `Forbid` is no hexproof that "as though it didn't have
+        // hexproof" lifts.
+        if let Protection::Objects { filter, .. } = quality {
+            let asked = format!("{filter:?}");
+            if asked.contains("OnStack(Activated)") || asked.contains("OnStack(Triggered)") {
+                return Err(gap("hexproof from a kind of ability"));
+            }
+        }
         let code = match quality {
             // "Has hexproof from each of its colors" (Tam, Mindful First-Year): the
             // colors the creature has once layer 5 is done (CR 613.1), read as the
@@ -3537,6 +3585,9 @@ impl Compiler {
                 let mut code = values.clone();
                 for operand in list {
                     match operand {
+                        Operand::Ability(ability) if lane_n::toxic_of(ability).is_some() => {
+                            return Err(gap("toxic as a copy exception"));
+                        }
                         Operand::Ability(ability) => {
                             let refs = self.granted_refs(ability).or_else(|failed| {
                                 let Ability::Mechanic {

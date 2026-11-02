@@ -1744,6 +1744,9 @@ impl Compiler {
                     mana(symbols)?
                 )
             }
+            CostPart::Choice(_) if self.activation_cost.is_some() => {
+                return Err(gap(super::costs::ACTIVATED_COST_CHOICE));
+            }
             CostPart::Choice(costs) => {
                 let mut options = Vec::new();
                 for (i, option) in costs.iter().enumerate() {

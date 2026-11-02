@@ -1011,8 +1011,17 @@ impl Compiler {
                 if lane_k::chooses_first(decider, body)
                     && !lane_k::printed_otherwise(self.line_text(), "discard one or more") =>
             {
-                writeln!(out, "{{").unwrap();
-                self.block_choosing_first(body, String::new(), out)?;
+                // "You may return one of them ... Do this only once each turn"
+                // (Rinoa, Angel Wing): what is chosen spends the turn's once.
+                let (open, spent) = match self.do_once.take() {
+                    Some(key) => (
+                        format!("if {{ let q: &dyn Query = g; {} }} ", lane_k::not_yet_done(key)),
+                        lane_k::spends_once(key),
+                    ),
+                    None => (String::new(), String::new()),
+                };
+                writeln!(out, "{open}{{").unwrap();
+                self.block_choosing_first(body, spent, out)?;
                 writeln!(out, "}}").unwrap();
                 Ok(())
             }

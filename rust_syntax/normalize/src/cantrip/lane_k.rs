@@ -1943,7 +1943,6 @@ impl Compiler {
         if !said
             || limits.per_turn != Some(1)
             || tap_or_untap_only(offered)
-            || chooses_first(decider, offered)
             || !matches!(decider, PlayerRef::AbilityController)
         {
             return None;

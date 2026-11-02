@@ -1471,6 +1471,14 @@ impl Compiler {
                 objects,
                 targets: targets @ (NewTargets::May | NewTargets::Same),
             } => {
+                // "Copy all other activated and triggered abilities you control"
+                // (Ulalek, Fused Atrocity): copies made in the order the copier
+                // chooses, of stack items an object doesn't name apart (one source's
+                // several abilities); `choose` picks among objects only.
+                let asked = format!("{objects:?}");
+                if asked.contains("OnStack(Activated)") || asked.contains("OnStack(Triggered)") {
+                    return Err(gap("copies of each of several abilities on the stack"));
+                }
                 let player = self.one_actor(actor, &feature)?;
                 let test = self.filter(objects, &Candidate::of("id"))?;
                 let spells = self.fetch(format!("q.state().stack.iter().filter(|i| i.kind == StackKind::Spell).map(|i| i.object).filter(|&id| {test}).collect::<Vec<ObjectId>>()"));

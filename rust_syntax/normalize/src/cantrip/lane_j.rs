@@ -1154,18 +1154,26 @@ impl Compiler {
                 let mut tests = vec![self.activation_test(abilities, frame)?];
                 tests.push(self.matching(frame, |c| c.player_in(players, "*player"))?);
                 let paid = match payment {
-                    ActivationPayment::Life => "paid.life > 0",
-                    _ => "!paid.sacrificed.is_empty()",
+                    ActivationPayment::Life => "life > 0",
+                    ActivationPayment::Sacrifice => "sacrificed",
                 };
                 tests.push(paid.into());
-                Ok(held_arm(
+                // What was paid to activate it (CR 602.2b, 601.2g-h): the records
+                // from its being put on the stack to its activation, after the mana
+                // abilities activated while paying (each its own AbilityActivated,
+                // its own costs before it), so a Treasure sacrificed for mana or a
+                // land's life for mana is no part of it. Life paid for Phyrexian
+                // mana comes after those mana abilities, and counts.
+                const PAID: &str = "let paid: &[Record] = match subject { Target::Ability(serial) => q.state().stack.iter().find(|i| i.kind == StackKind::Activated && i.serial == serial).map_or(&[][..], |i| { let after = q.history().all().get(i.since as usize..).unwrap_or(&[]); let end = after.iter().rposition(|r| matches!(r.event, Event::AbilityActivated { source: s, .. } if s == id)).unwrap_or(after.len()); let start = after[..end].iter().rposition(|r| matches!(r.event, Event::AbilityActivated { .. })).map_or(0, |k| k + 1); &after[start..end] }), _ => &[] }; let life: u32 = paid.iter().filter_map(|r| match r.event { Event::LifeChange { player: p, delta } if p == *player && delta < 0 => Some(delta.unsigned_abs()), _ => None }).sum(); let sacrificed = paid.iter().any(|r| matches!(r.event, Event::ZoneChange { reason: ZoneReason::Sacrifice, .. }));";
+                Ok(single(
                     "ABILITY_ACTIVATED",
-                    "Event::AbilityActivated { source, ability, player, .. }",
-                    "let id = *source; let def = q.activated_ability(*ability); let paid = q.paid_to_activate(event); let subject = cantrip_mechanics::triggers::activated_ability_on_stack(q, event).unwrap_or(Target::None); let data = [id.0, paid.life];",
-                    tests,
+                    Arm {
+                        pattern: "Event::AbilityActivated { source, ability, player, .. }".into(),
+                        locals: format!("let id = *source; let def = q.activated_ability(*ability); let subject = cantrip_mechanics::triggers::activated_ability_on_stack(q, event).unwrap_or(Target::None); {PAID} let data = [id.0, life];"),
+                        tests,
+                    },
                     frame,
                     "Whenever a player activates an ability",
-                    "trigger event PaysToActivate",
                 ))
             }
             EventSpec::Caused { cause, event } => self.caused(cause, event),
@@ -2439,7 +2447,7 @@ impl Compiler {
             ObjectFilter::OnStack(StackTrait::SingleTarget) => match c.announced.as_deref() {
                 // "Targets only a single": however many times it was chosen (115.9c),
                 // where "with a single target" counts them.
-                None if self.line_text().is_some_and(|line| line.contains("only a single")) => {
+                None if self.line_text().is_some_and(|line| line.contains("only a single") || line.contains("targets only")) => {
                     format!("{on_stack}.is_some_and(|i| {{ let chosen = q.state().targets(i); !chosen.is_empty() && chosen.iter().all(|t| *t == chosen[0]) }})")
                 }
                 None => format!("{on_stack}.is_some_and(|i| q.state().targets(i).len() == 1)"),
