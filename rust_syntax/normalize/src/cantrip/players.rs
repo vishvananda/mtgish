@@ -108,10 +108,18 @@ impl Compiler {
             }
             PlayerRule::SpellCost {
                 spells,
-                modifier: SpellCostModifier::Alternate { cost, limit: None },
-            } if lane_j::instead_of_mana_cost(cost).is_some() => {
+                modifier: SpellCostModifier::Alternate { cost, limit },
+            } if matches!(limit, None | Some(PlayLimit::EachTurn(1)))
+                && lane_j::instead_of_mana_cost(cost).is_some() =>
+            {
                 let (text, instead) = lane_j::instead_of_mana_cost(cost).expect("just seen");
                 let test = self.filter(spells, &cast_card())?;
+                // Used up by a cast for it, which the history records as this
+                // permanent's: another, or this one come back, is another.
+                let test = match limit {
+                    Some(_) => format!("{test} && !cantrip_mechanics::history::permission_used_this_turn(q, asker.source)"),
+                    None => test,
+                };
                 let (guard, member) = (self.guard()?, self.player_member(players)?);
                 writeln!(
                     self.functions,

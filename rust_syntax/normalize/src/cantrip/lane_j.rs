@@ -2637,6 +2637,15 @@ pub(super) fn instead_of_mana_cost(cost: &PlayCost) -> Option<(String, String)> 
                 "InsteadOfManaCost::WithoutPaying".into(),
             ))
         }
+        // "Pay {0}": an alternative cost of no mana, which is not the mana cost.
+        PlayCost::Alternate(Operand::List(terms))
+            if super::mechanics::kicker_words(terms).as_deref() == Some("{0}") =>
+        {
+            return Some((
+                "Pay {0}".into(),
+                "InsteadOfManaCost::Mana(ManaCost::ZERO)".into(),
+            ))
+        }
         PlayCost::Alternate(Operand::Cost(cost)) => cost.parts.as_slice(),
         _ => return None,
     };

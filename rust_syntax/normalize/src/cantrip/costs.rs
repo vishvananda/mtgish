@@ -203,6 +203,19 @@ impl Compiler {
                 tapped: true,
                 symbol: false,
             } => {
+                // "Tap enchanted land": a permanent the Aura's controller may no
+                // longer control, and `tap_untapped` is of what you control.
+                if let [CostObjectSelection {
+                    objects: ObjectSet::One(ObjectRef::AttachedTo(_)),
+                    choose: None,
+                }] = selections.as_slice()
+                {
+                    return Ok(planned::planned_value(
+                        "engine: a cost that taps what its payer may not control",
+                        "Cost::NONE",
+                        "Cost { variable: Some(VariableCost::TapAttached), ..Cost::NONE }",
+                    ));
+                }
                 let [CostObjectSelection {
                     objects: ObjectSet::Battlefield(filter),
                     choose,
