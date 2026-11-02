@@ -1368,6 +1368,21 @@ impl Compiler {
                         };
                         format!("{{ let mut most: Vec<(Target, u32, i64)> = Vec::new(); for f in {hits} {{ let key: u32 = {key}; match most.iter_mut().find(|d| d.0 == f.subject && d.1 == key) {{ Some(d) => d.2 += i64::from(f.data[0]), None => most.push((f.subject, key, i64::from(f.data[0]))) }} }} most.into_iter().map(|d| d.2).max().unwrap_or(0) }}")
                     }
+                    // "The total power of Daleks that died this turn" (Genesis of the
+                    // Daleks): each record's subject is the object that moved, read as
+                    // it last existed where it was (its last-known row, CR 608.2h).
+                    HistoryMeasure::Property(
+                        property,
+                        aggregation @ (Aggregation::Sum | Aggregation::Maximum | Aggregation::Minimum),
+                    ) if matches!(&**event, EventSpec::ZoneChange { .. }) => {
+                        let value = self.property("id", property)?.code;
+                        let each = format!("{hits}.filter_map(|f: Fired| f.subject.object()).map(|id: ObjectId| {value})");
+                        match aggregation {
+                            Aggregation::Sum => format!("{each}.sum::<i64>()"),
+                            Aggregation::Maximum => format!("{each}.max().unwrap_or(0)"),
+                            _ => format!("{each}.min().unwrap_or(0)"),
+                        }
+                    }
                     other => lane_p::history_measured(other, scope, &matched.history_test())
                         .unwrap_or_else(|| lane_p::history_measure(other, &hits)),
                 };
