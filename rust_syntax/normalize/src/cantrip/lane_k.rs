@@ -354,11 +354,6 @@ pub(super) fn divided_among_some(count: String, divided: bool) -> String {
         false => count,
     }
 }
-/// Whether a line says what "dies" by a subtype alone: only a creature does.
-pub(super) fn dies_of_a_type(line: Option<&str>, objects: &ObjectFilter) -> bool {
-    let said = format!("{objects:?}");
-    printed_otherwise(line, " dies") && said.contains("Subtype") && !said.contains("CardType")
-}
 /// Whether what becomes a target is a permanent, for a filter that names no
 /// other place for it to be.
 pub(super) fn a_permanent_targeted(objects: &ObjectFilter) -> bool {
@@ -1244,13 +1239,32 @@ impl Compiler {
             return Ok(None);
         };
         let mut tests = Vec::new();
-        Ok(match self.as_it_entered(objects, &mut tests)? {
-            true => Some(format!(
+        if self.as_it_entered(objects, &mut tests)? {
+            return Ok(Some(format!(
                 "q.history().entered().filter(|e| {}).count() as i64",
                 tests.join(" && ")
-            )),
-            false => None,
-        })
+            )));
+        }
+        if self.reader == Reader::Layer {
+            return Ok(None);
+        }
+        // Any other filter reads the permanent as it entered, whatever it is now.
+        let entered = Candidate {
+            chars: "e.chars(q)".into(),
+            controller: "e.controller".into(),
+            ..Candidate::of("e.permanent")
+        };
+        let mut asked = self.clone();
+        asked.history = Some(History {
+            outer: self.candidates.borrow().last().map(|c| c.id.clone()),
+            event_at: self.event_at,
+            frame: self.frame,
+        });
+        let test = asked.matching(Frame::default(), |c| c.filter(objects, &entered));
+        // A filter on the event being matched has to come through the record.
+        Ok(test.ok().filter(|test| !test.contains("subject") && !test.contains("data")).map(|test| {
+            format!("q.history().entered().filter(|e| {test}).count() as i64")
+        }))
     }
     fn as_it_entered(&self, filter: &ObjectFilter, tests: &mut Vec<String>) -> Result<bool> {
         match filter {
@@ -1823,6 +1837,25 @@ impl Compiler {
             }) if matches!(&**objects, ObjectSet::InZone { .. }) => match self.object(object) {
                 Ok(read) => format!("({}).is_some() && ", self.fetch(read)),
                 Err(_) => String::new(),
+            },
+            // "You may remove a counter from it": not asked of what has none to remove.
+            Some(Instruction::Effect {
+                operation: Operation::RemoveCounters { removals },
+                ..
+            }) => match removals.as_slice() {
+                [CounterRemoval {
+                    recipients: Recipients::Objects(ObjectSet::One(object)),
+                    kind: Some(kind),
+                    amount: CounterAmount::Count(Count::Exactly(Expr::Constant(1))),
+                    ..
+                }] => match (self.object(object), read::counter_kind(kind)) {
+                    (Ok(read), Ok(kind)) => format!(
+                        "({}).is_some_and(|o| cantrip_mechanics::targets::permanent(g, o) && g.obj(o).counters({kind}) > 0) && ",
+                        self.fetch(read)
+                    ),
+                    _ => String::new(),
+                },
+                _ => String::new(),
             },
             _ => String::new(),
         }

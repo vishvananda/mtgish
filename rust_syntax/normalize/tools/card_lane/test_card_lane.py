@@ -4,6 +4,7 @@
 """
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -579,6 +580,75 @@ class Usage(unittest.TestCase):
         line = '{"type":"result","session_id":"s1","num_turns":3,"total_cost_usd":0.5,"usage":{"input_tokens":5,"cache_read_input_tokens":7,"output_tokens":2}}'
         self.assertEqual(backend.read(line, usage), "s1")
         self.assertEqual((usage.input, usage.cached, usage.turns, usage.reported_cost), (12, 7, 3, 0.5))
+
+
+TABLE = '''macro_rules! counter_kinds {
+    ($($kind:ident = $n:literal, $name:literal, $token:literal;)*) => {};
+}
+
+counter_kinds! {
+    PlusOne = 0, "+1/+1", "PlusOnePlusOne";
+    Charge = 1, "charge", "Charge";
+}
+
+pub struct After;
+'''
+
+
+class Counters(unittest.TestCase):
+    def test_a_card_wants_the_counters_it_uses_and_cantrip_has_no_line_for(self):
+        code = ('let a = CounterKind::Spore; let b = CounterKind::Charge; for k in CounterKind::ALL {} let c = CounterKind::Spore;'
+                ' let d = planned_value!("counter kind Rad", CounterKind::Charge => CounterKind::Rad);')
+        self.assertEqual(lane.counters_wanted(code, TABLE), ["Spore"])
+
+    def test_lines_run_on_from_the_last_number_and_leave_the_rest_alone(self):
+        table = lane.with_counters(TABLE, ["Spore", "Verse"])
+        self.assertIn('    Charge = 1, "charge", "Charge";\n    Spore = 2, "spore", "Spore";\n    Verse = 3, "verse", "Verse";\n}\n\npub struct After;', table)
+        self.assertEqual(lane.counters_wanted("CounterKind::Verse", table), [])
+
+    def repository(self, root):
+        table = root / lane.COUNTER_TABLE
+        table.parent.mkdir(parents=True)
+        table.write_text(TABLE, encoding="utf-8")
+        (root / "card.rs").write_text("CounterKind::Verse", encoding="utf-8")
+
+        def shell(*command, **_):
+            done = subprocess.run([str(c) for c in command], cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            return done.returncode, done.stdout
+        identity = ("-c", "user.name=lane", "-c", "user.email=lane@example.org")
+        shell("git", "init", "-q")
+        shell("git", *identity, "add", lane.COUNTER_TABLE)
+        shell("git", *identity, "commit", "-q", "-m", "start")
+        shell("git", "config", "user.name", "lane")
+        shell("git", "config", "user.email", "lane@example.org")
+        return shell
+
+    def test_a_commit_comes_from_head_so_a_card_set_aside_leaves_no_gap_in_the_numbers(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            shell = self.repository(root)
+            with mock.patch.object(lane, "CANTRIP", root), mock.patch.object(lane, "shell", shell), \
+                    mock.patch.object(lane, "card_file", lambda _: root / "card.rs"):
+                lane.add_counters("CounterKind::Spore CounterKind::Verse")
+                worktree = (root / lane.COUNTER_TABLE).read_text(encoding="utf-8")
+                self.assertTrue(lane.only_counter_lines())
+                lane.commit_counters("Some Card")
+                self.assertEqual((root / lane.COUNTER_TABLE).read_text(encoding="utf-8"), worktree)
+                committed = lane.git("show", f"HEAD:{lane.COUNTER_TABLE}")
+                self.assertIn('    Verse = 2, "verse", "Verse";', committed)
+                self.assertNotIn("Spore", committed)
+                self.assertEqual(lane.git("log", "-1", "--format=%s").strip(), "Engine: the verse counter (CR 122.1), for Some Card")
+                self.assertTrue(lane.only_counter_lines())
+                lane.commit_counters("Some Card")
+                self.assertEqual(lane.git("rev-list", "--count", "HEAD").strip(), "2")
+
+    def test_anything_else_in_the_table_is_out_of_scope(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            shell = self.repository(root)
+            with mock.patch.object(lane, "CANTRIP", root), mock.patch.object(lane, "shell", shell):
+                (root / lane.COUNTER_TABLE).write_text(TABLE.replace("pub struct After;", "pub struct Before;"), encoding="utf-8")
+                self.assertFalse(lane.only_counter_lines())
 
 
 if __name__ == "__main__":

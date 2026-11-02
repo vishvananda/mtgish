@@ -161,8 +161,15 @@ impl Compiler {
         let entering = *to == EventZone::Battlefield;
         // CR 603.10: a departure is judged as the object last was, an arrival
         // as it now is, and a card moved between hidden or public zones as it
-        // was where it left from.
-        let id = if entering || from.is_none() {
+        // was where it left from. An ability of the card that works where the
+        // card has arrived belongs to the object there (113.6k, 400.7).
+        let is_source = |f: &ObjectFilter| matches!(f, ObjectFilter::SameObject(ObjectRef::Source));
+        let own = match objects {
+            ObjectFilter::All(all) => all.iter().any(is_source),
+            one => is_source(one),
+        };
+        let functions_there = own && !entering && from != Some(&EventZone::Battlefield);
+        let id = if entering || from.is_none() || functions_there {
             "*new"
         } else {
             "*old"
@@ -172,11 +179,7 @@ impl Compiler {
             tests.push(format!("from.is({})", zone_kind(from)?));
         }
         tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
-        if lane_k::dies_of_a_type(self.line_text(), objects) {
-            tests.push("q.chars(id).is(CardType::Creature)".into());
-        }
-        let own = matches!(objects, ObjectFilter::SameObject(ObjectRef::Source));
-        let functions = if own && !entering && from != Some(&EventZone::Battlefield) {
+        let functions = if functions_there {
             Some(format!("ZoneKinds::of(&[{}])", zone_kind(to)?))
         } else {
             None
@@ -362,7 +365,24 @@ impl Compiler {
             other => return self.object_event_rest(other, objects),
         };
         let mut tests: Vec<String> = extra.map(Into::into).into_iter().collect();
-        tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
+        // Looking back at an attack asks what the attacker was as it was declared,
+        // and only the active player declares attackers (508.1).
+        let declared = self.history.is_some()
+            && self.reader != Reader::Layer
+            && matches!(event, ObjectEvent::Attacks);
+        let candidate = match declared {
+            true => Candidate {
+                chars: "(Attacked { attacker: id, known: *known }).chars(q)".into(),
+                controller: "r.active".into(),
+                ..Candidate::of("id")
+            },
+            false => Candidate::of("id"),
+        };
+        let pattern = match declared {
+            true => "Event::Attacks { attacker, defending, known, .. }",
+            false => pattern,
+        };
+        tests.push(self.matching(frame, |c| c.filter(objects, &candidate))?);
         let mut matched = single(
             mask,
             Arm {

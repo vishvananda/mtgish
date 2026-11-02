@@ -127,6 +127,43 @@ def stem_of(name):
     return stem or "unnamed"
 
 
+COUNTER_TABLE = "crates/cantrip-state/src/vocab.rs"
+HELD_VALUE = re.compile(r'planned_value!\("(?:[^"\\]|\\.)*", [\w:]+ => [\w:]+\)')
+
+
+def counter_block(table):
+    """Where the lines of `counter_kinds!` are in the text of vocab.rs."""
+    start = table.index("\ncounter_kinds! {\n")
+    return start, table.index("\n}\n", start)
+
+
+def counter_kinds(table):
+    start, end = counter_block(table)
+    return re.findall(r'^\s+(\w+) = \d+, "', table[start:end], re.M)
+
+
+def counter_name(word):
+    """As Oracle text writes it (CR 122.1)."""
+    return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", word).lower()
+
+
+def counters_wanted(code, table):
+    """The counter kinds `code` uses that `table`, the text of vocab.rs, does not list, first used first. A value still
+    held back is not used: the generator holds back a counter that needs more than its name."""
+    known = {*counter_kinds(table), "ALL", "COUNT"}
+    used = re.findall(r"\bCounterKind::([A-Z]\w*)", HELD_VALUE.sub("", code))
+    return [word for word in dict.fromkeys(used) if word not in known]
+
+
+def with_counters(table, words):
+    """`table` with `words` appended. Numbers run on from the last: a counter's number indexes an array of `COUNT`, so
+    there can be no gap, and appending leaves every existing number alone."""
+    start, end = counter_block(table)
+    number = len(counter_kinds(table))
+    lines = "".join(f'\n    {word} = {number + i}, "{counter_name(word)}", "{word}";' for i, word in enumerate(words))
+    return table[:end] + lines + table[end:]
+
+
 def status_of(card):
     if not card["faces"]:
         return "data"
@@ -319,8 +356,12 @@ def tracker(args):
     blocked = {}
     written = {}
     hand = written_by_hand(args.cantrip)
+    table = (Path(args.cantrip) / COUNTER_TABLE).read_text(encoding="utf-8")
+    counters = {}
     for card in read_rows(args.rows):
         status = status_of(card)
+        for word in counters_wanted(whole(card), table):
+            counters.setdefault(word, []).append(card["name"])
         totals["cards"] += 1
         totals[status] += 1
         layouts.setdefault(card["layout"], [0, 0])
@@ -338,6 +379,8 @@ def tracker(args):
                 if len(row["examples"]) < 5:
                     row["examples"].append(card["name"])
     totals["written"] = len(written)
+    totals["counter_lines"] = len(counters)
+    totals["cards_with_counter_lines"] = len({name for names in counters.values() for name in names})
     audit = json.loads((root / "data/cantrip_audit.json").read_text(encoding="utf-8"))
     rows = []
     for feature, row in sorted(needs.items(), key=lambda kv: (-kv[1]["cards"], -kv[1]["written"], kv[0])):
@@ -361,7 +404,8 @@ def tracker(args):
         fix = hardest([fix_by_id[i] for i in ids])
         by_fix[fix] = by_fix.get(fix, 0) + 1
     tracked = {"cantrip": base, "totals": totals, "layouts": {k: {"ready": v[0], "planned": v[1]} for k, v in sorted(layouts.items())},
-               "classes": summary, "fixes": by_fix, "features": features, "requirements": rows, "cards": blocked, "written": written}
+               "classes": summary, "fixes": by_fix, "features": features, "counters": {word: sorted(names) for word, names in sorted(counters.items())},
+               "requirements": rows, "cards": blocked, "written": written}
     out = Path(args.out) if args.out else root
     (out / "data").mkdir(exist_ok=True)
     (out / "data/cantrip_tracker.json").write_text(json.dumps(tracked, indent=1, ensure_ascii=False) + "\n")
@@ -393,6 +437,11 @@ def tracker(args):
     lines += ["", "## Asked by one card", "", f"{len(single)} forms that one remaining card has and nothing shares. Most are likely to be code in that card's file.", "",
               "| card | written | fix | needs |", "|---|---|---|---|"]
     lines += [f"| {f['examples'][0] if f['examples'] else ''} | {f['written']} | {f['fix']} | {f['needs']} |" for f in single]
+    lines += ["", "## Counters a card brings with it", "",
+              f"{len(counters)} counters are a name and nothing more (CR 122.1), and {totals['cards_with_counter_lines']} cards use them. They are not gaps: "
+              "the card's file uses the kind, and a commit just before the card adds the line to `counter_kinds!`.", "",
+              "| counter | cards | examples |", "|---|---|---|"]
+    lines += [f"| {counter_name(word)} | {len(names)} | {', '.join(sorted(names)[:3])} |" for word, names in sorted(counters.items(), key=lambda kv: (-len(kv[1]), kv[0]))]
     lines += ["", "## Every requirement", "", "| requirement | class | fix | cards | written | alone | needs | examples |", "|---|---|---|---|---|---|---|---|"]
     for row in rows:
         if row["cards"]:

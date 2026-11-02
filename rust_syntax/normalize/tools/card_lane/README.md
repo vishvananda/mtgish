@@ -150,6 +150,10 @@ COW_WORKTREE_CONFIG=/mnt/vizier/cow-cantrip.conf ~/.local/bin/cow-git -C /mnt/vi
     worktree add -q -b card-lane/NAME /mnt/vizier/card-lane/NAME card-lane/pioneer-pilot
 ```
 
+## Counters a card brings
+
+A counter that is only a name needs one line in `counter_kinds!` (CR 122.1). The generator writes such a card as it will stand, and `prepare` adds the line to the worktree so it builds. `commit_card` then makes a commit of its own for the line, `Engine: the spore counter (CR 122.1), for <Card>`, just before the first card that uses it, as Cantrip's own are made. The number comes from `HEAD`, since a card set aside leaves its line in the worktree and the numbers index an array. Counters on players and keyword counters need more than a line, so the generator holds them back (`MORE_THAN_A_NAME` in `planned.rs`).
+
 ## The gates
 
 `check` runs Cantrip's own tools unmodified, with `CANTRIP_VERIFY=1`, cheapest first. `check --fast` leaves out `mutation`
@@ -157,7 +161,7 @@ and `layers`, which take minutes. A commit needs all of them.
 
 | Gate | Fails when |
 | --- | --- |
-| `scope` | Anything changed but the card's content file, its card file and new scenarios |
+| `scope` | Anything changed but the card's content file, its card file, new scenarios and the lines of counters it brings |
 | `generated` | The card's file is not the generator's, or its content file is not what `new-card.py` wrote |
 | `oracle` | `new-card.py` says the content differs from Scryfall's current card |
 | `scenarios` | A placeholder or TODO remains, a scenario says `Known bug`, has no opening comment or no `[Expect]`, or a card with a cost has no `.Mana =` expectation |

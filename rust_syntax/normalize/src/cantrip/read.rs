@@ -1676,11 +1676,18 @@ impl Compiler {
                 } else {
                     self.number(value)?.code
                 };
-                let side = |field: &str| {
-                    format!(
+                let side = |field: &str| match id {
+                    // What an effect keeps watching may stop being a creature:
+                    // then it has none, which compares as 0.
+                    "e.affected" => compare(
+                        &format!("i64::from({chars}.{field}.unwrap_or(0))"),
+                        comparison,
+                        &value,
+                    ),
+                    _ => format!(
                         "{chars}.{field}.is_some_and(|v| {})",
                         compare("i64::from(v)", comparison, &value)
-                    )
+                    ),
                 };
                 let test = match property {
                     // A card that has no power has no value to compare (208.3).

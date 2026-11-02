@@ -31,16 +31,31 @@ const LANDED: &[&str] = &[
     "numeric-expression-times-mutated",
 ];
 
+/// Counters that are more than a name, so no line in `counter_kinds!` finishes
+/// them: rad, poison, acorn, point and contract counters sit on players, and an
+/// exalted counter gives its keyword (CR 122.1b). `Samurai` is the source's name
+/// for Sensei Golden-Tail's training counter.
+const MORE_THAN_A_NAME: &[&str] = &["Acorn", "Contract", "Exalted", "Point", "Poison", "Rad", "Samurai"];
+
+/// Whether `feature` asks only for a counter's name (CR 122.1). Its line goes in
+/// `counter_kinds!` as a commit of its own just before the card, so the card is
+/// written as it will stand: `cantrip_tree.py` finds the kind in the card's code.
+fn only_a_counter_name(feature: &str) -> bool {
+    feature
+        .strip_prefix("counter kind ")
+        .is_some_and(|word| !MORE_THAN_A_NAME.contains(&word))
+}
+
 /// Whether the requirement `feature` has landed in Cantrip.
 pub(super) fn landed(feature: &str) -> bool {
-    LANDED.contains(&requirement(feature).as_str())
+    LANDED.contains(&requirement(feature).as_str()) || only_a_counter_name(feature)
 }
 
 /// A value inside compiled code that Cantrip has no word for yet: `placeholder`
 /// keeps the file compiling, `code` is what it will say, and `feature` is found
 /// again by `value_gaps`, since a read has no way to record a gap of its own.
 pub(super) fn planned_value(feature: &str, placeholder: &str, code: &str) -> String {
-    if LANDED.contains(&requirement(feature).as_str()) {
+    if landed(feature) {
         return code.to_string();
     }
     format!("planned_value!({feature:?}, {placeholder} => {code})")
@@ -331,4 +346,21 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
     )?;
     artifact.commit()?;
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::planned_value;
+
+    #[test]
+    fn a_counter_that_is_only_a_name_is_written_and_any_other_held() {
+        let value = |word: &str| {
+            let feature = format!("counter kind {word}");
+            planned_value(&feature, "CounterKind::Charge", &format!("CounterKind::{word}"))
+        };
+        assert_eq!(value("Spore"), "CounterKind::Spore");
+        for word in ["Acorn", "Contract", "Exalted", "Point", "Poison", "Rad", "Samurai"] {
+            assert!(value(word).starts_with("planned_value!"), "{word}");
+        }
+    }
 }
