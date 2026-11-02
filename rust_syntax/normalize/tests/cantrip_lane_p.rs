@@ -30,7 +30,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Alchemist's Retrieval", "cleave that changes its targets"),
     ("Abzan Charm", "target with a divided amount"),
     ("Rhino, Terrible Trampler", "target with a divided amount"),
-    ("Riptide Replicator", "token of the chosen color"),
+    // The chosen color and type on the token's copiable values (lane g2).
+    ("Riptide Replicator", "g.create_token_copies_of(values_"),
     (
         "Davriel, Soul Broker",
         "a choice among options offered at random",

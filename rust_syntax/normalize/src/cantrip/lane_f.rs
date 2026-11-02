@@ -34,6 +34,9 @@ pub(super) struct Place {
     pub extras: Vec<String>,
     /// The face's Oracle text, where it is known.
     pub printed: Option<String>,
+    /// Values the object keeps from the ability that made it, as an emblem
+    /// keeps the creature type chosen as it was made (CR 607.2d).
+    pub keeps: Vec<crate::ir::ValueKind>,
 }
 
 /// A door of a Room (CR 709.5).

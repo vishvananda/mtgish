@@ -321,6 +321,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
+        Operation::Manifest { .. } => &["Manifested"],
         Operation::Reveal { .. }
         | Operation::RevealUntil { .. }
         | Operation::RevealFromHand { .. } => &["Revealed"],
@@ -335,6 +336,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
                 &["Returned", "Entered"]
             }
             Destination::OwnersHand | Destination::Hand(_) => &["Returned"],
+            Destination::OwnersLibraryShuffled => &["Shuffled"],
             _ => &[],
         },
         _ => &[],
@@ -622,7 +624,9 @@ impl Compiler {
             return None;
         }
         let Some((players, each)) = walked else {
-            return matches!(what, EarlierObjects::Revealed).then(|| {
+            // What a player shuffled into their library is what they own of it
+            // (CR 400.3), when the players' cards went together.
+            return matches!(what, EarlierObjects::Revealed | EarlierObjects::Shuffled).then(|| {
                 let list = self.earlier_objects(what).ok()?;
                 Some(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{binding}).collect::<Vec<ObjectId>>()"))
             })?;
@@ -707,6 +711,15 @@ impl Compiler {
             // its permanent (`Game::remember_chosen_name`), never an object.
             if matches!(what, EarlierObjects::Selected) && self.reader == Reader::Layer {
                 return Err(gap("a chosen object outside its body"));
+            }
+            // "Each player turns face up all cards they own exiled with this, then
+            // puts all permanent cards among them onto the battlefield" (Pyxis of
+            // Pandemonium): each player's own cards of an earlier walk, which no
+            // walk keeps for one that turns cards face up.
+            if let (EarlierObjects::It, Some((walked, turned))) = (what, &self.turned_up) {
+                if self.bound_players.contains(walked) {
+                    return self.objects(&turned.clone());
+                }
             }
             // Cantrip keeps no record of this for a read to find.
             return Ok(planned::planned_value(

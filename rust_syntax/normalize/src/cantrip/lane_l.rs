@@ -56,6 +56,15 @@ fn total_mana_value_at_least(constraints: &[SelectionConstraint]) -> Option<i64>
     }
 }
 
+/// A body where "you" is only who gains control: then "you" is the doer. One that
+/// also says "a creature you control" (Infernal Denizen) can't tell the doer from
+/// the ability's controller.
+fn you_only_gains_control(body: &[Operand]) -> bool {
+    let text = format!("{body:?}");
+    let gains = text.matches("SetController(AbilityController)").count();
+    gains > 0 && text.matches("AbilityController").count() == gains
+}
+
 /// What "do this only once each turn" offers, under a "may" that already asks it.
 pub(super) fn once_offered(body: &Program) -> Option<&Program> {
     match body.instructions.as_slice() {
@@ -1937,26 +1946,60 @@ impl Compiler {
                 self.block(&offered, out, true)?;
             }
             // "An opponent creates two Treasure tokens and they scry 2": you choose
-            // which (its ruling), and in `body` the doer is "you".
+            // which (its ruling), and in `body` the doer is "you". "Another player
+            // of your choice may gain control of it" (Stardew Valley): the one you
+            // chose decides.
             Operation::PlayersDo {
                 players,
                 any_one: true,
-                optional: false,
+                optional,
                 once_each_turn: false,
                 body,
                 otherwise,
             } if otherwise.is_empty()
-                && body.iter().all(|step| matches!(step, Operand::Program(_))) =>
+                && body.iter().all(|step| matches!(step, Operand::Program(_)))
+                && (!*optional || you_only_gains_control(body)) =>
             {
+                let optional = *optional;
                 let among = self.fetch(self.players(players)?);
                 writeln!(out, "let among_{id}: Vec<PlayerId> = {among}; let Some(doer_{id}) = (if among_{id}.len() > 1 {{ {M}::choose::player(g, asker.controller, asker.source, among_{id}, \"Choose\", 0)? }} else {{ among_{id}.first().copied() }}) else {{ return Ok(()); }}; {{ let asker = &Asker::new(asker.source, doer_{id});").unwrap();
                 for step in body {
                     let Operand::Program(program) = step else {
                         unreachable!("just matched");
                     };
-                    self.block(program, out, true)?;
+                    if optional {
+                        let mut offered = program.clone();
+                        offered.instructions = vec![Instruction::Optional {
+                            decider: PlayerRef::AbilityController,
+                            body: program.clone(),
+                        }];
+                        self.block(&offered, out, true)?;
+                    } else {
+                        self.block(program, out, true)?;
+                    }
                 }
                 writeln!(out, "}}").unwrap();
+            }
+            // "Repeat the following process for each opponent in turn order ...
+            // That player may pay": the walk names the player, who is "that
+            // player" in the body, and "you" stays you (Protection Racket).
+            Operation::PlayersDo {
+                players: PlayerSet::One(PlayerRef::Bound(binding)),
+                any_one: false,
+                optional: false,
+                once_each_turn: false,
+                body,
+                otherwise,
+            } if otherwise.is_empty()
+                && self.bound_players.contains(&binding.0)
+                && body.iter().all(|step| matches!(step, Operand::Program(_))) =>
+            {
+                for step in body {
+                    let Operand::Program(program) = step else {
+                        unreachable!("just matched");
+                    };
+                    self.block(program, out, true)?;
+                }
             }
             Operation::PlayersDo {
                 players,
@@ -2060,6 +2103,36 @@ impl Compiler {
                 writeln!(out, "let separator_{id} = {player}; let cards_{id} = {objects}; let (face_down_{id}, face_up_{id}) = {M}::choose::separate_face_down_and_face_up(g, separator_{id}, asker.source, cards_{id})?;").unwrap();
                 self.face_piles = Some(id);
             }
+            // "Separates them into two piles" (CR 700.3a): the separator puts each
+            // pile together from what is left, so any of them may be empty (CR
+            // 700.3d). The piles are kept as rows for what chooses among them and
+            // what reads "the chosen pile"; face-down piles are shown to no one else.
+            Operation::Piles {
+                actor,
+                objects,
+                count: Some(Expr::Constant(n)),
+                names,
+                chooser,
+            } if *n >= 2
+                && (names.is_empty() || names.iter().all(|name| name == "face down"))
+                && (self.piles_walk.is_some() || chooser.is_none()) =>
+            {
+                let player = self.one_actor(actor, &feature)?;
+                let objects = self.fetch(self.objects(objects)?);
+                let choosers = match chooser {
+                    Some(chooser) => self.fetch(self.players(chooser)?),
+                    None => "Vec::<PlayerId>::new()".to_string(),
+                };
+                writeln!(out, "let separator_{id} = {player}; let mut rest_{id}: Vec<ObjectId> = {objects}; let mut piles_{id}: Vec<Vec<ObjectId>> = Vec::new(); for _ in 1..{n} {{ let (first, second) = {M}::choose::separate(g, Some(separator_{id}), asker.source, rest_{id})?; piles_{id}.push(first); rest_{id} = second; }} piles_{id}.push(rest_{id}); let choosers_{id}: Vec<PlayerId> = {choosers};").unwrap();
+                match self.piles_walk.clone() {
+                    Some(rows) => writeln!(out, "{rows}.push((separator_{id}, piles_{id}, None, choosers_{id}));").unwrap(),
+                    None => {
+                        writeln!(out, "let mut rows_{id}: Vec<(PlayerId, Vec<Vec<ObjectId>>, Option<usize>, Vec<PlayerId>)> = vec![(separator_{id}, piles_{id}, None, choosers_{id})];").unwrap();
+                        self.piles = Some(format!("rows_{id}"));
+                    }
+                }
+                self.pile_shape = (*n, !names.is_empty());
+            }
             Operation::Piles {
                 actor,
                 objects,
@@ -2106,6 +2179,42 @@ impl Compiler {
                     _ => return Err(gap(feature)),
                 };
                 writeln!(out, "if !(face_down_{piles}.is_empty() && face_up_{piles}.is_empty()) {{ {chooser} let (keep_{id}, _) = {M}::choose::face_down_or_face_up_pile(g, chooser_{id}, asker.source, face_down_{piles}, face_up_{piles}.clone())?; if keep_{id} == face_up_{piles} {{ g.return_to_hand_revealed(&keep_{id}); }} else {{ g.return_to_hand(&keep_{id}); }} }}").unwrap();
+            }
+            // "For each opponent, you choose one of their piles", "each player
+            // chooses one of their piles at random", "exile one of those piles": a
+            // pile of each row of the separators named. A face-down pile shows the
+            // chooser only how many cards it holds.
+            Operation::ChoosePile {
+                actor: PlayerSet::One(chooser),
+                from,
+                random,
+                names,
+                object: None,
+                then: then @ (None | Some(Destination::Exile)),
+            } if names.is_empty() && self.piles.is_some() => {
+                let rows = self.piles.clone().unwrap_or_default();
+                let chooser = self.fetch(self.certain_player(chooser)?);
+                let from = match from {
+                    Some(from) => format!("Some({})", self.fetch(self.players(from)?)),
+                    None => "None::<Vec<PlayerId>>".to_string(),
+                };
+                let (count, face_down) = self.pile_shape;
+                let pick = if *random {
+                    "g.choose_at_random(row.1.len())".to_string()
+                } else if face_down {
+                    format!("usize::from({M}::choose::one_of(g, chooser_{id}, asker.source, row.1.iter().map(|pile| Label::FaceDownPile {{ count: pile.len() as u16 }}).collect())?)")
+                } else if count == 2 {
+                    format!("{{ let (chosen, _) = {M}::choose::pile(g, chooser_{id}, asker.source, row.1[0].clone(), row.1[1].clone())?; usize::from(chosen != row.1[0]) }}")
+                } else {
+                    return Err(gap(feature));
+                };
+                let chooser = if *random { String::new() } else { format!("let chooser_{id} = {chooser}; ") };
+                writeln!(out, "{chooser}let from_{id} = {from}; let mut chosen_{id}: Vec<ObjectId> = Vec::new(); for row in {rows}.iter_mut() {{ if from_{id}.as_ref().is_some_and(|from| !from.contains(&row.0)) {{ continue; }} let at = {pick}; row.2 = Some(at); chosen_{id}.extend(row.1[at].iter().copied()); }}").unwrap();
+                if let Some(Destination::Exile) = then {
+                    writeln!(out, "let moved_{id} = g.exile_all(&chosen_{id});").unwrap();
+                    self.moved.insert(result.0, format!("moved_{id}"));
+                }
+                self.selections.insert(result.0, format!("chosen_{id}"));
             }
             Operation::ChoosePile {
                 actor,
@@ -2253,6 +2362,22 @@ impl Compiler {
                 .unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
                 self.values.insert(result.0, format!("bound_{id}"));
+            }
+            // "For each creature, its controller ... unless they pay {1}": each
+            // player in turn pays as many times as they like, up to that many (CR
+            // 118.12), and what they left unpaid is kept for the step that reads it.
+            Operation::PlayersPayRepeatedly {
+                players: PlayerSet::One(player),
+                cost,
+                at_most,
+            } if self.unpaid_rows.contains(&result.0)
+                && matches!(cost.parts.as_slice(), [CostPart::Mana(_)]) =>
+            {
+                self.helpers.insert("pay_question");
+                let player = self.fetch(self.certain_player(player)?);
+                let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
+                let one = self.cost(cost, super::lane_g::PAID)?;
+                writeln!(out, "let payer_{id} = {player}; let most_{id}: u16 = {most}; let paid_{id} = if most_{id} == 0 {{ 0 }} else {{ g.may_pay_times(payer_{id}, asker.source, asker.source, ({one}).mana, most_{id}, &PAY_QUESTION)? }}; unpaid_{}.extend(std::iter::repeat(payer_{id}).take(usize::from(most_{id}.saturating_sub(paid_{id}))));", result.0).unwrap();
             }
             Operation::PlayersPayRepeatedly {
                 players,
@@ -2542,11 +2667,25 @@ impl Compiler {
                     (None, None) => "None".to_string(),
                     (Some(_), Some(_)) => return Err(gap(feature)),
                 };
-                if *may_stop || *called {
+                // "Flip a coin until you lose a flip or choose to stop flipping":
+                // after each flip won, the flipper may stop (CR 705).
+                if *may_stop && *until_lost && !*called && times == "None" {
+                    let call = self.flip_call()?;
+                    writeln!(out, "let player_{id} = {player}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; loop {{ static ASK: Question = Question::new(\"Flip\", \"flip again?\", \"\", \"Flip\", \"Stop\"); flips_{id} += 1; if !g.{call}(player_{id}) {{ break; }} done_{id} += 1; if !{M}::effects::ask_may(g, player_{id}, asker.source, Purpose::Ask(&ASK))? {{ break; }} }}").unwrap();
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.coins = Some((
+                        format!("done_{id}"),
+                        format!("(i64::from(flips_{id}) - done_{id})"),
+                    ));
+                    return Ok(());
+                }
+                if *may_stop {
                     self.plan_code(&feature, &format!("{M}::coins::flips(g, {player}, {times}, {until_lost}, {may_stop}, {called})?"), out);
                     return Ok(());
                 }
-                let call = self.flip_call()?;
+                // A called flip is won or lost (CR 705.2), whatever its line says of
+                // heads or tails.
+                let call = if *called { "flip_coin" } else { self.flip_call()? };
                 writeln!(out, "let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.{call}(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
                 self.coins = Some((

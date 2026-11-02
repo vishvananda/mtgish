@@ -2197,13 +2197,17 @@ impl Compiler {
             }
             // What an instruction named did: the AST says which. One whose
             // `result` is empty leaves the instruction to be found, so stays a gap.
+            // "Put onto the battlefield by that player": of what entered, what
+            // entered under that player's control (Guild Feud).
             Expr::Earlier {
+                what,
                 measure,
                 result: Some(result),
                 filter,
-                by: None | Some(PlayerRef::AbilityController),
-                ..
-            } => {
+                by,
+            } if matches!(by, None | Some(PlayerRef::AbilityController))
+                || matches!(what, EarlierObjects::Entered) =>
+            {
                 let list = if self.selections.contains_key(&result.0) {
                     self.objects(&ObjectSet::Selected(result.clone()))?
                 } else {
@@ -2212,13 +2216,19 @@ impl Compiler {
                         phase: ObjectPhase::After,
                     })?
                 };
-                let keep = match filter {
+                let mut keep = match filter {
                     Some(filter) => format!(
                         ".filter(|&id| {})",
                         self.filter(filter, &Candidate::of("id"))?
                     ),
                     None => String::new(),
                 };
+                if let Some(by) = by.as_ref().filter(|by| !matches!(by, PlayerRef::AbilityController)) {
+                    let by = self.player(by)?;
+                    keep.push_str(&format!(
+                        ".filter(|&id| Some(q.state().obj(id).controller) == ({by}))"
+                    ));
+                }
                 let those = format!("({list}).into_iter(){keep}");
                 match measure {
                     ObjectMeasure::Count => counted(format!("{those}.count() as i64")),

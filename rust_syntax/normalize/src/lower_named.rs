@@ -535,7 +535,7 @@ impl Context {
             other => vec![scoped.bound_operand(other)?],
         };
         let mut operands = operands;
-        if let Some(result) = self.this_way_result(&name) {
+        if let Some(result) = self.this_way_result(&name, &operands) {
             operands.push(Operand::Result(result));
         }
         operands.extend(self.row_referent(&name));
@@ -1214,7 +1214,7 @@ impl Context {
     }
 
     /// The nearest instruction doing what a "this way" row reports.
-    fn this_way_result(&self, name: &str) -> Option<ResultId> {
+    fn this_way_result(&self, name: &str, operands: &[Operand]) -> Option<ResultId> {
         if !reads_last(name) {
             return None;
         }
@@ -1227,12 +1227,29 @@ impl Context {
             .iter()
             .find(|(row, _)| row.iter().any(|word| form.contains(word)))
             .map_or(&[][..], |(_, words)| *words);
-        self.reported
+        let mut candidates = self
+            .reported
             .iter()
             .rev()
             .filter(|(_, text)| !text.contains(form))
-            .find(|(_, text)| words.is_empty() || words.iter().any(|word| text.contains(word)))
-            .map(|(result, _)| result.clone())
+            .filter(|(_, text)| words.is_empty() || words.iter().any(|word| text.contains(word)));
+        // What a player put onto the battlefield is that player's move there,
+        // not a later move of the rest elsewhere (Guild Feud).
+        if form.contains("Battlefield") {
+            let onto: Vec<_> = candidates
+                .clone()
+                .filter(|(_, text)| text.contains("destination: Battlefield("))
+                .collect();
+            let by = operands.iter().find_map(|operand| match operand {
+                Operand::Player(player) => Some(format!("destination: Battlefield({player:?})")),
+                _ => None,
+            });
+            let theirs = by.and_then(|by| onto.iter().find(|(_, text)| text.contains(&by)));
+            if let Some((result, _)) = theirs.or(onto.first()) {
+                return Some(result.clone());
+            }
+        }
+        candidates.next().map(|(result, _)| result.clone())
     }
 
     fn named_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Instruction {
