@@ -2700,7 +2700,10 @@ impl Compiler {
                     None => "None".to_string(),
                 };
                 let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
-                self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, ZoneDestination::{}, &[{}]); }}", form(destination), entry.join(", ")), out);
+                // "Onto the battlefield under your control": the player is the
+                // destination's, as a move's is.
+                let destination = self.destination_code(destination)?;
+                self.plan_code(&feature, &format!("let destination = {destination}; if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, destination, &[{}]); }}", entry.join(", ")), out);
             }
             // "An opponent gains control": the controller picks one, unasked if
             // there is only one. The new controller keeps it (CR 611.2), or has it

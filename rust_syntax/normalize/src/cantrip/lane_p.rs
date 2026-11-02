@@ -2321,7 +2321,7 @@ impl Compiler {
         ))
     }
     /// Where a destination is, as code.
-    fn destination_code(&self, destination: &Destination) -> Result<String> {
+    pub(super) fn destination_code(&self, destination: &Destination) -> Result<String> {
         Ok(match destination {
             Destination::Battlefield(player) => {
                 format!(
