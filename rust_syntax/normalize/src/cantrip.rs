@@ -761,9 +761,14 @@ struct Compiler {
     lasting: Vec<String>,
     /// `CardDef::lasting_block_rules`.
     made_block_rules: Vec<String>,
+    /// `CardDef::lasting_object_rules`: rules a resolving effect gives an object
+    /// (`EffectKind::ObjectRule`) or a set (`LastingRuleKind::ObjectRule`), each
+    /// with what it waits on.
+    made_object_rules: Vec<(String, String)>,
     /// `CardDef::lasting_rules`: rules on open sets (CR 611.2c), each with
-    /// what it waits on where Cantrip has none.
-    made_lasting_rules: Vec<(String, String)>,
+    /// what it waits on where Cantrip has none and whether it is a rule beyond
+    /// those #897 has.
+    made_lasting_rules: Vec<(String, String, bool)>,
     /// Instructions that made an effect preventing damage: its amount comes later.
     prevented: BTreeSet<u32>,
     /// A resolving effect is on what its event is about.
@@ -1160,6 +1165,7 @@ impl Compiler {
             replaced_counter: None,
             lasting: Vec::new(),
             made_block_rules: Vec::new(),
+            made_object_rules: Vec::new(),
             made_lasting_rules: Vec::new(),
             prevented: BTreeSet::new(),
             rule_on_event_object: false,
@@ -2675,14 +2681,38 @@ fn emit_face(
     for made in std::mem::take(&mut c.made_block_rules) {
         parts.table("lasting_block_rules", made);
     }
+    // Each is a hole of the value that names it, whose gap is already the card's.
+    for (feature, made) in std::mem::take(&mut c.made_object_rules) {
+        match planned::landed(&feature) {
+            true => parts.table("lasting_object_rules", made),
+            false => writeln!(
+                c.holes,
+                "planned_item!({:?} => lasting_object_rules: {made});",
+                planned::requirement(&feature)
+            )
+            .unwrap(),
+        }
+    }
     // A field can't be a hole, so the table is an item of its own in both forms.
+    // A rule beyond #897's keeps the whole table a hole of its own: one entry of
+    // a static can't be.
     let lasting_rules = std::mem::take(&mut c.made_lasting_rules);
-    if let Some((feature, _)) = lasting_rules.first() {
-        let entries: Vec<&str> = lasting_rules.iter().map(|(_, rule)| rule.as_str()).collect();
+    if let Some((feature, _, _)) = lasting_rules.first() {
+        let entries: Vec<&str> = lasting_rules.iter().map(|(_, rule, _)| rule.as_str()).collect();
         let table = format!("static LASTING_RULES: &[LastingRule] = &[{}];", entries.join(","));
-        writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
-        if planned::switched_on(planned::LASTING_RULES) {
-            parts.field("lasting_rules", "LASTING_RULES".to_string());
+        match lasting_rules.iter().find(|(_, _, beyond)| *beyond) {
+            Some((beyond, _, _)) => writeln!(
+                c.functions,
+                "planned_item!({:?} => {table});",
+                planned::requirement(beyond)
+            )
+            .unwrap(),
+            None => {
+                writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
+                if planned::switched_on(planned::LASTING_RULES) {
+                    parts.field("lasting_rules", "LASTING_RULES".to_string());
+                }
+            }
         }
     }
     for made in std::mem::take(&mut c.made_cost_changes) {
