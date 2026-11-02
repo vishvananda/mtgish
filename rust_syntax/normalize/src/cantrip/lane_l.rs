@@ -416,10 +416,39 @@ impl Compiler {
         writeln!(out, "let paid_{id} = !{}.is_empty();", self.moved(result)?).unwrap();
         Ok(())
     }
+    /// Whether what comes later asks which objects paid, not only how much.
+    pub(super) fn reads_paid_objects(&self, result: &ResultId) -> bool {
+        let mark = format!("CostObjects {{ payment: Resolution(ResultId({}))", result.0);
+        self.after.iter().any(|i| format!("{i:?}").contains(&mark))
+    }
+    /// The discard of a cost whose other parts are mana, if later instructions ask
+    /// for what it took: `may_pay` doesn't say, its records do. The whole is paid
+    /// after the mana is made (CR 601.2g-h), so a discard a mana ability cost comes
+    /// earlier than the last ones.
+    pub(super) fn paid_discard(&self, cost: &Cost, result: &ResultId) -> Option<u32> {
+        let mut parts = cost.parts.iter().filter(|p| !matches!(p, CostPart::Mana(_)));
+        match (parts.next(), parts.next()) {
+            (
+                Some(CostPart::Discard {
+                    count: Expr::Constant(n),
+                    random: false,
+                    ..
+                }),
+                None,
+            ) if self.reads_paid_objects(result) => u32::try_from(*n).ok(),
+            _ => None,
+        }
+    }
+    /// The cards `paid_discard` found, from the records since `mark_{id}`.
+    pub(super) fn discards_paid(&mut self, id: usize, n: u32, result: &ResultId, out: &mut String) {
+        writeln!(out, "let paid_objects_{id}: Vec<ObjectId> = if paid_{id} {{ let q: &dyn Query = g; let mut cards: Vec<ObjectId> = q.history().all()[mark_{id}..].iter().rev().filter_map(|r: &Record| match r.event {{ Event::Discarded {{ card, .. }} => Some(card), _ => None }}).take({n}).collect(); cards.reverse(); cards }} else {{ Vec::new() }};").unwrap();
+        self.moved.insert(result.0, format!("paid_objects_{id}"));
+        self.before
+            .insert(result.0, format!("paid_objects_{id}.clone()"));
+    }
     /// "Those that paid", where `may_pay` paid them: it does not say which.
     pub(super) fn objects_that_paid(&mut self, id: usize, result: &ResultId, out: &mut String) {
-        let mark = format!("Resolution(ResultId({}))", result.0);
-        if !self.after.iter().any(|i| format!("{i:?}").contains(&mark)) {
+        if !self.reads_paid_objects(result) {
             return;
         }
         let paid = planned::planned_value(

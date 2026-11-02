@@ -1317,6 +1317,10 @@ impl Compiler {
         }
         tests.push(match source_kind {
             ObjectKind::Any => "true".to_string(),
+            // Asked afterwards: not a spell, and not a card in another zone either.
+            ObjectKind::Permanent if self.history.is_some() => {
+                "q.state().obj(source).zone.is(ZoneKind::Battlefield)".to_string()
+            }
             ObjectKind::Permanent => "!q.state().obj(source).zone.is(ZoneKind::Stack)".to_string(),
             // A spell deals its damage as it resolves, still on the stack.
             ObjectKind::Spell if self.history.is_none() => {

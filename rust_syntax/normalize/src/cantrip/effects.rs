@@ -1958,10 +1958,25 @@ impl Compiler {
                 cost,
                 optional: true,
             } => {
+                // The source's words "up to", which the instruction doesn't have.
+                let words = "discard up to";
+                if (lane_k::printed_otherwise(self.line_text(), words)
+                    || self.chapters.values().any(|chapter| chapter.contains(words)))
+                    && matches!(cost.parts.as_slice(), [CostPart::Discard { .. }])
+                {
+                    return Err(gap("discard of up to a number read as exactly that number"));
+                }
+                let discard = self.paid_discard(cost, result);
+                if discard.is_some() {
+                    writeln!(out, "let mark_{id} = {{ let q: &dyn Query = g; q.history().all().len() }};").unwrap();
+                }
                 let asked = self.ask_to_pay(id, player, cost)?;
                 writeln!(out, "{asked}").unwrap();
                 self.performed.insert(result.0, format!("paid_{id}"));
-                self.objects_that_paid(id, result, out);
+                match discard {
+                    Some(n) => self.discards_paid(id, n, result, out),
+                    None => self.objects_that_paid(id, result, out),
+                }
             }
             Operation::PayCost {
                 player,
@@ -2162,8 +2177,15 @@ impl Compiler {
         if let (true, Some(n)) = (optional, lane_k::blights(player, body)) {
             self.helpers.insert("pay_question");
             let payer = self.fetch(self.certain_player(player)?);
-            writeln!(out, "let payer_{id} = {payer}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, cantrip_mechanics::blight::cost({n}), &PAY_QUESTION)?;").unwrap();
             self.performed.insert(result.0, format!("paid_{id}"));
+            // "The blighted creature": the effect says which.
+            if self.reads_paid_objects(result) {
+                writeln!(out, "let payer_{id} = {payer}; let blighted_{id}: Vec<ObjectId> = cantrip_mechanics::blight::may_in_effect(g, payer_{id}, asker.source, {n}, &PAY_QUESTION)?.into_iter().collect(); let paid_{id} = !blighted_{id}.is_empty();").unwrap();
+                self.moved.insert(result.0, format!("blighted_{id}"));
+                self.before.insert(result.0, format!("blighted_{id}.clone()"));
+                return Ok(());
+            }
+            writeln!(out, "let payer_{id} = {payer}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, cantrip_mechanics::blight::cost({n}), &PAY_QUESTION)?;").unwrap();
             self.objects_that_paid(id, result, out);
             return Ok(());
         }

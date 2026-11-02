@@ -821,7 +821,7 @@ impl Compiler {
                     frame: self.frame,
                 });
                 let matched = asked.event(event)?;
-                held_objects(&feature, &format!("{scope}.filter_map({}).filter_map(|f: Fired| f.subject.object()).collect::<Vec<ObjectId>>()", matched.history_test()))
+                format!("{scope}.filter_map({}).filter_map(|f: Fired| f.subject.object()).collect::<Vec<ObjectId>>()", matched.history_test())
             }
             other => return self.objects_stated(other),
         })
@@ -924,13 +924,11 @@ impl Compiler {
                     counter_kind(kind)?
                 ),
             ),
-            Expr::DamageBy(object) => held_number(
-                feature,
-                &format!(
-                    "{}.map_or(0i64, |o: ObjectId| q.history().damage_by(o))",
-                    self.object(object)?
-                ),
-            ),
+            // The damage it dealt this turn: nothing is asked of an earlier turn.
+            Expr::DamageBy(object) => counted(format!(
+                "{}.map_or(0i64, |o: ObjectId| q.history().this_turn().iter().map(|r| match r.event {{ Event::Damage {{ source, amount, .. }} if source == o => i64::from(amount), _ => 0 }}).sum::<i64>())",
+                self.object(object)?
+            )),
             Expr::ManaOf { mana, filter } => {
                 let colors = match &filter.colors {
                     Some(colors) => format!("Some(&[{}])", colors_code(colors)?),
