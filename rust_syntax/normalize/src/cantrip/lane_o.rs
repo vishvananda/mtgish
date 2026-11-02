@@ -1995,6 +1995,20 @@ impl Compiler {
                 let player = self.player(player)?;
                 L::of("Control", planned(format!("chars.controller = {player}")))
             }
+            Change::ChosenAbility if !self.ability_sets.is_empty() && self.reader == Reader::Layer => {
+                let mut arms = Vec::new();
+                for (i, set) in self.ability_sets.iter().enumerate() {
+                    let words = set
+                        .iter()
+                        .map(|&k| match &self.ability_choice[k] {
+                            Ability::Keyword(word) => keyword(word),
+                            other => Err(gap(format!("the ability {}", form(other)))),
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    arms.push(format!("Some({i}) => Keywords::of(&[{}]),", words.join(", ")));
+                }
+                L::of("Ability", format!("let kept = match q.state().chosen_option(q.linked_to(asker.source)).filter(|c| std::ptr::eq(q.cards().get(c.card), &CARD)).map(|c| c.index) {{ {} _ => Keywords::NONE }}; chars.keywords = Keywords(chars.keywords.0 | kept.0);", arms.join(" ")))
+            }
             Change::ChosenAbility => {
                 let kept = self.chosen_keywords()?;
                 L::of("Ability", planned(format!("chars.keywords = chars.keywords.with_all({kept})")))

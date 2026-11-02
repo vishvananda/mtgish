@@ -1165,6 +1165,23 @@ impl Compiler {
                         Err(_) => self.choose_value_terms(id, actor, *kind, terms, out)?,
                     }
                 }
+                ChoiceTerms {
+                    options,
+                    except,
+                    count: Some(Expr::Constant(k)),
+                    secret: false,
+                    unchosen: false,
+                    random: false,
+                    ordered: false,
+                    up_to: false,
+                } if *kind == ValueKind::Ability
+                    && except.is_empty()
+                    && self.pending == Pending::Entering
+                    && *k > 1
+                    && (*k as usize) < options.len() =>
+                {
+                    self.abilities_as_enters(*k as usize, options, out)?
+                }
                 terms => {
                     self.choose_value_terms(id, actor, *kind, terms, out)?;
                     self.chosen_number_performed(*kind, result);
@@ -3203,6 +3220,46 @@ impl Compiler {
             }
         }
         Ok((least, most))
+    }
+    /// "As this enters, choose two abilities from among first strike, vigilance,
+    /// and lifelink" (Greymond): choosing `k` of them is choosing one set of `k`,
+    /// each set one of the card's words (CR 607.2f), kept as `chosen_option`.
+    fn abilities_as_enters(&mut self, k: usize, options: &[Operand], out: &mut String) -> Result<()> {
+        let failure = || gap("a choice of several abilities as it enters");
+        if self.entering_labels.is_some() || !self.choice_labels.is_empty() {
+            return Err(failure());
+        }
+        let mut abilities = Vec::new();
+        let mut names = Vec::new();
+        for option in options {
+            let Operand::Ability(ability) = option else { return Err(failure()) };
+            let Ability::Keyword(word) = &**ability else { return Err(failure()) };
+            keyword(word)?;
+            names.push(super::lane_h::keyword_words(word).ok_or_else(failure)?);
+            abilities.push((**ability).clone());
+        }
+        let mut sets: Vec<Vec<usize>> = vec![Vec::new()];
+        for _ in 0..k {
+            sets = sets
+                .into_iter()
+                .flat_map(|set| {
+                    let from = set.last().map_or(0, |&i| i + 1);
+                    (from..abilities.len()).map(move |i| [set.clone(), vec![i]].concat())
+                })
+                .collect();
+        }
+        let labels: Vec<String> = sets
+            .iter()
+            .map(|set| {
+                let words: Vec<&str> = set.iter().map(|&i| names[i].as_str()).collect();
+                quoted(&words.join(" and "))
+            })
+            .collect();
+        self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+        writeln!(out, "{M}::choose::option_as_enters(g, entering, &CARD, 0..{})?;", sets.len()).unwrap();
+        self.ability_choice = abilities;
+        self.ability_sets = sets;
+        Ok(())
     }
     /// What `choose_value` has no arm of its own for.
     #[allow(clippy::too_many_arguments)]
