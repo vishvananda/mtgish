@@ -62,7 +62,8 @@ blockers, decline, first eligible card, find nothing, discard newest. So a line 
 - A `? Key = Value` is checked at the next question after the line above it. Right after a cast the spell is still on the stack.
 - A trigger's target is asked as the trigger goes on the stack: `Bot1.Target(Bot2.Battlefield.Island)`.
 - A cast waits until every named target is legal. A spell with no legal target is not offered.
-- A line that cannot happen within 4 turns fails. `Outstanding: ... asked PayCosts` means the mana came up short.
+- A line that cannot happen within 4 turns fails. `Outstanding: ... asked PayCosts` means the mana came up short. A cast that never
+  becomes possible is often forbidden by the card itself (a second Mox under Cornered Market): set the board up before it enters.
 - A script stops when every line has fired and the stack is empty. It does not reach combat or the next turn unless a trailing
   wait (`[T3 Bot1.Main2]`) says so.
 - Bots with nothing to do draw and discard each turn, which changes `Hand.Count` and `Graveyard`.
@@ -79,6 +80,8 @@ blockers, decline, first eligible card, find nothing, discard newest. So a line 
 | `Bot1.Battlefield.Tundra.Activate(Ability: {U})` | one of several abilities, by part of its text; `Ability: #2` the Nth |
 | `Bot1.Battlefield.Cathar Commando.Activate(Bot2.Battlefield.Sol Ring)` | arguments are targets |
 | `Bot1.Battlefield.Black Lotus.Activate(Color: Blue)` | mana of any one color |
+| `Bot1.Battlefield.Mox Ruby#1.Activate` then `Bot1.Hand.Shock.Cast(Bot2)` | a cost paid from the source you choose: tap it on the line right before the cast, in the same step. Only the Moxen and Black Lotus cost {0}: Sol Ring costs {1}, and a land that enters tapped pays nothing that turn. `paying for X with {1} still owed, and the next line does not pay it` means the sources tapped come short |
+| `? Bot1.Mana =` right after the cast | the pool once the cost is paid, empty if it was paid exactly. Tap exactly the cost, in one color where the cost lets you choose: four `{R}` for `{2}{R/G}{R/G}`, not `{R}{R}{R}{G}`. A pool that can pay it more than one way is asked which mana pays, and the `?` reads the pool before that answer, all of it still there |
 | `Bot1.Battlefield.Smuggler's Copter.Activate(Ability: Crew)` then `Bot1.Choose(Grizzly Bears)` | crew, and the creatures that tap for it |
 | `Bot1.Pass` · `Bot1.Accept` · `Bot1.Decline` · `Bot1.PayCost` | priority, "you may", unless-costs (default: decline) |
 | `Bot1.Target(Sol Ring)` · `Bot1.Target(Island; Mountain)` · `Bot1.Target()` | a trigger's or mode's targets; none for "up to" |

@@ -852,7 +852,7 @@ def expectation_problem(pair, label):
     return f"{label}: {path.name}:{number} is no expectation: {line[:80]}"
 
 
-def report_problems(name, points, looks, survivors):
+def report_problems(name, points, looks, survivors, ran=None):
     """The worker's report against what the tools found: every test point paired with a line that can catch it, and each
     ruling it pairs with a scenario paired with a line there. A ruling the card's own code does not decide is owed nothing:
     Cantrip's add-cards skill retests no corner case the engine or a shared mechanic handles for every card."""
@@ -890,10 +890,67 @@ def report_problems(name, points, looks, survivors):
         if key not in answers:
             problems.append(f"unanswered in look_answers (name `{key}`): {look[:140]}")
     declared = " ".join(str(m) for m in report.get("equivalent_mutants") or [])
-    for key, change in survivors:
-        if key not in declared:
-            problems.append(f"mutant survived, so an expectation is missing, or name `{key}` in equivalent_mutants: {change}")
+    alive = [s for s in survivors if s["key"] not in declared]
+    if alive:
+        path = card_file(name)
+        source = path.read_text(encoding="utf-8") if path.exists() else ""
+        problems.append(survivor_text(source, alive, printed_lines(oracle_text), points, ran))
     return problems
+
+
+def survivor_text(source, survivors, printed, points, ran=None):
+    """The changes no scenario caught, by the line they change: its code, the printed line and test points it answers to,
+    and the scenarios that ran it. Then what to do, once. `ran` is {scenario: the lines it ran} of the instrumented ones."""
+    lines, out, groups, shown = source.split("\n"), ["Each change below leaves every scenario passing."], {}, None
+    for each in survivors:
+        groups.setdefault(each.get("line"), []).append(each)
+    for number, group in groups.items():
+        out.append("")
+        if number is None:  # a keyword taken off the card
+            out += [f"`{each['key']}`: {each['detail']}" for each in group]
+            continue
+        out.append(f"line {number}: {lines[number - 1].strip() if number <= len(lines) else ''}")
+        which = printed_line_of(lines, number, printed)
+        if which and which == shown:
+            out.append(f"  printed line {which}, as above")
+        elif which:
+            shown = which
+            tested = [i for i, point in enumerate(points, 1) if point.startswith(f"[{which}]")]
+            out.append(f"  printed line {which}: {printed[which - 1][:110]}" + (f" (test points {', '.join(map(str, tested))})" if tested else ""))
+        if ran and any(number in hit for hit in ran.values()):
+            out.append("  ran in: " + ", ".join(sorted(s.removesuffix(".cantrip") for s, hit in ran.items() if number in hit)))
+        out += [f"  `{each['key']}`, now: {each.get('now', '').strip()}" for each in group]
+    named = "`equivalent`" if BATCH else "`equivalent_mutants`"
+    out += ["", f"Add an expectation that fails under each change. Only if no game could tell, name its key in {named} with why "
+                f"(`find` lists Cantrip's cards by type, subtype, keyword or text, to build the game that tells)."]
+    return "\n".join(out)
+
+
+ITEM = re.compile(r"(?:pub(?:\([^)]*\))? )?(?:fn|static|const) ")
+
+
+def printed_line_of(lines, number, printed):
+    """Which printed line (counted from 1) the code at `lines[number - 1]` implements, or None: the printed text of the call
+    it is in, else the Oracle sentence its item's doc comment quotes. A quote of several lines names none of them."""
+    start = next((i for i in range(min(number, len(lines)) - 1, -1, -1) if ITEM.match(lines[i])), None)
+    if start is None:
+        return None
+    end = next((i for i in range(start + 1, len(lines)) if ITEM.match(lines[i]) or lines[i].startswith("///")), len(lines))
+    doc = []
+    for i in range(start - 1, -1, -1):
+        if not lines[i].startswith(("///", "#[")):
+            break
+        doc.insert(0, lines[i])
+    candidates = re.findall(r'"((?:[^"\\]|\\.)+)"', "\n".join(lines[number - 1:end])) + re.findall(r'"([^"]+)"', "\n".join(doc))
+    flat = [plain(line).lower().rstrip(".") for line in printed]
+    for candidate in candidates:
+        said = plain(candidate.replace('\\"', '"')).lower().rstrip(".")
+        if len(said) < 6:
+            continue
+        found = [k for k, line in enumerate(flat, 1) if said in line or line in said]
+        if len(found) == 1:
+            return found[0]
+    return None
 
 
 def line_hits(lcov, source_path):
@@ -910,11 +967,12 @@ def line_hits(lcov, source_path):
 
 def scenario_liveness(name):
     """Scenarios that execute none of the card's own lines. card-coverage.py judges the card's scenarios together, so one
-    that plays nothing of the card hides among them. Run after card-coverage.py, on the instrumented corpus it built."""
+    that plays nothing of the card hides among them. Run after card-coverage.py, on the instrumented corpus it built.
+    (those scenarios, every instrumented line's count over them all, {scenario: the lines it ran})."""
     path = card_file(name)
     source = path.read_text(encoding="utf-8") if path.exists() else ""
     has_code = bool(re.search(r"\bfn\s+\w+\s*\(|\|g, item\|", source))
-    dead, seen = [], {}
+    dead, seen, ran = [], {}, {}
     corpus = TARGET / "llvm-cov-target" / "cards" / "corpus"
     hits = {}
     for scenario in card_scenarios(name):
@@ -937,14 +995,73 @@ def scenario_liveness(name):
             lines = line_hits(lcov, path)
             for number, count in lines.items():
                 hits[number] = hits.get(number, 0) + count
-            seen[scenario.name] = sum(1 for count in lines.values() if count)
+            ran[scenario.name] = {number for number, count in lines.items() if count}
+            seen[scenario.name] = len(ran[scenario.name])
             if seen[scenario.name] == 0:
                 dead.append(f"{scenario.name}: executed no line of {path.name}")
-    return dead, hits
+    return dead, hits, ran
 
 
 def env_tool(name):
     return environment()[name]
+
+
+def never_ran(lines, number):
+    """A line no scenario ran, as the coverage gate says it. A closing brace or an `else` says nothing alone, so the line
+    that opens its block comes with it: that names the branch no scenario took."""
+    text = lines[number - 1].strip()
+    out = f"line {number} never ran: {text}"
+    if re.fullmatch(r"[})\]]+[;,]?|\}?\s*else\s*\{?", text):
+        opener = block_opener(lines, number)
+        if opener:
+            out += f" (the block of line {opener}: {lines[opener - 1].strip()})"
+    return out
+
+
+def block_opener(lines, number):
+    """The line (counted from 1) that opens the block the `}` at the start of `lines[number - 1]` closes, or that the
+    `else` there continues. A line that only continues a statement (`} {`, a lone `{`, `&& x(`) is followed back to
+    the line the statement starts on. None if the braces do not match."""
+    def code(line):
+        return re.sub(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)\'|//.*', "", line)
+
+    text = code(lines[number - 1])
+    row, column = number - 1, text.find("}")
+    if column < 0:  # `else {` alone: the brace that closed the `if` is on a line above
+        row = next((i for i in range(number - 2, -1, -1) if "}" in code(lines[i])), None)
+        if row is None:
+            return None
+        column = code(lines[row]).rfind("}")
+    for _ in range(50):
+        depth, found = 0, None
+        for i in range(row, -1, -1):
+            line = code(lines[i])
+            for j in range(column if i == row else len(line) - 1, -1, -1):
+                if line[j] in "})]":
+                    depth += 1
+                elif line[j] in "{([":
+                    depth -= 1
+                    if depth == 0:
+                        found = i
+                        break
+            if found is not None:
+                break
+        if found is None:
+            return None
+        start = code(lines[found]).strip()
+        if start and start[0] in "})]":  # `} {`, `)? {`: the statement started above
+            row, column = found, code(lines[found]).find(start[0])
+        elif not start or start == "{" or start.startswith(("&&", "||", ".", "?")):
+            row = next((i for i in range(found - 1, -1, -1) if code(lines[i]).strip()), None)
+            if row is None:
+                return found + 1
+            line = code(lines[row]).rstrip().rstrip("?")
+            if not line or line[-1] not in "})]":
+                return row + 1
+            column = len(line) - 1
+        else:
+            return found + 1
+    return None
 
 
 def costs_mana(name):
@@ -969,7 +1086,7 @@ def check(name, fast=False):
         return finish(gates)
 
     started = time.time()
-    dead, _ = scenario_liveness(name)
+    dead, _, context["ran"] = scenario_liveness(name)
     gates.add("liveness", not dead, "\n".join(dead), started)
 
     survivors = mutation_gates([name], {name: gates}).get(name, []) if not fast else []
@@ -1057,8 +1174,23 @@ def report_gate(gates, name, context, survivors):
         # to a report it has finished.
         problems = [f"the worker reported {report.get('decision')}: {report.get('reason', '')}"]
     else:
-        problems = report_problems(name, context["points"], report_looks(name, context), survivors)
+        name_known_equivalents(name, report, survivors)
+        problems = report_problems(name, context["points"], report_looks(name, context), survivors, context.get("ran"))
     gates.add("report", not problems, "\n".join(problems), started)
+
+
+def name_known_equivalents(name, report, survivors):
+    """Puts in the card's report each surviving change the lane knows means the same, with its reason, so it costs the
+    worker nothing and a reviewer still reads it. Each submit writes the report again from the worker's, so the lane's
+    entries are put back each time; a key the worker named already is left to it."""
+    if not report or not (card_dir(name) / "report.json").exists():
+        return
+    entries = [e for e in report.get("equivalent_mutants") or [] if not (isinstance(e, dict) and e.get("by") == "lane")]
+    declared = " ".join(str(e) for e in entries)
+    entries += [{"mutant": s["key"], "why": why, "by": "lane"} for s in survivors if (why := known_equivalent(s)) and s["key"] not in declared]
+    if entries != (report.get("equivalent_mutants") or []):
+        report["equivalent_mutants"] = entries
+        (card_dir(name) / "report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 BUILT = {}  # what the batch's one build printed: its warnings are the warnings gate's
@@ -1717,6 +1849,8 @@ Tools, from the working directory:
 - `{lane} current`: the open card again, if you lose it.
 - `{lane} batch-check --fast --card "NAME"`: the open card's scenarios and report, without breaking it. Quicker while you work.
 - `{lane} corpus --file PATH --brief`: one scenario. Add `--dump`, `--diff N` or `--next` to see what it can see.
+- `{lane} find --subtype Gamma --without Villain`: Cantrip's cards by `--type`, `--subtype`, `--keyword` and `--text`. Before
+  you call a surviving change unreachable, look for the card whose game would tell.
 - `{lane} tool find-cards.py ...`, `{lane} tool cr.py 603.6a`.
 
 For each card, write what it owes: every printed line, test point, ruling and keyword. Play its scenarios, put its entry in
@@ -1910,13 +2044,13 @@ def coverage_gates(names, gates, contexts):
 
     def one(name):
         started = time.time()
-        dead, hits = scenario_liveness(name)
+        dead, hits, contexts[name]["ran"] = scenario_liveness(name)
         source = contexts[name]["source"]
         exempt = measure.const_fn_lines(source.splitlines())
         missed = sorted(n for n, count in hits.items() if not count and n not in exempt)
         empty = bool(source) and not hits and re.search(r"\bfn\s+\w+\s*\(", source)
         lines = source.splitlines()
-        detail = "no instrumented line ran" if empty else "\n".join(f"line {n} never ran: {lines[n - 1].strip()}" for n in missed)
+        detail = "no instrumented line ran" if empty else "\n".join(never_ran(lines, n) for n in missed)
         gates[name].add("coverage", not missed and not empty, detail)
         gates[name].results[-1]["seconds"] = round(spent, 1)
         gates[name].add("liveness", not dead, "\n".join(dead), started)
@@ -1972,10 +2106,11 @@ def changes_of(name, mutate):
     path = card_file(name)
     if path.exists():
         lines = path.read_text(encoding="utf-8").split("\n")
-        found = mutate.mutants(lines, set(range(1, len(lines) + 1)))
+        found = [(n, what, new) for n, what, new in mutate.mutants(lines, set(range(1, len(lines) + 1))) if not invalid_range(lines[n - 1], new)]
         total = len(found)
-        out += [{"path": path, "key": f"line {n}: {what}", "text": "\n".join(lines[:n - 1] + [new] + lines[n:]),
-                 "detail": f"{path.name}:{n}: {what}, was: {lines[n - 1].strip()} now: {new.strip()}"} for n, what, new in found[:MUTATION_LIMIT]]
+        out += [{"path": path, "key": f"line {n}: {what}", "text": "\n".join(lines[:n - 1] + [new] + lines[n:]), "line": n, "what": what,
+                 "was": lines[n - 1], "now": new, "detail": f"{path.name}:{n}: {what}, was: {lines[n - 1].strip()} now: {new.strip()}"}
+                for n, what, new in found[:MUTATION_LIMIT]]
     words = json.loads(content_file(name).read_text(encoding="utf-8-sig")).get("keywords") or []
     source = path.read_text(encoding="utf-8") if path.exists() else None
     core = set(core_keywords().values())
@@ -1991,6 +2126,36 @@ def toxic_of(keyword):
     """The N of "Toxic N", or 0."""
     found = re.fullmatch(r"Toxic (\d+)", keyword)
     return int(found[1]) if found else 0
+
+
+RANGE = re.compile(r"\.(?:choose|between)\((\d+),\s*(\d+)\)|\bmin:\s*(\d+),\s*max:\s*(\d+)")
+
+
+def invalid_range(was, now):
+    """Whether a change makes a (least, most) pair have its least above its most, as `.choose(2, 2)` to `.choose(2, 1)`. No
+    card has such a range and no game can be played under one, so it is no change to judge, and card-mutate's other change
+    of the pair (`.choose(1, 2)`) shares its key: naming one equivalent would pass the other."""
+    def bad(line):
+        return any(int(a or c) > int(b or d) for a, b, c, d in RANGE.findall(line))
+    return bad(now) and not bad(was)
+
+
+END_SENTENCE = ("Means the same for this card: g.end_sentence() only has the state triggers judge the game between two sentences "
+                "(CR 603.8, 608.2c). Only a state trigger watching that moment could tell it was left out, and that is the engine's "
+                "sentence rule, tested where it was built. Named by the lane.")
+
+
+def known_equivalent(survivor):
+    """The lane's own reason a surviving change means the same, or None. A sentence's end left out is the one such change:
+    every model spent a submit arguing it away, and the reason is always the same."""
+    if survivor.get("what") == "statement left out" and survivor.get("was", "").strip() == "g.end_sentence();":
+        return END_SENTENCE
+    return None
+
+
+def survivor(change):
+    """What a report needs of a change that no scenario caught."""
+    return {k: change[k] for k in ("key", "detail", "line", "what", "was", "now") if k in change}
 
 
 def without_keyword(name, source, kept, core):
@@ -2169,7 +2334,7 @@ def break_cards(names, gates, bench):
             kept += 1
             plan["log"].append(f"{change['key']}: {verdict}, as before")
             if verdict == "SURVIVED":
-                plan["survivors"].append((change["key"], change["detail"]))
+                plan["survivors"].append(survivor(change))
         plans[name] = plan
     builds = 0
 
@@ -2211,7 +2376,7 @@ def break_cards(names, gates, bench):
                 plan["log"].append(f"{change['key']}: {'caught' if code else 'SURVIVED'}")
                 remember(plan, change, "caught" if code else "SURVIVED", by)
                 if code == 0:
-                    plan["survivors"].append((change["key"], change["detail"]))
+                    plan["survivors"].append(survivor(change))
                 restore(plan)
                 plan["next"] += 1
     finally:
@@ -2568,6 +2733,46 @@ def cmd_rows(args):
     print(f"rows written in {time.time() - started:.0f}s")
 
 
+def pool(cantrip=None):
+    """Every card Cantrip has, as content/ holds it: what a scenario can put in a deck. A card of the open batch is not in
+    it: it may not land with the card it would test."""
+    root = Path(cantrip or CANTRIP)
+    opened = BATCH_DIR / "open.json"
+    batch = set(BATCH) | (set(json.loads(opened.read_text(encoding="utf-8"))) if opened.exists() else set())
+    for path in root.glob("content/*/cards/*.json"):
+        try:
+            card = json.loads(path.read_text(encoding="utf-8-sig"))
+        except ValueError:
+            continue
+        if isinstance(card, dict) and card.get("name") and card["name"] not in batch:
+            yield card
+
+
+def finds(card, types=(), subtypes=(), keywords=(), texts=(), without=()):
+    """Whether a card is each of these: a word of its type line, a subtype (after the dash), a keyword it has, words of its
+    Oracle text; and none of `without`, a word of its type line or a keyword."""
+    line = card.get("type", "")
+    words = set(re.findall(r"[\w'-]+", line.lower()))
+    subs = set(re.findall(r"[\w'-]+", line.split("—", 1)[1].lower())) if "—" in line else set()
+    held = {re.sub(r"(?<!^)(?=[A-Z])", " ", k).lower() for k in card.get("keywords") or []} | {str(k).lower() for k in card.get("keywords") or []}
+    text = plain(re.sub(r"\([^)]*\)", "", card.get("oracleText", ""))).lower()  # reminder text is no rule (CR 207.2)
+
+    return (all(t.lower() in words for t in types) and all(s.lower() in subs for s in subtypes)
+            and all(k.lower() in held for k in keywords) and all(t.lower() in text for t in texts) and not any(w.lower() in words | held for w in without))
+
+
+def cmd_find(args):
+    """Cantrip's cards that are what a scenario needs, the plainest first: a Gamma that is no Villain, a 2/2 with flying."""
+    found = [c for c in pool(args.cantrip) if finds(c, args.type, args.subtype, args.keyword, args.text, args.without)]
+    found.sort(key=lambda c: (len(re.sub(r"\([^)]*\)", "", c.get("oracleText", ""))), c["name"]))
+    for card in found[:args.n]:
+        stats = f" {card['power']}/{card['toughness']}" if "power" in card else ""
+        text = re.sub(r"\s+", " ", re.sub(r"\([^)]*\)", "", card.get("oracleText", ""))).strip()
+        print(f"{card['name']}  {card.get('manaCost', '')}  {card.get('type', '')}{stats}" + (f"  - {text[:90]}" if text else ""))
+    print("none" if not found else f"{len(found)} found" + (f", {len(found) - args.n} more (-n)" if len(found) > args.n else ""))
+    return 0
+
+
 def cmd_corpus(flags):
     """Cantrip's corpus runner on this tree and this target directory, with any of its flags."""
     flags = flags[1:] if flags[:1] == ["--"] else flags
@@ -2658,6 +2863,15 @@ def main():
     p.set_defaults(func=cmd_submit)
     p = sub.add_parser("current", help="a stream's open card")
     p.set_defaults(func=cmd_current)
+    p = sub.add_parser("find", help="Cantrip's cards by type, subtype, keyword or text, for a scenario's board")
+    p.add_argument("--type", action="append", default=[], help="a word of the type line: creature, legendary, Elf")
+    p.add_argument("--subtype", action="append", default=[], help="a word after the dash: Gamma, Equipment")
+    p.add_argument("--keyword", action="append", default=[], help="a keyword it has: flying, first strike")
+    p.add_argument("--text", action="append", default=[], help="words of its Oracle text")
+    p.add_argument("--without", action="append", default=[], help="no such word in its type line or keywords: --subtype Gamma --without Villain")
+    p.add_argument("-n", type=int, default=15)
+    p.add_argument("--cantrip", help="another Cantrip tree than the lane's")
+    p.set_defaults(func=cmd_find)
     p = sub.add_parser("batch-check", help="the gates over the open batch, or one of its cards")
     p.add_argument("--fast", action="store_true")
     p.add_argument("--card")
