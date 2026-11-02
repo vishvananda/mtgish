@@ -2562,17 +2562,22 @@ impl Compiler {
         if !entry.counters.is_empty() {
             return Err(gap("cost that moves with counters"));
         }
+        // An `Arrival` as a move's (lane_p's `arrival_code`): face down is one of
+        // its states.
         let mut states = Vec::new();
+        if face_down {
+            states.push("ArrivalState::FaceDown".to_string());
+        }
         for state in &entry.states {
             match state {
                 EntryState::ExilePile { shuffled } => {
-                    states.push(format!("EntryState::ExilePile {{ shuffled: {shuffled} }}"))
+                    states.push(format!("ArrivalState::ExilePile {{ shuffled: {shuffled} }}"))
                 }
                 other => return Err(gap(format!("cost that moves into {}", form(other)))),
             }
         }
         Ok(format!(
-            "Arrival {{ tapped: {}, face_down: {face_down}, states: &[{}] }}",
+            "Arrival {{ tapped: {}, counters: &[], states: &[{}] }}",
             entry.tapped,
             states.join(", ")
         ))

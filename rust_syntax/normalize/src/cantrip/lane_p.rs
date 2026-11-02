@@ -2357,7 +2357,7 @@ impl Compiler {
             states.join(", ")
         ))
     }
-    fn arrival_state(&mut self, state: &EntryState, failed: &str) -> Result<String> {
+    pub(super) fn arrival_state(&mut self, state: &EntryState, failed: &str) -> Result<String> {
         let changes = |c: &mut Self, changes: &[Change]| -> Result<String> {
             let mut kinds = Vec::new();
             for change in changes {
@@ -2551,8 +2551,9 @@ impl Compiler {
         }
         let players = self.fetch(self.players(players)?);
         let arrival = self.arrival_code(entry, &failed.feature)?;
+        // Not `tokens::create`, which Cantrip has for one definition.
         let call = format!(
-            "{M}::tokens::create(g, asker, {players}, &[{}], {arrival})?",
+            "{M}::tokens::create_from_recipes(g, asker.source, &{players}, &[{}], {arrival})?",
             orders.join(", ")
         );
         let created = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);

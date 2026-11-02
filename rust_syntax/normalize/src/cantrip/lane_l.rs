@@ -3721,11 +3721,28 @@ impl Compiler {
             }
             states => {
                 let feature = arrival_hole(states);
-                let states = quoted(&format!("{states:?}"));
+                // As a move of several objects in a state says it (lane_p): one
+                // here. A state the generator can't read yet is its words.
+                let mut each = Vec::new();
+                for state in states {
+                    let (gaps, functions) = (self.gaps.len(), self.functions.len());
+                    match self.arrival_state(state, feature) {
+                        Ok(code) => each.push(code),
+                        Err(_) => {
+                            self.gaps.truncate(gaps);
+                            self.functions.truncate(functions);
+                            each.push(quoted(&format!("{state:?}")));
+                        }
+                    }
+                }
+                let arrival = format!(
+                    "Arrival {{ tapped: {tapped}, counters: &[{counters}], states: &[{}] }}",
+                    each.join(", ")
+                );
                 let call = planned::planned_value(
                     feature,
-                    "None::<ObjectId>",
-                    &format!("{M}::enter::in_state(g, o, controller, item, {states}, &[{counters}], {tapped})?"),
+                    "Vec::<ObjectId>::new()",
+                    &format!("{M}::enter::in_state(g, asker, &[o], Destination::Battlefield(Some(controller)), {arrival}, false)?"),
                 );
                 format!("moved.extend({call});")
             }
