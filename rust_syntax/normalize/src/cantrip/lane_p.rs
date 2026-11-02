@@ -519,9 +519,10 @@ impl Compiler {
                 self.objects(among)?,
                 self.objects(excluding)?
             ),
-            ObjectRef::SoleTargetOf(of) => held_object(
-                &feature,
-                &format!("{}.and_then(|o: ObjectId| q.sole_target(o))", self.object(of)?),
+            // Every target the spell has, as announced, the one object (601.2c).
+            ObjectRef::SoleTargetOf(of) => format!(
+                "{}.and_then(|spell: ObjectId| {{ let state = q.state(); let item = state.stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).or_else(|| state.left_stack(spell))?; let mut chosen = state.targets(item).iter(); let first = chosen.next()?.object()?; match chosen.any(|t| t.object() != Some(first)) {{ true => None, false => Some(first) }} }})",
+                self.object(of)?
             ),
             ObjectRef::SourceOf(of) => held_object(
                 &feature,
@@ -726,6 +727,9 @@ impl Compiler {
                     self.object(object)?
                 ),
             ),
+            Expr::ChosenPowerToughness { result, toughness } if self.stack_item => {
+                lane_j::counted(format!("chosen_pt_{}.{}", result.0, u8::from(*toughness)))
+            }
             Expr::ChosenPowerToughness { result, toughness } => {
                 let part = u8::from(*toughness);
                 held_number(feature, &format!("i64::from(chosen_pt_{}.{part})", result.0))

@@ -1190,6 +1190,21 @@ impl Compiler {
                     }
                 }
             }
+            // "Gets +1/-1 or -1/+1": its words, as the card prints them, and a pair
+            // for what follows to read.
+            Operation::ChoosePowerToughness { player, options } if self.stack_item => {
+                let player = self.fetch(self.certain_player(player)?);
+                let labels: Vec<String> =
+                    options.iter().map(|(p, t)| format!("{p:+}/{t:+}")).collect();
+                let pairs: Vec<String> =
+                    options.iter().map(|(p, t)| format!("({p}i64, {t}i64)")).collect();
+                let base = self.choice_labels.len();
+                let end = base + labels.len();
+                self.choice_labels.extend(labels);
+                let words: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", words.join(", ")));
+                writeln!(out, "let player_{id} = {player}; let picked_{id} = {M}::choose::option(g, player_{id}, asker.source, item.ability.card, {base}..{end})? - {base}; let chosen_pt_{}: (i64, i64) = [{}][picked_{id} as usize];", result.0, pairs.join(", ")).unwrap();
+            }
             Operation::ChoosePowerToughness { player, options } => {
                 let player = self.fetch(self.certain_player(player)?);
                 let options: Vec<String> =
@@ -1515,6 +1530,20 @@ impl Compiler {
                     out,
                 );
             }
+            // "A face-down pile and a face-up pile" (700.3): the separator chooses
+            // the first, and the second is shown to everyone.
+            Operation::Piles {
+                actor,
+                objects,
+                count: Some(_),
+                names,
+                chooser: None,
+            } if names == &["face up", "face down"] => {
+                let player = self.one_actor(actor, &feature)?;
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let separator_{id} = {player}; let cards_{id} = {objects}; let (face_down_{id}, face_up_{id}) = {M}::choose::separate_face_down_and_face_up(g, separator_{id}, asker.source, cards_{id})?;").unwrap();
+                self.face_piles = Some(id);
+            }
             Operation::Piles {
                 actor,
                 objects,
@@ -1536,6 +1565,31 @@ impl Compiler {
                     None => "None".to_string(),
                 };
                 self.plan_code(&feature, &format!("{M}::choose::into_piles(g, {player}, asker.source, {objects}, {count}, &{names:?}, {chooser})?"), out);
+            }
+            // The chooser sees the face-up pile, and how many the other holds. Its
+            // cards go on revealed, the other's never shown.
+            Operation::ChoosePile {
+                actor,
+                from: None,
+                random: false,
+                names,
+                object: None,
+                then: Some(Destination::OwnersHand),
+            } if names.is_empty() && self.face_piles.is_some() => {
+                let piles = self.face_piles.take().unwrap_or_default();
+                let chooser = match actor {
+                    PlayerSet::One(player) => format!(
+                        "let chooser_{id} = {};",
+                        self.fetch(self.certain_player(player)?)
+                    ),
+                    PlayerSet::OpponentsOf(_) => {
+                        const VERB: &str = "decides which of the two piles you put into your hand; the other goes into your graveyard";
+                        let among = self.fetch(self.players(actor)?);
+                        format!("let among_{id} = {among}; let Some(chooser_{id}) = {M}::choose::player(g, asker.controller, asker.source, among_{id}, {VERB:?}, 0)? else {{ return Ok(()) }};")
+                    }
+                    _ => return Err(gap(feature)),
+                };
+                writeln!(out, "if !(face_down_{piles}.is_empty() && face_up_{piles}.is_empty()) {{ {chooser} let (keep_{id}, _) = {M}::choose::face_down_or_face_up_pile(g, chooser_{id}, asker.source, face_down_{piles}, face_up_{piles}.clone())?; if keep_{id} == face_up_{piles} {{ g.return_to_hand_revealed(&keep_{id}); }} else {{ g.return_to_hand(&keep_{id}); }} }}").unwrap();
             }
             Operation::ChoosePile {
                 actor,
@@ -1644,6 +1698,21 @@ impl Compiler {
                 let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
                 let cost = quoted(&format!("{cost:?}"));
                 self.plan_code(&feature, &format!("{M}::players::each_pays_repeatedly(g, {players}, asker.source, {cost}, {most})?"), out);
+            }
+            // "May choose any number of ... and pay {4} for each": the choice first,
+            // then one payment for all of it, or none chosen after all.
+            Operation::ChooseAndPay {
+                actor,
+                objects,
+                cost,
+            } if matches!(cost.parts.as_slice(), [CostPart::Mana(_)]) => {
+                self.helpers.insert("pay_question");
+                let player = self.one_actor(actor, &feature)?;
+                let objects = self.fetch(self.objects(objects)?);
+                let one = self.cost(cost, super::lane_g::PAID)?;
+                writeln!(out, "let payer_{id} = {player}; let among_{id}: Vec<ObjectId> = {objects}; let picked_{id} = {M}::choose::select(g, payer_{id}, asker.source, Purpose::Untap, among_{id}, {M}::select::cards({M}::select::ANY_NUMBER))?; let price_{id} = ({one}).mana.times(picked_{id}.len() as u32); let chosen_{id}: Vec<ObjectId> = match price_{id} {{ Some(mana) if !picked_{id}.is_empty() && g.may_pay(payer_{id}, asker.source, asker.source, Cost::mana(mana), &PAY_QUESTION)? => picked_{id}, _ => Vec::new() }};").unwrap();
+                self.selections.insert(result.0, format!("chosen_{id}"));
+                self.moved.insert(result.0, format!("chosen_{id}"));
             }
             Operation::ChooseAndPay {
                 actor,

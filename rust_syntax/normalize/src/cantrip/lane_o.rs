@@ -360,6 +360,16 @@ impl Compiler {
                 return Ok(true);
             }
         }
+        // "Can't block unless ...": a block by the affected, whatever it blocks. The
+        // attacking player is the active player (506.2).
+        if let RuleChange::BlocksOnlyIf(condition) = rule {
+            let condition = self.condition(condition).map_err(|_| gap(&feature))?;
+            let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}_block(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ let asker = &Asker::new(source, q.controller(source)); !{function}(q, asker, blocker) || ({condition}) }}").unwrap();
+            parts.block_rules.push(format!("{function}_block"));
+            return Ok(true);
+        }
         let code = self.rule_code(rule).map_err(|_| gap(&feature))?;
         let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();

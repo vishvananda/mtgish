@@ -6,7 +6,7 @@ const M: &str = "cantrip_mechanics";
 /// The change an object keeps through every zone for the rest of the game.
 const PERPETUAL: &str = "cantrip_mechanics::perpetual::Perpetual";
 /// The label of a cost paid as something resolves, where any number can be read.
-const PAID: &str = "paid";
+pub(super) const PAID: &str = "paid";
 
 /// What an optional additional cost sets on the card.
 enum Optional {

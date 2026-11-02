@@ -538,6 +538,8 @@ struct Compiler {
     notes: lane_m::Notes,
     /// By slot: who controlled the items an earlier step countered.
     countered: BTreeMap<u16, String>,
+    /// The instruction that separated a face-down pile and a face-up pile.
+    face_piles: Option<usize>,
     /// The cards that ended each reveal, by the result that names all it showed.
     reveal_matches: BTreeMap<u32, String>,
     /// This resolution has revealed something. The AST does not always tie a
@@ -930,6 +932,7 @@ impl Compiler {
             selections: BTreeMap::new(),
             notes: Default::default(),
             countered: BTreeMap::new(),
+            face_piles: None,
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
             reveal_matches: BTreeMap::new(),
@@ -1861,6 +1864,43 @@ pub fn modules_named(input: &Path, names: &[String]) -> corpus::Result<Vec<(Stri
                     write!(rendered, "// gaps: {gaps:?}").unwrap()
                 }
             }
+            Ok(Some((name, rendered)))
+        },
+        |_, module| {
+            found.extend(module);
+            Ok(())
+        },
+    )?;
+    Ok(found)
+}
+
+/// `modules_named` with each card's printed words to read, holes and all, as the
+/// tracked generation has them.
+pub fn modules_printed(
+    input: &Path,
+    oracle: &Path,
+    names: &[String],
+) -> corpus::Result<Vec<(String, String)>> {
+    let oracle = oracle_texts(oracle)?;
+    let wanted: BTreeSet<&str> = names.iter().map(String::as_str).collect();
+    let mut found = Vec::new();
+    corpus::map_cards(
+        input,
+        |_, source| -> corpus::Result<Option<(String, String)>> {
+            let identity = corpus::Identity::of(&source)?;
+            let Some(name) = identity
+                .names
+                .iter()
+                .find(|n| wanted.contains(n.as_str()))
+                .cloned()
+            else {
+                return Ok(None);
+            };
+            let lowered = crate::unified::lower(&source);
+            let rendered = match lane_f::whole_printed(&source, &lowered.card, Some(&oracle)) {
+                Ok(whole) => whole.faces.iter().map(|f| f.rust.as_str()).collect(),
+                Err(_) => String::new(),
+            };
             Ok(Some((name, rendered)))
         },
         |_, module| {

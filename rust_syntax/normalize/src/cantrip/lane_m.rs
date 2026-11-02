@@ -257,7 +257,7 @@ pub(super) struct Notes {
 /// The words `EarlierObjects` has for what an operation acts on.
 fn acted_on(op: &Operation) -> &'static [&'static str] {
     match op {
-        Operation::ChooseObjects { .. } => &["Selected"],
+        Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
         Operation::Sacrifice { .. } => &["Sacrificed"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
