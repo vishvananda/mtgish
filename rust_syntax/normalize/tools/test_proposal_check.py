@@ -95,6 +95,16 @@ class Text(unittest.TestCase):
         self.assertTrue(pc.statement_after(text, text.index("note") + 4))
         self.assertFalse(pc.statement_after(text, text.index("ask") + 3))
 
+    def test_constant_proposed_variants_would_be_promoted(self):
+        spec = pc.Spec(MODEL)
+        use = spec.types.setdefault("GrantedAbility", pc.new_use())
+        use["ctors"]["Delayed"] = 1
+        self.assertTrue(pc.constant_of_proposed_ctors("[GrantedAbility::Delayed(0)]", spec))
+        # A local, a method call or a constant function of Cantrip's own is no promoted constant, stub or not.
+        self.assertFalse(pc.constant_of_proposed_ctors("[GrantedAbility::Delayed(index)]", spec))
+        self.assertFalse(pc.constant_of_proposed_ctors("[EffectKind::AddKeywords(Keywords::of(&[Keyword::Haste]))]", spec))
+        self.assertFalse(pc.constant_of_proposed_ctors("[Duration::EndOfTurn]", spec))
+
     def test_a_call_is_only_the_stubs_its_path_can_name(self):
         self.assertTrue(pc.called_as("f::mechanics::cost_branch::spell", "x: crate::proposals::mechanics::cost_branch::"))
         self.assertFalse(pc.called_as("f::mechanics::cost_branch::spell", "spell: "))

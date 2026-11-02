@@ -1380,6 +1380,19 @@ def bound_to_stub_value(text, at, name, spec):
     return False
 
 
+def constant_of_proposed_ctors(snippet, spec):
+    """Whether `snippet`, a temporary borrowed for `'static`, is constant data a real enum would promote to a static:
+    variants and constants only, with no local, closure or method call, one of them a proposed variant, which the stubs
+    make a `const fn` (`&[GrantedAbility::Delayed(0)]`, `&[ManaRestriction::Lasts(Duration::EndOfTurn)]`)."""
+    bare = re.sub(r'"(?:\\.|[^"\\])*"', "", snippet)
+    words = re.findall(r"\b[A-Za-z_]\w*\b", bare)
+    path = {"crate", "proposals", "on", "planned_value"}
+    if not words or any(not (w[0].isupper() or w in path) for w in words):
+        return False
+    ctors = {(k.split("::")[1], k.split("::")[2]) for k in spec.stub_keys() if k.split("::")[0] in ("on", "t")}
+    return any((m.group(1), m.group(2)) in ctors for m in re.finditer(r"\b([A-Z]\w*)::([A-Z]\w*)\s*\(", bare))
+
+
 def classify(d, text, spec):
     """(class, stub_fault) for one error."""
     code = (d.get("code") or {}).get("code")
@@ -1420,6 +1433,9 @@ def classify(d, text, spec):
         return "stub layer: a new tuple variant matched in a pattern", True
     if code == "E0308" and stubbed and "fn item" in rendered:
         return "stub layer: a stubbed function used as a value (a fn pointer)", True
+    if code == "E0716" and "'static" in rendered and constant_of_proposed_ctors(snippet, spec):
+        return ("stub layer: a constant of proposed variants borrowed for 'static (a stub's constructor is a function, "
+                "which isn't promoted to a static as a variant is)"), True
     if code == "E0277":
         trait, where = bound_in(d)
         if trait == "Stored":
