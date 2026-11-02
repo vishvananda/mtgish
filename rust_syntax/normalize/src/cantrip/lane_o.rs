@@ -4006,6 +4006,13 @@ impl Compiler {
         }
     }
     /// An `AsEvent`'s or a `BeforeGame`'s list of what is done.
+    /// A stated list of actions (`listed`), done as the event happens by the
+    /// function a table names, with `g` and `asker` to read the game: one
+    /// signature whatever the actions are, which `module::perform` takes.
+    fn read_as_it_happens(&mut self, feature: &str, function: &str, module: &str, list: &str) -> String {
+        self.plan_item(feature, &format!("#[allow(unused_variables)] fn {function}(g: &mut dyn Game, asker: &Asker) -> Result<(), Suspend> {{ {M}::{module}::perform(g, asker, {list}) }}"));
+        function.to_string()
+    }
     fn listed(&mut self, operand: &Operand) -> Result<String> {
         match operand {
             Operand::List(_) => self.stated(operand),
@@ -4130,15 +4137,21 @@ impl Compiler {
                 let object = self.fetch(self.object(object)?);
                 let actions = self.listed(actions)?;
                 self.as_event_chooses |= actions.contains("::Choose");
+                // What it is about and what it does are read as the event
+                // happens, so the table names functions that read them.
+                let object_fn = format!("{label}_as_object");
+                self.plan_item(&feature, &format!("#[allow(unused_variables)] fn {object_fn}(g: &mut dyn Game, asker: &Asker) -> Option<ObjectId> {{ {object} }}"));
+                let actions = self.read_as_it_happens(&feature, &format!("{label}_as_actions"), "as_events", &actions);
                 self.plan_entry(
                     &feature,
                     "as_events",
-                    &format!("AsEventDef {{ event: {event}, object: |g: &mut dyn Game, asker: &Asker| {object}, actions: {actions} }}"),
+                    &format!("AsEventDef {{ event: {event}, object: {object_fn}, actions: {actions} }}"),
                     parts,
                 );
             }
             Ability::BeforeGame { when, body } => {
                 let body = self.listed(body)?;
+                let body = self.read_as_it_happens(&feature, &format!("{label}_before_game"), "before_game", &body);
                 self.plan_entry(
                     &feature,
                     "before_game",

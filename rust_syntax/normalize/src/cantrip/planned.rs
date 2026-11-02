@@ -181,11 +181,91 @@ fn close_of(code: &str, open: usize) -> Option<(usize, bool)> {
     }
     None
 }
+/// The top-level parts of `code` between `sep` bytes, brackets and string
+/// literals skipped.
+fn top_level(code: &str, sep: u8) -> Vec<&str> {
+    let bytes = code.as_bytes();
+    let (mut parts, mut start, mut i) = (Vec::new(), 0, 0);
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+            }
+            b'(' | b'[' | b'{' => match close_of(code, i) {
+                Some((end, _)) => i = end - 1,
+                None => return vec![code],
+            },
+            c if c == sep => {
+                parts.push(&code[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    parts.push(&code[start..]);
+    parts
+}
+/// Whether `code` is an expression of one call, not a statement.
+fn one_call(code: &str) -> bool {
+    let statement = ["for ", "if ", "let ", "{", "match ", "while ", "cantrip_api::instruction("]
+        .iter()
+        .any(|s| code.starts_with(s));
+    !statement && code.ends_with([')', '?']) && top_level(code, b';').len() == 1
+}
+/// `code` as an expression whose value is what its call made, or None: one call;
+/// a block whose last statement is one; `let name = call` (the name's value);
+/// `if cond { call; }` (with nothing made otherwise).
+fn made_by(code: &str) -> Option<String> {
+    let code = code.trim();
+    if one_call(code) {
+        return Some(code.to_string());
+    }
+    if let Some(rest) = code.strip_prefix("let ") {
+        let (name, value) = rest.split_once(" = ")?;
+        let name = name.split(':').next()?.trim();
+        let simple = name.chars().all(|c| c == '_' || c.is_ascii_alphanumeric());
+        return (simple && one_call(value.trim())).then(|| format!("{{ {code}; {name} }}"));
+    }
+    if code.starts_with('{') && close_of(code, 0).map(|(end, _)| end) == Some(code.len()) {
+        let inner = code[1..code.len() - 1].trim().trim_end_matches(';');
+        let mut parts = top_level(inner, b';');
+        let last = parts.pop()?.trim();
+        return one_call(last).then(|| format!("{{ {}; {last} }}", parts.join(";")));
+    }
+    if code.starts_with("if ") && code.ends_with('}') {
+        let bytes = code.as_bytes();
+        let (mut i, mut body) = (0, None);
+        while i < bytes.len() {
+            if matches!(bytes[i], b'(' | b'[' | b'{') {
+                let end = close_of(code, i)?.0;
+                if bytes[i] == b'{' {
+                    body = Some((i, end));
+                }
+                i = end;
+                continue;
+            }
+            i += 1;
+        }
+        let (open, end) = body?;
+        if code[..open].trim_end().ends_with("else") {
+            return None;
+        }
+        let call = code[open + 1..end - 1].trim().trim_end_matches(';').trim();
+        return (end == code.len() && one_call(call)).then(|| {
+            format!("{} {{ {call} }} else {{ Default::default() }}", code[..open].trim_end())
+        });
+    }
+    None
+}
 /// Binds what the instruction whose code begins at `from` did, as `result_N`
-/// that the instructions after it read (`unreported`), where its hole's code is
-/// one call: the proposal returns what it did, as Cantrip's own calls do
-/// (`exile_all`, `put_onto_battlefield`). A hole of statements, or of no code,
-/// leaves the readers' own holes waiting on it.
+/// that the instructions after it read (`unreported`), where its hole's code
+/// comes to one call (`made_by`): the proposal returns what it did, as
+/// Cantrip's own calls do (`exile_all`, `put_onto_battlefield`). A hole of
+/// other statements, or of no code, leaves the readers' own holes waiting.
 pub(super) fn bind_hole_result(out: &mut String, from: usize, result: &ResultId) {
     const MARK: &str = "planned!(\"";
     let Some(at) = out[from..].rfind(MARK).map(|at| from + at) else {
@@ -203,15 +283,10 @@ pub(super) fn bind_hole_result(out: &mut String, from: usize, result: &ResultId)
     if inner[1..arrow - 5] == requirement(FOLLOWS_GAP) {
         return;
     }
-    let code = inner[arrow..].trim();
-    let statement = ["for ", "if ", "let ", "{", "match ", "while ", "cantrip_api::instruction("]
-        .iter()
-        .any(|s| code.starts_with(s));
-    let semicolon = close_of(&format!("({code})"), 0).map_or(true, |(_, s)| s);
-    if statement || semicolon || code.is_empty() {
+    let Some(made) = made_by(&inner[arrow..]) else {
         return;
-    }
-    let bound = format!("let result_{} = {code};", result.0);
+    };
+    let bound = format!("let result_{} = {made};", result.0);
     let start = open + 1 + arrow;
     out.replace_range(start..close - 1, &bound);
 }
@@ -346,6 +421,15 @@ impl Compiler {
         }
         self.gaps.push(gap(feature));
         writeln!(out, "planned!({:?} => {code});", requirement(feature)).unwrap();
+    }
+    /// An item (a function a proposed table entry names) the card will have
+    /// once `feature` exists: `planned_item!("id" => item)` until then.
+    pub(super) fn plan_item(&mut self, feature: &str, item: &str) {
+        let id = requirement(feature);
+        match landed_id(&id) {
+            true => writeln!(self.functions, "{item}").unwrap(),
+            false => writeln!(self.functions, "planned_item!({id:?} => {item});").unwrap(),
+        }
     }
     /// The entry `list` of the card definition will hold once `feature` exists:
     /// `planned_item!("id" => list: code)` until then.
