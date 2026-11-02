@@ -2404,6 +2404,14 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        if let (ObjectSet::Observed(seen), Destination::Exile) = (objects, destination) {
+            if self.notes.exiled_going.contains(&seen.0) {
+                writeln!(out, "let moved_{id}: Vec<ObjectId> = {};", self.fetch(self.objects(objects)?)).unwrap();
+                self.moved.insert(result.0, format!("moved_{id}"));
+                self.left_behind(result, format!("moved_{id}.clone()"));
+                return Ok(());
+            }
+        }
         let alone = self.one_object(objects);
         let shown = self.outside_shown(objects);
         let revealed = self.revealed;

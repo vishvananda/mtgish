@@ -227,6 +227,9 @@ impl Compiler {
 /// What later reads ask of the instructions before them.
 #[derive(Clone, Debug, Default)]
 pub(super) struct Notes {
+    /// Reveals whose cards each went to exile as they were reached, so that the
+    /// instruction that moves them has nothing left to do.
+    pub exiled_going: BTreeSet<u32>,
     /// What each instruction acted on, by the word `EarlierObjects` has for it:
     /// the last of these is what "that card" or "those" was.
     pub earlier: Vec<(&'static str, ResultId)>,
