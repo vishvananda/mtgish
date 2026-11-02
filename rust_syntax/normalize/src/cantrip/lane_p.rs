@@ -3763,8 +3763,10 @@ impl Compiler {
                     });
                 }
                 let duration = self.duration(duration)?;
+                // The objects a list read as it resolves, each kept with what it
+                // is given: the game holds no list.
                 format!(
-                    "{M}::effects::grant(g, item, {objects}, &[{}], {duration})?",
+                    "{{ let objects: Vec<ObjectId> = {objects}; {M}::effects::grant(g, item, &objects, &[{}], {duration})? }}",
                     grants.join(", ")
                 )
             }

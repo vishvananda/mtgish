@@ -1081,10 +1081,18 @@ impl Compiler {
             A::BlockWith(filter) => {
                 format!("Prohibition::BlockWith({})", self.over(filter, "blocker")?)
             }
-            A::AttackInto(recipients) => format!(
-                "Prohibition::AttackInto({})",
-                self.fetch(self.recipients(recipients)?)
-            ),
+            // Whom it can't be attacked: asked of each defender as attackers
+            // are declared, as `AttackWith` is of each attacker, the rule a
+            // function the table holds.
+            A::AttackInto(recipients) => {
+                let at = self.recipients(recipients)?;
+                match reads_the_stack_item(&at) {
+                    false => format!(
+                        "Prohibition::AttackInto(|q: &dyn Query, asker: &Asker, defender: Target| ({at}).contains(&defender))"
+                    ),
+                    true => format!("Prohibition::AttackInto({})", self.fetch(at)),
+                }
+            }
             A::PayLife(on) => format!("Prohibition::PayLife({})", self.payment(on)?),
             A::Sacrifice { objects, paying } => {
                 let paying = match paying {
@@ -3253,7 +3261,8 @@ impl Compiler {
             }
             K::SetRepeatablePlayers => {
                 let players = self.fetch(self.players(action.actor)?);
-                let code = format!("{M}::players::set_repeatable(g, {players}, asker.source)?;");
+                // Each player kept as one who repeats: the game holds no list.
+                let code = format!("{{ let players: Vec<PlayerId> = {players}; {M}::players::set_repeatable(g, &players, asker.source)?; }}");
                 self.plan_code(&feature, &code, out);
                 return Ok(());
             }

@@ -3939,7 +3939,7 @@ impl Compiler {
                             "static rule CombatCost other than mana",
                             "attack_cost_rules",
                             &format!(
-                                "AttackCost {{ applies: {function}, cost: {} }}",
+                                "CombatCostRule {{ applies: {function}, cost: {} }}",
                                 quoted(&form(cost))
                             ),
                             parts,

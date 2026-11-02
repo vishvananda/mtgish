@@ -597,7 +597,7 @@
 "match": "^(keyword action SetRepeatablePlayers)$",
 "class": "mechanic",
 "needs": "Naming the players who repeat a process",
-"api": "cantrip_mechanics::players::set_repeatable(g, players, source)?"
+"api": "cantrip_mechanics::players::set_repeatable(g, &players, source)?"
 },
 {
 "match": "^(player reference Affected)$",
