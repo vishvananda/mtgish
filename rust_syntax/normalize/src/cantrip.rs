@@ -2488,7 +2488,9 @@ fn emit_face(
                 c.plan_entry(
                     "target with a divided amount",
                     "abilities",
-                    &format!("{def}.divide({divide})"),
+                    // Not `divide`, which Cantrip has for a triggered ability
+                    // alone and rejects any other as the table is built.
+                    &format!("{def}.divide_activated({divide})"),
                     &mut parts,
                 );
             }
