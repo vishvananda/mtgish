@@ -275,6 +275,20 @@ pub(super) fn only_their_own(objects: &ObjectSet) -> bool {
     matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter))
 }
 
+/// "(Artifact, battle, creature, enchantment, instant, kindred, land, planeswalker,
+/// and sorcery are card types.)"
+const CARD_TYPES: [&str; 9] = [
+    "Artifact",
+    "Battle",
+    "Creature",
+    "Enchantment",
+    "Instant",
+    "Kindred",
+    "Land",
+    "Planeswalker",
+    "Sorcery",
+];
+
 impl Compiler {
     /// Leaves word for `remembered`, where a resolving ability made this choice.
     pub(super) fn remember_choice(&mut self, kind: ValueKind, local: &str, out: &mut String) {
@@ -380,6 +394,27 @@ impl Compiler {
                     false => writeln!(out, "let player_{id} = {player}; let choices_{id} = {choices}; let Answer::Subtype({local}) = g.ask(player_{id}, RequestKind::ChooseSubtype {{ source: {source}, choices: choices_{id}, purpose: WordUse::Chosen }})? else {{ return Ok(()) }};").unwrap(),
                 }
             }
+            // The word itself, as Arachne's: `labels` of the card, in the order they
+            // are printed, each standing for its type.
+            ValueKind::CardType if self.stack_item && !entering => {
+                let words = listed("CardType")?;
+                let words: Vec<String> = match words.is_empty() {
+                    true => CARD_TYPES.iter().map(|word| format!("CardType::{word}")).collect(),
+                    false => words,
+                };
+                let base = self.choice_labels.len();
+                self.choice_labels
+                    .extend(words.iter().map(|word| word.replacen("CardType::", "", 1)));
+                let end = self.choice_labels.len();
+                let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+                writeln!(
+                    out,
+                    "let player_{id} = {player}; let {local}: CardType = [{}][usize::from({M}::choose::option(g, player_{id}, asker.source, item.ability.card, {base}..{end})? - {base})];",
+                    words.join(", ")
+                )
+                .unwrap();
+            }
             ValueKind::CardType | ValueKind::PermanentType => {
                 let words = listed("CardType")?;
                 let choices = match (words.is_empty(), kind) {
@@ -484,9 +519,10 @@ impl Compiler {
                 self.objects(among)?,
                 self.objects(excluding)?
             ),
-            ObjectRef::SoleTargetOf(of) => held_object(
-                &feature,
-                &format!("{}.and_then(|o: ObjectId| q.sole_target(o))", self.object(of)?),
+            // Every target the spell has, as announced, the one object (601.2c).
+            ObjectRef::SoleTargetOf(of) => format!(
+                "{}.and_then(|spell: ObjectId| {{ let state = q.state(); let item = state.stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).or_else(|| state.left_stack(spell))?; let mut chosen = state.targets(item).iter(); let first = chosen.next()?.object()?; match chosen.any(|t| t.object() != Some(first)) {{ true => None, false => Some(first) }} }})",
+                self.object(of)?
             ),
             ObjectRef::SourceOf(of) => held_object(
                 &feature,
@@ -694,6 +730,9 @@ impl Compiler {
                     self.object(object)?
                 ),
             ),
+            Expr::ChosenPowerToughness { result, toughness } if self.stack_item => {
+                lane_j::counted(format!("chosen_pt_{}.{}", result.0, u8::from(*toughness)))
+            }
             Expr::ChosenPowerToughness { result, toughness } => {
                 let part = u8::from(*toughness);
                 held_number(feature, &format!("i64::from(chosen_pt_{}.{part})", result.0))
@@ -1501,6 +1540,31 @@ impl Compiler {
         let label = format!("{label}_then");
         let targets = self.announcement(&without_modes(announcement), &label)?;
         let effect = self.effect(body, &label)?;
+        // With nothing announced of its own, it is the rest of the one spell.
+        if targets == "&[]" && announcement.modes.is_none() {
+            if let Some((targets, first)) = parts
+                .spell
+                .strip_prefix("spell(")
+                .and_then(|spell| spell.strip_suffix(')'))
+                .and_then(|spell| spell.rsplit_once(", "))
+            {
+                writeln!(self.functions, "fn {label}_all(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {first}(g, item)?; g.end_sentence(); {effect}(g, item) }}").unwrap();
+                parts.spell = format!("spell({targets}, {label}_all)");
+                return Ok(());
+            }
+            let modal = parts
+                .modal
+                .strip_prefix("Some(&")
+                .and_then(|modal| modal.strip_suffix(')'))
+                .map(|modal| format!("static {modal}: ModalDef = "));
+            if let Some(line) = modal.filter(|_| parts.spell == "Some(SpellDef::MODAL)") {
+                if let Some(at) = self.functions.find(&line) {
+                    let end = at + self.functions[at..].find(";\n").unwrap_or(0);
+                    self.functions.insert_str(end, &format!(".shared({effect})"));
+                    return Ok(());
+                }
+            }
+        }
         let mut code = format!("spell({effect}).targets({targets})");
         if announcement.modes.is_some() {
             let modal = self.modal(announcement, &label, None)?;
@@ -2566,6 +2630,22 @@ impl Compiler {
                 format!("RemovedCounters::AmongThem({})", self.select_count(count)?),
             ),
             CounterAmount::Count(count) => {
+                // "Remove X counters": which ones are the player's, of any kinds, and
+                // they all come off if they can; "any number" may leave them.
+                if removal.kind.is_none() {
+                    const MANY: &str = "cantrip_mechanics::select::Count::AsManyAsCan(";
+                    let code = self.select_count(count)?;
+                    let sized = code.strip_prefix(MANY).and_then(|c| c.strip_suffix(')'));
+                    if code.ends_with("::AnyNumber") {
+                        writeln!(out, "let player_{id}_{i} = {player}; for object in {objects}.iter().copied() {{ removed_{id} += i64::from(g.remove_counters_up_to(player_{id}_{i}, asker.source, object, u8::MAX)?); }}").unwrap();
+                        return Ok(());
+                    }
+                    if let Some(sized) = sized {
+                        let sized = self.fetch(sized.to_string());
+                        writeln!(out, "let player_{id}_{i} = {player}; let most_{id}_{i}: u32 = {sized}; for object in {objects}.iter().copied() {{ for _ in 0..most_{id}_{i} {{ let Some(kind) = g.choose_counter_kind(player_{id}_{i}, asker.source, object)? else {{ break }}; removed_{id} += i64::from(g.remove_counters(object, kind, 1)); }} }}").unwrap();
+                        return Ok(());
+                    }
+                }
                 let feature = match removal.kind {
                     Some(_) => format!("counter removal {}", form(&removal.amount)),
                     None => "counters of a kind chosen as the effect resolves".to_string(),

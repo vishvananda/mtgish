@@ -261,7 +261,7 @@ pub(super) struct Notes {
 /// The words `EarlierObjects` has for what an operation acts on.
 fn acted_on(op: &Operation) -> &'static [&'static str] {
     match op {
-        Operation::ChooseObjects { .. } => &["Selected"],
+        Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
         Operation::Sacrifice { .. } => &["Sacrificed"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
@@ -271,6 +271,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::Search { .. } => &["Found"],
         Operation::Tap { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
+        Operation::CopyCards { .. } => &["CopiedSpell"],
         Operation::Move { destination, .. } => match destination {
             Destination::Exile => &["Exiled", "LastExiled"],
             Destination::OwnersGraveyard => &["PutInGraveyard"],

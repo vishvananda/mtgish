@@ -50,7 +50,7 @@ impl Compiler {
                 let set = words(operands)?
                     .iter()
                     .fold("ColorSet::NONE".to_string(), |set, color| {
-                        format!("{set}.with(Color::{color})")
+                        format!("{set}.with(q.words(asker.source).color(Color::{color}))")
                     });
                 format!("{values}.colored({set})")
             }
@@ -59,14 +59,14 @@ impl Compiler {
             }),
             ("AddCreatureType" | "AddCreatureTypes" | "AddArtifactTypes" | "AddLandTypes", list) => {
                 words(list)?.iter().fold(values, |values, word| {
-                    format!("{values}.with_subtype(Subtype::{word})")
+                    format!("{values}.with_subtype(q.words(asker.source).subtype(Subtype::{word}))")
                 })
             }
             // "Except it's a 4/4 black Zombie": that is what it is (CR 707.9b).
             ("SetCreatureTypes", list) => {
                 let types = words(list)?
                     .iter()
-                    .map(|word| format!("Subtype::{word}"))
+                    .map(|word| format!("q.words(asker.source).subtype(Subtype::{word})"))
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("{values}.typed(TypeSet::of(&[CardType::Creature]), SubtypeSet::of(&[{types}]))")

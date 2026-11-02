@@ -87,6 +87,24 @@ pub(super) fn branch_stated(feature: &str) -> bool {
         || feature == "cleave cost other than mana"
 }
 
+/// "Any player may have Browbeat deal 5 damage to them. If no one does, ...": what
+/// is asked of each player, and what the next sentence says follows.
+fn any_player_may(line: &str) -> Option<(String, String)> {
+    let at = line.find(" may ")?;
+    if !line[..at].to_lowercase().contains("any ") {
+        return None;
+    }
+    let rest = &line[at + " may ".len()..];
+    let (ask, after) = rest.split_once('.').unwrap_or((rest, ""));
+    Some((format!("{ask}?"), after.trim().to_string()))
+}
+
+/// "In addition to its other colors": `colored` sets them all, so what the values
+/// have now goes in with them. An exception's colors are the card's words.
+fn added_colors(values: &str, colors: &str) -> String {
+    format!("{{ let plain = {values}; let had = plain.colors.unwrap_or(q.card(plain.card).colors()); plain.colored([{colors}].into_iter().fold(had, |set: ColorSet, color: Color| set.with(q.words(asker.source).color(color)))) }}")
+}
+
 impl Compiler {
     /// `|q, asker, id| test` of what the filter says of the object `id`.
     pub(super) fn over(&self, filter: &ObjectFilter, id: &str) -> Result<String> {
@@ -330,6 +348,31 @@ impl Compiler {
             return Ok(false);
         }
         let feature = format!("static rule {}", effects_rule_name(rule));
+        // "Can't attack if defending player controls ...": judged of each attack
+        // that could be declared, where the defending player is who it would be.
+        if let RuleChange::CantAttackDefenderIf(condition) = rule {
+            const DEFENDER: &str =
+                "Some(asker.source).and_then(|o: ObjectId| q.defending_player(o))";
+            let condition = self.condition(condition).map_err(|_| gap(&feature))?;
+            let condition = condition.replace(DEFENDER, "Some(defender)");
+            if !condition.contains("defending_player") {
+                let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}_attack(q: &dyn Query, asker: &Asker, attacker: ObjectId, at: Target) -> bool {{ if !{function}(q, asker, attacker) {{ return true; }} let Some(defender) = defending_player_of(q.state(), at) else {{ return true; }}; !({condition}) }}").unwrap();
+                parts.attack_rules.push(format!("{function}_attack"));
+                return Ok(true);
+            }
+        }
+        // "Can't block unless ...": a block by the affected, whatever it blocks. The
+        // attacking player is the active player (506.2).
+        if let RuleChange::BlocksOnlyIf(condition) = rule {
+            let condition = self.condition(condition).map_err(|_| gap(&feature))?;
+            let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}_block(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ let asker = &Asker::new(source, q.controller(source)); !{function}(q, asker, blocker) || ({condition}) }}").unwrap();
+            parts.block_rules.push(format!("{function}_block"));
+            return Ok(true);
+        }
         let code = self.rule_code(rule).map_err(|_| gap(&feature))?;
         let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
@@ -2016,17 +2059,26 @@ impl Compiler {
         if self.present.borrow().is_none() {
             return Err(gap(FEATURE));
         }
-        let among = self.fetch(self.players(players)?);
+        let Some((ask, detail)) = self.lines_said().iter().find_map(|line| any_player_may(line))
+        else {
+            return Err(gap(FEATURE));
+        };
+        let opponents = self
+            .lines_said()
+            .iter()
+            .any(|line| line.to_lowercase().contains("any opponent may"));
+        let among = match opponents {
+            // The source says "any player" of these. In turn order either way.
+            true => self.fetch(self.players(&PlayerSet::OpponentsOf(PlayerRef::AbilityController))?),
+            false => self.fetch(self.players(players)?),
+        };
         let mut picked = self.picked.borrow_mut();
         let local = format!("willing_{}", picked.named.len());
-        let value = planned::planned_value(
-            FEATURE,
-            "None::<PlayerId>",
-            &format!("{M}::choose::first_willing(g, {among}, asker.source)?"),
-        );
-        picked
-            .statements
-            .push(format!("let {local}: Option<PlayerId> = {value};\n"));
+        picked.statements.push(format!(
+            "let {local}: Option<PlayerId> = {{ static ASK: Question = Question::new(\"Accept\", {}, {}, \"Yes\", \"No\"); let among = {among}; let order: Vec<PlayerId> = g.state().apnap().filter(|p| among.contains(p)).collect(); let mut willing = None; for player in order {{ if {M}::effects::ask_may(g, player, asker.source, Purpose::Ask(&ASK))? {{ willing = Some(player); break; }} }} willing }};\n",
+            quoted(&ask),
+            quoted(&detail),
+        ));
         picked.named.push((key, local.clone()));
         Ok(local)
     }
@@ -3075,6 +3127,22 @@ impl Compiler {
     pub(super) fn activated_stated(&self, filter: &ObjectFilter) -> Result<String> {
         let feature = format!("activated ability {}", form(filter));
         let test = match filter {
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::PowerUp)) => {
+                return Ok("def.is_some_and(|d| d.power_up)".into())
+            }
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Equip)) => {
+                return Ok("def.is_some_and(|d| d.equip)".into())
+            }
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Exhaust)) => {
+                return Ok("def.is_some_and(|d| d.exhaust)".into())
+            }
+            // No mark on the definition: these are known by their printed word.
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Boast)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Boast\"))".into())
+            }
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Outlast)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Outlast\"))".into())
+            }
             ObjectFilter::OnStack(StackTrait::Keyword(word)) => {
                 format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
             }
@@ -3306,9 +3374,9 @@ impl Compiler {
                 format!("{values}.without_supertypes(&[{}])", of("Supertype", list)?)
             }
             ("AddColor", [Operand::Term { operands, .. }]) => {
-                format!("{values}.with_colors(&[{}])", of("Color", operands)?)
+                return Ok(added_colors(&values, &of("Color", operands)?))
             }
-            ("AddColor", list) => format!("{values}.with_colors(&[{}])", of("Color", list)?),
+            ("AddColor", list) => return Ok(added_colors(&values, &of("Color", list)?)),
             ("KeepPT", []) => format!("{values}.keeping_power_toughness()"),
             ("KeepName", []) => format!("{values}.keeping_name()"),
             ("KeepColor", []) => format!("{values}.keeping_colors()"),

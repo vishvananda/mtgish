@@ -113,6 +113,9 @@ pub(super) struct Frame {
     pub blocker: Option<Carried>,
     /// "That many" of a "one or more" ability is how many objects its batch has.
     pub members: bool,
+    /// What holds the controller of the object that is the subject, which a
+    /// target filter finds from the subject alone.
+    pub subject_controller: Option<Carried>,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -137,6 +140,7 @@ impl Frame {
             attacker: same(self.attacker, other.attacker),
             blocker: same(self.blocker, other.blocker),
             members: self.members && other.members,
+            subject_controller: same(self.subject_controller, other.subject_controller),
         }
     }
 }
@@ -339,6 +343,11 @@ impl Compiler {
     }
     pub(super) fn carried_player(&self, carried: Option<Carried>) -> Result<String> {
         let carried = carried.ok_or_else(|| gap("event player this trigger does not bind"))?;
+        if self.event_at == EventAt::TargetFilter
+            && self.frame.subject_controller == Some(carried)
+        {
+            return Ok("q.event_subject().object().map(|o: ObjectId| q.controller(o))".into());
+        }
         let (subject, data) = self.carried(carried)?;
         Ok(match carried {
             Carried::Subject => format!("{subject}.player()"),
@@ -523,6 +532,14 @@ impl Compiler {
             {
                 self.carried_player(self.frame.stack_controller)?
             }
+            PlayerRef::ControllerOf(object)
+                if matches!(&**object, ObjectRef::Target { slot, .. } if self.stack_slot(slot)) =>
+            {
+                let ObjectRef::Target { slot, index } = &**object else {
+                    unreachable!("just matched");
+                };
+                self.stack_controller(slot, *index)?
+            }
             PlayerRef::ControllerOf(object) => format!(
                 "{}.map(|o: ObjectId| q.controller(o))",
                 lane_k::gone_or_not(self.object(object)?, object)
@@ -688,10 +705,16 @@ impl Compiler {
                 component,
                 phase: ObjectPhase::After,
                 ..
-            } => format!(
-                "({}).into_iter().filter_map(|o: ObjectId| q.state().obj(o).became).collect::<Vec<ObjectId>>()",
-                self.cost_objects(payment, component)?
-            ),
+            } => {
+                let paid = self.cost_objects(payment, component)?;
+                // Read for what it was worth (608.2h): as it is there, or, a token
+                // that stayed nowhere, as it last was.
+                let then = match paid.starts_with("q.events()") {
+                    true => "map(|o: ObjectId| q.state().obj(o).became.unwrap_or(o))",
+                    false => "filter_map(|o: ObjectId| q.state().obj(o).became)",
+                };
+                format!("({paid}).into_iter().{then}.collect::<Vec<ObjectId>>()")
+            }
             ObjectSet::Created(result) => self.created(result)?,
             ObjectSet::Transition { result, phase } => self.transition(result, phase)?,
             ObjectSet::Matching { objects, filter } => format!(
@@ -775,6 +798,18 @@ impl Compiler {
     fn cost_objects(&self, payment: &PaymentRef, component: &[u32]) -> Result<String> {
         if self.reader != Reader::Resolution || !self.stack_item {
             if matches!(payment, PaymentRef::Activation) && self.activation_cost.is_some() {
+                // A mana ability's effect runs as its cost is paid (605.3a), with
+                // nothing between: what its one leaving part took left last, and
+                // `old` reads as it last existed.
+                let leaving = self.activation_cost.as_ref().map_or(0, |cost| {
+                    let leaves = |part: &&CostPart| {
+                        matches!(part, CostPart::Sacrifice { .. } | CostPart::Move { .. })
+                    };
+                    cost.parts.iter().filter(leaves).count()
+                });
+                if leaving == 1 && !self.stack_item && self.reader == Reader::Resolution {
+                    return Ok("q.events().iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, from, part: false, .. } if from.is(ZoneKind::Battlefield) => Some(old), _ => None }).into_iter().collect::<Vec<ObjectId>>()".into());
+                }
                 return Ok(planned::planned_value(
                     "cost objects outside a resolving ability",
                     "Vec::<ObjectId>::new()",
@@ -1660,6 +1695,17 @@ impl Compiler {
                 ..
             } if self.history.is_none() => {
                 return Err(gap("filter comparing its candidate with itself"));
+            }
+            // "Another target card": what the event moved, each card of a merged
+            // permanent (CR 730.3c), found from the subject a target filter reads.
+            ObjectFilter::SameObject(object)
+                if self.event_at == EventAt::TargetFilter
+                    && self.frame.destination.is_some()
+                    && lane_k::what_the_event_moved(object) =>
+            {
+                format!(
+                    "q.event_subject().object().is_some_and(|o: ObjectId| o == {id} || q.found_all_after_move(o).contains(&{id}))"
+                )
             }
             ObjectFilter::SameObject(object) => {
                 format!("{} == Some({id})", self.object(object)?)

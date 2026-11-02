@@ -168,9 +168,83 @@ fn changes_event(program: &Program) -> bool {
     })
 }
 
+/// "Skip that draw": the event replaced outright.
+fn cancels_event(step: &Instruction) -> bool {
+    matches!(
+        step,
+        Instruction::Effect {
+            operation: Operation::ModifyEvent {
+                change: EventChange::Cancel
+            },
+            ..
+        }
+    )
+}
+/// "Draw a card", as the source says a draw a "you may instead" leaves alone.
+fn goes_on_drawing(option: &Program) -> bool {
+    let steps = match option.instructions.split_first() {
+        Some((first, rest)) if cancels_event(first) => rest,
+        _ => option.instructions.as_slice(),
+    };
+    matches!(
+        steps,
+        [Instruction::Effect {
+            operation: Operation::Draw {
+                players: PlayerSet::One(PlayerRef::AbilityController),
+                amount: Expr::Constant(1),
+                ..
+            },
+            ..
+        }]
+    )
+}
+/// "If you would draw a card, you may instead ...", which the source reads as a
+/// choice between that and the draw.
+fn instead_of_a_draw(steps: &[Instruction]) -> Option<Program> {
+    let (cancel, choice) = match steps {
+        [cancel, choice] if cancels_event(cancel) => (Some(cancel), choice),
+        [choice] => (None, choice),
+        _ => return None,
+    };
+    let Instruction::Effect {
+        operation:
+            Operation::ChooseAction {
+                actor: PlayerSet::One(PlayerRef::AbilityController),
+                options,
+                villainous: false,
+                ..
+            },
+        ..
+    } = choice
+    else {
+        return None;
+    };
+    let options: Vec<Program> = options
+        .iter()
+        .map(lane_l::action_program)
+        .collect::<Option<_>>()?;
+    let (keep, instead) = options.split_last()?;
+    if !goes_on_drawing(keep) || instead.is_empty() {
+        return None;
+    }
+    let mut body: Vec<Instruction> = cancel.into_iter().cloned().collect();
+    match instead {
+        [one] => body.extend(one.instructions.iter().cloned()),
+        _ => body.push(Instruction::ChooseOne {
+            decider: PlayerRef::AbilityController,
+            options: instead.to_vec(),
+            offered: None,
+        }),
+    }
+    Some(Program { instructions: body })
+}
+
 /// What "you may" gives the choice of, when it is the whole of a program that
 /// changes its event, and what follows "if you do".
 fn chosen_instead(steps: &[Instruction]) -> Option<(Program, Vec<Instruction>)> {
+    if let Some(body) = instead_of_a_draw(steps) {
+        return Some((body, Vec::new()));
+    }
     match steps {
         [Instruction::Optional {
             decider: PlayerRef::AbilityController,
@@ -1361,13 +1435,30 @@ impl Compiler {
             }
         }
         let mut about = Vec::new();
+        let mut each = Vec::new();
         if one {
             replacements::capture(&mut plain, &mut about);
             if about.len() > 1 {
                 return Err(gap("replacement made about several objects"));
             }
+            // Redeem's source has it dealt by them, not to them.
+            let misread = self
+                .line_text()
+                .is_some_and(|line| line.contains("would be dealt this turn to"));
+            if about.is_empty() && !misread {
+                replacements::capture_slot(&mut plain, &mut each);
+                if each.len() > 1 {
+                    return Err(gap("replacement made about several objects"));
+                }
+            }
         }
         let about = about.first().map(|o| self.object(o)).transpose()?;
+        let each = each
+            .first()
+            .map(|slot| self.objects(&ObjectSet::Targets(slot.clone())))
+            .transpose()?
+            .map(|list| self.fetch(list));
+        let about = about.or(each.as_ref().map(|_| "Some(each)".to_string()));
         let hint = quoted(&ability_text(body));
         let label = format!("made_{}", self.fresh());
         let scope = self.affected_in_scope;
@@ -1413,6 +1504,9 @@ impl Compiler {
         let effect = effect.replace("DURATION", &duration);
         let parts = outer.parts.borrow();
         let bound = format!("{shield} let to = {to}; let about = {about};");
+        if each.is_some() && (!parts.is_empty() || effect.contains("EffectKind::Redirect")) {
+            return Err(gap(KEPT));
+        }
         if !parts.is_empty() {
             let mut carried = String::from("let mut carried: Vec<Target> = Vec::new(); ");
             for part in parts.iter() {
@@ -1442,6 +1536,12 @@ impl Compiler {
                 ),
                 out,
             );
+        } else if let Some(list) = each {
+            writeln!(
+                out,
+                "for each in {list} {{ {bound} if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}"
+            )
+            .unwrap();
         } else {
             writeln!(
                 out,

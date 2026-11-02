@@ -439,6 +439,18 @@ impl Compiler {
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ let asker = &Asker::new(source, player); if costed == Costed::Spell(source) && {test} {{ {amount} }} else {{ CostDelta::NONE }} }}").unwrap();
                 parts.table("own_cost_changes", function);
             }
+            // "X can't be 0" is said of X as it is announced (CR 601.2b).
+            CastingRule::Require(Condition::Compare {
+                left: Expr::AnnouncedX,
+                comparison: Comparison::NotEqual,
+                right: Expr::Constant(0),
+            }) if condition.is_none() => parts.field("x_cant_be_zero", "true".into()),
+            // A test of what may be cast has no X to read: none is announced yet.
+            CastingRule::Require(required)
+                if condition.is_none() && format!("{required:?}").contains("AnnouncedX") =>
+            {
+                return Err(gap("a limit on the X announced"));
+            }
             CastingRule::Require(required) if condition.is_none() => {
                 let test = self.activation_condition(required, &format!("{label}_if"))?;
                 one_field(parts, "cast_only_if", format!("Some({test})"))?;

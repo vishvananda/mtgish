@@ -31,7 +31,10 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
         return Some(raw.to_string());
     };
     let printed = &printed_as_cantrip(printed);
-    let reads_data = raw.contains("item.data") || raw.contains("batch_by_data") || raw.contains(".data[");
+    let reads_data = raw.contains("item.data")
+        || raw.contains("batch_by_data")
+        || raw.contains("counted_by_amount")
+        || raw.contains(".data[");
     let reads_subject = raw.contains("event_subject") || raw.contains("event_objects") || raw.contains("item.subject");
     flatten_tokens(&mut file, &mut BTreeSet::new());
     use_shared_tokens(&mut file);
@@ -3610,7 +3613,14 @@ fn say_printed_text(file: &mut File, printed: &str) {
     }
     impl Say<'_> {
         fn is_printed(&self, text: &str) -> bool {
-            self.oracle.contains(loose(text).trim_end_matches(['.', ',', ';']))
+            let text = loose(text);
+            let text = text.trim_end_matches(['.', ',', ';']);
+            // "Equip {2} or {B}" is two abilities, each with its own price.
+            self.oracle.contains(text)
+                || self.lines.iter().filter_map(|line| super::costs::worded_apart(line)).any(|(one, two)| {
+                    loose(&one).trim_end_matches(['.', ',', ';']) == text
+                        || loose(&two).trim_end_matches(['.', ',', ';']) == text
+                })
         }
     }
     impl VisitMut for Say<'_> {

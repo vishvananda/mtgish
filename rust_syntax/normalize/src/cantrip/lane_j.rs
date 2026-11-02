@@ -2284,6 +2284,11 @@ impl Compiler {
                 format!("{on_stack}.is_some_and(|i| i.kind == StackKind::Spell)")
             }
             ObjectFilter::OnStack(StackTrait::SingleTarget) => match c.announced.as_deref() {
+                // "Targets only a single": however many times it was chosen (115.9c),
+                // where "with a single target" counts them.
+                None if self.line_text().is_some_and(|line| line.contains("only a single")) => {
+                    format!("{on_stack}.is_some_and(|i| {{ let chosen = q.state().targets(i); !chosen.is_empty() && chosen.iter().all(|t| *t == chosen[0]) }})")
+                }
                 None => format!("{on_stack}.is_some_and(|i| q.state().targets(i).len() == 1)"),
                 Some("") => return Err(gap("targets of a spell as it is cast")),
                 Some(list) => format!("{list}.len() == 1"),
@@ -2594,6 +2599,10 @@ impl Compiler {
         let asked = self.fetch(self.players(players)?);
         let binding = Binding(self.fresh() as u32 + 1_000_000);
         self.bound_players.insert(binding.0);
+        // "Half their life": the cost reads whoever is being asked.
+        let key = format!("willing {players:?}");
+        let asking = format!("Some(bound_{})", binding.0);
+        self.picked.borrow_mut().named.push((key.clone(), asking));
         writeln!(
             out,
             "let mut paid_{id} = false; for bound_{} in {asked} {{",
@@ -2606,6 +2615,7 @@ impl Compiler {
             optional: true,
         };
         let done = self.operation(&ask, result, out);
+        self.picked.borrow_mut().named.retain(|(name, _)| *name != key);
         self.bound_players.remove(&binding.0);
         done?;
         let inner = self.performed.insert(result.0, format!("paid_{id}"));

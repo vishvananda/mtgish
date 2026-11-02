@@ -155,6 +155,31 @@ pub(super) fn mode_history(unchosen: &Option<ModeHistory>) -> String {
     }
 }
 
+/// How `Operation::AttachEach` pairs what is attached with what it goes on.
+#[derive(Clone, Copy)]
+enum AttachShape {
+    /// All of them, on the one chosen before.
+    AllToTheChosen,
+    /// "For each of those tokens, you may attach an Equipment you control to it."
+    OneToEach,
+    /// "For each Aura and Equipment you control, you may attach it to a creature."
+    EachToOne,
+}
+
+/// `Game::attach`, which leaves in place what can't go there (CR 701.3b). What
+/// goes where is the actor's as the instruction is followed, one at a time.
+fn attach_each(id: usize, player: &str, attachments: &str, hosts: &str, shape: AttachShape, out: &mut String) {
+    let one = format!("{M}::select::Selection::of({M}::select::up_to(1), &[])");
+    let ask = |cards: &str| format!("{M}::choose::select(g, player_{id}, asker.source, Purpose::Attach, {cards}, {one})?");
+    write!(out, "let player_{id} = {player}; let attachments_{id} = {attachments}; let hosts_{id} = {hosts}; ").unwrap();
+    match shape {
+        AttachShape::AllToTheChosen => writeln!(out, "let _ = player_{id}; if let Some(&host) = hosts_{id}.first() {{ cantrip_api::instruction(g, |g| {{ for &attachment in &attachments_{id} {{ g.attach(attachment, host); }} }}); }}"),
+        AttachShape::OneToEach => writeln!(out, "for &host in &hosts_{id} {{ let chosen = {}; if let Some(&attachment) = chosen.first() {{ g.attach(attachment, host); }} }}", ask(&format!("attachments_{id}.clone()"))),
+        AttachShape::EachToOne => writeln!(out, "for &attachment in &attachments_{id} {{ let chosen = {}; if let Some(&host) = chosen.first() {{ g.attach(attachment, host); }} }}", ask(&format!("hosts_{id}.clone()"))),
+    }
+    .unwrap();
+}
+
 /// A rule that no two of a slot's targets share a key.
 fn distinct_rule(functions: &mut String, name: &str, kind: &str, key: &str, words: &str) -> String {
     if !functions.contains(&format!("fn {name}(")) {
@@ -581,7 +606,14 @@ impl Compiler {
         })
     }
     /// "Target creature of an opponent's choice": someone else picks the slot.
-    pub(super) fn chosen_by_another(&self, chooser: &PlayerRef, rule: &mut SlotRule) -> Result<()> {
+    pub(super) fn chosen_by_another(
+        &mut self,
+        chooser: &PlayerRef,
+        rule: &mut SlotRule,
+    ) -> Result<()> {
+        if self.every_slot_chosen && self.chosen_by_subject(chooser) {
+            return Ok(());
+        }
         if let PlayerRef::OneOf(players) = chooser {
             rule.planned.push((
                 "targets chosen by another player".to_string(),
@@ -782,7 +814,7 @@ impl Compiler {
                 keep,
             } => {
                 let keep = self.number(keep)?.amount(u32::MAX.into(), "u32")?;
-                writeln!(out, "let objects_{id} = {}; let keep_{id} = {}; let mut picks_{id}: Vec<(PlayerId, ObjectId)> = Vec::new(); for player in {} {{ let own: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player).collect(); let kept = {M}::choose::select(g, player, asker.source, Purpose::Keep, own.clone(), {M}::select::Selection::of({M}::select::Count::AsManyAsCan(keep_{id}), &[]))?; for o in own {{ if !kept.contains(&o) && g.can_sacrifice(player, o) {{ picks_{id}.push((player, o)); }} }} }} let sacrificed_{id} = g.sacrifice_each(&picks_{id});", self.fetch(self.objects(objects)?), self.fetch(keep), self.fetch(self.players(players)?)).unwrap();
+                writeln!(out, "let objects_{id} = {}; let keep_{id} = {}; let mut picks_{id}: Vec<(PlayerId, ObjectId)> = Vec::new(); for player in {} {{ let own: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player).collect(); if own.len() as u32 <= keep_{id} {{ continue; }} let kept = if keep_{id} == 0 {{ Vec::new() }} else {{ {M}::choose::select(g, player, asker.source, Purpose::Keep, own.clone(), {M}::select::Selection::of({M}::select::Count::AsManyAsCan(keep_{id}), &[]))? }}; for o in own {{ if !kept.contains(&o) && g.can_sacrifice(player, o) {{ picks_{id}.push((player, o)); }} }} }} let sacrificed_{id} = g.sacrifice_each(&picks_{id});", self.fetch(self.objects(objects)?), self.fetch(keep), self.fetch(self.players(players)?)).unwrap();
                 self.moved.insert(result.0, format!("sacrificed_{id}"));
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
             }
@@ -1248,9 +1280,11 @@ impl Compiler {
                         .replace("{id}", &id.to_string());
                         writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: u16 = {amount}; if let Some(source) = source_{id} {{ let shares = (targets_{id}.len() as u16).max(1); let share = {share}; let batch: Vec<(ObjectId, Target, u16)> = targets_{id}.iter().map(|&t| (source, t, share)).collect(); g.damage_together(&batch); }}").unwrap();
                     }
+                    // What isn't lethal (120.10) goes to the player at the same
+                    // time: the creature is never dealt the excess.
                     DamageRider::ExcessTo(player) => {
                         let player = self.fetch(self.certain_player(player)?);
-                        self.plan_code(&feature, &format!("if let Some(source) = {source} {{ {M}::damage::excess_to(g, source, &{targets}, {amount}, {player}); }}"), out);
+                        writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: u16 = {amount}; let player_{id} = {player}; if let (Some(source), Some(&target)) = (source_{id}, targets_{id}.first()) {{ let lethal_{id} = {{ let q: &dyn Query = g; target.object().map_or(amount_{id}, |o: ObjectId| {{ let chars = q.chars(o); let left = u16::try_from(chars.toughness.unwrap_or(0).max(0)).unwrap_or(0).saturating_sub(q.state().obj(o).damage); match q.chars(source).has(Keyword::Deathtouch) {{ true => left.min(1), false => left }} }}) }}; let dealt_{id} = amount_{id}.min(lethal_{id}); g.damage_together(&[(source, target, dealt_{id}), (source, Target::Player(player_{id}), amount_{id} - dealt_{id})]); }}").unwrap();
                     }
                     DamageRider::Prevented(prevented) => {
                         let prevented =
@@ -1262,6 +1296,21 @@ impl Compiler {
                         self.plan_code(&feature, &format!("if let Some(source) = {source} {{ {M}::damage::divided_by(g, source, &{targets}, {amount}, {player})?; }}"), out);
                     }
                 }
+            }
+            // "Gets +1/-1 or -1/+1": its words, as the card prints them, and a pair
+            // for what follows to read.
+            Operation::ChoosePowerToughness { player, options } if self.stack_item => {
+                let player = self.fetch(self.certain_player(player)?);
+                let labels: Vec<String> =
+                    options.iter().map(|(p, t)| format!("{p:+}/{t:+}")).collect();
+                let pairs: Vec<String> =
+                    options.iter().map(|(p, t)| format!("({p}i64, {t}i64)")).collect();
+                let base = self.choice_labels.len();
+                let end = base + labels.len();
+                self.choice_labels.extend(labels);
+                let words: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", words.join(", ")));
+                writeln!(out, "let player_{id} = {player}; let picked_{id} = {M}::choose::option(g, player_{id}, asker.source, item.ability.card, {base}..{end})? - {base}; let chosen_pt_{}: (i64, i64) = [{}][picked_{id} as usize];", result.0, pairs.join(", ")).unwrap();
             }
             Operation::ChoosePowerToughness { player, options } => {
                 let player = self.fetch(self.certain_player(player)?);
@@ -1620,6 +1669,20 @@ impl Compiler {
                     out,
                 );
             }
+            // "A face-down pile and a face-up pile" (700.3): the separator chooses
+            // the first, and the second is shown to everyone.
+            Operation::Piles {
+                actor,
+                objects,
+                count: Some(_),
+                names,
+                chooser: None,
+            } if names == &["face up", "face down"] => {
+                let player = self.one_actor(actor, &feature)?;
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let separator_{id} = {player}; let cards_{id} = {objects}; let (face_down_{id}, face_up_{id}) = {M}::choose::separate_face_down_and_face_up(g, separator_{id}, asker.source, cards_{id})?;").unwrap();
+                self.face_piles = Some(id);
+            }
             Operation::Piles {
                 actor,
                 objects,
@@ -1641,6 +1704,31 @@ impl Compiler {
                     None => "None".to_string(),
                 };
                 self.plan_code(&feature, &format!("{M}::choose::into_piles(g, {player}, asker.source, {objects}, {count}, &{names:?}, {chooser})?"), out);
+            }
+            // The chooser sees the face-up pile, and how many the other holds. Its
+            // cards go on revealed, the other's never shown.
+            Operation::ChoosePile {
+                actor,
+                from: None,
+                random: false,
+                names,
+                object: None,
+                then: Some(Destination::OwnersHand),
+            } if names.is_empty() && self.face_piles.is_some() => {
+                let piles = self.face_piles.take().unwrap_or_default();
+                let chooser = match actor {
+                    PlayerSet::One(player) => format!(
+                        "let chooser_{id} = {};",
+                        self.fetch(self.certain_player(player)?)
+                    ),
+                    PlayerSet::OpponentsOf(_) => {
+                        const VERB: &str = "decides which of the two piles you put into your hand; the other goes into your graveyard";
+                        let among = self.fetch(self.players(actor)?);
+                        format!("let among_{id} = {among}; let Some(chooser_{id}) = {M}::choose::player(g, asker.controller, asker.source, among_{id}, {VERB:?}, 0)? else {{ return Ok(()) }};")
+                    }
+                    _ => return Err(gap(feature)),
+                };
+                writeln!(out, "if !(face_down_{piles}.is_empty() && face_up_{piles}.is_empty()) {{ {chooser} let (keep_{id}, _) = {M}::choose::face_down_or_face_up_pile(g, chooser_{id}, asker.source, face_down_{piles}, face_up_{piles}.clone())?; if keep_{id} == face_up_{piles} {{ g.return_to_hand_revealed(&keep_{id}); }} else {{ g.return_to_hand(&keep_{id}); }} }}").unwrap();
             }
             Operation::ChoosePile {
                 actor,
@@ -1750,6 +1838,21 @@ impl Compiler {
                 let cost = quoted(&format!("{cost:?}"));
                 self.plan_code(&feature, &format!("{M}::players::each_pays_repeatedly(g, {players}, asker.source, {cost}, {most})?"), out);
             }
+            // "May choose any number of ... and pay {4} for each": the choice first,
+            // then one payment for all of it, or none chosen after all.
+            Operation::ChooseAndPay {
+                actor,
+                objects,
+                cost,
+            } if matches!(cost.parts.as_slice(), [CostPart::Mana(_)]) => {
+                self.helpers.insert("pay_question");
+                let player = self.one_actor(actor, &feature)?;
+                let objects = self.fetch(self.objects(objects)?);
+                let one = self.cost(cost, super::lane_g::PAID)?;
+                writeln!(out, "let payer_{id} = {player}; let among_{id}: Vec<ObjectId> = {objects}; let picked_{id} = {M}::choose::select(g, payer_{id}, asker.source, Purpose::Untap, among_{id}, {M}::select::cards({M}::select::ANY_NUMBER))?; let price_{id} = ({one}).mana.times(picked_{id}.len() as u32); let chosen_{id}: Vec<ObjectId> = match price_{id} {{ Some(mana) if !picked_{id}.is_empty() && g.may_pay(payer_{id}, asker.source, asker.source, Cost::mana(mana), &PAY_QUESTION)? => picked_{id}, _ => Vec::new() }};").unwrap();
+                self.selections.insert(result.0, format!("chosen_{id}"));
+                self.moved.insert(result.0, format!("chosen_{id}"));
+            }
             Operation::ChooseAndPay {
                 actor,
                 objects,
@@ -1844,6 +1947,22 @@ impl Compiler {
                 each_host,
             } => {
                 let player = self.one_actor(actor, &feature)?;
+                if let Recipients::Objects(on) = hosts {
+                    let shape = (count, *each_host, matches!(on, ObjectSet::Selected(_)));
+                    let one = |n: &Expr| matches!(n, Expr::Constant(1));
+                    let mine = match shape {
+                        (None, false, true) => Some(AttachShape::AllToTheChosen),
+                        (Some(Count::UpTo(n)), true, _) if one(n) => Some(AttachShape::OneToEach),
+                        (Some(Count::AnyNumber), false, false) => Some(AttachShape::EachToOne),
+                        _ => None,
+                    };
+                    if let Some(shape) = mine {
+                        let attachments = self.fetch(self.objects(attachments)?);
+                        let on = self.fetch(self.objects(on)?);
+                        attach_each(id, &player, &attachments, &on, shape, out);
+                        return Ok(());
+                    }
+                }
                 let attachments = self.fetch(self.objects(attachments)?);
                 let hosts = self.fetch(self.recipients(hosts)?);
                 let count = match count {
@@ -2122,6 +2241,38 @@ impl Compiler {
             _ => return None,
         })
     }
+    /// `.with(part)` for the rule a move keeps its chosen `cards` to, if `select`
+    /// has it. The source's "from your graveyard" has to be what `cards` reads.
+    pub(super) fn group_rule(&mut self, group: &Operand, cards: &ObjectSet) -> Option<String> {
+        let from_graveyard = self.line_text().is_some_and(|line| line.contains("from your graveyard"));
+        if from_graveyard && !self.objects(cards).ok()?.contains("Zone::graveyard") {
+            return None;
+        }
+        let (form, operands): (&str, &[Operand]) = match group {
+            Operand::Vocabulary { family, form } if family == "GroupFilter" => (form, &[]),
+            Operand::Term { family, form, operands } if family == "GroupFilter" => (form, operands),
+            Operand::Form(named) if named.source_type == "GroupFilter" => {
+                (&named.form, &named.operands)
+            }
+            _ => return None,
+        };
+        let constraint = match (form, operands) {
+            ("DifferentNames", []) => SelectionConstraint::DifferentNames,
+            ("DifferentManaValues", []) => {
+                SelectionConstraint::DifferentProperty(Property::ManaValue)
+            }
+            ("DifferentPowers", []) => SelectionConstraint::DifferentProperty(Property::Power),
+            ("TotalManaValueIs", [Operand::Comparison(comparison, amount @ Expr::Constant(_))]) => {
+                SelectionConstraint::TotalProperty {
+                    property: Property::ManaValue,
+                    comparison: comparison.clone(),
+                    amount: amount.clone(),
+                }
+            }
+            _ => return None,
+        };
+        Some(format!(".with({})", self.set_rule(&constraint)?))
+    }
     /// `.with(part)` for each rule of a search.
     pub(super) fn search_rules(&mut self, constraints: &[SelectionConstraint]) -> Result<String> {
         let mut rules = String::new();
@@ -2380,6 +2531,29 @@ impl Compiler {
             up_to,
             ..
         } = terms;
+        if let (ValueKind::CreatureType, PlayerSet::One(player), [_, ..]) =
+            (kind, actor, except.as_slice())
+        {
+            let plain = terms.options.is_empty()
+                && terms.count.is_none()
+                && !(*secret || *unchosen || *random || *ordered || *up_to)
+                && except.iter().all(|word| word.starts_with("CreatureType::"))
+                && !self.chosen.iter().any(|(k, _)| *k == kind);
+            if plain {
+                let player = self.fetch(self.certain_player(player)?);
+                let except: Vec<String> = except
+                    .iter()
+                    .map(|word| {
+                        let word = word.replacen("CreatureType::", "Subtype::", 1);
+                        format!("g.words(asker.source).subtype({word})")
+                    })
+                    .collect();
+                let local = format!("chosen_{id}");
+                writeln!(out, "let player_{id} = {player}; let except_{id} = [{}]; let ask_{id} = RequestKind::ChooseSubtype {{ source: asker.source, choices: Subtype::CREATURE_TYPES.iter().copied().filter(|t| !except_{id}.contains(t)).collect(), purpose: WordUse::Chosen }}; let Answer::Subtype({local}) = g.ask(player_{id}, ask_{id})? else {{ unreachable!(\"the core answers a subtype choice with a subtype\") }};", except.join(", ")).unwrap();
+                self.chosen.push((kind, local));
+                return Ok(());
+            }
+        }
         let code = format!("{M}::choose::value(g, {players}, asker.source, ChoiceKind::{kind:?}, ChoiceTerms {{ options: &[{}], except: &[{}], count: {count}, secret: {secret}, unchosen: {unchosen}, random: {random}, ordered: {ordered}, up_to: {up_to} }})?", options.join(", "), except.join(", "));
         self.value_to_come("operation ChooseValueWith", id, kind, &code, out);
         Ok(())

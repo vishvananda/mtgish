@@ -176,12 +176,15 @@ impl Compiler {
         from: Option<&EventZone>,
         to: &EventZone,
     ) -> Result<Matched> {
+        let entering = *to == EventZone::Battlefield;
+        // "That creature's controller chooses": the engine asks the subject.
+        let controller = self.controller_subject && entering;
         let frame = Frame {
-            object: Some(Carried::Subject),
+            object: Some(if controller { Carried::Data(0) } else { Carried::Subject }),
+            player: controller.then_some(Carried::Subject),
             destination: Some(Carried::Data(0)),
             ..Frame::default()
         };
-        let entering = *to == EventZone::Battlefield;
         // CR 603.10: a departure is judged as the object last was, an arrival
         // as it now is, and a card moved between hidden or public zones as it
         // was where it left from. An ability of the card that works where the
@@ -217,7 +220,12 @@ impl Compiler {
             "ZONE_CHANGE",
             Arm {
                 pattern: "Event::ZoneChange { old, new, from, to, .. }".into(),
-                locals: object_fired(id, "new.0"),
+                locals: match controller {
+                    false => object_fired(id, "new.0"),
+                    true => format!(
+                        "let id = {id}; let subject = Target::Player(q.controller(id)); let data = [new.0, u32::MAX];"
+                    ),
+                },
                 tests,
             },
             frame,
@@ -743,6 +751,15 @@ impl Compiler {
             stack_controller: Some(Carried::Data(1)),
             ..Frame::default()
         };
+        // "Target permanent that player controls": the subject is who did it.
+        let frame = match self.recipient_subject {
+            false => frame,
+            true => Frame {
+                object: None,
+                stack_controller: Some(Carried::Subject),
+                ..frame
+            },
+        };
         let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];
         if lane_k::a_permanent_targeted(objects) {
             tests.push("q.is_on_battlefield(id)".into());
@@ -782,7 +799,10 @@ impl Compiler {
             "BECAME_TARGET",
             Arm {
                 pattern: "Event::BecameTarget { target: Target::Object(target), by, controller, .. }".into(),
-                locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0) | (q.state().stack.len().saturating_sub(1) as u32) << 8];".into(),
+                locals: format!(
+                    "let id = *target; let by = *by; let controller = *controller; let subject = {}; let data = [by.0, u32::from(controller.0) | (q.state().stack.len().saturating_sub(1) as u32) << 8];",
+                    if self.recipient_subject { "Target::Player(controller)" } else { "Target::Object(id)" },
+                ),
                 tests,
             },
             frame,
@@ -892,6 +912,22 @@ impl Compiler {
             other_player: (by.is_some() && named).then_some(Carried::Data(1)),
             ..Frame::default()
         };
+        // "Target creature that player controls": all a target filter can read
+        // of the event is its subject, so the defending player is it, and the
+        // batch keeps its key in `data`.
+        let attacked = self.recipient_subject && named;
+        let frame = match attacked {
+            false => frame,
+            true => Frame {
+                object: None,
+                player: frame.player.map(|held| match held {
+                    Carried::Data(1) => Carried::Subject,
+                    held => held,
+                }),
+                other_player: frame.other_player.map(|_| Carried::Subject),
+                ..frame
+            },
+        };
         let tests = self.matching(frame, |c| {
             let mut tests = vec![c.filter(attackers, &Candidate::of("id"))?];
             if let Some(by) = by {
@@ -902,7 +938,10 @@ impl Compiler {
         })?;
         let arm = Arm {
             pattern: "Event::Attacks { attacker, defender, defending, .. }".into(),
-            locals: "let id = *attacker; let subject = Target::Object(id); let data = [u32::from(q.controller(id).0), u32::from(defending.0)];".into(),
+            locals: format!(
+                "let id = *attacker; let subject = {}; let data = [u32::from(q.controller(id).0), u32::from(defending.0)];",
+                if attacked { "Target::Player(*defending)" } else { "Target::Object(id)" },
+            ),
             tests: tests.clone(),
         };
         Ok((
@@ -1083,7 +1122,21 @@ impl Compiler {
                 if matched.sums {
                     return Err(gap("a batch of grouped events"));
                 }
-                matched.batch = Some(false);
+                // "One or more cards are put into a library": cards, from outside
+                // it, and one trigger for each library (CR 603.2c).
+                let mut library = false;
+                for arm in &mut matched.arms {
+                    if arm.tests.iter().any(|t| t.contains("to.is(ZoneKind::Library)")) {
+                        library = true;
+                        arm.tests
+                            .push("!from.is(ZoneKind::Library) && !q.obj(*new).token".into());
+                        arm.locals = arm.locals.replace(
+                            ", u32::MAX];",
+                            ", to.player.0 as u32];",
+                        );
+                    }
+                }
+                matched.batch = Some(library);
                 matched
             }
         };
@@ -1409,6 +1462,7 @@ impl Compiler {
                     object: Some(Carried::Subject),
                     player: Some(Carried::Data(0)),
                     stack_object: Some(Carried::Subject),
+                    subject_controller: Some(Carried::Data(0)),
                     ..Frame::default()
                 };
                 let test = self.matching(frame, |c| {
@@ -1634,6 +1688,38 @@ impl Compiler {
         announcement: &Announcement,
         body: &Program,
     ) -> Result<String> {
+        let counts = match self.slot_counts {
+            target_counts::SlotCounts::Delayed => target_counts::SlotCounts::Delayed,
+            _ => Compiler::counts_of_trigger(event),
+        };
+        let outer = (self.slot_counts, self.count_read.take());
+        let chosen = (self.every_slot_chosen, self.subject_chooses);
+        self.slot_counts = counts;
+        self.every_slot_chosen = announcement.modes.is_none()
+            && !announcement.targets.is_empty()
+            && announcement.targets.iter().all(|slot| format!("{:?}", slot.chooser) == format!("{:?}", announcement.targets[0].chooser))
+            && announcement.targets[0].chooser.is_some();
+        self.subject_chooses = false;
+        let def = self.triggered_def(label, event, intervening_if, limits, announcement, body);
+        let read = self.count_read.take().map(|(_, call)| call);
+        let by_subject = self.subject_chooses;
+        (self.slot_counts, self.count_read) = outer;
+        (self.every_slot_chosen, self.subject_chooses) = chosen;
+        let mut def = def? + read.as_deref().unwrap_or("");
+        if by_subject {
+            def.push_str(".subject_chooses_targets()");
+        }
+        Ok(def)
+    }
+    fn triggered_def(
+        &mut self,
+        label: &str,
+        event: &EventSpec,
+        intervening_if: Option<&Condition>,
+        limits: &TriggerLimits,
+        announcement: &Announcement,
+        body: &Program,
+    ) -> Result<String> {
         if let Some(total) = limits.total {
             let free = TriggerLimits {
                 per_turn: limits.per_turn,
@@ -1683,12 +1769,21 @@ impl Compiler {
                 );
             }
         }
+        let mut read = format!("{:?}", announcement.targets);
+        for mode in announcement.modes.iter().flat_map(|modes| &modes.modes) {
+            write!(read, "{:?}", mode.announcement.targets).unwrap();
+        }
         self.recipient_subject =
-            format!("{:?}", announcement.targets).contains("ControlledBy(One(EventSubject))");
+            ["One(EventSubject)", "One(EventOtherPlayer)", "EventStackObject", "chooser: Some(EventSubject)"]
+                .iter()
+                .any(|player| read.contains(player));
+        self.controller_subject = read.contains("chooser: Some(ControllerOf(EventSubject))")
+            && !read.contains("EventDestination");
         let summed = summed_at_recipient(event, body);
         let event = summed.as_ref().unwrap_or(event);
         let matched = self.event(event);
         self.recipient_subject = false;
+        let controller_subject = std::mem::take(&mut self.controller_subject);
         if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {
             let whole = gate.is_none() && conditional.is_none() && limits.per_turn.is_none();
             if failed.feature == "alternative events with different rules" && whole {
@@ -1725,7 +1820,12 @@ impl Compiler {
                 false,
             )?;
         }
-        if announcement.modes.is_some() {
+        let implied = match body.instructions.is_empty() {
+            true => self.implied_slots(announcement, label, Some(matched.frame))?,
+            false => None,
+        };
+        let implied_by_target = implied.is_some();
+        if announcement.modes.is_some() && !implied_by_target {
             return self.modal_triggered(
                 label,
                 &matched,
@@ -1735,7 +1835,13 @@ impl Compiler {
                 body,
             );
         }
-        let targets = self.targets_for(announcement, label, matched.frame)?;
+        self.controller_subject = controller_subject;
+        let targets = match implied {
+            Some(targets) => Ok(targets),
+            None => self.targets_for(announcement, label, matched.frame),
+        };
+        self.controller_subject = false;
+        let targets = targets?;
         self.frame = matched.frame;
         // CR 603.4 asks an intervening "if" twice. The engine's `condition` has
         // no event to read, so one that reads the event is asked by the matcher
@@ -1791,7 +1897,9 @@ impl Compiler {
         let members = self.members_targeted(event, label, matched.frame, body)?;
         self.grouped = matched.batch.is_some() || members.is_some();
         let effect = match guard {
+            Some(_) if implied_by_target => Err(gap("a condition on modes a target implies")),
             Some(condition) => self.guarded_effect(condition, body, label),
+            None if implied_by_target => self.implied_effect(announcement, label),
             None => self.effect(body, label),
         };
         self.grouped = false;

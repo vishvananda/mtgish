@@ -60,6 +60,35 @@ pub(super) fn capture(event: &mut ReplacementEvent, found: &mut Vec<ObjectRef>) 
     }
 }
 
+/// `capture` of a slot of several: "X target creatures would deal", which is one
+/// effect on each of them.
+pub(super) fn capture_slot(event: &mut ReplacementEvent, found: &mut Vec<Slot>) {
+    let mut name = |filter: &mut ObjectFilter| {
+        if let ObjectFilter::InSet(set) = filter {
+            if let ObjectSet::Targets(slot) = &**set {
+                if !found.iter().any(|f| f.0 == slot.0) {
+                    found.push(slot.clone());
+                }
+                *filter = ObjectFilter::SameObject(ObjectRef::Affected);
+            }
+        }
+    };
+    match event {
+        ReplacementEvent::Damage(damage) => {
+            name(&mut damage.sources);
+            if let DamageRecipients::Objects(objects) = &mut damage.recipients {
+                name(objects);
+            }
+        }
+        ReplacementEvent::Either(events) => {
+            for event in events {
+                capture_slot(event, found);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// A replacement runs after the ability that made it, without its targets.
 fn names_target(recipients: &Recipients) -> bool {
     match recipients {

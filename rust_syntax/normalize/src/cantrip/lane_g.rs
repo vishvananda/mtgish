@@ -6,7 +6,7 @@ const M: &str = "cantrip_mechanics";
 /// The change an object keeps through every zone for the rest of the game.
 const PERPETUAL: &str = "cantrip_mechanics::perpetual::Perpetual";
 /// The label of a cost paid as something resolves, where any number can be read.
-const PAID: &str = "paid";
+pub(super) const PAID: &str = "paid";
 
 /// What an optional additional cost sets on the card.
 enum Optional {
@@ -772,6 +772,10 @@ impl Compiler {
                 return Ok(());
             }
         }
+        if let Some(grant) = self.protection_read_from(quality)? {
+            grants.push(grant);
+            return Ok(());
+        }
         let mut fixed = Vec::new();
         let Err(hole) = granted_protection(quality, &mut fixed) else {
             grants.extend(fixed);
@@ -782,8 +786,16 @@ impl Compiler {
                 Ok(test) => format!("ProtectionQuality::Matching(|q, asker, id| {test})"),
                 Err(_) => return Err(hole),
             },
+            // An effect has one kind for each player: `continuous` adds them.
             Protection::Players(players) => match self.players(players) {
-                Ok(list) => format!("ProtectionQuality::Players(|q, asker| {list})"),
+                Ok(list) => {
+                    let kind = format!("EffectKind::ProtectionFrom(ProtectionQuality::Players(|q, asker| {list}))");
+                    grants.push((
+                        planned_kind(FEATURE, kind),
+                        format!("for player in {list} {{ chars.protection_players |= 1 << player.0; }}"),
+                    ));
+                    return Ok(());
+                }
                 Err(_) => return Err(hole),
             },
             _ => return Err(hole),
@@ -800,6 +812,46 @@ impl Compiler {
             ),
         ));
         Ok(())
+    }
+    /// Protection from each color or card type of what the game reads: the kind
+    /// a resolving effect adds, read once, and the statement of a layer, where
+    /// each object read has been through the layers before abilities. Colors of
+    /// a card that moved are the card's, not those it had as "that creature".
+    fn protection_read_from(&mut self, quality: &Protection) -> Result<Option<(String, String)>> {
+        let Protection::Objects { kind: ObjectKind::Any, filter } = quality else {
+            return Ok(None);
+        };
+        let own_colors = self.reader == Reader::Layer
+            && self.lines_said().iter().any(|line| line.contains("from each of its colors"));
+        let colors = match filter {
+            ObjectFilter::SharesColorWith(ObjectRef::Source) if own_colors => "chars.colors".to_string(),
+            ObjectFilter::SharesColorWith(object) => format!(
+                "{}.map_or(ColorSet::NONE, |o: ObjectId| q.chars(o).colors)",
+                self.object(object)?
+            ),
+            ObjectFilter::SharesColorWithAny(objects) => format!(
+                "({}).into_iter().flat_map(|o: ObjectId| q.chars(o).colors.iter()).fold(ColorSet::NONE, ColorSet::with)",
+                self.objects(objects)?
+            ),
+            ObjectFilter::Shares { property: DistinctProperty::CardTypes, with } => {
+                let types = format!(
+                    "{}.map_or(TypeSet::NONE, |o: ObjectId| q.chars(o).types)",
+                    self.object(with)?
+                );
+                return Ok(Some((
+                    format!("EffectKind::ProtectionFromTypes({types})"),
+                    format!("chars.protection_types = TypeSet(chars.protection_types.0 | ({types}).0);"),
+                )));
+            }
+            _ => return Ok(None),
+        };
+        if colors.contains("moved_") {
+            return Ok(None);
+        }
+        Ok(Some((
+            format!("EffectKind::Protection({colors})"),
+            format!("chars.protection = ColorSet(chars.protection.0 | ({colors}).0);"),
+        )))
     }
     /// "You may pay [mana] any number of times": how many is the payer's as they
     /// pay, and is what "that many" reads.
@@ -1926,6 +1978,21 @@ impl Compiler {
                 );
                 parts.statics.push(statics);
             }
+            Protection::Objects { kind: ObjectKind::Any, filter: ObjectFilter::Any } => {
+                self.printed_protection("everything", "chars.protection_everything = true;", parts);
+            }
+            Protection::Objects { kind: ObjectKind::Any, .. }
+                if self
+                    .lines_said()
+                    .iter()
+                    .any(|line| line.contains("protection from spells that are one or more colors")) =>
+            {
+                self.printed_protection(
+                    "spells that are one or more colors",
+                    "chars.protection_colored_spells = true;",
+                    parts,
+                );
+            }
             Protection::Objects { kind, filter } => {
                 let test = self.spending_test(filter, "source")?;
                 let code = format!(
@@ -1946,6 +2013,19 @@ impl Compiler {
             }
         }
         Ok(())
+    }
+    /// A quality `Chars` has a field for, printed as a keyword (Progenitus).
+    fn printed_protection(&mut self, what: &str, statement: &str, parts: &mut Parts) {
+        let apply = format!("printed_protection_{}", parts.statics.len());
+        writeln!(
+            self.functions,
+            "fn {apply}(_: &dyn LayerQuery, _: ObjectId, chars: &mut Chars) {{ {statement} }}"
+        )
+        .unwrap();
+        let text = quoted(&format!("Protection from {what}"));
+        parts.statics.push(format!(
+            "static_ability(Layer::Ability, {M}::statics::itself, {apply}, {text})"
+        ));
     }
     /// A filter asked of a spell or source where mana is being spent.
     fn spending_test(&self, filter: &ObjectFilter, id: &str) -> Result<String> {

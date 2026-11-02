@@ -348,6 +348,19 @@ pub(super) fn asks_even_of_one(out: &mut String, mark: usize) {
     ));
 }
 /// Target counts of a slot something is divided among: at least one.
+/// `object` is what a moved object became: "that card", in its new zone.
+pub(super) fn what_the_event_moved(object: &ObjectRef) -> bool {
+    match object {
+        ObjectRef::EventDestination => true,
+        ObjectRef::Query { objects, index: 0 } => match objects.as_ref() {
+            ObjectSet::InZone { objects, .. } => {
+                matches!(&**objects, ObjectSet::One(ObjectRef::EventDestination))
+            }
+            _ => false,
+        },
+        _ => false,
+    }
+}
 pub(super) fn divided_among_some(count: String, divided: bool) -> String {
     match divided {
         true => count.replace(".between(0,", ".between(1,"),
@@ -2055,6 +2068,7 @@ impl Compiler {
     /// can't stand in a function of its own.
     pub(super) fn reads_a_local(&self, code: &str) -> bool {
         code.contains("willing_")
+            || code.contains("bound_")
             || self
                 .chosen
                 .iter()
@@ -2135,6 +2149,18 @@ impl Compiler {
             .unwrap_or(first);
         self.quoted_used.insert(at);
         line.quotes[at].1.clone()
+    }
+    /// The printed lines the ability being compiled may be among.
+    pub(super) fn lines_said(&self) -> Vec<String> {
+        if let Some(line) = &self.line {
+            if self.granting {
+                return line.quotes.iter().map(|(_, q)| q.clone()).collect();
+            }
+            return vec![line.text.clone()];
+        }
+        let staged = self.stage_lines.iter().map(|line| line.text.clone());
+        let chapters = self.chapters.values().cloned();
+        staged.chain(chapters).collect()
     }
     /// The printed words of mode `at` of `count`.
     pub(super) fn said_mode(&self, at: usize, count: usize, fallback: String) -> String {

@@ -31,6 +31,8 @@ mod lane_o;
 mod lane_p;
 mod lane_q;
 mod mechanics;
+mod option_words;
+mod target_counts;
 pub mod planned;
 mod players;
 mod playing;
@@ -467,6 +469,8 @@ struct Compiler {
     quoted_used: BTreeSet<usize>,
     /// The next choice is a "you may": choosing nothing is declining.
     may_choose: bool,
+    /// `.with(part)` the next resolution choice takes: a rule of the set it picks.
+    choice_rule: String,
     /// What runs once that choice found something, the rest of the block with it.
     chosen_guard: Option<String>,
     /// That guard is open, and the block has to close it.
@@ -543,6 +547,10 @@ struct Compiler {
     selections: BTreeMap<u32, String>,
     /// What later reads ask of the instructions before them (`lane_m`).
     notes: lane_m::Notes,
+    /// By slot: who controlled the items an earlier step countered.
+    countered: BTreeMap<u16, String>,
+    /// The instruction that separated a face-down pile and a face-up pile.
+    face_piles: Option<usize>,
     /// The cards that ended each reveal, by the result that names all it showed.
     reveal_matches: BTreeMap<u32, String>,
     /// This resolution has revealed something. The AST does not always tie a
@@ -660,10 +668,26 @@ struct Compiler {
     entering_labels: Option<String>,
     /// The mana cost printed on the card.
     printed_mana: Option<Vec<ManaSymbol>>,
+    /// What `COUNTED` reads in the slots being written.
+    slot_counts: target_counts::SlotCounts,
+    /// The one number a triggered ability's `COUNTED` reads: its code and the
+    /// builder call that says so.
+    count_read: Option<(String, String)>,
+    /// The slot whose target says which of its implied modes an ability has,
+    /// and each mode's test of it.
+    implied_branch: Option<(usize, Vec<String>)>,
+    /// Every slot of the trigger being written names who chooses it.
+    every_slot_chosen: bool,
+    /// The trigger being written says that its subject chooses its targets.
+    subject_chooses: bool,
+    /// Its slots leave that to the subject, and that is who the event binds.
+    controller_subject: bool,
     /// `CardDef::lasting_cost_changes`.
     made_cost_changes: Vec<String>,
     /// `CardDef::labels` of abilities to choose among as a body resolves.
     choice_labels: Vec<String>,
+    /// Options of a "this or that" are among `choice_labels`.
+    option_labels: bool,
     /// The abilities the body's `ChooseValue` offered.
     ability_choice: Vec<Ability>,
     granting: bool,
@@ -932,6 +956,8 @@ impl Compiler {
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             notes: Default::default(),
+            countered: BTreeMap::new(),
+            face_piles: None,
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
             reveal_matches: BTreeMap::new(),
@@ -990,8 +1016,15 @@ impl Compiler {
             rule_on_event_object: false,
             entering_labels: None,
             printed_mana: None,
+            slot_counts: Default::default(),
+            count_read: None,
+            implied_branch: None,
+            every_slot_chosen: false,
+            subject_chooses: false,
+            controller_subject: false,
             made_cost_changes: Vec::new(),
             choice_labels: Vec::new(),
+            option_labels: false,
             ability_choice: Vec::new(),
             granting: false,
             holding: None,
@@ -1015,6 +1048,7 @@ impl Compiler {
             line: None,
             quoted_used: BTreeSet::new(),
             may_choose: false,
+            choice_rule: String::new(),
             chosen_guard: None,
             guard_opened: 0,
             second_of_two: None,
@@ -1258,6 +1292,8 @@ impl Compiler {
                 self.slots.insert(spec.slot.0, (i, spec.clone()));
                 continue;
             }
+            let each_player = target_counts::each_player_slot(spec);
+            let spec = each_player.as_ref().unwrap_or(spec);
             let doubled;
             let spec = if self.second_of_two.is_some() {
                 doubled = TargetSpec {
@@ -1296,7 +1332,18 @@ impl Compiler {
             } else if let Some(total) = &spec.distribute {
                 let total = match total {
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
-                    Expr::AnnouncedX if i == 0 => "TargetSpec::COUNTED".to_string(),
+                    Expr::AnnouncedX
+                        if i == 0 && self.slot_counts == Default::default() =>
+                    {
+                        "TargetSpec::COUNTED".to_string()
+                    }
+                    other if i == 0 && self.counts_own_x(other) => {
+                        "TargetSpec::COUNTED".to_string()
+                    }
+                    Expr::AnnouncedX => {
+                        return Err(gap("target with a divided amount of an X it can't read")
+                            .at(at))
+                    }
                     other if i == 0 => {
                         let total = self
                             .number(other)
@@ -1317,7 +1364,7 @@ impl Compiler {
                 Some(chooser) => self.chosen_by_another(chooser, &mut rule),
                 None => Ok(()),
             };
-            let count = self.target_count(&spec.count);
+            let count = self.slot_count(&spec.count, &format!("{label}_{i}"));
             self.choosing = None;
             chosen_by.map_err(|e| e.at(&at))?;
             let count = count.map_err(|e| e.at(&at))?;
@@ -1861,6 +1908,43 @@ pub fn modules_named(input: &Path, names: &[String]) -> corpus::Result<Vec<(Stri
     Ok(found)
 }
 
+/// `modules_named` with each card's printed words to read, holes and all, as the
+/// tracked generation has them.
+pub fn modules_printed(
+    input: &Path,
+    oracle: &Path,
+    names: &[String],
+) -> corpus::Result<Vec<(String, String)>> {
+    let oracle = oracle_texts(oracle)?;
+    let wanted: BTreeSet<&str> = names.iter().map(String::as_str).collect();
+    let mut found = Vec::new();
+    corpus::map_cards(
+        input,
+        |_, source| -> corpus::Result<Option<(String, String)>> {
+            let identity = corpus::Identity::of(&source)?;
+            let Some(name) = identity
+                .names
+                .iter()
+                .find(|n| wanted.contains(n.as_str()))
+                .cloned()
+            else {
+                return Ok(None);
+            };
+            let lowered = crate::unified::lower(&source);
+            let rendered = match lane_f::whole_printed(&source, &lowered.card, Some(&oracle)) {
+                Ok(whole) => whole.faces.iter().map(|f| f.rust.as_str()).collect(),
+                Err(_) => String::new(),
+            };
+            Ok(Some((name, rendered)))
+        },
+        |_, module| {
+            found.extend(module);
+            Ok(())
+        },
+    )?;
+    Ok(found)
+}
+
 /// One complete card module of one face, whatever else its record holds. Never
 /// returns partially executable code. `whole_module` is a record's whole file.
 pub fn module(card: &Card) -> Result<String> {
@@ -2274,6 +2358,11 @@ fn emit_face(
         parts.table("lasting_cost_changes", made);
     }
     if let Some(labels) = c.entering_labels.take() {
+        let taken = c.option_labels && parts.fields.contains_key("labels");
+        c.attempt("abilities".into(), |_| match taken {
+            true => Err(gap("a choice's words beside other labels")),
+            false => Ok(()),
+        });
         parts.field("labels", labels);
     }
     let door_refused = parts.door_refused();
