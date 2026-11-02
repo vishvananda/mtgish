@@ -1364,8 +1364,10 @@ impl Compiler {
                 let decider = planned::planned_read(player, "asker.controller", decider);
                 let id = self.fresh();
                 let (open, spent) = lane_k::once_a_turn(self.do_once.take(), id);
-                let open =
-                    open + &lane_k::asked_if(player_ref, id, body) + &self.asked_if_there(body);
+                let open = open
+                    + &lane_k::asked_if(player_ref, id, body)
+                    + &self.asked_if_there(body)
+                    + &self.top_card_offered(id, body, out)?;
                 writeln!(out, "let decider_{id} = {decider}; if {open}cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{{spent}").unwrap();
                 self.block(body, out, true)?;
                 writeln!(out, "}}").unwrap();
@@ -2359,12 +2361,13 @@ impl Compiler {
                 intervening_if,
             } => {
                 let mut event = event.clone();
+                let mut each_out = String::new();
                 let each = match &mut event {
                     EventSpec::ZoneChange { objects, .. } => {
-                        self.about_each_damaged(objects, true, out)
+                        self.about_each_damaged(objects, true, &mut each_out)
                     }
                     EventSpec::Object { objects, .. } => {
-                        self.about_each_damaged(objects, false, out)
+                        self.about_each_damaged(objects, false, &mut each_out)
                     }
                     _ => None,
                 };
@@ -2375,9 +2378,10 @@ impl Compiler {
                     body,
                     *once,
                     intervening_if,
-                    out,
+                    &mut each_out,
                 );
-                self.end_each_damaged(each, out);
+                self.end_each_damaged(each, &mut each_out);
+                out.push_str(&lane_n::one_instruction_for_each(each, each_out));
                 made?
             }
             Operation::CreateDelayedTrigger {
@@ -2395,17 +2399,19 @@ impl Compiler {
             } => {
                 self.prevented.extend(lane_n::preventions(body));
                 let mut event = event.clone();
+                let mut each_out = String::new();
                 let each = match &mut event {
                     ReplacementEvent::ZoneChange { objects, .. } => {
-                        self.about_each_damaged(objects, true, out)
+                        self.about_each_damaged(objects, true, &mut each_out)
                     }
                     ReplacementEvent::Object { objects, .. } => {
-                        self.about_each_damaged(objects, false, out)
+                        self.about_each_damaged(objects, false, &mut each_out)
                     }
                     _ => None,
                 };
-                let made = self.create_replacement(&event, limit, duration, body, out);
-                self.end_each_damaged(each, out);
+                let made = self.create_replacement(&event, limit, duration, body, &mut each_out);
+                self.end_each_damaged(each, &mut each_out);
+                out.push_str(&lane_n::one_instruction_for_each(each, each_out));
                 made?
             }
             Operation::PayCost {
@@ -3276,6 +3282,16 @@ impl Compiler {
         let revealed = self.revealed;
         let chosen = matches!(objects, ObjectSet::Selected(_));
         let targeted = matches!(objects, ObjectSet::Targets(_));
+        // Cards of one player's library, which a move to its bottom takes nowhere: "put the rest on the bottom of your
+        // library in a random order" of cards revealed from it changes no zone (CR 401.4), and a move would carry them
+        // hidden though all players saw them (CR 701.20a).
+        let in_library = match objects {
+            ObjectSet::Zone {
+                scope: ZoneScope::Players { zone: EventZone::Library, players: PlayerSet::One(player) },
+                ..
+            } => Some(player.clone()),
+            _ => None,
+        };
         let objects = lane_k::shuffled_in_though_gone(objects, destination);
         let outside = self.from_outside(objects);
         let objects = self.fetch(self.objects(objects)?);
@@ -3360,6 +3376,10 @@ impl Compiler {
             }
             Destination::OwnersLibraryTop => library("LibraryPlace::Top".into()),
             Destination::OwnersLibraryBottom => library("LibraryPlace::Bottom".into()),
+            Destination::OwnersLibraryBottomRandom if in_library.is_some() => {
+                let player = self.fetch(self.certain_player(in_library.as_ref().expect("a library"))?);
+                format!("{{ g.bottom_in_random_order({player}, &objects_{id}); objects_{id}.clone() }}")
+            }
             Destination::OwnersLibraryBottomRandom => {
                 library("LibraryPlace::BottomInRandomOrder".into())
             }
@@ -3619,13 +3639,21 @@ impl Compiler {
             None => writeln!(out, "for &object in &objects_{id} {{ let controller = g.controller(object); if players_{id}.contains(&controller) && g.can_sacrifice(controller, object) {{ picks_{id}.push((controller, object)); }} }}").unwrap(),
             Some(count) => {
                 let count = self.offered_count(count);
+                // Only "exactly n" (asked as "as many as can") takes what is eligible without asking when there are no
+                // more than n: a count that is "up to" or "any number" always asks, so its test is not written.
+                let can_take_all = matches!(count, Count::Exactly(_) | Count::AsManyAsCan(_) | Count::PerPlayer { .. });
                 let count = self.fetch(self.select_count(&count)?);
                 // However many they choose, they go in battlefield order.
                 let order = match count.contains("AnyNumber") {
                     true => format!("objects_{id}.iter().copied().filter(|o| taken.contains(o)).collect::<Vec<ObjectId>>()"),
                     false => "taken".to_string(),
                 };
-                writeln!(out, "let count_{id} = {count}; for player in players_{id} {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player && g.can_sacrifice(player, o)).collect(); let taken = match count_{id}.clone() {{ cantrip_mechanics::select::Count::Exactly(n) | cantrip_mechanics::select::Count::AsManyAsCan(n) if eligible.len() <= n as usize => eligible, _ => cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))? }}; for object in {order} {{ picks_{id}.push((player, object)); }} }}").unwrap();
+                let asked = format!("cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))?");
+                let taken = match can_take_all {
+                    true => format!("match count_{id}.clone() {{ cantrip_mechanics::select::Count::Exactly(n) | cantrip_mechanics::select::Count::AsManyAsCan(n) if eligible.len() <= n as usize => eligible, _ => {asked} }}"),
+                    false => asked,
+                };
+                writeln!(out, "let count_{id} = {count}; for player in players_{id} {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player && g.can_sacrifice(player, o)).collect(); let taken = {taken}; for object in {order} {{ picks_{id}.push((player, object)); }} }}").unwrap();
             }
         }
         Ok(())

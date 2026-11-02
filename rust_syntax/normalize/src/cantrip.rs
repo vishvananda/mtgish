@@ -520,6 +520,13 @@ struct Compiler {
     kickers: Vec<String>,
     /// The face is a sorcery.
     sorcery: bool,
+    /// The card types the face prints.
+    printed_types: Vec<crate::mtg_types::CardType>,
+    /// The name of a card in a graveyard whose card types a filter reads off the card there (CR 715.4, 709.4): a way
+    /// to cast granted to cards in a graveyard ("each instant and sorcery card in your graveyard has flashback") asks
+    /// about the card, while `q.chars` reads it as the face it would be cast as (Bonecrusher Giant's Stomp is an
+    /// instant; the card is a creature card). A permission to cast spells (Lurrus) reads the face (CR 715.3a).
+    pub(super) card_in_graveyard: Option<&'static str>,
     /// What this face's replacements already say it enters as, abilities and
     /// keywords: `Entering::becomes` is one value, and each kicker can add to it.
     entering_as: (Vec<String>, Vec<String>),
@@ -534,9 +541,6 @@ struct Compiler {
     /// The abilities of one sentence are being written ("whenever this or that"):
     /// the key of its "do this only once each turn", one for them all.
     once_shared: Option<Option<u8>>,
-    /// An "if it's the first time" the printed line asks of the object, as the
-    /// resolving ability reads it (603.4).
-    first_again: Option<String>,
     /// Reading a test of whether this spell may be cast.
     cast_test: bool,
     /// Compiling a delayed triggered ability, whose words are the sentence that
@@ -1280,13 +1284,14 @@ impl Compiler {
             kicker_line: None,
             kickers: Vec::new(),
             sorcery: false,
+            printed_types: Vec::new(),
+            card_in_graveyard: None,
             entering_as: Default::default(),
             wanted_labels: None,
             stages: BTreeMap::new(),
             stage_lines: None,
             do_once: None,
             once_shared: None,
-            first_again: None,
             cast_test: false,
             waiting_trigger: false,
             face_text: String::new(),
@@ -1383,7 +1388,7 @@ impl Compiler {
         let id = Candidate::of("id");
         Ok(match &spec.kind {
             TargetKind::Object(domain) if lane_i::on_the_stack(domain) => {
-                self.stack_target_test(&spec.filter)?
+                self.stack_target_test(domain, &spec.filter)?
             }
             TargetKind::Object(domain) => format!(
                 "matches!(t, Target::Object(id) if {} && ({}))",
@@ -2464,6 +2469,7 @@ fn emit_face(
     c.printed_mana = card.characteristics.mana_cost.clone();
     c.sorcery = (card.characteristics.card_types.iter())
         .any(|t| matches!(t, crate::mtg_types::CardType::Sorcery));
+    c.printed_types = card.characteristics.card_types.clone();
     c.enters_choosing = chosen::enters_choosing(card);
     c.enters_choosing.extend(place.keeps.iter().copied());
     c.enters_two = chosen::enters_two(card);

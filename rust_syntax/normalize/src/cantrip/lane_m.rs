@@ -1153,7 +1153,9 @@ impl Compiler {
             return Err(gap("granted Casting"));
         };
         let reader = std::mem::replace(&mut self.reader, Reader::Query);
+        self.card_in_graveyard = Some("card");
         let tests = self.permission_tests(players, &ObjectFilter::Any, filter, "card");
+        self.card_in_graveyard = None;
         self.reader = reader;
         let printed = "q.card(q.chars(card).card)";
         // "Each nonland card in your graveyard has escape. The escape cost is

@@ -805,12 +805,20 @@ impl Compiler {
                 scope,
                 kind,
                 filter,
-            } => format!(
-                "({}).into_iter().filter(|&id| {} && {}).collect::<Vec<ObjectId>>()",
-                self.zone(scope)?,
-                object_kind(kind)?,
-                self.filter(filter, &Candidate::of("id"))?
-            ),
+            } => {
+                // Inside the filter of another object named `id` (a target's test), the cards of the zone are named
+                // apart, so a read of that object inside is of it, not of the card.
+                let card = match self.candidates.borrow().iter().any(|c| c.id == "id") {
+                    true => "card_in_zone",
+                    false => "id",
+                };
+                format!(
+                    "({}).into_iter().filter(|&{card}| {} && {}).collect::<Vec<ObjectId>>()",
+                    self.zone(scope)?,
+                    object_kind(kind)?,
+                    self.filter(filter, &Candidate::of(card))?
+                )
+            }
             ObjectSet::Take {
                 objects,
                 count,
@@ -1036,6 +1044,22 @@ impl Compiler {
             PlayerSet::One(player) => format!("{} == Some({who})", self.player(player)?),
             other => format!("({}).contains(&{who})", self.players(other)?),
         })
+    }
+    /// Whether `c`'s owner is one of `players`. Of a card tested inside another object's filter ("the number of cards
+    /// in its controller's graveyard", Drown in the Loch), a candidate `players` names is that object, never the card
+    /// itself: the card's own entries on the candidates (a filter within its filter) are set aside while `players` is
+    /// read.
+    fn owner_in(&self, players: &PlayerSet, c: &Candidate) -> Result<String> {
+        let who = format!("q.state().obj({}).owner", c.id);
+        let at = self.candidates.borrow().iter().rposition(|o| o.id != c.id).map_or(0, |at| at + 1);
+        let outside = at > 0 && format!("{players:?}").contains("Candidate");
+        if !outside {
+            return self.player_in(players, &who);
+        }
+        let inner: Vec<Candidate> = self.candidates.borrow_mut().drain(at..).collect();
+        let owner = self.player_in(players, &who);
+        self.candidates.borrow_mut().extend(inner);
+        owner
     }
     pub(super) fn property(&self, id: &str, property: &Property) -> Result<Number> {
         let pt = |field: &str| Number {
@@ -1916,6 +1940,9 @@ impl Compiler {
                     Some(list) => format!("{list}.iter().any(|t| {wanted})"),
                 }
             }
+            ObjectFilter::CardType(t) if self.card_in_graveyard == Some(c.id.as_str()) => {
+                format!("q.card(q.obj({id}).card).is(CardType::{})", card_type(t)?)
+            }
             ObjectFilter::CardType(t) => format!("{chars}.is(CardType::{})", card_type(t)?),
             ObjectFilter::Supertype(t) => format!(
                 "{chars}.supertypes.{}",
@@ -1946,9 +1973,7 @@ impl Compiler {
             ObjectFilter::Colorless => format!("{chars}.colors.is_empty()"),
             ObjectFilter::Chosen(kind) => self.chosen_filter(*kind, chars, id)?,
             ObjectFilter::ControlledBy(players) => self.player_in(players, &c.controller)?,
-            ObjectFilter::OwnedBy(players) => {
-                self.player_in(players, &format!("q.state().obj({id}).owner"))?
-            }
+            ObjectFilter::OwnedBy(players) => self.owner_in(players, c)?,
             // Always true of what it tests: it can only mean something outside the
             // filter, which `Candidate` doesn't name.
             ObjectFilter::SameObject(ObjectRef::Candidate)
@@ -2169,7 +2194,7 @@ impl Compiler {
             // "That player's graveyard", of the slot before: asked whether the ability
             // can be offered at all, before that slot has chosen, any will do.
             ObjectFilter::InZone(ZoneScope::Players { zone, players }) => {
-                let owner = self.player_in(players, &format!("q.state().obj({id}).owner"))?;
+                let owner = self.owner_in(players, c)?;
                 let owner = match owner.contains("q.chosen_targets()") {
                     true => format!("(q.chosen_targets().is_empty() || {owner})"),
                     false => owner,

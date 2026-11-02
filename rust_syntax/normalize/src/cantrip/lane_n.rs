@@ -408,6 +408,17 @@ fn only_changes(program: &Program) -> Option<Vec<EventChange>> {
         .collect()
 }
 
+/// What `about_each_damaged` and `end_each_damaged` wrote around an effect made for each object dealt damage, as one
+/// instruction: "exile it instead" of each creature dealt damage this way is one effect beginning for all of them, which
+/// the state triggers judge once it is all done (CR 603.8, 611.2c), not one creature at a time. Code that can suspend or
+/// return stays as it is: a closure of `instruction` can do neither.
+pub(super) fn one_instruction_for_each(each: Option<u32>, code: String) -> String {
+    if each.is_none() || code.contains('?') || code.contains("return") || !code.starts_with("for bound_") {
+        return code;
+    }
+    format!("cantrip_api::instruction(g, |g| {{ {code} }});\n")
+}
+
 impl Compiler {
     /// Where the callbacks of the replacement being compiled are written.
     pub(super) fn callbacks(&mut self) -> &mut String {
@@ -2165,7 +2176,7 @@ impl Compiler {
         out: &mut String,
     ) {
         let targets = self.stack_targets(objects).expect("a slot of the stack");
-        let test = lane_i::STACK_ITEM;
+        let test = self.objects_item(objects);
         writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {targets}.into_iter().filter_map(|t| {{ let stack = &g.state().stack; stack.iter().position(|e| {test}).map(|at| (stack[at].object, at)) }}).collect(); let abilities_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind != StackKind::Spell).map(|&(o, _)| o).filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect(); let spells_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind == StackKind::Spell).map(|&(o, _)| o).collect(); let countered_{id} = g.counter_items(&items_{id}); let mut moved_{id}: Vec<ObjectId> = if countered_{id} > 0 {{ abilities_{id} }} else {{ Vec::new() }}; moved_{id}.extend(spells_{id}.into_iter().filter_map(|o| g.state().obj(o).became));").unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
         // That spell, countered or not: a spell that can't be countered still is one.

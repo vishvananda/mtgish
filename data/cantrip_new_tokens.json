@@ -464,6 +464,11 @@
 "source": "/// A 2/2 red Human Knight creature token with haste and trample (CR 111). Forth Eorlingas!, Oath of Eorl and Riders of\n/// Rohan create this exact token.\npub static HUMAN_KNIGHT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Trample, Keyword::Haste]),\n    ..token!(Human Knight)\n};\n",
 "title": "the 2/2 red Human Knight token with haste and trample"
 },
+"HUMAN_MONK": {
+"cards": 2,
+"source": "/// A 1/1 green Human Monk creature token (CR 111). Careful Cultivation and Jugan Defends the Temple // Remnant of the\n/// Rising Star create this exact token.\npub static HUMAN_MONK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    abilities: &[mana_ability(TAP, add(Mana::G), \"{T}: Add {G}.\")],\n    ..token!(Human Monk)\n};\n",
+"title": "the 1/1 green Human Monk token"
+},
 "HUMAN_WARRIOR": {
 "cards": 4,
 "source": "/// A 1/1 white Human Warrior creature token (CR 111). Battle for Bretagard, Beskir Shieldmate and Maja, Bretagard\n/// Protector create this exact token.\npub static HUMAN_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Human Warrior)\n};\n",

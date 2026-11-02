@@ -252,6 +252,7 @@ fn rendered(
         }
     }
     use_shared_targets(&mut file);
+    subject_always_an_object(&mut file);
     for item in &mut file.items {
         if let Item::Fn(function) = item {
             let reads_data = reads_data(function);
@@ -279,6 +280,7 @@ fn rendered(
     let imports = shorten_paths(&mut file);
     let names = function_names(&file, printed);
     rename(&mut file, &names.renamed);
+    guards_first(&mut file);
     document(&mut file, &names.quotes);
     document_card(&mut file, printed);
     let mut head = imports;
@@ -2282,9 +2284,6 @@ fn guard_at_the_end(block: &mut Block) {
     let Stmt::Expr(Expr::If(branch), _) = &block.stmts[n - 2] else {
         return;
     };
-    if branch.else_branch.is_some() {
-        return;
-    }
     let Expr::Let(binding) = &*branch.cond else {
         return;
     };
@@ -2294,20 +2293,359 @@ fn guard_at_the_end(block: &mut Block) {
     if text_of(&pattern.path) != "Some" || pattern.elems.len() != 1 {
         return;
     }
-    let (pat, value) = (&binding.pat, &binding.expr);
-    // `let .. = { .. } else` is no Rust: an initializer of a `let .. else` can't end in a brace.
-    if text_of(value).ends_with('}') {
-        return;
+    guard_last(block, &Tail::Value(parse_quote!(Ok(()))));
+}
+
+/// `if let (Some(source), Some(values)) = (Some(item.object), values_2) { .. }` tests a value that is always something:
+/// `Some(item.object)` matches whatever the object is, so the part of the test it makes can never fail, and where nothing
+/// else is tested the `if`'s closing brace is a line no game runs. Each such part goes, its name read as the value
+/// (`g.become_copy(item.object, ..)`), and what is left is tested as it was; with nothing left the body is run as it is.
+/// Only a value that is a name or a field of one, read the same wherever it stands.
+struct AlwaysSome;
+
+impl AlwaysSome {
+    /// The `if` with its always-matching parts gone, or its body when nothing is left of the test.
+    fn tested(branch: &syn::ExprIf) -> Option<Result<syn::ExprIf, Block>> {
+        if branch.else_branch.is_some() {
+            return None;
+        }
+        let Expr::Let(binding) = &*branch.cond else { return None };
+        let (pats, values): (Vec<Pat>, Vec<Expr>) = match (&*binding.pat, &*binding.expr) {
+            (Pat::Tuple(pats), Expr::Tuple(values)) if pats.elems.len() == values.elems.len() => {
+                (pats.elems.iter().cloned().collect(), values.elems.iter().cloned().collect())
+            }
+            (pat, value) => (vec![pat.clone()], vec![value.clone()]),
+        };
+        let mut body = branch.then_branch.clone();
+        let (mut kept_pats, mut kept_values) = (Vec::new(), Vec::new());
+        for (pat, value) in pats.into_iter().zip(values) {
+            let named = match (&pat, some_of(&value).or_else(|| only_of_one(&value))) {
+                (Pat::TupleStruct(some), Some(inner))
+                    if text_of(&some.path) == "Some" && some.elems.len() == 1 && is_plain_value(&inner) =>
+                {
+                    match &some.elems[0] {
+                        Pat::Ident(name) if name.by_ref.is_none() && name.mutability.is_none() && name.subpat.is_none() => {
+                            Some((name.ident.to_string(), inner))
+                        }
+                        Pat::Wild(_) => Some((String::new(), inner)),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            };
+            let Some((name, inner)) = named else {
+                kept_pats.push(pat);
+                kept_values.push(value);
+                continue;
+            };
+            if !name.is_empty() {
+                let mut uses = Uses { name: &name, ..Uses::default() };
+                uses.visit_block(&body);
+                if uses.rebound || uses.in_macros > 0 {
+                    kept_pats.push(pat);
+                    kept_values.push(value);
+                    continue;
+                }
+                Replace { name: &name, with: &inner }.visit_block_mut(&mut body);
+            }
+        }
+        match kept_pats.len() {
+            0 => Some(Err(body)),
+            n if n == binding_parts(binding) => None,
+            1 => {
+                let (pat, value) = (&kept_pats[0], &kept_values[0]);
+                Some(Ok(syn::ExprIf { cond: Box::new(parse_quote!(let #pat = #value)), then_branch: body, ..branch.clone() }))
+            }
+            _ => Some(Ok(syn::ExprIf {
+                cond: Box::new(parse_quote!(let (#(#kept_pats),*) = (#(#kept_values),*))),
+                then_branch: body,
+                ..branch.clone()
+            })),
+        }
     }
-    let guard: Stmt = parse_quote!(let #pat = #value else { return Ok(()) };);
-    let mut body = branch.then_branch.stmts.clone();
-    if let Some(Stmt::Expr(_, semi @ None)) = body.last_mut() {
-        *semi = Some(Default::default());
+}
+
+/// A value read the same wherever it stands and cheap to read again: a name, a field of one, or a constructor of such,
+/// `Target::Object(asker.source)`.
+fn is_plain_value(expr: &Expr) -> bool {
+    match expr {
+        Expr::Path(_) | Expr::Field(_) => true,
+        Expr::Call(call) => {
+            matches!(&*call.func, Expr::Path(path) if path.path.segments.last().is_some_and(|last| last.ident.to_string().starts_with(char::is_uppercase)))
+                && call.args.iter().all(is_plain_value)
+        }
+        _ => false,
     }
-    block.stmts.truncate(n - 2);
-    block.stmts.push(guard);
-    block.stmts.extend(body);
-    block.stmts.push(Stmt::Expr(parse_quote!(Ok(())), None));
+}
+
+/// `x` of `Some(x).into_iter().collect::<Vec<_>>().first().copied()`, the first of a list of one, which is always there;
+/// `f(x)` where the list is mapped by a named function, `.map(Target::Object)`.
+fn only_of_one(expr: &Expr) -> Option<Expr> {
+    let method = |expr: &Expr, name: &str| match expr {
+        Expr::MethodCall(call) if call.method == name => Some(call.clone()),
+        _ => None,
+    };
+    let copied = method(expr, "copied").filter(|call| call.args.is_empty())?;
+    let first = method(&copied.receiver, "first").filter(|call| call.args.is_empty())?;
+    let collect = method(&first.receiver, "collect").filter(|call| call.args.is_empty())?;
+    let mut maps = Vec::new();
+    let mut at = &*collect.receiver;
+    while let Some(map) = method(at, "map") {
+        let [Expr::Path(function)] = map.args.iter().collect::<Vec<_>>().as_slice() else { return None };
+        maps.push((*function).clone());
+        at = match at {
+            Expr::MethodCall(call) => &call.receiver,
+            _ => return None,
+        };
+    }
+    let into_iter = method(at, "into_iter").filter(|call| call.args.is_empty())?;
+    let mut value = some_of(&into_iter.receiver)?;
+    for function in maps.into_iter().rev() {
+        value = parse_quote!(#function(#value));
+    }
+    Some(value)
+}
+
+/// How many values a `let` tests: a tuple's each, else one.
+fn binding_parts(binding: &syn::ExprLet) -> usize {
+    match (&*binding.pat, &*binding.expr) {
+        (Pat::Tuple(pats), Expr::Tuple(values)) if pats.elems.len() == values.elems.len() => pats.elems.len(),
+        _ => 1,
+    }
+}
+
+impl VisitMut for AlwaysSome {
+    fn visit_block_mut(&mut self, block: &mut Block) {
+        visit_mut::visit_block_mut(self, block);
+        let mut at = 0;
+        while at < block.stmts.len() {
+            let Stmt::Expr(Expr::If(branch), _) = &block.stmts[at] else {
+                at += 1;
+                continue;
+            };
+            match Self::tested(branch) {
+                None => at += 1,
+                Some(Ok(narrowed)) => {
+                    let semi = matches!(&block.stmts[at], Stmt::Expr(_, Some(_)));
+                    block.stmts[at] = Stmt::Expr(Expr::If(narrowed), semi.then(Default::default));
+                    at += 1;
+                }
+                Some(Err(body)) => {
+                    let after = block.stmts[at + 1..].to_vec();
+                    let mut body = spliced(body, &after);
+                    if !after.is_empty() {
+                        if let Some(Stmt::Expr(last, semi @ None)) = body.last_mut() {
+                            if !matches!(last, Expr::If(_) | Expr::ForLoop(_) | Expr::Block(_) | Expr::Match(_) | Expr::While(_) | Expr::Loop(_)) {
+                                *semi = Some(Default::default());
+                            }
+                        }
+                    }
+                    let n = body.len();
+                    block.stmts.splice(at..at + 1, body);
+                    at += n.max(1);
+                }
+            }
+        }
+    }
+}
+
+/// What a function says when nothing more happens: the expression it ends in (`Ok(())`, `false`, `None`), or nothing, for
+/// a function of no value.
+enum Tail {
+    Value(Expr),
+    Unit,
+}
+
+impl Tail {
+    /// The tail of a function with this output, if it is one a guard can return: a trigger's matcher is not, as an event
+    /// it doesn't match is one a scenario can give it, and the `None` it ends in is a line to cover, not to hide.
+    fn of(output: &syn::ReturnType) -> Option<Tail> {
+        let syn::ReturnType::Type(_, ty) = output else { return Some(Tail::Unit) };
+        let ty = text_of(ty);
+        Some(match ty.as_str() {
+            "bool" => Tail::Value(parse_quote!(false)),
+            _ if ty.starts_with("Result <") => Tail::Value(parse_quote!(Ok(()))),
+            _ if ty.starts_with("Option <") && !ty.contains("Fired") => Tail::Value(parse_quote!(None)),
+            _ => return None,
+        })
+    }
+}
+
+/// `if let P = e { .. } tail` as the last words of `block` is `let P = e else { return tail }; .. tail`: the same program,
+/// where `P` can't fail to match (a replacement is only asked of proposals of its kind, a target the spell resolved for is
+/// there) the `if`'s closing brace is a line no game runs, and Cantrip's coverage gate asks for every line. Only a guard
+/// that is one line once formatted: a `return` on a line of its own is the same line no game runs. Repeated, so a guard in
+/// a guard comes out too. Whether anything changed.
+fn guard_last(block: &mut Block, tail: &Tail) -> bool {
+    let mut changed = false;
+    loop {
+        let n = block.stmts.len();
+        let (at, ends) = match tail {
+            Tail::Value(value) => {
+                if n < 2 || !matches!(&block.stmts[n - 1], Stmt::Expr(last, None) if text_of(last) == text_of(value)) {
+                    return changed;
+                }
+                (n - 2, Some(value))
+            }
+            Tail::Unit if n >= 1 => (n - 1, None),
+            Tail::Unit => return changed,
+        };
+        let Stmt::Expr(Expr::If(branch), semi) = &block.stmts[at] else { return changed };
+        if branch.else_branch.is_some() || (semi.is_none() && at + 1 < n && ends.is_none()) {
+            return changed;
+        }
+        let Expr::Let(binding) = &*branch.cond else { return changed };
+        if matches!(&*binding.pat, Pat::Ident(_) | Pat::Wild(_)) {
+            return changed;
+        }
+        let (pat, value) = (&binding.pat, &binding.expr);
+        // `let .. = { .. } else` is no Rust: an initializer of a `let .. else` can't end in a brace.
+        if text_of(value).ends_with('}') {
+            return changed;
+        }
+        let guard: Stmt = match ends {
+            Some(tail) => parse_quote!(let #pat = #value else { return #tail };),
+            None => parse_quote!(let #pat = #value else { return };),
+        };
+        if !one_line(&guard) {
+            return changed;
+        }
+        let mut body = branch.then_branch.stmts.clone();
+        if ends.is_some() {
+            if let Some(Stmt::Expr(_, semi @ None)) = body.last_mut() {
+                *semi = Some(Default::default());
+            }
+        }
+        let rest: Vec<Stmt> = block.stmts.drain(at..).skip(1).collect();
+        block.stmts.push(guard);
+        block.stmts.extend(body);
+        block.stmts.extend(rest);
+        changed = true;
+    }
+}
+
+/// Whether `guard`, a `let .. else`, is one line of a function's body as the card file prints it.
+fn one_line(guard: &Stmt) -> bool {
+    let function: syn::ItemFn = parse_quote!(fn f() { #guard });
+    let mut file = File { shebang: None, attrs: vec![], items: vec![Item::Fn(function)] };
+    strip_literal_types(&mut file);
+    let text = let_else_on_one_line(&prettyplease::unparse(&file));
+    text.trim_end().lines().count() == 3
+}
+
+/// Every function's guard at its end as a `let .. else` (`guard_last`), once the names it prints with are the file's own.
+fn guards_first(file: &mut File) {
+    for item in &mut file.items {
+        let Item::Fn(function) = item else { continue };
+        if text_of(&function.sig.output).contains("Fired") {
+            while one_event_pattern(&mut function.block) {}
+        }
+        let Some(tail) = Tail::of(&function.sig.output) else { continue };
+        if guard_last(&mut function.block, &tail) {
+            tail_return(&mut function.block);
+        }
+    }
+}
+
+/// A matcher of two events of one kind ("When this artifact enters and when you sacrifice it": two zone changes) as one
+/// `let .. else` binding what both read. Written as `if let Event::ZoneChange { new, to, .. } = event { .. }` and then
+/// `let Event::ZoneChange { old, from, reason: ZoneReason::Sacrifice, .. } = event else { return None };`, the first
+/// pattern fails only on an event of another kind, which the matcher, asked of zone changes alone, is never shown: its
+/// closing brace, the line of that failure, is one no game runs. What the second pattern asks of a field more than to
+/// bind it is asked after the first event's test, by a `let .. else` of its own.
+fn one_event_pattern(block: &mut Block) -> bool {
+    let event_of = |expr: &Expr| matches!(expr, Expr::Path(path) if path.path.is_ident("event"));
+    for i in 0..block.stmts.len().saturating_sub(1) {
+        let Stmt::Expr(Expr::If(first), None) = &block.stmts[i] else { continue };
+        let Expr::Let(head) = &*first.cond else { continue };
+        let (Pat::Struct(a), true, None) = (&*head.pat, event_of(&head.expr), &first.else_branch) else { continue };
+        let Stmt::Local(local) = &block.stmts[i + 1] else { continue };
+        let Pat::Struct(b) = &local.pat else { continue };
+        let Some(init) = &local.init else { continue };
+        let Some((_, otherwise)) = &init.diverge else { continue };
+        if !event_of(&init.expr) || !["{returnNone}", "{returnNone;}"].contains(&text_of(otherwise).split_whitespace().collect::<String>().as_str()) {
+            continue;
+        }
+        if text_of(&a.path) != text_of(&b.path) || a.rest.is_none() || b.rest.is_none() || a.qself.is_some() {
+            continue;
+        }
+        let bound = |field: &syn::FieldPat| match &*field.pat {
+            Pat::Ident(name) if name.subpat.is_none() && name.by_ref.is_none() => Some(name.ident.clone()),
+            Pat::Wild(_) => None,
+            _ => None,
+        };
+        let member = |field: &syn::FieldPat| text_of(&field.member);
+        // The first event's fields only bind; the second's may ask more, asked by a guard of its own.
+        if a.fields.iter().any(|field| bound(field).is_none()) {
+            continue;
+        }
+        let mut merged = a.clone();
+        let mut checks: Vec<Stmt> = Vec::new();
+        let mut clash = false;
+        for field in &b.fields {
+            let name = member(field);
+            let had = merged.fields.iter().find(|f| member(f) == name).cloned();
+            match (bound(field), had) {
+                (Some(ident), Some(had)) => clash |= bound(&had).map(|h| h != ident).unwrap_or(true),
+                (Some(_), None) => merged.fields.push(field.clone()),
+                (None, had) => {
+                    let syn::Member::Named(ident) = &field.member else {
+                        clash = true;
+                        continue;
+                    };
+                    if had.is_some_and(|had| bound(&had).as_ref() != Some(ident)) {
+                        clash = true;
+                        continue;
+                    }
+                    if !merged.fields.iter().any(|f| member(f) == name) {
+                        merged.fields.push(syn::FieldPat {
+                            attrs: Vec::new(),
+                            member: syn::Member::Named(ident.clone()),
+                            colon_token: None,
+                            pat: Box::new(parse_quote!(#ident)),
+                        });
+                    }
+                    let pattern = &field.pat;
+                    checks.push(parse_quote!(let #pattern = #ident else { return None; };));
+                }
+            }
+        }
+        if clash {
+            continue;
+        }
+        // The first event's own names stay in a block of their own where one would hide a field the second binds.
+        struct Bound(BTreeSet<String>);
+        impl<'ast> Visit<'ast> for Bound {
+            fn visit_pat_ident(&mut self, node: &'ast syn::PatIdent) {
+                self.0.insert(node.ident.to_string());
+                visit::visit_pat_ident(self, node);
+            }
+        }
+        let mut second = Bound(BTreeSet::new());
+        second.visit_pat(&Pat::Struct(b.clone()));
+        let hides = first.then_branch.stmts.iter().any(|stmt| {
+            let Stmt::Local(local) = stmt else { return false };
+            let mut own = Bound(BTreeSet::new());
+            own.visit_pat(&local.pat);
+            own.0.iter().any(|name| second.0.contains(name) || b.fields.iter().any(|f| member(f) == *name))
+        });
+        let body: Vec<Stmt> = match hides {
+            true => {
+                let then = &first.then_branch;
+                vec![parse_quote!(#then)]
+            }
+            false => first.then_branch.stmts.clone(),
+        };
+        let merged = Pat::Struct(merged);
+        let mut stmts: Vec<Stmt> = block.stmts[..i].to_vec();
+        stmts.push(parse_quote!(let #merged = event else { return None; };));
+        stmts.extend(body);
+        stmts.extend(checks);
+        stmts.extend(block.stmts[i + 2..].iter().cloned());
+        block.stmts = stmts;
+        return true;
+    }
+    false
 }
 
 fn tail_return(block: &mut Block) {
@@ -2402,6 +2740,7 @@ fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
         }
     }
     LifeLostTogether.visit_block_mut(&mut function.block);
+    AlwaysSome.visit_block_mut(&mut function.block);
     if text_of(&function.sig.output).contains("Result") {
         guard_at_the_end(&mut function.block);
     }
@@ -2423,9 +2762,143 @@ fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
     }
 }
 
-/// `static ..._TARGETS` by the function that reads them, and whether each is one exact target.
+/// The resolving function of each triggered ability, by its matcher: `triggered(when_asked(.., matcher), resolve, ..)`.
+fn triggered_pairs(file: &File) -> Vec<(String, String)> {
+    struct Pairs(Vec<(String, String)>);
+    impl<'ast> Visit<'ast> for Pairs {
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            let last = |expr: &Expr| match expr {
+                Expr::Path(path) => path.path.segments.last().map(|s| s.ident.to_string()),
+                _ => None,
+            };
+            if last(&call.func).as_deref() == Some("triggered") {
+                let args: Vec<&Expr> = call.args.iter().collect();
+                if let [Expr::Call(when), resolve, ..] = args.as_slice() {
+                    let when_args: Vec<&Expr> = when.args.iter().collect();
+                    if last(&when.func).as_deref() == Some("when_asked") {
+                        if let ([_, matcher], Some(resolve)) = (when_args.as_slice(), ident_of(resolve)) {
+                            if let Some(matcher) = ident_of(matcher) {
+                                self.0.push((matcher, resolve));
+                            }
+                        }
+                    }
+                }
+            }
+            visit::visit_expr_call(self, call);
+        }
+    }
+    let mut pairs = Pairs(Vec::new());
+    pairs.visit_file(file);
+    pairs.0
+}
+
+/// "Whenever this creature mutates, it deals 4 damage" (Snapdax): a matcher that fires only about an object, as
+/// `Fired::about(Target::Object(..))`, leaves its ability's subject an object, so `item.subject.object()` is always
+/// something and the `else` of `if let Some(source) = item.subject.object()` is a line no game runs. The test is a
+/// guard on one line instead, and what it guarded runs on with the rest.
+fn subject_always_an_object(file: &mut File) {
+    let only_objects: BTreeSet<String> = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Fn(function) => {
+                let text = text_of(&function.block);
+                let fired = text.matches("Fired :: about (").count();
+                let subjects = text.matches("let subject =").count();
+                let only = fired > 0
+                    && fired == text.matches("Fired :: about (subject)").count()
+                    && subjects > 0
+                    && subjects == text.matches("let subject = Target :: Object (").count()
+                    && !text.contains("Fired {")
+                    && !text.contains("Fired :: PLAIN");
+                only.then(|| function.sig.ident.to_string())
+            }
+            _ => None,
+        })
+        .collect();
+    let resolvers: BTreeSet<String> = triggered_pairs(file)
+        .into_iter()
+        .filter(|(matcher, _)| only_objects.contains(matcher))
+        .map(|(_, resolve)| resolve)
+        .collect();
+    // A resolving function two abilities share is guarded only if both fire about objects.
+    let shared: BTreeSet<String> = triggered_pairs(file)
+        .into_iter()
+        .filter(|(matcher, _)| !only_objects.contains(matcher))
+        .map(|(_, resolve)| resolve)
+        .collect();
+    for item in &mut file.items {
+        let Item::Fn(function) = item else { continue };
+        let name = function.sig.ident.to_string();
+        if !resolvers.contains(&name) || shared.contains(&name) || !text_of(&function.sig.output).contains("Result") {
+            continue;
+        }
+        let block = &mut function.block;
+        let mut subject_names: Vec<String> = Vec::new();
+        let mut at = 0;
+        while at < block.stmts.len() {
+            if let Stmt::Local(local) = &block.stmts[at] {
+                if let (Some(name), Some(init)) = (plain_binding(local), &local.init) {
+                    if text_of(&init.expr) == "item . subject . object ()" {
+                        subject_names.push(name);
+                    }
+                }
+            }
+            let Stmt::Expr(Expr::If(branch), _) = &block.stmts[at] else {
+                at += 1;
+                continue;
+            };
+            let Expr::Let(binding) = &*branch.cond else {
+                at += 1;
+                continue;
+            };
+            let value = text_of(&binding.expr);
+            let is_subject = value == "item . subject . object ()" || subject_names.iter().any(|n| *n == value);
+            let some = matches!(&*binding.pat, Pat::TupleStruct(p) if text_of(&p.path) == "Some" && p.elems.len() == 1);
+            if branch.else_branch.is_some() || !is_subject || !some {
+                at += 1;
+                continue;
+            }
+            let (pat, expr) = (&binding.pat, &binding.expr);
+            let guard: Stmt = parse_quote!(let #pat = #expr else { return Ok(()); };);
+            let after = block.stmts[at + 1..].to_vec();
+            let mut body = spliced(branch.then_branch.clone(), &after);
+            if !after.is_empty() {
+                if let Some(Stmt::Expr(last, semi @ None)) = body.last_mut() {
+                    if !matches!(last, Expr::If(_) | Expr::ForLoop(_) | Expr::Block(_) | Expr::Match(_) | Expr::While(_) | Expr::Loop(_)) {
+                        *semi = Some(Default::default());
+                    }
+                }
+            }
+            let n = body.len();
+            body.insert(0, guard);
+            block.stmts.splice(at..at + 1, body);
+            at += n + 1;
+        }
+    }
+}
+
+/// `static ..._TARGETS` by the function that reads them, and whether each is one exact target; and the targets a
+/// `spell(&[..], resolve)` or a `triggered(.., resolve, ..).targets(&[..])` lists where it stands.
 fn single_targets(file: &File) -> BTreeMap<String, Vec<bool>> {
-    let mut found = BTreeMap::new();
+    struct Inline(BTreeMap<String, Vec<bool>>);
+    impl<'ast> Visit<'ast> for Inline {
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            let args: Vec<&Expr> = call.args.iter().collect();
+            if matches!(&*call.func, Expr::Path(path) if path.path.is_ident("spell")) {
+                if let [Expr::Reference(list), resolve] = args.as_slice() {
+                    if let (Expr::Array(specs), Some(resolve)) = (&*list.expr, ident_of(resolve)) {
+                        let single = specs.elems.iter().map(|spec| !matches!(spec, Expr::MethodCall(_))).collect();
+                        self.0.insert(resolve, single);
+                    }
+                }
+            }
+            visit::visit_expr_call(self, call);
+        }
+    }
+    let mut inline = Inline(BTreeMap::new());
+    inline.visit_file(file);
+    let mut found = inline.0;
     for item in &file.items {
         if let Item::Static(item) = item {
             let name = item.ident.to_string();
@@ -2495,6 +2968,9 @@ fn one_target_reads(block: &mut Block, singles: &[bool], lone: bool) {
             };
             let Some(init) = &local.init else { continue };
             let read = text_of(&init.expr);
+            if lone && one_target_matched(block, i, &name, &read, &announced, spec) {
+                continue;
+            }
             let Some(kind) = one_target_kind(&read, &announced) else {
                 continue;
             };
@@ -2565,6 +3041,76 @@ fn one_target_reads(block: &mut Block, singles: &[bool], lone: bool) {
             }
         }
     }
+}
+
+/// "Create a token that's a copy of target creature you control" (Replicate): the one target of an item with one target
+/// slot, read as an `Option` and matched, `match original { Some(original) => .., None => Vec::new() }`. An item whose
+/// only target is illegal doesn't resolve (CR 608.2b), so the `None` arm is a line no game runs: the target is a guard,
+/// `let Some(original) = targets::object(g, item, 0) else { return Ok(()); };`, and the `Some` arm is what happens.
+fn one_target_matched(block: &mut Block, i: usize, name: &str, read: &str, announced: &str, spec: usize) -> bool {
+    let read = read
+        .strip_prefix("{ let q : & dyn Query = g ; ")
+        .and_then(|read| read.strip_suffix(" }"))
+        .unwrap_or(read);
+    if read.strip_prefix(announced) != Some(" . and_then (| t : Target | t . object ())") {
+        return false;
+    }
+    let undisturbed = block.stmts[..i].iter().all(|stmt| match stmt {
+        Stmt::Local(local) => local.init.as_ref().is_some_and(|init| is_pure(&init.expr)),
+        _ => false,
+    });
+    if !undisturbed {
+        return false;
+    }
+    // The one statement after it that reads it, matching it, and only pure bindings between.
+    let later: Vec<usize> = (i + 1..block.stmts.len()).filter(|&at| mentions(&block.stmts[at], name)).collect();
+    let [at] = later.as_slice() else { return false };
+    let at = *at;
+    if !block.stmts[i + 1..at].iter().all(|stmt| match stmt {
+        Stmt::Local(local) => local.init.as_ref().is_some_and(|init| is_pure(&init.expr)),
+        _ => false,
+    }) {
+        return false;
+    }
+    let scrutinee = |expr: &Expr| -> Option<(syn::Ident, Expr)> {
+        let Expr::Match(matched) = expr else { return None };
+        if ident_of(&matched.expr).as_deref() != Some(name) || matched.arms.len() != 2 {
+            return None;
+        }
+        let (some, none) = (&matched.arms[0], &matched.arms[1]);
+        if some.guard.is_some() || none.guard.is_some() || text_of(&none.pat) != "None" {
+            return None;
+        }
+        let Pat::TupleStruct(pat) = &some.pat else { return None };
+        let [Pat::Ident(bound)] = pat.elems.iter().collect::<Vec<_>>().as_slice() else { return None };
+        (text_of(&pat.path) == "Some" && bound.subpat.is_none() && bound.by_ref.is_none())
+            .then(|| (bound.ident.clone(), (*some.body).clone()))
+    };
+    let (bound, rebuilt): (syn::Ident, Stmt) = match &block.stmts[at] {
+        Stmt::Expr(expr, semi) => {
+            let Some((bound, body)) = scrutinee(expr) else { return false };
+            (bound, Stmt::Expr(body, Some(semi.unwrap_or_default())))
+        }
+        Stmt::Local(local) => {
+            let Some(init) = &local.init else { return false };
+            if init.diverge.is_some() {
+                return false;
+            }
+            let Some((bound, body)) = scrutinee(&init.expr) else { return false };
+            let mut local = local.clone();
+            local.init.as_mut().expect("an init").expr = Box::new(body);
+            (bound, Stmt::Local(local))
+        }
+        _ => return false,
+    };
+    // The bound name must not be another binding's in what follows.
+    if block.stmts[..i].iter().chain(&block.stmts[i + 1..at]).any(|stmt| mentions(stmt, &bound.to_string())) {
+        return false;
+    }
+    let slot = proc_macro2::Literal::usize_unsuffixed(spec);
+    block.stmts[i] = parse_quote!(let Some(#bound) = cantrip_mechanics::targets::object(g, item, #slot) else { return Ok(()); };);
+    block.stmts[at] = rebuilt;
+    true
 }
 
 /// `&name` as an argument, the list a verb takes.
@@ -3555,7 +4101,8 @@ fn use_shared_mana(file: &mut File) {
                 }
             }
             expected.push_str("Ok (())");
-            *body == expected
+            // `1u32` is the `1` the file prints: the literal's type is dropped only as it is written out.
+            *body == expected || without_int_suffixes(body) == expected
         }
     }
     impl VisitMut for Shared<'_> {
@@ -3636,6 +4183,32 @@ fn use_shared_mana(file: &mut File) {
     }
 }
 
+/// `text` with the type of each integer literal dropped, `1u32` as `1`.
+fn without_int_suffixes(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(c) = rest.chars().next() {
+        let starts_number = c.is_ascii_digit() && !out.ends_with(|p: char| p.is_alphanumeric() || p == '_');
+        if starts_number {
+            let digits = rest.find(|d: char| !d.is_ascii_digit()).unwrap_or(rest.len());
+            out.push_str(&rest[..digits]);
+            rest = &rest[digits..];
+            for suffix in ["u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize"] {
+                if let Some(after) = rest.strip_prefix(suffix) {
+                    if !after.starts_with(|n: char| n.is_alphanumeric() || n == '_') {
+                        rest = after;
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        out.push(c);
+        rest = &rest[c.len_utf8()..];
+    }
+    out
+}
+
 /// The predefined tokens with a definition of their own in `cantrip_mechanics::tokens`.
 const SHARED_TOKENS: &[(&str, &str)] = &[
     ("Treasure", "TREASURE"),
@@ -3711,7 +4284,10 @@ fn let_else_on_one_line(text: &str) -> String {
     while i < lines.len() {
         let guards = i + 2 < lines.len()
             && lines[i].trim_end().ends_with(" else {")
-            && matches!(lines[i + 1].trim(), "return Ok(());" | "return None;")
+            && (["break;", "continue;"].contains(&lines[i + 1].trim())
+                || lines[i + 1].trim().strip_prefix("return").map(|rest| rest.strip_suffix(';').unwrap_or(rest)).is_some_and(|value| {
+                    value.is_empty() || (value.starts_with(' ') && !value[1..].contains([' ', '{']))
+                }))
             && lines[i + 2].trim() == "};";
         let leave = if guards { lines[i + 1].trim().trim_end_matches(';') } else { "" };
         if guards && lines[i].len() + leave.len() + " };".len() + 1 <= 120 {
@@ -3722,7 +4298,26 @@ fn let_else_on_one_line(text: &str) -> String {
             i += 1;
         }
     }
-    out.join("\n")
+    // `let .. = e` whose `else { return None };` the formatter's narrower margin put on the next line: a line of its own,
+    // which counts as run only when the guard fails.
+    let mut joined: Vec<String> = Vec::with_capacity(out.len());
+    let mut i = 0;
+    while i < out.len() {
+        let broken = i + 1 < out.len()
+            && out[i].trim_start().starts_with("let ")
+            && !out[i].trim_end().ends_with(['{', ',', '(', '='])
+            && ["else { return", "else { break", "else { continue"].iter().any(|leave| out[i + 1].trim().starts_with(leave))
+            && out[i + 1].trim().ends_with("};")
+            && out[i].trim_end().len() + 1 + out[i + 1].trim().len() <= 120;
+        if broken {
+            joined.push(format!("{} {}", out[i].trim_end(), out[i + 1].trim()));
+            i += 2;
+        } else {
+            joined.push(std::mem::take(&mut out[i]));
+            i += 1;
+        }
+    }
+    joined.join("\n")
 }
 
 /// An event's pattern on one line where it fits: split by the formatter's narrower margin, each binding is a line that only
@@ -3940,6 +4535,15 @@ fn constant_of_name(card: &syn::ExprStruct) -> Option<String> {
     constant.starts_with(|c: char| c.is_ascii_uppercase()).then_some(constant)
 }
 
+/// `Supertypes { basic: false, legendary: false, snow: false }`, however it is spelled: what `token!` says already, so two
+/// cards' same token reads the same and is shared (Careful Cultivation's Human Monk and Jugan Defends the Temple's).
+fn no_supertypes(expr: &Expr) -> bool {
+    let Expr::Struct(set) = expr else { return false };
+    set.path.segments.last().is_some_and(|s| s.ident == "Supertypes")
+        && set.rest.is_none()
+        && set.fields.iter().all(|field| matches!(&field.expr, Expr::Lit(syn::ExprLit { lit: Lit::Bool(b), .. }) if !b.value))
+}
+
 /// A token's definition, leaving to `token!` what it says.
 fn spread_token(card: &mut syn::ExprStruct, emblem: bool) {
     let Some(words) = token_words(card) else {
@@ -3953,7 +4557,7 @@ fn spread_token(card: &mut syn::ExprStruct, emblem: bool) {
                 let value = text_of(&field.expr);
                 let blank = is_default_field(&field.expr)
                     || plain.contains(&value.as_str())
-                    || value == "Supertypes { basic : false , legendary : false , snow : false }";
+                    || no_supertypes(&field.expr);
                 name == "name" || name == "has_cost" || (!blank && !(emblem && name == "oracle"))
             })
             .cloned()
@@ -3968,7 +4572,7 @@ fn spread_token(card: &mut syn::ExprStruct, emblem: bool) {
         .iter()
         .filter(|field| {
             let name = text_of(&field.member);
-            let plain_supertypes = text_of(&field.expr) == "Supertypes { basic : false , legendary : false , snow : false }";
+            let plain_supertypes = no_supertypes(&field.expr);
             !is_default_field(&field.expr)
                 && (!spoken.contains(&name.as_str())
                     || (name == "supertypes" && !plain_supertypes))

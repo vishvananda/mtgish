@@ -309,6 +309,8 @@ The largest costs were not in lowering: unbuffered artifact writes took 27s of `
 
 Changing a profile for dependencies costs one rebuild of about 6 minutes.
 
+**Generated lines no scenario runs.** `rust_syntax/normalize/tools/coverage_scan.py scan ROWS TREE` swaps every whole generated card over Cantrip's hand-written one in a copy-on-write Cantrip tree (made at `--ref`, b12ea1c1e by default, on `/mnt/vizier`), runs Cantrip's whole scenario corpus once under LLVM coverage, and reports the generated lines it never reached, grouped by shape. Cantrip's scenarios covered every line of the hand-written cards, so a missed line is a path no game can take (a shape to fix in the generator) or one no scenario takes yet. `ROWS` is what `ast cantrip-tracked` writes. A second scan refreshes the same tree in place, so only `cantrip-cards` and what depends on it rebuild: about 3 minutes of build and 90 seconds of corpus. `shapes LCOV TREE --show SHAPE` lists one shape's lines; `cards LCOV TREE` lists each card's missed lines; `TREE.fails` lists the scenarios that fail with the generated cards.
+
 Known remaining cost: `ast check` still uses about 110s of CPU, mostly `serde_json::Value` churn from `inspect::value`, `named_forms` and `Inventory::form`, which re-serializes a subtree at every node. Wall time does not justify more work yet.
 
 ### Gates

@@ -431,7 +431,7 @@ impl Compiler {
     ) {
         let mut body = String::new();
         for arm in arms {
-            let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
+            let tests: Vec<String> = arm.tests.iter().chain(extra).map(|t| lane_j::without_the_event(t)).collect();
             if prevention {
                 writeln!(
                     body,

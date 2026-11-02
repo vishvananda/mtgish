@@ -37,6 +37,28 @@ pub(super) fn keyword_words(keyword: &Keyword) -> Option<String> {
     }
 }
 
+/// "Except it enters with an additional +1/+1 counter on it if it's a creature" (Spark Double, ruling 2019-05-03): "it"
+/// is the copy as it enters, whose types are the copiable values it took (CR 707.2), not what an effect makes the original
+/// now (a land animated into a creature copies as a land). `code` tests the chosen object's types with `q.chars(id)`; each
+/// such test reads `copied`, an `Option<&Copiable>` of the values, instead.
+fn copy_types_as_it_enters(code: &str, copied: &str) -> String {
+    const READ: &str = "q.chars(id).is(CardType::";
+    let mut out = String::with_capacity(code.len());
+    let mut rest = code;
+    while let Some(at) = rest.find(READ) {
+        let after = &rest[at + READ.len()..];
+        let Some(end) = after.find(')') else { break };
+        let kind = &after[..end];
+        out.push_str(&rest[..at]);
+        out.push_str(&format!(
+            "{copied}.is_some_and(|c| c.extra_types.has(CardType::{kind}) || !c.types_stated() && q.card(c.card).is(CardType::{kind}))"
+        ));
+        rest = &after[end + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// `FirstStrike` as a card says it.
 fn camel_words(word: &str) -> String {
     let mut out = String::new();
@@ -313,7 +335,7 @@ fn quoted_word(form: &str) -> String {
 fn generic_mana(n: u32, times: Option<&str>) -> String {
     match times {
         Some(times) => format!(
-            "ManaCost {{ generic: u8::try_from(({times}) as i64 * {n}).unwrap_or(u8::MAX), ..ManaCost::ZERO }}"
+            "ManaCost {{ generic: u32::try_from(({times}) as i64 * {n}).unwrap_or(u32::MAX), ..ManaCost::ZERO }}"
         ),
         None => format!("ManaCost {{ generic: {n}, ..ManaCost::ZERO }}"),
     }
@@ -3512,13 +3534,15 @@ impl Compiler {
                 out,
             );
         }
+        let mut after = String::new();
         self.block(
             &Program {
                 instructions: rest.to_vec(),
             },
-            out,
+            &mut after,
             true,
         )?;
+        out.push_str(&copy_types_as_it_enters(&after, "entering.copy.as_ref()"));
         writeln!(out, "}}").unwrap();
         Ok(())
     }

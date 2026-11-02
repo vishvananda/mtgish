@@ -18,7 +18,8 @@ const CARDS: &[(&str, &str, bool)] = &[
     // Escape a permanent gives the cards in your graveyard (CR 702.138a).
     ("Underworld Breach", "cantrip_mechanics::escape::granted(ability_0_escape_cost)", true),
     ("Underworld Breach", "escape::cost(q.card(q.chars(card).card).cost, 3)", true),
-    ("The Master of Keys", "q.chars(card).is(CardType::Enchantment)", true),
+    // "Each enchantment card in your graveyard": the card there, not the face it would be cast as (CR 715.4).
+    ("The Master of Keys", "q.card(q.obj(card).card).is(CardType::Enchantment)", true),
     // Ward of discard a card or pay {2}.
     ("Titania, Rugged Rumbler", "triggers::ward_discard_or_pay::<2>(", true),
     // "Each opponent's first noncreature spell each turn costs {1} more": of the

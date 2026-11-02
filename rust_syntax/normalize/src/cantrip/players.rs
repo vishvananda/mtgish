@@ -448,6 +448,30 @@ impl Compiler {
         duration: &crate::ir::Duration,
         out: &mut String,
     ) -> Result<()> {
+        // "Your life total can't change and you gain protection from everything", and a rule for each opponent, are one
+        // instruction: effects that begin with no event between, which the state triggers judge once all have begun
+        // (CR 603.8, 608.2c, 611.2c).
+        let mut each = String::new();
+        self.continuous_on_players_apart(id, source, players, changes, duration, &mut each)?;
+        if changes.len() < 2 && !each.contains("for ") {
+            out.push_str(&each);
+            return Ok(());
+        }
+        match each.contains('?') || each.contains("return") {
+            false => writeln!(out, "cantrip_api::instruction(g, |g| {{ {each} }});").unwrap(),
+            true => writeln!(out, "g.one_instruction(&mut |g| {{ {each} Ok(()) }})?;").unwrap(),
+        }
+        Ok(())
+    }
+    fn continuous_on_players_apart(
+        &mut self,
+        id: usize,
+        source: &ObjectRef,
+        players: &PlayerSet,
+        changes: &[Change],
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<()> {
         for (i, change) in changes.iter().enumerate() {
             let rule = match change {
                 Change::PlayerRule(rule) => rule,
