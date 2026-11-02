@@ -99,6 +99,18 @@ pub(super) fn switched_item(switched: &str, feature: &str, item: &str) -> String
     }
 }
 
+/// A function the code of a hole of `feature` names: a rule the engine asks
+/// later, which a card's tables hold as a `fn`, never a closure. It is an item
+/// of the card's own, `planned_item!` until the feature lands, so the file
+/// without it compiles and the two forms differ only by the holes.
+pub(super) fn planned_fn(feature: &str, name: &str, params: &str, ret: &str, body: &str) -> String {
+    let item = format!("#[allow(unused_variables)] fn {name}({params}) -> {ret} {{ {body} }}");
+    match landed(feature) {
+        true => item,
+        false => format!("planned_item!({:?} => {item});", requirement(feature)),
+    }
+}
+
 /// Counters that are more than a name, so no line in `counter_kinds!` finishes
 /// them: rad, poison, acorn, point and contract counters sit on players, and an
 /// exalted counter gives its keyword (CR 122.1b).
@@ -170,6 +182,22 @@ fn source(value: &impl serde::Serialize) -> String {
 }
 
 impl Compiler {
+    /// A rule the code of a hole of `feature` holds, asked later with `params`:
+    /// a `fn` of the card's own named from `stem` (`planned_fn`), its name.
+    pub(super) fn rule_fn(
+        &mut self,
+        feature: &str,
+        stem: &str,
+        params: &str,
+        ret: &str,
+        body: &str,
+    ) -> String {
+        let at = self.functions.matches(&format!("fn {stem}_")).count();
+        let name = format!("{stem}_{at}");
+        let item = planned_fn(feature, &name, params, ret, body);
+        writeln!(self.functions, "{item}").unwrap();
+        name
+    }
     /// "Loyalty X": what a planeswalker enters with, for a number worked out then.
     pub(super) fn plan_loyalty(&mut self, loyalty: &Expr) {
         let feature = "printed loyalty expression";

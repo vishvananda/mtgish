@@ -835,30 +835,22 @@ impl Compiler {
         if self.every_slot_chosen && self.chosen_by_subject(chooser) {
             return Ok(());
         }
-        if let PlayerRef::OneOf(players) = chooser {
-            rule.planned.push((
-                "targets chosen by another player".to_string(),
-                format!(
-                    ".chosen_by_one_of(|q: &dyn Query, asker: &Asker| {})",
-                    self.players(players)?
+        // Who chooses, asked as the slot is chosen: a `fn` the slot holds.
+        const FEATURE: &str = "targets chosen by another player";
+        const ASKED: &str = "q: &dyn Query, asker: &Asker";
+        let (method, ret, body) = match chooser {
+            PlayerRef::OneOf(players) => ("chosen_by_one_of", "Vec<PlayerId>", self.players(players)?),
+            _ => match self.certain_player(chooser) {
+                Ok(player) => ("chosen_by", "PlayerId", player),
+                Err(_) => (
+                    "chosen_by_one_of",
+                    "Vec<PlayerId>",
+                    format!("{}.into_iter().collect::<Vec<PlayerId>>()", self.player(chooser)?),
                 ),
-            ));
-            return Ok(());
-        }
-        let Ok(player) = self.certain_player(chooser) else {
-            rule.planned.push((
-                "targets chosen by another player".to_string(),
-                format!(
-                    ".chosen_by_one_of(|q: &dyn Query, asker: &Asker| {}.into_iter().collect::<Vec<PlayerId>>())",
-                    self.player(chooser)?
-                ),
-            ));
-            return Ok(());
+            },
         };
-        rule.planned.push((
-            "targets chosen by another player".to_string(),
-            format!(".chosen_by(|q: &dyn Query, asker: &Asker| {player})"),
-        ));
+        let function = self.rule_fn(FEATURE, "target_chooser", ASKED, ret, &body);
+        rule.planned.push((FEATURE.to_string(), format!(".{method}({function})")));
         Ok(())
     }
     /// A slot's count no plain slot has.
@@ -896,7 +888,7 @@ impl Compiler {
         })
     }
     /// What `ModalDef` has no word for yet.
-    pub(super) fn modes_to_come(&self, selection: &ModeSelection, modal: String) -> Result<String> {
+    pub(super) fn modes_to_come(&mut self, selection: &ModeSelection, modal: String) -> Result<String> {
         let mut planned: Vec<(&str, String)> = Vec::new();
         // Modes each open only under a requirement are told apart by it
         // (`ModalDef::allowed`), not by a target.
@@ -924,11 +916,11 @@ impl Compiler {
             ));
         }
         if let Some(chooser) = &selection.chooser {
+            const FEATURE: &str = "modes chosen by another player";
             let players = self.players(chooser)?;
-            planned.push((
-                "modes chosen by another player",
-                format!(".chosen_by(|q: &dyn Query, asker: &Asker| {players})"),
-            ));
+            let params = "q: &dyn Query, asker: &Asker";
+            let function = self.rule_fn(FEATURE, "mode_choosers", params, "Vec<PlayerId>", &players);
+            planned.push((FEATURE, format!(".chosen_by({function})")));
         }
         if selection.random {
             planned.push(("modes chosen at random", ".at_random()".to_string()));

@@ -296,6 +296,24 @@ class Classify(unittest.TestCase):
         d["rendered"] = "cannot infer type of the type parameter `T` declared on the enum `Option`"
         self.assertEqual(pc.classify(d, text, pc.Spec(MODEL)), ("type annotations needed", False))
 
+    def test_a_field_of_a_new_variant_nothing_types_is_the_stubs_fault(self):
+        text = ("if let crate::proposals::on::Event::Exploited { card, sacrificed } = "
+                "crate::proposals::on::Event::Exploited::of(event) { let other = *sacrificed; let to = *card; }")
+        for name, fault in (("other", True), ("to", False)):
+            d = diag("E0282", "type annotations needed", text, text.index(f"let {name}") + 4, len(name))
+            d["rendered"] = f"consider giving `{name}` an explicit type"
+            self.assertEqual(pc.classify(d, text, pc.Spec(MODEL))[1], fault, name)
+
+    def test_a_binding_of_what_a_stub_returns_unsettled_is_the_stubs_fault(self):
+        text = ('let moved_2 = planned_value!("move to Ante", Vec::<ObjectId>::new() => g.ante(&objects_2)); '
+                "let n = 2i64 * g.ante(&o); let k = g.ante(&o).len(); let m = vec![];")
+        spec = learnt(method("ante", text))
+        for name, at, fault in (("moved_2", text.index("moved_2"), True), ("2i64 * g.ante(&o)", text.index("2i64"), True),
+                                ("m", text.index("let m") + 4, False)):
+            d = diag("E0282", "type annotations needed", text, at, len(name))
+            d["rendered"] = "type annotations needed"
+            self.assertEqual(pc.classify(d, text, spec)[1], fault, name)
+
     def test_a_local_the_hole_names_out_of_scope_is_the_proposals_fault(self):
         self.assertEqual(pc.classify(self.error("E0425", "cannot find value `result_0` in this scope"), "",
                                      pc.Spec(MODEL)), ("a local the hole names isn't in scope", False))

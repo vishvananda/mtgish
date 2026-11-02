@@ -1441,9 +1441,10 @@ impl Compiler {
                     TurnSection::Draw => "Step::Draw",
                     other => return Err(gap(format!("player rule Skip {}", form(other)))),
                 };
-                let applies = self.player_test(players)?;
+                const FEATURE: &str = "skipping a step of the turn";
+                let applies = self.player_test(players, FEATURE, &format!("{label}_skips"))?;
                 self.plan_entry(
-                    "skipping a step of the turn",
+                    FEATURE,
                     "skip_steps",
                     &format!("SkipStep {{ applies: {applies}, step: {step} }}"),
                     parts,
@@ -1454,12 +1455,15 @@ impl Compiler {
                 permanents,
                 amount: Expr::Constant(n),
             } => {
-                let applies = self.player_test(players)?;
+                const FEATURE: &str = "a limit on what untaps in an untap step";
                 let test = self.filter(permanents, &Candidate::of("id"))?;
+                let applies = self.player_test(players, FEATURE, &format!("{label}_untaps"))?;
+                let params = "q: &dyn Query, asker: &Asker, id: ObjectId";
+                let permanents = self.rule_fn(FEATURE, &format!("{label}_untapping"), params, "bool", &test);
                 self.plan_entry(
-                    "a limit on what untaps in an untap step",
+                    FEATURE,
                     "untap_limits",
-                    &format!("UntapLimit {{ applies: {applies}, permanents: |q, asker, id| {test}, amount: {n} }}"),
+                    &format!("UntapLimit {{ applies: {applies}, permanents: {permanents}, amount: {n} }}"),
                     parts,
                 );
                 Ok(())
@@ -1471,9 +1475,10 @@ impl Compiler {
                     HandSizeRule::Adjust(Expr::Constant(n)) => format!("HandSize::Adjust({n})"),
                     other => return Err(gap(format!("player rule HandSize {}", form(other)))),
                 };
-                let applies = self.player_test(players)?;
+                const FEATURE: &str = "a maximum hand size of other players";
+                let applies = self.player_test(players, FEATURE, &format!("{label}_hand_size"))?;
                 self.plan_entry(
-                    "a maximum hand size of other players",
+                    FEATURE,
                     "hand_size_rules",
                     &format!("HandSizeRule {{ applies: {applies}, size: {size} }}"),
                     parts,
@@ -1567,10 +1572,15 @@ impl Compiler {
             None => "1".to_string(),
             Some(per) => self.number(per)?.code,
         };
+        const FEATURE: &str = "a keyword's cost changed";
+        let params = "q: &dyn Query, asker: &Asker, player: PlayerId, card: ObjectId";
+        let body = format!("{guard}{member} && {test}");
+        let applies = self.rule_fn(FEATURE, &format!("{label}_keyword_cards"), params, "bool", &body);
+        let per = self.rule_fn(FEATURE, &format!("{label}_keyword_per"), "q: &dyn Query, asker: &Asker", "i64", &per);
         self.plan_entry(
-            "a keyword's cost changed",
+            FEATURE,
             "keyword_costs",
-            &format!("KeywordCostRule {{ keyword: CostedKeyword::{}, applies: |q, asker, player, card| {guard}{member} && {test}, change: {change}, per: |q, asker| {per}, first_each_turn: {first_each_turn} }}", name(keyword)),
+            &format!("KeywordCostRule {{ keyword: CostedKeyword::{}, applies: {applies}, change: {change}, per: {per}, first_each_turn: {first_each_turn} }}", name(keyword)),
             parts,
         );
         Ok(())
@@ -1902,9 +1912,12 @@ impl Compiler {
         Ok(vec![format!("match {local} {{ {} }}", arms.join(" "))])
     }
     /// A closure over `player`: whether the rule is about them now.
-    fn player_test(&self, players: &PlayerSet) -> Result<String> {
+    /// Which players a rule of the card's tables is about: a `fn` of the card's
+    /// own the entry holds, asked of a player as the rule is read.
+    fn player_test(&mut self, players: &PlayerSet, feature: &str, stem: &str) -> Result<String> {
         let (guard, member) = (self.guard()?, self.player_member(players)?);
-        Ok(format!("|q, asker, player| {guard}{member}"))
+        let params = "q: &dyn Query, asker: &Asker, player: PlayerId";
+        Ok(self.rule_fn(feature, stem, params, "bool", &format!("{guard}{member}")))
     }
     /// "Play with the top card of your library revealed", "you may look at cards
     /// exiled with this": information a rule opens (CR 400.2, 401.5, 402.3).
@@ -1932,14 +1945,15 @@ impl Compiler {
         );
         let everyone = matches!(audience, VisibilityAudience::Everyone);
         if top {
-            let applies = self.player_test(players)?;
+            const FEATURE: &str = "a library's top card open to view";
+            let applies = self.player_test(players, FEATURE, "library_top_open")?;
             let rule = if everyone {
                 "PlayRule::LibraryTopRevealed"
             } else {
                 "PlayRule::LooksAtLibraryTop"
             };
             self.plan_entry(
-                "a library's top card open to view",
+                FEATURE,
                 "play_rules",
                 &format!("{rule}({applies})"),
                 parts,
@@ -1947,9 +1961,10 @@ impl Compiler {
             return Ok(());
         }
         if everyone && affected_zone(objects, &EventZone::Hand) {
-            let applies = self.player_test(players)?;
+            const FEATURE: &str = "a hand played revealed";
+            let applies = self.player_test(players, FEATURE, "hand_revealed")?;
             self.plan_entry(
-                "a hand played revealed",
+                FEATURE,
                 "play_rules",
                 &format!("PlayRule::HandRevealed({applies})"),
                 parts,
@@ -1961,12 +1976,11 @@ impl Compiler {
         }
         let (guard, member) = (self.guard()?, self.player_member(players)?);
         let cards = self.objects(objects)?;
-        self.plan_entry(
-            "cards a player may look at",
-            "play_rules",
-            &format!("PlayRule::MayLookAt(|q, asker, player, card| {guard}{member} && ({cards}).contains(&card))"),
-            parts,
-        );
+        const FEATURE: &str = "cards a player may look at";
+        let params = "q: &dyn Query, asker: &Asker, player: PlayerId, card: ObjectId";
+        let body = format!("{guard}{member} && ({cards}).contains(&card)");
+        let applies = self.rule_fn(FEATURE, "may_look_at", params, "bool", &body);
+        self.plan_entry(FEATURE, "play_rules", &format!("PlayRule::MayLookAt({applies})"), parts);
         Ok(())
     }
     /// "You can't cast more than one spell each turn": the spells this player
@@ -2081,6 +2095,8 @@ impl Compiler {
             );
         };
         const ASKED_ABILITY: &str = "let def = q.activated_ability(ability);";
+        const ABILITY_PARAMS: &str =
+            "q: &dyn Query, asker: &Asker, player: PlayerId, permanent: ObjectId, ability: AbilityRef";
         match grant {
             ActivationGrant::AsThoughHaste => {
                 let ObjectFilter::AbilityOf(objects) = abilities else {
@@ -2121,21 +2137,22 @@ impl Compiler {
             }
             ActivationGrant::AdditionalTimes(Expr::Constant(n)) => {
                 let test = self.ability_test(abilities)?;
+                const FEATURE: &str = "an ability activated more times each turn";
+                let body = format!("{ASKED_ABILITY} {guard}{member} && {test}");
+                let applies = self.rule_fn(FEATURE, &format!("{label}_abilities"), ABILITY_PARAMS, "bool", &body);
                 self.plan_entry(
-                    "an ability activated more times each turn",
+                    FEATURE,
                     "extra_activations",
-                    &format!("ExtraActivations {{ abilities: |q, asker, player, permanent, ability| {{ {ASKED_ABILITY} {guard}{member} && {test} }}, times: {n} }}"),
+                    &format!("ExtraActivations {{ abilities: {applies}, times: {n} }}"),
                     parts,
                 );
             }
             ActivationGrant::AsThoughNotActivated => {
                 let test = self.ability_test(abilities)?;
-                self.plan_entry(
-                    "an ability activated as though it had not been",
-                    "activate_again",
-                    &format!("|q, asker, player, permanent, ability| {{ {ASKED_ABILITY} {guard}{member} && {test} }}"),
-                    parts,
-                );
+                const FEATURE: &str = "an ability activated as though it had not been";
+                let body = format!("{ASKED_ABILITY} {guard}{member} && {test}");
+                let applies = self.rule_fn(FEATURE, &format!("{label}_abilities"), ABILITY_PARAMS, "bool", &body);
+                self.plan_entry(FEATURE, "activate_again", &applies, parts);
             }
             other => return Err(gap(format!("player rule ActivationGrant {}", form(other)))),
         }
@@ -2326,6 +2343,47 @@ impl Compiler {
         };
         Ok(statics::LayerChange::of("Ability", body))
     }
+    /// "Creature spells can't be cast this turn" (Moonhold, Cease Fire): which
+    /// spells a resolving effect forbids, asked of each spell as it would be cast
+    /// (CR 611.2c), is a rule of the card's `lasting_spell_rules`, as
+    /// `lasting_rules` hold one of permanents; the effect names its index, and
+    /// what the words named as it resolved (a target) is its `about`: what else
+    /// the resolution chose (a name) is a gap of its own, as for `lasting_rules`.
+    fn lasting_spell_rule(&mut self, feature: &str, filter: &ObjectFilter) -> Result<String> {
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let asked = self.filter(filter, &super::players::cast_card());
+        (self.reader, self.event_at) = saved;
+        // What the resolution names is read as it has it, then handed over.
+        let test = match asked {
+            Ok(test) => test,
+            Err(_) => self.filter(filter, &super::players::cast_card())?,
+        };
+        // "That spell" of a trigger (Living Breakthrough): its subject.
+        const SUBJECT: &str = "item.subject";
+        let (test, subject) = match test.contains(SUBJECT) {
+            true => (test.replace(SUBJECT, "about"), true),
+            false => (test, false),
+        };
+        // A rule reading what the resolution chose but a target can't keep it.
+        let (test, about) = self.named_as_resolved(&test)?;
+        let about = match (subject, about.as_str()) {
+            (false, _) => about,
+            (true, "Target::None") => SUBJECT.to_string(),
+            (true, _) => return Err(gap("a lasting rule reading two things its ability chose")),
+        };
+        let index = self.holes.matches("=> lasting_spell_rules:").count();
+        let function = format!("lasting_spell_rule_{index}");
+        let params = "q: &dyn Query, asker: &Asker, about: Target, player: PlayerId, spell: ObjectId";
+        let body = format!("let source = asker.source; {test}");
+        let item = planned::planned_fn(feature, &function, params, "bool", &body);
+        writeln!(self.functions, "{item}").unwrap();
+        let id = planned::requirement(feature);
+        writeln!(self.holes, "planned_item!({id:?} => lasting_spell_rules: {function});").unwrap();
+        Ok(format!(
+            "EffectKind::CantCast {{ player, card: item.ability.card, index: {index}, about: {about} }}"
+        ))
+    }
     /// "Until end of turn, target player can't cast spells": a rule about the
     /// player, not an ability of anything (CR 611.2c). False if this is no such rule.
     #[allow(clippy::too_many_arguments)]
@@ -2381,11 +2439,8 @@ impl Compiler {
                 None,
             ),
             PlayerAction::CastSpell { from: None, filter } => {
-                let test = self.filter(filter, &super::players::cast_card())?;
-                (
-                    format!("EffectKind::CantCast {{ player, spells: SpellSet::matching(move |q, spell| {test}) }}"),
-                    Some("player rule for a while can't cast some spells"),
-                )
+                const FEATURE: &str = "player rule for a while can't cast some spells";
+                (self.lasting_spell_rule(FEATURE, filter)?, Some(FEATURE))
             }
             PlayerAction::PlayLand {
                 from: None,
@@ -2564,10 +2619,14 @@ impl Compiler {
         entry: impl Fn(&str) -> String,
         parts: &mut Parts,
     ) {
+        let _ = names;
         match feature {
+            // The same `fn`, an item of the hole until the table lands: a table
+            // holds no closure.
             Some(feature) => {
-                let closure = format!("|{names}| {{ {body} }}");
-                self.plan_entry(feature, table, &entry(&closure), parts);
+                let item = planned::planned_fn(feature, function, params, returns, body);
+                writeln!(self.functions, "{item}").unwrap();
+                self.plan_entry(feature, table, &entry(function), parts);
             }
             None => {
                 writeln!(
@@ -3008,7 +3067,7 @@ impl Compiler {
         } else {
             tests.join(" && ")
         };
-        let closure = format!("|q, asker, card| {test}");
+        let card_params = "q: &dyn Query, asker: &Asker, card: ObjectId";
         match action {
             CardPlayAction::Either => {
                 return Err(gap(
@@ -3019,10 +3078,12 @@ impl Compiler {
                 if test == "true" && matches!(terms.cost, PlayCost::Normal) {
                     return self.play_rule(label, "PlayRule::LibraryTopLands".into(), parts);
                 }
+                const FEATURE: &str = "play permission for lands from the top of a library with a filter";
+                let applies = self.rule_fn(FEATURE, &format!("{label}_cards"), card_params, "bool", &test);
                 self.plan_entry(
-                    "play permission for lands from the top of a library with a filter",
+                    FEATURE,
                     "play_rules",
-                    &format!("PlayRule::LibraryTopLandsIf({closure})"),
+                    &format!("PlayRule::LibraryTopLandsIf({applies})"),
                     parts,
                 );
             }
@@ -3043,10 +3104,12 @@ impl Compiler {
                         parts,
                     );
                 }
+                const FEATURE: &str = "play permission from the top of a library on other terms";
+                let applies = self.rule_fn(FEATURE, &format!("{label}_cards"), card_params, "bool", &test);
                 self.plan_entry(
-                    "play permission from the top of a library on other terms",
+                    FEATURE,
                     "play_rules",
-                    &format!("PlayRule::LibraryTopSpellsWith({closure}, LibraryTerms {{ additional: {extra}, flash: {} }})", terms.flash),
+                    &format!("PlayRule::LibraryTopSpellsWith({applies}, LibraryTerms {{ additional: {extra}, flash: {} }})", terms.flash),
                     parts,
                 );
             }
@@ -4186,10 +4249,11 @@ impl Compiler {
             [Change::Rule(RuleChange::Prohibit(ObjectAction::Counter))],
         ) = (affected, changes)
         {
+            // Every spell and ability: a flag, not a rule asked of each.
             self.plan_entry(
                 "static rule Prohibit Counter of abilities",
-                "cant_be_countered",
-                "|_, _, _| true",
+                "abilities_cant_be_countered",
+                "true",
                 parts,
             );
             return Ok(Vec::new());

@@ -953,7 +953,7 @@ impl Compiler {
         if matches!(limits.keyword, Some(ActivatedKeyword::Forecast)) {
             def = lane_g::forecast(def);
         }
-        self.activators(def, limits.activators.as_ref())
+        self.activators(def, limits.activators.as_ref(), label)
     }
     /// Backup N (702.165a). The listed abilities also stand on the card itself,
     /// so here they are only what the target gains: keywords, and the one other

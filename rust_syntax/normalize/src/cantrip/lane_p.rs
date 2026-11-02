@@ -1396,7 +1396,7 @@ impl Compiler {
                 held(
                     "every graveyard where the card says their graveyard, in the data",
                     &format!(
-                        "{}.is_some_and(|p: PlayerId| q.chosen_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
+                        "{}.is_some_and(|p: PlayerId| q.choice_made_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
                         self.player(player)?
                     ),
                 )
@@ -1404,7 +1404,7 @@ impl Compiler {
             ObjectFilter::ChosenBy { kind, player } => held(
                 &feature,
                 &format!(
-                    "{}.is_some_and(|p: PlayerId| q.chosen_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
+                    "{}.is_some_and(|p: PlayerId| q.choice_made_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
                     self.player(player)?
                 ),
             ),
