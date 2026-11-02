@@ -1448,10 +1448,13 @@ impl Compiler {
             grown.field("protection", colors);
         }
         let enters = self.enters(&grown.enters);
+        let rules = grown.card(&enters);
+        if let Some(granted) = self.granted_attack_limit(&rules) {
+            return Ok(vec![granted]);
+        }
         let index = self.granted_rules;
         self.granted_rules += 1;
         let feature = lane_g::grant_gap(ability).feature;
-        let rules = grown.card(&enters);
         let mut late = Parts::default();
         self.plan_entry(&feature, "granted_rules", &rules, &mut late);
         self.late
@@ -1461,6 +1464,30 @@ impl Compiler {
             &format!("AbilityRef::delayed({card}, 0)"),
             &format!("AbilityRef::granted_static({card}, {index})"),
         )])
+    }
+    /// A granted "No more than one creature can attack this planeswalker each
+    /// combat" (CR 508.1c), as Tomik, Orzhov Lawmage prints it: the grant is a
+    /// static ability that changes nothing of the object, and the card's own
+    /// attack limit asks whether what is attacked has it. The limit was written
+    /// as the object's own, so it is asked as the object.
+    fn granted_attack_limit(&mut self, rules: &str) -> Option<String> {
+        const EMPTY: &str = "CardDef { keywords: Keywords::of(&[]), abilities: &[], statics: &[], replacements: &[], preventions: &[], block_rules: &[], block_requirements: &[], attack_rules: &[], untap_bans: &[], enters: None, attack_limits: &[";
+        let limit = rules.strip_prefix(EMPTY)?.strip_suffix("], ..CardDef::BLANK }")?;
+        if limit.is_empty() || !limit.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return None;
+        }
+        let line = self.line_text()?;
+        let (open, close) = (line.find('"')?, line.rfind('"')?);
+        let text = quoted(line.get(open + 1..close).filter(|text| !text.is_empty())?);
+        let card = self.source_card();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {limit}_changes_nothing(q: &dyn LayerQuery, source: ObjectId, chars: &mut Chars) {{}}").unwrap();
+        self.delayed.push(format!(
+            "granted_static(Layer::Ability, {limit}_changes_nothing, {text})"
+        ));
+        let index = self.delayed.len() - 1;
+        writeln!(self.functions, "#[allow(unused_variables)] fn {limit}_held(q: &dyn Query, asker: &Asker, attacked: Target) -> Option<u32> {{ let Target::Object(id) = attacked else {{ return None; }}; let source = q.obj(asker.source); let granted = AbilityRef::delayed(source.copied_card().unwrap_or(source.card), {index}); if !q.chars(id).abilities.contains(&Some(granted)) {{ return None; }} {limit}(q, &Asker::new(id, q.controller(id)), attacked) }}").unwrap();
+        self.late_tables.push(("attack_limits", format!("{limit}_held")));
+        Some(format!("AbilityRef::delayed({card}, {index})"))
     }
     /// The statement that gives a layer's `chars` these abilities.
     pub(super) fn grant_in_layer(&mut self, ability: &Ability) -> Result<statics::LayerChange> {

@@ -2004,10 +2004,16 @@ impl Compiler {
             return Err(gap("a count of modes a spell or an activated ability reads"));
         }
         let told = |code: String| code.replace("i64::from(item.x)", "q.told_amount(asker)");
+        let none_least = matches!(least, Expr::Constant(0));
         let (least, most) = (
             told(self.number(least)?.code),
             told(self.number(most)?.code),
         );
+        // "When you do, choose up to that many": the count its reflexive trigger
+        // was told (CR 603.12a, 700.2; Tranquil Frillback).
+        if none_least && most == "q.told_amount(asker)" {
+            return Ok(format!("{listed}.up_to_that_many()"));
+        }
         Ok(planned::planned_value(
             "mode count that is not a constant",
             &format!("{listed}.choose(1, 1)"),
