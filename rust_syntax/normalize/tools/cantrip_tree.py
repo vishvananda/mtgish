@@ -327,7 +327,8 @@ def body(card):
 
 
 def whole(card):
-    """The card's code. What names the generator is left out above: it would rewrite every file on each change."""
+    """The card's code. What names the generator is left out above: it would rewrite every file on each change.
+    A card whose faces are joined has its code in `rust`, and its faces have none of their own in the row."""
     faces = card["faces"]
     if not faces:
         return ""

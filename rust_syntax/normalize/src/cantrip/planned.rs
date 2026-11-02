@@ -357,7 +357,10 @@ impl Compiler {
 pub struct TrackedFace {
     pub name: String,
     pub oracle: Option<String>,
-    pub rust: String,
+    /// The face's module, left out where its card's `rust` holds it: a reader
+    /// reads a card of joined faces from that.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rust: Option<String>,
     pub gaps: Vec<Diagnostic>,
 }
 
@@ -413,13 +416,13 @@ pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<
             let name = identity.names.join(" // ");
             let whole = lane_f::whole_printed(&source, &lowered.card, Some(&oracle))
                 .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
-            let faces: Vec<TrackedFace> = whole
+            let mut faces: Vec<TrackedFace> = whole
                 .faces
                 .into_iter()
                 .map(|face| TrackedFace {
                     oracle: oracle.get(&face.name).cloned(),
                     name: face.name,
-                    rust: face.rust,
+                    rust: Some(face.rust),
                     gaps: face.gaps,
                 })
                 .collect();
@@ -443,7 +446,7 @@ pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<
                         _ => None,
                     }
                 }
-                [one]
+                [one @ TrackedFace { rust: Some(module), .. }]
                     if one.gaps.is_empty()
                         && matches!(lowered.card.layout.as_str(), "Card" | "MeldPiece") =>
                 {
@@ -452,7 +455,7 @@ pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<
                             Ok(file) => file,
                             Err(_) => {
                                 let (file, render) = renders.render(
-                                    &one.rust,
+                                    module,
                                     &one.name,
                                     text,
                                     super::pr_form::Characteristics::Oracle,
@@ -465,6 +468,14 @@ pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<
                 }
                 _ => None,
             };
+            // A face's code is not written twice: the card's module holds each face it joins.
+            if let Some(joined) = &whole.rust {
+                for face in &mut faces {
+                    if face.rust.as_ref().is_some_and(|rust| joined.contains(rust.as_str())) {
+                        face.rust = None;
+                    }
+                }
+            }
             // A sticker sheet has no name of its own: it is its face's.
             let name = match faces.as_slice() {
                 [face] if name.is_empty() => face.name.clone(),
