@@ -1057,6 +1057,33 @@ impl Compiler {
                     dynamic: true,
                 }
             }
+            // A delayed ability's source is the spell that made it, and that spell's
+            // X stays on its item after it has left the stack.
+            Expr::AnnouncedX
+                if self.reader == Reader::Resolution
+                    && self.stack_item
+                    && self.outer.as_ref().is_some_and(|outer| outer.made_by_a_spell()) =>
+            {
+                Number {
+                    code: "i64::from(q.state().left_stack(item.object).map_or(0, |made| made.x))"
+                        .into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            // A mana ability's {X} is kept on its source (CR 107.3a, 605.3a).
+            Expr::AnnouncedX
+                if self.mana_body
+                    && self.activation_cost.as_ref().is_some_and(target_counts::has_mana_x) =>
+            {
+                Number {
+                    code: "i64::from(q.obj(asker.source).x)".into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
             Expr::AnnouncedX if self.pending == Pending::Entering => Number {
                 code: "i64::from(entering.x)".into(),
                 min: 0,

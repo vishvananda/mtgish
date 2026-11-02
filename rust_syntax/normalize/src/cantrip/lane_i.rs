@@ -864,7 +864,27 @@ impl Compiler {
                 }
             }
         }
-        // A value chosen in a turn is that turn's, and a local of it.
+        // A value chosen in a turn is that turn's, and a local of it; what "chosen
+        // this way" reads after them all is any of them.
+        let each_chose: Vec<(ValueKind, String)> = self
+            .chosen
+            .iter()
+            .filter(|(kind, local)| {
+                !before.chosen.iter().any(|(k, _)| k == kind) && local.starts_with("chosen_")
+            })
+            .cloned()
+            .collect();
+        for (kind, local) in each_chose {
+            let list = format!("each_{local}");
+            let (declare, push) = (
+                format!("let mut {list} = Vec::new();\n"),
+                format!("{list}.push({local});\n"),
+            );
+            declared.push_str(&declare);
+            tail.push_str(&push);
+            self.unread.push((list.clone(), vec![declare, push]));
+            self.chosen_lists.push((kind, list));
+        }
         self.chosen = before.chosen;
         out.push_str(&declared);
         let binding = each.binding.0;

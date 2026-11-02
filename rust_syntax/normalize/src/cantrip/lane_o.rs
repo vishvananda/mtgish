@@ -2025,6 +2025,13 @@ impl Compiler {
                 format!("q.noted_for(asker, {})", self.object(object)?)
             }
             PlayerRef::Prior(prior) => format!("q.prior_player(asker, PriorPlayer::{prior:?})"),
+            PlayerRef::OtherChosen(of) if self.enters_two == Some(ValueKind::Player) => {
+                return Ok(format!(
+                    "{}.and_then(|p: PlayerId| {{ let (first, second) = (q.state().chosen_player({linked}), q.state().chosen_number({linked}).map(|n| PlayerId(n as u8))); if first == Some(p) {{ second }} else if second == Some(p) {{ first }} else {{ None }} }})",
+                    self.player(of)?,
+                    linked = self.linked()
+                ));
+            }
             PlayerRef::OtherChosen(of) => format!(
                 "{}.and_then(|p: PlayerId| q.other_chosen_player(asker, p))",
                 self.player(of)?

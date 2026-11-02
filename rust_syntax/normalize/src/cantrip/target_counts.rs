@@ -392,3 +392,10 @@ pub(super) fn each_player_slot(spec: &TargetSpec) -> Option<TargetSpec> {
         ..spec.clone()
     })
 }
+
+/// Whether a cost has {X} among its mana.
+pub(super) fn has_mana_x(cost: &Cost) -> bool {
+    cost.parts.iter().any(|part| {
+        matches!(part, CostPart::Mana(symbols) if symbols.iter().any(|s| matches!(s, ManaSymbol::X)))
+    })
+}

@@ -429,7 +429,11 @@ impl Compiler {
         let at = std::mem::replace(&mut self.event_at, EventAt::Item);
         let hoisted = self.hoisted.replace(Vec::new());
         let around = std::mem::take(&mut self.after);
+        let unread = std::mem::take(&mut self.unread);
+        let lists = std::mem::take(&mut self.chosen_lists);
         let compiled = self.program(body, &mut out, true);
+        self.chosen_lists = lists;
+        let kept = std::mem::replace(&mut self.unread, unread);
         self.after = around;
         let declared = std::mem::replace(&mut self.hoisted, hoisted);
         self.reader = reader;
@@ -440,6 +444,14 @@ impl Compiler {
                 0,
                 &format!("let mut {local}: Vec<ObjectId> = Vec::new();\n"),
             );
+        }
+        for (local, lines) in kept {
+            let rest = lines.iter().fold(out.clone(), |rest, line| rest.replace(line, ""));
+            if !rest.contains(&local) {
+                out = rest;
+            } else if local.ends_with("_kept") {
+                out.insert_str(0, &format!("let mut {local} = None;\n"));
+            }
         }
         Ok(out)
     }
@@ -577,7 +589,33 @@ impl Compiler {
         self.hoist(&inner.selections, Hoist::Selected, out);
         self.hoist(&inner.creations, Hoist::Created, out);
         self.hoist(&inner.before, Hoist::Before, out);
+        self.hoist_choices(&inner.chosen, out);
         Ok(())
+    }
+    /// A value a block chose stays readable past it, in one local for its kind, so
+    /// a read is of the latest choice whichever block ran (`choose_value`).
+    fn hoist_choices(&mut self, inner: &[(ValueKind, String)], out: &mut String) {
+        for (kind, local) in inner.iter().rev() {
+            let plain_before = |(k, l): &(ValueKind, String)| k == kind && !l.ends_with(chosen::KEPT);
+            if self.hoisted.is_none() || self.chosen.iter().any(plain_before) {
+                continue;
+            }
+            if local.ends_with(chosen::KEPT) {
+                self.chosen.retain(|(k, _)| k != kind);
+                self.chosen.insert(0, (*kind, local.clone()));
+                continue;
+            }
+            let prefix = local.split('_').next().unwrap_or("chosen");
+            let kept = format!("{prefix}_{}_kept", format!("{kind:?}").to_lowercase());
+            let line = format!("{kept} = Some({local});\n");
+            out.push_str(&line);
+            match self.unread.iter_mut().find(|(l, _)| *l == kept) {
+                Some((_, lines)) => lines.push(line),
+                None => self.unread.push((kept.clone(), vec![line])),
+            }
+            self.chosen.retain(|(k, _)| k != kind);
+            self.chosen.insert(0, (*kind, format!("{kept}{}", chosen::KEPT)));
+        }
     }
     /// Keep the objects a block just reported. `out` is at the block's end, so
     /// what didn't run leaves the list empty, as "those" then is.

@@ -1709,24 +1709,33 @@ impl Compiler {
         let mut abilities = Vec::new();
         let mut labels = Vec::new();
         for option in options {
-            let Operand::Ability(ability) = option else {
-                return Err(failure());
+            let ability = match option {
+                Operand::Ability(ability) => (**ability).clone(),
+                Operand::Term { form, operands, .. } => {
+                    hasable_keyword(form, operands).ok_or_else(failure)?
+                }
+                _ => return Err(failure()),
             };
-            let Ability::Keyword(keyword) = &**ability else {
-                return Err(failure());
-            };
-            labels.push(match keyword {
-                Keyword::Protection(quality) => match &**quality {
-                    Protection::Objects {
-                        filter: ObjectFilter::Color(color),
-                        ..
-                    } => format!("protection from {}", name(color).to_lowercase()),
-                    _ => return Err(failure()),
+            match &ability {
+                Ability::Keyword(keyword) => labels.push(match keyword {
+                    Keyword::Protection(quality) => match &**quality {
+                        Protection::Objects {
+                            filter: ObjectFilter::Color(color),
+                            ..
+                        } => format!("protection from {}", name(color).to_lowercase()),
+                        _ => return Err(failure()),
+                    },
+                    Keyword::Ward(_) => return Err(failure()),
+                    other => camel_words(&form(other)),
+                }),
+                other => match self.grants_keyword(other) {
+                    Some(keyword) => {
+                        labels.push(keyword.replacen("Keyword::", "", 1));
+                    }
+                    None => return Err(failure()),
                 },
-                Keyword::Ward(_) => return Err(failure()),
-                other => camel_words(&form(other)),
-            });
-            abilities.push((**ability).clone());
+            }
+            abilities.push(ability);
         }
         let base = self.choice_labels.len();
         let end = base + labels.len();
@@ -1748,10 +1757,17 @@ impl Compiler {
         let last = options.len().saturating_sub(1);
         let mut arms = Vec::new();
         for (i, ability) in options.iter().enumerate() {
-            let Ability::Keyword(keyword) = ability else {
-                return Err(gap("continuous change ChosenAbility"));
+            let kinds = match ability {
+                Ability::Keyword(keyword) => {
+                    self.effect_kinds(&Change::GrantKeyword(keyword.clone()))?
+                }
+                other => match self.grants_keyword(other) {
+                    Some(keyword) => {
+                        vec![format!("EffectKind::AddKeywords(Keywords::of(&[{keyword}]))")]
+                    }
+                    None => return Err(gap("continuous change ChosenAbility")),
+                },
             };
-            let kinds = self.effect_kinds(&Change::GrantKeyword(keyword.clone()))?;
             let [kind] = kinds.as_slice() else {
                 return Err(gap("continuous change ChosenAbility"));
             };
@@ -4029,4 +4045,18 @@ fn played_effect_hole(effect: &Operand) -> &'static str {
         }
         _ => "play permission with an effect on what is played",
     }
+}
+
+/// The keyword a `CheckHasable` word names, as a choice of abilities lists it.
+fn hasable_keyword(word: &str, operands: &[Operand]) -> Option<Ability> {
+    let keyword = match (word, operands) {
+        ("Flying", []) => Keyword::Flying,
+        ("FirstStrike", []) => Keyword::FirstStrike,
+        ("Trample", []) => Keyword::Trample,
+        ("Landwalk", [Operand::Objects(ObjectSet::Battlefield(land))]) => {
+            Keyword::Landwalk(Box::new(land.clone()))
+        }
+        _ => return None,
+    };
+    Some(Ability::Keyword(keyword))
 }

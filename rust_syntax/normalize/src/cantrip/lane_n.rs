@@ -1603,12 +1603,9 @@ impl Compiler {
             return Err(gap("a choice of Recipient"));
         };
         let candidates = self.fetch(self.recipients(candidates)?);
-        let chosen = planned::planned_value(
-            "a choice of Recipient",
-            "Target::None",
-            &format!(
-                "cantrip_mechanics::choose::recipient(g, player_{id}, {source}, candidates_{id})?"
-            ),
+        // A lone candidate is no choice; with none the rest deals with no one.
+        let chosen = format!(
+            "match candidates_{id}.len() {{ 0 => Target::None, 1 => candidates_{id}[0], _ => match g.ask(player_{id}, RequestKind::ChooseTarget {{ label: \"\", slot_player: None, together: None, source: {source}, purpose: Purpose::Targets, candidates: candidates_{id}.clone(), optional: false, least: 1, count: 1, any_number: false }})? {{ Answer::Targets(chosen) => chosen.first().copied().unwrap_or(Target::None), _ => Target::None }} }}"
         );
         writeln!(
             out,

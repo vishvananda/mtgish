@@ -581,6 +581,11 @@ struct Compiler {
     /// Locals an effect declares up front to outlive its nested blocks. `None`
     /// in code that isn't an effect's own body.
     hoisted: Option<Vec<String>>,
+    /// Values kept past the block or turn that chose them, and the lines that keep
+    /// them, which go if nothing read them.
+    unread: Vec<(String, Vec<String>)>,
+    /// Locals that hold a value each player chose, by kind.
+    chosen_lists: Vec<(ValueKind, String)>,
     /// The local of the spells the last cast of cards made.
     played: Option<String>,
     /// Choices and searches that yield one object at most.
@@ -616,6 +621,16 @@ struct Compiler {
     chosen: Vec<(ValueKind, String)>,
     /// Values the card chooses as it enters, which its permanent keeps.
     enters_choosing: Vec<ValueKind>,
+    /// The body of a mana ability is being written.
+    mana_body: bool,
+    /// The color a definition made once for each color is written for.
+    each_color: Option<String>,
+    /// It chooses two of this kind as it enters: the second in its chosen number.
+    enters_two: Option<ValueKind>,
+    /// A rule on the cost of `spell` is being written.
+    costed_spell: bool,
+    /// The card types it offers, if it chooses one as it enters.
+    entering_card_type: Option<Vec<String>>,
     bound_objects: BTreeSet<u32>,
     /// The next closure is a reflexive ability's.
     reflexing: bool,
@@ -974,6 +989,8 @@ impl Compiler {
             returning: BTreeSet::new(),
             dividing: None,
             hoisted: None,
+            unread: Vec::new(),
+            chosen_lists: Vec::new(),
             played: None,
             single: BTreeSet::new(),
             known_one: BTreeSet::new(),
@@ -992,6 +1009,11 @@ impl Compiler {
             bestow: None,
             chosen: Vec::new(),
             enters_choosing: Vec::new(),
+            mana_body: false,
+            each_color: None,
+            enters_two: None,
+            costed_spell: false,
+            entering_card_type: None,
             bound_objects: BTreeSet::new(),
             reflexing: false,
             source_moved: false,
@@ -1600,6 +1622,9 @@ impl Compiler {
         Ok(())
     }
     fn mana_ability(&mut self, body: &Program, label: &str) -> Result<String> {
+        if let Some(adds) = self.mana_of_a_color_among(body, label)? {
+            return Ok(adds);
+        }
         let [Instruction::Effect {
             operation:
                 Operation::AddMana {
@@ -2161,6 +2186,8 @@ fn emit_face(
     c.sorcery = (card.characteristics.card_types.iter())
         .any(|t| matches!(t, crate::mtg_types::CardType::Sorcery));
     c.enters_choosing = chosen::enters_choosing(card);
+    c.enters_two = chosen::enters_two(card);
+    c.entering_card_type = lane_p::entering_card_type(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
             c.casting_costs.insert(i as u32, cost.clone());

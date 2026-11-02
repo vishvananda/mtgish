@@ -609,7 +609,7 @@ impl Compiler {
         writeln!(out, "if item.data[1] != 0 {{ {M}::mana::add_one_mana_of_any_type_that_land_produced(g, item)?; }}").unwrap();
     }
     /// A `ColorSet` of the colors among objects, read by a plain function.
-    fn colors_of(&self, objects: &ObjectSet) -> Result<String> {
+    pub(super) fn colors_of(&self, objects: &ObjectSet) -> Result<String> {
         let mut asked = self.clone();
         (asked.reader, asked.event_at) = (Reader::Query, EventAt::Nowhere);
         Ok(format!(

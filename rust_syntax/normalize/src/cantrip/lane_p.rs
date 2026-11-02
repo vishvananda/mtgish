@@ -289,7 +289,103 @@ const CARD_TYPES: [&str; 9] = [
     "Sorcery",
 ];
 
+/// The colors, in the order of `Color`.
+pub(super) const COLORS: [&str; 5] = ["White", "Blue", "Black", "Red", "Green"];
+/// The permanent types (CR 110.4b).
+const PERMANENT_TYPES: [&str; 6] =
+    ["Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"];
+/// The types a card offers as it enters, each spelled as a `CardType`.
+pub(super) fn entering_types(options: &[Operand]) -> Vec<String> {
+    let listed: Vec<String> = options
+        .iter()
+        .filter_map(|option| match option {
+            Operand::Vocabulary { form, .. } => Some(format!("CardType::{form}")),
+            _ => None,
+        })
+        .collect();
+    match listed.is_empty() {
+        true => CARD_TYPES.iter().map(|word| format!("CardType::{word}")).collect(),
+        false => listed,
+    }
+}
+/// The options of the card type `card` chooses as it enters.
+pub(super) fn entering_card_type(card: &Card) -> Option<Vec<String>> {
+    card.abilities.iter().find_map(|ability| {
+        let Ability::Replacement {
+            active: ReplacementActive::SourceEntering,
+            body,
+            ..
+        } = ability
+        else {
+            return None;
+        };
+        body.instructions.iter().find_map(|instruction| match instruction {
+            Instruction::Effect {
+                operation:
+                    Operation::ChooseValue {
+                        kind: ValueKind::CardType,
+                        options,
+                        ..
+                    },
+                ..
+            } => Some(entering_types(options)),
+            _ => None,
+        })
+    })
+}
+
 impl Compiler {
+    /// "Choose a color of a permanent you control. Add one mana of that color.":
+    /// the colors it can make, which the engine offers as a mana ability is.
+    pub(super) fn mana_of_a_color_among(
+        &mut self,
+        body: &Program,
+        label: &str,
+    ) -> Result<Option<String>> {
+        let [Instruction::Effect {
+            operation:
+                Operation::ChooseValue {
+                    actor: PlayerSet::One(PlayerRef::AbilityController),
+                    kind: ValueKind::Color,
+                    count: 1,
+                    options,
+                },
+            ..
+        }, Instruction::Effect {
+            operation:
+                Operation::AddMana {
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                    mana:
+                        ManaProduction::Amount {
+                            color: ManaColor::Chosen,
+                            amount: Expr::Constant(1),
+                        },
+                    restriction: None,
+                },
+            ..
+        }] = body.instructions.as_slice()
+        else {
+            return Ok(None);
+        };
+        let [Operand::Term { form, operands, .. }] = options.as_slice() else {
+            return Ok(None);
+        };
+        let colors = match (form.as_str(), operands.as_slice()) {
+            ("ColorAmoungPermanents", [Operand::Objects(objects)]) => self.colors_of(objects)?,
+            (
+                "ColorsOfCardsInPlayersGraveyard",
+                [Operand::Filter(ObjectFilter::Any), Operand::Player(player)],
+            ) => format!(
+                "{}.map_or(ColorSet::NONE, |p: PlayerId| q.state().zone(Zone::graveyard(p)).iter().fold(ColorSet::NONE, |all: ColorSet, &o: &ObjectId| ColorSet(all.0 | q.chars(o).colors.0)))",
+                self.player(player)?
+            ),
+            _ => return Ok(None),
+        };
+        writeln!(self.functions, "#[allow(unused_variables)] fn {label}_colors(q: &dyn Query, asker: &Asker) -> ColorSet {{ {colors} }}").unwrap();
+        self.mana_colors = Some((format!(".colors_from({label}_colors)"), None));
+        writeln!(self.functions, "fn {label}(g: &mut dyn Game, asker: &Asker, chosen: Option<Color>) -> Result<(), Suspend> {{ if let Some(color) = chosen {{ g.add_mana(asker.controller, color.mana(), 1); }} Ok(()) }}").unwrap();
+        Ok(Some(format!("add_by({label}).choose_color().yields_any(1)")))
+    }
     /// Leaves word for `remembered`, where a resolving ability made this choice.
     pub(super) fn remember_choice(&mut self, kind: ValueKind, local: &str, out: &mut String) {
         if !self.stack_item || self.pending == Pending::Entering || kept(kind).is_none() {
@@ -378,11 +474,8 @@ impl Compiler {
                 let every = match kind {
                     ValueKind::LandType => "Subtype::ALL.into_iter().filter(|&kind| SubtypeSet::LAND_TYPES.has(kind)).collect::<Vec<Subtype>>()".to_string(),
                     ValueKind::NonbasicLandType => "Subtype::ALL.into_iter().filter(|&kind| SubtypeSet::LAND_TYPES.has(kind) && kind.basic_mana().is_none()).collect::<Vec<Subtype>>()".to_string(),
-                    _ => planned::planned_value(
-                        "a choice of PlaneswalkerType",
-                        "Vec::<Subtype>::new()",
-                        "Subtype::ALL.into_iter().filter(|kind| kind.is_planeswalker_type()).collect::<Vec<Subtype>>()",
-                    ),
+                    // CR 205.3j: the subtypes of a planeswalker alone.
+                    _ => "Subtype::ALL.into_iter().filter(|&kind| kind.card_types() == TypeSet::of(&[CardType::Planeswalker])).collect::<Vec<Subtype>>()".to_string(),
                 };
                 let words = listed("Subtype")?;
                 let choices = match words.is_empty() {
@@ -415,23 +508,41 @@ impl Compiler {
                 )
                 .unwrap();
             }
-            ValueKind::CardType | ValueKind::PermanentType => {
-                let words = listed("CardType")?;
-                let choices = match (words.is_empty(), kind) {
-                    (false, _) => format!("vec![{}]", words.join(", ")),
-                    (true, ValueKind::CardType) => "CardType::ALL.to_vec()".to_string(),
-                    (true, _) => "CardType::PERMANENT.to_vec()".to_string(),
-                };
-                let code = format!("{M}::choose::card_type(g, {player}, {source}, {choices})?");
-                let value = planned::planned_value(&feature, "CardType::Creature", &code);
-                writeln!(out, "let {local}: CardType = {value};").unwrap();
-                if entering {
-                    self.plan_code(
-                        &feature,
-                        &format!("entering.chosen_card_type = Some({local});"),
-                        out,
-                    );
+            // As it enters: the word, kept as its chosen option, as Arachne's.
+            ValueKind::CardType if entering => {
+                if !self.choice_labels.is_empty() || self.entering_labels.is_some() {
+                    return Err(gap(feature.as_str()));
                 }
+                let words = entering_types(options);
+                self.choice_labels
+                    .extend(words.iter().map(|word| word.replacen("CardType::", "", 1)));
+                let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+                writeln!(
+                    out,
+                    "{M}::choose::option_as_enters(g, entering, &CARD, 0..{})?; let {local}: CardType = [{}][usize::from(entering.chosen_option.map_or(0, |chosen| chosen.index))];",
+                    words.len(),
+                    words.join(", ")
+                )
+                .unwrap();
+            }
+            ValueKind::PermanentType if self.stack_item => {
+                let words = PERMANENT_TYPES;
+                let base = self.choice_labels.len();
+                self.choice_labels.extend(words.iter().map(|word| word.to_string()));
+                let end = self.choice_labels.len();
+                let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+                let words: Vec<String> = words.iter().map(|word| format!("CardType::{word}")).collect();
+                writeln!(
+                    out,
+                    "let player_{id} = {player}; let {local}: CardType = [{}][usize::from({M}::choose::option(g, player_{id}, asker.source, item.ability.card, {base}..{end})? - {base})];",
+                    words.join(", ")
+                )
+                .unwrap();
+            }
+            ValueKind::CardType | ValueKind::PermanentType => {
+                return Err(gap(feature.as_str()));
             }
             // CR 105.2c: colorless is no color, so no request for colors offers it.
             ValueKind::ColorOrColorless => {
@@ -732,6 +843,18 @@ impl Compiler {
                     feature,
                     &format!("q.additional_cost_paid(asker, &[{}])", parts.join(", ")),
                 )
+            }
+            // "For each of the chosen colors it is": `Source` says "it" of a spell whose
+            // cost a rule of this source changes.
+            Expr::ChosenColorsOf(object) if self.enters_two == Some(ValueKind::Color) => {
+                let it = match (object, self.costed_spell) {
+                    (ObjectRef::Source, true) => "Some(spell)".to_string(),
+                    _ => self.object(object)?,
+                };
+                counted(format!(
+                    "{it}.map_or(0i64, |o: ObjectId| {}.iter().flatten().filter(|&&chosen| q.chars(o).colors.has(chosen)).count() as i64)",
+                    self.chosen_two()
+                ))
             }
             Expr::ChosenColorsOf(object) => held_number(
                 feature,
@@ -1366,6 +1489,11 @@ impl Compiler {
                     self.filter(filter, &Candidate::of("id"))?
                 ),
             ),
+            Condition::ValueChosenIs(player) if self.enters_two == Some(ValueKind::Player) => format!(
+                "{}.is_some_and(|p: PlayerId| q.state().chosen_player({linked}) == Some(p) || q.state().chosen_number({linked}) == Some(u32::from(p.0)))",
+                self.player(player)?,
+                linked = self.linked()
+            ),
             Condition::ValueChosenIs(player) => held(
                 &feature,
                 &format!(
@@ -1383,6 +1511,11 @@ impl Compiler {
                 ),
             ),
             Condition::Searched(result) => held(&feature, &format!("q.searched(asker, {})", result.0)),
+            Condition::ValueChosen(kind @ (ValueKind::Color | ValueKind::CreatureType))
+                if self.enters_choosing.contains(kind) =>
+            {
+                format!("{}.is_some()", self.chosen_value(*kind)?)
+            }
             Condition::ValueChosen(kind) => held(
                 &feature,
                 &format!(

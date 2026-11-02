@@ -186,7 +186,10 @@ impl Compiler {
                 );
             }
             PlayerRule::SpellCost { spells, modifier } => {
-                let delta = self.cost_delta(modifier)?;
+                self.costed_spell = true;
+                let delta = self.cost_delta(modifier);
+                self.costed_spell = false;
+                let delta = delta?;
                 let test = self.filter(
                     spells,
                     &Candidate {

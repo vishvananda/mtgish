@@ -31,6 +31,10 @@ pub(super) struct Outer {
 }
 
 impl Outer {
+    /// Whether a spell made this, not an activation or an effect at resolution.
+    pub(super) fn made_by_a_spell(&self) -> bool {
+        self.made.is_none() && self.compiler.activation_cost.is_none()
+    }
     pub(super) fn knows(&self, result: &ResultId) -> bool {
         let c = &self.compiler;
         c.selections.contains_key(&result.0)
