@@ -1411,6 +1411,37 @@ impl Compiler {
         }
         Ok(())
     }
+    /// A callback can't read a list the ability made. What is about each thing
+    /// a damage instruction was dealt to is made once for each, about that object.
+    /// `moving`: it is about that object dying, which only a creature or a
+    /// planeswalker does (CR 700.4), whatever else was dealt damage.
+    pub(super) fn about_each_damaged(
+        &mut self,
+        objects: &mut ObjectFilter,
+        moving: bool,
+        out: &mut String,
+    ) -> Option<u32> {
+        let binding = 1000 + self.fresh() as u32;
+        let each = ObjectRef::Bound(Binding(binding));
+        let results: Vec<u32> = self.moved.keys().copied().collect();
+        let result = results
+            .into_iter()
+            .find(|r| damaged_to_bound(objects, *r, &each))?;
+        if moving && !format!("{objects:?}").contains("CardType(Creature)") {
+            let dying = [crate::mtg_types::CardType::Creature, crate::mtg_types::CardType::Planeswalker];
+            let dying = ObjectFilter::Either(dying.map(ObjectFilter::CardType).to_vec());
+            *objects = ObjectFilter::All(vec![dying, objects.clone()]);
+        }
+        writeln!(out, "for bound_{binding} in {}.clone() {{", self.moved[&result]).unwrap();
+        self.bound_objects.insert(binding);
+        Some(binding)
+    }
+    pub(super) fn end_each_damaged(&mut self, each: Option<u32>, out: &mut String) {
+        if let Some(binding) = each {
+            self.bound_objects.remove(&binding);
+            writeln!(out, "}}").unwrap();
+        }
+    }
     /// "Choose a player or a planeswalker that player controls": no target, and
     /// no one kind of thing to ask about.
     pub(super) fn choose_recipient(
@@ -1925,6 +1956,28 @@ pub(super) fn moves_named_objects(cost: &Cost) -> bool {
         [CostPart::Move { selections, face_down: false, .. }]
             if matches!(selections.as_slice(), [CostObjectSelection { choose: None, .. }])
     )
+}
+
+/// Whether what comes later reads a damage instruction's result as what it was
+/// dealt to, which is only known from the events: a prevention names none and a
+/// redirection names another (CR 614.9).
+pub(super) fn read_as_damaged(after: &[Instruction], result: &ResultId) -> bool {
+    format!("{after:?}").contains(&format!("DamagedBy(ResultId({}))", result.0))
+}
+
+/// Say of `filter` that it is `each`, where it says it was dealt damage by
+/// `result`, which a callback has no way to read.
+pub(super) fn damaged_to_bound(filter: &mut ObjectFilter, result: u32, each: &ObjectRef) -> bool {
+    match filter {
+        ObjectFilter::DamagedBy(r) if r.0 == result => {
+            *filter = ObjectFilter::SameObject(each.clone());
+            true
+        }
+        ObjectFilter::All(filters) => filters
+            .iter_mut()
+            .fold(false, |found, f| damaged_to_bound(f, result, each) || found),
+        _ => false,
+    }
 }
 
 /// Whether what comes later reads an instruction's result as objects.

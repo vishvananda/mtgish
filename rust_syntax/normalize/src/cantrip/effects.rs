@@ -1262,7 +1262,14 @@ impl Compiler {
                 preventable: true,
             } => {
                 let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
-                let (declare, deal) = if lane_n::read_as_objects(&self.after, result) {
+                let (declare, deal) = if lane_n::read_as_damaged(&self.after, result) {
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.moved.insert(result.0, format!("dealt_{id}"));
+                    (
+                        format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); let before_{id} = g.history().head() as usize; "),
+                        format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(cantrip_mechanics::history::permanents_dealt_damage_by(g.history(), source, before_{id}));"),
+                    )
+                } else if lane_n::read_as_objects(&self.after, result) {
                     self.performed.insert(result.0, format!("done_{id}"));
                     self.moved.insert(result.0, format!("dealt_{id}"));
                     (
@@ -1290,7 +1297,12 @@ impl Compiler {
                     let amount = self.number(&part.amount)?.amount(u16::MAX.into(), "u16")?;
                     writeln!(out, "let amount_{id}_{i} = {}; if let Some(source) = source_{id} {{ for t in {} {{ batch_{id}.push((source, t, amount_{id}_{i})); }} }}", self.fetch(amount), self.fetch(self.recipients(&part.recipients)?)).unwrap();
                 }
-                writeln!(out, "g.damage_together(&batch_{id});").unwrap();
+                if lane_n::read_as_damaged(&self.after, result) {
+                    self.moved.insert(result.0, format!("dealt_{id}"));
+                    writeln!(out, "let before_{id} = g.history().head() as usize; g.damage_together(&batch_{id}); let dealt_{id} = source_{id}.map_or(Vec::new(), |source| cantrip_mechanics::history::permanents_dealt_damage_by(g.history(), source, before_{id}));").unwrap();
+                } else {
+                    writeln!(out, "g.damage_together(&batch_{id});").unwrap();
+                }
             }
             Operation::PutCounters { placements }
                 if matches!(
@@ -1591,15 +1603,29 @@ impl Compiler {
                 body,
                 once,
                 intervening_if,
-            } => self.create_trigger(
-                event,
-                duration,
-                announcement,
-                body,
-                *once,
-                intervening_if,
-                out,
-            )?,
+            } => {
+                let mut event = event.clone();
+                let each = match &mut event {
+                    EventSpec::ZoneChange { objects, .. } => {
+                        self.about_each_damaged(objects, true, out)
+                    }
+                    EventSpec::Object { objects, .. } => {
+                        self.about_each_damaged(objects, false, out)
+                    }
+                    _ => None,
+                };
+                let made = self.create_trigger(
+                    &event,
+                    duration,
+                    announcement,
+                    body,
+                    *once,
+                    intervening_if,
+                    out,
+                );
+                self.end_each_damaged(each, out);
+                made?
+            }
             Operation::CreateDelayedTrigger {
                 event,
                 start,
@@ -1614,7 +1640,19 @@ impl Compiler {
                 body,
             } => {
                 self.prevented.extend(lane_n::preventions(body));
-                self.create_replacement(event, limit, duration, body, out)?
+                let mut event = event.clone();
+                let each = match &mut event {
+                    ReplacementEvent::ZoneChange { objects, .. } => {
+                        self.about_each_damaged(objects, true, out)
+                    }
+                    ReplacementEvent::Object { objects, .. } => {
+                        self.about_each_damaged(objects, false, out)
+                    }
+                    _ => None,
+                };
+                let made = self.create_replacement(&event, limit, duration, body, out);
+                self.end_each_damaged(each, out);
+                made?
             }
             Operation::PayCost {
                 player,

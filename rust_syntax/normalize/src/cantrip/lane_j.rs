@@ -2248,6 +2248,9 @@ impl Compiler {
                 &format!("q.stack_item({id}).is_some_and(|i| i.is(StackTrait::{}))", form(other)),
             ),
             ObjectFilter::History { event, window } => self.object_history(event, window, id)?,
+            ObjectFilter::DamagedBy(result) if self.moved.contains_key(&result.0) => {
+                format!("{}.contains(&{id})", self.moved[&result.0])
+            }
             ObjectFilter::DamagedBy(_) => held(format!(
                 "cantrip_mechanics::history::permanents_dealt_damage_by(q.history(), asker.source, since).contains(&{id})"
             )),
