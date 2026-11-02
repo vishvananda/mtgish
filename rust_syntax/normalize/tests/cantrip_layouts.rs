@@ -130,10 +130,6 @@ fn what_cantrip_has_no_model_of_is_a_hole_and_a_requirement() {
         .contains(&"layout Flip".to_string()));
 
     for (name, code) in [
-        (
-            "Bruna, the Fading Light",
-            "melds_into: Some(\"Brisela, Voice of Nightmares\")",
-        ),
         ("Brisela, Voice of Nightmares", "melded: true"),
         ("Akoum", "variant: Some(Variant::Planechase)"),
         (

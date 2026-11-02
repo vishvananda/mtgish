@@ -51,7 +51,7 @@ const CARDS: &[(&str, &str)] = &[
         "Divine Deflection",
         "target reference outside a resolving ability",
     ),
-    ("Arcbond", "event trigger carrying values"),
+    ("Arcbond", "damage to each permanent, a card type lost in the data"),
     (
         "Undiscovered Paradise",
         "replacement made outside a resolving ability",

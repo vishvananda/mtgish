@@ -8,10 +8,10 @@
 "crates/cantrip-cards/src/cards/headliner_scarlett.rs:19",
 "crates/cantrip-cards/src/cards/outrageous_robbery.rs:13"
 ],
-"how": "library::exile_top_face_down_may_look_and_play(g, from, count, player, grant) for the library-top wording; otherwise g.exile_face_down(&cards, link) then g.look_at(player, &cards), which sets the object's seen_by for as long as it is that object.",
+"how": "g.look_at holds only for 'as long as it remains exiled'. seen_by has no end, so Expiry::EndOfTurn (Headliner Scarlett) and face-down creatures (Lumbering Laundry) stay holes.",
 "note": "Tracker looked at allow_play alone.",
 "partial": "Only cards exiled by the effect: a look at a hidden card elsewhere (a library card) has no seen_by span I checked. The one-call helper takes the library top only.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "a-card-played-from-among-those-exiled-with-an-object": {
 "evidence": [
@@ -125,7 +125,7 @@
 "crates/cantrip-api/src/game.rs:825",
 "crates/cantrip-state/src/object.rs:1190"
 ],
-"how": "Most: a local (Harsh Mercy, Patriarch's Bidding, Phyrexian Splicer, Urza's Avenger, Gabriel Angelfire: choose then AddKeywords with UntilNextTurnOf). As it enters: chosen_subtype (Riptide Replicator, Volrath's Laboratory).",
+"how": "'Other than Wall' asks ChooseSubtype directly. The source reads every 'becomes that type' as Add; only 'in addition to its other types' adds, otherwise SetCreatureType (205.1a). This also corrects the whole Mistform family; Tundra Kavu needs land types set and goes back to a hole.",
 "note": "",
 "partial": "Across abilities after entry (A Killer Among Us, Oko, Psychic Paper, Seshiro): gap as a-choice row.",
 "verdict": "card-code"
@@ -215,7 +215,7 @@
 "crates/cantrip-mechanics/src/choose.rs:343",
 "crates/cantrip-mechanics/src/choose.rs:348"
 ],
-"how": "Within a resolution: a local (choose_colors returns a list). Kept on a permanent: chosen_color, chosen_subtype and chosen_option are different fields, so one each; a second of a kind has only chosen_number as a spare.",
+"how": "choose_colors is fixed to AddMana and allows repeats; ask RequestKind::ChooseColors directly and fold into a set.",
 "note": "",
 "partial": "Kept after entry: gap. Two values of one kind as it enters: encode the second in Entering.chosen_number (see condition-value-chosen-is).",
 "verdict": "card-code"
@@ -237,10 +237,10 @@
 "crates/cantrip-api/src/ability.rs:766",
 "crates/cantrip-mechanics/src/gift.rs:61"
 ],
-"how": "Second slot .up_to_one() whose filter asks cantrip_mechanics gift::promised; effect reads the gift.",
+"how": "A min fixed at 0 makes a mandatory target 'up to', a deviation. Only Dewdrop Cure holds.",
 "note": "",
 "partial": "Minimum stays 0: \"instead two target\" is up to two. No if_kicked analogue.",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "a-hand-played-revealed": {
 "evidence": [
@@ -335,7 +335,7 @@
 "crates/cantrip-api/src/game.rs:851",
 "crates/cantrip-api/src/event.rs:98"
 ],
-"how": "triggered on EventMask::ABILITY_ACTIVATED (mana abilities excluded by the event, as Harsh Mentor's), effect g.may_pay then g.copy_ability(Target::Stack..., you, true).",
+"how": "The audit said AbilityActivated leaves mana abilities out; it includes them, so a test against OnStack(Mana) is needed, and the printed 'isn't a mana ability' is what restores it.",
 "note": "Tracker row is a data bug: the generator should honor the negation.",
 "partial": "",
 "verdict": "exists"
@@ -658,10 +658,10 @@
 "crates/cantrip-cards/src/cards/way_of_the_mind_sculptor.rs:16",
 "crates/cantrip-cards/src/cards/kai_winn_faithless_leader.rs:18"
 ],
-"how": "Event::AbilityActivated{source,ability,player,by}; q.card(ability.card) reads the ActivatedDef; is_mana_ability; target rules from the stack item.",
+"how": "Boast and outlast have no mark on ActivatedDef; read from the printed word. Power-up, equip and exhaust are fields.",
 "note": "",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "activated-ability-targets-any": {
 "evidence": [
@@ -751,7 +751,7 @@
 "crates/cantrip-api/src/card.rs:1993",
 "crates/cantrip-api/src/card.rs:1997"
 ],
-"how": "As Foretold, Charred Foyer, Darksteel Monolith, Dragon's Smile, Grenzo, Tlincalli Hunter: spell_alternatives: &[SpellAlternative{applies, cost: InsteadOfManaCost::Mana(ManaCost::ZERO), ..}], applies reading history::permission_used_this_turn and the spell.",
+"how": "Partly. As Foretold, Darksteel Monolith, Dragon's Smile and Tlincalli Hunter land with permission_used_this_turn, proved on Monolith. Conspiracy Unraveler (no evidence alternative), Dream Halls and Kentaro keep holes.",
 "note": "",
 "partial": "",
 "verdict": "exists"
@@ -763,10 +763,10 @@
 "crates/cantrip-rules/src/settle.rs:1555",
 "crates/cantrip-cards/src/cards/screaming_nemesis.rs:29"
 ],
-"how": "triggered(...).sums_per_subject() with the chosen subject: item.data[0] is the total; or once_per_batch and a history read.",
+"how": "sums_per_subject needs the player as subject, so it is real only where nothing reads which sources they were. Hordewing Skaab and Malcolm count players dealt damage under EventAmount: no sum says that.",
 "note": "15 card files use sums_per_subject. The tracker read only event_objects.",
 "partial": "Un-set rows in the form are not covered.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "an-ability-activated-as-though-it-had-not-been": {
 "evidence": [
@@ -907,10 +907,10 @@
 "crates/cantrip-api/src/game.rs:1075",
 "crates/cantrip-state/src/object.rs:116"
 ],
-"how": "exile_face_down with look_at for exiled cards: seen_by keeps it known. A printed \"you may look at cards exiled with this\" calls look_at as it exiles.",
+"how": "look_at at exile time is not the static: seen_by does not follow a change of controller, and nothing removes it, so the new controller can't look and the old one still can. No static rule exists for it.",
 "note": "",
 "partial": "A standing rule for face-down creatures you do not control (Found Footage) is open, and cards exiled by someone else before the permanent arrived.",
-"verdict": "exists"
+"verdict": "gap"
 },
 "cards-played-by-all": {
 "evidence": [
@@ -929,10 +929,10 @@
 "crates/cantrip-state/src/object.rs:65",
 "crates/cantrip-mechanics/src/warp.rs:17"
 ],
-"how": "ways: Sabin: way(Cost{discard..} + mana, Hand, 'Blitz'). Tenacious Underdog: a second way from ZoneKind::Graveyard with Cost{life: 2}. Worldheart Phoenix: way(cost, Graveyard) with enters reading cast_way. Undead Sprinter: way with .condition(history). Hundred-Battle Veteran: way(.., Graveyard) with once per turn in condition. Brokkos: way(.., Graveyard).kind(WayKind::Mutate).",
+"how": "Hundred-Battle Veteran and Undead Sprinter are own terms permissions, which a way would make alternative costs (CR 118.9). Worldheart Phoenix is a true way but its enters-with needs a read of the way as it enters, one card, not taken.",
 "note": "",
 "partial": "Hundred-Battle's hidden terms unread; Mutate via kind from a graveyard not tested in the engine.",
-"verdict": "exists"
+"verdict": "gap"
 },
 "casting-rule-prohibit-targets": {
 "evidence": [
@@ -1111,10 +1111,10 @@
 "crates/cantrip-cards/src/cards/corpse_dance.rs:34",
 "crates/cantrip-cards/src/cards/shallow_grave.rs:31"
 ],
-"how": "`reads_graveyard_order: true` and walk the graveyard list, as Corpse Dance and Shallow Grave.",
+"how": "The held code read cards[..at] as above, but a graveyard's top is its last: above is cards[at + 1..]. The data says 'above' of what the card says 'directly above', so the line is read for it. Ashen Ghoul stays a hole: 'above this card' names no graveyard, so Cantrip's graveyard_order_matches_oracle test refuses reads_graveyard_order and the order would never be asked.",
 "note": "Marked as a misread: the field exists for exactly this.",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "condition-had-extreme": {
 "evidence": [
@@ -1457,7 +1457,7 @@
 "crates/cantrip-api/src/card.rs:245",
 "crates/cantrip-api/src/card.rs:269"
 ],
-"how": "static_ability(Layer::Ability, affects, apply, text) where apply copies view.chars(other).abilities into free slots; for cards, statics::grant_activated_abilities_of(view, cards, chars).",
+"how": "Only keywords with a plain bit, resolved. Hexproof from [quality], landwalk, protection and every static form stay held.",
 "note": "The Layer::Ability apply is a plain function.",
 "partial": "Resolved form takes one EffectKind::AddAbility per ability, a snapshot rather than a live link (Grell Philosopher, Havengul Lich). Stickers are a gap.",
 "verdict": "card-code"
@@ -1810,10 +1810,10 @@
 "crates/cantrip-state/src/object.rs:719",
 "crates/cantrip-api/src/game.rs:322"
 ],
-"how": "Copiable::typed(types, subtypes) or with_type.",
+"how": "typed_as does not exist, and typed replaces subtypes too. 205.1a keeps subtypes correlated with a type still held (a 1/1 enchantment creature stays a Rat), and Cantrip has no artifact or enchantment subtype set to keep them by. Fear of Ridicule, Machine God's Effigy, Myrkul stay holes.",
 "note": "",
 "partial": "",
-"verdict": "exists"
+"verdict": "gap"
 },
 "copy-exception-set-loyalty": {
 "evidence": [
@@ -1870,7 +1870,7 @@
 "crates/cantrip-api/src/history.rs:331",
 "crates/cantrip-cards/src/cards/nykthos_shrine_to_nyx.rs:19"
 ],
-"how": "Mana abilities: mana_ability(cost, add(Mana::B).by(fn)); fn(g,asker,color) runs after the cost is paid, reads the last Event::ZoneChange{reason,..} in g.history().all(), and adds q.mana_value(new). Excavator: g.cost_objects(item). Veteran's Voice: filter on q.attached_to(source).",
+"how": "A mana ability only: q.paid_for does not exist. The last ZoneChange's old reads last-known; a read of new misreads a clone or a face-down creature. Non-mana abilities stay holes.",
 "note": "Overturns the tracker: the effect is not barred from reading what paid. No hand-written card reads it this way.",
 "partial": "The listing on Adds is what mana planning sees, so a variable amount is not known in advance. A token sacrificed needs a last-known read. Gaps: Captain America (no divide on ActivatedDef), Territorial Strike's branch.",
 "verdict": "card-code"
@@ -4655,10 +4655,10 @@
 "crates/cantrip-api/src/game.rs:1170",
 "crates/cantrip-cards/src/cards/rhys_the_evermore.rs:18"
 ],
-"how": "g.remove_counters_up_to(player,source,object,most), or g.choose_counter_kind then remove_counters.",
+"how": "remove_counters_up_to is 'any number' only. 'Remove X counters' is mandatory: choose_counter_kind and remove_counters once per counter.",
 "note": "",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "counters-on-a-player": {
 "evidence": [
@@ -4763,10 +4763,10 @@
 "crates/cantrip-cards/src/cards/mana_drain.rs:9",
 "crates/cantrip-cards/src/cards/mana_sculpt.rs:12"
 ],
-"how": "delayed::at_your_next_main_phase(g, item, 0, subject), DelayedWhen::Step or UntilNextTurnOf.",
+"how": "DelayedWhen::Step { on_turn_of } fires this turn when made on your own turn before that step; 'your next turn' is not that. at_your_next_main_phase is only for main phases. ExtraTurnStep needs a known turn number, which extra turns make unknown.",
 "note": "",
 "partial": "A stated other player's next turn takes a matcher.",
-"verdict": "exists"
+"verdict": "gap"
 },
 "delayed-trigger-until-until-state-based-actions-checked": {
 "evidence": [
@@ -4951,7 +4951,7 @@
 "crates/cantrip-api/src/game.rs:1330",
 "crates/cantrip-state/src/object.rs:1575"
 ],
-"how": "Kheru Spellsnatcher: counter, exile_spell_instead on it, then g.allow_play(card, you, PlayGrant{instead: Some(ManaCost::ZERO), ..PlayGrant::CAST}): Expiry::Never is 'as long as it stays exiled'.",
+"how": "The audit's Kheru Spellsnatcher how is irrelevant to the six land-until-cast cards, which are cantrip_mechanics::land_until_cast. A hand form with AsLongAs + Lasting failed 6 replaced scenarios, as the permission's source went stale when the cost exiled it. Kheru keeps its hole.",
 "note": "",
 "partial": "",
 "verdict": "exists"
@@ -5487,6 +5487,36 @@
 "partial": "",
 "verdict": "exists"
 },
+"engine-a-card-s-own-terms-to-cast-it-from-its-graveyard": {
+"how": "support in Cantrip's core",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
+"engine-a-cost-that-taps-what-its-payer-may-not-control": {
+"how": "support in Cantrip's core",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
+"engine-a-play-permission-that-costs-less": {
+"how": "support in Cantrip's core",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
+"engine-a-spell-a-play-permission-casts-enters-changed": {
+"how": "support in Cantrip's core",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
+"engine-a-spell-a-play-permission-casts-enters-tapped": {
+"how": "support in Cantrip's core",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
+"engine-a-two-word-subtype-in-a-card-s-type-line": {
+"how": "support in Cantrip's core",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
 "engine-behold-outside-the-casting-of-a-spell": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:841",
@@ -5592,10 +5622,10 @@
 "crates/cantrip-cards/src/cards/witherbloom_the_balancer.rs:6",
 "crates/cantrip-cards/src/cards/witherbloom_the_balancer.rs:7"
 ],
-"how": "cost_changes: &[fn] on the grantor, or affinity::instants_and_sorceries_you_cast_have_affinity_for_creatures for that wording; the function returns CostDelta::less(count).",
+"how": "As audited, but the data says only 'spells': the words 'you cast' exist only on the printed line, which the form reads.",
 "note": "Affinity is a cost reduction, so the grantor can spell it.",
 "partial": "Equivalent cost, but no Keyword::Affinity on the spell for anything that reads it.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "engine-no-afflict": {
 "evidence": [
@@ -5857,10 +5887,10 @@
 "crates/cantrip-cards/src/cards/titania_rugged_rumbler.rs:8",
 "crates/cantrip-cards/src/cards/transmogrants_crown.rs:23"
 ],
-"how": "Activated: two abilities with the same effect and different costs (Shards, Bloodthorn Flail, Ion Storm). Spell: additional_choice: &[ExtraCost{..}].",
+"how": "Each ability needs its own text to be told apart: the form holds only where the printed words split (costs::worded_apart). Bullseye, Ion Storm, Rift Elemental, Titania stay holes.",
 "note": "",
 "partial": "Two abilities are two abilities, not one, for \"activate only once\" reads. Cumulative upkeep (Tidal Control) is a cost row.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "engine-no-choice-of-how-many-to-discard-at-random": {
 "evidence": [
@@ -6318,10 +6348,10 @@
 "crates/cantrip-cards/src/cards/ms_marvel_kamala_khan.rs:30",
 "crates/cantrip-cards/src/cards/galion_elvenkings_butler.rs:13"
 ],
-"how": "Two forms exist. `g.add_effect(src, id, EffectKind::SetPt(new_power, base_toughness), duration)` with `base_toughness = q.card(q.chars(id).card).toughness`, or an ability: `delayed: &[granted_static(Layer::PtSet, set_power_only, \"..\")]` and `EffectKind::AddAbility(..)` whose apply writes only `chars.power`, as Ms. Marvel does for her base power.",
+"how": "Only a power and a toughness set together are exact, as EffectKind::SetPt. Setting one alone stays a hole: SetPt's other half is a snapshot that breaks under a later layer 7b effect, and granted_static is an ability, so 'loses all abilities' would end what is an effect (CR 613.1f).",
 "note": "Galion is no evidence for this row: it is `SetPt` of both values.",
 "partial": "SetPt's other half is a snapshot, wrong if a later earlier-timestamped set matters; `granted_static` is an ability, so 'loses all abilities' removes it and its value must be computable (fn pointers carry no number). Galion, the listed written card, sets both and needs neither.",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "engine-no-effect-turns-a-permanent-face-down": {
 "evidence": [
@@ -6560,7 +6590,7 @@
 "crates/cantrip-api/src/card.rs:1292",
 "crates/cantrip-cards/src/cards/timeline_culler.rs:6"
 ],
-"how": "ways: &[way(cost(\"{2}\" + the card's cost), ZoneKind::Hand, text).instant_speed()]: an extra way of casting offered at instant speed; Molten Exhale's Cost{behold..}, Tegwyll's Scouring's Cost::tap_untapped(3, flying). With sorcery timing the plain cast stays.",
+"how": "The audit's WayDef is wrong for every card: it is an alternative cost, so Rout on an opponent's turn under Omniscience would cost {7}, not {2}. Exact on sorceries instead: cast_as_though_flash + untimely_cleanup_rider (inert with no permanent) + cost_of_targets reading marks.untimely_by_own_flash, which already excludes casts by effects and by other permissions. Proved on Rout (with Omniscience, own main phase, opponent's turn) and Molten Exhale. The rider sacrifices a permanent, so Harbinger of the Tides, Mystical Tether and Quantum Reduction keep the hole, and Moonlit Ambusher is an Adventure face, which reads no cast_as_though_flash.",
 "note": "",
 "partial": "WayDef is an alternative cost by rule: it won't combine with another alternative cost, and it costs a line per card. Quantum Reduction, Moonlit Ambusher unread beyond this.",
 "verdict": "exists"
@@ -6813,6 +6843,11 @@
 "partial": "Effect-time mill stands in: not paid if the ability is countered.",
 "verdict": "gap"
 },
+"engine-no-miracle-granted": {
+"how": "A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set.",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
 "engine-no-modular-granted": {
 "evidence": [
 "crates/cantrip-api/src/replace.rs:16",
@@ -6900,10 +6935,10 @@
 "crates/cantrip-cards/src/cards/figure_of_fable.rs:42",
 "crates/cantrip-cards/src/cards/true_name_nemesis.rs:16"
 ],
-"how": "Runtime protection fields on Chars, reachable by EffectKind and by a static layer function: Protection(ColorSet): chosen or shared colors (Council Guardian, Opal Titan, Samite Elder, Eowyn); ProtectionFromPlayer(p) loop over opponents (Cliffside Rescuer, Courageous Resolve); ProtectionFromTypes (Devoted Caretaker, Mirror Golem); chars.protection_subtypes (Riders of Gavony, Sigrid, Lord of the Nazgul no); protection_mana_value least (Reaver Titan inverted no); static: characteristic_defining(Layer::Ability, fn(q,src,chars){chars.protection |= ...}) (Earnest Fellowship, Empty-Shrine Kannushi).",
+"how": "Multicolored and monocolored protection, and Devoted Caretaker's card types, can't be said exactly. Riders of Rohan/Sigrid subtypes not exact. Mirror Golem holds. Eowyn reads colors of a moved card, not last-known.",
 "note": "Replacing the closed test with a fn field would close it all; a fn(&Chars,..) on protected_from.",
 "partial": "Roughly 20 of 37. Gap, no field and protected_from is a closed test, so DEBT cannot be rebuilt in card code (attach.rs:20 calls only it): multicolored and monocolored (11 cards), \"creatures your opponents control\" (Crypsis), non-Human creatures (Spare from Evil, Harbinger: protection_subtypes minus ",
-"verdict": "exists"
+"verdict": "gap"
 },
 "engine-no-prowl": {
 "evidence": [
@@ -6987,6 +7022,11 @@
 "note": "Check per keyword: foretell has a special action as well as a way, rebound and madness are replacements around resolving or discarding, emerge sacrifices at casting. I did not settle these.",
 "partial": "",
 "verdict": "unsure"
+},
+"engine-no-record-of-the-board-as-the-turn-began": {
+"how": "support in Cantrip's core",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
 },
 "engine-no-record-of-what-paid-a-cost": {
 "evidence": [
@@ -7127,10 +7167,10 @@
 "crates/cantrip-state/src/object.rs:1172",
 "crates/cantrip-api/src/card.rs:2334"
 ],
-"how": "For each creature now: add_effect(.., EffectKind::CantBeBlocked or BlockRestriction{..}, Duration::EndOfTurn). Permanents: lasting_block_rules.",
+"how": "The audit calls the closed set rarely visible, but Venser's -1 or Jace's -7 followed by a haste creature is ordinary play: CR 611.2c keeps such a rule open. BlockRestriction is read for any pair but dies with its affected object and is not outlives_affected, so add_player_effect refuses it, and CreaturesCantBlock is the other direction.",
 "note": "",
 "partial": "Closed set at resolution: creatures that arrive later (CR 611.2c) are missed. Rarely visible: a token entering attacking is the case.",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "engine-no-resolving-rule-on-an-open-set-prohibit-be-targeted": {
 "evidence": [
@@ -7151,10 +7191,10 @@
 "crates/cantrip-api/src/card.rs:3079",
 "crates/cantrip-rules/src/turn.rs:970"
 ],
-"how": "Unfiltered: g.creatures_cant_block() (all creatures, this turn, later ones included). \"Creatures [player] controls\": add_effect(.., EffectKind::CreaturesCantBlock(p), EndOfTurn). Filtered (\"without flying\", \"power 2 or less\"): CardDef.lasting_block_rules: &[LastingBlockRule{text, allows}] with allows reading the blocker, then g.add_effect(item.object, each_permanent, EffectKind::BlockRestriction{card, index}, Duration::EndOfTurn): core asks allows of EVERY block pair for every such effect regardless of whom it is on, so a creature arriving later is under it too.",
+"how": "A filtered rule dies with the affected object. Only the plain CantBlock effect exists; an open set after resolution cannot be written.",
 "note": "Cleanest fix is small: BlockRestriction in outlives_affected. LEAST SURE as a verdict: a maintainer may prefer calling it gap.",
 "partial": "Workaround, not a form: BlockRestriction ends when its affected object leaves (not in outlives_affected, settle.rs:474; add_player_effect asserts outlives), so it must be hung on every permanent and dies if all of them leave. allows gets no controller or target, so \"your opponents\" must be read off ",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "engine-no-resolving-rule-on-an-open-set-prohibit-regenerate": {
 "evidence": [
@@ -7339,6 +7379,11 @@
 "partial": "A permanent with `untap_bans` can sit out an untap step while it stays (Avizoa, 'you skip your next untap step', if it survives until then), a Draw replacement of a draw step covers 'skip your draw step' while the source lasts. Both stop when the source leaves.",
 "verdict": "gap"
 },
+"engine-no-sneak-granted": {
+"how": "A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set.",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
 "engine-no-snow-or-hybrid-phyrexian-mana-symbol": {
 "evidence": [
 "crates/cantrip-state/src/vocab.rs:287",
@@ -7426,7 +7471,7 @@
 "crates/cantrip-state/src/object.rs:609",
 "crates/cantrip-api/src/game.rs:352"
 ],
-"how": "A mechanics `time_travel(g, you, source)`: walk `q.permanents_of(you)` with `q.obj(id).counters(CounterKind::Time) > 0` and your exiled cards with suspend (`q.card(c).suspend.is_some()`), `choose::one_of` for each, `g.add_counters` or `g.remove_counters`.",
+"how": "A helper in the card file: no mechanics module may be added. Suspended reads as the upkeep reads it, q.card(c).suspend, not by counters alone as the audit's partial says: a time counter on a card with no suspend is not suspended (CR 702.62b).",
 "note": "",
 "partial": "Cards with a time counter that have no printed suspend (Rift Bolt in exile with a grant) count: read by counters, not the field.",
 "verdict": "card-code"
@@ -7670,6 +7715,11 @@
 "partial": "pay_x_life on additional_cost only; activate does not read it.",
 "verdict": "gap"
 },
+"engine-snow-mana-told-apart-as-a-spell-is-paid-for": {
+"how": "support in Cantrip's core",
+"note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
 "engine-splice-onto-other-than-arcane": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:3158",
@@ -7700,6 +7750,11 @@
 "how": "",
 "note": "Kicker.waterbend is optional only; ExtraCost has no such flag. Same symbol-tap payment needs exposing on required cost, and {X} for Crashing Wave and kin.",
 "partial": "Waterbending Lesson, The Unagi: ActivatedDef.waterbend form works where it's a separate payment; may_pay is unverified with a waterbend.",
+"verdict": "gap"
+},
+"engine-x-in-a-mana-cost-beside-a-kicker": {
+"how": "support in Cantrip's core",
+"note": "Found by a generator lane trying the form; the hole names it.",
 "verdict": "gap"
 },
 "escape-cost-other-than-exiling-other-graveyard-cards": {
@@ -7873,10 +7928,10 @@
 "crates/cantrip-cards/src/cards/turn_inside_out.rs:11",
 "crates/cantrip-cards/src/cards/scarblades_malice.rs:21"
 ],
-"how": "delayed::this_turn(g, item, source) or delayed::next_this_turn(g, item, ability, source): the matcher is asked of source; g.delayed_trigger(DelayedWhen::UntilNextTurnOf | UntilEvent | WhenEvent, source, you, ability, subject); Fired.data carries the amount.",
+"how": "g.delayed_trigger_about was real all along and only the hole said otherwise; what is invented is a matcher reading a carried list. Moving the source onto the watched object changes what the body's Source means, so the maker must be carried in the list: Searing Blood would have dealt its 3 damage from the creature.",
 "note": "Written: Okoye. q.state().delayed is public as well.",
 "partial": "One subject plus Fired.data; two kept values have no slot. For \"damage from this spell\", source is the spell object and needs care. Giant Oyster style \"while tapped\" windows are feature 63.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "event-trigger-for-end-of-combat": {
 "evidence": [
@@ -7932,10 +7987,10 @@
 "crates/cantrip-cards/src/cards/morcants_loyalist.rs:9",
 "crates/cantrip-cards/src/cards/heroic_feast.rs:22"
 ],
-"how": "q.event_subject() in a TargetFilter: \"that player\" (Tinybones), the object died or attacked. The card's own AskedMatch picks the subject, so a read of \"lesser toughness\" sets Fired::about(Target::Object(died)) and q.chars reads it as last known. \"Another target\": !q.found_all_after_move(me.source).contains(&id). Amount as a count: .counted_by_amount() with Fired.data[0].",
+"how": "Resolved by subject_chooses_targets and found_all_after_move, not by filter reads alone; Confusion in the Ranks and Venerable Warsinger stay holes.",
 "note": "The row is a misread: these cards need nothing past event_subject and found_all_after_move.",
 "partial": "Fired.data is not readable in a filter, only subject; a filter needing subject plus a second value has to derive it from the object. \"Another target\" on dies triggers is not an event read at all.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "event-value-outside-its-ability": {
 "evidence": [
@@ -7977,10 +8032,10 @@
 "crates/cantrip-cards/src/cards/dauntless_bodyguard.rs:12",
 "crates/cantrip-cards/src/cards/anointed_peacekeeper.rs:13"
 ],
-"how": "`let by = g.text_linked(source);` needs no stack item, and `g.exile_with(&cards, by, false)` / `q.exiled_with(by)` take that `Linked`. As-enters choices: `choose::object_as_enters(g, e, permanents, rule)` and `choose::chosen_object(q, by)`, as Dauntless Bodyguard. In a replacement, `ReplacementDef.then` has the `Asker`, so Asmodeus's `then` is `g.exile_with(&cards, g.text_linked(asker.source), false)`.",
+"how": "text_linked is right in a replacement's then (Asmodeus). In enters it stays unproved: the entering object's id may not be the permanent's.",
 "note": "The tracker's premise is wrong: `text_linked` is the form for a link without a stack item (Anointed Peacekeeper reads it from a cost change).",
 "partial": "No hand-written `enters` exiles anything, and `text_linked(e.object)` while still entering was not exercised, so Dermotaxi and Living Lore are unproved: the fallback there is the exile in a `THIS_ENTERS` trigger, which is a different timing.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "exiled-card-gains-suspend": {
 "evidence": [
@@ -8057,7 +8112,7 @@
 "crates/cantrip-api/src/game.rs:1330",
 "crates/cantrip-cards/src/cards/iroh_grand_lotus.rs:34"
 ],
-"how": "Archmage's Newt, The Fugitive Doctor: g.allow_play(card, you, PlayGrant{flashback: true, instead: Some(cost), expiry: Expiry::EndOfTurn, ..PlayGrant::CAST}).",
+"how": "Only the fixed price was missing: PlayGrant{flashback: true, instead: Some(cost)}, proved at {0} on a saddled Archmage's Newt. The Fugitive Doctor is correct too, but it is the first Time Lord to reach the tree, and Cantrip's oracle build splits 'Time Lord' at the space and panics on 'Time', so all 29 Time Lords hold under 'engine: a two-word subtype in a card's type line'; 8 hold on that alone. Iroh is a static grant.",
 "note": "",
 "partial": "",
 "verdict": "exists"
@@ -8224,7 +8279,7 @@
 "crates/cantrip-api/src/history.rs:371",
 "crates/cantrip-cards/src/cards/april_oneil_hacktivist.rs:9"
 ],
-"how": "A function over q.history(): all(), select(EventQuery::kind(..).step(..).in_turn_of(..).after(serial)), casts_by; counts and distinct sets are ordinary iterator code.",
+"how": "Counts are ordinary, but the filter reads what the source is now. Event::Damage keeps a known row for what it was when it dealt it; a history read through it is needed first.",
 "note": "",
 "partial": "Windows past this turn stop where the history stops; I did not check how far it is kept.",
 "verdict": "card-code"
@@ -8308,10 +8363,10 @@
 "crates/cantrip-cards/src/cards/abundance.rs:28",
 "crates/cantrip-cards/src/cards/ant_mans_army.rs:11"
 ],
-"how": "CardDef { labels: &[\"Land\",\"Nonland\"], .. } and in the effect choose::one_of(g, player, source, vec![Label::Card(card,0), Label::Card(card,1)]) returns the index; then branch. choose::option keeps the word on a permanent.",
+"how": "Partial. Option labels come from the printed list; where the words cannot be read (Bison Whistle, Emeria Shepherd, Ether Well, Psychotic Episode, Cloak and Dagger, Trait Doctoring) the hole stays. A 'may instead' draw also needs .optional, which the audit missed.",
 "note": "Tracker row says so itself: the AST carries no labels. A generator gap, not an API gap.",
 "partial": "Cantrip needs nothing; the generator must lift the two option labels from card text. \"Choose a card from your hand or graveyard\" (Agonizing Remorse, Covetous Urge) is a ChooseCards over two zones, not a labelled choice. Villainous lines are row villainous-choice.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "keyword-action-activate-mana-ability": {
 "evidence": [
@@ -8899,10 +8954,10 @@
 "crates/cantrip-cards/src/cards/phyrexian_dragon_engine.rs:31",
 "crates/cantrip-cards/src/cards/the_mightstone_and_weakstone.rs:11"
 ],
-"how": "Nothing to write on a front face that has no meld action: a card's front is an ordinary `CardDef`, and the meld result is a CardDef. Hand-written Phyrexian Dragon Engine and The Mightstone and Weakstone are ordinary cards with no meld code.",
+"how": "As audited: no field. melds_into does not exist and a passive half needs none.",
 "note": "Each is a named half of a pair. The action is on the partner where 'exile them, then meld them' is printed: those cards are row 80, and this row asks only that a passive half be a card.",
 "partial": "Covers only the 5 passive halves. The other 7 (Gisela, the Broken Blade; Graf Rats; Hanweir Battlements; Mishra, Claimed by Gix; Titania, Voice of Gaea; Urza, Lord Protector; Vanille, Cheerful l'Cie) print 'exile them, then meld them' and are blocked at row 80.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "layout-melded": {
 "evidence": [
@@ -9256,10 +9311,10 @@
 "crates/cantrip-api/src/game.rs:829",
 "crates/cantrip-cards/src/cards/reckoner_bankbuster.rs:7"
 ],
-"how": "g.create_tokens_together(&[(treasure,you),(bird,you)]).",
+"how": "Holds only where the rules-text token has no color or creature word; guarded.",
 "note": "",
 "partial": "Treasure takes the text-changing words of the card; it has no color or creature word, so nothing is observable.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "mobilize-without-a-fixed-number": {
 "evidence": [
@@ -9315,10 +9370,10 @@
 "crates/cantrip-api/src/game.rs:884",
 "crates/cantrip-api/src/game.rs:855"
 ],
-"how": "No targets: g.choose_at_random(n) in the effect. With targets: reflexive_trigger of the picked delayed ability.",
+"how": "Effect-time randomness is not choosing modes as the ability goes on the stack (700.2).",
 "note": "",
 "partial": "Modes are not chosen at the stack step; ModesChosen unfired.",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "modes-chosen-by-another-player": {
 "evidence": [
@@ -9382,10 +9437,10 @@
 "crates/cantrip-rules/src/actions.rs:8553",
 "crates/cantrip-cards/src/cards/the_super_hero_civil_war.rs:29"
 ],
-"how": "TargetFilter: (spec.filter)(q,asker,t) && !q.chosen_targets().contains(&t).",
+"how": "mode_masks judges each mode alone, so 'different target for each mode' can't be told.",
 "note": "",
 "partial": "A filter sees earlier slots, not its own slot's other picks.",
-"verdict": "exists"
+"verdict": "gap"
 },
 "modular-without-a-fixed-number": {
 "evidence": [
@@ -9437,10 +9492,10 @@
 "crates/cantrip-api/src/card.rs:154",
 "crates/cantrip-cards/src/cards/brilliance_unleashed.rs:30"
 ],
-"how": "Most of the 33 are existing verbs: `g.put_onto_battlefield_as(card, you, item, &ENTERS_AS)` (\"It's an Aura enchantment ... and it loses all other abilities\", Bronzehide Lion's own example), `g.put_onto_battlefield_attached(card, you, host)`, `g.put_onto_battlefield_attacking(card, you, defender, &counters)`, `g.put_onto_battlefield_with_counters(..)`, `g.put_onto_battlefield_transformed*`, `g.put_onto_battlefield_face_down(..)`. An `EntersAs` carries types, subtypes, aura, lost and gained abilities, base P/T and keywords.",
+"how": "Not only put_onto_battlefield_* verbs. 'If a Hero enters this way, it enters with counters' must be judged as it would exist on the battlefield (CR 614.12, Cx::entering), which a read of the card where it is cannot do: it is a once-only granted_replacement about the card. put_onto_battlefield_attacking always taps, so 'attacking' untapped is put_onto_battlefield_with_counters plus g.enter_attacking; the generator's two untapped arms used the tapping verb and were deviations. Tapped arrival as an EntersAs has no verb (Vraska). AttachedToChosen needs a legal-host read the API lacks: as_it_would_exist is not reachable from a card. put_onto_battlefield_enchanting does not exist.",
 "note": "The tracker's `enter::in_state` lumps several forms; split the row by what is said after the verb and most cards leave it.",
 "partial": "Not covered: entering blocking (Aetherplasm); face down with stated characteristics (Yedora, Missy, Magar, rows 104/110); colors in EntersAs (rows 92/146); 'perpetually' (Better Offer, digital); a name change as it enters (Princess Yue's 'named Moon', `SetName` exists as an effect after entry). An M",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "move-arrival-with-a-color": {
 "evidence": [
@@ -9591,10 +9646,10 @@
 "crates/cantrip-rules/src/actions.rs:9190",
 "crates/cantrip-api/src/card.rs:517"
 ],
-"how": "Printed {X} on a spell or activated ability: item.x in the effect, q.announced_x() in a target filter, COUNTED bounds, x_cant_be_zero, of_x. Cost filter reading X (\"{X}, Sacrifice an artifact with mana value X\": Bosh Avatar, Knollspine Invocation, Arcanis Avatar, Osgir): card-code: the item is pushed before costs are chosen (actions.rs:9156-9158), so ObjectFilter reads q.state().stack.iter().rev().find(|i| i.object==asker.source).map(|i| i.x), true while none yet (legality offer). Storage lands, Kyren Toy, Haruspex, Petalmane Baku (mana ability \"Remove X counters\"): cost without the counters, ",
+"how": "X can't be 0 is a field, not a filter. The audit's cost-filter trick is unsafe: filters don't see X. Removing X counters as mana is not done; Shoals stay holes.",
 "note": "Cost-filter trick is unproven in a hand-written card: test the pre-activation offer with an earlier activation of the same source on the stack.",
 "partial": "q.announced_x() itself is None in a cost filter: only Given implements it (resolve.rs:311, merge.rs:304). Gap: X in a cost with no {X} (Scrap Welder, Sidisi, Kozilek, Nahiri's Sacrifice: activate announces only for mana.x, loyalty -X and RemoveAnyNumberOfCounters, actions.rs:9125-9146); Shoals (alte",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "numeric-expression-any-of": {
 "evidence": [
@@ -9615,10 +9670,10 @@
 "crates/cantrip-mechanics/src/storm.rs:1",
 "crates/cantrip-api/src/history.rs:336"
 ],
-"how": "Lethal Exploit, Lifestream's Blessing: cast_fact: Some(fn) stored at cast, read via history.fact_as_cast. Sentinel Tower, Thousand-Year Storm: history.casts_by counts before this one. Sengir: read the lost player's life when the trigger fires.",
+"how": "Partly. ThisSpellCast is the card's cast fact (Lethal Exploit, Lifestream's Blessing) and Cast moment reads History::casts in order (Sentinel Tower, Thousand-Year Storm), both proved. TurnBegan (Mindstorm Crown, Power Surge, Sengir) is a gap: no record of the board as the turn began.",
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "numeric-expression-chosen-colors-of": {
 "evidence": [
@@ -9656,7 +9711,7 @@
 "crates/cantrip-api/src/game.rs:891",
 "crates/cantrip-api/src/event.rs:255"
 ],
-"how": "Count in a local: g.flip_coin returns a bool, or read CoinFlipped from history.",
+"how": "Locals of the flip for most; flips that may stop or that a player called stay held.",
 "note": "",
 "partial": "",
 "verdict": "card-code"
@@ -9728,7 +9783,7 @@
 "crates/cantrip-cards/src/cards/kroxa_titan_of_deaths_hunger.rs:13",
 "crates/cantrip-cards/src/cards/garruk_veiled_butcher.rs:21"
 ],
-"how": "Locals in the resolving function.",
+"how": "Discards by a bound player read the instruction's list by owner, since a hand holds only its owner's cards (Garruk). Kroxa's list has no earlier step to read and stays 'earlier objects Discarded'. Revealed, tapped, entered and shuffled by a player need per-player lists not yet kept.",
 "note": "",
 "partial": "",
 "verdict": "card-code"
@@ -9748,10 +9803,10 @@
 "crates/cantrip-api/src/event.rs:72",
 "crates/cantrip-cards/src/cards/violent_echoes.rs:10"
 ],
-"how": "`let r = g.damage_result(source, target, amount); if let Some(r) = r { r.excess .. }`, or `Event::Damage.recipient_excess` in a trigger.",
+"how": "damage_result takes one recipient. The instruction's own damage events carry recipient_excess for any number of recipients, including redirection.",
 "note": "Plain misread: `DamageResult` was added for this.",
 "partial": "Bolg of the North and Archaic's Agony are the written examples (open those for damage split across several sources). Conjuring and digital parts of Brazen Boarding remain.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "numeric-expression-game": {
 "evidence": [
@@ -10037,10 +10092,10 @@
 "crates/cantrip-api/src/replace.rs:324",
 "crates/cantrip-api/src/replace.rs:336"
 ],
-"how": "Choose: choose::select or cards_from over a list the card builds: q.state().battlefield() plus q.state().stack object ids. Remember and apply: g.add_effect(item.object, chosen, EffectKind::Prevention{card, index, to: Target::Player(you) or Target::None, shield: Shield::All}, EndOfTurn) with CardDef.granted_preventions entry whose applies(q,asker,affected,d) tests d.source==affected and, for a target, the recipient. to with no object means it outlives affected, so a chosen spell that leaves still counts. \"The next time\": GrantedReplacementDef{kind: ReplacementKind::Damage, once:true, applies, a",
+"how": "CR 609.7a: the referred sources can't be walked as a set, and there is no NextTime shield.",
 "note": "No hand-written card does this yet, so a worked example is needed. Biggest unblock of this partition. Could be a mechanics helper.",
 "partial": "No shared source-choice helper: objects \"referred to\" by stack items or waiting effects (CR 609.7a) must be walked by the card: abilities via StackItem.object, delayed triggers and shields are not listed. once on a replacement is not prevention: Event::DamagePrevented is not recorded and \"damage can",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "object-collection-earlier": {
 "evidence": [
@@ -10058,10 +10113,10 @@
 "crates/cantrip-cards/src/cards/twilight_diviner.rs:26",
 "crates/cantrip-api/src/game.rs:236"
 ],
-"how": "Fired::about(spell), then a function listing the objects from it.",
+"how": "members_of holds for 'a spell that targets one or more'. A condition function has no item, so an intervening if over the batch can't read event_objects at all. Squall's filter in the data says power AND toughness where Oracle says or: data bug.",
 "note": "",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "object-collection-from-history": {
 "evidence": [
@@ -10130,7 +10185,7 @@
 "evidence": [
 "crates/cantrip-api/src/game.rs:1277"
 ],
-"how": "Local list of those who didn't pay.",
+"how": "Cleansing's reduction asks every player and takes every payment; 'unless any player pays' is first willing, so the ForEachPlayer is read as FirstWilling. Then a list as the audit says.",
 "note": "",
 "partial": "",
 "verdict": "card-code"
@@ -10217,7 +10272,7 @@
 "crates/cantrip-api/src/chars.rs:156",
 "crates/cantrip-rules/src/attach.rs:14"
 ],
-"how": "`q.card(q.chars(aura).card).enchant` is the `TargetSpec` of what it may enchant: call its filter on the host, then `!q.chars(host).protected_from_by(&q.chars(aura))` and hexproof is not relevant to an attachment. One shared `can_enchant(q, aura, host)` fn.",
+"how": "Real for one named Aura. 'With enchant creature' and 'could enchant a creature' reduce to one AST over the battlefield, so that form stays held (Tallowisp, Rootwater Shaman against Retether).",
 "note": "This reproduces `host_allows`; the core's fn is not public to cards, and the shape can drift. Promoting it to `Query` is a one-liner.",
 "partial": "",
 "verdict": "card-code"
@@ -10249,10 +10304,10 @@
 "crates/cantrip-cards/src/cards/chandra_awakened_inferno.rs:30",
 "crates/cantrip-cards/src/cards/anger_of_the_gods.rs:2"
 ],
-"how": "`let before = g.history().head(); /* deal damage */ let dealt = history::permanents_dealt_damage_by(g.history(), item.object, before);`, or `effects::damage_each_creature_dealt(g, item, 3)` for the sweep. Then act on `dealt`: tap them, add a replacement for each, and so on. Prevented damage names none and redirected damage names who took it.",
+"how": "Read from the damage events, but what is about each object must be made once per object, and 'would die' of a filter naming no type must be limited to creatures and planeswalkers (CR 700.4): Chandra, Awakened Inferno's scenario failed without it.",
 "note": "A clear misread: the proposed name is the real one. Four written cards use it.",
 "partial": "Players dealt damage this way (Aurelia's Fury) are not permanents: walk `g.history().damage_dealt()` for `Target::Player`.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "object-filter-dealt-excess-by": {
 "evidence": [
@@ -10308,10 +10363,10 @@
 "crates/cantrip-api/src/card.rs:1401",
 "crates/cantrip-api/src/card.rs:3007"
 ],
-"how": "No single query, but each family is readable from what is public. Printed or granted ability: `q.chars(id).abilities().any(|a| q.triggered_ability(a).is_some_and(|t| t.ward))`, `...q.activated_ability(a).is_some_and(|d| d.cycling)`, `d.exhaust`, `t.flanking`. Toxic: `q.chars(id).toxic > 0`. Keyword bits: `q.chars(id).has(Keyword::Mutate)`, Morph, Retrace. A card's own printed keyword: `let def = q.card(q.chars(id).card);` then `def.foretell.is_some()`, `def.kicker.is_some()`, `def.suspend.is_some()`, `def.madness.is_some()`, `def.start_your_engines`, convoke from `def.pay_with`; ways: `def.way",
+"how": "Fields cover toxic, ward, exhaust, the ways, kicker, madness, foretell, suspend, convoke and flashback only. Cascade, Fading, Modular, Unearth, Level up and Cumulative upkeep are identified only by a const or fn, and Disturb, Awaken, Partner, Doctor's companion, Rampage, Soulbond, Blitz, Embalm and Eternalize have no engine field. Without matching ability text, those stay holes. Flashback also needs harmonize and beam me up excluded and grants read (permissions, GrantedWay).",
 "note": "The tracker's `q.has_keyword_ability` would be a convenience, not a capability. Rows with Soulbond, Blitz, Disturb, Rampage etc. need those mechanics first; the query itself is free once the ability's text exists.",
 "partial": "A granted way a permanent gives (Iroh's `GrantedWay { flashback: true }`, escape, mayhem) is on the giver, not the card, so 'has flashback' for a granted one means walking `q.permanents_of(p)` and calling their `granted_ways`. Reading keywords by ability text has no hand-written precedent; a text ch",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "object-filter-history-attacked-defender": {
 "evidence": [
@@ -10480,10 +10535,10 @@
 "crates/cantrip-state/src/object.rs:51",
 "crates/cantrip-state/src/object.rs:55"
 ],
-"how": "`kicker: Some(Kicker { .. })` plus a non-kicker `optional_cost` for the second: `q.obj(me).kicked > 0` for the first and `q.obj(me).paid` for the second, as ordinary reads in `only_if` and `enters`.",
+"how": "Landed here with two-costs: reads lane's form, but it needs Compiler::kickers to know which cost is which.",
 "note": "",
 "partial": "A second kicker in `optional_cost` is not a kicker to readers of 'kicked' (Hallar, Bloodstone Goblin): `Kicker` holds one cost. Exact CR for those readers needs `kicker: &[Kicker]`.",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "object-filter-made-by": {
 "evidence": [
@@ -10493,7 +10548,7 @@
 "crates/cantrip-cards/src/cards/necromancy.rs:22",
 "crates/cantrip-cards/src/cards/animate_dead.rs:14"
 ],
-"how": "Made by: `g.history().select(EventQuery::..)` over `Event::ZoneChange`/`TokenCreated`, reading `Record.cause`: `Cause::Ability { source, .. }` says which permanent's ability it was. Put onto the battlefield with: `q.obj(id).entered_with` as Necromancy reads it. For a specific earlier list, an effect keeps ids in `Duration` or `delayed_trigger_about`.",
+"how": "No TokenCreated event exists: read Event::Entered with Record.cause, and entered_with. Necromancy stays a hole: a generated delayed leaves-trigger and a two-step put-and-attach fail its Delayed.Count and Worldgorger loop scenarios; hand-written uses put_onto_battlefield_with_aura.",
 "note": "Rows' two written cards answer it two ways: both ordinary reads.",
 "partial": "",
 "verdict": "card-code"
@@ -10733,7 +10788,7 @@
 "crates/cantrip-api/src/game.rs:473",
 "crates/cantrip-state/src/object.rs:416"
 ],
-"how": "The cost half exists: `Cost { sacrifice_granter: true, .. }` (\"Sacrifice Blazing Torch\" in an ability it gives). For reads inside a granted ability, `item.ability.card` is the granting card: `q.state().battlefield().iter().copied().find(|&id| q.obj(id).card == item.ability.card && q.attached_to(id) == Some(item.object))`, or read `Grant` from `Event::AbilityActivated { by, .. }` for an activated one. Archery Training's arrow counters and Animal Friend's 'other than Animal Friend' are then ordinary reads.",
+"how": "The card lookup the audit gives is ambiguous with two copies, but needs no fallback: a static grant's stamp is its source's timestamp (layers.rs GEntry), and a resolved grant's is the effect's, so item.acquired names the giver exactly.",
 "note": "`ActionOption::granted_by` is what the core already uses for the sacrifice, so the fact exists; only triggered abilities lack a direct read.",
 "partial": "The card-based lookup is ambiguous when two copies of the Aura sit on one creature: then the effect's `Acquired.stamp` against `state.effects` picks the right one. An ability still on the stack after the granter left needs last-known handling; a text-changed or copied granter likewise.",
 "verdict": "card-code"
@@ -10808,10 +10863,10 @@
 "crates/cantrip-cards/src/cards/spinerock_tyrant.rs:6",
 "crates/cantrip-state/src/object.rs:1056"
 ],
-"how": "q.state().stack.iter().find(..) then item.target_count==1 and targets(0): cast trigger's match reads it.",
+"how": "q.sole_target does not exist. Read state.targets(item) with left_stack as Leyline of Resonance does. 'Targets only a single' holds however many times it was chosen (115.9c), while OnStack(SingleTarget) counted them: both now told apart by the printed words.",
 "note": "",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "object-reference-source-of": {
 "evidence": [
@@ -11108,7 +11163,7 @@
 "crates/cantrip-api/src/game.rs:1013",
 "crates/cantrip-rules/src/ops.rs:790"
 ],
-"how": "Loop g.attach(aura_or_equipment, host) in one instruction.",
+"how": "Attach to a player is gap (Archnemesis, Ardenn, Maddening Hex).",
 "note": "",
 "partial": "To a player (Archnemesis, Maddening Hex, The Unluckiest Planeswalker, 3 cards): attach takes ObjectId host, no form.",
 "verdict": "card-code"
@@ -11181,7 +11236,7 @@
 "crates/cantrip-api/src/game.rs:1293",
 "crates/cantrip-api/src/game.rs:1277"
 ],
-"how": "Loop: while player accepts: may_pay or ask then act; a local count. may_pay_times for mana alone.",
+"how": "players::choose_and_pay does not exist. select any number, then one may_pay of mana.times(n); declining leaves none chosen. Mana costs only.",
 "note": "",
 "partial": "",
 "verdict": "card-code"
@@ -11215,7 +11270,7 @@
 "crates/cantrip-state/src/decision.rs:1462",
 "crates/cantrip-cards/src/cards/riddles_in_the_dark.rs:18"
 ],
-"how": "Two piles: choose::separate then choose::pile. N piles or several players: a local Vec<Vec<ObjectId>> built by repeated choose::select; opponent picks with one_of over Label::Pile.",
+"how": "As operation-piles. The rest stays in the library and the next instruction moves it. 'An opponent chooses' is choose::player by the caster, as Riddles does, and an empty look asks nothing.",
 "note": "",
 "partial": "Hidden pile across turns (Mangara's Tome) is exile_face_down plus linked list.",
 "verdict": "card-code"
@@ -11224,7 +11279,7 @@
 "evidence": [
 "crates/cantrip-mechanics/src/choose.rs:179"
 ],
-"how": "labels then local sizes.",
+"how": "Label::Option through choose::option and CardDef labels, not a local 'sizes': the words are the printed +1/-1 and -1/+1.",
 "note": "",
 "partial": "",
 "verdict": "card-code"
@@ -11285,10 +11340,10 @@
 "crates/cantrip-api/src/game.rs:1249",
 "crates/cantrip-api/src/game.rs:1254"
 ],
-"how": "Copy with stated target: let c = g.copy_spell(spell, copier, false)?; g.change_a_target_to(Target::Object(c), creature, copier)? (Precursor Golem, Mirrorwing Dragon, Zada). Take: g.change_controller + g.choose_new_targets (Commandeer, Aethersnatch). Retarget: g.change_target, change_a_target_to. Copy each: a loop. \"Targets only\": read q.state().stack in the trigger's match.",
+"how": "Partial. 'The copy targets X' lands: copy_spell then change_a_target_to, once per instance, keeping the original's target if X can't be one (Ivy, Frontline Heroism). 'For each other creature that spell could target' is gap: can_target is hexproof and protection only and slot_spec is private to the rules, so no card can ask whether the spell could target it, and change_a_target_to quietly leaves a copy with the old target. Radiate to players is gap too.",
 "note": "",
 "partial": "change_a_target_to takes an ObjectId: a stated player target has no form (Radiate to players, Zevlor, Grip of Chaos on players). choose_new_targets is spell-only (Boltbender abilities). At random: enumerate by can_target and spec filter.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "operation-counter-with": {
 "evidence": [
@@ -11316,10 +11371,10 @@
 "crates/cantrip-api/src/game.rs:643",
 "crates/cantrip-state/src/decision.rs:491"
 ],
-"how": "let r = g.damage_result(..)?; then r.excess to the player. Prevent part: compute before dealing. Divided by another: ChooseDividedTargets asked of them.",
+"how": "The audit's 'damage_result then excess' deals twice: split before dealing with damage_together. The prevent part is gap (Errant Minion, Power Leak, Master of the Wild Hunt).",
 "note": "",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "operation-delayed-unless-paid": {
 "evidence": [
@@ -11535,7 +11590,7 @@
 "crates/cantrip-state/src/decision.rs:1462",
 "crates/cantrip-cards/src/cards/riddles_in_the_dark.rs:18"
 ],
-"how": "Two piles: choose::separate then choose::pile. N piles or several players: a local Vec<Vec<ObjectId>> built by repeated choose::select; opponent picks with one_of over Label::Pile.",
+"how": "Audit's choose::separate then choose::pile shows every member, wrong for 'a face-down pile and a face-up pile'. choose::separate_face_down_and_face_up and face_down_or_face_up_pile are the form (Riddles, Curator, Fortune's Favor, Atris). Two face-down piles (Phyrexian Portal) stays a hole; per-player piles are not this form.",
 "note": "",
 "partial": "Hidden pile across turns (Mangara's Tome) is exile_face_down plus linked list.",
 "verdict": "card-code"
@@ -11564,7 +11619,7 @@
 "crates/cantrip-api/src/game.rs:1277",
 "crates/cantrip-cards/src/cards/skullcrack.rs:11"
 ],
-"how": "A loop over g.state().apnap() with g.may_pay(...) or ask; the local result drives what follows.",
+"how": "No loop over players: 'you may have target player X' is your may over their instruction, and only Mill and Shuffle read back safely. The reduction leaves the doer as 'you' in the body. MayActionOnceEachTurn under TriggerMay is one question asked twice. Infernal Denizen's body mixes 'you' and 'their choice', and Stardew Valley loses 'of your choice': data, held.",
 "note": "Sample only.",
 "partial": "\"Once each turn\" for activating players falls to feature 4.",
 "verdict": "card-code"
@@ -11768,10 +11823,10 @@
 "crates/cantrip-api/src/game.rs:1021",
 "crates/cantrip-cards/src/cards/goblin_welder.rs:30"
 ],
-"how": "`g.one_instruction(&mut |g| { .. })` / `instruction(g, |g| ..)`, `g.settle_once`, and the together verbs: `sacrifice_each`, `sacrifice_and_return`, `destroy_all(_no_regen)`, `tap_together`, `exile_all`, `move_together`, `damage_together`, `add_counters_together`, `mill_together`. Catastrophe is `destroy_all_no_regen`; Goblin Welder uses `sacrifice_and_return`.",
+"how": "The same word covers four things. Reveal-and-discard is merely in order. Goblin Welder's sacrifice_and_return is right but its second target reads the first before one is chosen, so the ability is never offered (read.rs chosen_targets().get): the targets lane's. Catastrophe has no joint verb for regenerable and unregenerable destruction. 'Sacrifices an artifact and a land' has no proved rule for one permanent answering both clauses, so overlapping clauses stay held.",
 "note": "'Goblin Welder' was marked as blocked by this but ships with `sacrifice_and_return`.",
 "partial": "Breaking Wave's untap-and-tap has no joint verb: `one_instruction` holds the state triggers, but `Tapped` still fires in the order written. Time and Tide also needs phase-in (row 105). `Catch // Release` is a fuse and needs only `sacrifice_each`.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "operation-turn-face-down-as": {
 "evidence": [
@@ -11799,10 +11854,10 @@
 "crates/cantrip-api/src/game.rs:855",
 "crates/cantrip-cards/src/cards/iroh_tea_master.rs:30"
 ],
-"how": "if (what the instruction reports) { g.reflexive_trigger(item.object, you, AbilityRef::delayed(card, 0), subject) }.",
+"how": "No event records a regeneration, so 'when it regenerates this way' cannot be heard: Matopi Golem, Soldevi Sentry, Skeleton Scavengers. No form exists for these.",
 "note": "",
 "partial": "Excess-damage amounts depend on what g.damage returns; unread.",
-"verdict": "exists"
+"verdict": "gap"
 },
 "per-player-add-mana": {
 "evidence": [
@@ -12034,10 +12089,10 @@
 "crates/cantrip-api/src/game.rs:728",
 "crates/cantrip-api/src/game.rs:809"
 ],
-"how": "Ask every player first into locals in a loop, then one batched call: g.sacrifice_each(&[(player,id)]), g.discard_together, g.move_together, g.put_all_onto_battlefield*, g.create_tokens_together, g.create_token_copies_together, g.create_tokens_attacking; or instruction(g, |g| ...) around question-free steps.",
+"how": "Batched by Part::Once. A player who loses nothing is not asked, and at keep 0 nothing is asked: the Balance scenarios prove it. 'Chooses up to two' (Covetous Elegy) keeps as many as can, not exact: hole stays.",
 "note": "Tracker misread: the choice falls before the batch, not between. proposed begin_batch is unnecessary.",
 "partial": "The only limit: a suspension inside instruction. Steps that genuinely ask midway (a sacrifice whose replacement asks) are not one batch. Villainous cards here also need that row.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "per-player-tap": {
 "evidence": [
@@ -12402,14 +12457,14 @@
 "crates/cantrip-state/src/object.rs:1613",
 "crates/cantrip-state/src/object.rs:1632"
 ],
-"how": "Durnan, The Tomb of Aclazotz: allow_play plus a delayed trigger on SpellCast of that card, adding EffectKind::Replacement over a granted_replacement (a counter, finality). Fires of Mount Doom, The Ruinous Powers, Urianger: a trigger on SpellCast/LandPlayed testing Grant in the Cast record. Havengul Lich: delayed trigger plus add_effect. Osteomancer Adept: GrantedWay{from: ZoneKind::Graveyard, cost} twice, one per branch of forage.",
+"how": "The audit's how is wrong for most. Urianger needs a reduction PlayGrant lacks, Kaldring needs enters_tapped which is lands only (z.reason == PlayLand), Tomb of Aclazotz needs spell_replacement which only GrantedWay has. Each now names its own engine hole. Fires of Mount Doom, Apple and Ruinous are a delayed trigger reading the played card and stay as they were.",
 "mixed": [
 "card-code",
 "exists"
 ],
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "play-permission-with-mana-as-though-any-color": {
 "evidence": [
@@ -12417,10 +12472,10 @@
 "crates/cantrip-api/src/card.rs:2138",
 "crates/cantrip-cards/src/cards/robber_of_the_rich.rs:1"
 ],
-"how": "PlayGrant{any_type: true, ..} on the allow_play, or ExileCast{any_type: true, ..}, as Robber of the Rich (which prints 'as though it were mana of any color').",
+"how": "PlayGrant/ExileCast any_type lets colored mana pay {C}, and all 23 cards print 'any color' over cards an opponent owns or a library holds, so any card with {C} in its cost plays wrong. It cannot be narrowed by a per-card test either: for such a card any_type: false is too narrow. Cantrip has no any-color field on a permission; spend_any_color is a battlefield rule that dies with its source. Only Robber of the Rich (hand-written) spells any color as any_type, and that is itself a deviation.",
 "note": "",
 "partial": "Any type is wider than any color only on {C} symbols: colored mana would pay {C}. Exact only with a permanent's spend_any_color rule, which needs it to stay on the battlefield.",
-"verdict": "exists"
+"verdict": "gap"
 },
 "play-permission-with-one-mana-as-though-any-color": {
 "evidence": [
@@ -12447,10 +12502,10 @@
 "crates/cantrip-cards/src/cards/screaming_nemesis.rs:10",
 "crates/cantrip-cards/src/cards/screaming_nemesis.rs:16"
 ],
-"how": "let before = g.history().head(); deal; read all()[before..].",
+"how": "A local list from the damage events; no such query exists.",
 "note": "",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "player-collection-scoped": {
 "evidence": [],
@@ -12536,7 +12591,7 @@
 "crates/cantrip-mechanics/src/choose.rs:168",
 "crates/cantrip-cards/src/cards/balance.rs:10"
 ],
-"how": "Any player may: for who in state.apnap(): if effects::ask_may(...) { ...; break }. Otherwise a stored subject.",
+"how": "Landed, but Vexing Devil's source reads any player while the card prints any opponent; an upstream data bug.",
 "note": "",
 "partial": "Noted-for across turns (Nihiloor): a value on a permanent: gap.",
 "verdict": "card-code"
@@ -12741,10 +12796,10 @@
 "crates/cantrip-api/src/card.rs:2413",
 "crates/cantrip-api/src/replace.rs:190"
 ],
-"how": "Reveal: triggered on Event::Drew (first this turn from history), g.reveal, then the \"whenever you reveal\" branch in the same effect. Life floor: static ReplacementDef kind Damage with apply capping amount at life-1 for player target. Kaya, objects: TargetingRuleKind::IgnoreHexproof.",
+"how": "The audit's form shrinks the damage dealt, which changes lifelink and triggers.",
 "note": "",
 "partial": "Reveal happens on the stack, not as drawn (a trigger, not the CR 701 instant reveal). LifeChange has no cause field, so a damage-only floor must shrink the damage: lifelink and \"dealt damage\" reads see the smaller number. No targetable-despite for players (Kaya).",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "player-rule-decides": {
 "evidence": [
@@ -13766,10 +13821,10 @@
 "crates/cantrip-cards/src/cards/minsc_boo_timeless_heroes.rs:71",
 "crates/cantrip-cards/src/cards/spell_queller.rs:13"
 ],
-"how": "g.reflexive_trigger_counted(source, you, AbilityRef::delayed(card, i), n) for \"that many\"; g.reflexive_trigger(source, you, ability, Target::Object(id)) for one object, its last-known chars read through the id; a list goes through link_exiled / g.exiled_with or a history window.",
+"how": "The audit said card by card. Subject plus counted number cover 42 down to 14 cards generally. What remains is a list with no payload. A created token is NOT one object: a doubler makes two, so tokens keep the hole.",
 "note": "Written: Bolg, Ill-Timed Explosion, Minsc & Boo, Plumb the Forbidden.",
 "partial": "A true list payload on the item does not exist: lists not exiled (Espers to Magicite, Gilgamesh) need a history read, which is a card-by-card fit.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "reflexive-ability-about-two-objects": {
 "evidence": [
@@ -13967,10 +14022,10 @@
 "crates/cantrip-api/src/replace.rs:336",
 "crates/cantrip-state/src/object.rs:1385"
 ],
-"how": "GrantedReplacementDef{kind: ReplacementKind::Damage, applies, apply: d.target=..}, once for next time, on EffectKind::Replacement (affected = creature named). Recipient = asker.source or asker.controller needs no closure (Oracle's Attendants, Beacon of Destiny, Daughter of Autumn).",
+"how": "All 14 are 'the next N damage', all gap; the audit said half can land.",
 "note": "",
 "partial": "Recipient another target (Carom): no field, see target-reference. \"Next N of it\": a proposal cannot be split: gap; about half the row.",
-"verdict": "exists"
+"verdict": "gap"
 },
 "replacement-of-explores": {
 "evidence": [
@@ -14447,10 +14502,10 @@
 "crates/cantrip-cards/src/cards/yasharn_implacable_earth.rs:37",
 "crates/cantrip-cards/src/cards/myriad_landscape.rs:24"
 ],
-"how": "One library::search with a Selection whose parts are select::part(...) and up_to; several clauses are one Selection.",
+"how": "Selection::of with a static filter does not do it: a judged part with a matching over the clauses is needed. Library only; a search of library and other zones keeps the hole.",
 "note": "Tracker read library::search as taking only one filter; a Selection holds parts.",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "selection-constraint-no-common-property": {
 "evidence": [
@@ -14491,10 +14546,10 @@
 "crates/cantrip-api/src/game.rs:772",
 "crates/cantrip-api/src/game.rs:1013"
 ],
-"how": "g.put_all_onto_battlefield_becoming or put_onto_battlefield_attached, then g.attach each in one instruction.",
+"how": "Not exact for Bruna, Evershrike, Flickerform, Mantle of the Ancients, Unfinished Business.",
 "note": "",
 "partial": "They enter unattached for a moment: \"enchanted\" triggers and CR 303.4f choice timing differ; truly together only with one host call each.",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "several-objects-arriving-in-a-state": {
 "evidence": [
@@ -14528,10 +14583,10 @@
 "crates/cantrip-mechanics/src/library.rs:812",
 "crates/cantrip-api/src/card.rs:2317"
 ],
-"how": "Counterbalance, Powerbalance, Thought Prison: effect compares q.mana_value(a) == q.mana_value(b) on the revealed card.",
+"how": "The held test reads Chars::mana_value, which does not exist: a mana value belongs to the object (Query::mana_value), a spell's with its X. Proved both ways on Counterbalance.",
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "shuffle-around-cards-that-stay-where-they-are": {
 "evidence": [
@@ -14560,10 +14615,10 @@
 "crates/cantrip-mechanics/src/spent.rs:39",
 "crates/cantrip-api/src/card.rs:3263"
 ],
-"how": "Sum q.history().mana_spent_to_cast(spell) over sources with q.chars(source).supertypes.snow, as spent::mana_from_a_treasure_spent_to_cast does, with mana_told_apart on the card so the payer chooses which mana.",
+"how": "obj.spent.snow does not exist, and the audit's mana_told_apart on the card does not work: it is asked only of battlefield permanents, so a spell in hand tells nothing apart. Held code corrected, 6 cards under 'engine: snow mana told apart as a spell is paid for'.",
 "note": "",
 "partial": "mana_told_apart was read as a battlefield permanent's: for a spell in hand payment may not distinguish. Not confirmed. Tundra Fumarole's lingering mana: add_mana_until_end_of_turn.",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "source-zone-scope-on-casting": {
 "evidence": [
@@ -14581,7 +14636,7 @@
 "crates/cantrip-api/src/ability.rs:586",
 "crates/cantrip-api/src/card.rs:1391"
 ],
-"how": "The Surveyor cycle: ability(cost, effect, text).from(ZoneKind::Graveyard).condition(max_speed).",
+"how": "Rewriting a condition inside a Scoped ability to the scope's own gate lands the 5 Surveyors, proved on Goblin Surveyor. Lightwheel Enhancements is a gap: the audit's 'condition' on a way makes an alternative cost of a card's own permission.",
 "note": "",
 "partial": "",
 "verdict": "exists"
@@ -14670,7 +14725,7 @@
 "crates/cantrip-api/src/card.rs:1808",
 "crates/cantrip-cards/src/cards/ruthless_radrat.rs:5"
 ],
-"how": "Thrill-Kill Disciple: kicker: multikicker_cost(cost(\"{1}\").and(discard(1))), abilities: &[SQUAD], as Ruthless Radrat.",
+"how": "multikicker_cost as the audit said; Cost::times multiplies discards as it does exile. Ruthless Radrat replaces the hand-written card with its scenarios passing.",
 "note": "",
 "partial": "",
 "verdict": "exists"
@@ -14920,10 +14975,10 @@
 "crates/cantrip-rules/src/turn.rs:1027",
 "crates/cantrip-cards/src/cards/patchwork_beastie.rs:23"
 ],
-"how": "block_rules: &[fn(q,source,blocker,attacker)->bool]: when blocker==source, compare creatures of q.controller(blocker) and q.controller(attacker). \"Can't attack unless\" half is attack_rules.",
+"how": "Rule::BlocksOnlyIf does not exist; a block_rules function does it. Attacking player is the active player (506.2).",
 "note": "",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "static-rule-cant-attack-defender-if": {
 "evidence": [
@@ -14932,10 +14987,10 @@
 "crates/cantrip-cards/src/cards/mouser_mark_iii.rs:15",
 "crates/cantrip-cards/src/cards/storm_windrider.rs:63"
 ],
-"how": "attack_rules: &[fn(q,asker,attacker,at)->bool]: false when the defending player (`at`, or the controller of a planeswalker or battle at `at`) controls the untapped land or creature.",
+"how": "An attack rule function reading defending_player_of the attack, not the attacker's current defender, which has none as attacks are declared.",
 "note": "",
 "partial": "The same cards' \"can't block ...\" halves are block_rules.",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "static-rule-cant-gain-ability": {
 "evidence": [
@@ -15071,10 +15126,10 @@
 "crates/cantrip-cards/src/cards/sorcerous_spyglass.rs:13",
 "crates/cantrip-cards/src/cards/unable_to_scream.rs:25"
 ],
-"how": "activation_rules: &[fn] and crew is an activated ability; face_up_bans for turn-face-up.",
+"how": "activation_rules is asked of a card in hand too: a creature card in hand is no creature, so a rule over the battlefield must test it is there, or Damping Matrix stops cycling.",
 "note": "Forms overlap, so the row is 14 cards by 16 form memberships.",
 "partial": "",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "static-rule-prohibit-be-attached-by": {
 "evidence": [
@@ -15235,10 +15290,10 @@
 "crates/cantrip-api/src/card.rs:3172",
 "crates/cantrip-cards/src/cards/lure.rs:16"
 ],
-"how": "block_requirements: &[|q, source, blocker, attacker| ..] true for each attacker the creature could block.",
+"how": "BlockRequirement is asked per attacker: a creature able to block two attackers is forced to double-block. The audit's 'counts differ only when two conflict' understated it.",
 "note": "Grand Melee, Invasion Plans, Iron Golem. Tracker says only effects can.",
 "partial": "One requirement per attacker rather than one for the creature; the counts differ only when two requirements conflict.",
-"verdict": "exists"
+"verdict": "gap"
 },
 "static-rule-tap-cost-uses-toughness": {
 "evidence": [
@@ -16353,14 +16408,14 @@
 "crates/cantrip-api/src/card.rs:517",
 "crates/cantrip-mechanics/src/attach.rs:178"
 ],
-"how": "Charismatic Conqueror: a trigger with g.ask the player then g.tap, else token. Gitaxian Anatomist: ask then g.tap(this).",
+"how": "Partly. Gitaxian Anatomist and Charismatic Conqueror land. The audit said nothing of Aura costs: Earthlore, Tourach's Gate, Nature's Chosen, Krovikan Plague and Veteran's Voice tap the enchanted permanent, which another player may control, and tap_untapped reads only cx.permanents_of(player). These hold under 'engine: a cost that taps what its payer may not control'.",
 "mixed": [
 "card-code",
 "exists"
 ],
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "tapping-any-number-of-permanents-as-a-cost": {
 "evidence": [
@@ -16417,20 +16472,20 @@
 "crates/cantrip-api/src/ability.rs:723",
 "crates/cantrip-api/src/card.rs:1658"
 ],
-"how": "Printed {X} (spell or activated): targets::X.between(0, TargetSpec::COUNTED) or .counted() for exactly X; Divide{total: TargetSpec::COUNTED} on a spell; of_x for \"X plus 1\". Triggered, count read from the game: .between(0,COUNTED).counted_by(fn(q,asker)->u32); event amount: .counted_by_amount(); reflexive: g.reflexive_trigger_counted(..). Source X and kicks are read automatically (trigger_counted). Spell or activated ability whose count is read from the game (Aether Burst, Reap, Bobbleheads, verse-counter cycle, Vile Requiem, Serra's Liturgy): no counted_by, but card code can: card-written Par",
+"how": "Partial. counted_by returns u16. UpTo(CountPlayers) with DifferentControllers is per-player mandatory, which TargetSpec::EACH_OPPONENT (min 0 always) cannot say. Triggered X only for its own enters with a printed {X}; monstrosity X is gap. Together-as-a-count is unproven. Divide on triggers ignores counted_by, so divided trigger game reads stay holes.",
 "note": "Roughly 40 cards are the plain exists forms; about 25 need the together idiom; about 18 are the partial list. together is proven only for a rule, not yet as a count: no card uses it as a read count, so test first.",
 "partial": "Spell/activated read-from-game via together: judged again at resolution (a changed count makes the whole slot illegal, guard it with a check that the item already has targets); players are not counted by together, so \"any target\" counts fail; not honoured with Divide. Still gap: X plus multikicker i",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "target-constraint-at-random": {
 "evidence": [
 "crates/cantrip-api/src/game.rs:562",
 "crates/cantrip-api/src/game.rs:884"
 ],
-"how": "No target slot: at resolution list candidates with q.can_target(asker,t) and g.choose_at_random, then act.",
+"how": "Random choice is not targeting: the rules need a real target at announcement, and nothing picks one at random there.",
 "note": "Close to gap for exactness.",
 "partial": "Not a real target: ward, heroic and \"becomes the target\" do not fire, and a fizzle does not apply.",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "target-constraint-common-property": {
 "evidence": [
@@ -16604,10 +16659,10 @@
 "crates/cantrip-rules/src/settle.rs:607",
 "crates/cantrip-cards/src/cards/oath_of_druids.rs:8"
 ],
-"how": ".subject_chooses_targets() on a TriggeredDef whose trigger subject is the chooser (Target::Player): Oaths, The Abyss, Ley Line, Curse of Inertia, Pandemonium, Death Match, Erithizon, Confusion in the Ranks, Necrotic Plague, Bladegriff, Quicksilver Fountain. Filter reads q.state().turn.active or q.event_subject.",
+"how": "Controller of the event needs subject_chooses_targets with the subject swapped, and works only for entering permanents; 'an opponent's choice' on spells and activated abilities stays gap.",
 "note": "",
 "partial": "About 17 of 28. Triggered only, and the swap is for every slot. Gap: spells and activated (Arena, Magus of the Arena, Cuombajj Witches, Diaochan, Echo Chamber, Evangelize, Mogg Assassin, Preacher, Volcanic Offering): choose_slots asks the controller, actions.rs:8429. Mausoleum Turnkey, Karplusan Min",
-"verdict": "exists"
+"verdict": "card-code"
 },
 "the-ability-an-event-is-about": {
 "evidence": [
@@ -17150,10 +17205,10 @@
 "crates/cantrip-rules/src/actions.rs:10275",
 "crates/cantrip-api/src/event.rs:50"
 ],
-"how": "triggered(when(EventMask::SPELL_CAST, fn), ..): fn sums Event::ManaSpent{cast: true, player: you} this turn up to this spell and fires if the total before < N <= after.",
+"how": "CR 700.14 (not 701.65, which is airbend) is exactly the audit's form: a payment to cast a spell takes the turn's total from under N to N or more, so the trigger is on SpellCast and activations do not count. Proved on Teapot Slinger.",
 "note": "Event::ManaSpent is record-only; the cast is the very next event, so the trigger arrives at the same moment.",
 "partial": "Only mana spent to cast, which is how the Oracle reminder here words it. Rules' expend counts all mana spent: if so, also on ABILITY_ACTIVATED; resolution payments are missed.",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "trigger-event-player-finish-voting": {
 "evidence": [
@@ -17359,10 +17414,10 @@
 "crates/cantrip-api/src/event.rs:123",
 "crates/cantrip-mechanics/src/targets.rs:469"
 ],
-"how": "triggered(when(EventMask::TAPPED, fn)): fn takes the latest Tapped record of that permanent from q.history().this_turn() and its Record.cause: Cause::Player(p), Cause::Spell(obj) or Cause::Ability{source} tell who.",
+"how": "Event::Tapped has no player. Record::cause gives Cause::Ability{source, ability}, which names a source, not the ability's controller: an ability whose source changed control or left before it resolved reads wrong, and no card reads a tap's cause.",
 "note": "",
 "partial": "Ability's controller is the source's now, not as of activation. Sharae's 'one or more' needs a batch by Cause in the same serial run.",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "trigger-event-player-untaps-during-untap-step": {
 "evidence": [
@@ -17504,7 +17559,7 @@
 "crates/cantrip-state/src/object.rs:55",
 "crates/cantrip-api/src/ability.rs:1119"
 ],
-"how": "kicker: kicker(cost1) and optional_cost: Some(OptionalCost::new(cost2)): the spell's item.kicked and item.paid tell which was paid, independently.",
+"how": "Lands as kicker + OptionalCost::new, proved by scenario on Archangel of Wrath, Anavolver, Stronghold Arena, Hallar. Audit missed three things: (1) every generated reader of 'kicked' and 'times kicked' on another object has to ask kicked || (paid && def.kicker), or Hallar misses it; (2) two conditional 'enters with' replacements overwrite Entering::becomes, so a Volver kicked twice lost the first kicker's keyword, needing a merged EntersAs; (3) Illuminate cannot land: X in a mana cost beside a kicker is never announced (actions.rs: if let Some(k) = def.kicker takes the one number).",
 "note": "object.rs:52 names this case: 'a card with kicker and another optional cost is not ambiguous'. No hand-written card spells it this way yet.",
 "partial": "'Whenever you cast a kicked spell' and 'if it was kicked' mean kicked only, so the second cost, being paid, doesn't read as kicked: OptionalCost{kicker: true} would set kicked but lose which. A card reads both fields; shared readers need item.kicked + item.paid.",
 "verdict": "exists"

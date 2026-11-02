@@ -6,10 +6,11 @@ fn corpus_reports_ast_and_backend_capability_separately_and_counts_nested_forms(
     let names = [
         "Kessig Wolf Run",
         "Divine Offering",
-        "Heart-Piercer Manticore",
+        "Budoka Gardener",
     ];
     let selected = include_str!("fixtures/core.ronl")
         .lines()
+        .chain(include_str!("fixtures/layouts.ronl").lines())
         .filter(|l| {
             names
                 .iter()

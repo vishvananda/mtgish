@@ -1292,6 +1292,8 @@ impl Compiler {
                 self.slots.insert(spec.slot.0, (i, spec.clone()));
                 continue;
             }
+            let oracle = target_counts::oracle_slot(&self.card_name, spec);
+            let spec = oracle.as_ref().unwrap_or(spec);
             let each_player = target_counts::each_player_slot(spec);
             let spec = each_player.as_ref().unwrap_or(spec);
             let doubled;

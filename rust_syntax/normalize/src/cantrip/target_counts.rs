@@ -281,6 +281,18 @@ pub(super) const AMOUNT_READ: &str =
 const EVENT_OBJECT_X: &str =
     "q.event_subject().object().map_or(0i64, |o: ObjectId| i64::from(q.state().obj(o).x))";
 
+/// Chaos Mutation's slot as Oracle text has it. The source rewrites "any number of
+/// target creatures controlled by different players" (`data/cantrip_rewrites.json`)
+/// as a slot for each player, which holds a target of no one else's, and a change of
+/// control in response would leave a different set of targets legal (CR 608.2b).
+pub(super) fn oracle_slot(card: &str, spec: &TargetSpec) -> Option<TargetSpec> {
+    (card == "Chaos Mutation" && matches!(spec.count, Count::PerPlayer { .. })).then(|| TargetSpec {
+        count: Count::AnyNumber,
+        constraints: vec![SelectionConstraint::DifferentControllers],
+        ..spec.clone()
+    })
+}
+
 /// "For each player, target permanent that player controls" as the source says
 /// it: up to that many targets, each under a different controller. That is a
 /// slot for each player, which can't be declined (CR 601.2c), and not a count.
