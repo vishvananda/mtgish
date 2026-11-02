@@ -623,3 +623,4 @@ pub const COUNTERS: &[&str] = &[
     "Promotion",
     "Bounty",
 ];
+pub const FEATURES: &[&str] = &[];

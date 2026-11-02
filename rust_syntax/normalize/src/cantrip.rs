@@ -246,13 +246,7 @@ fn generator_fingerprint() -> &'static str {
         .into_iter()
         .map(|(name, bytes)| (name, corpus::digest(bytes)))
         .collect();
-        let hash = corpus::digest(&serde_json::to_vec(&inputs).expect("generator input hashes"));
-        // Written for a Cantrip with features the snapshot doesn't pin, the
-        // output is another generator's.
-        match planned::features_on() {
-            features if features.is_empty() => hash,
-            features => corpus::digest(format!("{hash} {features}").as_bytes()),
-        }
+        corpus::digest(&serde_json::to_vec(&inputs).expect("generator input hashes"))
     })
 }
 fn keyword(value: &Keyword) -> Result<String> {
@@ -719,8 +713,9 @@ struct Compiler {
     lasting: Vec<String>,
     /// `CardDef::lasting_block_rules`.
     made_block_rules: Vec<String>,
-    /// `CardDef::lasting_rules`: rules on open sets (CR 611.2c).
-    made_lasting_rules: Vec<String>,
+    /// `CardDef::lasting_rules`: rules on open sets (CR 611.2c), each with
+    /// what it waits on where Cantrip has none.
+    made_lasting_rules: Vec<(String, String)>,
     /// Instructions that made an effect preventing damage: its amount comes later.
     prevented: BTreeSet<u32>,
     /// A resolving effect is on what its event is about.
@@ -2555,8 +2550,15 @@ fn emit_face(
     for made in std::mem::take(&mut c.made_block_rules) {
         parts.table("lasting_block_rules", made);
     }
-    for made in std::mem::take(&mut c.made_lasting_rules) {
-        parts.table("lasting_rules", made);
+    // A field can't be a hole, so the table is an item of its own in both forms.
+    let lasting_rules = std::mem::take(&mut c.made_lasting_rules);
+    if let Some((feature, _)) = lasting_rules.first() {
+        let entries: Vec<&str> = lasting_rules.iter().map(|(_, rule)| rule.as_str()).collect();
+        let table = format!("static LASTING_RULES: &[LastingRule] = &[{}];", entries.join(","));
+        writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
+        if planned::switched_on(planned::LASTING_RULES) {
+            parts.field("lasting_rules", "LASTING_RULES".to_string());
+        }
     }
     for made in std::mem::take(&mut c.made_cost_changes) {
         parts.table("lasting_cost_changes", made);

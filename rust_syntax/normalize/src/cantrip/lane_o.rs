@@ -413,9 +413,7 @@ impl Compiler {
         duration: &crate::ir::Duration,
         out: &mut String,
     ) -> Result<()> {
-        if planned::switched_on(planned::LASTING_RULES)
-            && self.lasting_rules(affected, changes, duration, out)?
-        {
+        if self.lasting_rules(affected, changes, duration, out)? {
             return Ok(());
         }
         let test = match affected {
@@ -428,11 +426,12 @@ impl Compiler {
         let until = self.stated_until(duration)?;
         let source = self.fetch(self.object(source)?);
         for change in changes {
-            let what = match change {
-                Change::Rule(rule) => effects_rule_name(rule),
-                other => form(other),
+            // A rule of a name `lasting_rules` keep, but not of this set or not
+            // this rule ("attack you if able"), waits on more than they are.
+            let feature = match open_set_feature(change) {
+                feature if lasting_rule_named(change) => format!("{feature} beyond lasting rules"),
+                feature => feature,
             };
-            let feature = format!("engine: no resolving rule on an open set: {what}");
             let kinds = self
                 .effect_kinds(change)
                 .map_err(|_| gap(feature.as_str()))?;
@@ -451,7 +450,8 @@ impl Compiler {
     /// whenever the rule is read, and `g.add_lasting_rule` naming it. What the
     /// words named as it resolved - the target player - is the effect's `about`,
     /// since the function can't read the resolution. False, and nothing written,
-    /// where a change is no rule Cantrip keeps of a set.
+    /// where a change is no rule Cantrip keeps of a set. For a Cantrip without
+    /// `lasting-rules` the same code is written as holes.
     fn lasting_rules(
         &mut self,
         affected: &ObjectSet,
@@ -487,9 +487,13 @@ impl Compiler {
         // (`untaps_by_their_controllers`), never reaching here.
         let until = match duration {
             D::DuringControllersNextUntapStep => match single_controller(filter) {
-                Some(player) => format!(
-                    "Duration::DuringNextUntapStepOf({})",
-                    self.fetch(self.certain_player(player)?)
+                Some(player) => planned::planned_value(
+                    &format!("duration {}", form(duration)),
+                    "Duration::Indefinite",
+                    &format!(
+                        "Duration::DuringNextUntapStepOf({})",
+                        self.fetch(self.certain_player(player)?)
+                    ),
                 ),
                 None => return Err(gap("an untap rule on a set of no one controller")),
             },
@@ -499,19 +503,31 @@ impl Compiler {
         writeln!(out, "let about_{first} = {about}; let until_{first} = {until};").unwrap();
         // The rules of one instruction begin together.
         let mut made = Vec::new();
-        for kind in kinds {
+        let mut features = Vec::new();
+        for (kind, change) in kinds.into_iter().zip(changes) {
             let index = self.made_lasting_rules.len();
             let function = format!("lasting_rule_{index}");
-            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, about: Target, id: ObjectId) -> bool {{ let source = asker.source; {test} }}").unwrap();
-            self.made_lasting_rules.push(format!(
-                "LastingRule {{ text: {}, rule: LastingRuleKind::{kind}, applies: {function} }}",
-                quoted(&self.lasting_rule_words(kind))
+            let feature = open_set_feature(change);
+            let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, about: Target, id: ObjectId) -> bool {{ let source = asker.source; {test} }}");
+            writeln!(self.functions, "{}", planned::switched_item(planned::LASTING_RULES, &feature, &item)).unwrap();
+            self.made_lasting_rules.push((
+                feature.clone(),
+                format!(
+                    "LastingRule {{ text: {}, rule: LastingRuleKind::{kind}, applies: {function} }}",
+                    quoted(&self.lasting_rule_words(kind))
+                ),
             ));
             made.push(format!("g.add_lasting_rule(item, {index}, about_{first}, until_{first});"));
+            features.push(feature);
         }
-        match made.as_slice() {
-            [one] => writeln!(out, "{one}").unwrap(),
-            _ => writeln!(out, "cantrip_api::instruction(g, |g| {{ {} }});", made.join(" ")).unwrap(),
+        let code = match made.as_slice() {
+            [one] => one.clone(),
+            _ => format!("cantrip_api::instruction(g, |g| {{ {} }});", made.join(" ")),
+        };
+        // One statement, one hole: the others it waits on are its gaps too.
+        self.plan_switched(planned::LASTING_RULES, &features[0], &code, out);
+        if !planned::switched_on(planned::LASTING_RULES) {
+            self.gaps.extend(features[1..].iter().map(gap));
         }
         Ok(true)
     }
@@ -4068,6 +4084,30 @@ fn lost_keyword(lost: &Operand) -> Option<String> {
         }
         _ => None,
     }
+}
+
+/// What a resolving rule on an open set waits on: the requirement is one for
+/// each rule, whether Cantrip's `lasting_rules` keep it or not.
+fn open_set_feature(change: &Change) -> String {
+    let what = match change {
+        Change::Rule(rule) => effects_rule_name(rule),
+        other => form(other),
+    };
+    format!("engine: no resolving rule on an open set: {what}")
+}
+
+/// Whether a change has the name of a rule `lasting_rule_kind` makes, which is
+/// its requirement's name too.
+fn lasting_rule_named(change: &Change) -> bool {
+    const NAMES: &[&str] = &[
+        "Prohibit Attack",
+        "Prohibit Block",
+        "Prohibit BeBlocked",
+        "RequireCombat Attack",
+        "RequireCombat Block",
+        "UntapStep",
+    ];
+    matches!(change, Change::Rule(rule) if NAMES.contains(&effects_rule_name(rule).as_str()))
 }
 
 /// The rule a `LastingRule` makes of a change on an open set, where Cantrip

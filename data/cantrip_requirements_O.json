@@ -282,7 +282,7 @@
 "api": "EffectKind::Rule(rule)"
 },
 {
-"match": "^(engine: no resolving rule on an open set: CombatCost|engine: no resolving rule on an open set: Prohibit BeBlocked)$",
+"match": "^(engine: no resolving rule on an open set: CombatCost|engine: no resolving rule on an open set: .* beyond lasting rules)$",
 "class": "engine",
 "needs": "A resolving effect that puts a rule on every matching object, those to come included",
 "api": "g.add_open_effect(source, closure, EffectKind::Rule(rule), until)"

@@ -31,57 +31,72 @@ const LANDED: &[&str] = &[
     "numeric-expression-times-mutated",
 ];
 
-/// Cantrip features newer than the API this generator's snapshot pins
-/// (`cantrip_vocab.rs`), each with the requirements it lands: their code is
-/// written only when the Cantrip being written for has the feature, which the
-/// generator is told, since the snapshot names none: `MTGISH_CANTRIP_FEATURES`,
-/// a comma-separated list of these names. Without it the output is for the
-/// pinned Cantrip, and these stay holes.
-const SWITCHED: &[(&str, &[&str])] = &[(
+/// Cantrip features some Cantrip has and another may not: (name, the line of
+/// `crates/cantrip-api` that shows a tree has it, the requirements it lands).
+/// The code is always the code the feature takes; where the pinned Cantrip
+/// (`cantrip_vocab::FEATURES`) lacks it, that code is a hole naming the
+/// requirement, so the file compiles there and the two differ only by the
+/// holes. `tools/update_cantrip_vocabulary.py` reads this table to write
+/// `FEATURES`: keep each entry on one line, its name a literal.
+const SWITCHED: &[(&str, &str, &[&str])] = &[
     // `CardDef::lasting_rules` with `Game::add_lasting_rule` (a rule on an open
     // set, CR 611.2c), `EffectKind::DoesntUntap`, and the durations
-    // `DuringItsControllersNextUntapStep` and `DuringNextUntapStepOf`.
-    LASTING_RULES,
-    &[
-        "continuous-rule-untap-step",
-        "duration-during-controllers-next-untap-step",
-        "duration-during-next-untap-step",
-    ],
-)];
+    // `DuringItsControllersNextUntapStep` and `DuringNextUntapStepOf`: Cantrip
+    // PR #897. Its rules on open sets are `plan_switched` holes, not landed ids:
+    // a rule it has no `LastingRuleKind` for shares their requirement.
+    ("lasting-rules", "fn add_lasting_rule", &["continuous-rule-untap-step", "duration-during-controllers-next-untap-step", "duration-during-next-untap-step"]),
+];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";
 
-/// The `SWITCHED` features the Cantrip being written for has.
-fn features() -> &'static [String] {
-    static FEATURES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
-    FEATURES.get_or_init(|| {
-        let mut on: Vec<String> = std::env::var("MTGISH_CANTRIP_FEATURES")
-            .unwrap_or_default()
-            .split(',')
-            .map(str::trim)
-            .filter(|f| !f.is_empty())
-            .map(str::to_string)
-            .collect();
-        if let Some(unknown) = on.iter().find(|f| !SWITCHED.iter().any(|(name, _)| name == f)) {
-            panic!("MTGISH_CANTRIP_FEATURES names {unknown:?}, which is none of {:?}", SWITCHED.iter().map(|s| s.0).collect::<Vec<_>>());
+/// A stand-in for the snapshot's `FEATURES`, for a test that writes both forms:
+/// a bit for each `SWITCHED` entry, or `NO_STAND_IN`.
+static STAND_IN: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(NO_STAND_IN);
+const NO_STAND_IN: u32 = u32::MAX;
+
+/// Writes as if the pinned Cantrip had exactly the `SWITCHED` features
+/// `features` while `f` runs, one caller at a time. For tests only: the
+/// generator's own answer is the snapshot's.
+#[doc(hidden)]
+pub fn with_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
+    use std::sync::atomic::Ordering;
+    static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _held = ONE_AT_A_TIME.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut bits = 0;
+    for feature in features {
+        let at = SWITCHED.iter().position(|s| s.0 == *feature);
+        bits |= 1 << at.unwrap_or_else(|| panic!("{feature:?} is no feature of SWITCHED"));
+    }
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            STAND_IN.store(NO_STAND_IN, Ordering::SeqCst);
         }
-        on.sort();
-        on.dedup();
-        on
-    })
+    }
+    let _restore = Restore;
+    STAND_IN.store(bits, Ordering::SeqCst);
+    f()
 }
 /// Whether the Cantrip being written for has the `SWITCHED` feature `name`.
 pub(super) fn switched_on(name: &str) -> bool {
-    features().iter().any(|f| f == name)
-}
-/// The `SWITCHED` features on, for what the output was written for.
-pub(super) fn features_on() -> String {
-    features().join(",")
+    match STAND_IN.load(std::sync::atomic::Ordering::SeqCst) {
+        NO_STAND_IN => crate::cantrip_vocab::FEATURES.contains(&name),
+        bits => SWITCHED.iter().position(|s| s.0 == name).is_some_and(|at| bits & (1 << at) != 0),
+    }
 }
 /// Whether the requirement `id` has landed in the Cantrip being written for.
 fn landed_id(id: &str) -> bool {
     LANDED.contains(&id)
-        || SWITCHED.iter().any(|(name, ids)| ids.contains(&id) && switched_on(name))
+        || SWITCHED.iter().any(|(name, _, ids)| ids.contains(&id) && switched_on(name))
+}
+
+/// An item of the `SWITCHED` feature `switched`, `planned_item!` of
+/// `feature` until the Cantrip being written for has it.
+pub(super) fn switched_item(switched: &str, feature: &str, item: &str) -> String {
+    match switched_on(switched) {
+        true => item.to_string(),
+        false => format!("planned_item!({:?} => {item});", requirement(feature)),
+    }
 }
 
 /// Counters that are more than a name, so no line in `counter_kinds!` finishes
@@ -246,6 +261,22 @@ impl Compiler {
         }
         self.gaps.push(gap(feature));
         writeln!(out, "planned!({id:?} => {code});").unwrap();
+    }
+    /// `code` of the `SWITCHED` feature `switched`, a hole of `feature` until
+    /// the Cantrip being written for has it.
+    pub(super) fn plan_switched(
+        &mut self,
+        switched: &str,
+        feature: &str,
+        code: &str,
+        out: &mut String,
+    ) {
+        if switched_on(switched) {
+            writeln!(out, "{code}").unwrap();
+            return;
+        }
+        self.gaps.push(gap(feature));
+        writeln!(out, "planned!({:?} => {code});", requirement(feature)).unwrap();
     }
     /// The entry `list` of the card definition will hold once `feature` exists:
     /// `planned_item!("id" => list: code)` until then.
@@ -438,7 +469,16 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
 
 #[cfg(test)]
 mod tests {
-    use super::planned_value;
+    use super::{planned_value, LASTING_RULES, SWITCHED};
+
+    /// The snapshot names only features the generator writes for, and the names
+    /// the generator asks for are the table's.
+    #[test]
+    fn features_are_switched_ones() {
+        for feature in crate::cantrip_vocab::FEATURES.iter().chain([&LASTING_RULES]) {
+            assert!(SWITCHED.iter().any(|s| s.0 == *feature), "{feature}");
+        }
+    }
 
     #[test]
     fn a_counter_that_is_only_a_name_is_written_and_any_other_held() {

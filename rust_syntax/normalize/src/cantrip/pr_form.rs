@@ -2793,13 +2793,16 @@ fn set_oracle_base(file: &mut File, constant: &str) {
     }
 }
 
-/// A list of target specs named once, where it is read.
+/// A list of target specs named once, where it is read, and the card's lasting
+/// rules, a table of their own only so they can be a hole.
 fn inline_target_lists(file: &mut File) {
     let lists: Vec<(String, Expr)> = file
         .items
         .iter()
         .filter_map(|item| match item {
-            Item::Static(item) if item.ident.to_string().ends_with("_TARGETS") => {
+            Item::Static(item)
+                if item.ident.to_string().ends_with("_TARGETS") || item.ident == "LASTING_RULES" =>
+            {
                 Some((item.ident.to_string(), (*item.expr).clone()))
             }
             _ => None,
