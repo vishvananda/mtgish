@@ -622,6 +622,8 @@ struct Compiler {
     known_one: BTreeSet<u32>,
     /// Some ability of the card reads what was exiled with its source.
     links_exile: bool,
+    /// Some ability of the card takes cards from one player's graveyard.
+    one_graveyard: bool,
     /// A face other than the definition an object's `card` names: `lane_f`.
     own_face: bool,
     /// Which door of its Room this face is.
@@ -1040,6 +1042,7 @@ impl Compiler {
             single: BTreeSet::new(),
             known_one: BTreeSet::new(),
             links_exile: false,
+            one_graveyard: false,
             own_face: false,
             door: None,
             choosing: None,
@@ -2313,6 +2316,7 @@ fn emit_face(
     c.links_exile = place.links_exile
         || abilities.contains("ExiledWith(Source)")
         || abilities.contains("with: Some(Source)");
+    c.one_graveyard = abilities.contains("InZone(Players { zone: Graveyard, players: One(");
     c.own_face = place.own_face;
     c.door = place.door;
     c.printed_mana = card.characteristics.mana_cost.clone();

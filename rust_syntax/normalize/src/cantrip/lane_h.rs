@@ -1354,7 +1354,7 @@ impl Compiler {
         if let ObjectSet::Take { objects, .. } = cards {
             if matches!(
                 &**objects,
-                ObjectSet::Zone { scope: ZoneScope::Players { players: PlayerSet::One(PlayerRef::Affected), .. }, .. }
+                ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Graveyard, players: PlayerSet::One(PlayerRef::Affected) }, .. }
             ) {
                 return Err(gap("a lasting permission to cast from the top of a graveyard"));
             }

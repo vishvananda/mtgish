@@ -1195,7 +1195,8 @@ impl Compiler {
             // every graveyard offered isn't what the card says.
             ObjectFilter::ChosenBy { kind, player }
                 if self.chosen_lists.iter().any(|(k, _)| k == kind)
-                    && !lane_k::printed_otherwise(self.line_text(), "their graveyard") =>
+                    && (self.one_graveyard
+                        || !lane_k::printed_otherwise(self.line_text(), "their graveyard")) =>
             {
                 *self.own_choice.borrow_mut() = Some(self.player(player)?);
                 let test = self.chosen_filter(*kind, chars, id);
