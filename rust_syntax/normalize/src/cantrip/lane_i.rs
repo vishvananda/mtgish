@@ -691,6 +691,36 @@ impl Compiler {
                     }),
                 })
             }
+            // "Each opponent reveals ... then puts all cards revealed this way into
+            // their graveyard" (Mind Grind): the cards are every player's, each
+            // going to its owner's zone, so they all move at once (CR 101.4), once.
+            Operation::ChangeZone {
+                cards,
+                count: None,
+                random: false,
+                group: None,
+                destination,
+                entry,
+                face_down: None,
+                ..
+            } if !names(binding, cards)
+                && !names(binding, destination)
+                && !names(binding, entry)
+                && !matches!(destination, Destination::Battlefield(_)) =>
+            {
+                let Some((entry, destination)) = entry_of(entry, destination) else {
+                    return Part::Unbatched("per-player ChangeZone".into());
+                };
+                Part::Once(Instruction::Effect {
+                    result,
+                    operation: Operation::Move {
+                        objects: cards.clone(),
+                        destination,
+                        entry,
+                        face_down: false,
+                    },
+                })
+            }
             Operation::DiscardObjects { objects } if names(binding, objects) => {
                 Part::Gather(Gathered::Objects {
                     objects: objects.clone(),
