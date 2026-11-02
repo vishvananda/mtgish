@@ -1548,6 +1548,21 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         match op {
+            // "The copy targets [this]": copied whatever it can target, and what it
+            // can't stays as the original's (115.7b), every instance of it.
+            Operation::CopyOnStack {
+                actor: PlayerSet::One(player),
+                object,
+                times: Expr::Constant(1),
+                targets: NewTargets::To(to) | NewTargets::Each(to @ ObjectSet::Created(_)),
+                effects,
+                card: None,
+            } if effects.is_empty() => {
+                let copier = self.fetch(self.certain_player(player)?);
+                let spell = self.fetch(self.object(object)?);
+                let to = self.fetch(self.objects(to)?);
+                writeln!(out, "let copier_{id} = {copier}; let spell_{id} = {spell}; let to_{id}: Vec<ObjectId> = {to}; if let Some(spell) = spell_{id} {{ if let Some(copy) = g.copy_spell(spell, copier_{id}, false)? {{ if let Some(&to) = to_{id}.first() {{ let count = {{ let q: &dyn Query = g; q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == copy).map_or(0, |i| q.state().targets(i).len()) }}; for _ in 0..count {{ g.change_a_target_to(Target::Object(copy), to, copier_{id})?; }} }} }} }}").unwrap();
+            }
             Operation::CopyOnStack {
                 actor: PlayerSet::One(player),
                 object,

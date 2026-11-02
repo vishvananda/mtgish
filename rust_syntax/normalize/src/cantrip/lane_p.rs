@@ -2592,6 +2592,22 @@ impl Compiler {
                 format!("RemovedCounters::AmongThem({})", self.select_count(count)?),
             ),
             CounterAmount::Count(count) => {
+                // "Remove X counters": which ones are the player's, of any kinds, and
+                // they all come off if they can; "any number" may leave them.
+                if removal.kind.is_none() {
+                    const MANY: &str = "cantrip_mechanics::select::Count::AsManyAsCan(";
+                    let code = self.select_count(count)?;
+                    let sized = code.strip_prefix(MANY).and_then(|c| c.strip_suffix(')'));
+                    if code.ends_with("::AnyNumber") {
+                        writeln!(out, "let player_{id}_{i} = {player}; for object in {objects}.iter().copied() {{ removed_{id} += i64::from(g.remove_counters_up_to(player_{id}_{i}, asker.source, object, u8::MAX)?); }}").unwrap();
+                        return Ok(());
+                    }
+                    if let Some(sized) = sized {
+                        let sized = self.fetch(sized.to_string());
+                        writeln!(out, "let player_{id}_{i} = {player}; let most_{id}_{i}: u32 = {sized}; for object in {objects}.iter().copied() {{ for _ in 0..most_{id}_{i} {{ let Some(kind) = g.choose_counter_kind(player_{id}_{i}, asker.source, object)? else {{ break }}; removed_{id} += i64::from(g.remove_counters(object, kind, 1)); }} }}").unwrap();
+                        return Ok(());
+                    }
+                }
                 let feature = match removal.kind {
                     Some(_) => format!("counter removal {}", form(&removal.amount)),
                     None => "counters of a kind chosen as the effect resolves".to_string(),
