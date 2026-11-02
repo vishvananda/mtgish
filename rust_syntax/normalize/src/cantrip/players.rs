@@ -98,6 +98,62 @@ impl Compiler {
         ));
         Ok(true)
     }
+    /// "Each enchantment card in your hand has miracle. Its miracle cost is equal
+    /// to its mana cost reduced by {4}" (Aminatou, Veil Piercer; CR 702.94a): a
+    /// `GrantedMiracle`, whose cost is the card's mana cost less the generic mana.
+    pub(super) fn miracle_granted(
+        &mut self,
+        label: &str,
+        affected: &ObjectSet,
+        changes: &[Change],
+        parts: &mut Parts,
+    ) -> Result<bool> {
+        let [Change::GrantAbility(ability)] = changes else {
+            return Ok(false);
+        };
+        let Ability::Mechanic {
+            mechanic: Mechanic::Miracle,
+            cost: Some(cost),
+            amount: None,
+            filter: None,
+        } = &**ability
+        else {
+            return Ok(false);
+        };
+        let less = match cost.parts.as_slice() {
+            [CostPart::ManaCostReduced { object: None, reduction }] => {
+                let words = format!("{reduction:?}");
+                if !words.contains("CostReduceGeneric") {
+                    return Ok(false);
+                }
+                let digits: String = words
+                    .split("Integer(")
+                    .nth(1)
+                    .unwrap_or("")
+                    .chars()
+                    .take_while(char::is_ascii_digit)
+                    .collect();
+                match digits.parse::<u8>() {
+                    Ok(n) => n,
+                    Err(_) => return Ok(false),
+                }
+            }
+            _ => return Ok(false),
+        };
+        let Some(test) = self.outside_subject(affected, &Candidate::of("card"))? else {
+            return Ok(false);
+        };
+        let guard = self.guard()?;
+        let has = format!("{label}_miracle");
+        writeln!(self.functions, "#[allow(unused_variables)] fn {has}(q: &dyn Query, asker: &Asker, card: ObjectId) -> bool {{ {guard}{test} }}").unwrap();
+        let name = self.card_name.clone();
+        writeln!(self.functions, "fn {label}_miracle_cost(q: &dyn Query, card: CardId) -> Option<ManaCost> {{ let def = q.card(card); def.has_cost.then_some(def.cost) }}").unwrap();
+        parts.table(
+            "granted_miracles",
+            format!("GrantedMiracle {{ text: {:?}, has: {has}, cost: {label}_miracle_cost, less: {less} }}", format!("{name}'s miracle: its mana cost reduced by {{{less}}}")),
+        );
+        Ok(true)
+    }
     pub(super) fn player_static(
         &mut self,
         label: &str,
