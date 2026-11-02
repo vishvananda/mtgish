@@ -968,6 +968,19 @@ impl Compiler {
         let closed = self.closing(true, |c| {
             c.reset_results();
             let counts = std::mem::replace(&mut c.slot_counts, target_counts::SlotCounts::Delayed);
+            // "Another target permanent or opponent": one slot, and the mode is
+            // what the target turns out to be.
+            let implied = match body.instructions.is_empty() {
+                true => c.implied_slots(announcement, &label, Some(Frame::default())),
+                false => Ok(None),
+            };
+            if let Ok(Some(targets)) = implied {
+                c.slot_counts = counts;
+                let effect = c.implied_effect(announcement, &label)?;
+                writeln!(c.functions, "fn {label}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {effect}(g, item) }}").unwrap();
+                return Ok((Some(targets), Ok(None)));
+            }
+            implied?;
             let targets = c.targets_for(&announced, &label, Frame::default());
             c.slot_counts = counts;
             let targets = targets?;

@@ -2672,10 +2672,19 @@ pub(super) fn flat_modes(selection: &ModeSelection) -> Option<Vec<Mode>> {
     let mut flat = Vec::new();
     for mode in &selection.modes {
         match inner(mode) {
+            // Each inner mode is available only while the outer one would be
+            // ("if you discarded a card this turn, you choose one instead").
             Some(modes)
                 if mode.announcement.targets.is_empty() && mode.body.instructions.is_empty() =>
             {
-                flat.extend(modes)
+                flat.extend(modes.into_iter().map(|inner| {
+                    let requires = match (&mode.requires, inner.requires) {
+                        (None, own) => own,
+                        (Some(outer), None) => Some(outer.clone()),
+                        (Some(outer), Some(own)) => Some(Condition::All(vec![outer.clone(), own])),
+                    };
+                    Mode { requires, ..inner }
+                }))
             }
             Some(_) => return None,
             None => flat.push(mode.clone()),
