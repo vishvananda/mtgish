@@ -7,6 +7,9 @@
 use super::*;
 
 const M: &str = "cantrip_mechanics";
+/// `CardDef::becomes_aura_enchant` of an Aura that enchants the creature it put
+/// onto the battlefield (Necromancy).
+const AURA_PUT_WITH_THIS: &str = "Some(cantrip_mechanics::targets::CREATURE_PUT_ONTO_THE_BATTLEFIELD_WITH_THIS)";
 
 /// "Loses all other abilities and has this", as the two changes it is: they keep
 /// their order in the ability layer, so what it has it keeps (CR 613.1f).
@@ -1517,13 +1520,24 @@ impl Compiler {
             .map(|reference| format!("EffectKind::AddAbility({reference})"))
             .collect())
     }
+    /// Whether this card's Aura enchants what it puts onto the battlefield.
+    pub(super) fn aura_puts_its_host(&self) -> bool {
+        self.aura.as_deref() == Some(AURA_PUT_WITH_THIS)
+    }
     pub(super) fn aura_enchant(&mut self, hosts: &EnchantHosts) -> Result<Vec<String>> {
         let EnchantHosts::Permanents(filter) = hosts else {
             return Err(gap("granted Enchant"));
         };
-        // Necromancy puts its creature in with it, a move this reading can't say.
-        if format!("{filter:?}").contains("MadeBy") {
-            return Err(gap("an Aura that enchants what it put onto the battlefield"));
+        // Necromancy: "enchant creature put onto the battlefield with [this]" is
+        // the creature that entered with it as its Aura (CR 303.4a), and the put
+        // that follows is `put_onto_battlefield_with_aura` (CR 303.4f).
+        let words = format!("{filter:?}");
+        if words.contains("MadeBy") {
+            if !(words.starts_with("All([CardType(Creature), MadeBy(Source)") || words == "All([CardType(Creature), MadeBy(Source)])") {
+                return Err(gap("an Aura that enchants what it put onto the battlefield"));
+            }
+            self.aura = Some(AURA_PUT_WITH_THIS.to_string());
+            return Ok(vec![format!("EffectKind::Enchant({})", self.source_card())]);
         }
         let function = format!("becomes_aura_{}", self.fresh());
         let test = self.queried(|c| c.filter(filter, &Candidate::of("id")))?;

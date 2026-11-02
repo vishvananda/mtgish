@@ -1708,6 +1708,10 @@ impl Compiler {
             Operation::Attach { attachments, host } => {
                 let attachments = self.acted_on(attachments)?;
                 let host = self.fetch(self.damage_source(host)?);
+                if self.aura_puts_its_host() && attachments.starts_with("{ let q: &dyn Query = g; (Some(asker.source)") && host.contains("moved_") && !self.read_later(result) {
+                    writeln!(out, "// Attached as it entered with this Aura.").unwrap();
+                    return Ok(());
+                }
                 let (flag, attach) = if self.read_later(result) {
                     self.performed.insert(result.0, format!("attached_{id}"));
                     (
@@ -2893,6 +2897,10 @@ impl Compiler {
                 } else if !entry.states.is_empty() {
                     let each = self.arrival(entry)?;
                     format!("{{ let mut moved: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ let controller = {controller}; {each} }} moved }}")
+                } else if entry.counters.is_empty() && self.aura_puts_its_host() && !entry.tapped {
+                    // It enters with this Aura attached (CR 303.4f), so the enchant
+                    // ability "put onto the battlefield with [this]" names it.
+                    format!("{{ let mut came_{id}: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ came_{id}.push(g.put_onto_battlefield_with_aura(o, {controller}, asker.source)?); }} came_{id}.into_iter().filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect::<Vec<ObjectId>>() }}")
                 } else if entry.counters.is_empty() {
                     format!("{{ {rows} let came_{id} = g.put_all_onto_battlefield_as(&rows_{id})?; came_{id}.into_iter().filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect::<Vec<ObjectId>>() }}")
                 } else {
