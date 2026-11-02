@@ -90,6 +90,15 @@ fn landed_id(id: &str) -> bool {
         || SWITCHED.iter().any(|(name, _, ids)| ids.contains(&id) && switched_on(name))
 }
 
+/// An item the card will have once `feature` exists: `planned_item!` of it
+/// until then.
+pub(super) fn planned_item(feature: &str, item: &str) -> String {
+    match landed(feature) {
+        true => item.to_string(),
+        false => format!("planned_item!({:?} => {item});", requirement(feature)),
+    }
+}
+
 /// An item of the `SWITCHED` feature `switched`, `planned_item!` of
 /// `feature` until the Cantrip being written for has it.
 pub(super) fn switched_item(switched: &str, feature: &str, item: &str) -> String {

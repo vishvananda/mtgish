@@ -3040,8 +3040,16 @@ impl Compiler {
             other => format!("SelectionRule::{}", form(other)),
         })
     }
-    /// The cost a part will be, once `Cost` can say it.
+    /// The cost a part will be, once `Cost` can say it: asked as the cost is
+    /// paid, after X is announced (CR 601.2b, 601.2h), so "with mana value X" is
+    /// `Query::announced_x` there too.
     fn cost_part_code(&mut self, part: &CostPart, label: &str) -> Result<String> {
+        let saved = std::mem::replace(&mut self.stating_cost, true);
+        let code = self.cost_part_code_inner(part, label);
+        self.stating_cost = saved;
+        code
+    }
+    fn cost_part_code_inner(&mut self, part: &CostPart, label: &str) -> Result<String> {
         use CostPart as P;
         Ok(match part {
             P::ManaCostOf(object) => format!(

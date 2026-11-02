@@ -762,6 +762,9 @@ struct Compiler {
     paradigm: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// A cost part is being stated for a `Cost` that can't say it yet: its X is
+    /// the announced one, read as the cost is paid (CR 601.2b, 601.2h).
+    stating_cost: bool,
     /// A spell's additional cost read the game for its size, so it is worked out
     /// as the total cost is (`cost_of_targets`, CR 601.2f).
     cost_reads_board: bool,
@@ -1197,6 +1200,7 @@ impl Compiler {
             watching_object: None,
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            stating_cost: false,
             cost_reads_board: false,
             mode_guard: None,
             paying: lane_g::Paying::Ability,

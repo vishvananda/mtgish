@@ -1918,8 +1918,22 @@ impl Compiler {
                     })?
                 ))
             }
-            ObjectRef::RingBearer(_) => return held("q.ring_bearer(player)"),
-            ObjectRef::HauntedBy(_) => return held("q.state().obj(o).haunted_by"),
+            // The Ring-bearer of the player named (CR 701.54a), one at most.
+            ObjectRef::RingBearer(player) => {
+                return held(&match self.certain_player(player) {
+                    Ok(player) => format!("q.ring_bearer({})", self.fetch(player)),
+                    Err(_) => format!(
+                        "{}.and_then(|p: PlayerId| q.ring_bearer(p))",
+                        self.player(player)?
+                    ),
+                })
+            }
+            ObjectRef::HauntedBy(of) => {
+                return held(&format!(
+                    "{}.and_then(|o: ObjectId| q.state().obj(o).haunted_by)",
+                    self.object(of)?
+                ))
+            }
             other => return self.object_more(other),
         })
     }

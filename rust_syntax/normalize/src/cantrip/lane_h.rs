@@ -573,13 +573,15 @@ impl Compiler {
             Err(gap) => return Err(gap),
         };
         // What a payment is for, past `SpendingFor`, has no word to compile yet.
-        let function = if test.contains("ManaPart") {
-            format!("|q, asker, spending| {test}")
-        } else {
-            let function = format!("mana_use_{}", self.functions.len());
-            writeln!(self.functions, "#[allow(dead_code, unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, spending: &Spending) -> bool {{ {test} }}").unwrap();
-            function
-        };
+        // A rule the mana carries is a function of the card's; one reading
+        // what a payment is for past `SpendingFor` is an item of the hole,
+        // having no word to compile yet.
+        let function = format!("mana_use_{}", self.functions.len());
+        let item = format!("#[allow(dead_code, unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, spending: &Spending) -> bool {{ {test} }}");
+        match test.contains("ManaPart") {
+            true => writeln!(self.functions, "{}", planned::planned_item(feature, &item)).unwrap(),
+            false => writeln!(self.functions, "{item}").unwrap(),
+        }
         Ok(planned::planned_value(
             feature,
             "ManaRestriction::ABILITIES",

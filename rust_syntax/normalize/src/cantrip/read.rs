@@ -295,6 +295,10 @@ impl Compiler {
     }
     /// A read made while resolving, where `g` is the only reader.
     pub(super) fn fetch(&self, code: impl AsRef<str>) -> String {
+        // A reader with no `g` has its `q` already (a rule a table holds).
+        if self.reader != Reader::Resolution {
+            return code.as_ref().to_string();
+        }
         format!("{{ let q: &dyn Query = g; {} }}", code.as_ref())
     }
     pub(super) fn carried(&self, carried: Carried) -> Result<(String, String)> {
@@ -1133,6 +1137,12 @@ impl Compiler {
                     dynamic: true,
                 }
             }
+            Expr::AnnouncedX if self.stating_cost => Number {
+                code: "i64::from(q.announced_x().unwrap_or(0))".into(),
+                min: 0,
+                max: u16::MAX.into(),
+                dynamic: true,
+            },
             Expr::AnnouncedX if self.notes.paid_x.is_some() => Number {
                 code: self.notes.paid_x.clone().unwrap_or_default(),
                 min: 0,

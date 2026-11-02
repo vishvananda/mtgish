@@ -1508,7 +1508,9 @@ impl Compiler {
                 tests.push(planned::planned_value(
                     "engine: no discard cause in events",
                     "false",
-                    &format!("cause.is_some_and(|cause| {cause})"),
+                    // What made the card be discarded, which `Event::Discarded`
+                    // will carry (CR 701.9a: "causes you to discard").
+                    &format!("{{ if let Event::Discarded {{ cause: Some(cause), .. }} = event {{ let cause = *cause; {cause} }} else {{ false }} }}"),
                 ));
                 (
                     "DISCARDED",
