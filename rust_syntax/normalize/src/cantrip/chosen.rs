@@ -454,6 +454,9 @@ impl Compiler {
     /// `ObjectFilter::Chosen`, of an object known by `chars` and `id`.
     pub(super) fn chosen_filter(&self, kind: ValueKind, chars: &str, id: &str) -> Result<String> {
         let list = self.chosen_lists.iter().find(|(k, _)| *k == kind);
+        if list.is_none() && self.earlier_chosen_lists.contains(&kind) {
+            return Err(gap(format!("a {kind:?} each player chose as it entered, read by another ability")));
+        }
         let value = match list {
             Some(_) => String::new(),
             None => self.chosen_value(kind)?,

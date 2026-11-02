@@ -964,6 +964,7 @@ impl Compiler {
         players: &PlayerSet,
         objects: &ObjectSet,
         each: bool,
+        times: Option<String>,
         out: &mut String,
     ) -> Result<()> {
         let colors = self.fetch(format!(
@@ -983,7 +984,8 @@ impl Compiler {
             )
             .unwrap();
         } else {
-            writeln!(out, "if !colors_{id}.is_empty() {{ let colors = {M}::choose_colors(g, player, asker.source, colors_{id}, 1)?; g.add_mana(player, colors[0].mana(), 1); }}").unwrap();
+            let times = times.unwrap_or_else(|| "1i64".into());
+            writeln!(out, "if !colors_{id}.is_empty() {{ for _ in 0..({times}).max(0) {{ let colors = {M}::choose_colors(g, player, asker.source, colors_{id}, 1)?; g.add_mana(player, colors[0].mana(), 1); }} }}").unwrap();
         }
         writeln!(out, "}}").unwrap();
         Ok(())
@@ -2149,7 +2151,7 @@ impl Compiler {
                     writeln!(self.functions, "#[allow(unused_variables)] fn {label}_sacrificed(q: &dyn Query, asker: &Asker) -> bool {{ q.obj(asker.source).paid > 0 }}\nfn {label}_copies(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ for _ in 0..g.obj(item.object).paid {{ g.copy_spell(item.object, item.controller, false)?; }} Ok(()) }}").unwrap();
                     parts.field("optional_cost", format!("Some(OptionalCost::new(Cost {{ variable: Some(VariableCost::SacrificeOneOrMore({filter})), ..Cost::NONE }}))"));
                     parts.field("labels", "&[\"Cast without sacrificing\", \"Sacrifice one or more creatures\"]".to_string());
-                    parts.table("abilities", format!("triggered(cantrip_mechanics::triggers::CAST_THIS_SPELL, {label}_copies, \"When you do, copy this spell for each creature sacrificed this way.\").condition({label}_sacrificed)"));
+                    parts.entry("abilities", format!("triggered(cantrip_mechanics::triggers::CAST_THIS_SPELL, {label}_copies, \"When you do, copy this spell for each creature sacrificed this way.\").condition({label}_sacrificed)"));
                     return Ok(());
                 }
                 let code = self.optional_cost(cost, label)?;

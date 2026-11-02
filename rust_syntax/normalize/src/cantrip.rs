@@ -447,8 +447,16 @@ impl Number {
             Err(gap(format!("numeric range for {kind}")))
         }
     }
+    /// A negative amount is 0 (CR 107.1b), so a value that can be negative is floored. One that
+    /// cannot (a count, an event's amount) is not: a floor no game reaches is code no scenario
+    /// can test, and breaking it changes nothing a game shows.
     fn amount(&self, max: i128, kind: &str) -> Result<String> {
-        if self.max <= max {
+        if self.min >= 0 && self.max <= max && self.dynamic {
+            Ok(format!("({}) as {kind}", self.code))
+        } else if self.min >= 0 && self.dynamic && type_max(kind) == Some(max) {
+            // The type's own bound, which `pr_form` reads as the cast it is.
+            Ok(format!("({}).min({kind}::MAX.into()) as {kind}", self.code))
+        } else if self.max <= max {
             Ok(format!("({}).max(0) as {kind}", self.code))
         } else if self.dynamic {
             Ok(format!("({}).clamp(0, {max}) as {kind}", self.code))
@@ -464,6 +472,17 @@ impl Number {
             _ => self.amount(max, kind),
         }
     }
+}
+/// The greatest value of an integer type an `i64` converts back from.
+fn type_max(kind: &str) -> Option<i128> {
+    Some(match kind {
+        "u8" => u8::MAX.into(),
+        "u16" => u16::MAX.into(),
+        "u32" => u32::MAX.into(),
+        "i16" => i16::MAX.into(),
+        "i32" => i32::MAX.into(),
+        _ => return None,
+    })
 }
 #[derive(Clone)]
 struct Compiler {
@@ -561,6 +580,8 @@ struct Compiler {
     /// What this triggered ability's event is always about, as "this creature"
     /// is: read where no event reaches, as "another creature" in a cost.
     event_object: Option<ObjectRef>,
+    /// The triggered ability's event is this object entering the battlefield.
+    source_entered: bool,
     /// While an instruction is compiled to happen only if its players exist:
     /// the local each stands for, and how to read it. See `lane_j`.
     present: std::rc::Rc<std::cell::RefCell<Option<Vec<(String, String)>>>>,
@@ -587,6 +608,12 @@ struct Compiler {
     /// An instruction exiled cards into piles ("in a face-down pile"), which
     /// a later choice of "those piles" reads.
     exiled_piles: bool,
+    /// The piles an instruction exiled whole ("exile the top four cards of your
+    /// library in a face-down pile"): each one's local, and whether it is face down.
+    exile_piles_made: Vec<(String, bool)>,
+    /// A choice between exiled piles, by its result: the local of the pile not chosen,
+    /// which "the other pile" reads.
+    pile_not_chosen: BTreeMap<u32, String>,
     /// The piles players separated (CR 700.3): the local of their rows, each a
     /// separator, its piles, the pile chosen and who may choose it.
     piles: Option<String>,
@@ -651,6 +678,8 @@ struct Compiler {
     unread: Vec<(String, Vec<String>)>,
     /// Locals that hold a value each player chose, by kind.
     chosen_lists: Vec<(ValueKind, String)>,
+    /// The kinds an earlier ability's locals held: out of scope here, and kept nowhere a later ability could read.
+    earlier_chosen_lists: Vec<ValueKind>,
     /// The bound player whose own choice in a walk a filter reads.
     own_choice: std::cell::RefCell<Option<String>>,
     /// The local of the spells the last cast of cards made.
@@ -1086,6 +1115,7 @@ impl Compiler {
             static_guard: None,
             trigger_gate: None,
             event_object: None,
+            source_entered: false,
             present: Default::default(),
             picked: Default::default(),
             shares: BTreeMap::new(),
@@ -1099,6 +1129,8 @@ impl Compiler {
             countered: BTreeMap::new(),
             face_piles: None,
             exiled_piles: false,
+            exile_piles_made: Vec::new(),
+            pile_not_chosen: BTreeMap::new(),
             piles: None,
             piles_walk: None,
             pile_shape: (0, false),
@@ -1126,6 +1158,7 @@ impl Compiler {
             hoisted: None,
             unread: Vec::new(),
             chosen_lists: Vec::new(),
+            earlier_chosen_lists: Vec::new(),
             own_choice: std::cell::RefCell::new(None),
             played: None,
             single: BTreeSet::new(),
@@ -2494,6 +2527,9 @@ fn emit_face(
         _ => Err(gap("two mechanics that need the first delayed ability")),
     });
     for (i, a) in card.abilities.iter().enumerate() {
+        // A list of what each player chose is a local of the ability that asked (Null Chamber's names).
+        let earlier: Vec<ValueKind> = std::mem::take(&mut c.chosen_lists).into_iter().map(|(kind, _)| kind).collect();
+        c.earlier_chosen_lists.extend(earlier);
         c.on_ability(i);
         let failure = c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);

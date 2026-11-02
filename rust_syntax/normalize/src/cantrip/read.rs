@@ -1343,6 +1343,46 @@ impl Compiler {
                     {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
+                    // "The greatest amount of damage dealt by a source to a permanent
+                    // or player this turn" (Impact Resonance) sums each source's
+                    // damage to each recipient; "a source you controlled dealt 5 or
+                    // more damage this turn" (Dragon Cultist) all of a source's. Each
+                    // record's subject is its source and `data[1]` its recipient.
+                    HistoryMeasure::MostFromOneSource
+                        if matched.frame.amount == Some(Carried::Data(0))
+                            && matches!(
+                                &**event,
+                                EventSpec::Damage(DamageEvent {
+                                    subject: DamageSubject::Source,
+                                    grouping: DamageGrouping::SourceRecipient,
+                                    ..
+                                })
+                            ) =>
+                    {
+                        let key = match &**event {
+                            EventSpec::Damage(DamageEvent {
+                                recipients: DamageRecipients::Any,
+                                ..
+                            }) => "0",
+                            _ => "f.data[1]",
+                        };
+                        format!("{{ let mut most: Vec<(Target, u32, i64)> = Vec::new(); for f in {hits} {{ let key: u32 = {key}; match most.iter_mut().find(|d| d.0 == f.subject && d.1 == key) {{ Some(d) => d.2 += i64::from(f.data[0]), None => most.push((f.subject, key, i64::from(f.data[0]))) }} }} most.into_iter().map(|d| d.2).max().unwrap_or(0) }}")
+                    }
+                    // "The total power of Daleks that died this turn" (Genesis of the
+                    // Daleks): each record's subject is the object that moved, read as
+                    // it last existed where it was (its last-known row, CR 608.2h).
+                    HistoryMeasure::Property(
+                        property,
+                        aggregation @ (Aggregation::Sum | Aggregation::Maximum | Aggregation::Minimum),
+                    ) if matches!(&**event, EventSpec::ZoneChange { .. }) => {
+                        let value = self.property("id", property)?.code;
+                        let each = format!("{hits}.filter_map(|f: Fired| f.subject.object()).map(|id: ObjectId| {value})");
+                        match aggregation {
+                            Aggregation::Sum => format!("{each}.sum::<i64>()"),
+                            Aggregation::Maximum => format!("{each}.max().unwrap_or(0)"),
+                            _ => format!("{each}.min().unwrap_or(0)"),
+                        }
+                    }
                     other => lane_p::history_measured(other, scope, &matched.history_test())
                         .unwrap_or_else(|| lane_p::history_measure(other, &hits)),
                 };
@@ -1529,13 +1569,20 @@ impl Compiler {
                         return Ok(lane_j::held_number("comparison with any one value".to_string(), &code));
                     }
                 };
+                // A power or toughness is read only of what has one (CR 208.3): a 0
+                // put in for the rest is a default no creature takes.
+                let each = match property {
+                    Property::Power | Property::Toughness => {
+                        let field = if matches!(property, Property::Power) { "power" } else { "toughness" };
+                        format!("filter_map(|o: ObjectId| q.chars(o).{field}).map(i64::from)")
+                    }
+                    _ => format!("map(|o: ObjectId| {})", read.code),
+                };
                 Number {
-                    code: format!(
-                        "({}).into_iter().map(|o: ObjectId| {}).{reduce}",
-                        self.objects(objects)?,
-                        read.code
-                    ),
-                    min: i64::MIN.into(),
+                    code: format!("({}).into_iter().{each}.{reduce}", self.objects(objects)?),
+                    // A sum of values never negative is never negative, and so is the
+                    // greatest or least of them, or the 0 of none.
+                    min: if read.min >= 0 { 0 } else { i64::MIN.into() },
                     max: i64::MAX.into(),
                     dynamic: true,
                 }
@@ -1841,6 +1888,14 @@ impl Compiler {
                     self.piles.clone().unwrap_or_default(),
                     c.id
                 )
+            }
+            // "The other pile" of a choice between exiled piles: the pile not
+            // chosen, not anything else in exile.
+            ObjectFilter::Not(p)
+                if matches!(&**p, ObjectFilter::InResult(r) if self.pile_not_chosen.contains_key(&r.0)) =>
+            {
+                let ObjectFilter::InResult(r) = &**p else { unreachable!() };
+                format!("{}.contains(&{})", self.pile_not_chosen[&r.0], c.id)
             }
             ObjectFilter::Not(p) => format!("!({})", self.predicate(p, c)?),
             ObjectFilter::TargetsAny(recipients) => {

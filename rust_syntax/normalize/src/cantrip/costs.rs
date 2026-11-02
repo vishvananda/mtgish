@@ -1357,6 +1357,7 @@ impl Compiler {
                 body,
             } => {
                 self.event_object = lane_j::event_object(event);
+                self.source_entered = matches!(event, EventSpec::ZoneChange { objects: ObjectFilter::SameObject(ObjectRef::Source), to: EventZone::Battlefield, .. });
                 let def = self.triggered(
                     label,
                     event,
@@ -1366,6 +1367,7 @@ impl Compiler {
                     body,
                 );
                 self.event_object = None;
+                self.source_entered = false;
                 let def = match scope {
                     Some(scope) if scope.condition.is_some() => {
                         Err(gap("conditional scope on a triggered ability"))

@@ -26,6 +26,7 @@ Each command sets up its own build environment. Run them from anywhere.
 | `card_lane.py check "Name"` | Every gate, including breaking the card. Takes minutes, so run it when the fast gates pass |
 | `card_lane.py commit "Name"` | Every gate, then exactly one commit, or no commit |
 | `card_lane.py abandon "Name" --outcome generator_bug --reason "..."` | Keeps the work as a patch, cleans the tree, records why |
+| `card_lane.py find --subtype Gamma --without Villain` | Cantrip's cards by `--type`, `--subtype`, `--keyword`, `--text`: what a scenario can put in a deck |
 | `card_lane.py tool cr.py check --show FILE` | Any tool in Cantrip's `tools/maintenance`, in the lane's environment |
 | `card_lane.py status` | The queue, and what each card cost |
 
@@ -115,9 +116,12 @@ A card that is wrong is worse than a card that is missing.
 5. **Fill in `report.json`.** Set `decision` to `done`. Give each test point its `scenario`, the file's name, and `line`, the
    line of that file holding the expectation that catches it, counted from 1: a `?`, a `!` or a line under `[Expect]`. Do the
    same for each ruling the card's own code decides, and leave the others empty. Each entry of `look_answers`
-   names the LOOK's line as `line 12`, or the other card's file for a repeated function. `equivalent_mutants` stays empty
-   unless the full gate reports a mutant that means the same thing: then add `{"mutant": "line 6: 4 to 5", "why": "..."}`, and
-   only if it truly changes nothing the rules can see. Run `check --fast` again: it passes when the report does.
+   names the LOOK's line as `line 12`, or the other card's file for a repeated function. The full gate prints each change no
+   scenario caught by the line it changes, with the printed line and test points that line answers to and the scenarios that
+   ran it: add an expectation that fails under it. `equivalent_mutants` stays empty unless no game could tell: then add
+   `{"mutant": "line 6: 4 to 5", "why": "..."}`. Before you call a change unreachable, look for the card that reaches it with
+   `find`. The lane names a sentence's end left out (`g.end_sentence()`) itself, with its reason (CR 603.8), and drops a
+   range made empty (`.choose(2, 1)`): neither is yours. Run `check --fast` again: it passes when the report does.
 6. **Finish.** Run `commit`. If it fails, fix what it names and run it again. If the brief says a driver runs the gates,
    stop after the report instead: it runs them and sends back what fails, in this same session.
 

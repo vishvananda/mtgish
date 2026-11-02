@@ -180,9 +180,17 @@ impl Compiler {
         };
         // "You may cast a spell from each opponent's graveyard": one offer for each,
         // of the cards of that graveyard.
-        if let (Count::PerPlayer { players, each }, ObjectSet::Zone { scope: ZoneScope::Players { players: owners, .. }, .. }) = (count, cards) {
-            if format!("{players:?}") != format!("{owners:?}") {
-                return Err(gap("play count PerPlayer"));
+        // "For each player, you may cast a card that player milled this way" (The
+        // Ur-Sphinx): of each player's own cards among them.
+        if let Count::PerPlayer { players, each } = count {
+            match cards {
+                ObjectSet::Zone { scope: ZoneScope::Players { players: owners, .. }, .. } => {
+                    if format!("{players:?}") != format!("{owners:?}") {
+                        return Err(gap("play count PerPlayer"));
+                    }
+                }
+                ObjectSet::Matching { objects, .. } if matches!(**objects, ObjectSet::Named(_)) => {}
+                _ => return Err(gap("play count PerPlayer")),
             }
             let id = self.fresh();
             let players = self.fetch(self.players(players)?);

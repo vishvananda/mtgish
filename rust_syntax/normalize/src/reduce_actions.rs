@@ -398,6 +398,11 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         ("PutACardFromOutsideGameInHand", [Filter(cards)]) => {
             ZoneMove::new(ObjectSet::OutsideTheGame(cards.clone()), D::OwnersHand).one()
         }
+        // "You put that card into your hand": the card an earlier instruction
+        // chose from outside the game, not a fresh choice (Extrapolate the Impossible).
+        ("PutACardFromOutsideGameInHand", [Objects(ObjectSet::Selected(chosen) | ObjectSet::Named(chosen))]) => {
+            ZoneMove::new(ObjectSet::Selected(chosen.clone()), D::OwnersHand)
+        }
         ("PutACardFromOutsideGameInHand", [_]) => {
             ZoneMove::new(ObjectSet::OutsideTheGame(any.clone()), D::OwnersHand).one()
         }

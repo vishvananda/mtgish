@@ -55,10 +55,16 @@ pub(super) fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'stati
                 SequenceEnd::Bottom => "PutOnBottom",
             },
             Operation::Move {
-                objects,
+                objects: cards,
                 destination,
                 ..
-            } if chosen(objects) => match destination {
+            }
+            | Operation::ChangeZone {
+                cards,
+                count: None,
+                destination,
+                ..
+            } if chosen(cards) => match destination {
                 Destination::OwnersHand => "PutIntoHand",
                 Destination::OwnersGraveyard => "PutIntoGraveyard",
                 Destination::Exile => "Exile",
@@ -338,6 +344,25 @@ fn returns_with_holder<'a>(result: &ResultId, rest: &'a [Instruction]) -> Option
                 },
             ..
         }) if moved.0 == result.0 => Some(holder),
+        _ => None,
+    }
+}
+
+/// The players whose becoming the monarch sends a move back, when the next thing
+/// after the move says so: "until an opponent becomes the monarch".
+fn returns_when_crowned<'a>(result: &ResultId, rest: &'a [Instruction]) -> Option<&'a PlayerSet> {
+    match rest.first() {
+        Some(Instruction::Effect {
+            operation:
+                Operation::ReturnAfter {
+                    objects: ObjectSet::Transition { result: moved, phase: ObjectPhase::After },
+                    duration: crate::ir::Duration::UntilEvent(event),
+                },
+            ..
+        }) if moved.0 == result.0 => match event.as_ref() {
+            EventSpec::Player { event: PlayerEvent::BecomesMonarch, players, objects: None } => Some(players),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -699,6 +724,61 @@ impl Compiler {
             "let objects_{id} = {objects}; let holder_{id} = t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t)).and_then(|t: Target| t.object()).filter(|&h: &ObjectId| g.state().obj(h).zone.is(ZoneKind::Battlefield)); \
              let moved_{id} = match holder_{id} {{ Some(_) => {{ let by_{id} = g.linked(item); g.exile_with(&objects_{id}, by_{id}, false) }} None => Vec::new() }}; \
              if let Some(holder) = holder_{id} {{ for &card in &moved_{id} {{ g.delayed_trigger(DelayedWhen::UntilEvent, holder, {controller}, AbilityRef::delayed({card}, {at}), Target::Object(card)); }} }}"
+        )
+        .unwrap();
+        self.moved.insert(result.0, format!("moved_{id}"));
+        self.left_behind(result, gone(&format!("objects_{id}")));
+        self.returning.insert(result.0);
+        Ok(())
+    }
+    /// The exile and the wait of "until an opponent becomes the monarch". If
+    /// one already did after the source entered, the duration is over before
+    /// the exile would begin and nothing moves (CR 610.3b).
+    fn exile_until_crowned(
+        &mut self,
+        objects: &ObjectSet,
+        players: &PlayerSet,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let (who, crowned) = match players {
+            PlayerSet::OpponentsOf(PlayerRef::AbilityController) => (
+                "q.state().opponents(asker.controller).any(|o| o == *player)",
+                "g.state().opponents(item.controller).any(|o| o == player)",
+            ),
+            PlayerSet::All => ("true", "true"),
+            _ => return Err(gap("an exile until some players become the monarch")),
+        };
+        let objects = self.fetch(self.objects(objects)?);
+        let id = self.fresh();
+        let (_, controller, card) = self.maker();
+        let words = self
+            .line_text()
+            .and_then(|line| line.split_once(", ").map(|(_, rest)| rest.to_string()))
+            .map(|rest| rest.get(..1).map_or(String::new(), str::to_uppercase) + rest.get(1..).unwrap_or(""))
+            .unwrap_or_else(|| "Exile it until an opponent becomes the monarch.".into());
+        writeln!(
+            self.functions,
+            "#[allow(unused_variables)] fn until_{id}_crowned(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{ match event {{ Event::BecameMonarch {{ player }} if {who} => Fired::PLAIN, _ => None }} }}"
+        )
+        .unwrap();
+        writeln!(
+            self.functions,
+            "fn until_{id}_return(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ if let Target::Object(card) = item.subject {{ let owner = g.obj(card).owner; g.put_onto_battlefield(card, owner, false)?; }} Ok(()) }}"
+        )
+        .unwrap();
+        self.delayed.push(format!(
+            "triggered(when_asked(EventMask::BECAME_MONARCH, until_{id}_crowned), until_{id}_return, {})",
+            quoted(&words)
+        ));
+        let at = self.delayed.len() - 1;
+        writeln!(
+            out,
+            "let objects_{id} = {objects}; \
+             let entered_{id} = g.history().all().iter().find(|r| matches!(r.event, Event::ZoneChange {{ new, to, .. }} if new == item.object && to.is(ZoneKind::Battlefield))).map(|r| r.serial); \
+             let over_{id} = entered_{id}.is_some_and(|since| g.history().all().iter().any(|r| r.serial > since && matches!(r.event, Event::BecameMonarch {{ player }} if {crowned}))); \
+             let moved_{id} = match over_{id} {{ false => {{ let by_{id} = g.linked(item); g.exile_with(&objects_{id}, by_{id}, false) }} true => Vec::new() }}; \
+             for &card in &moved_{id} {{ g.delayed_trigger(DelayedWhen::UntilEvent, item.object, {controller}, AbilityRef::delayed({card}, {at}), Target::Object(card)); }}"
         )
         .unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
@@ -1103,6 +1183,26 @@ impl Compiler {
             {
                 let holder = returns_with_holder(result, &body.instructions[i + 1..]).expect("matched");
                 self.exile_until_holder_leaves(objects, holder, result, out)
+            }
+            // "Exile target creature an opponent controls until an opponent
+            // becomes the monarch" (Palace Jailer): an "until" wait on that
+            // event, which outlives the source (CR 610.3).
+            Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        objects,
+                        destination: Destination::Exile,
+                        entry,
+                        face_down: false,
+                    },
+                result,
+            } if plain_entry(entry)
+                && self.stack_item
+                && self.source_entered
+                && returns_when_crowned(result, &body.instructions[i + 1..]).is_some() =>
+            {
+                let players = returns_when_crowned(result, &body.instructions[i + 1..]).expect("matched");
+                self.exile_until_crowned(objects, players, result, out)
             }
             Instruction::Effect {
                 operation:
@@ -1526,7 +1626,25 @@ impl Compiler {
                 players,
                 mana: ManaProduction::ColorsAmong { objects, each },
                 restriction: None,
-            } => self.colors_among(id, players, objects, *each, out)?,
+            } => self.colors_among(id, players, objects, *each, None, out)?,
+            // "Add three mana in any combination of its colors" (Omnath, Locus of
+            // All): each a color among them, chosen one at a time (CR 106.1a).
+            Operation::AddMana {
+                players,
+                mana:
+                    ManaProduction::Repeat {
+                        amount,
+                        production,
+                        choice: ManaChoiceTiming::EachUnit,
+                    },
+                restriction: None,
+            } if matches!(**production, ManaProduction::ColorsAmong { each: false, .. }) => {
+                let ManaProduction::ColorsAmong { objects, .. } = &**production else {
+                    unreachable!()
+                };
+                let times = self.fetch(self.number(amount)?.code);
+                self.colors_among(id, players, objects, false, Some(times), out)?
+            }
             Operation::AddMana {
                 players,
                 mana,
@@ -1997,6 +2115,9 @@ impl Compiler {
             }
             Operation::Reveal { objects } => {
                 self.revealed = true;
+                if self.from_outside(objects) {
+                    self.notes.outside.insert(result.0);
+                }
                 self.selections.insert(result.0, format!("objects_{id}"));
                 writeln!(out, "let objects_{id} = {}; let mut owners_{id}: Vec<PlayerId> = objects_{id}.iter().map(|o| g.state().obj(*o).owner).collect(); owners_{id}.dedup(); for owner in owners_{id} {{ let cards: Vec<ObjectId> = objects_{id}.iter().copied().filter(|o| g.state().obj(*o).owner == owner).collect(); g.reveal(owner, &cards); }}", self.fetch(self.objects(objects)?)).unwrap();
             }
@@ -2569,6 +2690,16 @@ impl Compiler {
                 self.performed.insert(result.0, format!("paid_{id}"));
                 match discard {
                     Some(n) => self.discards_paid(id, n, result, out),
+                    // "You may reveal that card ... add three mana in any combination
+                    // of its colors" (Omnath, Locus of All): what was revealed is the
+                    // card still on top.
+                    None if matches!(cost.parts.as_slice(), [CostPart::RevealTop(_)])
+                        && lane_n::read_as_objects(&self.after, result) =>
+                    {
+                        writeln!(out, "let revealed_{id}: Vec<ObjectId> = match paid_{id} {{ true => g.state().zone(Zone::library(payer_{id})).first().copied().into_iter().collect(), false => Vec::new() }};").unwrap();
+                        self.moved.insert(result.0, format!("revealed_{id}"));
+                        self.before.insert(result.0, format!("revealed_{id}.clone()"));
+                    }
                     None => self.objects_that_paid(id, result, out),
                 }
             }

@@ -1145,7 +1145,7 @@ fn group_constraint(term: &Operand) -> Option<SelectionConstraint> {
         ("SameNames", []) => C::CommonProperty(D::Names),
         ("ShareAllCardTypes", []) => C::AllSameProperty(D::CardTypes),
         ("HasAColorNotInCommon", []) => C::NoCommonProperty(D::Colors),
-        ("DifferentNames", []) => C::NoCommonProperty(D::Names),
+        ("DifferentNames", []) => C::DifferentNames,
         ("TotalPowerIs", [Operand::Comparison(comparison, amount)]) => C::TotalProperty {
             property: Property::Power,
             comparison: comparison.clone(),
@@ -2267,9 +2267,14 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             "ForEachPlayerMayCastASpellFromAmongCardsThatPlayerMilledThisWayWithoutPaying",
             [Players(players), Filter(spells), Run(result)],
         ) => cast(
-            players,
+            // "For each player, you may cast a card that player milled this way"
+            // (The Ur-Sphinx): you cast, once for each player's milled cards.
+            actor,
             matching(&ObjectSet::Named(result.clone()), spells),
-            may_one(),
+            Count::PerPlayer {
+                players: players.clone(),
+                each: Box::new(may_one()),
+            },
             None,
             free(),
         ),

@@ -834,6 +834,18 @@ impl Compiler {
                 player: PlayerRef::AbilityController,
                 object: ObjectRef::Source,
             } => "is_live(q, e.source) && q.is_on_battlefield(e.source) && q.controller(e.source) == e.controller".to_string(),
+            // "When you do, ... for as long as you control this creature" (Wall of
+            // Stolen Identity): the reflexive ability's "you" comes out as its
+            // event subject's controller, but the card says you, the player the
+            // effect is for.
+            D::WhileControlled {
+                player: PlayerRef::ControllerOf(of),
+                object: ObjectRef::Source,
+            } if matches!(**of, ObjectRef::EventSubject)
+                && self.card_prints("for as long as you control this") =>
+            {
+                "is_live(q, e.source) && q.is_on_battlefield(e.source) && q.controller(e.source) == e.controller".to_string()
+            }
             D::WhileMatches { object, filter } => {
                 let id = match object {
                     ObjectRef::Source => "e.source",
