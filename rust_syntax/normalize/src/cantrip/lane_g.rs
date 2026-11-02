@@ -2537,6 +2537,12 @@ impl Compiler {
         };
         // What Cantrip has: the card lists it as the mechanic says.
         match mechanic {
+            K::AnnihilatorX => {
+                let amount = amount.ok_or_else(|| gap(feature.clone()))?;
+                let ability = self.annihilator_x(amount, label)?;
+                parts.abilities.push(ability);
+                return Ok(());
+            }
             K::StartYourEngines => {
                 parts.field("start_your_engines", "true".into());
                 return Ok(());

@@ -81,6 +81,19 @@ impl Compiler {
                 Ability::Keyword(k) if keyword(k).is_ok() => {
                     format!("{values}.with_keyword({})", keyword(k)?)
                 }
+                // How to build a deck, Partner say (Sakashima of a Thousand Faces'
+                // "other abilities"): nothing in a game reads it, so the copy has
+                // nothing to carry, as a card printing one has no line for it.
+                Ability::DeckRule(rule)
+                    if !matches!(
+                        rule,
+                        DeckRule::Banned
+                            | DeckRule::RemoveUnlessPlayingForAnte
+                            | DeckRule::Partner(PartnerKind::With(_))
+                    ) =>
+                {
+                    values
+                }
                 ability if lane_j::granted_keyword(ability).is_some() => {
                     let keyword = lane_j::granted_keyword(ability).expect("just seen");
                     format!("{values}.with_keyword({keyword})")

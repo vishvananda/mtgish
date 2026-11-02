@@ -12,6 +12,117 @@ use crate::mtg_types::CardType;
 
 const ONE: &str = "let subject = Target::Player(*player); let data = [0u32; 2];";
 
+/// Gemstone Caverns's terms for beginning the game on the battlefield (CR 103.6a),
+/// as `OpeningHandAction` says them: a condition on the player, a counter it
+/// enters with, and "if you do, exile [n] cards from your hand".
+fn begins_with_terms(body: &Program) -> Option<(Option<&Condition>, Option<String>, i64)> {
+    let (condition, program) = match body.instructions.as_slice() {
+        [Instruction::If {
+            condition,
+            then,
+            otherwise,
+        }] if otherwise.instructions.is_empty() => (Some(condition), then),
+        _ => (None, body),
+    };
+    let [Instruction::Effect {
+        result: paid,
+        operation:
+            Operation::PayCost {
+                player: PlayerRef::AbilityController,
+                cost,
+                optional: true,
+            },
+    }, rest @ ..] = program.instructions.as_slice()
+    else {
+        return None;
+    };
+    let [CostPart::PlayerAction {
+        player: PlayerRef::AbilityController,
+        body: action,
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    let [Instruction::Effect {
+        operation:
+            Operation::BeginOnBattlefield {
+                actor: PlayerSet::One(PlayerRef::AbilityController),
+                flags,
+            },
+        ..
+    }] = action.instructions.as_slice()
+    else {
+        return None;
+    };
+    let Operand::List(flags) = &**flags else {
+        return None;
+    };
+    let counter = match flags.as_slice() {
+        [] => None,
+        [Operand::Term { form, operands, .. }] if form == "EntersWithACounter" => {
+            let [Operand::Vocabulary { form: word, .. }] = operands.as_slice() else {
+                return None;
+            };
+            let kind = word.strip_suffix("Counter").unwrap_or(word);
+            if !crate::cantrip_vocab::COUNTERS.contains(&kind) {
+                return None;
+            }
+            Some(kind.to_string())
+        }
+        _ => return None,
+    };
+    let exiled = match rest {
+        [] => 0,
+        [Instruction::If {
+            condition: Condition::PaymentChosen(chosen),
+            then,
+            otherwise,
+        }] if chosen.0 == paid.0 && otherwise.instructions.is_empty() => {
+            let steps = match then.instructions.as_slice() {
+                [Instruction::Group(group)] => group.instructions.as_slice(),
+                steps => steps,
+            };
+            let [Instruction::Effect {
+                result: picked,
+                operation:
+                    Operation::ChooseObjects {
+                        player: PlayerRef::AbilityController,
+                        objects:
+                            ObjectSet::Zone {
+                                scope:
+                                    ZoneScope::Players {
+                                        zone: EventZone::Hand,
+                                        players: PlayerSet::One(PlayerRef::AbilityController),
+                                    },
+                                filter: ObjectFilter::Any,
+                                ..
+                            },
+                        count: Count::AsManyAsCan(Expr::Constant(n)),
+                        constraints,
+                    },
+            }, Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        objects: ObjectSet::Selected(moved),
+                        destination: Destination::Exile,
+                        face_down: false,
+                        ..
+                    },
+                ..
+            }] = steps
+            else {
+                return None;
+            };
+            if moved.0 != picked.0 || !constraints.is_empty() || !(1..=7).contains(n) {
+                return None;
+            }
+            *n
+        }
+        _ => return None,
+    };
+    Some((condition, counter, exiled))
+}
+
 /// Frames of the rows below.
 fn plain() -> Frame {
     Frame {
@@ -4035,6 +4146,20 @@ impl Compiler {
                 );
                 return Ok(());
             }
+        }
+        if let Some((condition, counter, exiled)) = begins_with_terms(body) {
+            let condition = match condition {
+                Some(condition) => {
+                    self.condition_function(condition, &format!("{label}_may_begin"))?
+                }
+                None => "|_, _| true".into(),
+            };
+            let counter = counter.map_or("None".into(), |kind| format!("Some((CounterKind::{kind}, 1))"));
+            parts.field(
+                "opening_hand",
+                format!("Some(OpeningHandAction {{ condition: {condition}, counter: {counter}, exile_from_hand: {exiled} }})"),
+            );
+            return Ok(());
         }
         if format!("{body:?}").contains("BeginOnBattlefield") {
             return Err(gap("beginning the game on the battlefield with terms"));

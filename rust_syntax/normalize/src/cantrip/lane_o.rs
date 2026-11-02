@@ -3336,6 +3336,17 @@ impl Compiler {
             Err(failed) => failed,
         };
         let code = match quality {
+            // "Has hexproof from each of its colors" (Tam, Mindful First-Year): the
+            // colors the creature has once layer 5 is done (CR 613.1), read as the
+            // ability layer applies to it.
+            Protection::Objects {
+                kind: ObjectKind::Any,
+                filter: ObjectFilter::SharesColorWith(ObjectRef::Source),
+            } if self.reader == Reader::Layer
+                && self.lines_said().iter().any(|line| line.contains("hexproof from each of its colors")) =>
+            {
+                return Ok("HexproofFrom(chars.colors.0 as u32)".to_string());
+            }
             // "Hexproof from that color": the color this ability just chose.
             Protection::Objects { filter, .. } => {
                 let over = self.over(filter, "id")?;
