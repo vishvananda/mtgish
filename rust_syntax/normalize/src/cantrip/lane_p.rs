@@ -280,7 +280,12 @@ pub(super) fn only_their_own(objects: &ObjectSet) -> bool {
             _ => false,
         }
     }
-    matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter))
+    match objects {
+        // "Each player exiles the top card of their library" (Rocco, Street Chef).
+        ObjectSet::Zone { scope, .. } if theirs(&ObjectFilter::InZone(scope.clone())) => true,
+        ObjectSet::Take { objects, .. } => only_their_own(objects),
+        _ => matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter)),
+    }
 }
 
 /// "(Artifact, battle, creature, enchantment, instant, kindred, land, planeswalker,

@@ -557,6 +557,37 @@ impl Compiler {
             {
                 return Part::Walk;
             }
+            // "Each opponent exiles a card from their hand or a permanent they
+            // control": each picks an action, then they all happen at once (CR
+            // 101.4). Exiles of either kind would be one exile of all picked; a
+            // discard beside a sacrifice is two kinds of event no one call makes.
+            if let Instruction::ChooseOne { options, .. } = instruction {
+                let exiles = |option: &Program| {
+                    let steps: Vec<&Instruction> = option
+                        .instructions
+                        .iter()
+                        .flat_map(|i| match i {
+                            Instruction::Group(group) => group.instructions.iter().collect(),
+                            other => vec![other],
+                        })
+                        .collect();
+                    steps.iter().any(|i| {
+                        matches!(i, Instruction::Effect { operation: Operation::Move { destination: Destination::Exile, .. }, .. })
+                    }) && steps.iter().all(|i| match i {
+                        Instruction::Effect { operation: Operation::Move { destination, .. }, .. } => {
+                            matches!(destination, Destination::Exile)
+                        }
+                        Instruction::Effect { operation: Operation::ChooseObjects { .. }, .. } => true,
+                        _ => false,
+                    })
+                };
+                if !walks_whole(instruction) {
+                    return Part::Unbatched(match options.iter().all(exiles) {
+                        true => "per-player choice of what to exile, exiled together".into(),
+                        false => "per-player choice among different actions, done at once".into(),
+                    });
+                }
+            }
             return match walks_whole(instruction) {
                 true => Part::Walk,
                 false => Part::Unbatched("per-player instruction with several steps".into()),
