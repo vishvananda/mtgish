@@ -3672,7 +3672,7 @@ impl Compiler {
                 self.plan_code(
                     "event change as it enters Entry CountersOfChoice",
                     &format!(
-                        "let many = {}; for _ in 0..many {{ cantrip_mechanics::choose::counter_as_enters(g, entering, &[{kinds}])?; }}",
+                        "let many = {}; for _ in 0..many {{ cantrip_mechanics::choose::counter_as_enters(g, &mut *entering, &[{kinds}])?; }}",
                         self.fetch(amount)
                     ),
                     out,

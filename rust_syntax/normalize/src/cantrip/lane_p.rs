@@ -3960,7 +3960,7 @@ impl Compiler {
                 let from = self.fetch(self.number(from)?.code);
                 let to = self.fetch(self.number(to)?.code);
                 let action = self.state_operation(feature, action)?;
-                format!("for number in {from}..={to} {{ {action}; }}")
+                format!("for number in ({from})..=({to}) {{ {action}; }}")
             }
             Operation::EachObject { objects, action } => {
                 let objects = self.fetch(self.objects(objects)?);

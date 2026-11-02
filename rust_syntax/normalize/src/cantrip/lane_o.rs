@@ -3300,11 +3300,14 @@ impl Compiler {
                 self.pick_from(hosts)?
             ),
             P::EnergyOneOrMore => "Cost::energy_one_or_more()".into(),
-            P::EachPlayerAction { players, action } => format!(
-                "Cost::each_player(|q: &dyn Query, asker: &Asker| {}, {})",
-                self.players(players)?,
-                self.stated(action)?
-            ),
+            // The action is data of the cost a table holds.
+            P::EachPlayerAction { players, action } => {
+                let players = self.players(players)?;
+                let tabled = std::mem::replace(&mut self.tabled, true);
+                let action = self.stated(action);
+                self.tabled = tabled;
+                format!("Cost::each_player(|q: &dyn Query, asker: &Asker| {players}, {})", action?)
+            }
             // Cantrip has no ante zone (Jeweled Bird), and `Game::attach` takes an
             // object for the host: nothing attaches an Aura to a player (Lynde).
             P::ObjectAction { action: CostObjectAction::Ante, .. } => {
