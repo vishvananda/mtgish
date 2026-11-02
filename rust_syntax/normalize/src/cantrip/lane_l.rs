@@ -934,7 +934,7 @@ impl Compiler {
             planned.push(("modes chosen at random", ".at_random()".to_string()));
         }
         if let Some(budget) = &selection.budget {
-            let budget = self.number(budget)?.amount(u32::MAX.into(), "u32")?;
+            let budget = self.number(budget)?.constant(u32::MAX.into(), "u32")?;
             let weights: Vec<String> = selection
                 .modes
                 .iter()

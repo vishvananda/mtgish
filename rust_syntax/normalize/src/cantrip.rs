@@ -456,6 +456,14 @@ impl Number {
             Err(gap(format!("numeric range for {kind}")))
         }
     }
+    /// `amount`, but a fixed number written as its literal, for a static's
+    /// table, where `max` is not callable.
+    fn constant(&self, max: i128, kind: &str) -> Result<String> {
+        match (self.dynamic, self.min == self.max) {
+            (false, true) if (0..=max).contains(&self.min) => Ok(self.min.to_string()),
+            _ => self.amount(max, kind),
+        }
+    }
 }
 #[derive(Clone)]
 struct Compiler {
@@ -1513,7 +1521,7 @@ impl Compiler {
                 // Cantrip divides only among a first slot's targets.
                 let total = self
                     .number(total)
-                    .and_then(|n| n.amount(u32::MAX.into(), "u32"))
+                    .and_then(|n| n.constant(u32::MAX.into(), "u32"))
                     .map_err(|e| e.at(&at))?;
                 self.dividing = Some(planned::planned_value(
                     "target with a divided amount",
