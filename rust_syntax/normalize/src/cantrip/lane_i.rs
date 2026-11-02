@@ -2927,7 +2927,7 @@ impl Compiler {
                     "move arrival AttachedToPlayer",
                     "None::<ObjectId>",
                     // `?` asks the player as the resolution does, outside a closure.
-                    &format!("match {player} {{ Some(player) => g.put_onto_battlefield_enchanting(o, controller, player)?, None => None }}"),
+                    &format!("match {player} {{ Some(player) => g.put_onto_battlefield_enchanting(o, controller, player)?, None => None::<ObjectId> }}"),
                 );
                 format!("moved.extend({call});")
             }

@@ -1473,7 +1473,13 @@ impl Compiler {
                     Some(until) => format!("Some({})", self.duration(until)?),
                     None => "None".to_string(),
                 };
-                self.plan_code(&feature, &format!("{M}::exchange::exchange(g, asker.source, Exchange::{kind:?}, {first}, {second}, {until})"), out);
+                // The zones exchanged are `ZoneKind`s.
+                let kind = format!("{kind:?}");
+                let kind = match kind.strip_prefix("Zones(").and_then(|k| k.strip_suffix(')')).and_then(|k| k.split_once(", ")) {
+                    Some((a, b)) => format!("Zones(ZoneKind::{a}, ZoneKind::{b})"),
+                    None => kind,
+                };
+                self.plan_code(&feature, &format!("{M}::exchange::exchange(g, asker.source, Exchange::{kind}, {first}, {second}, {until})"), out);
             }
             Operation::CopyOnStack {
                 actor,

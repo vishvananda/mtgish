@@ -4743,13 +4743,9 @@ impl Compiler {
                     mode: ChangeMode::Add,
                     colors,
                 } => {
-                    let colors = colors
-                        .iter()
-                        .map(|c| format!("Color::{c:?}"))
-                        .collect::<Vec<_>>()
-                        .join(", ");
+                    // A set of colors is its bits, as `ColorSet::of` makes one's.
                     colored = true;
-                    fields.push(format!("adds_colors: ColorSet::of(&[{colors}])"));
+                    fields.push(format!("adds_colors: ColorSet({})", color_mask(colors)?));
                 }
                 other => return Err(gap(format!("several objects arriving as {}", form(other)))),
             }

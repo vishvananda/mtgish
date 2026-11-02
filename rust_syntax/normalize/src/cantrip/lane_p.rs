@@ -1997,9 +1997,16 @@ impl Compiler {
             } => held(
                 &feature,
                 &format!(
-                    "{}.is_some_and(|o: ObjectId| q.targets_of(o).into_iter().all(|id: ObjectId| ObjectKind::{}.is(q, id) && {}))",
+                    "{}.is_some_and(|o: ObjectId| q.targets_of(o).into_iter().all(|id: ObjectId| {} && {}))",
                     self.object(object)?,
-                    form(kind),
+                    // What kind of object a target is, by where it is (CR 110.1,
+                    // 112.1): a permanent on the battlefield, a spell on the stack.
+                    match kind {
+                        ObjectKind::Any => "true".to_string(),
+                        ObjectKind::Permanent => "q.state().obj(id).zone.kind() == ZoneKind::Battlefield".to_string(),
+                        ObjectKind::Spell => "q.state().obj(id).zone.kind() == ZoneKind::Stack".to_string(),
+                        other => format!("ObjectKind::{}.is(q, id)", form(other)),
+                    },
                     self.filter(filter, &Candidate::of("id"))?
                 ),
             ),
@@ -3603,10 +3610,15 @@ impl Compiler {
                 Some(vec![
                     (
                         "gift",
-                        format!(
-                            "Some(GiftDef {{ kind: Gift::Custom, give: &[{}] }})",
-                            gifts.join(", ")
-                        ),
+                        // `GiftDef::give` is one function; a gift of several
+                        // things is a list of them.
+                        match gifts.as_slice() {
+                            [one] => format!("Some(GiftDef {{ kind: Gift::Custom, give: {one} }})"),
+                            _ => format!(
+                                "Some(GiftDef {{ kind: Gift::Custom, give: &[{}] }})",
+                                gifts.join(", ")
+                            ),
+                        },
                     ),
                     (
                         "spell",

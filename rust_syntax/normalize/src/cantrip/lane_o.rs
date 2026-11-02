@@ -2926,6 +2926,9 @@ impl Compiler {
 
     fn count_code(&self, count: &Count) -> Result<String> {
         Ok(match count {
+            // "Exile X cards" of a cost a table holds: the X announced as the
+            // cost is paid (CR 601.2b), which no number there can be yet.
+            Count::Exactly(Expr::AnnouncedX) if self.stating_cost => "Count::AnnouncedX".into(),
             Count::Exactly(n) | Count::UpTo(n) | Count::AtLeast(n) | Count::AsManyAsCan(n) => {
                 format!("Count::{}({})", form(count), self.counted(n)?)
             }
