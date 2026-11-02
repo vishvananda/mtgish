@@ -74,9 +74,10 @@ const CARDS: &[(&str, &str)] = &[
     ("Hammerheim", "losing ability AnyLandwalk"),
     // An event-fired delayed ability keeps no list: this read would be empty.
     ("Searing Blood", "engine: a delayed ability on an event keeps no list"),
+    // The creature enters with the Aura attached, so its enchant ability names it.
     (
         "Necromancy",
-        "an Aura that enchants what it put onto the battlefield",
+        "g.put_onto_battlefield_with_aura(o, player_1, asker.source)",
     ),
     ("Headliner Scarlett", "a card a player may look at for a while"),
     ("Bane Alley Broker", "cards a player may look at"),
