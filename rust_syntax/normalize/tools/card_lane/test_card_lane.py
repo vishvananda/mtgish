@@ -148,6 +148,15 @@ class Keywords(unittest.TestCase):
     def test_a_keyword_already_there_is_not_added_twice(self):
         self.assertEqual(self.repaired({"oracleText": "First strike; banding", "keywords": ["FirstStrike"]}), ["FirstStrike", "Banding"])
 
+    def test_a_level_s_keyword_is_not_the_card_s(self):
+        escort = "Level up {2} ({2}: Put a level counter on this. Level up only as a sorcery.)\nLEVEL 1-4\n2/2\nLEVEL 5+\n5/5\nFirst strike"
+        self.assertIsNone(self.repaired({"oracleText": escort, "keywords": ["FirstStrike"]}))
+        self.assertIsNone(self.repaired({"oracleText": "Station\n8+ | Trample", "keywords": ["Trample"]}))
+
+    def test_a_keyword_printed_outside_every_stage_stays(self):
+        self.assertEqual(self.repaired({"oracleText": "Trample\nLEVEL 2+\n3/3\nTrample, first strike", "keywords": ["Trample", "FirstStrike"]}),
+                         ["Trample"])
+
     def test_a_sentence_with_a_semicolon_is_no_keyword_line(self):
         self.assertIsNone(self.repaired({"oracleText": "Choose one; trample."}))
 
@@ -361,6 +370,20 @@ class ShadowTree(unittest.TestCase):
                 "None": (0, "14108 scenarios: 0 pass, 0 fail, 0 known bugs, 0 need cards the engine does not have.")}
         with mock.patch.object(lane.Shadow, "build", return_value=(0, "")), mock.patch.object(lane, "shell", side_effect=lambda *a, **k: said[a[2]]):
             self.assertEqual(bench.ready(list(said)), ["Good"])
+
+    def test_a_broken_card_may_take_ten_times_its_own_scenarios(self):
+        bench = lane.Shadow.__new__(lane.Shadow)
+        bench.target, bench.tree = Path("/t"), Path("/t")
+        clock = iter([0.0, 12.0, 100.0, 101.0])
+        passed = (0, "3 scenarios: 3 pass, 0 fail, 0 known bugs, 0 need cards the engine does not have.")
+        with mock.patch.object(lane.Shadow, "build", return_value=(0, "")), mock.patch.object(lane, "shell", return_value=passed), \
+                mock.patch.object(lane.time, "time", side_effect=lambda: next(clock)), \
+                mock.patch.object(lane.multiprocessing.pool, "ThreadPool", lambda n: mock.MagicMock(__enter__=lambda s: mock.Mock(map=map))):
+            bench.ready(["Slow", "Quick"])
+        self.assertEqual(bench.limits, {"Slow": 120.0, "Quick": 30})
+        with mock.patch.object(lane, "corpus_verdict") as verdict:
+            bench.play("Slow")
+        self.assertEqual(verdict.call_args.args[3], 120.0)
 
 
 class DeckNames(unittest.TestCase):
@@ -1137,6 +1160,23 @@ class SeveralFaces(unittest.TestCase):
         meld = {"name": "Garrison", "layout": "meld", "faces": [{"name": "Garrison", "mana_cost": "{2}{R}", "type_line": "Creature", "oracle_text": "x"}]}
         self.assertEqual(lane.drafted_content(meld, face)["name"], "Garrison")
         self.assertIsNone(lane.drafted_content(dict(claim, layout="transform"), face))  # new-card.py writes those
+
+
+class Levels(unittest.TestCase):
+    ESCORT = "Level up {2} ({2}: Put a level counter on this. Level up only as a sorcery.)\nLEVEL 1-4\n2/2\nLEVEL 5+\n5/5\nFirst strike"
+
+    def problems(self, said):
+        source = f'/// "{said}" (CR 711.2a).\nstatic_ability(Layer::PtSet, itself, base_pt::<2, 2>, "{said}")\n'
+        with mock.patch.object(lane, "card_text", lambda name: self.ESCORT):
+            return [p for p in lane.style_problems("Caravan Escort", source) if "ability text" in p]
+
+    def test_a_level_s_line_is_said_with_its_level(self):
+        self.assertEqual(self.problems("LEVEL 1-4: 2/2"), [])
+        self.assertEqual(self.problems("LEVEL 5+: First strike"), [])
+
+    def test_a_level_is_not_said_with_words_it_does_not_print(self):
+        self.assertTrue(self.problems("LEVEL 6+: First strike"))
+        self.assertTrue(self.problems("LEVEL 1-4: Flying"))
 
 
 if __name__ == "__main__":

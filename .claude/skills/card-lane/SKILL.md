@@ -156,6 +156,11 @@ A scenario that never reaches a face leaves that face's lines unrun, and the cov
   right but the engine plays the rules wrongly, the decision is `engine_gap`. If a tool is broken or the tree is not what the
   brief describes, it is `needs_review`. Write the report, then run `abandon` with that outcome. Do this early. These outcomes
   are normal and cost the project little; a false pass costs it a lot.
+- A stop needs a game state, and a failing scenario where one can be written; "triggers could see the wrong state" is not one.
+  Before a `generator_bug`, compare a card Cantrip has by hand with the same words (`find-cards.py`). Code that does what
+  Cantrip's own card does is right: "each player loses 2 life" done player by player in one resolution is one event as far as
+  the rules can tell (CR 603.3, 704.3). If a scenario shows Cantrip's own way wrong too, the fault is in the shared code or the
+  engine, and the stop is `engine_gap`, naming both.
 - Never weaken a scenario to pass. Never assert what you know is wrong. No `# Known bug` scenarios in this lane.
 - No `git commit`, no `git add`, no `git push`, no `gh`, and no network. `commit` makes the commit. Do not write
   `Co-Authored-By` anywhere.

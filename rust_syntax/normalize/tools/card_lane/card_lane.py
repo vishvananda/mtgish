@@ -541,10 +541,27 @@ def core_keywords():
     return {re.sub(r"(?<!^)(?=[A-Z])", " ", n).lower(): n for n in names}
 
 
+def staged_lines(oracle_text):
+    """A card's printed lines, each with whether it is a counter stage's: under "LEVEL 2-6" (CR 711.2a), or after "12+ |"
+    (CR 721.2a), its stage printed on the line."""
+    out, staged = [], False
+    for line in printed_lines(oracle_text):
+        if re.fullmatch(r"LEVEL \d+(?:-\d+|\+)", line):
+            staged = True
+            continue
+        inline = re.match(r"\d+(?:-\d+|\+) \| (.*)", line)
+        out.append((inline[1] if inline else line, staged or bool(inline)))
+    return out
+
+
 def repair_keywords(name):
     """new-card.py reads a keyword line split by commas. Oracle splits it by semicolons where a keyword in it takes
     something ("Trample; banding", CR 702.1), and those keywords were lost: the card played as a vanilla creature, and with no
-    code to break no gate could tell. A keyword line ends in no period."""
+    code to break no gate could tell. A keyword line ends in no period.
+
+    It also takes a keyword printed under a level's "LEVEL 5+" for the card's: Caravan Escort had first strike at level 0. A
+    stage's keywords are the stage's, which its file gives by a static ability (CR 711.2a, 721.2a); no content file of Cantrip's
+    own levelers or Spacecraft lists one (Hexdrinker), and the content keeps only those printed outside every stage."""
     path = content_file(name)
     card = json.loads(path.read_text(encoding="utf-8-sig"))
     core, changed = core_keywords(), False
@@ -554,7 +571,17 @@ def repair_keywords(name):
                  for part in line.split(";") if part.strip().lower() in core]
         missing = [k for k in dict.fromkeys(found) if k not in have]
         if missing:
-            face["keywords"], changed = have + missing, True
+            have, changed = have + missing, True
+        lines = staged_lines(face.get("oracleText", ""))
+        words = lambda staged: {core[part.strip().lower()] for line, at in lines if at == staged and not line.endswith(".")
+                                for part in re.split(r"[,;] ", line) if part.strip().lower() in core}
+        only_staged = words(True) - words(False)
+        if any(k in only_staged for k in have):
+            have, changed = [k for k in have if k not in only_staged], True
+        if have != list(face.get("keywords") or []):
+            face["keywords"] = have
+            if not have:
+                del face["keywords"]
     if changed:
         path.write_text(json.dumps(card, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
 
@@ -877,6 +904,10 @@ def style_problems(name, source):
     def printed(text):
         """Whether these words are on the card. Oracle's reminder text counts: `Station (...)` is printed."""
         words = plain(re.sub(r"\\u\{([0-9a-fA-F]+)\}", lambda m: chr(int(m[1], 16)), text.replace('\\"', '"'))).lower()
+        # A level's line said with its level, as Hexdrinker's "LEVEL 3-7: 4/4": each part is printed, on lines of their own.
+        level = re.fullmatch(r"(level \d+(?:-\d+|\+)): (.+)", words)
+        if level:
+            return level[1] in oracle and level[2].rstrip(".,;") in oracle
         return words.rstrip(".,;") in oracle
 
     problems = [] if re.search(r"^\s*///", source, re.M) else ["no doc comment quotes the Oracle text and cites the CR"]
@@ -2043,9 +2074,15 @@ if the card is right and the engine plays the rules wrongly, `engine_gap`; if a 
 results and cost little. Do not work around them.
 
 A stop must say the game state in which the card does the wrong thing, and a scenario must show it if one can. That you have no
-scenario for something yet is not a gap: write one. That code looks unusual is not a bug: `cast.from == ZoneKind::Hand` with the
-caster as owner is what "your hand" means, since a spell can be cast from another player's hand. A card in a lane has been
-compiled and its shape checked, so most cards are right."""
+scenario for something yet is not a gap: write one. A stop that says only what could go wrong ("triggers could see the wrong
+state"), with no scenario that fails, is not a stop: write the scenario, and if it passes the card is right. That code looks
+unusual is not a bug: `cast.from == ZoneKind::Hand` with the caster as owner is what "your hand" means, since a spell can be cast
+from another player's hand. "Each player loses 2 life" done player by player in one resolution is one event as far as the rules
+can tell: nothing is checked or put on the stack until the spell or ability has resolved (CR 603.3, 704.3), and that is how
+Cantrip's own cards do it. Before a `generator_bug`, find a card Cantrip has by hand with the same words (the lane's `tool
+find-cards.py`): code that does what Cantrip's own card does is right, and if a scenario shows both wrong, the fault is in the
+shared code or the engine they use, so the stop is `engine_gap`, naming the shared call and the Cantrip card. A card in a lane
+has been compiled and its shape checked, so most cards are right."""
 
 
 WAYS = {
@@ -2288,11 +2325,11 @@ def coverage_gates(names, gates, contexts):
     return [n for n in names if gates[n].ok]
 
 
-def corpus_verdict(name, corpus=None, cwd=None):
+def corpus_verdict(name, corpus=None, cwd=None, timeout=300):
     """The card's scenarios on the built corpus: (exit status, the first scenario that failed, or None). A change that makes
     the game run on is caught, by nothing that can be named."""
     try:
-        code, out = shell(corpus or TARGET / "cards" / "corpus", "--card", name, "--brief", timeout=300, cwd=cwd or CANTRIP)
+        code, out = shell(corpus or TARGET / "cards" / "corpus", "--card", name, "--brief", timeout=timeout, cwd=cwd or CANTRIP)
     except subprocess.TimeoutExpired:
         return 1, None
     failed = re.search(r"^\s*FAIL (\S+)", out, re.M)
@@ -2506,7 +2543,7 @@ class Shadow(Bench):
                      env=dict(environment(), CARGO_TARGET_DIR=str(self.target)))
 
     def play(self, name):
-        return corpus_verdict(name, self.target / "cards" / "corpus", self.tree)
+        return corpus_verdict(name, self.target / "cards" / "corpus", self.tree, getattr(self, "limits", {}).get(name, 300))
 
     def finish(self, builds):
         pass
@@ -2518,9 +2555,15 @@ class Shadow(Bench):
         if code != 0:
             print(f"   shadow build failed: {out[-300:]}", flush=True)
             return []
+        self.limits = {}  # seconds a broken card's scenarios may take, by card
 
         def whole(name):
+            started = time.time()
             code, out = shell(self.target / "cards" / "corpus", "--card", name, "--brief", cwd=self.tree, timeout=300)
+            # A change that makes the game run on is caught when it takes ten times what the card's own scenarios do: a
+            # Case's storm copies ran each such change to the five minutes, past what a worker waits (Case of the Shifting
+            # Visage).
+            self.limits[name] = min(300, max(30, 10 * (time.time() - started)))
             return code == 0 and re.search(r"[1-9]\d* pass\b", out) and re.search(r"\b0 need cards", out)
         with multiprocessing.pool.ThreadPool(16) as pool:
             return [name for name, good in zip(names, pool.map(whole, names)) if good]
