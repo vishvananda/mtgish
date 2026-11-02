@@ -1375,6 +1375,10 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let id = self.fresh();
+        if matches!(op, Operation::Move { .. } | Operation::ChangeZone { .. }) {
+            let words = format!("{op:?}");
+            self.exiled_piles |= words.contains("ExilePile") || words.contains("FaceUpPile") || words.contains("FaceDownPile");
+        }
         match op {
             Operation::PayCost {
                 player: PlayerRef::FirstWilling(players),

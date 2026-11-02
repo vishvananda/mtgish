@@ -573,6 +573,9 @@ struct Compiler {
     countered: BTreeMap<u16, String>,
     /// The instruction that separated a face-down pile and a face-up pile.
     face_piles: Option<usize>,
+    /// An instruction exiled cards into piles ("in a face-down pile"), which
+    /// a later choice of "those piles" reads.
+    exiled_piles: bool,
     /// The piles players separated (CR 700.3): the local of their rows, each a
     /// separator, its piles, the pile chosen and who may choose it.
     piles: Option<String>,
@@ -1048,6 +1051,7 @@ impl Compiler {
             notes: Default::default(),
             countered: BTreeMap::new(),
             face_piles: None,
+            exiled_piles: false,
             piles: None,
             piles_walk: None,
             pile_shape: (0, false),
