@@ -58,7 +58,7 @@ card", with `model: sonnet` or whichever you want. Another tool can be pointed a
 `next`, `check` and `commit` steps.
 
 ```sh
-python3 $L run --backend codex --model gpt-6-luna --effort max --limit 10
+python3 $L run --backend codex --model gpt-6.1-terra --effort medium --limit 10
 python3 $L status
 ```
 
@@ -102,9 +102,20 @@ then plays everything at once and sends back what failed, for every card togethe
 and leaves the batch.
 
 ```sh
-python3 $L batch-run --size 10 --limit 20 --way draft --backend codex --model gpt-6-luna --effort max
+python3 $L batch-run --size 10 --limit 20 --way work --backend codex --model gpt-6.1-terra --effort medium
 python3 $L batch-check --fast
 ```
+
+Which worker: the same 20 cards, two batches of ten, `--way work`, on 2 November 2026.
+
+| Worker | Landed | Minutes | API-equivalent $ | $ a card landed |
+| --- | --- | --- | --- | --- |
+| `gpt-6.1-terra`, medium | 19 | 42 | 1.88 | 0.10 |
+| `gpt-6-luna`, max | 15 | 139 | 1.27 | 0.08 |
+
+Terra lands more and takes a third of the time for about the same price a card, so it is the default. Luna finished each batch
+in one round and set aside what it could not settle; Terra used its repair rounds. The card Terra left (Goblin Shrine) is a
+closing brace no game runs, a generator matter.
 
 | Option | Default | Meaning |
 | --- | --- | --- |

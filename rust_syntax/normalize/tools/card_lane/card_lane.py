@@ -20,7 +20,7 @@ What sets it up, and what runs it unattended:
 
     card_lane.py setup                                   the worktree, the generator, the tools; safe to run again
     card_lane.py queue [--format pioneer]                the cards with no gap, the format's list first
-    card_lane.py run --backend codex --model gpt-6-luna  a loop that starts a worker per card
+    card_lane.py run --backend codex --model gpt-6.1-terra  a loop that starts a worker per card
 
 Nothing above `run` knows about models. `run` starts a worker and then calls the same steps, and `check` decides, never
 a worker's report. A subagent or an interactive session needs only the skill, at .claude/skills/card-lane/SKILL.md.
@@ -1209,7 +1209,7 @@ class Codex:
     cumulative = True
 
     def __init__(self, model, effort):
-        self.model, self.effort = model or "gpt-6-luna", effort or "max"
+        self.model, self.effort = model or "gpt-6.1-terra", effort or "medium"
 
     def command(self, card, session):
         env = environment()
@@ -2371,8 +2371,8 @@ def main():
     p.set_defaults(func=cmd_tool)
     p = sub.add_parser("run")
     p.add_argument("--backend", choices=BACKENDS, default="codex")
-    p.add_argument("--model", help="gpt-6-luna for codex, sonnet for claude, unless named")
-    p.add_argument("--effort", help="max for codex, unless named")
+    p.add_argument("--model", help="gpt-6.1-terra for codex, sonnet for claude, unless named")
+    p.add_argument("--effort", help="medium for codex, unless named")
     p.add_argument("--command", help="with --backend command: the command line; `{session}` is the session on a repair")
     p.add_argument("--limit", type=int, default=10)
     p.add_argument("--only", nargs="*", default=[], help="only these cards")
