@@ -344,14 +344,38 @@ pub(super) fn cast_pays(card: &Card) -> Vec<&'static str> {
 }
 
 /// An instant or sorcery with one spell ability and one instruction in it that deals
-/// damage, and no other ability of its own: its object deals no other damage.
+/// damage, and no other ability that deals damage: its object deals no other damage
+/// (Demonfire's hellbent rule deals none).
 pub(super) fn damages_once(card: &Card) -> bool {
     use crate::mtg_types::CardType as T;
     let types = &card.characteristics.card_types;
     let words = format!("{:?}", card.abilities);
+    // The most damage instructions one resolution can do: of an "if", the branch
+    // it takes (Demonfire's hellbent damage or its other).
+    fn most(program: &Program) -> usize {
+        program
+            .instructions
+            .iter()
+            .map(|i| match i {
+                Instruction::If { then, otherwise, .. } => most(then).max(most(otherwise)),
+                Instruction::Group(inner) => most(inner),
+                other => format!("{other:?}").matches("DealDamage").count(),
+            })
+            .sum()
+    }
+    let spells: Vec<&Program> = card
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
+            Ability::Spell { body, .. } => Some(body),
+            _ => None,
+        })
+        .collect();
     types.iter().any(|t| matches!(t, T::Instant | T::Sorcery))
-        && matches!(card.abilities.as_slice(), [Ability::Spell { .. }])
-        && words.matches("DealDamage").count() == 1
+        && matches!(spells.as_slice(), [body] if most(body) == 1)
+        && card.abilities.iter().all(|a| {
+            matches!(a, Ability::Spell { .. }) || !format!("{a:?}").contains("Damage")
+        })
         && !words.contains("Fight")
 }
 
@@ -1524,6 +1548,38 @@ impl Compiler {
                         form(scope),
                         test(spells, "spell")?
                     ),
+                )
+            }
+            // "Each land of the first chosen type": the choices this body made, in
+            // the order it made them.
+            ObjectFilter::NthChosen(index) if self.nth_chosen_local(*index).is_some() => {
+                let (kind, value) = self.nth_chosen_local(*index).expect("just seen");
+                let test = match kind {
+                    ValueKind::Color => format!("{chars}.colors.has(chosen)"),
+                    ValueKind::CreatureType
+                    | ValueKind::BasicLandType
+                    | ValueKind::LandType
+                    | ValueKind::NonbasicLandType
+                    | ValueKind::PlaneswalkerType => format!("{chars}.has_subtype(chosen)"),
+                    ValueKind::CardType | ValueKind::PermanentType => format!("{chars}.is(chosen)"),
+                    other => return Err(gap(format!("object filter NthChosen {other:?}"))),
+                };
+                format!("{value}.is_some_and(|chosen| {test})")
+            }
+            // The choices are themselves a hole (several values chosen in order, Rite
+            // of Ruin's order, Illusionary Terrain's two types): which one is first
+            // is known once they are made.
+            ObjectFilter::NthChosen(index)
+                if self.gaps.iter().any(|g| {
+                    g.feature == "a choice of several values"
+                        || g.feature.starts_with("operation ChooseValueWith")
+                        || g.feature.starts_with("a choice of two ")
+                }) || self.functions.contains("planned_value!(\"a choice of several values\"") =>
+            {
+                planned::planned_value(
+                    FOLLOWS_GAP,
+                    "false",
+                    &format!("q.nth_chosen_value(asker, {index}).matches({id})"),
                 )
             }
             ObjectFilter::NthChosen(index) => held(

@@ -224,9 +224,12 @@ impl Compiler {
             S::CouldntAttack => {
                 unrecorded("CouldntAttack", format!("!q.could_have_attacked({id})"))
             }
-            S::SnowManaOfOwnColorSpent => unrecorded(
-                "SnowManaOfOwnColorSpent",
-                format!("q.state().obj({id}).snow_spent.any_of({chars}.colors)"),
+            // "If {S} of any of that spell's colors was spent to cast it": mana from
+            // a snow source of one of its colors, by the source that made it (CR
+            // 106.3, 107.4h). The card tells snow mana apart (`faces::mana_told_apart`),
+            // so its payer chooses which mana is spent (CR 601.2h).
+            S::SnowManaOfOwnColorSpent => format!(
+                "q.history().mana_spent_to_cast({id}).any(|(source, mana)| source != ObjectId::NONE && q.chars(source).supertypes.snow && {chars}.colors.iter().any(|c: Color| mana.get(c.mana()) > 0))"
             ),
             // CR 305.8: the five basic land types, and no other.
             S::NonBasicLandType => format!(
@@ -938,6 +941,81 @@ impl Compiler {
         writeln!(
             out,
             "let cards_{id}: Vec<ObjectId> = {cards}; for card in cards_{id} {{ let owner = g.obj(card).owner; g.allow_play(card, owner, PlayGrant {{ {instead}expiry: Expiry::EndOfTurn, flashback: true, ..PlayGrant::CAST }}); }}"
+        )
+        .unwrap();
+        Ok(true)
+    }
+    /// "Each legendary card in your graveyard gains 'You may play this card from
+    /// your graveyard' until end of turn": the cards there as this resolves (CR
+    /// 611.2c), each playable from there by its owner, the "you" of an ability of
+    /// a card in a graveyard (CR 109.5), for its own cost and at its usual time
+    /// (CR 601.3, 305.1). A card that leaves is a new object without it (CR 400.7).
+    /// Case of the Uneaten Feast is written so. Whether the effect was that.
+    pub(super) fn play_this_until(
+        &mut self,
+        id: usize,
+        affected: &EffectSubjects,
+        changes: &[Change],
+        duration: &Duration,
+        out: &mut String,
+    ) -> Result<bool> {
+        let (EffectSubjects::Objects(cards), Duration::EndOfTurn, [Change::GrantAbility(ability)]) =
+            (affected, duration, changes)
+        else {
+            return Ok(false);
+        };
+        let Ability::Scoped { zones, condition: None, ability } = &**ability else {
+            return Ok(false);
+        };
+        let Ability::Static {
+            kind: StaticKind::Ordinary,
+            affected: EffectSubjects::Players(PlayerSet::One(PlayerRef::AbilityController)),
+            changes,
+        } = &**ability
+        else {
+            return Ok(false);
+        };
+        let [Change::PlayerRule(rule)] = changes.as_slice() else {
+            return Ok(false);
+        };
+        let (permission, plain) = match rule {
+            PlayerRule::PlayPermissionWith { permission, terms } => {
+                let plain = terms.limit.is_none()
+                    && terms.during.is_none()
+                    && matches!(terms.cost, PlayCost::Normal)
+                    && terms.spend_as.is_none()
+                    && !terms.into_exile
+                    && terms.condition.is_none()
+                    && terms.effects.is_empty()
+                    && !terms.flash
+                    && !terms.may_look
+                    && terms.then.is_none()
+                    && terms.face_down.is_none();
+                (&**permission, plain)
+            }
+            other => (other, true),
+        };
+        let PlayerRule::PlayPermission {
+            cards: ObjectSet::One(ObjectRef::Source),
+            from,
+            action,
+            filter: ObjectFilter::Any,
+        } = permission
+        else {
+            return Ok(false);
+        };
+        if !plain || zones.as_slice() != [from.clone()] || !matches!(from, EventZone::Graveyard) {
+            return Ok(false);
+        }
+        let lands = match action {
+            CardPlayAction::CastSpell => "",
+            CardPlayAction::Either => "lands: true, ",
+            CardPlayAction::PlayLand => return Ok(false),
+        };
+        let cards = self.fetch(self.objects(cards)?);
+        writeln!(
+            out,
+            "let cards_{id}: Vec<ObjectId> = {cards}; for card in cards_{id} {{ let owner = g.obj(card).owner; g.allow_play(card, owner, PlayGrant {{ {lands}expiry: Expiry::EndOfTurn, ..PlayGrant::CAST }}); }}"
         )
         .unwrap();
         Ok(true)

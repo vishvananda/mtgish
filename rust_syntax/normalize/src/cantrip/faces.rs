@@ -22,6 +22,14 @@ pub(super) fn reveal_offered(compiler: &Compiler, body: &Program) -> String {
 /// apart from other mana, and spent only as its controller chooses (CR 106.3,
 /// 601.2h; Barracks of the Thousand). The rule a card file lists, and its function.
 pub(super) fn mana_told_apart(functions: &str) -> Option<(&'static str, &'static str)> {
+    // "If {S} of any of that spell's colors was spent to cast it" (Boreal
+    // Outrider): mana from snow sources.
+    if functions.contains("q.chars(source).supertypes.snow && ") && functions.contains(".mana_spent_to_cast(") {
+        return Some((
+            "snow_mana",
+            "fn snow_mana(q: &dyn Query, _: &Asker, source: ObjectId) -> bool { q.chars(source).supertypes.snow }\n",
+        ));
+    }
     functions
         .contains(".mana_spent_to_cast(cast.spell).any(|(source, _)| Some(asker.source) == Some(source))")
         .then_some((
