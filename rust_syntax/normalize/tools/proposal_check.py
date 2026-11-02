@@ -111,7 +111,8 @@ def balanced(text, i):
 
 def split_args(inner):
     """The top-level comma-separated parts of `inner`, the text between a call's parentheses or a literal's braces."""
-    parts, angle, start, j = [], 0, 0, 0
+    # `ret`: in a closure's return type (`-> Result<(), Suspend>`), whose `<` opens generics too.
+    parts, angle, start, j, ret = [], 0, 0, 0, False
     while j < len(inner):
         j = SPLIT_BORING.match(inner, j).end()
         if j >= len(inner):
@@ -122,15 +123,19 @@ def split_args(inner):
             continue
         c = inner[j]
         if c in "([{":
+            if c == "{":
+                ret = False
             j = balanced(inner, j)
             continue
         if inner.startswith("::<", j):
             angle += 1
             j += 3
             continue
-        if angle and c == "<":
+        if c == ">" and inner[j - 1] == "-":
+            ret = True
+        elif (angle or ret) and c == "<":
             angle += 1
-        elif angle and c == ">" and inner[j - 1] != "-":
+        elif angle and c == ">":
             angle -= 1
         elif c == "|" and inner.startswith("||", j):
             j += 2

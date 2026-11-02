@@ -76,6 +76,9 @@ class Text(unittest.TestCase):
                          ["source", "move |q, asker, id| q.is(id)", "EffectKind::CantBlock", "d"])
         self.assertEqual(pc.split_args("applies: |q, id| true, text: \"a, b\""), ["applies: |q, id| true", 'text: "a, b"'])
         self.assertEqual(pc.split_args("a || b, f::<A, B>(x)"), ["a || b", "f::<A, B>(x)"])
+        # A closure's return type has generics of its own.
+        self.assertEqual(pc.split_args("|q: &dyn Query| p, |g: &mut dyn Game| -> Result<(), Suspend> { Ok(()) }, x < y"),
+                         ["|q: &dyn Query| p", "|g: &mut dyn Game| -> Result<(), Suspend> { Ok(()) }", "x < y"])
 
     def test_how_a_name_is_used(self):
         text = "X::new(a, b)? ; Y { a: 1, b } ; Z::W ; v"
