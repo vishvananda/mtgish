@@ -2579,7 +2579,7 @@
     {"source": "GameNumber::ANumberOfCardsInAPlayersHand", "text": "hand"},
     {"source": "GameNumber::TheGreatestNumberOfCardsDrawnByAPlayerThisTurn", "text": "drawn|drew"},
     {"source": "GameNumber::NumCardsPlayerCycledOrDiscardedThisTurn", "text": "cycled|discarded"},
-    {"source": "GameNumber::TheNumberOfCardTypesAmongThePermanentsSacrificedThisTurn", "text": "types|type"},
+    {"source": "GameNumber::TheNumberOfCardTypesAmongThePermanentsSacrificedByPlayerThisTurn", "text": "types|type"},
     {"source": "GameNumber::TheNumberOfCardsThatWerePutIntoAPlayersGraveyardFromTheirHandOrLibraryThisTurn", "text": "graveyard"},
     {"source": "GameNumber::TheNumberOfPlayersAttackedByPlayerThisCombat", "text": "attacked|attacking"},
     {"source": "GameNumber::TheNumberOfSpellsCastByAnyPlayerSinceTheBeginningOfPlayersLastTurn", "text": "last"},

@@ -52,7 +52,11 @@ const CARDS: &[(&str, &str)] = &[
         "Divine Deflection",
         "target reference outside a resolving ability",
     ),
-    ("Arcbond", "damage to each permanent, a card type lost in the data"),
+    // "Each other creature and each player" (#156): creatures, not every permanent.
+    (
+        "Arcbond",
+        "q.chars(id).is(CardType::Creature) && !(Some(asker.source) == Some(id))",
+    ),
     (
         "Undiscovered Paradise",
         "replacement made outside a resolving ability",

@@ -1825,14 +1825,6 @@ pub(super) fn history_measured(
         HistoryMeasure::Property(Property::ManaValue, Aggregation::Maximum) if spells => {
             format!("{casts}.map(|cast| i64::from(cast.value(q))).max().unwrap_or(0)")
         }
-        // "Permanents you've sacrificed": no player in the data says whose.
-        HistoryMeasure::Distinct(_) if test.contains("ZoneReason::Sacrifice") => {
-            planned::planned_value(
-                "a sacrifice history with its player lost in the data",
-                "0i64",
-                "0i64",
-            )
-        }
         _ => return None,
     })
 }

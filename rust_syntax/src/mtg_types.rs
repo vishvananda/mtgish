@@ -6054,7 +6054,7 @@ pub enum GameNumber {
   TheNumberOfCardTypesAmongCardsPutInGraveyardThisWay,
   TheNumberOfCardTypesAmongPermanents(Box<Permanents>),
   TheNumberOfCardTypesAmongSpellsCastThisTurn(Box<Spells>),
-  TheNumberOfCardTypesAmongThePermanentsSacrificedThisTurn,
+  TheNumberOfCardTypesAmongThePermanentsSacrificedByPlayerThisTurn(Box<Player>),
   TheNumberOfCardTypesItSharesWithAnyExiledCard(Box<CardsInExile>),
   TheNumberOfCardTypesPermanentHas(Box<Permanent>),
   TheNumberOfCardsDiscardedByPlayerThisWay(Box<Player>),

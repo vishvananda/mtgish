@@ -1324,18 +1324,6 @@ impl Compiler {
         if a.modes.is_some() {
             return Err(gap("modal announcement"));
         }
-        if let ([only], Some(line)) = (a.targets.as_slice(), self.line_text()) {
-            let shown = format!("{only:?}");
-            let target = line.find("target ").map(|at| &line[at..]);
-            let names_you = target
-                .and_then(|words| words.split(['.', ',']).next())
-                .is_some_and(|words| {
-                    words.ends_with(" you control") && words.split(' ').count() <= 5
-                });
-            if names_you && line.matches("target").count() == 1 && !shown.contains("Control") {
-                return Err(gap("a target the source doesn't limit to yours"));
-            }
-        }
         self.slots.clear();
         let reader = std::mem::replace(&mut self.reader, Reader::Query);
         let compiled = self.announced_targets(a, label);

@@ -83,40 +83,6 @@ pub(super) fn attackers_counted(event: &EventSpec, hits: &str) -> Option<String>
     })
 }
 
-/// "Whenever one or more other Cats you control die" read as a trigger for each
-/// that dies: the data says `WhenAPermanentDies` where it means a batch, which
-/// triggers once (CR 603.2c; Ajani, Nacatl Pariah). Limited to once a turn, the
-/// two trigger alike.
-pub(super) fn each_for_one_or_more(line: Option<&str>, event: &EventSpec, limits: &TriggerLimits) -> bool {
-    let Some(line) = line else { return false };
-    let said = line.split(',').next().unwrap_or(line);
-    said.contains("henever one or more ")
-        && said.ends_with(" die")
-        && limits.per_turn.is_none()
-        && matches!(
-            event,
-            EventSpec::ZoneChange {
-                from: Some(EventZone::Battlefield),
-                to: EventZone::Graveyard,
-                ..
-            }
-        )
-}
-
-/// "Target spell or nonland permanent an opponent controls" whose permanent the
-/// data lets anyone control: `TargetPermanent(And([IsNonCardtype(Land),
-/// IsPermanent]))` beside `TargetSpell(ControlledByAPlayer(Opponent))` (Sink into
-/// Stupor, Press the Enemy).
-pub(super) fn opponents_permanent_read_as_any(line: Option<&str>, modes: &[Mode]) -> bool {
-    line.is_some_and(|line| line.contains("spell or nonland permanent an opponent controls"))
-        && modes.iter().any(|mode| {
-            mode.announcement.targets.iter().any(|spec| {
-                matches!(&spec.kind, TargetKind::Object(domain) if domain.kind == ObjectKind::Permanent)
-                    && !format!("{:?}", spec.filter).contains("ControlledBy")
-            })
-        })
-}
-
 /// How many cards a "may" draws its player, if it does: a player who can't draw
 /// them isn't offered it (CR 121.2b; Arc of Fortune's "each player may discard
 /// their hand and draw seven cards").

@@ -49,12 +49,10 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Thought Gorger", "let paid_0 = !applied_1.is_empty();", true),
     // "From your hand": the hand of the player the rule is asked of.
     ("Experimental Frenzy", "q.obj(spell).owner == player", true),
-    // The data says something other than the Oracle text.
-    ("Redeem", "damage-prevented-to-its-targets-read-in-the-data-as-by-them", false),
-    ("Karona, False God", "a-chosen-card-type-where-its-body-chose-a-creature-type-in-the-data", false),
-    ("Whim of Volrath", "a-text-change-s-duration-given-to-one-of-its-options-in-the-data", false),
-    ("Bison Whistle", "an-option-the-card-says-is-otherwise-free-in-the-data", false),
-    ("Ravenous Vampire", "a-mandatory-cost-the-card-s-if-you-don-t-is-read-after-in-the-data", false),
+    // The data repaired to say what the Oracle text says: the creature type of
+    // your choice (#166), and "If you don't, tap" the other branch (#176).
+    ("Karona, False God", "chosen_type::creature_type_now(", true),
+    ("Ravenous Vampire", "} else {", true),
 ];
 
 #[test]

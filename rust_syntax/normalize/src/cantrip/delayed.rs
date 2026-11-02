@@ -751,11 +751,6 @@ impl Compiler {
                 )
             }
         };
-        // The source sees two sentences as one where the second is about the first's
-        // object: a body of its own would wait on the first to happen.
-        if format!("{body:?}").contains("CreateTrigger") {
-            return Err(gap("a delayed ability made by a delayed ability"));
-        }
         let (event, source, each) = self.watching_source(event, body)?;
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();

@@ -1588,10 +1588,12 @@ fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
             abilities: Box::new(abilities.clone()),
             objects: Box::new(set.clone()),
         },
-        ("TheNumberOfCardTypesAmongThePermanentsSacrificedThisTurn", []) => turn_history(
-            EventSpec::Object {
-                event: ObjectEvent::Sacrificed,
-                objects: ObjectFilter::Any,
+        // "Permanents you've sacrificed this turn": the sacrifices that player made.
+        ("TheNumberOfCardTypesAmongThePermanentsSacrificedByPlayerThisTurn", [Player(player)]) => turn_history(
+            EventSpec::Player {
+                event: PlayerEvent::Sacrifices,
+                players: PlayerSet::One(player.clone()),
+                objects: Some(ObjectFilter::Any),
             },
             HistoryMeasure::Distinct(DistinctProperty::CardTypes),
         ),
