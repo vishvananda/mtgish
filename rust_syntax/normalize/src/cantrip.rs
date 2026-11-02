@@ -506,6 +506,8 @@ struct Compiler {
     first_again: Option<String>,
     /// Reading a test of whether this spell may be cast.
     cast_test: bool,
+    /// All of the face's Oracle text: a printed line holds one ability's words.
+    face_text: String,
     /// The next tap or untap is a "may", which offers doing nothing with them.
     may_tap_or_untap: bool,
     /// Payments of "unless you pay": those ask whether to, whatever paying is.
@@ -1069,6 +1071,7 @@ impl Compiler {
             do_once: None,
             first_again: None,
             cast_test: false,
+            face_text: String::new(),
             may_tap_or_untap: false,
             unless_paid: BTreeSet::new(),
             replacing: Default::default(),
@@ -1253,12 +1256,6 @@ impl Compiler {
     fn announcement(&mut self, a: &Announcement, label: &str) -> Result<String> {
         if a.modes.is_some() {
             return Err(gap("modal announcement"));
-        }
-        if self
-            .line_text()
-            .is_some_and(|line| line.contains("was kicked, instead choose any number"))
-        {
-            return Err(gap("an unkicked target count the source reads as any number"));
         }
         if let ([only], Some(line)) = (a.targets.as_slice(), self.line_text()) {
             let shown = format!("{only:?}");

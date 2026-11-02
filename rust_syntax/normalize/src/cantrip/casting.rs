@@ -194,6 +194,9 @@ impl Compiler {
         unpaid_announced: &Announcement,
         label: &str,
     ) -> Result<String> {
+        if self.card_prints("was kicked, instead choose any number") {
+            return Err(gap("an unkicked target count the source reads as any number"));
+        }
         let (paid_label, unpaid_label) = (format!("{label}_paid"), format!("{label}_unpaid"));
         self.resolving_slots(paid_announced)?;
         self.effect(paid, &paid_label)?;

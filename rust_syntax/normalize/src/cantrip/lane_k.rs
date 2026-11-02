@@ -1927,6 +1927,10 @@ impl Compiler {
     pub(super) fn line_text(&self) -> Option<&str> {
         self.line.as_ref().map(|line| line.text.as_str())
     }
+    /// Some line of the face prints these words.
+    pub(super) fn card_prints(&self, words: &str) -> bool {
+        self.face_text.contains(words)
+    }
     /// "You may exile that card from your graveyard" isn't asked of a card that's
     /// left it.
     pub(super) fn asked_if_there(&self, body: &Program) -> String {
@@ -2217,6 +2221,7 @@ impl Compiler {
     /// Read a face's Oracle text, once, before its abilities are compiled.
     pub(super) fn read_printed(&mut self, abilities: &[Ability], oracle: Option<&str>) {
         self.kickers = mechanics::kickers(abilities);
+        self.face_text = oracle.unwrap_or_default().to_string();
         let Some(oracle) = oracle else {
             return;
         };
