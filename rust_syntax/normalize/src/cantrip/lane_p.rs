@@ -476,6 +476,12 @@ impl Compiler {
             ValueKind::Ability => ("chosen_ability", "Keyword::Flying"),
             _ => return Err(gap(feature.as_str())),
         };
+        // Chosen as the source entered: the permanent keeps it for its linked
+        // abilities (CR 607.2d), and the engine reads it there.
+        let code = format!("q.state().{read}({}).expect(\"it chose one\")", self.linked());
+        if self.enters_choosing.contains(&kind) && kind != ValueKind::Ability {
+            return Ok(code);
+        }
         Ok(planned::planned_value(
             &feature,
             placeholder,
@@ -614,6 +620,17 @@ impl Compiler {
                     return Err(gap(feature.as_str()));
                 }
                 writeln!(out, "let player_{id} = {player}; let {local} = if {M}::effects::ask_may(g, player_{id}, {source}, Purpose::Optional)? {{ None }} else {{ Some({M}::choose_color(g, player_{id}, {source})?) }};").unwrap();
+            }
+            // "Choose left or right" (CR 101.4: turn order goes to the left): the
+            // card's own words, 0 for left and 1 for right.
+            ValueKind::Direction
+                if self.stack_item
+                    && self.entering_labels.is_none()
+                    && self.word_options.is_empty() =>
+            {
+                self.entering_labels = Some("&[\"left\", \"right\"]".into());
+                self.word_options = vec!["left".into(), "right".into()];
+                writeln!(out, "let player_{id} = {player}; let card_{id} = g.card_id(&CARD); let {local}: u8 = {M}::choose::option(g, player_{id}, {source}, card_{id}, 0..2)?;").unwrap();
             }
             ValueKind::Direction => {
                 let code = format!("{M}::choose::direction(g, {player}, {source})?");
@@ -1014,6 +1031,18 @@ impl Compiler {
                     ),
                 )
             }
+            Expr::RepeatedCostsUnpaid { result, player } if self.unpaid_rows.contains(&result.0) => {
+                Number {
+                    code: format!(
+                        "{}.map_or(0i64, |p: PlayerId| unpaid_{}.iter().filter(|who| **who == p).count() as i64)",
+                        self.player(player)?,
+                        result.0
+                    ),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
             Expr::RepeatedCostsUnpaid { result, player } => held_number(
                 feature,
                 &format!(
@@ -1252,6 +1281,11 @@ impl Compiler {
                     ),
                 )
             }
+            // "The chosen pile": in the pile chosen of any row kept.
+            ObjectFilter::InPile(None) if self.piles.is_some() => format!(
+                "{}.iter().any(|row| row.2.is_some_and(|at| row.1[at].contains(&{id})))",
+                self.piles.clone().unwrap_or_default()
+            ),
             ObjectFilter::InPile(object) => {
                 let of = match object {
                     Some(object) => self.object(object)?,

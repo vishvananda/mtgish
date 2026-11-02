@@ -2052,6 +2052,11 @@ impl Compiler {
                     None if self.rule_player => "Some(player)".to_string(),
                     None => "Some(asker.controller)".to_string(),
                 };
+                if let (None, Ok(direction)) = (among, self.chosen_local(ValueKind::Direction)) {
+                    // The next player to the left is the next in turn order; to
+                    // the right, the one before (CR 101.4).
+                    return Ok(format!("{from}.and_then(|p: PlayerId| {{ let order: Vec<PlayerId> = q.state().turn_order_from(p).collect(); if order.len() < 2 {{ None }} else if {direction} == 0 {{ Some(order[1]) }} else {{ order.last().copied() }} }})"));
+                }
                 match among {
                     Some(among) => format!(
                         "q.nearest_in_chosen_direction(asker, {from}, {})",

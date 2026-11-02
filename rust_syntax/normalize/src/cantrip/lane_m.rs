@@ -313,6 +313,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
+        Operation::Manifest { .. } => &["Manifested"],
         Operation::Reveal { .. }
         | Operation::RevealUntil { .. }
         | Operation::RevealFromHand { .. } => &["Revealed"],
@@ -327,6 +328,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
                 &["Returned", "Entered"]
             }
             Destination::OwnersHand | Destination::Hand(_) => &["Returned"],
+            Destination::OwnersLibraryShuffled => &["Shuffled"],
             _ => &[],
         },
         _ => &[],
@@ -614,7 +616,9 @@ impl Compiler {
             return None;
         }
         let Some((players, each)) = walked else {
-            return matches!(what, EarlierObjects::Revealed).then(|| {
+            // What a player shuffled into their library is what they own of it
+            // (CR 400.3), when the players' cards went together.
+            return matches!(what, EarlierObjects::Revealed | EarlierObjects::Shuffled).then(|| {
                 let list = self.earlier_objects(what).ok()?;
                 Some(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{binding}).collect::<Vec<ObjectId>>()"))
             })?;

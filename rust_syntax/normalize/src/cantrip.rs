@@ -569,6 +569,16 @@ struct Compiler {
     countered: BTreeMap<u16, String>,
     /// The instruction that separated a face-down pile and a face-up pile.
     face_piles: Option<usize>,
+    /// The piles players separated (CR 700.3): the local of their rows, each a
+    /// separator, its piles, the pile chosen and who may choose it.
+    piles: Option<String>,
+    /// A separation inside a per-player walk pushes its row into this local.
+    piles_walk: Option<String>,
+    /// How many piles each row has, and whether they are face down.
+    pile_shape: (i64, bool),
+    /// The `PlayersPayRepeatedly` whose unpaid payments a walk keeps, one
+    /// entry of its payer for each.
+    unpaid_rows: BTreeSet<u32>,
     /// The cards that ended each reveal, by the result that names all it showed.
     reveal_matches: BTreeMap<u32, String>,
     /// This resolution has revealed something. The AST does not always tie a
@@ -1016,6 +1026,10 @@ impl Compiler {
             notes: Default::default(),
             countered: BTreeMap::new(),
             face_piles: None,
+            piles: None,
+            piles_walk: None,
+            pile_shape: (0, false),
+            unpaid_rows: BTreeSet::new(),
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
             player_words: None,
@@ -2316,6 +2330,7 @@ fn emit_face(
     c.sorcery = (card.characteristics.card_types.iter())
         .any(|t| matches!(t, crate::mtg_types::CardType::Sorcery));
     c.enters_choosing = chosen::enters_choosing(card);
+    c.enters_choosing.extend(place.keeps.iter().copied());
     c.enters_two = chosen::enters_two(card);
     c.entering_card_type = lane_p::entering_card_type(card);
     c.cast_pays = lane_p::cast_pays(card);

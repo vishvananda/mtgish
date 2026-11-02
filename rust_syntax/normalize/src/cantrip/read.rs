@@ -1761,6 +1761,17 @@ impl Compiler {
             ObjectFilter::Any => "true".into(),
             ObjectFilter::All(items) => combine(items, " && ", "true")?,
             ObjectFilter::Either(items) => combine(items, " || ", "false")?,
+            // "The other piles" (Bend or Break): in a pile of a row that was not
+            // the one chosen, not anything outside the piles.
+            ObjectFilter::Not(p)
+                if matches!(**p, ObjectFilter::InPile(None)) && self.piles.is_some() =>
+            {
+                format!(
+                    "{}.iter().any(|row| row.1.iter().enumerate().any(|(at, pile)| row.2.is_some_and(|chosen| chosen != at) && pile.contains(&{})))",
+                    self.piles.clone().unwrap_or_default(),
+                    c.id
+                )
+            }
             ObjectFilter::Not(p) => format!("!({})", self.predicate(p, c)?),
             ObjectFilter::TargetsAny(recipients) => {
                 let wanted = self.targeted(recipients)?;
