@@ -2345,6 +2345,45 @@ impl Compiler {
                 "Event::Damage {{ source, target: Target::Object(hit), .. }} if hit == {id} && {} == Some(source)",
                 self.object(object)?
             ),
+            // "Dealt combat damage": damage it dealt in combat that was not
+            // prevented (CR 510.2, 120.3); an object that left and came back is
+            // a new one that has dealt none (CR 400.7).
+            H::DealtCombatDamage => format!(
+                "Event::Damage {{ source, amount, kind, .. }} if source == {id} && amount > 0 && kind.is_combat()"
+            ),
+            // "That you've put one or more +1/+1 counters on": the counters'
+            // putter is the event's (CR 122.6), as Kid Loki asks it.
+            H::CountersPutBy { kind, by } => format!(
+                "Event::CountersPut {{ object, kind: put, amount, by, .. }} if object == {id} && put == {} && amount > 0 && {}",
+                counter_kind(kind)?,
+                self.player_in(by, "by")?
+            ),
+            // "Exiled from your graveyard": the card the move made (CR 400.7).
+            H::ExiledFromGraveyard(players) => {
+                let owner = "q.state().obj(new).owner";
+                moved(
+                    "new, from, to",
+                    &format!(
+                        "new == {id} && from.is(ZoneKind::Graveyard) && to.is(ZoneKind::Exile) && {}",
+                        self.player_in(players, owner)?
+                    ),
+                )
+            }
+            // "Put onto it with this artifact", "phased out with": the record's
+            // cause is an ability of that object resolving (CR 113.7, 607.2).
+            H::CountersPutWith { kind, with } => format!(
+                "Event::CountersPut {{ object, kind: put, amount, .. }} if object == {id} && put == {} && amount > 0 && matches!(r.cause, Cause::Ability {{ source, .. }} if {} == Some(source))",
+                counter_kind(kind)?,
+                self.object(with)?
+            ),
+            H::PhasedOutWith(with) => format!(
+                "Event::PhasedOut {{ permanent, .. }} if permanent == {id} && matches!(r.cause, Cause::Ability {{ source, .. }} if {} == Some(source))",
+                self.object(with)?
+            ),
+            // The history records no counters removed (cantrip-api event.rs).
+            H::CountersRemovedWith { .. } => {
+                return Err(gap("counters removed from an object, which the history does not record"))
+            }
             other => return self.object_history_p(other, id, window),
         };
         Ok(format!(
@@ -2634,6 +2673,22 @@ impl Compiler {
                 "q.history().mana_spent_to_cast({id}).any(|(source, _)| {})",
                 self.filter(sources, &Candidate::of("source"))?
             ),
+            // "If another player spent mana to cast it" (Yume, assist): who paid
+            // is each Event::ManaSpent's player (CR 702.132a, 601.2h).
+            ObjectFilter::ManaSpent {
+                color: None,
+                sources: None,
+                payers: Some(payers),
+                comparison,
+                value,
+            } if !layer && c.announced.is_none() => compare(
+                &format!(
+                    "cast_of(q, {id}).map_or(0i64, |cast| q.history().this_turn().iter().filter_map(|r| match r.event {{ Event::ManaSpent {{ player: payer, on, cast: true, mana, .. }} if on == cast.spell && {} => Some(i64::from(mana.total())), _ => None }}).sum::<i64>())",
+                    self.player_in(payers, "payer")?
+                ),
+                comparison,
+                &self.number(value)?.code,
+            ),
             ObjectFilter::ManaSpent {
                 color,
                 sources,
@@ -2696,6 +2751,15 @@ impl Compiler {
                 "q.state().obj({id}).made_by == {}",
                 self.object(object)?
             )),
+            // "Has an activated ability other than this activated ability"
+            // (Tazri's grant): every ability of an object is of that object, so
+            // the shape names the ability asking, which is on asker.source.
+            ObjectFilter::HasActivatedAbility(ActivationFilter::Not(inner))
+                if !layer
+                    && matches!(&**inner, ActivationFilter::Of(of) if matches!(&**of, ObjectFilter::SameObject(ObjectRef::Source))) =>
+            {
+                format!("{chars}.abilities().filter(|&a| q.activated_ability(a).is_some_and(|d| !d.special_action)).count() > usize::from({id} == asker.source)")
+            }
             ObjectFilter::HasActivatedAbility(which) => match activation_test(which) {
                 Some(test) if layer => {
                     let mut code = format!("{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Activated(d) if !d.special_action{test}))");

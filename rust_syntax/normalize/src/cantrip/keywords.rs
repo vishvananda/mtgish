@@ -146,9 +146,21 @@ impl Compiler {
             }
             K::Fight => {
                 let pair = self.pair_action(&action, id, out)?;
+                // "Is dealt excess damage this way" (CR 120.10, 701.14): read from
+                // the fight's own damage events, a redirection included.
+                let (mark, read) = if super::lane_n::reads_excess(&self.after, result) {
+                    let aimed = action.other.as_ref().map(|other| format!("{other:?}"));
+                    self.excess.insert(result.0, (format!("excess_{id}"), format!("recipients_{id}"), aimed));
+                    (
+                        format!("let mut excess_{id}: Vec<(Target, u32)> = Vec::new(); let recipients_{id}: Vec<Target> = second_{id}.map(Target::Object).into_iter().collect(); let since_{id} = g.history().head() as usize; "),
+                        format!(" excess_{id}.extend(g.history().all()[since_{id}..].iter().filter_map(|r| match r.event {{ Event::Damage {{ source: s, target, recipient_excess, .. }} if s == first || s == second => Some((target, recipient_excess)), _ => None }}));"),
+                    )
+                } else {
+                    (String::new(), String::new())
+                };
                 writeln!(
                     out,
-                    "if let (Some(first), Some(second)) = {pair} {{ g.fight(first, second); }}"
+                    "{mark}if let (Some(first), Some(second)) = {pair} {{ g.fight(first, second);{read} }}"
                 )
                 .unwrap();
             }

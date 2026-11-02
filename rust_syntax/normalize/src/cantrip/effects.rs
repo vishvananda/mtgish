@@ -187,6 +187,104 @@ fn taps_one_object(cost: &Cost) -> Option<&ObjectRef> {
 
 /// Whether `decider`'s "you may" is that they pay something the engine can ask
 /// about as one payment.
+/// `body` with a leading group of payments by one player made one payment of all
+/// their parts ("pay {W}{B} and 2 life" is one cost, CR 601.2h), and the result
+/// that stands for it with the results it replaces.
+fn one_payment(body: &Program) -> (Program, Option<(ResultId, Vec<ResultId>)>) {
+    let Some(Instruction::Group(group)) = body.instructions.first() else {
+        return (body.clone(), None);
+    };
+    let mut parts = Vec::new();
+    let mut results = Vec::new();
+    let mut payer: Option<&PlayerRef> = None;
+    for instruction in &group.instructions {
+        let Instruction::Effect {
+            operation: Operation::PayCost { player, cost, optional: false },
+            result,
+        } = instruction
+        else {
+            break;
+        };
+        if payer.is_some_and(|p| format!("{p:?}") != format!("{player:?}")) {
+            break;
+        }
+        payer = Some(player);
+        parts.extend(cost.parts.iter().cloned());
+        results.push(result.clone());
+    }
+    let taken = results.len();
+    let (Some(player), Some(last)) = (payer, results.pop()) else {
+        return (body.clone(), None);
+    };
+    if results.is_empty() {
+        return (body.clone(), None);
+    }
+    let mut instructions = vec![Instruction::Effect {
+        operation: Operation::PayCost {
+            player: player.clone(),
+            cost: Cost { parts },
+            optional: false,
+        },
+        result: last.clone(),
+    }];
+    instructions.extend(group.instructions[taken..].iter().cloned());
+    let mut merged = body.clone();
+    merged.instructions[0] = Instruction::Group(Program { instructions });
+    (merged, Some((last, results)))
+}
+
+/// "[decider] may tap N untapped [objects]": what to choose from, how many, the
+/// payment's result, and what follows it.
+fn may_tap(decider: &PlayerRef, body: &Program) -> Option<(ObjectSet, Expr, ResultId, Program)> {
+    let (first, rest) = match body.instructions.as_slice() {
+        [Instruction::Group(group), after @ ..] => {
+            let (first, inner) = group.instructions.split_first()?;
+            let mut rest = inner.to_vec();
+            rest.extend(after.iter().cloned());
+            (first, rest)
+        }
+        [first, rest @ ..] => (first, rest.to_vec()),
+        [] => return None,
+    };
+    let Instruction::Effect {
+        operation: Operation::PayCost { player, cost, optional: false },
+        result,
+    } = first
+    else {
+        return None;
+    };
+    let [CostPart::ChangeTapState { selections, tapped: true, symbol: false }] = cost.parts.as_slice() else {
+        return None;
+    };
+    let [CostObjectSelection { objects, choose: Some(Count::Exactly(n)) }] = selections.as_slice() else {
+        return None;
+    };
+    (format!("{player:?}") == format!("{decider:?}"))
+        .then(|| (objects.clone(), n.clone(), result.clone(), Program { instructions: rest }))
+}
+
+impl Compiler {
+    /// "[decider] may [pay a cost]" whose cost the engine takes whole, so
+    /// `may_pay` offers it (CR 118.12).
+    fn pays_whole(&self, decider: &PlayerRef, body: &Program) -> bool {
+        if let Some(Instruction::Group(group)) = body.instructions.first() {
+            return self.pays_whole(decider, group);
+        }
+        let Some(Instruction::Effect {
+            operation: Operation::PayCost { player, cost, optional: false },
+            ..
+        }) = body.instructions.first()
+        else {
+            return false;
+        };
+        format!("{player:?}") == format!("{decider:?}")
+            && cost.parts.iter().all(|part| {
+                matches!(part, CostPart::Loyalty(_))
+            })
+            && self.clone().cost(cost, lane_g::PAID).is_ok()
+    }
+}
+
 pub(super) fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
     match body.instructions.first() {
         Some(Instruction::Group(group)) => asks_by_paying(decider, group),
@@ -210,16 +308,20 @@ pub(super) fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
 }
 
 /// Whether the next thing after a move is to send it back when the source goes.
-fn returns_with_source(result: &ResultId, rest: &[Instruction]) -> bool {
+/// "Until it leaves the battlefield" names the source when the trigger's event
+/// is about the source itself (Lumbering Battlement's "when this enters").
+fn returns_with_source(result: &ResultId, rest: &[Instruction], subject_is_source: bool) -> bool {
     matches!(
         rest.first(),
         Some(Instruction::Effect {
             operation: Operation::ReturnAfter {
                 objects: ObjectSet::Transition { result: moved, phase: ObjectPhase::After },
-                duration: crate::ir::Duration::WhileOnBattlefield(ObjectRef::Source),
+                duration: crate::ir::Duration::WhileOnBattlefield(holder),
             },
             ..
         }) if moved.0 == result.0
+            && (matches!(holder, ObjectRef::Source)
+                || (subject_is_source && matches!(holder, ObjectRef::EventSubject)))
     )
 }
 
@@ -890,7 +992,7 @@ impl Compiler {
                 result,
             } if plain_entry(entry)
                 && self.stack_item
-                && returns_with_source(result, &body.instructions[i + 1..]) =>
+                && returns_with_source(result, &body.instructions[i + 1..], matches!(self.event_object, Some(ObjectRef::Source))) =>
             {
                 let id = self.fresh();
                 writeln!(out, "let objects_{id} = {}; let by_{id} = g.linked(item); let moved_{id} = g.exile_with(&objects_{id}, by_{id}, true);", self.fetch(self.objects(objects)?)).unwrap();
@@ -977,12 +1079,40 @@ impl Compiler {
                 let id = self.fresh();
                 self.retarget(id, player, object, &NewTargets::May, out)
             }
-            Instruction::Optional { decider, body } if asks_by_paying(decider, body) => {
+            // "You may tap another untapped Merfolk you control": up to that many
+            // chosen and tapped, and "if you do" is that one was (CR 608.2c).
+            Instruction::Optional { decider, body } if may_tap(decider, body).is_some() => {
+                let (objects, n, result, rest) = may_tap(decider, body).expect("just matched");
+                let id = self.fresh();
+                writeln!(out, "'optional_{id}: {{").unwrap();
+                self.choose(decider, &objects, &Count::UpTo(n), &result, "Tap", out)?;
+                let tap = Operation::Tap { objects: ObjectSet::Selected(result.clone()), tapped: true };
+                self.operation(&tap, &result, out)?;
+                writeln!(out, "let paid_{id} = !{}.is_empty(); if !paid_{id} {{ break 'optional_{id}; }}", self.moved(&result)?).unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
+                self.block(&rest, out, true)?;
+                writeln!(out, "}}").unwrap();
+                Ok(())
+            }
+            Instruction::Optional { decider, body }
+                if asks_by_paying(decider, &one_payment(body).0)
+                    || self.pays_whole(decider, &one_payment(body).0) =>
+            {
+                // "You may pay {W}{B} and 2 life", "you may tap another untapped
+                // Merfolk you control": one cost, offered whole (CR 118.12, 601.2h).
+                let (body, merged) = one_payment(body);
                 let id = self.fresh();
                 writeln!(out, "'optional_{id}: {{").unwrap();
                 self.asking = Some(id);
-                self.block(body, out, true)?;
+                self.block(&body, out, true)?;
                 writeln!(out, "}}").unwrap();
+                if let Some((paid, others)) = merged {
+                    if let Some(code) = self.performed.get(&paid.0).cloned() {
+                        for other in others {
+                            self.performed.insert(other.0, code.clone());
+                        }
+                    }
+                }
                 Ok(())
             }
             Instruction::Optional { decider, body }

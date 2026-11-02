@@ -864,12 +864,10 @@ impl Compiler {
             {
                 "{ let mut objects: Vec<ObjectId> = Vec::new(); for o in targets.iter().filter_map(|t| t.object()) { if !objects.contains(&o) { objects.push(o); } } objects }".to_string()
             }
-            ObjectSet::TargetsOf(of) => held_objects(
-                &feature,
-                &format!(
-                    "{}.map_or_else(Vec::new, |o: ObjectId| q.targets_of(o))",
-                    self.object(of)?
-                ),
+            // The objects a spell on the stack targets (CR 115.1), each once.
+            ObjectSet::TargetsOf(of) => format!(
+                "{}.map_or_else(Vec::new, |o: ObjectId| {{ let mut objects: Vec<ObjectId> = Vec::new(); if let Some(i) = q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == o) {{ for t in q.state().targets(i).iter().filter_map(|t| t.object()) {{ if !objects.contains(&t) {{ objects.push(t); }} }} }} objects }})",
+                self.object(of)?
             ),
             // "Each player exiles ..., then puts all cards they exiled this way
             // ...": a player's share of a walk over the players.
@@ -1128,6 +1126,12 @@ impl Compiler {
         Ok(match f {
             ObjectFilter::ChosenFilter => {
                 let Some((local, filters)) = &self.notes.filters else {
+                    // "Choose artifact or enchantment. Destroy all permanents of
+                    // the chosen type" (Season of Gathering): a card type chosen
+                    // in this body.
+                    if let Ok(local) = self.chosen_local(ValueKind::CardType) {
+                        return Ok(format!("{chars}.is({local})"));
+                    }
                     return Ok(held(
                         &feature,
                         &format!("q.state().chosen_filter(asker.source).is_some_and(|f| f(q, asker, {id}))"),
@@ -1288,6 +1292,16 @@ impl Compiler {
                     ),
                 )
             }
+            // "With mana cost {0} or {1}" (CR 202.1): exactly those symbols, of a
+            // card that has a mana cost (Urza's Saga).
+            ObjectFilter::ManaCostIs(symbols)
+                if self.reader != Reader::Layer && mana_cost_is(symbols).is_some() =>
+            {
+                format!(
+                    "{{ let values = q.copiable_values({id}); q.card(values.card).has_cost && !values.has_no_cost() && q.mana_cost({id}) == {} }}",
+                    mana_cost_is(symbols).expect("checked")?
+                )
+            }
             ObjectFilter::ManaCostIs(symbols) => {
                 let mut read = self.clone();
                 let symbols: Vec<String> = symbols.iter().map(|s| read.operand_code(s)).collect();
@@ -1342,14 +1356,19 @@ impl Compiler {
                     test(sources, "source")?
                 ),
             ),
-            ObjectFilter::ManaSymbolInCost(symbol) => held(
-                &feature,
-                &format!(
-                    "{}.has_symbol({})",
-                    self.cost_of(id, chars),
-                    colors_code(std::slice::from_ref(symbol))?
-                ),
-            ),
+            // "With one or more blue mana symbols in its mana cost" (CR 202.2):
+            // hybrid, monocolored hybrid and Phyrexian symbols of the color
+            // count, as `devotion::symbols_of` counts them (Namor).
+            ObjectFilter::ManaSymbolInCost(symbol) => {
+                let mana = match symbol {
+                    ManaColor::Colorless => "Mana::C".to_string(),
+                    other => format!("Color::{}.mana()", color(other)?),
+                };
+                format!(
+                    "{{ let cost = {}; let m = {mana}; let i = m as usize; cost.symbols[i] > 0 || cost.twobrid.get(i).is_some_and(|&n| n > 0) || cost.phyrexian.get(i).is_some_and(|&n| n > 0) || cost.hybrid.iter().flatten().any(|&(a, b)| a == m || b == m) }}",
+                    self.cost_of(id, chars)
+                )
+            }
             ObjectFilter::MostCommonCreatureTypeIn(player) => format!(
                 "{}.is_some_and(|p: PlayerId| {{ let kinds: Vec<SubtypeSet> = q.state().zone(Zone::library(p)).iter().map(|&card| q.chars(card).subtypes).collect(); let count = |kind: Subtype| kinds.iter().filter(|set| set.has(kind)).count(); let most = SubtypeSet::CREATURE_TYPES.iter().map(count).max().unwrap_or(0); most > 0 && SubtypeSet::CREATURE_TYPES.iter().any(|kind| {chars}.has_subtype(kind) && count(kind) == most) }})",
                 self.player(player)?
@@ -1404,6 +1423,12 @@ impl Compiler {
                     self.object(object)?
                 ),
             ),
+            // "The target of an ability from ..." (CR 115.1): a spell or
+            // ability on the stack that targets it, read as the stack item.
+            ObjectFilter::TargetedBy(filter) if self.stack_filter(filter).is_ok() => format!(
+                "q.state().stack.iter().any(|e| q.state().targets(e).contains(&Target::Object({id})) && {})",
+                self.stack_filter(filter)?
+            ),
             ObjectFilter::TargetedBy(filter) => held(
                 &feature,
                 &format!(
@@ -1411,13 +1436,14 @@ impl Compiler {
                     test(filter, "by")?
                 ),
             ),
-            ObjectFilter::TargetCount(comparison, value) => held(
-                &feature,
-                &compare(
-                    &format!("q.targets_of({id}).len() as i64"),
-                    comparison,
-                    &self.number(value)?.code,
+            // How many targets a spell on the stack has (CR 115.1), players
+            // among them; none for an object that is no spell there.
+            ObjectFilter::TargetCount(comparison, value) => compare(
+                &format!(
+                    "q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == {id}).map_or(0i64, |i| q.state().targets(i).len() as i64)"
                 ),
+                comparison,
+                &self.number(value)?.code,
             ),
             // What left it as it left the battlefield: those records just before
             // its own, among others of the same move (CR 701.3d, 704.5n). An Aura has
@@ -2521,6 +2547,31 @@ fn filter_word(filter: &ObjectFilter) -> Option<String> {
     })
 }
 
+/// A printed mana cost as the symbols the data lists, where each is one the
+/// generator can write: `None` for any other.
+fn mana_cost_is(symbols: &[Operand]) -> Option<Result<String>> {
+    let mut out = Vec::new();
+    for symbol in symbols {
+        let Operand::Term { form, operands, .. } = symbol else {
+            return None;
+        };
+        out.push(match (form.as_str(), operands.as_slice()) {
+            ("ManaCostGeneric", [Operand::Integer(n)]) => {
+                ManaSymbol::Generic(u32::try_from(*n).ok()?)
+            }
+            ("ManaCostW", []) => ManaSymbol::Color(ManaColor::White),
+            ("ManaCostU", []) => ManaSymbol::Color(ManaColor::Blue),
+            ("ManaCostB", []) => ManaSymbol::Color(ManaColor::Black),
+            ("ManaCostR", []) => ManaSymbol::Color(ManaColor::Red),
+            ("ManaCostG", []) => ManaSymbol::Color(ManaColor::Green),
+            ("ManaCostC", []) => ManaSymbol::Color(ManaColor::Colorless),
+            ("ManaCostX", []) => ManaSymbol::X,
+            _ => return None,
+        });
+    }
+    Some(super::mana(&out))
+}
+
 /// The rest of `sharing`: `a` and `b` are the characteristics of two objects.
 pub(super) fn sharing_p(property: &DistinctProperty) -> Result<&'static str> {
     Ok(match property {
@@ -2556,7 +2607,11 @@ pub(super) fn property_p(property: &Property, id: &str) -> Result<Number> {
             "{{ let kinds = q.chars({id}).supertypes; i64::from(kinds.basic) + i64::from(kinds.legendary) + i64::from(kinds.snow) }}"
         )),
         Property::BushidoValue => held(format!("i64::from(q.chars({id}).bushido)")),
-        Property::ColorSymbolCount => held(format!("i64::from(q.mana_cost({id}).color_symbols())")),
+        // "Colored mana symbols in its mana cost" (CR 107.4, 202.2): every
+        // symbol with a color - colored, hybrid, monocolored hybrid, Phyrexian.
+        Property::ColorSymbolCount => lane_j::counted(format!(
+            "{{ let cost = q.mana_cost({id}); i64::from(cost.symbols[..5].iter().map(|&n| u32::from(n)).sum::<u32>() + cost.twobrid.iter().map(|&n| u32::from(n)).sum::<u32>() + cost.phyrexian.iter().map(|&n| u32::from(n)).sum::<u32>()) + cost.hybrid.iter().flatten().count() as i64 }}"
+        )),
         Property::CrewCount => held(format!("q.crewed_by({id}).len() as i64")),
         // The ability's own link where it asks of its source (CR 607.5), and the
         // text of any other object.

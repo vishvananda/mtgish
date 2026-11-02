@@ -1215,7 +1215,19 @@ impl Compiler {
             CardPlayAction::CastSpell => false,
             other => return Err(gap(format!("play permission to {}", form(other)))),
         };
-        let expiry = play_expiry(duration)?;
+        // "Until that player's next end step, they may play it" (Casey & Raph):
+        // the holder's own next end step, whoever the holder is.
+        let expiry = match duration {
+            crate::ir::Duration::UntilNext {
+                point: TurnPoint::EndStepBegins,
+                players: until,
+            } if matches!(players, PlayerSet::One(_))
+                && format!("{until:?}") == format!("{players:?}") =>
+            {
+                "Expiry::UntilYourNextEndStep".to_string()
+            }
+            _ => play_expiry(duration)?,
+        };
         if terms.during.is_some() || terms.flash || terms.may_look {
             return Err(gap("play permission on other terms"));
         }
@@ -2252,6 +2264,22 @@ impl Compiler {
             PlayerAction::CastOutside(zone) => (
                 format!(
                     "EffectKind::CantCastSpellsFrom(player, ZoneKinds::all_but(&[{}]))",
+                    zone_kind(zone)?
+                ),
+                None,
+            ),
+            // "Can't cast spells from their graveyards" (Shaman's Trance): from
+            // that zone of any player, CR 601.3.
+            PlayerAction::CastSpell {
+                from:
+                    Some(ZoneScope::Players {
+                        zone,
+                        players: PlayerSet::All,
+                    }),
+                filter: ObjectFilter::Any,
+            } => (
+                format!(
+                    "EffectKind::CantCastSpellsFrom(player, ZoneKinds::of(&[{}]))",
                     zone_kind(zone)?
                 ),
                 None,
@@ -4184,6 +4212,9 @@ impl Compiler {
                 bonus: Expr::Constant(2),
             } => keyword("SaddlesAsThoughPowerTwoGreater"),
             R::Prohibit(ObjectAction::Counter) => keyword("CantBeCountered"),
+            // "Can't be attacked" (CR 508.1c): the keyword the attack rules read,
+            // as The Aetherspark grants it to itself.
+            R::Prohibit(ObjectAction::BeAttacked) => keyword("CantBeAttacked"),
             other => return Err(gap(format!("static rule {}", rule_name(other)))),
         })
     }
