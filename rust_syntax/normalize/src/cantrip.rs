@@ -765,6 +765,10 @@ struct Compiler {
     /// A cost part is being stated for a `Cost` that can't say it yet: its X is
     /// the announced one, read as the cost is paid (CR 601.2b, 601.2h).
     stating_cost: bool,
+    /// What is stated is data a static table holds (a play term's rider, a copy
+    /// effect's exceptions): no `q` or `asker` is there to read the card by, so a
+    /// granted ability is named by its place in the card's lists.
+    tabled: bool,
     /// A spell's additional cost read the game for its size, so it is worked out
     /// as the total cost is (`cost_of_targets`, CR 601.2f).
     cost_reads_board: bool,
@@ -1201,6 +1205,7 @@ impl Compiler {
             bound_players: BTreeSet::new(),
             costing_targets: false,
             stating_cost: false,
+            tabled: false,
             cost_reads_board: false,
             mode_guard: None,
             paying: lane_g::Paying::Ability,

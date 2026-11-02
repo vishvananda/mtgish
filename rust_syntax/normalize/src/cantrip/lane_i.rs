@@ -2660,7 +2660,7 @@ impl Compiler {
                     (true, false) => planned::planned_value(
                         "exile outside a stack item that an ability reads as exiled with its source",
                         "None",
-                        "Some(g.linked_to(asker.source))",
+                        "Some(g.linked_to(asker))",
                     ),
                     (false, _) => "None".to_string(),
                 };
@@ -2926,7 +2926,8 @@ impl Compiler {
                 let call = planned::planned_value(
                     "move arrival AttachedToPlayer",
                     "None::<ObjectId>",
-                    &format!("{player}.and_then(|player| g.put_onto_battlefield_enchanting(o, controller, player)?)"),
+                    // `?` asks the player as the resolution does, outside a closure.
+                    &format!("match {player} {{ Some(player) => g.put_onto_battlefield_enchanting(o, controller, player)?, None => None }}"),
                 );
                 format!("moved.extend({call});")
             }

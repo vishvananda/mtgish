@@ -182,6 +182,11 @@ impl Compiler {
             objects.push(code);
             objects.len() - 1
         });
+        // Choosing the targets of the ability, no item is there yet: the list
+        // is the triggering's, as `Query::event_subject` is its subject.
+        if self.event_at == EventAt::TargetFilter {
+            return format!("q.event_about().split(|&id| id == ObjectId::NONE).nth({part}).map_or_else(Vec::new, <[ObjectId]>::to_vec)");
+        }
         format!("about(q, item, {part})")
     }
     fn reads_itself(&self, object: &ObjectRef) -> bool {

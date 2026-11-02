@@ -3753,7 +3753,12 @@ impl Compiler {
         let mut grown = Parts::default();
         let inner = match self.ability(ability, label, &mut grown, None) {
             Ok(()) => {
-                let fields = grown.fields.iter().map(|(k, v)| format!("{k}({v})"));
+                // A field's value made by the helper of its name (`kicker(..)`)
+                // names the field already.
+                let fields = grown.fields.iter().map(|(k, v)| match v.starts_with(&format!("{k}(")) {
+                    true => v.clone(),
+                    false => format!("{k}({v})"),
+                });
                 grown
                     .abilities
                     .iter()

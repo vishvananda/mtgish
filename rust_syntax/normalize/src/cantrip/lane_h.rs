@@ -1413,8 +1413,19 @@ impl Compiler {
             Some(condition) => {
                 let label = format!("play_{id}_{i}_when");
                 let test = self.activation_condition(condition, &label)?;
-                write!(grant, "when: Some(PlayCondition::Rule({test})), ").unwrap();
-                planned_feature = Some("play permission on a condition");
+                // The game keeps the grant as data: the condition is a rule of
+                // the card's `play_conditions`, the grant naming its index, as
+                // `EffectKind::CantCast` names one of `lasting_spell_rules`.
+                const FEATURE: &str = "play permission on a condition";
+                let index = self.holes.matches("=> play_conditions:").count();
+                let id = planned::requirement(FEATURE);
+                writeln!(self.holes, "planned_item!({id:?} => play_conditions: {test});").unwrap();
+                let card = match self.stack_item {
+                    true => "item.ability.card",
+                    false => "g.card_id(&CARD)",
+                };
+                write!(grant, "when: Some(PlayCondition::Rule {{ card: {card}, index: {index} }}), ").unwrap();
+                planned_feature = Some(FEATURE);
             }
         }
         let grant = format!("PlayGrant {{ {grant}..PlayGrant::CAST }}");

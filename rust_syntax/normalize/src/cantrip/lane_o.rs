@@ -1001,9 +1001,11 @@ impl Compiler {
                     EventAt::Item => (Reader::Resolution, EventAt::Item),
                     _ => (Reader::Resolution, EventAt::Nowhere),
                 };
+                // The body reads the game it is given, whatever holds it.
+                let tabled = std::mem::replace(&mut self.tabled, false);
                 let mut body = String::new();
                 let compiled = self.block(program, &mut body, true);
-                (self.reader, self.event_at) = saved;
+                (self.reader, self.event_at, self.tabled) = (saved.0, saved.1, tabled);
                 compiled?;
                 format!(
                     "|g: &mut dyn Game, asker: &Asker| -> Result<(), Suspend> {{ {body} Ok(()) }}"
@@ -1018,7 +1020,13 @@ impl Compiler {
                         return Ok(format!("Keywords::of(&[{word}])"));
                     }
                 }
-                let refs = self.granted_refs(ability)?;
+                // An ability a proposed value names is its place in the card's
+                // lists, data with no card to read (`GrantedWay::gains`), so a
+                // list of them is a constant whatever reads it.
+                let tabled = std::mem::replace(&mut self.tabled, true);
+                let refs = self.granted_refs(ability);
+                self.tabled = tabled;
+                let refs = refs?;
                 match refs.as_slice() {
                     [one] => one.clone(),
                     many => format!("&[{}]", many.join(", ")),
@@ -1204,7 +1212,10 @@ impl Compiler {
         if !terms.effects.is_empty() {
             let mut riders = Vec::new();
             for effect in &terms.effects {
-                riders.push(self.play_rider(effect)?);
+                let tabled = std::mem::replace(&mut self.tabled, true);
+                let rider = self.play_rider(effect);
+                self.tabled = tabled;
+                riders.push(rider?);
             }
             table.push(format!("PlayTerm::Rider(&[{}])", riders.join(", ")));
         }
@@ -1536,19 +1547,21 @@ impl Compiler {
         }
         self.stated(operand)
     }
+    /// How a rule changes a cost: `CostShift`, as Cantrip's `CostChange` is the
+    /// function a card's own cost change is.
     fn cost_change(&mut self, change: &ActivationCostChange) -> Result<String> {
         use ActivationCostChange as C;
         Ok(match change {
-            C::Reduce(amount) => format!("CostChange::Reduce({})", self.mana_operand(amount)?),
-            C::Increase(amount) => format!("CostChange::Increase({})", self.mana_operand(amount)?),
+            C::Reduce(amount) => format!("CostShift::Reduce({})", self.mana_operand(amount)?),
+            C::Increase(amount) => format!("CostShift::Increase({})", self.mana_operand(amount)?),
             C::ReduceX { amount, times } => format!(
-                "CostChange::ReduceX {{ amount: {}, times: {} }}",
+                "CostShift::ReduceX {{ amount: {}, times: {} }}",
                 self.mana_operand(amount)?,
                 self.asked(times)?
             ),
             C::Additional(cost) => {
                 let label = format!("rule_cost_{}", self.fresh());
-                format!("CostChange::Additional({})", self.cost(cost, &label)?)
+                format!("CostShift::Additional({})", self.cost(cost, &label)?)
             }
             other => return Err(gap(format!("activation cost change {}", form(other)))),
         })
@@ -2043,9 +2056,16 @@ impl Compiler {
     /// doesn't use the stack has no such table, and waits in `granted_rules`.
     pub(super) fn granted_refs(&mut self, ability: &Ability) -> Result<Vec<String>> {
         let label = format!("granted_{}", self.fresh());
-        let card = self.source_card();
+        let card = self.source_card().to_string();
+        // In a table, where nothing is there to read the card by, the ability is
+        // its place in the card's lists (as `GrantedWay::gains` names one of
+        // `delayed`).
+        let tabled = self.tabled;
         let held = self.holding.replace(Vec::new());
+        // The ability's own functions read the game they are given.
+        self.tabled = false;
         let grown = self.grown_parts(ability, &label);
+        self.tabled = tabled;
         let entries = std::mem::replace(&mut self.holding, held).unwrap_or_default();
         let mut grown = grown?;
         let plain = entries.is_empty()
@@ -2058,10 +2078,11 @@ impl Compiler {
             let mut refs = Vec::new();
             for def in std::mem::take(&mut grown.abilities) {
                 self.delayed.push(def);
-                refs.push(format!(
-                    "AbilityRef::delayed({card}, {})",
-                    self.delayed.len() - 1
-                ));
+                let index = self.delayed.len() - 1;
+                refs.push(match tabled {
+                    true => format!("GrantedAbility::Delayed({index})"),
+                    false => format!("AbilityRef::delayed({card}, {index})"),
+                });
             }
             return Ok(refs);
         }
@@ -2082,7 +2103,7 @@ impl Compiler {
         }
         let enters = self.enters(&grown.enters);
         let rules = grown.card(&enters);
-        if let Some(granted) = self.granted_attack_limit(&rules) {
+        if let Some(granted) = self.granted_attack_limit(&rules, &card) {
             return Ok(vec![granted]);
         }
         let index = self.granted_rules;
@@ -2092,18 +2113,25 @@ impl Compiler {
         self.plan_entry(&feature, "granted_rules", &rules, &mut late);
         self.late
             .extend(late.tables.remove("granted_rules").unwrap_or_default());
-        Ok(vec![planned::planned_value(
-            &feature,
-            &format!("AbilityRef::delayed({card}, 0)"),
-            &format!("AbilityRef::granted_static({card}, {index})"),
-        )])
+        Ok(vec![match tabled {
+            true => planned::planned_value(
+                &feature,
+                "GrantedAbility::Delayed(0)",
+                &format!("GrantedAbility::Rules({index})"),
+            ),
+            false => planned::planned_value(
+                &feature,
+                &format!("AbilityRef::delayed({card}, 0)"),
+                &format!("AbilityRef::granted_static({card}, {index})"),
+            ),
+        }])
     }
     /// A granted "No more than one creature can attack this planeswalker each
     /// combat" (CR 508.1c), as Tomik, Orzhov Lawmage prints it: the grant is a
     /// static ability that changes nothing of the object, and the card's own
     /// attack limit asks whether what is attacked has it. The limit was written
     /// as the object's own, so it is asked as the object.
-    fn granted_attack_limit(&mut self, rules: &str) -> Option<String> {
+    fn granted_attack_limit(&mut self, rules: &str, card: &str) -> Option<String> {
         const EMPTY: &str = "CardDef { keywords: Keywords::of(&[]), abilities: &[], statics: &[], replacements: &[], preventions: &[], block_rules: &[], block_requirements: &[], attack_rules: &[], untap_bans: &[], enters: None, attack_limits: &[";
         let limit = rules.strip_prefix(EMPTY)?.strip_suffix("], ..CardDef::BLANK }")?;
         if limit.is_empty() || !limit.chars().all(|c| c.is_alphanumeric() || c == '_') {
@@ -2112,7 +2140,6 @@ impl Compiler {
         let line = self.line_text()?;
         let (open, close) = (line.find('"')?, line.rfind('"')?);
         let text = quoted(line.get(open + 1..close).filter(|text| !text.is_empty())?);
-        let card = self.source_card();
         writeln!(self.functions, "#[allow(unused_variables)] fn {limit}_changes_nothing(q: &dyn LayerQuery, source: ObjectId, chars: &mut Chars) {{}}").unwrap();
         self.delayed.push(format!(
             "granted_static(Layer::Ability, {limit}_changes_nothing, {text})"
@@ -2120,7 +2147,10 @@ impl Compiler {
         let index = self.delayed.len() - 1;
         writeln!(self.functions, "#[allow(unused_variables)] fn {limit}_held(q: &dyn Query, asker: &Asker, attacked: Target) -> Option<u32> {{ let Target::Object(id) = attacked else {{ return None; }}; let source = q.obj(asker.source); let granted = AbilityRef::delayed(source.copied_card().unwrap_or(source.card), {index}); if !q.chars(id).abilities.contains(&Some(granted)) {{ return None; }} {limit}(q, &Asker::new(id, q.controller(id)), attacked) }}").unwrap();
         self.late_tables.push(("attack_limits", format!("{limit}_held")));
-        Some(format!("AbilityRef::delayed({card}, {index})"))
+        Some(match self.tabled {
+            true => format!("GrantedAbility::Delayed({index})"),
+            false => format!("AbilityRef::delayed({card}, {index})"),
+        })
     }
     /// The statement that gives a layer's `chars` these abilities.
     pub(super) fn grant_in_layer(&mut self, ability: &Ability) -> Result<statics::LayerChange> {
@@ -2634,7 +2664,10 @@ impl Compiler {
         let (test, object, more) = self
             .queried(|c| {
                 let (guard, test) = (c.guard()?, c.rule_subject(affected, "id")?);
-                Ok((format!("{guard}{test}"), c.object(object)?, c.stated(more)?))
+                let tabled = std::mem::replace(&mut c.tabled, true);
+                let more = c.stated(more);
+                c.tabled = tabled;
+                Ok((format!("{guard}{test}"), c.object(object)?, more?))
             })
             .map_err(|_| gap(&feature))?;
         let function = format!("{label}_copies");
@@ -2772,7 +2805,12 @@ impl Compiler {
                             true => "q.state().opponents(p).into_iter().collect()".to_string(),
                             false => self.players(among)?,
                         };
-                        return Ok(format!("{from}.and_then(|p: PlayerId| {{ let among: Vec<PlayerId> = {among}; let right = q.state().chosen_option(q.linked_to(asker.source)).filter(|c| std::ptr::eq(q.cards().get(c.card), &CARD))?.index == 1; let mut order: Vec<PlayerId> = q.state().turn_order_from(p).skip(1).collect(); if right {{ order.reverse(); }} order.into_iter().find(|o| among.contains(o)) }})"));
+                        // A `LayerQuery` links by the object; a `Query`, by the asker.
+                        let linked = match self.reader {
+                            Reader::Layer => "asker.source",
+                            _ => "asker",
+                        };
+                        return Ok(format!("{from}.and_then(|p: PlayerId| {{ let among: Vec<PlayerId> = {among}; let right = q.state().chosen_option(q.linked_to({linked})).filter(|c| std::ptr::eq(q.cards().get(c.card), &CARD))?.index == 1; let mut order: Vec<PlayerId> = q.state().turn_order_from(p).skip(1).collect(); if right {{ order.reverse(); }} order.into_iter().find(|o| among.contains(o)) }})"));
                     }
                 }
                 match among {
@@ -4226,7 +4264,17 @@ impl Compiler {
     fn quality_code(&mut self, quality: &Protection) -> Result<String> {
         Ok(match quality {
             Protection::Objects { filter, .. } => {
-                format!("Protection::Objects({})", self.over(filter, "id")?)
+                let over = self.over(filter, "id")?;
+                // "Protection from the color of your choice" (Seht's Tiger): the
+                // color chosen as it resolved, a Copy value the rule keeps.
+                match over
+                    .strip_suffix(".is_some_and(|chosen| q.chars(id).colors.has(chosen))")
+                    .and_then(|o| o.rsplit_once("| Some("))
+                    .and_then(|(_, chosen)| chosen.strip_suffix(')'))
+                {
+                    Some(chosen) => format!("Protection::Color({chosen})"),
+                    None => format!("Protection::Objects({over})"),
+                }
             }
             Protection::Players(players) => {
                 let gaps = self.gaps.len();

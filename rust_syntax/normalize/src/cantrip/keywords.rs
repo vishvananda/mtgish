@@ -485,7 +485,9 @@ impl Compiler {
             K::Assimilate => self.plan_for_object(
                 "engine: no Assimilate",
                 action,
-                &format!("{M}::assimilate::assimilate(g, asker.source, object)"),
+                // Cantrip's assimilates as the resolving item puts the card
+                // onto the battlefield (CR 701.67a).
+                &format!("{M}::assimilate::assimilate(g, item, object)?"),
                 out,
             )?,
             K::UnlockDoor => self.plan_for_object(

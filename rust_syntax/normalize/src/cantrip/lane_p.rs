@@ -1269,7 +1269,7 @@ impl Compiler {
                 held_number(feature, &code)
             }
             Expr::Dice(measure) => {
-                let last = "g.last_roll(asker.controller)";
+                let last = "q.last_roll(asker.controller)";
                 let code = match measure {
                     DiceMeasure::Result | DiceMeasure::Total => format!("{last}.result"),
                     DiceMeasure::Nth(n) => format!("{last}.dice[{n}]"),
@@ -2565,7 +2565,7 @@ impl Compiler {
             let players = self.fetch(self.players(players)?);
             let arrival = self.arrival_code(entry, &failed.feature)?;
             let call = format!(
-                "{{ let mut made: Vec<ObjectId> = Vec::new(); for object in {objects} {{ made.extend({M}::tokens::create(g, asker, {players}, &[({amount}, TokenRecipe::Copy(Some(object), &[{}]))], {arrival})?); }} made }}",
+                "{{ let mut made: Vec<ObjectId> = Vec::new(); for object in {objects} {{ made.extend({M}::tokens::create_from_recipes(g, asker.source, &{players}, &[({amount}, TokenRecipe::Copy(Some(object), &[{}]))], {arrival})?); }} made }}",
                 adjustments.join(", ")
             );
             let created = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
@@ -3372,7 +3372,11 @@ impl Compiler {
                     format!("{M}::equip::ability_onto({price}, {filter}, {word})"),
                 )
             }
-            K::TrampleOverPlaneswalkers => ("keywords", "Keyword::TrampleOverPlaneswalkers".into()),
+            // A word of the card's `Keywords`, beside those it prints.
+            K::TrampleOverPlaneswalkers => (
+                "keywords",
+                "Keywords::of(&[Keyword::TrampleOverPlaneswalkers])".into(),
+            ),
             K::SpliceOnto => {
                 let filter = self.filter_fn(filter.ok_or_else(open)?)?;
                 let price = price(self)?;

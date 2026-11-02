@@ -1002,7 +1002,8 @@ impl Compiler {
                 &feature,
                 &call,
                 &format!(
-                    "{{ let granted = {{ let asker = &Asker::new(item.object, item.controller); let q: &dyn Query = g; [{}] }}; cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &granted) }}",
+                    "{{ let granted: [AbilityRef; {}] = {{ let asker = &Asker::new(item.object, item.controller); let q: &dyn Query = g; [{}] }}; cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &granted) }}",
+                    stated.len(),
                     stated.join(", "),
                     keywords.join(","),
                 ),

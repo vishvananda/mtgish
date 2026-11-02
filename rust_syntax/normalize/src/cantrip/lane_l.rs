@@ -2947,6 +2947,30 @@ impl Compiler {
             Change::SpellCost(modifier) => {
                 format!("SpellChange::Cost({})", self.cost_delta(modifier)?)
             }
+            // An effect on the spell until a time (Summon: Brynhildr's haste
+            // until end of turn): the effect and its duration, each one, as the
+            // game keeps an effect, with no list of them to borrow.
+            Change::Continuing { changes, until }
+                if changes.iter().all(|c| {
+                    !matches!(
+                        c,
+                        Change::EntersWithCounters { .. }
+                            | Change::CantBeCountered
+                            | Change::SpellCost(_)
+                            | Change::Continuing { .. }
+                            | Change::GrantAbility(_)
+                    )
+                }) =>
+            {
+                let until = self.duration(until)?;
+                let mut each = Vec::new();
+                for change in changes {
+                    for kind in self.effect_kinds(change)? {
+                        each.push(format!("SpellChange::EffectUntil({kind}, {until})"));
+                    }
+                }
+                each.join(", ")
+            }
             Change::Continuing { changes, until } => {
                 let changes = changes
                     .iter()

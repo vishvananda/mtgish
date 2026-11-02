@@ -296,7 +296,7 @@ impl Compiler {
     /// A read made while resolving, where `g` is the only reader.
     pub(super) fn fetch(&self, code: impl AsRef<str>) -> String {
         // A reader with no `g` has its `q` already (a rule a table holds).
-        if self.reader != Reader::Resolution {
+        if self.reader != Reader::Resolution || self.tabled {
             return code.as_ref().to_string();
         }
         format!("{{ let q: &dyn Query = g; {} }}", code.as_ref())

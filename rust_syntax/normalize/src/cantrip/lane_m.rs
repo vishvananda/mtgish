@@ -1418,7 +1418,7 @@ impl Compiler {
                     None if self.frame.amount.is_some() => self.number(&Expr::EventAmount)?,
                     None => held_number(
                         "numeric expression Dice".into(),
-                        "g.last_roll(asker.controller).result",
+                        "q.last_roll(asker.controller).result",
                     ),
                 }
             }
@@ -1494,7 +1494,7 @@ impl Compiler {
             ),
             Expr::DieResultAt { index, .. } => held_number(
                 "numeric expression DieResultAt".into(),
-                &format!("g.last_roll(asker.controller).dice[{index}]"),
+                &format!("q.last_roll(asker.controller).dice[{index}]"),
             ),
             Expr::DraftNoted { .. } => held_number(
                 "numeric expression DraftNoted".into(),
