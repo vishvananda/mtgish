@@ -1404,8 +1404,17 @@ impl Compiler {
             past.history_test()
         );
         // "If it's the first time" (Botanical Brawler) is an intervening "if" asked again as the ability resolves (CR
-        // 603.4), of the event it triggered on: whether that event had any before it, which nothing after changes. So
-        // the matcher's test is all; a count at resolution would take a later event for an earlier one.
+        // 603.4), of the history as it then stands, as Cantrip's Captain America, Living Legend asks it: the event that
+        // fired it is the only one.
+        let intervening = self
+            .line_text()
+            .is_some_and(|line| line.contains("if it's the first time"));
+        if by_subject && intervening {
+            self.first_again = Some(format!(
+                "{scope}.filter_map({}).filter(|f: &Fired| f.subject == item.subject).count() <= 1",
+                past.history_test()
+            ));
+        }
         // Summed events are one happening: the rest of it is no earlier one.
         let test = match matched.sums {
             true => planned::planned_value(

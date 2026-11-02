@@ -2086,8 +2086,15 @@ impl Compiler {
             Some(_) if implied_by_target => Err(gap("a condition on modes a target implies")),
             Some(condition) => self.guarded_effect(condition, body, label),
             None if implied_by_target => self.implied_effect(announcement, label),
-            None => self.effect(body, label),
+            None => match self.first_again.take() {
+                Some(test) => {
+                    let test = self.fetch(test);
+                    self.tested_effect(test, body, label)
+                }
+                None => self.effect(body, label),
+            },
         };
+        self.first_again = None;
         self.grouped = false;
         self.frame = Frame::default();
         let effect = effect?;

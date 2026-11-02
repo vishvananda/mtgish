@@ -541,6 +541,9 @@ struct Compiler {
     /// The abilities of one sentence are being written ("whenever this or that"):
     /// the key of its "do this only once each turn", one for them all.
     once_shared: Option<Option<u8>>,
+    /// An "if it's the first time" the printed line asks of the object, as the
+    /// resolving ability reads it (603.4).
+    first_again: Option<String>,
     /// Reading a test of whether this spell may be cast.
     cast_test: bool,
     /// Compiling a delayed triggered ability, whose words are the sentence that
@@ -1292,6 +1295,7 @@ impl Compiler {
             stage_lines: None,
             do_once: None,
             once_shared: None,
+            first_again: None,
             cast_test: false,
             waiting_trigger: false,
             face_text: String::new(),

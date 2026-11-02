@@ -37,6 +37,8 @@ const CARDS: &[(&str, &str)] = &[
     // A slot that takes only abilities reads no spell (Repudiate, Stifle).
     ("Repudiate", "stack.iter().position(|e| matches!(t, Target::Ability(serial) if e.kind != StackKind::Spell && e.serial == serial))"),
     ("Stifle", "q.state().stack.iter().any(|e| matches!(t, Target::Ability(serial) if e.kind != StackKind::Spell && e.serial == serial) && "),
+    // "If it's the first time" is asked again as it resolves (CR 603.4), as Captain America, Living Legend asks it.
+    ("Botanical Brawler", ".count() <= 1"),
     // "Up to one": always asked.
     ("Enigmatic Incarnation", "let taken = cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible,"),
 ];
@@ -48,8 +50,6 @@ const GONE: &[(&str, &str)] = &[
     // Two types tested of a card that has one.
     ("Memory Deluge", "CardType::Sorcery"),
     ("Turn the Earth", "CardType::Sorcery"),
-    // "If it's the first time" is of the event that fired it, and stays so.
-    ("Botanical Brawler", ".count() <= 1"),
     // Who cast it is fixed once it is cast.
     ("Light-Paws, Emperor's Voice", "if !{ let q: &dyn Query = g; item.subject.object().is_some_and(|candidate: ObjectId| cast_of("),
     // Only cards with a way to cast are offered; no land is played.
