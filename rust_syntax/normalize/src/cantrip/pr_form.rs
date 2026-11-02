@@ -127,7 +127,7 @@ fn merged_faces(front: File, mut second: File, constant: &str) -> Option<File> {
         text_of(&item)
     };
     // The same name for something else: the second face's takes a number.
-    let renamed: BTreeMap<String, String> = second
+    let mut renamed: BTreeMap<String, String> = second
         .items
         .iter()
         .filter_map(|item| name_of(item).map(|name| (name, undocumented(item))))
@@ -143,6 +143,7 @@ fn merged_faces(front: File, mut second: File, constant: &str) -> Option<File> {
             (name, new)
         })
         .collect();
+    renamed.insert("CARD".to_string(), constant.to_string());
     rename(&mut second, &renamed);
     let (mut uses, mut mechanics, mut own, mut extra): (Vec<Item>, BTreeSet<String>, Vec<Item>, Vec<Expr>) =
         (Vec::new(), BTreeSet::new(), Vec::new(), Vec::new());
@@ -177,9 +178,7 @@ fn merged_faces(front: File, mut second: File, constant: &str) -> Option<File> {
                     }
                     continue;
                 }
-                if i == 0 && s.ident == "CARD" {
-                    s.ident = syn::Ident::new(constant, s.ident.span());
-                } else if i == 0 && text_of(&s.ty) == "CardDef" {
+                if i == 0 && s.ident != constant && text_of(&s.ty) == "CardDef" {
                     let ident = &s.ident;
                     let entry: Expr = parse_quote!(&#ident);
                     if !extra.iter().any(|e| text_of(e) == text_of(&entry)) {
