@@ -764,6 +764,10 @@ struct Compiler {
     /// `CardDef::lasting_rules`: rules on open sets (CR 611.2c), each with
     /// what it waits on where Cantrip has none.
     made_lasting_rules: Vec<(String, String)>,
+    /// `CardDef::play_terms`: what a permission to play a card is on beside
+    /// data (a test, a cost, what playing it does), each with what it waits
+    /// on once the hole that wrote it says.
+    made_play_terms: Vec<(Option<String>, String)>,
     /// Instructions that made an effect preventing damage: its amount comes later.
     prevented: BTreeSet<u32>,
     /// A resolving effect is on what its event is about.
@@ -1161,6 +1165,7 @@ impl Compiler {
             lasting: Vec::new(),
             made_block_rules: Vec::new(),
             made_lasting_rules: Vec::new(),
+            made_play_terms: Vec::new(),
             prevented: BTreeSet::new(),
             rule_on_event_object: false,
             entering_labels: None,
@@ -2683,6 +2688,15 @@ fn emit_face(
         writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
         if planned::switched_on(planned::LASTING_RULES) {
             parts.field("lasting_rules", "LASTING_RULES".to_string());
+        }
+    }
+    // Only a hole writes a play grant on terms (`play_grant`): a whole card
+    // has none, and one a failed part left behind is no card's.
+    let play_terms = std::mem::take(&mut c.made_play_terms);
+    if let Some(first) = c.gaps.first().map(|g| g.feature.clone()) {
+        for (feature, entry) in play_terms {
+            let id = planned::requirement(feature.as_deref().unwrap_or(&first));
+            writeln!(c.functions, "planned_item!({id:?} => play_terms: {entry});").unwrap();
         }
     }
     for made in std::mem::take(&mut c.made_cost_changes) {

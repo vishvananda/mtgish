@@ -980,13 +980,15 @@ impl Compiler {
             )
             .unwrap(),
         }
+        // What is no data - a test, a cost, what playing it does - is the
+        // card's: an entry of its `play_terms`, which the grant, kept in the
+        // game state, names by index (the card is the permission's `by`).
+        let mut table = Vec::new();
         if let Some(during) = &terms.during {
-            write!(
-                grant,
-                "during: Some(|q: &dyn Query, asker: &Asker, player: PlayerId| {}), ",
+            table.push(format!(
+                "PlayTerm::During(|q: &dyn Query, asker: &Asker, player: PlayerId| {})",
                 self.player_member(during)?
-            )
-            .unwrap();
+            ));
         }
         match &terms.cost {
             PlayCost::Normal => {}
@@ -995,10 +997,10 @@ impl Compiler {
                 self.card_costed = true;
                 let stated = self.stated(cost);
                 self.card_costed = false;
-                write!(grant, "alternate: Some({}), ", stated?).unwrap()
+                table.push(format!("PlayTerm::Alternate({})", stated?))
             }
             PlayCost::Additional(cost) => {
-                write!(grant, "also: Some({}), ", self.stated(cost)?).unwrap()
+                table.push(format!("PlayTerm::Also({})", self.stated(cost)?))
             }
             PlayCost::Using(keyword) => {
                 write!(grant, "using: Some(CostedKeyword::{keyword:?}), ").unwrap()
@@ -1014,19 +1016,17 @@ impl Compiler {
             grant.push_str("exile_instead: ExileInstead::Spell, ");
         }
         if let Some(condition) = &terms.condition {
-            write!(
-                grant,
-                "when: Some(PlayCondition::Rule(|q: &dyn Query, asker: &Asker| {})), ",
+            table.push(format!(
+                "PlayTerm::When(|q: &dyn Query, asker: &Asker| {})",
                 self.condition(condition)?
-            )
-            .unwrap();
+            ));
         }
         if !terms.effects.is_empty() {
             let mut riders = Vec::new();
             for effect in &terms.effects {
                 riders.push(self.play_rider(effect)?);
             }
-            write!(grant, "rider: Some(&[{}]), ", riders.join(", ")).unwrap();
+            table.push(format!("PlayTerm::Rider(&[{}])", riders.join(", ")));
         }
         if terms.flash {
             grant.push_str("flash: true, ");
@@ -1035,12 +1035,86 @@ impl Compiler {
             grant.push_str("may_look: true, ");
         }
         if let Some(then) = &terms.then {
-            write!(grant, "then: Some(Destination::{}), ", form(then)).unwrap();
+            write!(grant, "then: Some(ZoneDestination::{}), ", form(then)).unwrap();
         }
         if let Some(face_down) = &terms.face_down {
             write!(grant, "face_down: Some({}), ", quoted(&form(face_down))).unwrap();
         }
+        if !table.is_empty() {
+            write!(grant, "terms: Some({}), ", self.made_play_terms.len()).unwrap();
+            self.made_play_terms
+                .push((None, format!("&[{}]", table.join(", "))));
+        }
         Ok(format!("PlayGrant {{ {grant}..PlayGrant::CAST }}"))
+    }
+    /// A resolving permission to play cards named as it resolves: Cantrip's
+    /// permission for each of those objects (`Game::allow_play`, CR 601.3),
+    /// which ends as the card leaves where it is (CR 400.7), not a rule a
+    /// player keeps with a list in it. None for a set read as it is asked, so
+    /// open to cards that come there later (a hand, a library's top).
+    fn closed_play(
+        &mut self,
+        players: &PlayerSet,
+        rule: &PlayerRule,
+        duration: &crate::ir::Duration,
+    ) -> Result<Option<String>> {
+        let plain = lane_h::plain_terms();
+        let (permission, terms) = match rule {
+            PlayerRule::PlayPermissionWith { permission, terms } => (&**permission, terms),
+            other => (other, &plain),
+        };
+        let PlayerRule::PlayPermission {
+            cards,
+            from,
+            action,
+            filter,
+        } = permission
+        else {
+            return Ok(None);
+        };
+        let open = |set: &ObjectSet| matches!(set, ObjectSet::Zone { .. });
+        if !matches!(self.reader, Reader::Resolution)
+            || open(cards)
+            || matches!(cards, ObjectSet::Take { objects, .. } if open(objects))
+        {
+            return Ok(None);
+        }
+        let chosen = match filter {
+            ObjectFilter::Any => cards.clone(),
+            filter => ObjectSet::Matching {
+                objects: Box::new(cards.clone()),
+                filter: filter.clone(),
+            },
+        };
+        let gaps = self.gaps.len();
+        let asked = matches!(self.queried(|c| c.objects(&chosen)), Ok(code) if code.contains("q."));
+        self.gaps.truncate(gaps);
+        if asked {
+            return Ok(None);
+        }
+        let zone = match from {
+            EventZone::Outside => "ZoneKind::Outside".to_string(),
+            other => zone_kind(other)?,
+        };
+        let cards = self.fetch(self.objects(&chosen)?);
+        let players = self.fetch(self.players(players)?);
+        let grant = self.play_grant(action, terms)?;
+        // The permission's own end where it has one (`play_expiry`), else as
+        // long as the duration the effect is for.
+        let expiry = match lane_h::play_expiry(duration) {
+            Ok(expiry) => expiry,
+            Err(_) => format!("Expiry::Lasting({})", self.stated_until(duration)?),
+        };
+        let grant = grant.replacen("PlayGrant { ", &format!("PlayGrant {{ expiry: {expiry}, "), 1);
+        Ok(Some(format!(
+            "let cards = {cards}; let players = {players}; cantrip_api::instruction(g, |g| {{ for &card in &cards {{ if g.obj(card).zone.is({zone}) {{ for &player in &players {{ g.allow_play(card, player, {grant}); }} }} }} }});"
+        )))
+    }
+    /// The `play_terms` entries written since the last hole are `feature`'s.
+    fn own_play_terms(&mut self, feature: &str) {
+        for (owner, _) in &mut self.made_play_terms {
+            owner.get_or_insert_with(|| feature.to_string());
+        }
     }
     /// A permission to play cards, whichever holds it: the cards are asked of
     /// as they are played, so they can be ones that come there later.
@@ -1551,6 +1625,7 @@ impl Compiler {
             self.gaps.truncate(saved);
             return Err(failed);
         };
+        self.own_play_terms(&failed.feature);
         self.plan_entry(
             &failed.feature,
             "statics",
@@ -1569,7 +1644,13 @@ impl Compiler {
         duration: &crate::ir::Duration,
         out: &mut String,
     ) -> Result<()> {
+        if let Some(code) = self.closed_play(players, rule, duration)? {
+            self.own_play_terms(feature);
+            self.plan_code(feature, &code, out);
+            return Ok(());
+        }
         let code = self.player_rule_code(rule)?;
+        self.own_play_terms(feature);
         // A permission to play cards "for as long as they remain exiled" is a
         // permission for those objects, which no longer exist once they leave
         // exile (CR 400.7): it lasts as one that never ends, as `play_expiry`
@@ -2545,16 +2626,16 @@ impl Compiler {
     fn stated_destination(&self, destination: &Destination) -> Result<String> {
         Ok(match destination {
             Destination::Battlefield(player) => {
-                format!("Destination::Battlefield({})", self.player(player)?)
+                format!("ZoneDestination::Battlefield({})", self.player(player)?)
             }
-            Destination::Hand(player) => format!("Destination::Hand({})", self.player(player)?),
+            Destination::Hand(player) => format!("ZoneDestination::Hand({})", self.player(player)?),
             Destination::OwnersLibraryFromTop(n) => {
-                format!("Destination::OwnersLibraryFromTop({})", self.asked(n)?)
+                format!("ZoneDestination::OwnersLibraryFromTop({})", self.asked(n)?)
             }
             Destination::OwnersPlanarDeck(end) => {
-                format!("Destination::OwnersPlanarDeck(SequenceEnd::{end:?})")
+                format!("ZoneDestination::OwnersPlanarDeck(SequenceEnd::{end:?})")
             }
-            other => format!("Destination::{}", form(other)),
+            other => format!("ZoneDestination::{}", form(other)),
         })
     }
     /// How a moved thing arrives, for the plain ways it can.
@@ -3355,6 +3436,7 @@ impl Compiler {
             }
             None => "None".to_string(),
         };
+        self.own_play_terms(&failed.feature);
         self.plan_entry(
             &failed.feature,
             "own_casts",

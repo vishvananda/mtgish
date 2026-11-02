@@ -8,7 +8,7 @@ const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
 const ASKED: &str = "(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool";
 
 /// How long a permission on a card lasts.
-fn play_expiry(duration: &crate::ir::Duration) -> Result<String> {
+pub(super) fn play_expiry(duration: &crate::ir::Duration) -> Result<String> {
     use crate::ir::Duration as D;
     Ok(match duration {
         D::EndOfTurn => "Expiry::EndOfTurn".to_string(),
@@ -3986,11 +3986,13 @@ impl Compiler {
                 let Expr::Constant(n) = amount else {
                     return Err(gap("static rule CombatGroup of a counted amount"));
                 };
+                // How many it may be with, at least and at most: two numbers a
+                // table holds, not a range, which is no `Copy`.
                 let count = match comparison {
-                    Comparison::Greater => format!("{}..=u32::MAX", n + 1),
-                    Comparison::GreaterOrEqual => format!("{n}..=u32::MAX"),
-                    Comparison::LessOrEqual => format!("0..={n}"),
-                    Comparison::Equal => format!("{n}..={n}"),
+                    Comparison::Greater => format!("at_least: {}, at_most: u32::MAX", n + 1),
+                    Comparison::GreaterOrEqual => format!("at_least: {n}, at_most: u32::MAX"),
+                    Comparison::LessOrEqual => format!("at_least: 0, at_most: {n}"),
+                    Comparison::Equal => format!("at_least: {n}, at_most: {n}"),
                     other => return Err(gap(format!("static rule CombatGroup {}", form(other)))),
                 };
                 let role = match role {
@@ -4007,7 +4009,7 @@ impl Compiler {
                 self.plan_entry(
                     &format!("static rule CombatGroup {role}"),
                     "combat_groups",
-                    &format!("CombatGroupRule {{ role: CombatRole::{role}, applies: {function}, counted: {function}_counted, others_only: {others_only}, count: {count} }}"),
+                    &format!("CombatGroupRule {{ role: CombatRole::{role}, applies: {function}, counted: {function}_counted, others_only: {others_only}, {count} }}"),
                     parts,
                 );
             }

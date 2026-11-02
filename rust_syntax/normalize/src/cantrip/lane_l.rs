@@ -2679,7 +2679,7 @@ impl Compiler {
                     None => "None".to_string(),
                 };
                 let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
-                self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, Destination::{}, &[{}]); }}", form(destination), entry.join(", ")), out);
+                self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, ZoneDestination::{}, &[{}]); }}", form(destination), entry.join(", ")), out);
             }
             // "An opponent gains control": the controller picks one, unasked if
             // there is only one. The new controller keeps it (CR 611.2), or has it
@@ -3737,16 +3737,21 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let on_objects = matches!(subject, EffectSubject::Objects(_));
-        let subject = match subject {
-            EffectSubject::Objects(objects) => {
-                format!("EffectOn::Objects({})", self.fetch(self.objects(objects)?))
-            }
-            EffectSubject::Players(players) => {
-                format!("EffectOn::Players({})", self.fetch(self.players(players)?))
-            }
+        // Objects and players named as it resolves are the call's to read, as
+        // `exile_all` takes them, not a list the effect keeps; a set of spells
+        // to come is asked of each, so it is a rule (`EffectOn`).
+        let (call, subject) = match subject {
+            EffectSubject::Objects(objects) => (
+                "effect_on_objects",
+                format!("&{}", self.fetch(self.objects(objects)?)),
+            ),
+            EffectSubject::Players(players) => (
+                "effect_on_players",
+                format!("&{}", self.fetch(self.players(players)?)),
+            ),
             EffectSubject::EachSpell(filter) => {
                 let test = self.filter(filter, &Candidate::of("id"))?;
-                format!("EffectOn::EachSpell(|q: &dyn Query, asker: &Asker, id: ObjectId| {test})")
+                ("effect_on", format!("EffectOn::EachSpell(|q: &dyn Query, asker: &Asker, id: ObjectId| {test})"))
             }
             EffectSubject::NextSpell {
                 spells,
@@ -3756,7 +3761,7 @@ impl Compiler {
             } => {
                 let test = self.filter(spells, &Candidate::of("id"))?;
                 let caster = self.fetch(self.certain_player(caster)?);
-                format!("EffectOn::NextSpell {{ spells: |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, caster: {caster}, this_turn: {this_turn}, from: {:?} }}", from.as_ref().map(|z| format!("{z:?}")))
+                ("effect_on", format!("EffectOn::NextSpell {{ spells: |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, caster: {caster}, this_turn: {this_turn}, from: {:?} }}", from.as_ref().map(|z| format!("{z:?}"))))
             }
         };
         let until = match until {
@@ -3786,7 +3791,7 @@ impl Compiler {
         self.plan_code(
             "operation EffectOn",
             &format!(
-                "{M}::effects::effect_on(g, asker, {subject}, &[{}], {until})?",
+                "{M}::effects::{call}(g, asker, {subject}, &[{}], {until})?",
                 effects.join(", ")
             ),
             out,

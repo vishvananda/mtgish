@@ -2325,15 +2325,15 @@ impl Compiler {
         Ok(match destination {
             Destination::Battlefield(player) => {
                 format!(
-                    "Destination::Battlefield({})",
+                    "ZoneDestination::Battlefield({})",
                     self.fetch(self.player(player)?)
                 )
             }
             Destination::OwnersLibraryFromTop(n) => format!(
-                "Destination::OwnersLibraryFromTop({})",
+                "ZoneDestination::OwnersLibraryFromTop({})",
                 self.fetch(self.number(n)?.code)
             ),
-            other => format!("Destination::{}", form(other)),
+            other => format!("ZoneDestination::{}", form(other)),
         })
     }
     /// How something enters, as code: an `Arrival` the engine doesn't have yet.
@@ -2778,8 +2778,11 @@ impl Compiler {
             None => "None".to_string(),
         };
         let destination = self.destination_code(destination)?;
+        // Who moves and what is moved are read as it resolves, as `in_state`
+        // takes them; how is a `CardMove`, data (`ZoneChange` is the
+        // replacement effects' move, CR 614.1a).
         let call = format!(
-            "{M}::enter::change_zone(g, asker, ZoneChange {{ actor: {actor}, cards: {cards}, count: {count}, random: {random}, group: {group}, destination: {destination}, entry: &[{}], face_down: {face_down} }})?",
+            "{M}::enter::change_zone(g, asker, &{actor}, &{cards}, CardMove {{ count: {count}, random: {random}, group: {group}, destination: {destination}, entry: &[{}], face_down: {face_down} }})?",
             entry.join(", ")
         );
         let moved = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
