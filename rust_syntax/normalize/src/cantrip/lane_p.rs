@@ -1274,7 +1274,7 @@ impl Compiler {
                 for value in values {
                     each.push(self.number(value)?.code);
                 }
-                held_number(feature, &format!("{M}::numbers::AnyOf(&[{}])", each.join(", ")))
+                held_number(feature, &format!("{M}::numbers::any_of(&[{}])", each.join(", ")))
             }
             Expr::ModesChosen(object) => held_number(
                 feature,
@@ -4022,7 +4022,12 @@ impl Compiler {
             } => {
                 let actors = self.stated_players(actor)?;
                 let options = self.stated_operands(options);
-                format!("{M}::choose::value(g, {source}, {actors}, ChoiceKind::{kind:?}, {count}, {options})?")
+                // As lane_l's choice on terms calls it: one signature.
+                let count = match count {
+                    0 => "None".to_string(),
+                    n => format!("Some({n})"),
+                };
+                format!("{M}::choose::value(g, {actors}, {source}, ChoiceKind::{kind:?}, ChoiceTerms {{ options: {options}, except: &[], count: {count}, secret: false, unchosen: false, random: false, ordered: false, up_to: false }})?")
             }
             Operation::ChooseAtRandom { kind, options } => {
                 let options = self.stated_operands(options);

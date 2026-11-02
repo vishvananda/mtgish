@@ -4090,7 +4090,7 @@ impl Compiler {
                 self.plan_entry(
                     &feature,
                     "abilities",
-                    &format!("{M}::attractions::visit({visit}, {prize}, {text})"),
+                    &format!("{M}::attractions::visit_ability({visit}, {prize}, {text})"),
                     parts,
                 );
             }

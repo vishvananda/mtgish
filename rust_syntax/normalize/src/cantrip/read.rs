@@ -1522,7 +1522,7 @@ impl Compiler {
                     Aggregation::Minimum => "min().unwrap_or(0)",
                     Aggregation::AnyOf => {
                         let code = format!(
-                            "cantrip_mechanics::numbers::AnyOf(&({}).into_iter().map(|o: ObjectId| {}).collect::<Vec<i64>>())",
+                            "cantrip_mechanics::numbers::any_of(&({}).into_iter().map(|o: ObjectId| {}).collect::<Vec<i64>>())",
                             self.objects(objects)?,
                             read.code
                         );

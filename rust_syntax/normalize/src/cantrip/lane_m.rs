@@ -1485,7 +1485,7 @@ impl Compiler {
             ),
             Expr::DraftNoted { .. } => held_number(
                 "numeric expression DraftNoted".into(),
-                &format!("q.draft_notes(asker.controller, {})", one_line(n)),
+                &format!("q.draft_note_count(asker.controller, {})", one_line(n)),
             ),
             Expr::HeadsFlipped(result) if self.performed.contains_key(&result.0) => {
                 counted(self.performed[&result.0].clone())
@@ -1564,7 +1564,7 @@ impl Compiler {
             ObjectFilter::DraftNoted { .. } => planned::planned_value(
                 "object filter DraftNoted",
                 "false",
-                &format!("q.draft_notes({id}, {})", one_line(f)),
+                &format!("q.draft_noted_card({id}, {})", one_line(f)),
             ),
             other => return self.predicate_p(other, c),
         })
