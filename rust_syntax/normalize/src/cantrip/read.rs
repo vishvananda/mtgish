@@ -1343,6 +1343,31 @@ impl Compiler {
                     {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
+                    // "The greatest amount of damage dealt by a source to a permanent
+                    // or player this turn" (Impact Resonance) sums each source's
+                    // damage to each recipient; "a source you controlled dealt 5 or
+                    // more damage this turn" (Dragon Cultist) all of a source's. Each
+                    // record's subject is its source and `data[1]` its recipient.
+                    HistoryMeasure::MostFromOneSource
+                        if matched.frame.amount == Some(Carried::Data(0))
+                            && matches!(
+                                &**event,
+                                EventSpec::Damage(DamageEvent {
+                                    subject: DamageSubject::Source,
+                                    grouping: DamageGrouping::SourceRecipient,
+                                    ..
+                                })
+                            ) =>
+                    {
+                        let key = match &**event {
+                            EventSpec::Damage(DamageEvent {
+                                recipients: DamageRecipients::Any,
+                                ..
+                            }) => "0",
+                            _ => "f.data[1]",
+                        };
+                        format!("{{ let mut most: Vec<(Target, u32, i64)> = Vec::new(); for f in {hits} {{ let key: u32 = {key}; match most.iter_mut().find(|d| d.0 == f.subject && d.1 == key) {{ Some(d) => d.2 += i64::from(f.data[0]), None => most.push((f.subject, key, i64::from(f.data[0]))) }} }} most.into_iter().map(|d| d.2).max().unwrap_or(0) }}")
+                    }
                     other => lane_p::history_measured(other, scope, &matched.history_test())
                         .unwrap_or_else(|| lane_p::history_measure(other, &hits)),
                 };
