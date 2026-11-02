@@ -1215,7 +1215,19 @@ impl Compiler {
             CardPlayAction::CastSpell => false,
             other => return Err(gap(format!("play permission to {}", form(other)))),
         };
-        let expiry = play_expiry(duration)?;
+        // "Until that player's next end step, they may play it" (Casey & Raph):
+        // the holder's own next end step, whoever the holder is.
+        let expiry = match duration {
+            crate::ir::Duration::UntilNext {
+                point: TurnPoint::EndStepBegins,
+                players: until,
+            } if matches!(players, PlayerSet::One(_))
+                && format!("{until:?}") == format!("{players:?}") =>
+            {
+                "Expiry::UntilYourNextEndStep".to_string()
+            }
+            _ => play_expiry(duration)?,
+        };
         if terms.during.is_some() || terms.flash || terms.may_look {
             return Err(gap("play permission on other terms"));
         }
