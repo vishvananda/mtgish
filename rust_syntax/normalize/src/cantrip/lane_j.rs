@@ -2226,6 +2226,45 @@ impl Compiler {
                 "Event::Damage {{ source, target: Target::Object(hit), .. }} if hit == {id} && {} == Some(source)",
                 self.object(object)?
             ),
+            // "Dealt combat damage": damage it dealt in combat that was not
+            // prevented (CR 510.2, 120.3); an object that left and came back is
+            // a new one that has dealt none (CR 400.7).
+            H::DealtCombatDamage => format!(
+                "Event::Damage {{ source, amount, kind, .. }} if source == {id} && amount > 0 && kind.is_combat()"
+            ),
+            // "That you've put one or more +1/+1 counters on": the counters'
+            // putter is the event's (CR 122.6), as Kid Loki asks it.
+            H::CountersPutBy { kind, by } => format!(
+                "Event::CountersPut {{ object, kind: put, amount, by, .. }} if object == {id} && put == {} && amount > 0 && {}",
+                counter_kind(kind)?,
+                self.player_in(by, "by")?
+            ),
+            // "Exiled from your graveyard": the card the move made (CR 400.7).
+            H::ExiledFromGraveyard(players) => {
+                let owner = "q.state().obj(new).owner";
+                moved(
+                    "new, from, to",
+                    &format!(
+                        "new == {id} && from.is(ZoneKind::Graveyard) && to.is(ZoneKind::Exile) && {}",
+                        self.player_in(players, owner)?
+                    ),
+                )
+            }
+            // "Put onto it with this artifact", "phased out with": the record's
+            // cause is an ability of that object resolving (CR 113.7, 607.2).
+            H::CountersPutWith { kind, with } => format!(
+                "Event::CountersPut {{ object, kind: put, amount, .. }} if object == {id} && put == {} && amount > 0 && matches!(r.cause, Cause::Ability {{ source, .. }} if {} == Some(source))",
+                counter_kind(kind)?,
+                self.object(with)?
+            ),
+            H::PhasedOutWith(with) => format!(
+                "Event::PhasedOut {{ permanent, .. }} if permanent == {id} && matches!(r.cause, Cause::Ability {{ source, .. }} if {} == Some(source))",
+                self.object(with)?
+            ),
+            // The history records no counters removed (cantrip-api event.rs).
+            H::CountersRemovedWith { .. } => {
+                return Err(gap("counters removed from an object, which the history does not record"))
+            }
             other => return self.object_history_p(other, id, window),
         };
         Ok(format!(
