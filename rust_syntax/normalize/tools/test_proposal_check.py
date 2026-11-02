@@ -180,6 +180,19 @@ class Stubs(unittest.TestCase):
                          "let k = crate::proposals::on::EffectKind::Shielded_new { card: c, index: "
                          "crate::proposals::on::Duration::Lapsed_new { at: 1 }.make() }.make();")
 
+    def test_a_new_field_of_an_existing_variant_is_read_off_what_the_pattern_matches(self):
+        text = ("if let Event::Lost { kind, by: Some(player) } = event { return Some(*player); } "
+                "if let cantrip_api::Event::CountersPut { object, previous, .. } = event { }")
+        spec = learnt(("E0026", "variant `Lost` does not have a field named `by`", text, "by"),
+                      ("E0026", "variant `cantrip_api::Event::CountersPut` does not have a field named `previous`",
+                       text, "previous"))
+        self.assertIn("pub fn by<R: crate::proposals::Derives_Event, S>(s: S) -> &'static R", spec.write())
+        self.assertEqual(pc.rewrite(text, MODEL, spec),
+                         "if let (Some(player), Event::Lost { kind, .. }) = "
+                         "(crate::proposals::variant_field::Event::Lost::by(&event), event) { return Some(*player); } "
+                         "if let (previous, cantrip_api::Event::CountersPut { object, .. }) = "
+                         "(crate::proposals::variant_field::Event::CountersPut::previous(&event), event) { }")
+
     def test_a_new_cardef_field_holds_a_table_entry(self):
         text = "pub static CARD: CardDef = CardDef { spell: None, lasting_rules: &[RULE], ..CardDef::BLANK };"
         spec = learnt(("E0560", "struct `cantrip_api::CardDef` has no field named `lasting_rules`", text,

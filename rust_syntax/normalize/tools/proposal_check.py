@@ -367,6 +367,7 @@ class Spec:
         self.on = {}  # name -> use, for new items of a type Cantrip has
         self.new_fields = collections.defaultdict(set)  # struct -> fields a literal gives that it doesn't have
         self.read_fields = collections.defaultdict(set)  # struct -> fields read that it doesn't have
+        self.variant_fields = collections.defaultdict(set)  # (enum, variant) -> fields a pattern binds it doesn't have
         self.missing_modules, self.module_items = set(), set()
         self.rets = {}  # stub key -> the return type chosen where no call site says it
         self.unknown_rets = set()
@@ -391,7 +392,8 @@ class Spec:
     def size(self):
         return (f"{len(self.methods)} methods, {len(self.fns)} functions, {len(self.types)} types, {len(self.on)} "
                 f"extended, {sum(map(len, self.new_fields.values()))} new fields, "
-                f"{sum(map(len, self.read_fields.values()))} read fields, {len(self.rets)} returns chosen")
+                f"{sum(map(len, self.read_fields.values()))} read fields, "
+                f"{sum(map(len, self.variant_fields.values()))} variant fields, {len(self.rets)} returns chosen")
 
     def fingerprint(self):
         """What the stubs and rewrites would be: a pass that changes neither learnt nothing (counts of uses may grow)."""
@@ -445,6 +447,13 @@ class Spec:
                 self.new_fields[ty].add(m.group(2))
             elif ty in self.types:
                 self.types[ty]["literal"].add(m.group(2))
+            return
+        m = re.match(r"variant `(?:[\w:]*::)?(\w+)` does not have a field named `(\w+)`", msg)
+        if code == "E0026" and m:
+            # The enum is the one the pattern names before the variant.
+            path = list(re.finditer(rf"(\w+)::{m.group(1)}\s*\{{", text[max(0, start - 2000) : start]))
+            if path and self.model.known(path[-1].group(1)):
+                self.variant_fields[(path[-1].group(1), m.group(1))].add(m.group(2))
             return
         m = re.match(r"no field `(\w+)` on type `([^`]+)`", msg)
         if code == "E0609" and m:
@@ -673,6 +682,16 @@ class Spec:
             fns = "\n".join(f"    /// Proposed: a field of `{ty}`.\n    fn {f}<R: {bound}>(&self) -> R {{ panic!({PANIC_RS}) }}\n"
                             f"    fn {f}__set<V: {bound}>(&mut self, v: V) {{}}" for f in sorted(names))
             out.append(f"pub trait ProposedField_{ty} {{\n{fns}\n}}\nimpl ProposedField_{ty} for {ty} {{}}")
+        # New fields of an existing enum's variant, as a pattern binds them: read off the value matched, as the
+        # field would be held.
+        by_enum = collections.defaultdict(list)
+        for (ty, variant), names in sorted(self.variant_fields.items()):
+            bound = self.payload(ty, out, seen)
+            fns = "\n".join(f"        /// Proposed: a field of `{ty}::{variant}`.\n        pub fn {f}<R: {bound}, S>(s: "
+                            f"S) -> &'static R {{ panic!({PANIC_RS}) }}" for f in sorted(names))
+            by_enum[ty].append(f"    pub mod {variant} {{\n{fns}\n    }}")
+        out.append("pub mod variant_field {\n" + "\n".join(f"pub mod {ty} {{\n" + "\n".join(mods) + "\n}"
+                                                       for ty, mods in sorted(by_enum.items())) + "\n}")
         return "\n\n".join(out) + "\n"
 
     def method_stores(self, name, ty):
@@ -970,6 +989,49 @@ def drop_new_fields(text, new_fields):
     return text
 
 
+def variant_new_fields(text, variant_fields):
+    """`if let Enum::Variant { a, new: p, .. } = s {`, where `new` is a field the variant doesn't have, as
+    `if let (p, Enum::Variant { a, .. }) = (variant_field::Enum::Variant::new(&s), s) {`: the field read off the value
+    matched, its pattern binding as the field's would."""
+    for (ty, variant), names in variant_fields.items():
+        if variant not in text:
+            continue
+        pat = re.compile(rf"\bif\s+let\s+((?:cantrip_api::)?{ty}::{variant}\s*)\{{")
+        at = 0
+        while m := pat.search(text, at):
+            open_at = m.end() - 1
+            close = balanced(text, open_at)
+            eq = re.compile(r"\s*=(?!=)\s*").match(text, close)
+            if not eq:
+                at = close
+                continue
+            # The scrutinee runs to the body's brace.
+            depth, end = 0, eq.end()
+            while end < len(text) and not (text[end] == "{" and depth == 0):
+                depth += 1 if text[end] in "([" else -1 if text[end] in ")]" else 0
+                end += 1
+            scrutinee = text[eq.end() : end].strip()
+            kept, reads = [], []
+            for part in split_args(text[open_at + 1 : close - 1]):
+                f = re.match(r"(\w+)\s*(?::\s*(.*))?$", part.strip(), re.S)
+                if f and f.group(1) in names:
+                    reads.append(((f.group(2) or f.group(1)).strip(),
+                                  f"{ROOT}::variant_field::{ty}::{variant}::{f.group(1)}(&{scrutinee})"))
+                elif part.strip():
+                    kept.append(part.strip())
+            if not reads:
+                at = close
+                continue
+            if ".." not in kept:
+                kept.append("..")
+            patterns = ", ".join([p for p, _ in reads] + [f"{m.group(1)}{{ {', '.join(kept)} }}"])
+            values = ", ".join([r for _, r in reads] + [scrutinee])
+            new = f"if let ({patterns}) = ({values}) "
+            text = text[: m.start()] + new + text[end:]
+            at = m.start() + len(new)
+    return text
+
+
 def struct_variants(text, spec):
     """A struct variant Cantrip doesn't have, `on::Type::Variant { .. }`: as a pattern, matched against the shim of the
     variant its scrutinee is read as; as an expression, made by `make`, which asks what the type derives of its fields."""
@@ -1034,6 +1096,7 @@ def rewrite(text, model, spec=None):
         if key in text:
             text = old.sub(new, text)
     text = drop_new_fields(text, spec.new_fields)
+    text = variant_new_fields(text, spec.variant_fields)
     text = fn_items_as_pointers(text, spec.data_method_call())
     return struct_variants(text, spec)
 
