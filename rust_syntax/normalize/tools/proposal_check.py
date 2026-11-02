@@ -219,6 +219,7 @@ class Model:
         self.derives, self.kinds, self.units, self.lifetimes, self.homes = {}, {}, {}, {}, {}
         self.fields = collections.defaultdict(dict)
         self.variant_fields = collections.defaultdict(lambda: collections.defaultdict(collections.Counter))
+        self.variants = collections.defaultdict(dict)  # enum -> struct variant -> field -> type
         self.any_field = collections.defaultdict(collections.Counter)
         self.traits, self.modules = set(), set()
         used = collections.defaultdict(collections.Counter)
@@ -260,6 +261,7 @@ class Model:
                                 if t:
                                     self.variant_fields[name][t.group(1)][t.group(2).strip()] += 1
                                     self.any_field[t.group(1)][t.group(2).strip()] += 1
+                                    self.variants[name].setdefault(v.group(1), {})[t.group(1)] = t.group(2).strip()
                 for m in re.finditer(r"^pub trait (\w+)", code, re.M):
                     self.traits.add(m.group(1))
                 for m in re.finditer(r"\b([A-Z]\w*)::([A-Z][a-z]\w*)\b(?!\s*[({:])", code):
@@ -290,7 +292,13 @@ class Model:
         derives = [d for d in self.derives.get(name, []) if d in DERIVABLE]
         return derives if "Hash" in derives else None
 
-    def field_type(self, enum, field):
+    def field_type(self, enum, field, fields=()):
+        """The type of `field` in a new struct variant of `enum` with `fields`: as the variant of `enum` sharing the most
+        of them types it (`CountersRemoved { object, kind, amount }`: `CountersPut`'s `kind`, not `DamageDealt`'s), or
+        else as most of `enum`'s variants, or any enum, type a field of that name."""
+        alike = [(len(set(fields) & set(have)), have) for have in self.variants.get(enum, {}).values() if field in have]
+        if alike and max(alike, key=lambda a: a[0])[0] > 1:
+            return max(alike, key=lambda a: a[0])[1][field]
         for counter in (self.variant_fields.get(enum, {}).get(field), self.any_field.get(field)):
             if counter:
                 return counter.most_common(1)[0][0]
@@ -814,7 +822,7 @@ class Spec:
             fields = sorted(fields)
             typed, params = [], []
             for f in fields:
-                known = self.model.field_type(ty, f)
+                known = self.model.field_type(ty, f, fields)
                 if known:
                     typed.append(f"pub {f}: {known}")
                 else:

@@ -31,6 +31,9 @@ impl CardDef {
 }
 #[derive(Clone, Copy, Debug)]
 pub struct TriggerDef { pub text: &'static str }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Event { DamageDealt { source: ObjectId, kind: DamageKind }, Lost { kind: DamageKind },
+    CountersPut { object: ObjectId, kind: CounterKind, amount: i16 } }
 """
 MECHANICS = "pub mod tokens;\npub mod counters;\n"
 
@@ -102,6 +105,10 @@ class Model(unittest.TestCase):
         self.assertEqual(MODEL.field_type("EffectKind", "index"), "u8")
         self.assertEqual(MODEL.modules, {"tokens", "counters"})
         self.assertIn("Game", MODEL.traits)
+
+    def test_a_new_variants_field_is_typed_as_the_variant_most_like_it_types_it(self):
+        self.assertEqual(MODEL.field_type("Event", "kind", ["object", "kind", "amount"]), "CounterKind")
+        self.assertEqual(MODEL.field_type("Event", "kind", ["kind"]), "DamageKind")
 
     def test_state_keeps_what_it_derives_and_a_table_is_not_state(self):
         self.assertEqual(MODEL.storage("Duration"), ["Clone", "Copy", "Debug", "PartialEq", "Eq", "Hash"])
