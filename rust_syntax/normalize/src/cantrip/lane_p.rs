@@ -51,7 +51,7 @@ fn held_object(feature: &str, code: &str) -> String {
 }
 
 /// A list of mana colors, as code: `Color::White, Color::Red`.
-fn colors_code(colors: &[ManaColor]) -> Result<String> {
+pub(super) fn colors_code(colors: &[ManaColor]) -> Result<String> {
     let colors = colors
         .iter()
         .map(|c| match c {
@@ -981,6 +981,15 @@ impl Compiler {
                 feature,
                 &format!("{}.map_or(0, |o: ObjectId| q.modes_chosen(o))", self.object(object)?),
             ),
+            // A mana ability has no item: its place on the card names it, the same
+            // on a copy (CR 707.2), and the history has it once its costs are paid.
+            Expr::TimesActivatedThisTurn if self.activated_mana.is_some() => {
+                let index = self.activated_mana.expect("asked");
+                let card = self.source_card();
+                counted(format!(
+                    "{{ let this = AbilityRef {{ card: {card}, index: {index} }}; q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, .. }} if source == asker.source && ability == this)).count() as i64 }}"
+                ))
+            }
             Expr::TimesActivatedThisTurn => {
                 held_number(feature, "i64::from(q.times_activated_this_turn(asker))")
             }
@@ -1207,12 +1216,9 @@ impl Compiler {
                     colors_code(std::slice::from_ref(symbol))?
                 ),
             ),
-            ObjectFilter::MostCommonCreatureTypeIn(player) => held(
-                &feature,
-                &format!(
-                    "{}.is_some_and(|p: PlayerId| q.most_common_creature_type(Zone::library(p)).iter().any(|&kind| {chars}.has_subtype(kind)))",
-                    self.player(player)?
-                ),
+            ObjectFilter::MostCommonCreatureTypeIn(player) => format!(
+                "{}.is_some_and(|p: PlayerId| {{ let kinds: Vec<SubtypeSet> = q.state().zone(Zone::library(p)).iter().map(|&card| q.chars(card).subtypes).collect(); let count = |kind: Subtype| kinds.iter().filter(|set| set.has(kind)).count(); let most = SubtypeSet::CREATURE_TYPES.iter().map(count).max().unwrap_or(0); most > 0 && SubtypeSet::CREATURE_TYPES.iter().any(|kind| {chars}.has_subtype(kind) && count(kind) == most) }})",
+                self.player(player)?
             ),
             ObjectFilter::NameFirstPrintedIn(set) => held(
                 &feature,
@@ -2257,7 +2263,11 @@ pub(super) fn property_p(property: &Property, id: &str) -> Result<Number> {
         Property::BushidoValue => held(format!("i64::from(q.chars({id}).bushido)")),
         Property::ColorSymbolCount => held(format!("i64::from(q.mana_cost({id}).color_symbols())")),
         Property::CrewCount => held(format!("q.crewed_by({id}).len() as i64")),
-        Property::ExiledCount => held(format!("q.exiled_with(q.linked_to(&Asker::of({id}))).len() as i64")),
+        // The ability's own link where it asks of its source (CR 607.5), and the
+        // text of any other object.
+        Property::ExiledCount => lane_j::counted(format!(
+            "q.exiled_with(if {id} == asker.source {{ q.linked_to(asker) }} else {{ q.text_linked({id}) }}).len() as i64"
+        )),
         Property::RegenerationsThisTurn => held(format!("i64::from(q.regenerations_this_turn({id}))")),
         other => return Err(gap(format!("numeric object property {}", form(other)))),
     })

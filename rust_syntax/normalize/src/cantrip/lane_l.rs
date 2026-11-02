@@ -515,23 +515,20 @@ impl Compiler {
                     None
                 }
                 SelectionConstraint::OneForEach(filters) => {
-                    let filters = filters
+                    let tests = filters
                         .iter()
-                        .map(|f| {
-                            let test = self.filter(f, &Candidate::of("id"))?;
-                            Ok(format!(
-                                "|q: &dyn Query, asker: &Asker, id: ObjectId| {test}"
-                            ))
-                        })
+                        .map(|f| self.filter(f, &Candidate::of("id")))
                         .collect::<Result<Vec<_>>>()?;
-                    rule.planned.push((
-                        feature,
-                        format!(
-                            ".together({M}::select::one_for_each(&[{}]))",
-                            filters.join(", ")
-                        ),
-                    ));
-                    None
+                    let together = format!(".together({})", self.one_for_each(&tests));
+                    // "Choose up to two" of target modes: the card has modes, which
+                    // one slot isn't (CR 700.2).
+                    match lane_k::printed_otherwise(self.line_text(), "Choose up to") {
+                        true => {
+                            rule.planned.push((feature, together));
+                            None
+                        }
+                        false => Some(together),
+                    }
                 }
                 other => match self.set_rule(other) {
                     Some(part) => Some(format!(".together({part})")),
@@ -551,6 +548,18 @@ impl Compiler {
             }
         }
         Ok(rule)
+    }
+    /// "For each color, up to one target card of that color": the targets are one
+    /// each of the filters, a target that fits several being any one of them. What
+    /// a matching allows is a matroid, so taking what fits finds a largest set.
+    fn one_for_each(&mut self, tests: &[String]) -> String {
+        let name = format!("one_for_each_{}", self.fresh());
+        let (n, bits) = (tests.len(), tests.iter().enumerate());
+        let bits: String = bits
+            .map(|(i, test)| format!("if {test} {{ bits |= 1 << {i}; }} "))
+            .collect();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {name}_bits(q: &dyn Query, asker: &Asker, id: ObjectId) -> u32 {{ let mut bits = 0u32; {bits}bits }}\nfn {name}_fits(q: &dyn Query, choice: &Choice, set: &[ObjectId]) -> bool {{ let asker = &Asker::new(choice.source, choice.chooser); let mut used = vec![0u32]; for &id in set {{ let bits = {name}_bits(q, asker, id); let mut next: Vec<u32> = Vec::new(); for &taken in &used {{ for each in 0..{n} {{ let one = 1u32 << each; if bits & one != 0 && taken & one == 0 && !next.contains(&(taken | one)) {{ next.push(taken | one); }} }} }} used = next; }} !used.is_empty() }}\nfn {name}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ Verdict {{ complete: {name}_fits(q, choice, choice.selected), addable: Bits::of(choice.candidates.len(), |i| {{ let mut set = choice.selected.to_vec(); set.push(choice.candidates[i]); {name}_fits(q, choice, &set) }}) }} }}\nfn largest_{name}(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> {{ let mut kept: Vec<ObjectId> = Vec::new(); for &id in choice.candidates {{ kept.push(id); if !{name}_fits(q, choice, &kept) {{ kept.pop(); }} }} kept }}").unwrap();
+        format!("cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), 0, \"one for each\")")
     }
     /// The targets an earlier slot chose, read while a later slot is chosen. A slot
     /// of no fixed size has to be the last before this one: what follows it in
@@ -2220,6 +2229,10 @@ impl Compiler {
             SelectionConstraint::CommonProperty(DistinctProperty::CardTypes) => {
                 format!("{M}::select::SHARE_A_CARD_TYPE")
             }
+            SelectionConstraint::NoCommonProperty(DistinctProperty::CreatureTypes) => {
+                self.helpers.insert("no_common_creature_type");
+                "cantrip_api::select::set_part(&(no_common_creature_type as SelectFn), &(largest_no_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share no creature types\")".to_string()
+            }
             SelectionConstraint::DifferentControllers => distinct_rule(
                 &mut self.functions,
                 "different_controllers",
@@ -2242,6 +2255,7 @@ impl Compiler {
                 let most = match amount {
                     Expr::Constant(n) if *n >= 0 => n.to_string(),
                     Expr::AnnouncedX => "TargetSpec::COUNTED".to_string(),
+                    other if self.counts_own_x(other) => "TargetSpec::COUNTED".to_string(),
                     _ => return None,
                 };
                 match property {

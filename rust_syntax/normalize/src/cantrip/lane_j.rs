@@ -2374,6 +2374,32 @@ impl Compiler {
                     self.number(ordinal)?.code
                 )
             }
+            // As a static ability asks of a spell on the stack: its cast is recorded
+            // before anything reads what it has. What was on the stack earlier may
+            // have changed, so nothing about the earlier spells' characteristics.
+            ObjectFilter::NthCast {
+                ordinal,
+                spells,
+                by,
+                scope,
+            } if layer && c.announced.is_none() => {
+                let records = match scope {
+                    CastScope::Turn => "q.history().this_turn()",
+                    CastScope::Game => "q.history().all()",
+                };
+                let earlier = self.filter(spells, &Candidate::of("cast.spell"))?;
+                if earlier.contains("q.chars(cast.spell)") {
+                    return Err(gap("object filter NthCast"));
+                }
+                let who = match by {
+                    Some(by) => self.player_in(by, "cast.player")?,
+                    None => "true".into(),
+                };
+                format!(
+                    "{records}.iter().filter_map(|r| match r.event {{ Event::Cast(cast) => Some(cast), _ => None }}).filter(|cast| {who} && {earlier}).nth((({}) - 1) as usize).is_some_and(|cast| cast.spell == {id})",
+                    self.number(ordinal)?.code
+                )
+            }
             ObjectFilter::ExiledWith(ObjectRef::Source) if layer => {
                 format!("q.exiled_with(q.linked_to(asker.source)).contains(&{id})")
             }
@@ -2437,6 +2463,35 @@ impl Compiler {
                 "cast_of(q, {id}).is_some_and(|cast| q.history().mana_spent_to_cast(cast.spell).any(|(source, _)| {}))",
                 self.filter(sources, &Candidate::of("source"))?
             ),
+            // A spell on the stack, as a static ability asks of it.
+            ObjectFilter::ManaSpentFrom(sources) if layer && c.announced.is_none() => format!(
+                "q.history().mana_spent_to_cast({id}).any(|(source, _)| {})",
+                self.filter(sources, &Candidate::of("source"))?
+            ),
+            ObjectFilter::ManaSpent {
+                color,
+                sources,
+                payers: None,
+                comparison,
+                value,
+            } if !layer && c.announced.is_none() => {
+                let amount = match color {
+                    Some(color) => format!(
+                        "i64::from(spent.get({}))",
+                        lane_p::colors_code(std::slice::from_ref(color))?
+                    ),
+                    None => "i64::from(spent.total())".to_string(),
+                };
+                let from = match sources {
+                    Some(sources) => self.filter(sources, &Candidate::of("source"))?,
+                    None => "true".to_string(),
+                };
+                compare(
+                    &format!("cast_of(q, {id}).map_or(0i64, |cast| q.history().mana_spent_to_cast(cast.spell).filter(|&(source, _)| {from}).map(|(_, spent)| {amount}).sum::<i64>())"),
+                    comparison,
+                    &self.number(value)?.code,
+                )
+            }
             ObjectFilter::Extreme {
                 among,
                 property,

@@ -627,6 +627,8 @@ struct Compiler {
     enters_choosing: Vec<ValueKind>,
     /// The body of a mana ability is being written.
     mana_body: bool,
+    /// The place on its card of the mana ability being written.
+    activated_mana: Option<usize>,
     /// The color a definition made once for each color is written for.
     each_color: Option<String>,
     /// It chooses two of this kind as it enters: the second in its chosen number.
@@ -1016,6 +1018,7 @@ impl Compiler {
             chosen: Vec::new(),
             enters_choosing: Vec::new(),
             mana_body: false,
+            activated_mana: None,
             each_color: None,
             enters_two: None,
             costed_spell: false,
@@ -1301,6 +1304,10 @@ impl Compiler {
                 &["common_creature_type"],
                 ".together(cantrip_api::select::set_part(&(common_creature_type as SelectFn), &(largest_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share a creature type\"))",
             ),
+            DistinctProperty::Toughness => (
+                &["common_toughness"],
+                ".together(cantrip_api::select::set_part(&(common_toughness as SelectFn), &(largest_common_toughness as cantrip_api::select::LargestFn), 0, \"with equal toughness\"))",
+            ),
             other => return Err(gap(format!("target constraint CommonProperty {other:?}"))),
         };
         self.helpers.extend(helpers);
@@ -1318,6 +1325,10 @@ impl Compiler {
                 return Err(gap("a target from a graveyard, where the card says any").at(at));
             }
             let mut rule = lane_l::SlotRule::default();
+            if Self::limit_shared(a) == Some(i) {
+                self.slots.insert(spec.slot.0, (0, spec.clone()));
+                continue;
+            }
             // The second of "two target creatures" is the same slot's.
             if self.second_of_two == Some(i) {
                 self.slots.insert(spec.slot.0, (i, spec.clone()));
@@ -1424,6 +1435,14 @@ impl Compiler {
             }
             self.choosing = Some(i);
             let test = self.slot_test(spec, &rule).map_err(|e| e.at(&at));
+            let test = match Self::limit_shared(a) {
+                Some(other) => test.and_then(|test| {
+                    let more = lane_l::SlotRule::default();
+                    let other = self.slot_test(&a.targets[other], &more)?;
+                    Ok(format!("({test}) || ({other})"))
+                }),
+                None => test,
+            };
             self.choosing = None;
             let test = test?;
             if let Some(own) = lane_i::own_slot(&spec.count, &test) {
@@ -2155,6 +2174,8 @@ const MODIFIED: &str = "fn modified(q: &dyn Query, id: ObjectId) -> bool { q.sta
 const COMMON_BY: &str = "fn common_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Verdict { let first = choice.selected.first().map(|&c| key(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(key(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| key(q, choice.candidates[i]) == k)) } }\nfn largest_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| key(q, b) == key(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 const COMMON_OWNER: &str = "fn owner_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.state().obj(id).owner }\nfn common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, owner_of) }\nfn largest_common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, owner_of) }\n";
 const COMMON_CONTROLLER: &str = "fn controller_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.controller(id) }\nfn common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, controller_of) }\nfn largest_common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, controller_of) }\n";
+const COMMON_TOUGHNESS: &str = "fn toughness_of(q: &dyn Query, id: ObjectId) -> i16 { q.chars(id).toughness.unwrap_or(0) }\nfn common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let first = choice.selected.first().map(|&c| toughness_of(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(toughness_of(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| toughness_of(q, choice.candidates[i]) == k)) } }\nfn largest_common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| toughness_of(q, b) == toughness_of(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
+const NO_COMMON_CREATURE_TYPE: &str = "fn creature_types_of(q: &dyn Query, id: ObjectId) -> SubtypeSet { SubtypeSet::CREATURE_TYPES.minus(SubtypeSet::CREATURE_TYPES.minus(q.chars(id).subtypes)) }\nfn apart_in_type(q: &dyn Query, a: ObjectId, b: ObjectId) -> bool { !creature_types_of(q, a).intersects(creature_types_of(q, b)) }\nfn no_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let selected = choice.selected; Verdict { complete: selected.iter().enumerate().all(|(i, &a)| selected[..i].iter().all(|&b| apart_in_type(q, a, b))), addable: Bits::of(choice.candidates.len(), |i| selected.iter().all(|&b| apart_in_type(q, choice.candidates[i], b))) } }\nfn grow_apart_in_type(q: &dyn Query, left: &[ObjectId], have: &mut Vec<ObjectId>, best: &mut Vec<ObjectId>) { if have.len() > best.len() { *best = have.clone(); } if have.len() + left.len() <= best.len() { return; } for (i, &c) in left.iter().enumerate() { if have.iter().all(|&o| apart_in_type(q, o, c)) { have.push(c); grow_apart_in_type(q, &left[i + 1..], have, best); have.pop(); } } }\nfn largest_no_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { let mut best = Vec::new(); grow_apart_in_type(q, choice.candidates, &mut Vec::new(), &mut best); best }\n";
 const COMMON_CREATURE_TYPE: &str = "fn common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let common = choice.selected.iter().fold(SubtypeSet::CREATURE_TYPES, |common, &c| common.minus(common.minus(q.chars(c).subtypes))); Verdict { complete: choice.selected.is_empty() || !common.is_empty(), addable: Bits::of(choice.candidates.len(), |i| common.intersects(q.chars(choice.candidates[i]).subtypes)) } }\nfn largest_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { SubtypeSet::CREATURE_TYPES.iter().map(|t| choice.candidates.iter().copied().filter(|&c| q.chars(c).subtypes.has(t)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 
 fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedModule> {
@@ -2388,6 +2409,8 @@ fn emit_face(
             "common_owner" => COMMON_OWNER,
             "common_controller" => COMMON_CONTROLLER,
             "common_creature_type" => COMMON_CREATURE_TYPE,
+            "common_toughness" => COMMON_TOUGHNESS,
+            "no_common_creature_type" => NO_COMMON_CREATURE_TYPE,
             "announced" => ANNOUNCED,
             "slot_held" => target_counts::SLOT_HELD,
             "pay_question" => PAY_QUESTION,

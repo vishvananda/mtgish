@@ -162,10 +162,19 @@ impl Compiler {
                 "TributeNotPaid",
                 format!("q.state().obj({id}).marks.tribute_not_paid"),
             ),
-            S::Foretold => unrecorded(
-                "Foretold",
-                format!("cantrip_mechanics::foretell::foretold(q.state(), {id})"),
-            ),
+            // Foretelling is a player's own action, so what lets the card be cast
+            // names no spell or ability: the permission is the card's own, and a
+            // spell's cast keeps it (CR 702.143a).
+            S::Foretold => {
+                let row = self.card_row("o.card");
+                let cast = match layer {
+                    true => String::new(),
+                    false => " || q.history().cast_of(id).is_some_and(|cast| cast.granted_by().is_some_and(|by| by.ability == own))".to_string(),
+                };
+                format!(
+                    "{{ let id = {id}; let o = q.state().obj(id); let own = AbilityRef::spell(o.card); {row}.foretell.is_some() && (q.state().permissions.iter().any(|p| p.by.object == id && p.by.ability == own){cast}) }}"
+                )
+            }
             S::HasSticker => unrecorded(
                 "HasSticker",
                 format!("cantrip_mechanics::stickers::has_sticker(q.state(), {id})"),

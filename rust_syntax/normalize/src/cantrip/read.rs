@@ -1653,6 +1653,9 @@ impl Compiler {
         compiled
     }
     fn predicate(&self, f: &ObjectFilter, c: &Candidate) -> Result<String> {
+        if let Some(either) = lane_p::any_of_filter(f) {
+            return self.predicate(&either, c);
+        }
         let (id, chars) = (c.id.as_str(), c.chars.as_str());
         let combine = |items: &[ObjectFilter], join: &str, identity: &str| -> Result<String> {
             if items.is_empty() {

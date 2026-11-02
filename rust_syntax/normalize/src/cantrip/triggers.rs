@@ -1193,7 +1193,13 @@ impl Compiler {
             frame: Frame::default(),
         });
         let past = asked.event(event)?;
-        let value = self.matching(matched.frame, |c| Ok(c.number(value)?.code))?;
+        let values = match value {
+            Expr::AnyOf(values) => values.clone(),
+            other => vec![other.clone()],
+        };
+        let values = self.matching(matched.frame, |c| {
+            values.iter().map(|value| Ok(c.number(value)?.code)).collect::<Result<Vec<_>>>()
+        })?;
         // Summed events are one happening: the rest of it is no earlier one.
         let others = if summed {
             ".filter(|r| !r.in_batch_of(event))"
@@ -1204,7 +1210,12 @@ impl Compiler {
             "q.history().this_turn().iter(){others}.filter_map({}){same}.count() as i64 + 1",
             past.history_test()
         );
-        let test = read::compare(&count, comparison, &value);
+        let tests: Vec<String> =
+            values.iter().map(|value| read::compare(&count, comparison, value)).collect();
+        let test = match tests.as_slice() {
+            [one] => one.clone(),
+            many => format!("({})", many.join(" || ")),
+        };
         let test = match summed {
             true => planned::planned_value("an ordinal of grouped events", "false", &test),
             false => test,

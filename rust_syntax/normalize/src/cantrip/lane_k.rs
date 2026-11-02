@@ -1421,6 +1421,24 @@ impl Compiler {
             .is_some_and(|line| line.text.contains("two target"));
         (same && printed).then_some(1)
     }
+    /// "Up to three other target creatures from the battlefield and/or creature
+    /// cards from graveyards": one count over two kinds of target is one slot, and
+    /// the second is what's read of it.
+    pub(super) fn limit_shared(announcement: &Announcement) -> Option<usize> {
+        let [first, second] = announcement.targets.as_slice() else {
+            return None;
+        };
+        let shared = matches!(second.constraints.as_slice(),
+            [SelectionConstraint::SharesLimitWith(slot)] if slot.0 == first.slot.0);
+        (shared
+            && first.constraints.is_empty()
+            && format!("{:?}", first.count) == format!("{:?}", second.count)
+            && first.distribute.is_none()
+            && second.distribute.is_none()
+            && first.chooser.is_none()
+            && second.chooser.is_none())
+        .then_some(1)
+    }
     /// What a block rule that lasts says, from the line that makes it: "can't be
     /// blocked except by creatures with haste", as the object has it for the turn.
     pub(super) fn block_rule_words(&self) -> Option<String> {

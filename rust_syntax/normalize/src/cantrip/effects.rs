@@ -404,7 +404,8 @@ impl Compiler {
         if !self.slots.is_empty() {
             self.helpers.insert("announced");
         }
-        for (i, _) in self.slots.values() {
+        let slots: std::collections::BTreeSet<usize> = self.slots.values().map(|(i, _)| *i).collect();
+        for i in &slots {
             let own = self.own_slots.get(i);
             match self.second_of_two == Some(*i) {
                 true => writeln!(
