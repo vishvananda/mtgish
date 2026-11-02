@@ -1,14 +1,14 @@
 {
- "cantrip": "01aba4b159",
+ "cantrip": "b12ea1c1e6",
  "totals": {
   "cards": 33529,
   "ready": 28387,
   "planned": 5142,
   "excluded": 0,
   "written": 123,
-  "ready_written": 3542,
-  "new_tokens": 198,
-  "cards_with_new_tokens": 1003,
+  "ready_written": 3543,
+  "new_tokens": 199,
+  "cards_with_new_tokens": 1004,
   "counter_lines": 169,
   "cards_with_counter_lines": 319
  },
@@ -11784,6 +11784,9 @@
    "Oath of Eorl",
    "Riders of Rohan",
    "Éowyn, Shieldmaiden"
+  ],
+  "HUMAN_MONK": [
+   "Careful Cultivation"
   ],
   "HUMAN_WARRIOR": [
    "Battle for Bretagard",
@@ -50719,26 +50722,14 @@
     ]
    },
    {
-    "class": "in a CardDef table but not Copy + Sync + 'static (TransformAction::BecomeACopyOfAnExiledCard)",
+    "class": "in a CardDef table but not Copy + Sync + 'static (TransformAction::AttachPermanentToAPlayer)",
     "cards": 1,
     "errors": 1,
     "members": [
      {
-      "card": "ludevic_necrogenius",
-      "line": 26,
-      "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
-     }
-    ]
-   },
-   {
-    "class": "E0605: non-primitive cast: `_` as `_`",
-    "cards": 1,
-    "errors": 1,
-    "members": [
-     {
-      "card": "mister_negative",
-      "line": 16,
-      "message": "non-primitive cast: `()` as `u32`"
+      "card": "curse_of_leeches",
+      "line": 13,
+      "message": "the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)"
      }
     ]
    },
@@ -50755,50 +50746,26 @@
     ]
    },
    {
-    "class": "in a CardDef table but not Copy + Sync + 'static (TransformAction::AttachPermanentToAPlayer)",
+    "class": "in a CardDef table but not Copy + Sync + 'static (Prohibition::AttackInto)",
     "cards": 1,
     "errors": 1,
     "members": [
      {
-      "card": "curse_of_leeches",
-      "line": 13,
-      "message": "the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)"
+      "card": "call_for_aid",
+      "line": 21,
+      "message": "the trait bound `Vec<cantrip_api::Target>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::Target>`)"
      }
     ]
    },
    {
-    "class": "in a CardDef table but not Copy + Sync + 'static (FaceUpAction::AttachPermanentToAPermanent)",
+    "class": "E0605: non-primitive cast: `_` as `_`",
     "cards": 1,
     "errors": 1,
     "members": [
      {
-      "card": "gift_of_doom",
-      "line": 14,
-      "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
-     }
-    ]
-   },
-   {
-    "class": "in a CardDef table but not Copy + Sync + 'static (ArrivalState::ExiledForWith)",
-    "cards": 1,
-    "errors": 1,
-    "members": [
-     {
-      "card": "lagrella_the_magpie",
+      "card": "mister_negative",
       "line": 16,
-      "message": "the trait bound `&mut Vec<cantrip_api::ObjectId>: std::marker::Copy` is not satisfied in `{closure@lagrella_the_magpie.rs:16:529}` (within `{closure@lagrella_the_magpie.rs:16:529}`, the trait `std::marker::Copy` is not implemented for `&mut Vec<cantrip_api::ObjectId>`)"
-     }
-    ]
-   },
-   {
-    "class": "passed through dyn but not data (Proposed_Query::had_extreme)",
-    "cards": 1,
-    "errors": 1,
-    "members": [
-     {
-      "card": "stronghold_gambit",
-      "line": 24,
-      "message": "the trait bound `{closure@stronghold_gambit.rs:24:261}: Data` is not satisfied (the trait `Debug` is not implemented for closure `{closure@stronghold_gambit.rs:24:261}`)"
+      "message": "non-primitive cast: `()` as `u32`"
      }
     ]
    },
@@ -50815,6 +50782,18 @@
     ]
    },
    {
+    "class": "in a CardDef table but not Copy + Sync + 'static (ArrivalState::ExiledForWith)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "lagrella_the_magpie",
+      "line": 16,
+      "message": "the trait bound `&mut Vec<cantrip_api::ObjectId>: std::marker::Copy` is not satisfied in `{closure@lagrella_the_magpie.rs:16:529}` (within `{closure@lagrella_the_magpie.rs:16:529}`, the trait `std::marker::Copy` is not implemented for `&mut Vec<cantrip_api::ObjectId>`)"
+     }
+    ]
+   },
+   {
     "class": "in a CardDef table but not Copy + Sync + 'static (Protection::Players)",
     "cards": 1,
     "errors": 1,
@@ -50827,14 +50806,26 @@
     ]
    },
    {
-    "class": "in a CardDef table but not Copy + Sync + 'static (Prohibition::AttackInto)",
+    "class": "in a CardDef table but not Copy + Sync + 'static (FaceUpAction::AttachPermanentToAPermanent)",
     "cards": 1,
     "errors": 1,
     "members": [
      {
-      "card": "call_for_aid",
-      "line": 21,
-      "message": "the trait bound `Vec<cantrip_api::Target>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::Target>`)"
+      "card": "gift_of_doom",
+      "line": 14,
+      "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
+     }
+    ]
+   },
+   {
+    "class": "passed through dyn but not data (Proposed_Query::had_extreme)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "stronghold_gambit",
+      "line": 24,
+      "message": "the trait bound `{closure@stronghold_gambit.rs:24:261}: Data` is not satisfied (the trait `Debug` is not implemented for closure `{closure@stronghold_gambit.rs:24:261}`)"
      }
     ]
    },
@@ -50887,14 +50878,14 @@
     ]
    },
    {
-    "class": "inside Duration but without what it derives (WhileMatches)",
+    "class": "inside Keyword but without what it derives (on::Keyword::ProtectionFrom)",
     "cards": 1,
     "errors": 1,
     "members": [
      {
-      "card": "eriette_the_beguiler",
-      "line": 10,
-      "message": "the trait bound `{closure@eriette_the_beguiler.rs:10:472}: Derives_Duration` is not satisfied (the trait `Debug` is not implemented for closure `{closure@eriette_the_beguiler.rs:10:472}`)"
+      "card": "eowyn_fearless_knight",
+      "line": 15,
+      "message": "the trait bound `{closure@eowyn_fearless_knight.rs:15:474}: Derives_Keyword` is not satisfied (the trait `Debug` is not implemented for closure `{closure@eowyn_fearless_knight.rs:15:474}`)"
      }
     ]
    },
@@ -50911,6 +50902,18 @@
     ]
    },
    {
+    "class": "inside Duration but without what it derives (WhileMatches)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "eriette_the_beguiler",
+      "line": 10,
+      "message": "the trait bound `{closure@eriette_the_beguiler.rs:10:472}: Derives_Duration` is not satisfied (the trait `Debug` is not implemented for closure `{closure@eriette_the_beguiler.rs:10:472}`)"
+     }
+    ]
+   },
+   {
     "class": "in a CardDef table but not Copy + Sync + 'static (AttachAction::ChooseAnExiledCardToCopy)",
     "cards": 1,
     "errors": 1,
@@ -50923,50 +50926,26 @@
     ]
    },
    {
-    "class": "inside Keyword but without what it derives (on::Keyword::ProtectionFrom)",
+    "class": "passed through dyn but not data (Proposed_Game::restart_game)",
     "cards": 1,
     "errors": 1,
     "members": [
      {
-      "card": "eowyn_fearless_knight",
-      "line": 15,
-      "message": "the trait bound `{closure@eowyn_fearless_knight.rs:15:474}: Derives_Keyword` is not satisfied (the trait `Debug` is not implemented for closure `{closure@eowyn_fearless_knight.rs:15:474}`)"
+      "card": "karn_liberated",
+      "line": 24,
+      "message": "the trait bound `{closure@karn_liberated.rs:24:654}: Data` is not satisfied (the trait `Debug` is not implemented for closure `{closure@karn_liberated.rs:24:654}`)"
      }
     ]
    },
    {
-    "class": "in a CardDef table but not Copy + Sync + 'static (EnterOrFaceUpAction::EnterAsACopyOfAPermanentUntil)",
+    "class": "in a CardDef table but not Copy + Sync + 'static (TransformAction::BecomeACopyOfAnExiledCard)",
     "cards": 1,
     "errors": 1,
     "members": [
      {
-      "card": "vesuvan_shapeshifter",
-      "line": 19,
+      "card": "ludevic_necrogenius",
+      "line": 26,
       "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
-     }
-    ]
-   },
-   {
-    "class": "in a CardDef table but not Copy + Sync + 'static (TransformAction::ChooseAPlayer)",
-    "cards": 1,
-    "errors": 1,
-    "members": [
-     {
-      "card": "zenos_yae_galvus",
-      "line": 29,
-      "message": "the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)"
-     }
-    ]
-   },
-   {
-    "class": "passed through dyn but not data (Proposed_ModeDef::divide)",
-    "cards": 1,
-    "errors": 1,
-    "members": [
-     {
-      "card": "abzan_charm",
-      "line": 31,
-      "message": "the trait bound `cantrip_api::Divide: Data` is not satisfied (the trait `Debug` is not implemented for `cantrip_api::Divide`)"
      }
     ]
    },
@@ -50983,14 +50962,38 @@
     ]
    },
    {
-    "class": "passed through dyn but not data (Proposed_Game::restart_game)",
+    "class": "in a CardDef table but not Copy + Sync + 'static (TransformAction::ChooseAPlayer)",
     "cards": 1,
     "errors": 1,
     "members": [
      {
-      "card": "karn_liberated",
-      "line": 24,
-      "message": "the trait bound `{closure@karn_liberated.rs:24:654}: Data` is not satisfied (the trait `Debug` is not implemented for closure `{closure@karn_liberated.rs:24:654}`)"
+      "card": "zenos_yae_galvus",
+      "line": 29,
+      "message": "the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (EnterOrFaceUpAction::EnterAsACopyOfAPermanentUntil)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "vesuvan_shapeshifter",
+      "line": 19,
+      "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
+     }
+    ]
+   },
+   {
+    "class": "passed through dyn but not data (Proposed_ModeDef::divide)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "abzan_charm",
+      "line": 31,
+      "message": "the trait bound `cantrip_api::Divide: Data` is not satisfied (the trait `Debug` is not implemented for `cantrip_api::Divide`)"
      }
     ]
    }
