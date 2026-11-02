@@ -356,7 +356,7 @@ impl Compiler {
                 ),
             )));
         }
-        if outer.subject.is_some() {
+        if let Some(subject) = &outer.subject {
             if outer.made.is_some() && !matches!(objects, ObjectSet::One(_)) {
                 return Err(gap("a made effect about a list of objects"));
             }
@@ -365,6 +365,21 @@ impl Compiler {
                     "{}.into_iter().collect::<Vec<ObjectId>>()",
                     self.outside_object(object)?.expect("carried")
                 ))),
+                // What can only be one thing is what a subject holds.
+                ObjectSet::Created(result) | ObjectSet::Selected(result)
+                    if outer.compiler.single.contains(&result.0) =>
+                {
+                    let code = format!("({}).first().copied()", outer.compiler.objects(objects)?);
+                    let mut carried = subject.borrow_mut();
+                    if carried.as_ref().is_some_and(|c| *c != code) {
+                        return Err(gap("reflexive ability about two objects"));
+                    }
+                    *carried = Some(code);
+                    Ok(Some(match self.event_at == EventAt::TargetFilter {
+                        true => "q.event_subject().object().into_iter().collect::<Vec<ObjectId>>()",
+                        false => "item.subject.object().into_iter().collect::<Vec<ObjectId>>()",
+                    }.to_string()))
+                }
                 _ => {
                     let code = outer.compiler.objects(objects)?;
                     Ok(Some(planned::planned_value(

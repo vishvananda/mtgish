@@ -985,7 +985,10 @@ impl Compiler {
             max: u32::MAX.into(),
             dynamic: true,
         };
-        if let Expr::CountObjects(objects) = n {
+        if let Expr::CountObjects(objects)
+        | Expr::Aggregate { objects, .. }
+        | Expr::CountDistinct { objects, .. } = n
+        {
             if let Some(code) = self.outside_count(n, objects)? {
                 return Ok(Number {
                     code,
