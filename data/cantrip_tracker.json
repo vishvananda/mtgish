@@ -2,8 +2,8 @@
  "cantrip": "01aba4b159",
  "totals": {
   "cards": 33529,
-  "ready": 28316,
-  "planned": 5165,
+  "ready": 28327,
+  "planned": 5154,
   "data": 48,
   "written": 172,
   "new_tokens": 198,
@@ -17,8 +17,8 @@
    "planned": 7
   },
   "Card": {
-   "ready": 27572,
-   "planned": 4614
+   "ready": 27584,
+   "planned": 4602
   },
   "Conspiracy": {
    "ready": 0,
@@ -41,8 +41,8 @@
    "planned": 7
   },
   "ModalDFC": {
-   "ready": 84,
-   "planned": 14
+   "ready": 83,
+   "planned": 15
   },
   "Ominous": {
    "ready": 14,
@@ -87,28 +87,28 @@
  },
  "classes": {
   "engine": {
-   "requirements": 875,
-   "cards": 3884
+   "requirements": 869,
+   "cards": 3865
   },
   "mechanic": {
    "requirements": 230,
    "cards": 1397
   },
   "vocabulary": {
-   "requirements": 171,
-   "cards": 332
+   "requirements": 168,
+   "cards": 328
   },
   "generator": {
-   "requirements": 40,
-   "cards": 72
+   "requirements": 48,
+   "cards": 84
   }
  },
  "fixes": {
-  "Cantrip": 2976,
-  "not played": 1081,
+  "Cantrip": 2981,
+  "not played": 1080,
   "mechanics module": 661,
-  "mtgish data": 8,
-  "generator": 178,
+  "mtgish data": 20,
+  "generator": 151,
   "unsure": 89
  },
  "features": [
@@ -140,7 +140,7 @@
    "forms": [
     "engine-no-perpetual-effects"
    ],
-   "cards": 256,
+   "cards": 255,
    "written": 0,
    "fixes": [
     "not played"
@@ -415,6 +415,74 @@
    ]
   },
   {
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "generator",
+   "forms": [
+    "a-value-chosen-in-secret",
+    "a-copy-of-a-spell-for-each-object-it-could-target",
+    "put-onto-the-battlefield-face-down-as-a-stated-creature",
+    "tapped-token-copies-of-several-objects-at-once",
+    "one-or-more-that-die-read-as-each-in-the-data",
+    "a-limit-on-the-x-announced",
+    "enters-tapped-as-something-else",
+    "returns-transformed-and-attached",
+    "a-text-change-s-duration-given-to-one-of-its-options-in-the-data",
+    "a-spell-s-target-changed-to-a-player",
+    "an-opponent-s-permanent-read-as-anyone-s-in-the-data",
+    "new-targets-chosen-at-random",
+    "the-rest-of-a-prevention-read-for-each-of-its-parts",
+    "an-aura-that-enchants-what-it-put-onto-the-battlefield",
+    "a-target-the-source-doesn-t-limit-to-yours",
+    "search-with-cards-from-outside-the-game",
+    "a-chosen-card-type-where-its-body-chose-a-creature-type-in-the-data",
+    "a-count-of-modes-a-spell-or-an-activated-ability-reads",
+    "a-delayed-ability-made-by-a-delayed-ability",
+    "a-mandatory-cost-the-card-s-if-you-don-t-is-read-after-in-the-data",
+    "a-once-each-turn-that-isn-t-a-limit-on-triggering",
+    "a-perpetual-change-as-it-enters",
+    "a-reveal-whose-sacrifice-the-data-gives-to-another-player",
+    "a-sacrifice-history-with-its-player-lost-in-the-data",
+    "a-spell-s-target-changed-to-a-permanent-of-no-stated-kind",
+    "a-token-copy-attached-as-it-enters",
+    "an-exiled-card-read-by-an-ability-given-to-a-token",
+    "an-option-the-card-says-is-otherwise-free-in-the-data",
+    "combat-damage-to-a-player-the-player-lost-in-the-data",
+    "damage-prevented-to-its-targets-read-in-the-data-as-by-them",
+    "damage-to-each-permanent-a-card-type-lost-in-the-data",
+    "destroyed-together-some-that-can-t-be-regenerated",
+    "discard-of-up-to-a-number-read-as-exactly-that-number",
+    "each-player-s-return-read-as-yours-in-the-data",
+    "may-enter-face-down",
+    "put-onto-the-battlefield-blocking",
+    "put-onto-the-battlefield-face-down-as-a-land",
+    "put-onto-the-battlefield-face-down-with-abilities",
+    "returns-flipped",
+    "target-with-a-divided-amount-of-an-x-it-can-t-read",
+    "mana-for-that-player-the-source-gives-to-you",
+    "a-chosen-type-mana-rule-that-names-creatures-it-doesn-t-print",
+    "a-main-phase-test-that-lost-its-negation",
+    "a-play-for-the-turn-read-as-a-play-now",
+    "an-overloaded-search-once-for-each-player",
+    "an-unkicked-target-count-the-source-reads-as-any-number",
+    "cards-found-in-two-zones-put-on-top-of-a-library",
+    "spells-of-two-subtypes-read-as-spells-of-both"
+   ],
+   "cards": 84,
+   "written": 15,
+   "fixes": [
+    "Cantrip",
+    "generator",
+    "mtgish data",
+    "unaudited"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "A Killer Among Us",
+    "Acidic Dagger",
+    "Aetherplasm"
+   ]
+  },
+  {
    "needs": "A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set.",
    "class": "engine",
    "forms": [
@@ -452,7 +520,6 @@
     "engine-no-plot-granted",
     "engine-no-prowl-granted",
     "engine-no-rampage-granted",
-    "engine-no-read-ahead-granted",
     "engine-no-renown-granted",
     "engine-no-replicate-granted",
     "engine-no-toxic-granted",
@@ -464,7 +531,7 @@
     "engine-no-miracle-granted",
     "engine-no-sneak-granted"
    ],
-   "cards": 77,
+   "cards": 76,
    "written": 5,
    "fixes": [
     "Cantrip",
@@ -495,17 +562,16 @@
     "duration-while-exiled",
     "duration-end-of-turn",
     "duration-through-next-turn",
-    "duration-while-controlled",
     "duration-during-controllers-next-untap-steps",
     "duration-end-of-combat-on-next-turn",
     "duration-extra-combat",
     "duration-until-cast",
     "duration-until-library-top-changes",
     "duration-until-next-untap-step",
-    "duration-while-it-matches",
+    "duration-while-controlled",
     "duration-while-player-has-counter"
    ],
-   "cards": 76,
+   "cards": 74,
    "written": 5,
    "fixes": [
     "Cantrip",
@@ -520,72 +586,12 @@
    ]
   },
   {
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "class": "generator",
-   "forms": [
-    "a-value-chosen-in-secret",
-    "a-copy-of-a-spell-for-each-object-it-could-target",
-    "put-onto-the-battlefield-face-down-as-a-stated-creature",
-    "tapped-token-copies-of-several-objects-at-once",
-    "a-limit-on-the-x-announced",
-    "enters-tapped-as-something-else",
-    "returns-transformed-and-attached",
-    "a-spell-s-target-changed-to-a-player",
-    "new-targets-chosen-at-random",
-    "the-rest-of-a-prevention-read-for-each-of-its-parts",
-    "an-aura-that-enchants-what-it-put-onto-the-battlefield",
-    "a-target-the-source-doesn-t-limit-to-yours",
-    "search-with-cards-from-outside-the-game",
-    "a-delayed-ability-made-by-a-delayed-ability",
-    "a-once-each-turn-that-isn-t-a-limit-on-triggering",
-    "a-perpetual-change-as-it-enters",
-    "a-reveal-whose-sacrifice-the-data-gives-to-another-player",
-    "a-sacrifice-history-with-its-player-lost-in-the-data",
-    "a-spell-s-target-changed-to-a-permanent-of-no-stated-kind",
-    "a-token-copy-attached-as-it-enters",
-    "an-exiled-card-read-by-an-ability-given-to-a-token",
-    "combat-damage-to-a-player-the-player-lost-in-the-data",
-    "damage-to-each-permanent-a-card-type-lost-in-the-data",
-    "destroyed-together-some-that-can-t-be-regenerated",
-    "discard-of-up-to-a-number-read-as-exactly-that-number",
-    "each-player-s-return-read-as-yours-in-the-data",
-    "may-enter-face-down",
-    "put-onto-the-battlefield-blocking",
-    "put-onto-the-battlefield-face-down-as-a-land",
-    "put-onto-the-battlefield-face-down-with-abilities",
-    "returns-flipped",
-    "target-with-a-divided-amount-of-an-x-it-can-t-read",
-    "mana-for-that-player-the-source-gives-to-you",
-    "a-chosen-type-mana-rule-that-names-creatures-it-doesn-t-print",
-    "a-main-phase-test-that-lost-its-negation",
-    "a-play-for-the-turn-read-as-a-play-now",
-    "an-overloaded-search-once-for-each-player",
-    "an-unkicked-target-count-the-source-reads-as-any-number",
-    "cards-found-in-two-zones-put-on-top-of-a-library",
-    "spells-of-two-subtypes-read-as-spells-of-both"
-   ],
-   "cards": 72,
-   "written": 13,
-   "fixes": [
-    "Cantrip",
-    "generator",
-    "mtgish data",
-    "unaudited"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "A Killer Among Us",
-    "Acidic Dagger",
-    "Aetherplasm"
-   ]
-  },
-  {
    "needs": "A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes.",
    "class": "engine",
    "forms": [
     "operation-change-spell"
    ],
-   "cards": 72,
+   "cards": 71,
    "written": 7,
    "fixes": [
     "Cantrip"
@@ -2434,26 +2440,6 @@
    ]
   },
   {
-   "needs": "an object has all abilities of another, as they are while it does: AddAbility names one",
-   "class": "engine",
-   "forms": [
-    "continuous-change-gain-abilities-of",
-    "static-change-gain-abilities-of"
-   ],
-   "cards": 19,
-   "written": 0,
-   "fixes": [
-    "Cantrip",
-    "generator"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Bleeding Effect",
-    "Clandestine Chameleon",
-    "Concerted Effort"
-   ]
-  },
-  {
    "needs": "the flip action and the flipped status (CR 110.5, 710), which lasts until the permanent leaves the battlefield",
    "class": "engine",
    "forms": [
@@ -2694,6 +2680,26 @@
     "Aether Searcher",
     "Animus of Predation",
     "Arcane Savant"
+   ]
+  },
+  {
+   "needs": "an object has all abilities of another, as they are while it does: AddAbility names one",
+   "class": "engine",
+   "forms": [
+    "continuous-change-gain-abilities-of",
+    "static-change-gain-abilities-of"
+   ],
+   "cards": 17,
+   "written": 0,
+   "fixes": [
+    "Cantrip",
+    "generator"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Bleeding Effect",
+    "Clandestine Chameleon",
+    "Concerted Effort"
    ]
   },
   {
@@ -3753,35 +3759,6 @@
    ]
   },
   {
-   "needs": "an instruction asks for a cost of this kind as it resolves: pay_cost takes mana, life and sacrifices",
-   "class": "engine",
-   "forms": [
-    "resolution-cost-unspecialize",
-    "resolution-cost-put-counters",
-    "resolution-cost-with-several-parts",
-    "resolution-cost-move",
-    "resolution-cost-move-counters",
-    "resolution-cost-object-action",
-    "resolution-cost-change-tap-state",
-    "resolution-cost-life",
-    "resolution-cost-loyalty",
-    "resolution-cost-mana-with-x",
-    "resolution-cost-remove-counters"
-   ],
-   "cards": 11,
-   "written": 6,
-   "fixes": [
-    "Cantrip",
-    "generator"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Goldberry, River-Daughter",
-    "Jeweled Bird",
-    "Lukamina, Bear Form"
-   ]
-  },
-  {
    "needs": "A value remembered on an object for a later read: a number, a player, a life total, counters, mana spent, an ordering of cards.",
    "class": "engine",
    "forms": [
@@ -4240,21 +4217,31 @@
    ]
   },
   {
-   "needs": "A spell's choice between instruction lists asked as a labelled question; the AST carries no option labels, so `one_of` needs them from the card text or a generated label list.",
+   "needs": "an instruction asks for a cost of this kind as it resolves: pay_cost takes mana, life and sacrifices",
    "class": "engine",
    "forms": [
-    "instruction-choose-one"
+    "resolution-cost-unspecialize",
+    "resolution-cost-with-several-parts",
+    "resolution-cost-move",
+    "resolution-cost-move-counters",
+    "resolution-cost-object-action",
+    "resolution-cost-change-tap-state",
+    "resolution-cost-life",
+    "resolution-cost-loyalty",
+    "resolution-cost-mana-with-x",
+    "resolution-cost-remove-counters"
    ],
    "cards": 9,
-   "written": 3,
+   "written": 6,
    "fixes": [
+    "Cantrip",
     "generator"
    ],
-   "fix": "generator",
+   "fix": "Cantrip",
    "examples": [
-    "Aragorn, Company Leader",
-    "Bison Whistle",
-    "Crystal Spray"
+    "Goldberry, River-Daughter",
+    "Jeweled Bird",
+    "Lukamina, Bear Form"
    ]
   },
   {
@@ -5373,6 +5360,24 @@
    ]
   },
   {
+   "needs": "A spell's choice between instruction lists asked as a labelled question; the AST carries no option labels, so `one_of` needs them from the card text or a generated label list.",
+   "class": "engine",
+   "forms": [
+    "instruction-choose-one"
+   ],
+   "cards": 6,
+   "written": 2,
+   "fixes": [
+    "generator"
+   ],
+   "fix": "generator",
+   "examples": [
+    "Aragorn, Company Leader",
+    "Flitwing, Lyev Detective",
+    "Jinnie Fay, Jetmir's Second"
+   ]
+  },
+  {
    "needs": "a word of filters with no read: Query has no way to ask it",
    "class": "vocabulary",
    "forms": [
@@ -5614,24 +5619,6 @@
     "Charmed Pendant",
     "Deranged Assistant",
     "Millikin"
-   ]
-  },
-  {
-   "needs": "Reading the player a rule is being asked about where the rule has no player of its own",
-   "class": "engine",
-   "forms": [
-    "player-reference-affected"
-   ],
-   "cards": 6,
-   "written": 0,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Bösium Strip",
-    "Experimental Frenzy",
-    "Gwenom, Remorseless"
    ]
   },
   {
@@ -6160,6 +6147,24 @@
    ]
   },
   {
+   "needs": "Reading the player a rule is being asked about where the rule has no player of its own",
+   "class": "engine",
+   "forms": [
+    "player-reference-affected"
+   ],
+   "cards": 5,
+   "written": 0,
+   "fixes": [
+    "generator"
+   ],
+   "fix": "generator",
+   "examples": [
+    "Bösium Strip",
+    "Gwenom, Remorseless",
+    "Heartwood Storyteller Avatar"
+   ]
+  },
+  {
    "needs": "The exert attack option with no linked trigger, for cards whose exert pays off through \"whenever you exert a creature\" (CR 701.43).",
    "class": "mechanic",
    "forms": [
@@ -6289,27 +6294,6 @@
     "Dread Slaver",
     "Ghouls' Night Out",
     "Necromantic Selection"
-   ]
-  },
-  {
-   "needs": "a question of the history this window or measure does not ask",
-   "class": "vocabulary",
-   "forms": [
-    "history-measure-most-from-one-source",
-    "history-measure-distinct-causes",
-    "history-measure-property",
-    "history-window-last-combat-of"
-   ],
-   "cards": 5,
-   "written": 0,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Dragon Cultist",
-    "Genesis of the Daleks",
-    "Impact Resonance"
    ]
   },
   {
@@ -6753,25 +6737,6 @@
    ]
   },
   {
-   "needs": "A static ability whose subjects a filter does not name",
-   "class": "engine",
-   "forms": [
-    "static-subjects-matching",
-    "static-subjects-one"
-   ],
-   "cards": 4,
-   "written": 0,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Fblthp, Lost on the Range",
-    "Night Soil",
-    "Scheming Fence"
-   ]
-  },
-  {
    "needs": "A static rule giving players more land plays where the land table is not enough",
    "class": "engine",
    "forms": [
@@ -6816,9 +6781,9 @@
    "cards": 4,
    "written": 0,
    "fixes": [
-    "generator"
+    "Cantrip"
    ],
-   "fix": "generator",
+   "fix": "Cantrip",
    "examples": [
     "Harbinger of the Tides",
     "Moonlit Ambusher // Oakshade Stalker",
@@ -7068,6 +7033,26 @@
    ]
   },
   {
+   "needs": "a question of the history this window or measure does not ask",
+   "class": "vocabulary",
+   "forms": [
+    "history-measure-most-from-one-source",
+    "history-measure-distinct-causes",
+    "history-measure-property"
+   ],
+   "cards": 4,
+   "written": 0,
+   "fixes": [
+    "generator"
+   ],
+   "fix": "generator",
+   "examples": [
+    "Dragon Cultist",
+    "Genesis of the Daleks",
+    "Impact Resonance"
+   ]
+  },
+  {
    "needs": "cards chosen under a rule of the group (one per card type, a total mana value, different names) moved together, in a state, face down or into a pile",
    "class": "engine",
    "forms": [
@@ -7291,24 +7276,6 @@
    ]
   },
   {
-   "needs": "a card type a resolving ability chose kept where a later read finds it",
-   "class": "engine",
-   "forms": [
-    "a-choice-of-card-type-outside-its-body"
-   ],
-   "cards": 3,
-   "written": 1,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Apex Observatory // Eye of Ojer Taq",
-    "Karona, False God",
-    "Stenn, Paranoid Partisan"
-   ]
-  },
-  {
    "needs": "a mode open only while something is true as modes are chosen",
    "class": "engine",
    "forms": [
@@ -7342,28 +7309,6 @@
     "Gor Muldrak, Amphinologist",
     "Runed Halo",
     "Serra's Emissary"
-   ]
-  },
-  {
-   "needs": "a read of how many different values of this there are among objects",
-   "class": "vocabulary",
-   "forms": [
-    "distinct-color-pairs",
-    "distinct-unlocked-door-names",
-    "sharing-mana-costs",
-    "distinct-planeswalker-types"
-   ],
-   "cards": 3,
-   "written": 1,
-   "fixes": [
-    "Cantrip",
-    "generator"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Central Elevator // Promising Stairs",
-    "Maelstrom Archangel Avatar",
-    "Niv-Mizzet, Guildpact"
    ]
   },
   {
@@ -8293,23 +8238,6 @@
    ]
   },
   {
-   "needs": "a choice of modes whose count the game works out as it is announced",
-   "class": "engine",
-   "forms": [
-    "mode-count-that-is-not-a-constant"
-   ],
-   "cards": 2,
-   "written": 3,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Bumi, King of Three Trials",
-    "Doomsday Confluence"
-   ]
-  },
-  {
    "needs": "players can be stopped from this: no prohibition reaches the action",
    "class": "engine",
    "forms": [
@@ -8365,6 +8293,23 @@
    ]
   },
   {
+   "needs": "a card type a resolving ability chose kept where a later read finds it",
+   "class": "engine",
+   "forms": [
+    "a-choice-of-card-type-outside-its-body"
+   ],
+   "cards": 2,
+   "written": 1,
+   "fixes": [
+    "generator"
+   ],
+   "fix": "generator",
+   "examples": [
+    "Apex Observatory // Eye of Ojer Taq",
+    "Stenn, Paranoid Partisan"
+   ]
+  },
+  {
    "needs": "a player or several choose one of the listed actions, villainous choice included: each option is a program or an operand",
    "class": "mechanic",
    "forms": [
@@ -8379,6 +8324,26 @@
    "examples": [
     "Covenant of Minds",
     "The Pit"
+   ]
+  },
+  {
+   "needs": "a read of how many different values of this there are among objects",
+   "class": "vocabulary",
+   "forms": [
+    "distinct-unlocked-door-names",
+    "sharing-mana-costs",
+    "distinct-planeswalker-types"
+   ],
+   "cards": 2,
+   "written": 1,
+   "fixes": [
+    "Cantrip",
+    "generator"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Central Elevator // Promising Stairs",
+    "Maelstrom Archangel Avatar"
    ]
   },
   {
@@ -8672,6 +8637,23 @@
    "examples": [
     "Delay",
     "Desertion"
+   ]
+  },
+  {
+   "needs": "A static ability whose subjects a filter does not name",
+   "class": "engine",
+   "forms": [
+    "static-subjects-matching"
+   ],
+   "cards": 2,
+   "written": 0,
+   "fixes": [
+    "generator"
+   ],
+   "fix": "generator",
+   "examples": [
+    "Fblthp, Lost on the Range",
+    "Night Soil"
    ]
   },
   {
@@ -8999,23 +8981,6 @@
    ]
   },
   {
-   "needs": "Whether damage was dealt by a spell, asked afterwards, when the spell has left the stack.",
-   "class": "vocabulary",
-   "forms": [
-    "damage-source-kind-spell"
-   ],
-   "cards": 2,
-   "written": 0,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Aegar, the Freezing Flame",
-    "Suffocation"
-   ]
-  },
-  {
    "needs": "a card moved to the command zone by an effect (CR 408), for commanders and their replacement.",
    "class": "engine",
    "forms": [
@@ -9065,23 +9030,6 @@
    "examples": [
     "Guild Feud",
     "The Great Aurora"
-   ]
-  },
-  {
-   "needs": "a delayed or reflexive ability reads a target of the ability that made it: the item keeps those targets and each one's divided share",
-   "class": "engine",
-   "forms": [
-    "target-reference"
-   ],
-   "cards": 2,
-   "written": 0,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Redeem",
-    "Sacred Boon"
    ]
   },
   {
@@ -9544,40 +9492,6 @@
    ]
   },
   {
-   "needs": "a resolving effect changes this: no EffectKind for it",
-   "class": "engine",
-   "forms": [
-    "continuous-change-grant-ability-if-absent",
-    "continuous-change-color-of-mana",
-    "continuous-change-replace-word"
-   ],
-   "cards": 1,
-   "written": 2,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Musician"
-   ]
-  },
-  {
-   "needs": "A cost that puts counters on an object other than the source",
-   "class": "engine",
-   "forms": [
-    "counters-put-as-a-cost-on-another-object"
-   ],
-   "cards": 1,
-   "written": 1,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Thought Gorger"
-   ]
-  },
-  {
    "needs": "A resolved effect that lets a player look at a card for as long as it stays exiled or otherwise hidden (CR 400.2), since Game::allow_play grants only a play.",
    "class": "engine",
    "forms": [
@@ -9623,22 +9537,6 @@
    "fix": "generator",
    "examples": [
     "Agrus Kos, Eternal Soldier"
-   ]
-  },
-  {
-   "needs": "an ability of this kind under a condition",
-   "class": "engine",
-   "forms": [
-    "conditional-replacement"
-   ],
-   "cards": 1,
-   "written": 1,
-   "fixes": [
-    "generator"
-   ],
-   "fix": "generator",
-   "examples": [
-    "Dust Animus"
    ]
   },
   {
@@ -10967,6 +10865,22 @@
    "fix": "generator",
    "examples": [
     "Human-Time Lord Meta-Crisis"
+   ]
+  },
+  {
+   "needs": "a delayed or reflexive ability reads a target of the ability that made it: the item keeps those targets and each one's divided share",
+   "class": "engine",
+   "forms": [
+    "target-reference"
+   ],
+   "cards": 1,
+   "written": 0,
+   "fixes": [
+    "generator"
+   ],
+   "fix": "generator",
+   "examples": [
+    "Sacred Boon"
    ]
   },
   {
@@ -12458,6 +12372,35 @@
    "examples": []
   },
   {
+   "needs": "a choice of modes whose count the game works out as it is announced",
+   "class": "engine",
+   "forms": [
+    "mode-count-that-is-not-a-constant"
+   ],
+   "cards": 0,
+   "written": 2,
+   "fixes": [
+    "generator"
+   ],
+   "fix": "generator",
+   "examples": []
+  },
+  {
+   "needs": "a resolving effect changes this: no EffectKind for it",
+   "class": "engine",
+   "forms": [
+    "continuous-change-color-of-mana",
+    "continuous-change-replace-word"
+   ],
+   "cards": 0,
+   "written": 2,
+   "fixes": [
+    "generator"
+   ],
+   "fix": "generator",
+   "examples": []
+  },
+  {
    "needs": "the AST to say a target \"from a graveyard\" is from any graveyard: its filter says yours",
    "class": "vocabulary",
    "forms": [
@@ -12476,6 +12419,20 @@
    "class": "engine",
    "forms": [
     "engine-no-cost-paid-rather-than-each-mana"
+   ],
+   "cards": 0,
+   "written": 1,
+   "fixes": [
+    "generator"
+   ],
+   "fix": "generator",
+   "examples": []
+  },
+  {
+   "needs": "A cost that puts counters on an object other than the source",
+   "class": "engine",
+   "forms": [
+    "counters-put-as-a-cost-on-another-object"
    ],
    "cards": 0,
    "written": 1,
@@ -14776,9 +14733,9 @@
    "class": "engine",
    "needs": "Changes that stay with an object through every zone for the rest of the game (Alchemy \"perpetually\"), held on the card and not on the permanent. Alchemy only, so Cantrip has no reason to play it unless it plays digital cards.",
    "family": "engine: no",
-   "cards": 256,
+   "cards": 255,
    "written": 0,
-   "alone": 165,
+   "alone": 164,
    "examples": [
     "Absorb Energy",
     "Accident-Prone Apprentice // Amphibian Accident",
@@ -14985,7 +14942,7 @@
    "class": "engine",
    "needs": "A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes.",
    "family": "operation ChangeSpell",
-   "cards": 72,
+   "cards": 71,
    "written": 7,
    "alone": 57,
    "examples": [
@@ -18305,25 +18262,6 @@
    "how": "choose::one_of asked of the opponent; then next opponent by apnap; both outcomes in a local. Text is the labels."
   },
   {
-   "id": "instruction-choose-one",
-   "feature": "instruction ChooseOne",
-   "class": "engine",
-   "needs": "A spell's choice between instruction lists asked as a labelled question; the AST carries no option labels, so `one_of` needs them from the card text or a generated label list.",
-   "family": "instruction ChooseOne",
-   "cards": 9,
-   "written": 3,
-   "alone": 2,
-   "examples": [
-    "Aragorn, Company Leader",
-    "Bison Whistle",
-    "Crystal Spray",
-    "Flitwing, Lyev Detective",
-    "Jinnie Fay, Jetmir's Second"
-   ],
-   "fix": "generator",
-   "how": "Landed where the words are the card's (Abundance's Land/Nonland, the destination labels). Trait Doctoring and Whim of Volrath are data bugs: the color option comes back with Duration::Indefinite where Oracle ends both at end of turn, and printed_options holds them for that. Cloak and Dagger, Entwined: the source drops 'until they leave the battlefield' (printed_options holds any choice that says so). Bison Whistle: the source makes 'Otherwise' a free fourth option, so a Bison could go to a graveyard; Oracle doesn't allow it."
-  },
-  {
    "id": "static-play-permission-with-an-effect-on-what-is-played",
    "feature": "static play permission with an effect on what is played",
    "class": "engine",
@@ -18721,25 +18659,6 @@
    ],
    "fix": "Cantrip",
    "how": ""
-  },
-  {
-   "id": "static-change-gain-abilities-of",
-   "feature": "static change GainAbilitiesOf",
-   "class": "engine",
-   "needs": "an object has all abilities of another, as they are while it does: AddAbility names one",
-   "family": "static change",
-   "cards": 9,
-   "written": 0,
-   "alone": 3,
-   "examples": [
-    "Clandestine Chameleon",
-    "Drana and Linvala",
-    "Idris, Soul of the TARDIS",
-    "Koh, the Face Stealer",
-    "Mairsil, the Pretender"
-   ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: static_ability(Layer::Ability, affects, apply, text) where apply copies view.chars(other).abilities into free slots; for cards, statics::grant_activated_abilities_of(view, cards, chars)."
   },
   {
    "id": "static-rule-blocked-as-though-lacking",
@@ -19749,6 +19668,25 @@
    "how": "Dodecapod family: ReplacementDef ZoneChange with own_everywhere, z.reason==Discard. Who caused it: q.state().stack top item while resolving."
   },
   {
+   "id": "static-change-gain-abilities-of",
+   "feature": "static change GainAbilitiesOf",
+   "class": "engine",
+   "needs": "an object has all abilities of another, as they are while it does: AddAbility names one",
+   "family": "static change",
+   "cards": 7,
+   "written": 0,
+   "alone": 2,
+   "examples": [
+    "Clandestine Chameleon",
+    "Drana and Linvala",
+    "Idris, Soul of the TARDIS",
+    "Koh, the Face Stealer",
+    "Pin Collection"
+   ],
+   "fix": "generator",
+   "how": "Landed for cards and once each turn: grant_activated_abilities_of(view, &cards, chars), and \"activate each of those abilities only once each turn\" is CardDef::granted_once_each_turn counting the asked objects whose card is the ability's (Mairsil, the Pretender; Locus of Enlightenment, whose \"exiled cards used to craft it\" are craft::used_to_craft, linked to the card that waited in exile and not to an ability of Locus). Drana and Linvala (permanents' abilities plus spend as any color), Scheming Fence, Koh and Sharkey stay held on other parts."
+  },
+  {
    "id": "target-cardinality-per-player",
    "feature": "target cardinality PerPlayer",
    "class": "engine",
@@ -19785,6 +19723,25 @@
    ],
    "fix": "Cantrip",
    "how": "Random choice is not targeting: the rules need a real target at announcement, and nothing picks one at random there."
+  },
+  {
+   "id": "instruction-choose-one",
+   "feature": "instruction ChooseOne",
+   "class": "engine",
+   "needs": "A spell's choice between instruction lists asked as a labelled question; the AST carries no option labels, so `one_of` needs them from the card text or a generated label list.",
+   "family": "instruction ChooseOne",
+   "cards": 6,
+   "written": 2,
+   "alone": 0,
+   "examples": [
+    "Aragorn, Company Leader",
+    "Flitwing, Lyev Detective",
+    "Jinnie Fay, Jetmir's Second",
+    "Moonlit Meditation",
+    "Retriever Phoenix"
+   ],
+   "fix": "generator",
+   "how": "Landed where the words are the card's (Abundance's Land/Nonland, the destination labels). Trait Doctoring and Whim of Volrath are data bugs: the color option comes back with Duration::Indefinite where Oracle ends both at end of turn, and printed_options holds them for that. Cloak and Dagger, Entwined: the source drops 'until they leave the battlefield' (printed_options holds any choice that says so). Bison Whistle: the source makes 'Otherwise' a free fourth option, so a Bison could go to a graveyard; Oracle doesn't allow it."
   },
   {
    "id": "cast-the-card-itself-on-these-terms",
@@ -20165,25 +20122,6 @@
    ],
    "fix": "Cantrip",
    "how": "The audit's how is wrong for most. Urianger needs a reduction PlayGrant lacks, Kaldring needs enters_tapped which is lands only (z.reason == PlayLand), Tomb of Aclazotz needs spell_replacement which only GrantedWay has. Each now names its own engine hole. Fires of Mount Doom, Apple and Ruinous are a delayed trigger reading the played card and stay as they were."
-  },
-  {
-   "id": "player-reference-affected",
-   "feature": "player reference Affected",
-   "class": "engine",
-   "needs": "Reading the player a rule is being asked about where the rule has no player of its own",
-   "family": "player reference",
-   "cards": 6,
-   "written": 0,
-   "alone": 2,
-   "examples": [
-    "Bösium Strip",
-    "Experimental Frenzy",
-    "Gwenom, Remorseless",
-    "Heartwood Storyteller Avatar",
-    "Shared Fate"
-   ],
-   "fix": "generator",
-   "how": "Landed where the rule's function has the player: a banned spell's filter (Lavinia) and a permission from exile (Ian Malcolm), by rule_player around the filter. Bosium Strip stays: a lasting permission to cast from the top of a graveyard has no call. Others hold on duration and object filter holes."
   },
   {
    "id": "player-reference-prior",
@@ -21288,6 +21226,25 @@
    "how": "Not landed: all its cards hold on object-filter-in-pile and operation-piles."
   },
   {
+   "id": "player-reference-affected",
+   "feature": "player reference Affected",
+   "class": "engine",
+   "needs": "Reading the player a rule is being asked about where the rule has no player of its own",
+   "family": "player reference",
+   "cards": 5,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "Bösium Strip",
+    "Gwenom, Remorseless",
+    "Heartwood Storyteller Avatar",
+    "Shared Fate",
+    "The Belligerent"
+   ],
+   "fix": "generator",
+   "how": "Landed where the rule's function has the player: a banned spell's filter (Lavinia), a permission from exile (Ian Malcolm), and \"from your hand\" in a play or cast ban, the hand of the player asked (Experimental Frenzy). Bosium Strip stays: a lasting permission to cast from the top of a graveyard has no call."
+  },
+  {
    "id": "player-reference-in-chosen-direction",
    "feature": "player reference InChosenDirection",
    "class": "vocabulary",
@@ -22111,8 +22068,8 @@
     "Moonlit Ambusher // Oakshade Stalker",
     "Quantum Reduction"
    ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: The audit's WayDef is wrong for every card: it is an alternative cost, so Rout on an opponent's turn under Omniscience would cost {7}, not {2}. Exact on sorceries instead: cast_as_though_flash + untimely_cleanup_rider (i"
+   "fix": "Cantrip",
+   "how": "Gap: \"You may cast this spell as though it had flash if you pay {2} more to cast it\" is an additional cost only for a cast at instant speed; cast_as_though_flash and flash_if give the permission free, and a WayDef is an alternative cost (it won't combine with another, and Omniscience would waive the {2}). Harbinger of the Tides, Mystical Tether, Quantum Reduction, Moonlit Ambusher."
   },
   {
    "id": "event-change-as-it-enters-set-controller",
@@ -22815,23 +22772,6 @@
    "how": "Protection from player for a player: PlayerProtectionFromEverything only as an EffectKind; static player_protection rule for a player. Loyalty twice: g.allow_extra_loyalty_activations(permanent, times). Permanents: per permanent loop (The Chain Veil). Visibility: EffectKind names none."
   },
   {
-   "id": "a-choice-of-card-type-outside-its-body",
-   "feature": "a choice of CardType outside its body",
-   "class": "engine",
-   "needs": "a card type a resolving ability chose kept where a later read finds it",
-   "family": "a choice",
-   "cards": 3,
-   "written": 1,
-   "alone": 1,
-   "examples": [
-    "Apex Observatory // Eye of Ojer Taq",
-    "Karona, False God",
-    "Stenn, Paranoid Partisan"
-   ],
-   "fix": "generator",
-   "how": "Karona, False God is a data bug: the AST chooses a CreatureType but reads Chosen(CardType). Held."
-  },
-  {
    "id": "continuous-rule-combat-damage-use-toughness",
    "feature": "continuous rule CombatDamage UseToughness",
    "class": "engine",
@@ -22898,6 +22838,23 @@
    ],
    "fix": "generator",
    "how": "Locals; a later ability uses history."
+  },
+  {
+   "id": "one-or-more-that-die-read-as-each-in-the-data",
+   "feature": "one or more that die read as each in the data",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "one or",
+   "cards": 3,
+   "written": 1,
+   "alone": 3,
+   "examples": [
+    "Ajani, Nacatl Avenger // Ajani, Nacatl Pariah",
+    "Soul Shredder",
+    "Vengeful Townsfolk"
+   ],
+   "fix": "mtgish data",
+   "how": "The data's trigger is WhenAPermanentDies(And([Other(ThisPermanent), And([IsCreatureType(Cat), ControlledByAPlayer(SinglePlayer(You))])])) where Oracle says 'Whenever one or more other Cats you control die' (Ajani; the Bee's and Townsfolk's are other creatures): a batch that triggers once (CR 603.2c), as WhenAnyNumberOfCreaturesOrPlaneswalkersDie(..) reads it. Read as each, two Cats dying together trigger twice."
   },
   {
    "id": "play-permission-lasting-until-next-turn",
@@ -24651,20 +24608,36 @@
    "how": ""
   },
   {
-   "id": "mode-count-that-is-not-a-constant",
-   "feature": "mode count that is not a constant",
+   "id": "a-choice-of-card-type-outside-its-body",
+   "feature": "a choice of CardType outside its body",
    "class": "engine",
-   "needs": "a choice of modes whose count the game works out as it is announced",
-   "family": "mode count",
+   "needs": "a card type a resolving ability chose kept where a later read finds it",
+   "family": "a choice",
    "cards": 2,
-   "written": 3,
-   "alone": 2,
+   "written": 1,
+   "alone": 0,
    "examples": [
-    "Bumi, King of Three Trials",
-    "Doomsday Confluence"
+    "Apex Observatory // Eye of Ojer Taq",
+    "Stenn, Paranoid Partisan"
    ],
    "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: modal_triggered(when,&MODAL.up_to_that_many(),text).counted_by(fn(q,asker)->u16): the count is read as it goes on the stack."
+   "how": "Karona, False God is a data bug: the AST chooses a CreatureType but reads Chosen(CardType). Held."
+  },
+  {
+   "id": "a-text-change-s-duration-given-to-one-of-its-options-in-the-data",
+   "feature": "a text change's duration given to one of its options, in the data",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "a text",
+   "cards": 2,
+   "written": 1,
+   "alone": 2,
+   "examples": [
+    "Crystal Spray",
+    "Whim of Volrath"
+   ],
+   "fix": "mtgish data",
+   "how": "Whim of Volrath, Trait Doctoring, Crystal Spray: \"change the text ... by replacing all instances of one color word with another or one basic land type with another until end of turn\" gives the color-word option CreatePermanentLayerEffect with no duration. Proposed: CreatePermanentLayerEffectUntil(.., UntilEndOfTurn) for both options (Crystal Spray's DrawACard after both, not inside the first)."
   },
   {
    "id": "cost-part-life-equal-to-own-mana-value",
@@ -25003,6 +24976,22 @@
    "how": ""
   },
   {
+   "id": "an-opponent-s-permanent-read-as-anyone-s-in-the-data",
+   "feature": "an opponent's permanent read as anyone's in the data",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "an opponent's",
+   "cards": 2,
+   "written": 0,
+   "alone": 2,
+   "examples": [
+    "Press the Enemy",
+    "Soporific Springs // Sink into Stupor"
+   ],
+   "fix": "mtgish data",
+   "how": "The data's target is TargetPermanent(And([IsNonCardtype(Land), IsPermanent])) beside TargetSpell(ControlledByAPlayer(Opponent)), where Oracle says 'target spell or nonland permanent an opponent controls': ControlledByAPlayer(Opponent) is missing from the permanent."
+  },
+  {
    "id": "another-way-beside-a-mechanic-s-only-way",
    "feature": "another way beside a mechanic's only way",
    "class": "engine",
@@ -25275,22 +25264,6 @@
    "how": "Prevented::total is told to then, and nothing stores it for a later delayed ability."
   },
   {
-   "id": "damage-source-kind-spell",
-   "feature": "damage source kind Spell",
-   "class": "vocabulary",
-   "needs": "Whether damage was dealt by a spell, asked afterwards, when the spell has left the stack.",
-   "family": "damage source",
-   "cards": 2,
-   "written": 0,
-   "alone": 2,
-   "examples": [
-    "Aegar, the Freezing Flame",
-    "Suffocation"
-   ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: `q.history().damage_dealt().any(|d| d.source == spell)`: object rows are never deleted, so the id still answers."
-  },
-  {
    "id": "duration-end-of-turn",
    "feature": "duration EndOfTurn",
    "class": "engine",
@@ -25321,22 +25294,6 @@
    ],
    "fix": "Cantrip",
    "how": ""
-  },
-  {
-   "id": "duration-while-controlled",
-   "feature": "duration WhileControlled",
-   "class": "engine",
-   "needs": "an effect lasts until this: Duration has no such end",
-   "family": "duration WhileControlled",
-   "cards": 2,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Vislor Turlough",
-    "Wall of Stolen Identity"
-   ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Wall of Stolen Identity: add_effect(.., EffectKind::CantBecomeUntapped, Duration::AsLongAs(CARD, 0)), Lasting.holds reading that you control e.source. Vislor Turlough: add_effect(.., EffectKind::Goaded, Duration::AsLongA"
   },
   {
    "id": "earlier-objects-unattached",
@@ -26635,22 +26592,6 @@
    "how": ""
   },
   {
-   "id": "resolution-cost-put-counters",
-   "feature": "resolution cost PutCounters",
-   "class": "engine",
-   "needs": "an instruction asks for a cost of this kind as it resolves: pay_cost takes mana, life and sacrifices",
-   "family": "resolution cost",
-   "cards": 2,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Ravenous Vampire",
-    "Thought Gorger"
-   ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Thought Gorger: plain counters then discard hand, testing whether counters were placed."
-  },
-  {
    "id": "search-constraint-at-random",
    "feature": "search constraint AtRandom",
    "class": "vocabulary",
@@ -26795,22 +26736,6 @@
    "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: StaticAffects is a plain function."
   },
   {
-   "id": "static-subjects-one",
-   "feature": "static subjects One",
-   "class": "engine",
-   "needs": "A static ability whose subjects a filter does not name",
-   "family": "static subjects",
-   "cards": 2,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Scheming Fence",
-    "Tyrannical Pitlord"
-   ],
-   "fix": "generator",
-   "how": "Not landed. Audit's StaticAffects is a plain function; q.chosen_object in the held code wasn't checked."
-  },
-  {
    "id": "subtype-belenon",
    "feature": "subtype Belenon",
    "class": "vocabulary",
@@ -26889,22 +26814,6 @@
    ],
    "fix": "Cantrip",
    "how": "None. A card printing a word `Subtype` lacks does not build: crates/cantrip-oracle/build.rs panics."
-  },
-  {
-   "id": "target-reference",
-   "feature": "target reference",
-   "class": "engine",
-   "needs": "a delayed or reflexive ability reads a target of the ability that made it: the item keeps those targets and each one's divided share",
-   "family": "target reference",
-   "cards": 2,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Redeem",
-    "Sacred Boon"
-   ],
-   "fix": "generator",
-   "how": "Redeem is a data bug: the AST makes the targets the sources of the prevented damage, but the Oracle text makes them its recipients. Held."
   },
   {
    "id": "the-loyalty-abilities-of-other-permanents",
@@ -27254,21 +27163,6 @@
    "how": "The data's target is TargetPermanent(And([IsNonCardtype(Creature), IsCardtype(Land)])) where Oracle says 'target noncreature land you control': ControlledByAPlayer(SinglePlayer(You)) is missing."
   },
   {
-   "id": "conditional-replacement",
-   "feature": "conditional Replacement",
-   "class": "engine",
-   "needs": "an ability of this kind under a condition",
-   "family": "conditional Replacement",
-   "cards": 1,
-   "written": 1,
-   "alone": 1,
-   "examples": [
-    "Dust Animus"
-   ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: A rule function tests the condition."
-  },
-  {
    "id": "cost-selection-rule-distinct-count",
    "feature": "cost selection rule DistinctCount",
    "class": "engine",
@@ -27282,21 +27176,6 @@
    ],
    "fix": "unsure",
    "how": "Baron Helmut Zemo, Fabrication Foundry, Winter: resolving ones are choose::select with a card-written Part. Printed ones have no set rule on Cost."
-  },
-  {
-   "id": "counters-put-as-a-cost-on-another-object",
-   "feature": "counters put as a cost on another object",
-   "class": "engine",
-   "needs": "A cost that puts counters on an object other than the source",
-   "family": "counters put",
-   "cards": 1,
-   "written": 1,
-   "alone": 0,
-   "examples": [
-    "Thought Gorger"
-   ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Thought Gorger: put counters and discard in the effect; The Serpent Society precedent."
   },
   {
    "id": "engine-no-extra-turn-but-the-next",
@@ -27674,6 +27553,36 @@
    "how": "Kept choices land. Zombie Boa and Leori: a delayed trigger keeps no value. Phyrexian Splicer: a choice made in a cost is read by a target filter. Faceless One, Clara Oswald and Prismatic Piper: deck-building rules. Riptide Replicator, Volrath's Laboratory and Sarpadian Empires: a token of the chosen color. Oko's emblem keeps no value. Apostle's Blessing, Razor Barrier and Jeweled Spirit belong to another lane. Illusionary Terrain is not done."
   },
   {
+   "id": "a-chosen-card-type-where-its-body-chose-a-creature-type-in-the-data",
+   "feature": "a chosen card type where its body chose a creature type, in the data",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "a chosen",
+   "cards": 1,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "Karona, False God"
+   ],
+   "fix": "mtgish data",
+   "how": "Karona, False God: \"choose a creature type. Creatures of the chosen type get +3/+3\" reads IsCardtypeVariable(TheChosenCardtype) after ChooseACreatureType. Proposed: IsCreatureTypeVariable(TheChosenCreatureType)."
+  },
+  {
+   "id": "a-count-of-modes-a-spell-or-an-activated-ability-reads",
+   "feature": "a count of modes a spell or an activated ability reads",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "a count",
+   "cards": 1,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "Doomsday Confluence"
+   ],
+   "fix": "Cantrip",
+   "how": "ModalDef::COUNTED is a triggered ability's count only: a spell or an activated ability can't be given it, and an activated one panics (ability.rs:358). Doomsday Confluence's \"Choose X. You may choose the same mode more than once\" needs a spell's mode count read from its X."
+  },
+  {
    "id": "a-delayed-ability-made-by-a-delayed-ability",
    "feature": "a delayed ability made by a delayed ability",
    "class": "generator",
@@ -27717,6 +27626,21 @@
    ],
    "fix": "generator",
    "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: entering.chosen_subtype=first; entering.chosen_number=Some(index of second in a const list)."
+  },
+  {
+   "id": "a-mandatory-cost-the-card-s-if-you-don-t-is-read-after-in-the-data",
+   "feature": "a mandatory cost the card's \"If you don't\" is read after, in the data",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "a mandatory",
+   "cards": 1,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "Ravenous Vampire"
+   ],
+   "fix": "mtgish data",
+   "how": "Ravenous Vampire: \"you may sacrifice a nonartifact creature. If you do, put a +1/+1 counter on this creature. If you don't, tap this creature\" is If(CostWasPaid, [MustCost(PutCounters(..)), Unless(CostWasPaid, [TapPermanent(ThisPermanent)])]), so it never taps. Proposed: [MayCost(SacrificeAPermanent(..)), If(CostWasPaid, [PutCounters(..)]), Unless(CostWasPaid, [TapPermanent(ThisPermanent)])]."
   },
   {
    "id": "a-once-each-turn-that-isn-t-a-limit-on-triggering",
@@ -27972,6 +27896,21 @@
    ],
    "fix": "generator",
    "how": "After the grant, link the exiled card to the token's granted text: `g.link_exiled(&[card], Linked { object: token, text, acquired: Acquired { by: Grant, stamp, part: 0 } })`, the stamp being the AddAbility effect's; the granted ability reads `exiled_with(linked_to(asker))`."
+  },
+  {
+   "id": "an-option-the-card-says-is-otherwise-free-in-the-data",
+   "feature": "an option the card says is otherwise, free in the data",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "an option",
+   "cards": 1,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "Bison Whistle"
+   ],
+   "fix": "mtgish data",
+   "how": "Bison Whistle: ChooseAnAction([[PutTopCardOfLibraryOfTypeOnBattlefield(IsCreatureType(Bison))], [RevealTopCardOfLibraryAndPutIntoHand(IsCardtype(Creature))], [PutTopOfLibraryInGraveyard], [DoNothing]]) makes \"Otherwise, you may put it into your graveyard\" a free choice. The graveyard is only for a card that is neither a Bison nor a creature card."
   },
   {
    "id": "an-ordinal-of-grouped-events",
@@ -28272,21 +28211,6 @@
    ],
    "fix": "Cantrip",
    "how": ""
-  },
-  {
-   "id": "continuous-change-grant-ability-if-absent",
-   "feature": "continuous change GrantAbilityIfAbsent",
-   "class": "engine",
-   "needs": "a resolving effect changes this: no EffectKind for it",
-   "family": "continuous change",
-   "cards": 1,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Musician"
-   ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Musician: a granted ability: g.add_effect(source, target, EffectKind::Granted..) checking first that it's absent in the effect. Written zero rows: Foraging Wickermaw (g.add_mana), Artificial Evolution (text_change)."
   },
   {
    "id": "continuous-rule-cant-gain-ability",
@@ -28649,6 +28573,21 @@
    "how": "`craft::materials` checks each card on its own; a filter for two that share a type is pairwise."
   },
   {
+   "id": "damage-prevented-to-its-targets-read-in-the-data-as-by-them",
+   "feature": "damage prevented to its targets, read in the data as by them",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "damage prevented",
+   "cards": 1,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "Redeem"
+   ],
+   "fix": "mtgish data",
+   "how": "Redeem: \"Prevent all damage that would be dealt this turn to up to two target creatures\" is CreatePreventDamageUntil(DamageWouldBeDealtByAPermanent(Ref_TargetPermanents), ..), damage by them. Proposed: DamageWouldBeDealtToARecipient(APermanent(Ref_TargetPermanents))."
+  },
+  {
    "id": "damage-to-each-permanent-a-card-type-lost-in-the-data",
    "feature": "damage to each permanent, a card type lost in the data",
    "class": "generator",
@@ -28660,8 +28599,8 @@
    "examples": [
     "Arcbond"
    ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: "
+   "fix": "mtgish data",
+   "how": "Arcbond's \"each other creature and each player\" is MultipleRecipients([EachPermanent(Other(Ref_TargetPermanent)), EachPlayer(AnyPlayer)]): the creature type is lost. Proposed: EachPermanent(And([IsCardtype(Creature), Other(Ref_TargetPermanent)]))."
   },
   {
    "id": "delayed-ability-about-objects-and-a-player",
@@ -28722,21 +28661,6 @@
    ],
    "fix": "mtgish data",
    "how": "MayCost(DiscardNumberCards(Integer(2))) where Oracle says 'You may discard up to two cards': exactly two. The grammar has DiscardUptoNumberCards."
-  },
-  {
-   "id": "distinct-color-pairs",
-   "feature": "distinct ColorPairs",
-   "class": "vocabulary",
-   "needs": "a read of how many different values of this there are among objects",
-   "family": "distinct ColorPairs",
-   "cards": 1,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Niv-Mizzet, Guildpact"
-   ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Niv-Mizzet, Guildpact: count color pairs among permanents with plain Vec dedupe. Central Elevator: search filter comparing names, in a filter over chars at resolution via library choice list."
   },
   {
    "id": "distinct-unlocked-door-names",
@@ -28859,19 +28783,19 @@
    "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Orcish Farmer: Duration::UntilNextTurnOf(controller) ends as that turn's untap step begins."
   },
   {
-   "id": "duration-while-it-matches",
-   "feature": "duration WhileItMatches",
+   "id": "duration-while-controlled",
+   "feature": "duration WhileControlled",
    "class": "engine",
    "needs": "an effect lasts until this: Duration has no such end",
-   "family": "duration WhileItMatches",
+   "family": "duration WhileControlled",
    "cards": 1,
    "written": 0,
-   "alone": 1,
+   "alone": 0,
    "examples": [
-    "Rootwater Matriarch"
+    "Wall of Stolen Identity"
    ],
    "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Rootwater Matriarch: add_effect(self, target, EffectKind::Control(you), Duration::AsLongAs(CARD, 0)), Lasting.holds testing that e.affected is enchanted."
+   "how": "Landed for \"for as long as they control it\", they being its controller as the effect begins (Vislor Turlough): Duration::AsLongAs with a Lasting that compares its controller now with the player of the latest control effect on it no later than the effect. Wall of Stolen Identity holds on other forms."
   },
   {
    "id": "duration-while-player-has-counter",
@@ -29397,21 +29321,6 @@
    ],
    "fix": "generator",
    "how": "Name misleads: statics::grant_delayed_ability exists, so this is no engine gap. Only the first granted ability fits that one form, the rest write the slot by hand. Not landed: it frees no card alone."
-  },
-  {
-   "id": "engine-no-read-ahead-granted",
-   "feature": "engine: no ReadAhead granted",
-   "class": "engine",
-   "needs": "A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set.",
-   "family": "engine: no",
-   "cards": 1,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Barbara Wright"
-   ],
-   "fix": "generator",
-   "how": "Name misleads: a grantor replacement, prevention or static is the form, so this is no engine gap. Each needs its own generator arm. Not landed."
   },
   {
    "id": "engine-no-renown-granted",
@@ -29949,21 +29858,6 @@
    "alone": 0,
    "examples": [
     "Genesis of the Daleks"
-   ],
-   "fix": "generator",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: A function over q.history(): all(), select(EventQuery::kind(..).step(..).in_turn_of(..).after(serial)), casts_by; counts and distinct sets are ordinary iterator code."
-  },
-  {
-   "id": "history-window-last-combat-of",
-   "feature": "history window LastCombatOf",
-   "class": "vocabulary",
-   "needs": "a question of the history this window or measure does not ask",
-   "family": "history window",
-   "cards": 1,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Territorial Hellkite"
    ],
    "fix": "generator",
    "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: A function over q.history(): all(), select(EventQuery::kind(..).step(..).in_turn_of(..).after(serial)), casts_by; counts and distinct sets are ordinary iterator code."
@@ -33505,8 +33399,8 @@
    "examples": [
     "Weathered Sentinels"
    ],
-   "fix": "generator",
-   "how": "Not landed. attacks_despite_defender and attack_rules both exist; the rule needs a read of the defender's last turn: Weathered Sentinels."
+   "fix": "Cantrip",
+   "how": "Gap: AttackDespiteDefenderRule is fn(q, asker, creature) with no defender, so \"can attack players who attacked you during their last turn as though it didn't have defender\" can't name the players. Pairing it with an attack rule that forbids the others is wrong with another despite-defender effect (Rolling Stones lets Walls attack anyone)."
   },
   {
    "id": "static-rule-attacks-when-attacking",
@@ -34844,6 +34738,21 @@
    "how": "One slot with union filter (battlefield or graveyard: Angel of Serenity). together(select::part/set_part). Equal or no common property: card-written Part."
   },
   {
+   "id": "target-reference",
+   "feature": "target reference",
+   "class": "engine",
+   "needs": "a delayed or reflexive ability reads a target of the ability that made it: the item keeps those targets and each one's divided share",
+   "family": "target reference",
+   "cards": 1,
+   "written": 0,
+   "alone": 0,
+   "examples": [
+    "Sacred Boon"
+   ],
+   "fix": "generator",
+   "how": "Redeem is a data bug: the AST makes the targets the sources of the prevented damage, but the Oracle text makes them its recipients. Held."
+  },
+  {
    "id": "target-reference-past-a-slot-of-no-fixed-size",
    "feature": "target reference past a slot of no fixed size",
    "class": "engine",
@@ -35702,6 +35611,19 @@
    "how": ""
   },
   {
+   "id": "mode-count-that-is-not-a-constant",
+   "feature": "mode count that is not a constant",
+   "class": "engine",
+   "needs": "a choice of modes whose count the game works out as it is announced",
+   "family": "mode count",
+   "cards": 0,
+   "written": 2,
+   "alone": 0,
+   "examples": [],
+   "fix": "generator",
+   "how": "Landed for triggered abilities: modes(..).up_to_that_many() with the ability's .counted_by(fn), read as it is put on the stack (Bumi, King of Three Trials). A spell's count (Doomsday Confluence, \"Choose X\") is now its own gap form, a-count-of-modes-a-spell-or-an-activated-ability-reads."
+  },
+  {
    "id": "prohibited-action-receive-counters",
    "feature": "prohibited action ReceiveCounters",
    "class": "engine",
@@ -35921,6 +35843,19 @@
    "examples": [],
    "fix": "unaudited",
    "how": ""
+  },
+  {
+   "id": "counters-put-as-a-cost-on-another-object",
+   "feature": "counters put as a cost on another object",
+   "class": "engine",
+   "needs": "A cost that puts counters on an object other than the source",
+   "family": "counters put",
+   "cards": 0,
+   "written": 1,
+   "alone": 0,
+   "examples": [],
+   "fix": "generator",
+   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Thought Gorger: put counters and discard in the effect; The Serpent Society precedent."
   },
   {
    "id": "distinct-planeswalker-types",
@@ -36561,9 +36496,6 @@
    "engine-no-bands-with-others",
    "engine-no-bands-with-others-granted"
   ],
-  "Aegar, the Freezing Flame": [
-   "damage-source-kind-spell"
-  ],
   "Aegis of the Legion": [
    "trigger-event-pair-mentors"
   ],
@@ -36665,6 +36597,9 @@
   ],
   "Ajani, Mentor of Heroes": [
    "target-with-a-divided-amount"
+  ],
+  "Ajani, Nacatl Avenger // Ajani, Nacatl Pariah": [
+   "one-or-more-that-die-read-as-each-in-the-data"
   ],
   "Ajani, Sleeper Agent": [
    "engine-no-compleated",
@@ -37427,9 +37362,6 @@
   "Baral, Chief of Compliance": [
    "trigger-event-caused"
   ],
-  "Barbara Wright": [
-   "engine-no-read-ahead-granted"
-  ],
   "Barbarian Bully": [
    "engine-no-random-discard-cost"
   ],
@@ -37677,7 +37609,7 @@
    "operation-play-with"
   ],
   "Bison Whistle": [
-   "instruction-choose-one"
+   "an-option-the-card-says-is-otherwise-free-in-the-data"
   ],
   "Bite Down on Crime": [
    "engine-no-cost-reduced-for-each-time-a-cost-is-paid"
@@ -38130,9 +38062,6 @@
   ],
   "Bumi's Feast Lecture": [
    "earthbend-beyond-one-target-and-a-number"
-  ],
-  "Bumi, King of Three Trials": [
-   "mode-count-that-is-not-a-constant"
   ],
   "Bumi, Unleashed": [
    "operation-change-combat"
@@ -39238,8 +39167,7 @@
    "play-permission-for-lands-from-the-top-of-a-library-with-a-filter"
   ],
   "Crystal Spray": [
-   "instruction-choose-one",
-   "operation-change-spell"
+   "a-text-change-s-duration-given-to-one-of-its-options-in-the-data"
   ],
   "Cult of Skaro": [
    "modes-chosen-at-random"
@@ -39895,7 +39823,7 @@
    "exiled-card-gains-suspend"
   ],
   "Doomsday Confluence": [
-   "mode-count-that-is-not-a-constant"
+   "a-count-of-modes-a-spell-or-an-activated-ability-reads"
   ],
   "Dorothea's Retribution // Dorothea, Vengeful Victim": [
    "engine-no-disturb"
@@ -40144,9 +40072,6 @@
   ],
   "Duskhunter Bat": [
    "engine-no-bloodthirst"
-  ],
-  "Dust Animus": [
-   "conditional-replacement"
   ],
   "Dusyut Earthcarver": [
    "engine-no-endure"
@@ -40787,9 +40712,6 @@
   ],
   "Experiment Kraj": [
    "the-activated-abilities-of-other-permanents"
-  ],
-  "Experimental Frenzy": [
-   "player-reference-affected"
   ],
   "Experimental Pilot": [
    "operation-draft-from-spellbook"
@@ -44000,7 +43922,7 @@
    "target-reference-outside-a-resolving-ability"
   ],
   "Karona, False God": [
-   "a-choice-of-card-type-outside-its-body"
+   "a-chosen-card-type-where-its-body-chose-a-creature-type-in-the-data"
   ],
   "Karona, False God Avatar": [
    "card-type-vanguard",
@@ -45091,9 +45013,6 @@
    "play-permission-on-an-open-set-of-cards",
    "play-permission-to-play-land"
   ],
-  "Mairsil, the Pretender": [
-   "static-change-gain-abilities-of"
-  ],
   "Majestic Genesis": [
    "engine-no-commander"
   ],
@@ -45962,9 +45881,6 @@
    "card-type-vanguard",
    "layout-vanguard"
   ],
-  "Musician": [
-   "continuous-change-grant-ability-if-absent"
-  ],
   "Mutable Pupa": [
    "continuous-change-gain-abilities-of",
    "engine-no-perpetual-effects"
@@ -46444,9 +46360,6 @@
   ],
   "Niv-Mizzet Reborn": [
    "selection-constraint-no-common-property"
-  ],
-  "Niv-Mizzet, Guildpact": [
-   "distinct-color-pairs"
   ],
   "Niv-Mizzet, Supreme": [
    "engine-no-jump-start",
@@ -47594,6 +47507,9 @@
   "Preponderant Pearl": [
    "operation-conjure"
   ],
+  "Press the Enemy": [
+   "an-opponent-s-permanent-read-as-anyone-s-in-the-data"
+  ],
   "Preyseizer Dragon": [
    "engine-no-devour"
   ],
@@ -48129,7 +48045,7 @@
    "engine-no-devour"
   ],
   "Ravenous Vampire": [
-   "resolution-cost-put-counters"
+   "a-mandatory-cost-the-card-s-if-you-don-t-is-read-after-in-the-data"
   ],
   "Ray of Command": [
    "engine-a-delayed-ability-on-an-event-keeps-no-list",
@@ -48239,7 +48155,7 @@
    "granted-protection-except"
   ],
   "Redeem": [
-   "target-reference"
+   "damage-prevented-to-its-targets-read-in-the-data-as-by-them"
   ],
   "Redeem the Lost": [
    "operation-clash"
@@ -48650,9 +48566,6 @@
    "card-type-scheme",
    "layout-scheme",
    "trigger-event-player-sets-scheme-in-motion"
-  ],
-  "Rootwater Matriarch": [
-   "duration-while-it-matches"
   ],
   "Rootwater Shaman": [
    "object-filter-could-enchant"
@@ -49111,8 +49024,7 @@
    "trigger-event-player-proliferates"
   ],
   "Scheming Fence": [
-   "static-change-gain-abilities-of",
-   "static-subjects-one"
+   "static-change-gain-abilities-of"
   ],
   "Scintillating Encore": [
    "engine-no-perpetual-effects"
@@ -49707,6 +49619,9 @@
   "Sinister Reflections": [
    "operation-conjure"
   ],
+  "Soporific Springs // Sink into Stupor": [
+   "an-opponent-s-permanent-read-as-anyone-s-in-the-data"
+  ],
   "Sinkhole Surveyor": [
    "engine-no-endure"
   ],
@@ -50055,7 +49970,7 @@
    "operation-conjure"
   ],
   "Soul Shredder": [
-   "engine-no-perpetual-effects"
+   "one-or-more-that-die-read-as-each-in-the-data"
   ],
   "Soul Swindler": [
    "engine-no-attractions",
@@ -50665,9 +50580,6 @@
   "Subterranean Hangar": [
    "numeric-expression-paid-counters-removed"
   ],
-  "Suffocation": [
-   "damage-source-kind-spell"
-  ],
   "Summitfest Closing Ceremony": [
    "engine-no-starting-intensity",
    "intensity",
@@ -51190,9 +51102,6 @@
   "Territorial Gorger": [
    "trigger-event-player-gets-energy"
   ],
-  "Territorial Hellkite": [
-   "history-window-last-combat-of"
-  ],
   "Territorial Strike": [
    "cost-objects-of-branch"
   ],
@@ -51416,9 +51325,6 @@
    "earlier-objects-it",
    "engine-a-two-word-subtype-in-a-card-s-type-line",
    "exiled-card-gains-suspend"
-  ],
-  "Locus of Enlightenment // The Enigma Jewel": [
-   "static-change-gain-abilities-of"
   ],
   "The Eon Fog": [
    "card-type-plane",
@@ -51893,10 +51799,6 @@
   ],
   "Thought Eater": [
    "hand-size-adjust"
-  ],
-  "Thought Gorger": [
-   "counters-put-as-a-cost-on-another-object",
-   "resolution-cost-put-counters"
   ],
   "Thought Lash": [
    "cumulative-upkeep-paid-other-than-in-mana-or-life",
@@ -52448,9 +52350,6 @@
    "modes-chosen-at-random",
    "modes-implied-by-the-target-chosen"
   ],
-  "Tyrannical Pitlord": [
-   "static-subjects-one"
-  ],
   "Tyrant's Choice": [
    "condition-most-votes",
    "operation-vote"
@@ -52851,6 +52750,9 @@
   "Strangling Grasp // Vengeful Strangler": [
    "returns-transformed-and-attached"
   ],
+  "Vengeful Townsfolk": [
+   "one-or-more-that-die-read-as-each-in-the-data"
+  ],
   "Venomous Breath": [
    "engine-a-delayed-ability-on-an-event-keeps-no-list"
   ],
@@ -53036,9 +52938,6 @@
   ],
   "Visions of Ruin": [
    "keyword-modifier-reduce-cost-x"
-  ],
-  "Vislor Turlough": [
-   "duration-while-controlled"
   ],
   "Vitality Hunter": [
    "numeric-expression-announced-x",
@@ -53421,7 +53320,7 @@
    "trigger-event-player-sets-scheme-in-motion"
   ],
   "Whim of Volrath": [
-   "instruction-choose-one"
+   "a-text-change-s-duration-given-to-one-of-its-options-in-the-data"
   ],
   "Whims of the Fates": [
    "object-filter-in-pile",
@@ -54281,6 +54180,9 @@
   "Goliath Daydreamer": [
    "operation-effect-on"
   ],
+  "Great Fierce Bee": [
+   "one-or-more-that-die-read-as-each-in-the-data"
+  ],
   "Grindstone": [
    "condition-subset-meets"
   ],
@@ -54486,7 +54388,6 @@
    "engine-behold-outside-the-casting-of-a-spell"
   ],
   "Scarlet Spider, Ben Reilly": [
-   "conditional-replacement",
    "earlier-objects-webslung"
   ],
   "Serra Paragon": [
@@ -54556,9 +54457,6 @@
   "The Mind Stone": [
    "engine-no-harness"
   ],
-  "The Ruinous Wrecking Crew": [
-   "mode-count-that-is-not-a-constant"
-  ],
   "The Serpent Society": [
    "counters-put-as-a-cost-on-another-object"
   ],
@@ -54594,7 +54492,7 @@
    "cost-branch-teamwork-with-targets-of-its-own"
   ],
   "Trait Doctoring": [
-   "instruction-choose-one"
+   "a-text-change-s-duration-given-to-one-of-its-options-in-the-data"
   ],
   "Tranquil Frillback": [
    "mode-count-that-is-not-a-constant"
