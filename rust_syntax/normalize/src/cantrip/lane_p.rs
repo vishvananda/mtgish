@@ -2463,9 +2463,14 @@ impl Compiler {
                 objects,
                 body,
             } => format!(
+                // Which of the cards that come back the body is for: permanents
+                // that match, tested as each one does.
                 "ArrivalState::ExiledForWith({}, {}, {})",
                 self.duration(until)?,
-                self.fetch(self.objects(objects)?),
+                match objects {
+                    ObjectSet::Battlefield(filter) => self.filter_fn(filter)?,
+                    other => self.fetch(self.objects(other)?),
+                },
                 self.operand_code(body)
             ),
             _ => return Err(gap(failed)),
@@ -2503,6 +2508,32 @@ impl Compiler {
         }
         if let Some(made) = self.chosen_kind_tokens(id, players, tokens, entry, result, out)? {
             return Ok(made);
+        }
+        // "Create a token that's a copy of each of them": a copy of each object,
+        // made for one object at a time, as `TokenRecipe::Copy` names one.
+        if let [TokenSpec {
+            amount,
+            recipe: TokenRecipe::CopyEach {
+                objects,
+                adjustments,
+            },
+            ..
+        }] = tokens
+        {
+            let amount = self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?);
+            let objects = self.fetch(self.objects(objects)?);
+            let adjustments: Vec<String> =
+                adjustments.iter().map(|o| self.operand_code(o)).collect();
+            let players = self.fetch(self.players(players)?);
+            let arrival = self.arrival_code(entry, &failed.feature)?;
+            let call = format!(
+                "{{ let mut made: Vec<ObjectId> = Vec::new(); for object in {objects} {{ made.extend({M}::tokens::create(g, asker, {players}, &[({amount}, TokenRecipe::Copy(Some(object), &[{}]))], {arrival})?); }} made }}",
+                adjustments.join(", ")
+            );
+            let created = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
+            writeln!(out, "let created_{id}: Vec<ObjectId> = {created};").unwrap();
+            self.creations.insert(result.0, format!("created_{id}"));
+            return Ok(());
         }
         let mut orders = Vec::new();
         for token in tokens {
@@ -2759,7 +2790,7 @@ impl Compiler {
             None => "None".to_string(),
         };
         let group = match group {
-            Some(group) => format!("Some({})", self.operand_code(group)),
+            Some(group) => format!("Some({})", self.kept_term(group)),
             None => "None".to_string(),
         };
         let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
@@ -3990,16 +4021,30 @@ impl Compiler {
                     None => "None".to_string(),
                 };
                 let mut finds = Vec::new();
+                // "Cards named after one each of those": the rule is data, and the
+                // objects whose names the cards take are the search's to be given.
+                let mut named_after = None;
                 for choice in choices {
                     let filter = self.filter_now(&choice.filter)?;
                     let count = self.fetch(self.select_count(&choice.count)?);
-                    let rules = self.stated_constraints(&choice.constraints)?;
+                    for constraint in &choice.constraints {
+                        if let SelectionConstraint::NamedAfterOneEach(objects) = constraint {
+                            if named_after.is_some() {
+                                return Err(gap("a search named after two sets of objects"));
+                            }
+                            named_after = Some(self.fetch(self.objects(objects)?));
+                        }
+                    }
+                    let rules = self.constraints_named(&choice.constraints, true)?;
                     finds.push(format!(
                         "Find {{ filter: {filter}, count: {count}, rules: {rules} }}"
                     ));
                 }
                 let also: Vec<String> = also.iter().map(|z| format!("EventZone::{z:?}")).collect();
-                format!("{M}::library::search_for(g, {source}, {player}, {library}, {top}, &[{}], &[{}], {either}, {outside})?", finds.join(", "), also.join(", "))
+                match named_after {
+                    Some(objects) => format!("{M}::library::search_named_after(g, {source}, {player}, {library}, &{objects}, {top}, &[{}], &[{}], {either}, {outside})?", finds.join(", "), also.join(", ")),
+                    None => format!("{M}::library::search_for(g, {source}, {player}, {library}, {top}, &[{}], &[{}], {either}, {outside})?", finds.join(", "), also.join(", ")),
+                }
             }
             Operation::Shuffle { players, excluding } => {
                 let players = self.stated_players(players)?;
@@ -4038,6 +4083,16 @@ impl Compiler {
         &mut self,
         constraints: &[SelectionConstraint],
     ) -> Result<String> {
+        self.constraints_named(constraints, false)
+    }
+    /// `stated_constraints`, where `named` says the call is given the objects a
+    /// "named after one each" rule names (a search is); elsewhere that rule has
+    /// no word yet.
+    pub(super) fn constraints_named(
+        &mut self,
+        constraints: &[SelectionConstraint],
+        named: bool,
+    ) -> Result<String> {
         let mut rules = Vec::new();
         for constraint in constraints {
             rules.push(match constraint {
@@ -4058,10 +4113,12 @@ impl Compiler {
                         form(constraint)
                     )
                 }
-                SelectionConstraint::NamedAfterOneEach(objects) => format!(
-                    "SelectionRule::NamedAfterOneEach({})",
-                    self.fetch(self.objects(objects)?)
-                ),
+                SelectionConstraint::NamedAfterOneEach(_) if named => {
+                    "SelectionRule::NamedAfterOneEach".to_string()
+                }
+                SelectionConstraint::NamedAfterOneEach(_) => {
+                    return Err(gap("a choice named after one each of some objects"))
+                }
                 SelectionConstraint::OneForEach(filters) => {
                     let mut each = Vec::new();
                     for filter in filters {
