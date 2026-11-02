@@ -706,13 +706,21 @@ impl Compiler {
             // "When you cycle this card": the card, where the discard put it, is the
             // source, and its cycling ability is on the stack below (or was countered).
             Expr::EventActivationX => counted("q.state().stack.iter().chain(q.state().left_stack.iter()).rev().find(|i| i.kind == StackKind::Activated && q.obj(i.object).became == Some(asker.source)).map_or(0i64, |i| i64::from(i.x))".into()),
-            Expr::AbilitiesAmong { abilities, objects } => {
-                let abilities = self.clone().operand_code(abilities);
-                held_number(
-                    feature,
-                    &format!("q.abilities_among({abilities}, &{})", self.objects(objects)?),
-                )
-            }
+            // "Hexproof from" is hexproof too; it has no bit of its own.
+            Expr::AbilitiesAmong { abilities, objects } => match abilities_among(abilities) {
+                Some(tests) => counted(format!(
+                    "{{ let among: Vec<Chars> = {}.into_iter().map(|o: ObjectId| q.chars(o)).collect(); [{}].iter().filter(|&&has| has).count() as i64 }}",
+                    self.objects(objects)?,
+                    tests.join(", ")
+                )),
+                None => {
+                    let abilities = self.clone().operand_code(abilities);
+                    held_number(
+                        feature,
+                        &format!("q.abilities_among({abilities}, &{})", self.objects(objects)?),
+                    )
+                }
+            },
             Expr::ActivationCostSymbols(colors) => held_number(
                 feature,
                 &format!("q.activation_cost_symbols(asker, &[{}])", colors_code(colors)?),
@@ -2102,6 +2110,24 @@ pub(super) fn property_p(property: &Property, id: &str) -> Result<Number> {
 }
 
 /// `AuraSwamp` as a module's name: `aura_swamp`.
+/// One test over `among` for each kind of ability a list names, where the engine
+/// holds each as a keyword.
+fn abilities_among(abilities: &Operand) -> Option<Vec<String>> {
+    let Operand::List(list) = abilities else {
+        return None;
+    };
+    list.iter()
+        .map(|kind| match kind {
+            Operand::Term { form, .. } if form == "AnyHexproof" => Some(
+                "among.iter().any(|c| c.has(Keyword::Hexproof) || c.hexproof_from != HexproofFrom::NONE)"
+                    .to_string(),
+            ),
+            kind => lane_n::plain_keywords(kind)
+                .map(|words| format!("among.iter().any(|c| c.has({}))", words.join(""))),
+        })
+        .collect()
+}
+
 fn snake(word: &str) -> String {
     let mut out = String::new();
     for (i, c) in word.chars().enumerate() {
@@ -2197,6 +2223,40 @@ impl Compiler {
         use ObjectHistory as H;
         let feature = format!("object filter History {}", form(event));
         let word = snake(&form(event));
+        match event {
+            H::AttackedDefender(filter) => {
+                return Ok(format!(
+                    "{}.any(|r| matches!(r.event, Event::Attacks {{ attacker, defender: Target::Object(defended), .. }} if attacker == {id} && {}))",
+                    self.object_window(window)?,
+                    self.filter(filter, &Candidate::of("defended"))?
+                ));
+            }
+            // Enlist taps a creature (CR 702.154a), whatever it has become since.
+            H::Enlisted(filter)
+                if matches!(**filter, ObjectFilter::CardType(crate::mtg_types::CardType::Creature)) =>
+            {
+                return Ok(format!(
+                    "{}.any(|r| matches!(r.event, Event::PaidToAttack {{ attacker, option: AttackOption::Enlist, tapped, .. }} if attacker == {id} && tapped != ObjectId::NONE))",
+                    self.object_window(window)?
+                ));
+            }
+            // A card cycled was discarded to pay for it (CR 702.29a).
+            H::CycledOrDiscarded => {
+                return Ok(format!(
+                    "{}.any(|r| matches!(r.event, Event::Discarded {{ card, player, .. }} if card == {id} && player == asker.controller))",
+                    self.object_window(window)?
+                ));
+            }
+            // An activation's cost keeps what it tapped on the item, which stays
+            // readable after it has left the stack, however it left.
+            H::TappedToPayFor(object) if matches!(window, ObjectWindow::ThisTurn) => {
+                return Ok(format!(
+                    "{}.is_some_and(|of: ObjectId| {{ let s = q.state(); let began = q.history().this_turn().first().map_or(u32::MAX, |r| r.serial); s.stack.iter().chain(s.left_stack.iter()).any(|i| i.kind == StackKind::Activated && i.since >= began && (i.object == of || q.obj(i.object).became == Some(of)) && q.cost_objects(i).contains(&{id})) }})",
+                    self.object(object)?
+                ));
+            }
+            _ => {}
+        }
         let about = match event {
             H::AttackedDefender(filter) | H::Enlisted(filter) => format!(
                 ", |q: &dyn Query, id: ObjectId| {}",
@@ -2223,10 +2283,10 @@ impl Compiler {
         let feature = format!("history window {}", form(window));
         let code = match window {
             ObjectWindow::SinceLastTurnOf(player) => {
-                format!(
-                    "cantrip_mechanics::history::since_last_turn_of(q, {}).iter()",
+                return Ok(format!(
+                    "{{ let of = {}; let all = q.history().all(); all[all.iter().rposition(|r| matches!(r.event, Event::TurnEnded {{ player }} if Some(player) == of)).map_or(0, |at| at + 1)..].iter() }}",
                     self.player(player)?
-                )
+                ));
             }
             ObjectWindow::LastCombatOf(player) => {
                 format!(

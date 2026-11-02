@@ -3053,42 +3053,67 @@ impl Compiler {
     ) -> Result<String> {
         use PlayerHistory as H;
         let feature = format!("condition PlayerDid {}", form(event));
-        let deed = match event {
-            H::PlayedLandNotFromHand => "PlayerDeed::PlayedLandNotFromHand".to_string(),
-            H::ActivatedExhaust => "PlayerDeed::ActivatedExhaust".to_string(),
-            H::WasMonarch => "PlayerDeed::WasMonarch".to_string(),
-            H::ActivatedGraveyardAbility => "PlayerDeed::ActivatedGraveyardAbility".to_string(),
-            H::BentAllFour => "PlayerDeed::BentAllFour".to_string(),
-            H::WasDealtCombatDamage => "PlayerDeed::WasDealtCombatDamage".to_string(),
-            H::AttackedDefender(filter) => {
-                format!("PlayerDeed::AttackedDefender({})", self.over(filter, "id")?)
-            }
-            H::PlayedFromExile(filter) => {
-                format!("PlayerDeed::PlayedFromExile({})", self.over(filter, "id")?)
-            }
-            H::PaidOrLostEnergy(comparison, n) => format!(
-                "PlayerDeed::PaidOrLostEnergy({}, {})",
-                comparing(comparison),
-                self.asked(n)?
+        let who = self.player(player)?;
+        let any = |test: String| format!("{scope}.any(|r| {test})");
+        let activated = |test: &str| {
+            any(format!(
+                "matches!(r.event, Event::AbilityActivated {{ ability, player, .. }} if Some(player) == {who} && q.activated_ability(ability).is_some_and(|d| {test}))"
+            ))
+        };
+        // A land played: its zone change says where it came from.
+        let land = |from: &str| {
+            format!(
+                "matches!(r.event, Event::LandPlayed {{ land, player, .. }} if Some(player) == {who} && q.history().all().iter().any(|m| matches!(m.event, Event::ZoneChange {{ new, from, .. }} if new == land && {from})))"
+            )
+        };
+        Ok(match event {
+            H::ActivatedExhaust => activated("d.exhaust"),
+            H::ActivatedGraveyardAbility => activated("d.from == ZoneKind::Graveyard"),
+            H::PlayedLandNotFromHand => any(land("from != Zone::hand(player)")),
+            H::PlayedFromExile(filter) if matches!(**filter, ObjectFilter::Any) => any(format!(
+                "{} || matches!(r.event, Event::Cast(c) if Some(c.player) == {who} && c.from == ZoneKind::Exile)",
+                land("from.is(ZoneKind::Exile)")
+            )),
+            H::WasDealtCombatDamage => any(format!(
+                "matches!(r.event, Event::Damage {{ target: Target::Player(hit), kind, .. }} if Some(hit) == {who} && kind.is_combat())"
+            )),
+            H::RolledDie(comparison, n) => any(format!(
+                "matches!(r.event, Event::DieRolled {{ player, result, .. }} if Some(player) == {who} && {})",
+                super::read::compare("i64::from(result)", comparison, &self.asked(n)?)
+            )),
+            H::Cycled(comparison, n, filter) => super::read::compare(
+                &format!(
+                    "{scope}.filter_map(|r: &Record| match r.event {{ Event::Cycled {{ card, player }} if Some(player) == {who} => Some(card), _ => None }}).filter(|&id: &ObjectId| {}).count() as i64",
+                    self.filter(filter, &Candidate::of("id"))?
+                ),
+                comparison,
+                &self.asked(n)?,
             ),
-            H::RolledDie(comparison, n) => format!(
-                "PlayerDeed::RolledDie({}, {})",
-                comparing(comparison),
-                self.asked(n)?
+            H::AttackedDefender(filter) => any(format!(
+                "matches!(r.event, Event::Attacks {{ defender: Target::Object(id), .. }} if Some(r.active) == {who} && {})",
+                self.filter(filter, &Candidate::of("id"))?
+            )),
+            // As the turn began: whoever last became the monarch before it.
+            H::WasMonarch if scope == "q.history().this_turn().iter()" => format!(
+                "q.history().all().iter().rev().find_map(|r| match r.event {{ Event::BecameMonarch {{ player }} if r.turn < q.state().turn.number => Some(player), _ => None }}).is_some_and(|was: PlayerId| Some(was) == {who})"
             ),
-            H::Cycled(comparison, n, filter) => format!(
-                "PlayerDeed::Cycled({}, {}, {})",
-                comparing(comparison),
-                self.asked(n)?,
-                self.over(filter, "id")?
+            // Cantrip records no payment of energy, and has no word for bending.
+            H::BentAllFour => planned::planned_value(
+                &feature,
+                "false",
+                &format!("q.player_did({scope}, {who}, PlayerDeed::BentAllFour)"),
+            ),
+            H::PaidOrLostEnergy(comparison, n) => planned::planned_value(
+                &feature,
+                "false",
+                &format!(
+                    "q.player_did({scope}, {who}, PlayerDeed::PaidOrLostEnergy({}, {}))",
+                    comparing(comparison),
+                    self.asked(n)?
+                ),
             ),
             _ => return Err(gap(feature)),
-        };
-        Ok(planned::planned_value(
-            &feature,
-            "false",
-            &format!("q.player_did({scope}, {}, {deed})", self.player(player)?),
-        ))
+        })
     }
     /// What a rule on abilities asks that `ability_test` does not.
     pub(super) fn ability_stated(&self, filter: &ObjectFilter) -> Result<String> {

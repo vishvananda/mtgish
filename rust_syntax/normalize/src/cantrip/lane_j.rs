@@ -1868,6 +1868,14 @@ impl Compiler {
             PlayerNumber::DungeonsCompleted => format!(
                 "q.history().all().iter().filter(|r| matches!(r.event, Event::DungeonCompleted {{ player }} if player == {p})).count() as i64"
             ),
+            // CR 700.11: a permanent card put into the graveyard from anywhere.
+            PlayerNumber::DescentsThisTurn => format!(
+                "q.history().select(EventQuery::kind(EventMask::ZONE_CHANGE).to(ZoneKind::Graveyard).this_turn()).filter(|r| matches!(r.event, Event::ZoneChange {{ new, to, .. }} if to == Zone::graveyard({p}) && !q.obj(new).token && cantrip_mechanics::targets::is_permanent_card(&q.chars(new)))).count() as i64"
+            ),
+            // Cycling discards (CR 702.29a), so each cycled card is in the count once.
+            PlayerNumber::CardsCycledOrDiscardedThisTurn => format!(
+                "q.history().this_turn().iter().filter(|r| matches!(r.event, Event::Discarded {{ player, .. }} if player == {p})).count() as i64"
+            ),
             other => held(format!("q.player_number({p}, PlayerNumber::{})", form(other))),
         })
     }
