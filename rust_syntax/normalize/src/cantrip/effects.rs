@@ -1892,6 +1892,50 @@ impl Compiler {
                 player,
                 cost,
                 optional: true,
+            } if lane_g::exile_beside_a_price(cost).is_some() => {
+                self.pay_and_exile(id, player, cost, result, out)?
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if lane_g::discards_hand_and_draws(cost) => {
+                self.discard_hand_and_draw(id, player, cost, result, out)?
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if lane_g::untaps_named_objects(cost).is_some() => {
+                let objects = lane_g::untaps_named_objects(cost).expect("just seen");
+                self.may_untap(id, player, objects, result, out)?
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(cost.parts.as_slice(), [CostPart::EnergyOneOrMore]) => {
+                self.may_pay_energy(id, player, result, out)?
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(
+                cost.parts.as_slice(),
+                [CostPart::ManaXBounded { mana, comparison: Comparison::LessOrEqual, .. }]
+                    if matches!(mana.as_slice(), [ManaSymbol::X])
+            ) =>
+            {
+                let [CostPart::ManaXBounded { value, .. }] = cost.parts.as_slice() else {
+                    return Err(gap("cost part ManaXBounded"));
+                };
+                self.may_pay_bounded_x(id, player, value, result, out)?
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
             } => {
                 let asked = self.ask_to_pay(id, player, cost)?;
                 writeln!(out, "{asked}").unwrap();

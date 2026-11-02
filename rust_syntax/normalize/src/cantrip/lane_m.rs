@@ -230,6 +230,12 @@ pub(super) struct Notes {
     /// Reveals whose cards each went to exile as they were reached, so that the
     /// instruction that moves them has nothing left to do.
     pub exiled_going: BTreeSet<u32>,
+    /// The X just paid as this resolves, where "X" is that number and not the
+    /// stack item's: "you may pay {X}. X can't be greater than ...".
+    pub paid_x: Option<String>,
+    /// What a cost paid as this resolved exiled: "return this card" after "you may
+    /// exile it", where the source has since left the object it was.
+    pub exiled_source: Option<String>,
     /// What each instruction acted on, by the word `EarlierObjects` has for it:
     /// the last of these is what "that card" or "those" was.
     pub earlier: Vec<(&'static str, ResultId)>,

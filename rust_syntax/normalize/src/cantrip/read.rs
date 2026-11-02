@@ -750,6 +750,17 @@ impl Compiler {
                     zone_kind(zone)?
                 )
             }
+            // This card, which the cost that was just paid exiled from where it died.
+            ObjectSet::InZone { objects, zone }
+                if matches!(&**objects, ObjectSet::One(ObjectRef::Source))
+                    && self.notes.exiled_source.is_some() =>
+            {
+                format!(
+                    "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
+                    self.notes.exiled_source.clone().unwrap_or_default(),
+                    zone_kind(zone)?
+                )
+            }
             ObjectSet::InZone { objects, zone } => format!(
                 "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
                 self.objects(objects)?,
@@ -1045,6 +1056,12 @@ impl Compiler {
                 return Err(gap(format!("primitive numeric expression {name}")))
             }
             Expr::Constant(n) => Number::integer(*n),
+            Expr::AnnouncedX if self.notes.paid_x.is_some() => Number {
+                code: self.notes.paid_x.clone().unwrap_or_default(),
+                min: 0,
+                max: 255,
+                dynamic: true,
+            },
             Expr::AnnouncedX
                 if self.reader == Reader::Resolution
                     && self.stack_item
