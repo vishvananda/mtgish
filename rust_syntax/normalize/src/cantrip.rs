@@ -648,6 +648,9 @@ struct Compiler {
     delayed: Vec<String>,
     /// The filter of each slot the last announcement compiled.
     announced_filters: Vec<String>,
+    /// For a slot for each player, the slot of the controller's own that goes with
+    /// it (`lane_i::own_slot`), by their places among the slots.
+    own_slots: BTreeMap<usize, usize>,
     /// Compiling a delayed ability's body: what it carries from its maker.
     outer: Option<Rc<delayed::Outer>>,
     /// `CardDef::granted_preventions` and `granted_replacements`.
@@ -1006,6 +1009,7 @@ impl Compiler {
             extras: Vec::new(),
             delayed: Vec::new(),
             announced_filters: Vec::new(),
+            own_slots: BTreeMap::new(),
             outer: None,
             made_preventions: Vec::new(),
             made_replacements: Vec::new(),
@@ -1212,10 +1216,7 @@ impl Compiler {
             }
             // One slot for each opponent, "that player" being whose it is.
             Count::PerPlayer { players, each } if constant_one(each) => {
-                if matches!(
-                    players,
-                    PlayerSet::OpponentsOf(PlayerRef::AbilityController)
-                ) {
+                if lane_i::seats_have_slots(players) {
                     ".between(0, TargetSpec::EACH_OPPONENT)".into()
                 } else {
                     format!(
@@ -1279,7 +1280,9 @@ impl Compiler {
     }
     fn announced_targets(&mut self, a: &Announcement, label: &str) -> Result<String> {
         let mut targets = Vec::new();
+        let mut own_tests = Vec::new();
         self.announced_filters.clear();
+        self.own_slots.clear();
         self.second_of_two = self.two_targets(a);
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
@@ -1366,7 +1369,11 @@ impl Compiler {
                 Some(chooser) => self.chosen_by_another(chooser, &mut rule),
                 None => Ok(()),
             };
-            let count = self.slot_count(&spec.count, &format!("{label}_{i}"));
+            let read = self.slot_up_to_read(spec, i, label).filter(|_| together.is_empty());
+            let count = match read {
+                Some(count) => Ok(count),
+                None => self.slot_count(&spec.count, &format!("{label}_{i}")),
+            };
             self.choosing = None;
             chosen_by.map_err(|e| e.at(&at))?;
             let count = count.map_err(|e| e.at(&at))?;
@@ -1390,7 +1397,11 @@ impl Compiler {
             self.choosing = Some(i);
             let test = self.slot_test(spec, &rule).map_err(|e| e.at(&at));
             self.choosing = None;
-            let test = lane_i::per_player_target(&spec.count, test?);
+            let test = test?;
+            if let Some(own) = lane_i::own_slot(&spec.count, &test) {
+                own_tests.push((i, own));
+            }
+            let test = lane_i::per_player_target(&spec.count, test);
             let function = format!("{label}_target_{i}");
             writeln!(
                 self.functions,
@@ -1399,6 +1410,16 @@ impl Compiler {
             .unwrap();
             targets.push(rule.finish(format!("target({function}){count}{together}")));
             self.announced_filters.push(function);
+        }
+        for (i, test) in own_tests {
+            let function = format!("{label}_own_target_{i}");
+            writeln!(
+                self.functions,
+                "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}"
+            )
+            .unwrap();
+            self.own_slots.insert(i, targets.len());
+            targets.push(format!("target({function}).between(0, 1)"));
         }
         if targets.is_empty() {
             return Ok("&[]".into());
@@ -2335,6 +2356,7 @@ fn emit_face(
             "common_controller" => COMMON_CONTROLLER,
             "common_creature_type" => COMMON_CREATURE_TYPE,
             "announced" => ANNOUNCED,
+            "slot_held" => target_counts::SLOT_HELD,
             "pay_question" => PAY_QUESTION,
             "about" => delayed::ABOUT,
             "clauses" => lane_l::CLAUSES,

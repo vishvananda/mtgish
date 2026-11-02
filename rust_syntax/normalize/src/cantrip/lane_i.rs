@@ -2486,22 +2486,47 @@ impl Compiler {
     }
 }
 
+/// Whether `TargetSpec::EACH_OPPONENT`'s slots, one for each seat but the
+/// controller's, are for `players`, or for all of them but the controller's own,
+/// which `own_slot` is.
+pub(super) fn seats_have_slots(players: &PlayerSet) -> bool {
+    matches!(
+        players,
+        PlayerSet::All
+            | PlayerSet::OpponentsOf(PlayerRef::AbilityController)
+            | PlayerSet::OthersThan(PlayerRef::AbilityController)
+    )
+}
+
 /// A target test in a slot of its own for each player: that player controls it.
 pub(super) fn per_player_target(count: &Count, test: String) -> String {
     let Count::PerPlayer { players, .. } = count else {
         return test;
     };
-    let controls = match players {
-        PlayerSet::OpponentsOf(PlayerRef::AbilityController) => {
-            "cantrip_mechanics::targets::controlled_by_slot_opponent(q, id)".to_string()
-        }
-        _ => planned::planned_value(
+    let controls = match seats_have_slots(players) {
+        true => "cantrip_mechanics::targets::controlled_by_slot_opponent(q, id)".to_string(),
+        false => planned::planned_value(
             "target cardinality PerPlayer",
             "true",
             "cantrip_mechanics::targets::controlled_by_slot_player(q, id)",
         ),
     };
     format!("matches!(t, Target::Object(id) if {controls}) && ({test})")
+}
+
+/// The test of the slot for the controller in "for each player, up to one target
+/// [permanent] that player controls" (CR 601.2c): the engine's slots for each
+/// seat leave the controller's out, so it is a slot of its own, after the printed
+/// ones so that theirs keep their places. `None` for any other count.
+pub(super) fn own_slot(count: &Count, test: &str) -> Option<String> {
+    matches!(
+        count,
+        Count::PerPlayer {
+            players: PlayerSet::All,
+            ..
+        }
+    )
+    .then(|| format!("matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id) && q.controller(id) == asker.controller) && ({test})"))
 }
 
 /// `PlayWith` on no terms past what `PlayCards` says, as that.

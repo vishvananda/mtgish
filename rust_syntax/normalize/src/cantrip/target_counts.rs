@@ -264,6 +264,59 @@ impl Compiler {
         self.count_read = Some((code, call));
         Some(())
     }
+    /// "Up to X target permanents, where X is ...", or "up to twice X": no slot's
+    /// size says either, so the slot takes any number and the rule of its targets
+    /// together holds them to it. That rule is judged again on resolution (CR
+    /// 608.2b), where a number that has changed must not make every target
+    /// illegal: it reads the X announced, or else what the targets were chosen with
+    /// (`SLOT_HELD`), which tells one spell or ability's only where the object has
+    /// no other: a spell, or an ability that sacrifices its source to be activated.
+    /// A player is no card to such a rule, so it is for objects alone.
+    pub(super) fn slot_up_to_read(
+        &mut self,
+        spec: &TargetSpec,
+        i: usize,
+        label: &str,
+    ) -> Option<String> {
+        let Count::UpTo(n) = &spec.count else {
+            return None;
+        };
+        let only_once = self.activation_cost.as_ref().is_none_or(sacrifices_its_source);
+        if matches!(n, Expr::Constant(_))
+            || lane_l::sizes_slot(&self.sized_slot, n)
+            || self.slot_counts != SlotCounts::Announced
+            || !spec.constraints.is_empty()
+            || spec.distribute.is_some()
+            || spec.players.is_some()
+            || !matches!(spec.kind, TargetKind::Object(_))
+        {
+            return None;
+        }
+        let code = self.number(n).ok()?.amount(u32::MAX.into(), "u32").ok()?;
+        let announced = code.contains(ANNOUNCED_X);
+        let code = code.replace(ANNOUNCED_X, "i64::from(x)");
+        let read_elsewhere = ["planned_value!", "q.event_subject()", "q.chosen_targets()", "item."];
+        if read_elsewhere.iter().any(|read| code.contains(read))
+            || (announced && code.contains("q."))
+            || (!announced && !only_once)
+        {
+            return None;
+        }
+        let name = format!("{label}_{i}_up_to");
+        let most = match announced {
+            true => format!("{code} as usize"),
+            false => {
+                self.helpers.insert("slot_held");
+                format!("({code} as usize).max(slot_held(q, source, {i}))")
+            }
+        };
+        writeln!(self.functions, "#[allow(unused_variables)] fn {name}_most(q: &dyn Query, source: ObjectId, chooser: PlayerId, x: u32) -> usize {{ let asker = &Asker::new(source, chooser); {most} }}\nfn {name}(q: &dyn Query, choice: &Choice, x: u32) -> Verdict {{ let most = {name}_most(q, choice.source, choice.chooser, x); Verdict {{ complete: choice.selected.len() <= most, addable: Bits::new(choice.candidates.len(), choice.selected.len() < most) }} }}\nfn largest_{name}(q: &dyn Query, choice: &Choice, x: u32) -> Vec<ObjectId> {{ choice.candidates.iter().copied().take({name}_most(q, choice.source, choice.chooser, x)).collect() }}").unwrap();
+        let number = match announced {
+            true => "TargetSpec::COUNTED",
+            false => "0",
+        };
+        Some(format!(".between(0, cantrip_api::TargetSpec::ANY_NUMBER).together(cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), {number}, \"up to X\"))"))
+    }
     /// `target_count`, with what the ability reads as it goes on the stack.
     pub(super) fn slot_count(&mut self, count: &Count, label: &str) -> Result<String> {
         match self.counted_read(count, label) {
@@ -272,6 +325,27 @@ impl Compiler {
         }
     }
 }
+
+/// Whether a cost sacrifices the ability's source, which so can't be activated again.
+fn sacrifices_its_source(cost: &Cost) -> bool {
+    cost.parts.iter().any(|part| {
+        matches!(
+            part,
+            CostPart::Sacrifice {
+                objects: ObjectSet::One(ObjectRef::Source),
+                ..
+            }
+        )
+    })
+}
+
+/// The X announced, as a number read outside a resolution says it.
+const ANNOUNCED_X: &str =
+    "planned_value!(\"numeric expression AnnouncedX\", 0i64 => i64::from(q.announced_x().unwrap_or(0)))";
+
+/// How many targets a spell or ability of `source` holds in `slot`, on the stack or
+/// resolving: "up to X" was as many or more as they were chosen.
+pub(super) const SLOT_HELD: &str = "fn slot_held(q: &dyn Query, source: ObjectId, slot: usize) -> usize { let s = q.state(); s.stack.iter().chain(s.left_stack.iter()).filter(|i| i.object == source).map(|i| s.targets(i)[s.spec_targets(i, slot)].iter().filter(|t| **t != Target::None).count()).max().unwrap_or(0) }\n";
 
 /// `carried`'s read of the amount of an event, past a target filter's reach.
 pub(super) const AMOUNT_READ: &str =

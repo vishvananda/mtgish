@@ -703,7 +703,9 @@ impl Compiler {
                 self.object(object)?,
                 self.objects(with)?
             )),
-            Expr::EventActivationX => held_number(feature, "q.event_activation_x(item)"),
+            // "When you cycle this card": the card, where the discard put it, is the
+            // source, and its cycling ability is on the stack below (or was countered).
+            Expr::EventActivationX => counted("q.state().stack.iter().chain(q.state().left_stack.iter()).rev().find(|i| i.kind == StackKind::Activated && q.obj(i.object).became == Some(asker.source)).map_or(0i64, |i| i64::from(i.x))".into()),
             Expr::AbilitiesAmong { abilities, objects } => {
                 let abilities = self.clone().operand_code(abilities);
                 held_number(

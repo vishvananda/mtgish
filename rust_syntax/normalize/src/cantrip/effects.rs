@@ -405,11 +405,19 @@ impl Compiler {
             self.helpers.insert("announced");
         }
         for (i, _) in self.slots.values() {
+            let own = self.own_slots.get(i);
             match self.second_of_two == Some(*i) {
                 true => writeln!(
                     out,
                     "let t_{i}_raw: Vec<Target> = announced(g, item, 0, false).into_iter().skip(1).collect(); let t_{i} = announced(g, item, 0, true);"
                 ),
+                false if own.is_some() => {
+                    let own = own.unwrap();
+                    writeln!(
+                        out,
+                        "let t_{i}_raw: Vec<Target> = [announced(g, item, {i}, false), announced(g, item, {own}, false)].concat(); let t_{i}: Vec<Target> = [announced(g, item, {i}, true), announced(g, item, {own}, true)].concat();"
+                    )
+                }
                 false => writeln!(
                     out,
                     "let t_{i}_raw = announced(g, item, {i}, false); let t_{i} = announced(g, item, {i}, true);"
