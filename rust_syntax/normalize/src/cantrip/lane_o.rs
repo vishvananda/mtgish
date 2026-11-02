@@ -3746,6 +3746,7 @@ impl Compiler {
                 };
                 let object = self.fetch(self.object(object)?);
                 let actions = self.listed(actions)?;
+                self.as_event_chooses |= actions.contains("::Choose");
                 self.plan_entry(
                     &feature,
                     "as_events",

@@ -1763,7 +1763,7 @@ impl Compiler {
                 linked = self.linked()
             ),
             Condition::ValueChosenIs(player) => held(
-                &feature,
+                if self.as_event_chooses { FOLLOWS_GAP } else { &feature },
                 &format!(
                     "{}.is_some_and(|p: PlayerId| q.state().chosen_players({}).contains(&p))",
                     self.player(player)?,

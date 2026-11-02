@@ -652,6 +652,9 @@ struct Compiler {
     bestow: Option<String>,
     /// What a bestow cost asks besides mana, an additional cost of the Aura.
     bestow_extra: Option<String>,
+    /// A planned as-event ability chooses a value ("As this creature transforms
+    /// into Shinryu, choose an opponent"), so what reads that value follows it.
+    as_event_chooses: bool,
     /// Values this body chose, each in a local.
     chosen: Vec<(ValueKind, String)>,
     /// Values the card chooses as it enters, which its permanent keeps.
@@ -1064,6 +1067,7 @@ impl Compiler {
             affected_object: None,
             bestow: None,
             bestow_extra: None,
+            as_event_chooses: false,
             chosen: Vec::new(),
             enters_choosing: Vec::new(),
             mana_body: false,
