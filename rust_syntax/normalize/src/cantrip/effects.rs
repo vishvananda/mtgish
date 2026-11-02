@@ -751,7 +751,9 @@ impl Compiler {
                         .iter()
                         .all(|branch| format!("{branch:?}").contains(&them)),
                     Some(Instruction::Effect {
-                        operation: Operation::Move { objects, .. },
+                        operation:
+                            Operation::Move { objects, .. }
+                            | Operation::ChangeZone { cards: objects, .. },
                         ..
                     }) => format!("{objects:?}") == them,
                     _ => false,

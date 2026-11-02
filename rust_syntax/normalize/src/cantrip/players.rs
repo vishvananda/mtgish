@@ -446,6 +446,19 @@ impl Compiler {
             }
         })
     }
+    /// `bool`: whether `card` is in the zones `scope` names, each its owner's.
+    pub(super) fn in_scope(&self, scope: &ZoneScope, card: &str) -> Result<String> {
+        Ok(match scope {
+            ZoneScope::Shared(zone) | ZoneScope::Players { zone, players: PlayerSet::All } => {
+                format!("q.obj({card}).zone.is({})", zone_kind(zone)?)
+            }
+            ZoneScope::Players { zone, players } => format!(
+                "(q.obj({card}).zone.is({}) && {{ let player = q.obj({card}).owner; {} }})",
+                zone_kind(zone)?,
+                self.player_member(players)?
+            ),
+        })
+    }
     pub(super) fn prohibit(
         &mut self,
         function: &str,
@@ -478,10 +491,50 @@ impl Compiler {
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, spell: ObjectId) -> bool {{ !({banned} && {test}) }}"
                 ));
             }
+            // "Players can't cast spells from graveyards" (CR 601.3): the zone is all
+            // a rule of casting is told of the spell.
+            PlayerAction::CastSpell {
+                from:
+                    Some(
+                        ZoneScope::Shared(zone)
+                        | ZoneScope::Players {
+                            zone,
+                            players: PlayerSet::All,
+                        },
+                    ),
+                filter: ObjectFilter::Any,
+            } => {
+                let zone = zone_kind(zone)?;
+                self.table_entry(parts, "cast_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, from: ZoneKind) -> bool {{ !({banned} && from == {zone}) }}"
+                ));
+            }
+            // What of the spell a rule reads, it reads of the card where it is as it's
+            // asked first; the spell it's asked of again is on the stack, and passes.
+            PlayerAction::CastSpell {
+                from: Some(scope),
+                filter,
+            } => {
+                let test = self.filter(filter, &cast_card())?;
+                let from = self.in_scope(scope, "spell")?;
+                self.table_entry(parts, "spell_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, spell: ObjectId) -> bool {{ !({banned} && {from} && {test}) }}"
+                ));
+            }
             PlayerAction::PlayLand { from: None, filter } => {
                 let test = self.filter(filter, &Candidate { controller: "player".into(), ..Candidate::of("land") })?;
                 self.table_entry(parts, "land_play_rules", function, format!(
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, land: ObjectId, face: CardId) -> bool {{ !({banned} && {test}) }}"
+                ));
+            }
+            PlayerAction::PlayLand {
+                from: Some(scope),
+                filter,
+            } => {
+                let test = self.filter(filter, &Candidate { controller: "player".into(), ..Candidate::of("land") })?;
+                let from = self.in_scope(scope, "land")?;
+                self.table_entry(parts, "land_play_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, land: ObjectId, face: CardId) -> bool {{ !({banned} && {from} && {test}) }}"
                 ));
             }
             PlayerAction::Activate(filter) => {

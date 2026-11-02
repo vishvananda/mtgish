@@ -1561,6 +1561,9 @@ impl Compiler {
         let Operand::Term { form: word, .. } = lost else {
             return Err(failed);
         };
+        if let Some(lost) = lost_keyword(lost) {
+            return Ok(vec![format!("EffectKind::LoseKeywords(Keywords::of(&[{lost}]))")]);
+        }
         match word.as_str() {
             // The enchant ability is the engine's to take.
             "Enchant" => Ok(vec![format!(
@@ -1606,6 +1609,16 @@ impl Compiler {
         lost: &Operand,
         failed: Diagnostic,
     ) -> Result<statics::LayerChange> {
+        if let Some(lost) = lost_keyword(lost) {
+            let and = match lost.as_str() {
+                "Keyword::Hexproof" => " chars.hexproof_from = HexproofFrom::NONE;",
+                _ => "",
+            };
+            return Ok(statics::LayerChange::of(
+                "Ability",
+                format!("chars.keywords = Keywords(chars.keywords.0 & !Keywords::of(&[{lost}]).0);{and}"),
+            ));
+        }
         let word = self.lost_word(lost).map_err(|_| failed.clone())?;
         Ok(statics::LayerChange::of(
             "Ability",
@@ -3585,21 +3598,19 @@ impl Compiler {
                     parts,
                 );
             }
+            // Judged as the card exists where it is (CR 101.2): `EnterRule`.
             Ability::CantEnter { cards, from } => {
                 let (cards, from) = self.queried(|c| {
                     let cards = c.over(cards, "id")?;
                     let from = match from {
-                        Some(scope) => format!("Some({})", c.zone_scope(scope)?),
-                        None => "None".to_string(),
+                        Some(scope) => c.in_scope(scope, "id")?,
+                        None => "true".to_string(),
                     };
                     Ok((cards, from))
                 })?;
-                self.plan_entry(
-                    &feature,
-                    "cant_enter",
-                    &format!("CantEnter {{ cards: {cards}, from: {from} }}"),
-                    parts,
-                );
+                let function = format!("{label}_enter");
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ !({from} && ({cards})(q, asker, id)) }}").unwrap();
+                parts.table("enter_rules", function);
             }
             // "No more than two creatures can attack you each combat" (CR 508.1c),
             // of what has the ability: a rule of the combat, asked of what is attacked.
@@ -3788,4 +3799,30 @@ fn spell_words(body: &Ability) -> String {
 /// `rule_name` of `effects`: the words a rule's gaps go by.
 fn effects_rule_name(rule: &RuleChange) -> String {
     super::effects::rule_name(rule)
+}
+
+/// The keyword a loss of `lost` is. Losing hexproof loses every "hexproof from
+/// [quality]" too (CR 702.11e), and `LoseKeywords` says so of that bit.
+fn lost_keyword(lost: &Operand) -> Option<String> {
+    let Operand::Term {
+        form: word,
+        operands,
+        ..
+    } = lost
+    else {
+        return None;
+    };
+    match (word.as_str(), operands.as_slice()) {
+        ("AnyHexproof", []) => Some("Keyword::Hexproof".to_string()),
+        ("Landwalk", [Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Subtype(land)))]) => {
+            match name(land).as_str() {
+                "Plains" => Some("Keyword::Plainswalk".to_string()),
+                "Island" | "Swamp" | "Mountain" | "Forest" => {
+                    Some(format!("Keyword::{}walk", name(land)))
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
 }

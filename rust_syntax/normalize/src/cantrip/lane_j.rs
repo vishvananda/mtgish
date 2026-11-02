@@ -4029,7 +4029,7 @@ impl Compiler {
             ActivationFilter::Of(sources) => {
                 let test = self.filter(sources, &Candidate::of("object"))?;
                 match **sources {
-                    ObjectFilter::Chosen(..) => test,
+                    ObjectFilter::Chosen(..) | ObjectFilter::InZone(..) => test,
                     _ => format!("q.is_on_battlefield(object) && {test}"),
                 }
             }

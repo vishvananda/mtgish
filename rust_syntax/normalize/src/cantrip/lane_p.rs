@@ -1409,6 +1409,26 @@ impl Compiler {
     }
 }
 
+/// Whether a printed landwalk of `land` is a rule of the block of its own: of a
+/// land type Cantrip has no word for, or a type and a supertype together.
+pub(super) fn landwalk_rule(land: &ObjectFilter) -> bool {
+    let snow = |f: &ObjectFilter| {
+        matches!(f, ObjectFilter::Supertype(crate::mtg_types::SuperType::Snow))
+    };
+    let of_a_type = |f: &ObjectFilter| matches!(f, ObjectFilter::Subtype(_));
+    match land {
+        // A basic land type's landwalk is a keyword of its own, which is what
+        // anything reading or removing it asks after.
+        ObjectFilter::Subtype(kind) => !matches!(
+            name(kind).as_str(),
+            "Plains" | "Island" | "Swamp" | "Mountain" | "Forest"
+        ),
+        ObjectFilter::All(parts) => {
+            matches!(parts.as_slice(), [a, b] if (snow(a) && of_a_type(b)) || (snow(b) && of_a_type(a)))
+        }
+        _ => false,
+    }
+}
 /// "Nonbasic landwalk", and landwalk of what no word of Cantrip's names (CR 702.14).
 pub(super) fn landwalk(land: &ObjectFilter) -> Result<String> {
     let feature = format!("landwalk of {}", form(land));

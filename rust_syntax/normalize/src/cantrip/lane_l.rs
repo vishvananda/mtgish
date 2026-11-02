@@ -339,6 +339,17 @@ impl Compiler {
             };
             let from = self.fetch(self.players(from)?);
             let to = self.fetch(self.players(to)?);
+            // A player's counters are poison, energy and experience (CR 122.1), each
+            // given by this ability's controller: no placement of them is one event.
+            let more = match copies {
+                C::OneOfEachKind => Some(("1u32", "1i32")),
+                C::All => Some(("n", "n as i32")),
+                _ => None,
+            };
+            if let (Some((more, energy)), true, None) = (more, from == to, kind) {
+                writeln!(out, "for player in {from} {{ let (poison, energy, experience) = {{ let counters = g.state().player(player); (u32::from(counters.poison()), u32::from(counters.energy()), u32::from(counters.experience())) }}; let n = poison; if n > 0 {{ g.give_poison(player, {more}); }} let n = energy; if n > 0 {{ g.change_energy(player, {energy}); }} let n = experience; if n > 0 {{ g.give_experience(player, {more}); }} }}").unwrap();
+                return Ok(());
+            }
             let call = format!("let from: Vec<PlayerId> = {from}; let to: Vec<PlayerId> = {to}; {M}::counters::duplicate_on_players(g, asker, &from, &to, {})?;", quoted(&format!("{copies:?}")));
             self.plan_code("counters a player has, by kind", &call, out);
             return Ok(());
