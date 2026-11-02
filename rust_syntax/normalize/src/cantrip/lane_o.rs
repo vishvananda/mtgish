@@ -1210,6 +1210,12 @@ impl Compiler {
                 self.objects(cards)?
             ));
         }
+        // "Cards in target opponent's hand", "the top card of their library":
+        // the player is read as it resolves, a Copy value the rule keeps, and
+        // the zone as the rule is asked, so cards that come to it count.
+        if let Some(open) = self.zone_of_player(cards)? {
+            return Ok(open);
+        }
         let gaps = self.gaps.len();
         match self.queried(|c| c.objects(cards)) {
             Ok(code) if code.contains("q.") => Ok(format!(
@@ -1223,6 +1229,44 @@ impl Compiler {
                 ))
             }
         }
+    }
+    /// `CardsOfRule` of all of one player's hand, or of the top cards of their
+    /// library, with no other test: none for any other set.
+    fn zone_of_player(&mut self, cards: &ObjectSet) -> Result<Option<String>> {
+        let whole_zone = |c: &mut Self, set: &ObjectSet| match set {
+            ObjectSet::Zone {
+                scope:
+                    ZoneScope::Players {
+                        zone,
+                        players: PlayerSet::One(player),
+                    },
+                filter,
+                ..
+            } => {
+                let gaps = c.gaps.len();
+                let test = c.filter(filter, &Candidate::of("id"));
+                c.gaps.truncate(gaps);
+                let any = test.is_ok_and(|t| !t.contains("q.") && !t.contains("id"));
+                any.then(|| (zone.clone(), player.clone()))
+            }
+            _ => None,
+        };
+        let (rule, player) = match cards {
+            ObjectSet::Take {
+                objects,
+                count: Expr::Constant(n),
+                from: SequenceEnd::Top,
+            } => match whole_zone(self, objects) {
+                Some((EventZone::Library, player)) => (format!("LibraryTopOf({n}, "), player),
+                _ => return Ok(None),
+            },
+            set => match whole_zone(self, set) {
+                Some((EventZone::Hand, player)) => ("HandOf(".to_string(), player),
+                _ => return Ok(None),
+            },
+        };
+        let player = self.fetch(self.certain_player(&player)?);
+        Ok(Some(format!("CardsOfRule::{rule}{player})")))
     }
     fn cost_modifier(&mut self, modifier: &SpellCostModifier) -> Result<String> {
         use SpellCostModifier as S;
