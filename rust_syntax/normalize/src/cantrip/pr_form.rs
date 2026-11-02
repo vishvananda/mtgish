@@ -3418,9 +3418,16 @@ fn body_text(block: &Block) -> String {
 
 fn use_shared_triggers(file: &mut File) {
     let mut named: BTreeMap<String, Expr> = BTreeMap::new();
+    // A shared trigger fires about nothing, so an effect that reads what its own
+    // trigger was about keeps that trigger (Jadeheart Attendant's "the exiled card
+    // used to craft it", of the permanent that entered).
+    let mut reads_subject: BTreeSet<String> = BTreeSet::new();
     for item in &file.items {
         let Item::Fn(function) = item else { continue };
         let body = body_text(&function.block);
+        if body.contains("item . subject") {
+            reads_subject.insert(function.sig.ident.to_string());
+        }
         if let Some((mask, _, shared)) = SHARED_TRIGGERS.iter().find(|(_, known, _)| *known == body) {
             let path: syn::Path = syn::parse_str(&format!("cantrip_mechanics::triggers::{shared}")).expect("a path");
             named.insert(
@@ -3429,16 +3436,24 @@ fn use_shared_triggers(file: &mut File) {
             );
         }
     }
-    struct Replace<'a>(&'a BTreeMap<String, Expr>);
+    struct Replace<'a>(&'a BTreeMap<String, Expr>, &'a BTreeSet<String>);
     impl VisitMut for Replace<'_> {
         fn visit_expr_mut(&mut self, node: &mut Expr) {
+            if let Expr::Call(call) = &*node {
+                let effect = call.args.iter().nth(1).and_then(ident_of);
+                if ident_of(&call.func).as_deref() == Some("triggered")
+                    && effect.is_some_and(|effect| self.1.contains(&effect))
+                {
+                    return;
+                }
+            }
             visit_mut::visit_expr_mut(self, node);
             if let Some(shared) = self.0.get(&text_of(node)) {
                 *node = shared.clone();
             }
         }
     }
-    let mut replace = Replace(&named);
+    let mut replace = Replace(&named, &reads_subject);
     for expr in definitions(file) {
         replace.visit_expr_mut(expr);
     }

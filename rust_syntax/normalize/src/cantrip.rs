@@ -17,6 +17,7 @@ mod copies;
 mod costs;
 mod delayed;
 mod effects;
+mod faces;
 mod keywords;
 mod lane_f;
 mod lane_g;
@@ -1375,6 +1376,8 @@ impl Compiler {
         self.announced_filters.clear();
         self.own_slots.clear();
         self.second_of_two = self.two_targets(a);
+        // Slots a target of the AST is more than one of, before this one.
+        let mut shift = 0;
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
             if lane_k::only_your_graveyard(self.line_text(), &spec.filter) {
@@ -1388,6 +1391,27 @@ impl Compiler {
             // The second of "two target creatures" is the same slot's.
             if self.second_of_two == Some(i) {
                 self.slots.insert(spec.slot.0, (i, spec.clone()));
+                continue;
+            }
+            let i = i + shift;
+            if faces::two_from_one_graveyard(i, spec)
+                && Self::limit_shared(a).is_none()
+                && self.second_of_two.is_none()
+            {
+                self.choosing = Some(i);
+                let test = self.slot_test(spec, &rule).map_err(|e| e.at(&at));
+                self.choosing = None;
+                let test = test?;
+                let (first, second) = (format!("{label}_target_{i}"), format!("{label}_target_{i}_same_graveyard"));
+                writeln!(self.functions, "#[allow(unused_variables)] fn {first}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}").unwrap();
+                writeln!(self.functions, "#[allow(unused_variables)] fn {second}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {} }}", faces::same_graveyard_as_first(&test)).unwrap();
+                targets.push(format!("target({first}).optional()"));
+                targets.push(format!("target({second}).optional()"));
+                self.announced_filters.push(first);
+                self.announced_filters.push(second);
+                self.slots.insert(spec.slot.0, (i, spec.clone()));
+                self.own_slots.insert(i, i + 1);
+                shift += 1;
                 continue;
             }
             let oracle = target_counts::oracle_slot(&self.card_name, spec);
@@ -1482,7 +1506,8 @@ impl Compiler {
             let count = lane_k::divided_among_some(
                 count,
                 spec.distribute.is_some()
-                    && lane_k::printed_otherwise(self.line_text(), "any number of target"),
+                    && lane_k::printed_otherwise(self.line_text(), "any number of target")
+                    && !faces::distributed_among_any(self.line_text()),
             );
             self.slots.insert(spec.slot.0, (i, spec.clone()));
             if spec.kind == TargetKind::DamageRecipient
@@ -1721,6 +1746,9 @@ impl Compiler {
     }
     fn mana_ability(&mut self, body: &Program, label: &str) -> Result<String> {
         if let Some(adds) = self.mana_of_a_color_among(body, label)? {
+            return Ok(adds);
+        }
+        if let Some(adds) = self.counted_mana_of_one_color(body, label)? {
             return Ok(adds);
         }
         let [Instruction::Effect {
@@ -2464,6 +2492,10 @@ fn emit_face(
             }
         }
     };
+    if let Some((rule, function)) = faces::mana_told_apart(&c.functions) {
+        c.functions.push_str(function);
+        parts.table("mana_told_apart", rule.to_string());
+    }
     // Filters are compiled through `&self`, so this one is found in their text.
     if c.functions.contains("cast_of(q, ") || c.functions.contains("cast_at(q, ") {
         c.helpers.insert("cast_of");

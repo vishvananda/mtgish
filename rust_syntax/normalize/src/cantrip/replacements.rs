@@ -991,6 +991,7 @@ impl Compiler {
         then: Option<String>,
         parts: &mut Parts,
     ) -> Result<()> {
+        let hint = faces::prevention_hint(hint);
         let applies = format!("{label}_applies");
         self.watch_function(
             &applies,

@@ -168,6 +168,11 @@ impl Compiler {
         parts: &mut Parts,
     ) -> Result<bool> {
         const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
+        if let Some(word) = lane_k::rule_keyword(affected, rule) {
+            if self.keyword_as_long_as(label, word, parts)? {
+                return Ok(true);
+            }
+        }
         if let Some(word) =
             lane_k::rule_keyword(affected, rule).filter(|_| self.static_guard.is_none())
         {

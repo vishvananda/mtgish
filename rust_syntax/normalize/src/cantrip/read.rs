@@ -1263,9 +1263,10 @@ impl Compiler {
                     frame: self.frame,
                 });
                 let matched = asked.event(event)?;
-                let hits = format!("{scope}.filter_map({})", matched.history_test());
+                let hits = format!("{scope}.filter_map({})", faces::as_dealt(&matched.history_test()));
                 let answer = match measure {
-                    HistoryMeasure::Occurrences => format!("{hits}.count() as i64"),
+                    HistoryMeasure::Occurrences => faces::attackers_counted(event, &hits)
+                        .unwrap_or_else(|| format!("{hits}.count() as i64")),
                     HistoryMeasure::TotalAmount
                         if matched.frame.amount == Some(Carried::Data(0)) =>
                     {
@@ -1737,6 +1738,9 @@ impl Compiler {
             return self.predicate(&either, c);
         }
         let (id, chars) = (c.id.as_str(), c.chars.as_str());
+        if let Some(code) = self.used_to_craft(f, id)? {
+            return Ok(code);
+        }
         let combine = |items: &[ObjectFilter], join: &str, identity: &str| -> Result<String> {
             if items.is_empty() {
                 return Ok(identity.into());

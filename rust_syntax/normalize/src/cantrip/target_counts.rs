@@ -70,6 +70,9 @@ impl Compiler {
         label: &str,
         frame: Option<Frame>,
     ) -> Result<Option<String>> {
+        if faces::opponents_permanent_read_as_any(self.line_text(), modes) {
+            return Err(gap("an opponent's permanent read as anyone's in the data"));
+        }
         let mut filters: Vec<Vec<String>> = Vec::new();
         let mut arrays = Vec::new();
         let mut unused = Vec::new();

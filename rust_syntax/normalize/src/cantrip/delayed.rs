@@ -941,6 +941,9 @@ impl Compiler {
                 "reflexive trigger on what an instruction does not report",
             ));
         };
+        // Asked again as the reflexive resolves only when it reads the game, not what
+        // the instruction did, which is gone by then.
+        let intervening = condition.as_ref().filter(|c| !format!("{c:?}").contains("ResultId("));
         let condition = condition
             .as_ref()
             .map(|c| Ok::<_, Diagnostic>(self.fetch(self.condition(c)?)))
@@ -969,7 +972,14 @@ impl Compiler {
             c.slot_counts = counts;
             let targets = targets?;
             let modal = c.reflexive_modes(announcement, &label);
-            c.effect(body, &label)?;
+            // An intervening "if" is asked again as it resolves (CR 603.4; Ajani, Nacatl Avenger).
+            match intervening {
+                Some(condition) => {
+                    let test = c.fetch(c.condition(condition)?);
+                    c.tested_effect(test, body, &label)?
+                }
+                None => c.effect(body, &label)?,
+            };
             Ok((Some(targets), modal))
         });
         self.counted = counted;

@@ -2468,7 +2468,7 @@ impl Compiler {
                 self.fetch(self.certain_player(player)?)
             )
             .unwrap();
-            let offered = self.top_card_offered(id, body, out)?;
+            let offered = self.top_card_offered(id, body, out)? + &faces::reveal_offered(self, body);
             format!("{offered}cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?")
         } else {
             "true".to_string()
@@ -2890,6 +2890,8 @@ impl Compiler {
             Destination::Exile => format!("g.exile_all(&objects_{id})"),
             // `put_into_graveyard` refuses permanents, so name each destination.
             Destination::OwnersGraveyard => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::graveyard(g.state().obj(o).owner))).collect(); let moved = g.move_together(&moves, MoveReason::Other); moved.into_iter().filter(|&o| g.state().obj(o).zone.kind() == ZoneKind::Graveyard).collect::<Vec<ObjectId>>() }}"),
+            // Chosen cards put on the bottom together are ordered too (CR 401.4; Valakut Awakening).
+            Destination::OwnersLibraryBottom if chosen => lane_k::in_an_order_asked(id, destination),
             Destination::OwnersLibraryTop | Destination::OwnersLibraryBottom if targeted => {
                 lane_k::in_an_order_asked(id, destination)
             }
