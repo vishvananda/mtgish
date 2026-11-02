@@ -1852,6 +1852,41 @@ impl Compiler {
         let player = self.certain_player(decider).map(|p| self.fetch(p));
         let decider_code = planned::planned_read(player, "asker.controller", decider);
         writeln!(out, "let decider_{id} = {decider_code};").unwrap();
+        // Winter's Chill: "its controller may pay {1} or {2}. If that player
+        // doesn't, ...": each payment is a may of its own (CR 118.12), asked in
+        // turn, and the last option is what happens when none is paid.
+        if let Some((last, paying)) = options.split_last() {
+            let pays = |option: &Program| match option.instructions.first() {
+                Some(Instruction::Effect {
+                    operation: operation @ Operation::PayCost { optional: false, .. },
+                    result,
+                }) => Some((operation.clone(), result.clone())),
+                _ => None,
+            };
+            if paying.len() >= 2
+                && paying.iter().all(|option| pays(option).is_some())
+                && pays(last).is_none()
+            {
+                let mut close = String::new();
+                for option in paying {
+                    let (operation, result) = pays(option).expect("checked");
+                    let Operation::PayCost { player, cost, .. } = operation else {
+                        unreachable!("a payment");
+                    };
+                    let asked = Operation::PayCost { player, cost, optional: true };
+                    self.operation(&asked, &result, out)?;
+                    let paid = self.performed[&result.0].clone();
+                    writeln!(out, "if {paid} {{").unwrap();
+                    let rest = Program { instructions: option.instructions[1..].to_vec() };
+                    self.block(&rest, out, true)?;
+                    writeln!(out, "}} else {{").unwrap();
+                    close.push('}');
+                }
+                self.block(last, out, true)?;
+                writeln!(out, "{close}").unwrap();
+                return Ok(());
+            }
+        }
         let Some(base) = self.option_labels_of(options) else {
             let said = self.lines_said();
             // Whim of Volrath, Trait Doctoring: "until end of turn" is in the data
