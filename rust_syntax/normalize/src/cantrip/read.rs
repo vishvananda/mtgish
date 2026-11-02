@@ -1897,11 +1897,19 @@ impl Compiler {
                     zone_kind(zone)?
                 )
             }
-            ObjectFilter::InZone(ZoneScope::Players { zone, players }) => format!(
-                "(q.state().obj({id}).zone.kind() == {} && {})",
-                zone_kind(zone)?,
-                self.player_in(players, &format!("q.state().obj({id}).owner"))?
-            ),
+            // "That player's graveyard", of the slot before: asked whether the ability
+            // can be offered at all, before that slot has chosen, any will do.
+            ObjectFilter::InZone(ZoneScope::Players { zone, players }) => {
+                let owner = self.player_in(players, &format!("q.state().obj({id}).owner"))?;
+                let owner = match owner.contains("q.chosen_targets()") {
+                    true => format!("(q.chosen_targets().is_empty() || {owner})"),
+                    false => owner,
+                };
+                format!(
+                    "(q.state().obj({id}).zone.kind() == {} && {owner})",
+                    zone_kind(zone)?
+                )
+            }
             ObjectFilter::InSet(objects) => {
                 format!("({}).contains(&{id})", self.objects(objects)?)
             }

@@ -227,12 +227,17 @@ impl Compiler {
 /// What later reads ask of the instructions before them.
 #[derive(Clone, Debug, Default)]
 pub(super) struct Notes {
+    /// Counters go on this per-player batch, by this player, and only on what that
+    /// player controls if so, rather than on at once.
+    pub gathering_counters: Option<(usize, String, bool)>,
     /// Reveals whose cards each went to exile as they were reached, so that the
     /// instruction that moves them has nothing left to do.
     pub exiled_going: BTreeSet<u32>,
     /// The X just paid as this resolves, where "X" is that number and not the
     /// stack item's: "you may pay {X}. X can't be greater than ...".
     pub paid_x: Option<String>,
+    /// The instruction before this copied each spell twice over.
+    pub copied_twice: bool,
     /// What a cost paid as this resolved exiled: "return this card" after "you may
     /// exile it", where the source has since left the object it was.
     pub exiled_source: Option<String>,

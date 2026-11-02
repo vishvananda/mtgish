@@ -2336,6 +2336,7 @@ fn emit_face(
             "common_creature_type" => COMMON_CREATURE_TYPE,
             "announced" => ANNOUNCED,
             "pay_question" => PAY_QUESTION,
+            "most_assigned" => lane_l::MOST_ASSIGNED,
             "about" => delayed::ABOUT,
             "clauses" => lane_l::CLAUSES,
             "granter" => lane_j::GRANTER,

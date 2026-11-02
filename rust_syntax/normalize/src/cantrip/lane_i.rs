@@ -127,7 +127,10 @@ impl Gathered {
     fn row(&self) -> &'static str {
         match self {
             Gathered::Objects { .. } | Gathered::Cards { .. } => "ObjectId",
-            Gathered::Sacrifice { .. } => "(PlayerId, ObjectId)",
+            Gathered::Sacrifice { .. }
+            | Gathered::SacrificeEach { .. }
+            | Gathered::SacrificeRest { .. } => "(PlayerId, ObjectId)",
+            Gathered::Counters { .. } => "(PlayerId, ObjectId, CounterKind, i16)",
             Gathered::Mill { .. } => "(PlayerId, u32)",
             Gathered::Damage { .. } => "(ObjectId, Target, u16)",
             Gathered::Tokens { .. } => "(CardId, PlayerId)",
@@ -146,6 +149,19 @@ enum TokensAt {
     MustAttack,
 }
 enum Gathered {
+    SacrificeEach {
+        slots: Vec<ObjectSet>,
+        result: ResultId,
+    },
+    Counters {
+        operation: Operation,
+        result: ResultId,
+    },
+    SacrificeRest {
+        objects: ObjectSet,
+        keep: Expr,
+        result: ResultId,
+    },
     Objects {
         objects: ObjectSet,
         then: Box<dyn Fn(ObjectSet) -> Operation>,
@@ -366,6 +382,12 @@ impl Compiler {
             if !bound && reads_earlier {
                 return Part::Once(instruction.clone());
             }
+            // CR 701.55d: "the entire process ... one at a time in APNAP order".
+            if matches!(instruction, Instruction::ChooseOne { .. })
+                && self.line_text().is_some_and(|line| line.contains("villainous choice"))
+            {
+                return Part::Walk;
+            }
             return match walks_whole(instruction) {
                 true => Part::Walk,
                 false => Part::Unbatched("per-player instruction with several steps".into()),
@@ -434,6 +456,15 @@ impl Compiler {
                 choose: choose.clone(),
                 result,
             }),
+            // "Each opponent sacrifices an artifact creature and a nonartifact
+            // creature": each chooses in turn, then all of it goes together.
+            Operation::Together(operations)
+                if lane_l::sacrifice_slots(operations)
+                    .is_some_and(|(player, _)| is_bound(player, binding)) =>
+            {
+                let (_, slots) = lane_l::sacrifice_slots(operations).expect("just seen");
+                Part::Gather(Gathered::SacrificeEach { slots, result })
+            }
             // "Each player chooses five lands and sacrifices the rest": the
             // operation asks all of them, and they sacrifice together. It keeps
             // as many as it can, which "up to two" is not.
@@ -457,6 +488,18 @@ impl Compiler {
                     },
                 })
             }
+            // "Each player chooses up to two creatures, then sacrifices the rest."
+            Operation::SacrificeAllBut {
+                players,
+                objects,
+                keep,
+            } if one_bound(players, binding) && !names(binding, objects) && !names(binding, keep) => {
+                Part::Gather(Gathered::SacrificeRest {
+                    objects: objects.clone(),
+                    keep: keep.clone(),
+                    result,
+                })
+            }
             Operation::DiscardAllBut { players, keep }
                 if one_bound(players, binding)
                     && !names(binding, keep)
@@ -470,6 +513,16 @@ impl Compiler {
                         keep: keep.clone(),
                     },
                 })
+            }
+            // "Each player puts a counter on ...": each chooses in turn, then they all
+            // go on together (101.4), each put by its player (122.6).
+            Operation::PutCounters { placements }
+                if bound
+                    && placements
+                        .iter()
+                        .all(|p| matches!(p.recipients, Recipients::Objects(_))) =>
+            {
+                Part::Gather(Gathered::Counters { operation: operation.clone(), result })
             }
             Operation::Tap { objects, tapped } if names(binding, objects) => {
                 let tapped = *tapped;
@@ -698,8 +751,13 @@ impl Compiler {
                         out,
                     );
                     self.view_all(&views);
-                    if let Gathered::Sacrifice { result, .. } = &gathered {
+                    if let Gathered::Sacrifice { result, .. } | Gathered::SacrificeEach { result, .. } = &gathered {
                         let test = format!("gathered_{gather}.iter().any(|(who, _)| *who == players_{id}[at])");
+                        self.notes.took.insert(result.0, (format!("players_{id}"), test));
+                    }
+                    // "For each opponent who does": who took the offer, whatever it came to.
+                    if let (Gathered::Counters { result, .. }, Some(guard)) = (&gathered, step.guard) {
+                        let test = format!("guard_{id}_{guard}[at]");
                         self.notes.took.insert(result.0, (format!("players_{id}"), test));
                     }
                     self.after_gathering(gather, gathered, &mut program, at, out)?;
@@ -752,6 +810,21 @@ impl Compiler {
                     guards.push(Guard::If(condition.clone()));
                     let inner = guards.len() - 1;
                     self.flatten(each, &then.instructions, Some(inner), flat, steps, guards);
+                    continue;
+                }
+                // "For each flip you win, this. For each flip you lose, that": the
+                // flips stay as they fell, so the two are steps of their own.
+                Instruction::If {
+                    condition: condition @ Condition::CoinFlip { .. },
+                    then,
+                    otherwise,
+                } if guard.is_none() => {
+                    guards.push(Guard::If(condition.clone()));
+                    let inner = guards.len() - 1;
+                    self.flatten(each, &then.instructions, Some(inner), flat, steps, guards);
+                    guards.push(Guard::If(Condition::Not(Box::new(condition.clone()))));
+                    let inner = guards.len() - 1;
+                    self.flatten(each, &otherwise.instructions, Some(inner), flat, steps, guards);
                     continue;
                 }
                 _ => {}
@@ -992,7 +1065,10 @@ impl Compiler {
         };
         // A "you may" that opened a guard in this turn closes it in this turn.
         let shut = "}".repeat(std::mem::replace(&mut self.guard_opened, guards_around));
-        writeln!(out, "{open} for (index_{id}, bound_{binding}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
+        // A step of the ability's controller, one for each of them, may never say whose.
+        let name = format!("bound_{binding}");
+        let bound = if body.contains(&name) || tail.contains(&name) { name.as_str() } else { "_" };
+        writeln!(out, "{open} for (index_{id}, {bound}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
     }
     /// A player's turn at a step that adds to a batch.
     fn gather(
@@ -1023,6 +1099,27 @@ impl Compiler {
                 let player = PlayerSet::One(PlayerRef::Bound(each.binding.clone()));
                 self.sacrifice_picks(id, &player, objects, choose.as_ref(), out)?;
                 writeln!(out, "gathered_{local}.extend(picks_{id}.iter().copied());").unwrap();
+            }
+            Gathered::Counters { operation, result } => {
+                // "Puts counters on it": the token made for all of them is each one's own.
+                let own = matches!(operation, Operation::PutCounters { placements }
+                    if placements.iter().all(|p| !names(&each.binding, &p.recipients)
+                        && format!("{:?}", p.recipients).contains("Named(")));
+                self.notes.gathering_counters = Some((local, bound.clone(), own));
+                let done = self.operation(operation, result, out);
+                self.notes.gathering_counters = None;
+                done?;
+            }
+            Gathered::SacrificeRest { objects, keep, .. } => {
+                let keep = self.number(keep)?.amount(u32::MAX.into(), "u32")?;
+                let objects = self.fetch(self.objects(objects)?);
+                let keep = self.fetch(keep);
+                const M: &str = "cantrip_mechanics";
+                writeln!(out, "let own_{id}: Vec<ObjectId> = {objects}.into_iter().filter(|&o| g.controller(o) == {bound}).collect(); let kept_{id} = {M}::choose::select(g, {bound}, asker.source, Purpose::Keep, own_{id}.clone(), {M}::select::Selection::of({M}::select::up_to({keep}), &[]))?; gathered_{local}.extend(own_{id}.iter().filter(|o| !kept_{id}.contains(o)).map(|&o| ({bound}, o)));").unwrap();
+            }
+            Gathered::SacrificeEach { slots, .. } => {
+                self.sacrifice_slots(id, &bound, slots, out)?;
+                writeln!(out, "gathered_{local}.extend(chosen_{id}.iter().map(|&o| ({bound}, o)));").unwrap();
             }
             Gathered::Mill { amount, .. } => {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
@@ -1136,7 +1233,13 @@ impl Compiler {
                 let discard = |objects| Operation::DiscardObjects { objects };
                 self.act_on_gathered(local, &discard, result, program, at, out);
             }
-            Gathered::Sacrifice { result, .. } => {
+            Gathered::Counters { result, .. } => {
+                writeln!(out, "let had_{local}: Vec<_> = gathered_{local}.iter().map(|c| g.state().obj(c.1).counters(c.2)).collect(); g.add_counters_together_by(&gathered_{local}); let applied_{local}: Vec<ObjectId> = gathered_{local}.iter().zip(had_{local}).filter(|(c, had)| g.state().obj(c.1).counters(c.2) > *had).map(|(c, _)| c.1).collect();").unwrap();
+                self.selections.insert(result.0, format!("applied_{local}"));
+            }
+            Gathered::Sacrifice { result, .. }
+            | Gathered::SacrificeEach { result, .. }
+            | Gathered::SacrificeRest { result, .. } => {
                 writeln!(
                     out,
                     "let sacrificed_{local} = g.sacrifice_each(&gathered_{local});"
@@ -1322,7 +1425,8 @@ impl Compiler {
         if declines > 1 || (declines == 1 && !empty(options.last()?)) {
             return None;
         }
-        let mut labels = option_words::printed_options(&self.lines_said(), printed)?;
+        let mut labels = option_words::printed_options(&self.lines_said(), printed)
+            .or_else(|| (declines == 0).then(|| lane_i_option_labels(options)).flatten())?;
         // "From that player's graveyard or hand" is printed the other way round.
         if labels[0] == "Graveyard" && labels[1] == "Hand" {
             labels.swap(0, 1);
@@ -1557,6 +1661,23 @@ impl Compiler {
         writeln!(out, "}}").unwrap();
         Ok(())
     }
+    /// "Change the target to another creature": the chooser says which, and one the
+    /// spell can't take leaves it as it was (115.7b), so the next is asked for. The
+    /// spell's target changes if any of them can have it.
+    fn retarget_to(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        object: &ObjectRef,
+        to: &ObjectSet,
+        out: &mut String,
+    ) -> Result<()> {
+        let chooser = self.fetch(self.certain_player(player)?);
+        let spell = self.fetch(self.object(object)?);
+        let to = self.fetch(self.objects(to)?);
+        writeln!(out, "let chooser_{id} = {chooser}; let spell_{id}: Option<ObjectId> = {spell}; let mut open_{id}: Vec<ObjectId> = {to}; if let Some(spell) = spell_{id} {{ while !open_{id}.is_empty() {{ let to = match open_{id}.as_slice() {{ [one] => Some(*one), _ => cantrip_mechanics::choose::card(g, chooser_{id}, asker.source, Purpose::Choose, open_{id}.clone())? }}; let Some(to) = to else {{ break; }}; open_{id}.retain(|&o| o != to); g.change_a_target_to(Target::Object(spell), to, chooser_{id})?; let changed = {{ let q: &dyn Query = g; q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).is_some_and(|i| q.state().targets(i).contains(&Target::Object(to))) }}; if changed {{ break; }} }} }}").unwrap();
+        Ok(())
+    }
     /// Whether counters move in a way `move_counters` writes: a set number
     /// comes from one object, and "all" from each.
     fn moves_counters(
@@ -1788,6 +1909,13 @@ impl Compiler {
                     | NewTargets::May
                     | NewTargets::To(ObjectSet::One(ObjectRef::Source))),
             } => self.retarget(id, player, object, targets, out)?,
+            Operation::Retarget {
+                actor: PlayerSet::One(player),
+                object,
+                targets: NewTargets::To(to),
+            } if !matches!(to, ObjectSet::Battlefield(ObjectFilter::Not(_))) => {
+                self.retarget_to(id, player, object, to, out)?
+            }
             Operation::MoveCounters {
                 actor: PlayerSet::One(player),
                 from,
@@ -2155,8 +2283,11 @@ impl Compiler {
         changes: &[Change],
         controller: &str,
     ) -> Result<String> {
-        if !self.stack_item || entry.tapped {
+        if !self.stack_item {
             return Err(gap("move arrival state"));
+        }
+        if entry.tapped {
+            return Err(gap("enters tapped as something else"));
         }
         let mut fields = Vec::new();
         let mut adds = Vec::new();
@@ -2213,6 +2344,22 @@ impl Compiler {
                 }
                 Change::RemoveAllAbilities => {
                     fields.push("loses_other_abilities: true".to_string())
+                }
+                // "It's an Aura enchantment with enchant [quality] and [ability], and
+                // it loses all other abilities."
+                Change::AddEnchantmentType(kind) if format!("{kind:?}").contains("Aura") => {
+                    fields.push("aura: true".to_string())
+                }
+                Change::OnlyAbilities(only) => {
+                    fields.push("loses_other_abilities: true".to_string());
+                    for ability in only {
+                        match ability {
+                            Ability::Enchant { hosts } => {
+                                self.aura_enchant(hosts)?;
+                            }
+                            ability => abilities.push(self.grant(ability)?.to_string()),
+                        }
+                    }
                 }
                 Change::Colors { .. } => return Err(gap("move arrival with a color")),
                 _ => return Err(gap("move arrival state")),
@@ -2347,6 +2494,9 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let unsupported = || gap("operation ChangeZone");
+        if matches!(op, Operation::ChangeZone { face_down: Some(_), .. }) {
+            return Err(gap("put onto the battlefield face down as a stated creature"));
+        }
         let Operation::ChangeZone {
             actor,
             cards,
@@ -2360,10 +2510,23 @@ impl Compiler {
         else {
             return Err(unsupported());
         };
+        if self.exile_with_entry(id, op, result, out)? {
+            return Ok(());
+        }
+        let by_kind = match group {
+            Some(group) if !random && matches!(count, Some(Count::AnyNumber)) => {
+                self.picked_by_kind(group)?
+            }
+            _ => None,
+        };
         let rule = match group {
             None => None,
+            Some(_) if by_kind.is_some() => None,
             Some(group) if count.is_some() && !random => {
-                Some(self.group_rule(group, cards).ok_or_else(unsupported)?)
+                Some(match self.total_at_most(id, group, out)? {
+                    Some(rule) => rule,
+                    None => self.group_rule(group, cards).ok_or_else(unsupported)?,
+                })
             }
             Some(_) => return Err(unsupported()),
         };
@@ -2402,8 +2565,20 @@ impl Compiler {
                     },
                 }];
                 let purpose = effects::purpose(&held, &rest).ok_or_else(unsupported)?;
-                self.choice_rule = rule.unwrap_or_default();
-                self.choose(player, cards, count, &held, purpose, out)?;
+                if let Some(kind) = by_kind {
+                    let chooser = self.fetch(self.certain_player(player)?);
+                    let pool = self.fetch(self.objects(cards)?);
+                    writeln!(out, "let chooser_{id} = {chooser}; let pool_{id}: Vec<ObjectId> = {pool}; let mut picked_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+                    const CHOOSE: &str = "cantrip_mechanics::choose";
+                    match kind {
+                        ByKind::Types(types) => writeln!(out, "let types_{id} = {types}; for t in types_{id} {{ let eligible: Vec<ObjectId> = pool_{id}.iter().copied().filter(|&c| !picked_{id}.contains(&c) && g.chars(c).is(t)).collect(); if eligible.is_empty() {{ continue; }} picked_{id}.extend({CHOOSE}::cards_from(g, chooser_{id}, asker.source, Purpose::{purpose}, pool_{id}.clone(), eligible, 1, true)?); }}").unwrap(),
+                        ByKind::SameName => writeln!(out, "let one_{id} = {CHOOSE}::cards(g, chooser_{id}, asker.source, Purpose::{purpose}, pool_{id}.clone(), 1, false)?; if let Some(&one) = one_{id}.first() {{ let q: &dyn Query = g; picked_{id} = pool_{id}.iter().copied().filter(|&c| cantrip_mechanics::same_name(q, c, one)).collect(); }}").unwrap(),
+                    }
+                    self.selections.insert(held.0, format!("picked_{id}"));
+                } else {
+                    self.choice_rule = rule.unwrap_or_default();
+                    self.choose(player, cards, count, &held, purpose, out)?;
+                }
                 picked.clone()
             }
         };
@@ -2422,6 +2597,107 @@ impl Compiler {
         self.selections.remove(&held.0);
         self.single.remove(&held.0);
         moved
+    }
+    /// What the group of a move says the picks are, when no one rule over the set
+    /// says it: "for each card type, a card of that type" asks once for each, and a
+    /// card taken for one of its types isn't there for another.
+    fn picked_by_kind(&mut self, group: &Operand) -> Result<Option<ByKind>> {
+        let (form, operands): (&str, &[Operand]) = match group {
+            Operand::Vocabulary { family, form } if family == "GroupFilter" => (form, &[]),
+            Operand::Term { family, form, operands } if family == "GroupFilter" => (form, operands),
+            _ => return Ok(None),
+        };
+        Ok(match (form, operands) {
+            ("OnePerCardType", []) => Some(ByKind::Types("CardType::ALL.to_vec()".to_string())),
+            ("OnePerPermanentType", []) => Some(ByKind::Types(
+                "cantrip_mechanics::targets::PERMANENT_CARD_TYPES.to_vec()".to_string(),
+            )),
+            ("OneAndAllSameName", []) => Some(ByKind::SameName),
+            ("OnePerCardTypeAmong", [Operand::Filter(ObjectFilter::All(tests))]) => {
+                let [ObjectFilter::Not(not), ObjectFilter::Cast { by: Some(PlayerSet::One(by)), from: None }] =
+                    tests.as_slice()
+                else {
+                    return Ok(None);
+                };
+                let ObjectFilter::CardType(not) = &**not else {
+                    return Ok(None);
+                };
+                let by = self.fetch(self.certain_player(by)?);
+                let not = card_type(not)?;
+                Some(ByKind::Types(format!("{{ let by = {by}; let q: &dyn Query = g; CardType::ALL.into_iter().filter(|&t| q.history().casts_by(by).any(|c| !c.is(CardType::{not}) && c.is(t))).collect::<Vec<CardType>>() }}")))
+            }
+            _ => None,
+        })
+    }
+    /// `.with(part)` for "with total power X or less" where X is worked out as it
+    /// resolves: its value is `most_{id}`, written here.
+    fn total_at_most(
+        &mut self,
+        id: usize,
+        group: &Operand,
+        out: &mut String,
+    ) -> Result<Option<String>> {
+        let Operand::Term { family, form, operands } = group else {
+            return Ok(None);
+        };
+        let [Operand::Comparison(Comparison::LessOrEqual, amount)] = operands.as_slice() else {
+            return Ok(None);
+        };
+        if family != "GroupFilter" || matches!(amount, Expr::Constant(_)) {
+            return Ok(None);
+        }
+        if form != "TotalPowerIs" && form != "TotalManaValueIs" {
+            return Ok(None);
+        }
+        let most = self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?);
+        writeln!(out, "let most_{id} = {most};").unwrap();
+        Ok(Some(format!(
+            ".with({})",
+            lane_l::total_at_most_part(&mut self.functions, form, &format!("most_{id}"))
+        )))
+    }
+    /// "Exile the other with a silver counter on it" and "exile them in a face-down
+    /// pile, and shuffle that pile". Whether this was one of those. The pile takes
+    /// its order as it's exiled, so its first card is as unknown as a shuffle makes it.
+    fn exile_with_entry(
+        &mut self,
+        id: usize,
+        op: &Operation,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<bool> {
+        let Operation::ChangeZone {
+            cards,
+            count: None,
+            random: false,
+            group: None,
+            destination: Destination::Exile,
+            entry,
+            face_down: None,
+            ..
+        } = op
+        else {
+            return Ok(false);
+        };
+        let [Operand::Vocabulary { family, form }] = entry.as_slice() else {
+            return Ok(false);
+        };
+        let objects = self.fetch(self.objects(cards)?);
+        match (family.as_str(), form.as_str()) {
+            ("CounterType", kind) => {
+                let kind = kind.strip_suffix("Counter").unwrap_or(kind);
+                writeln!(out, "let objects_{id} = {objects}; let moved_{id} = g.exile_all(&objects_{id}); for &exiled in &moved_{id} {{ g.add_counters(exiled, CounterKind::{kind}, 1); }}").unwrap();
+            }
+            (_, "ExilesIntoShuffledFaceDownPile") => {
+                let by = self.fetch(self.linked().to_string());
+                writeln!(out, "let mut pool_{id} = {objects}; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); objects_{id}.push(pool_{id}.remove(at)); }} let by_{id} = {by}; let moved_{id} = g.exile_face_down(&objects_{id}, Some(by_{id}));").unwrap();
+            }
+            _ => return Ok(false),
+        }
+        self.moved.insert(result.0, format!("moved_{id}"));
+        self.selections.insert(result.0, format!("moved_{id}"));
+        self.left_behind(result, effects::gone(&format!("objects_{id}")));
+        Ok(true)
     }
     fn chooses_top_or_bottom(
         &mut self,
@@ -2574,6 +2850,94 @@ impl Compiler {
         }
         Ok(())
     }
+    /// One search shown one list (701.23a): "the top third of your library", "your
+    /// library and graveyard", and "your graveyard, hand, and/or library", where the
+    /// searcher first says whether the library is among them (`library::
+    /// search_zone_and_or_library`, of two zones). Whether this was such a search.
+    fn search_as_one(
+        &mut self,
+        id: usize,
+        op: &Operation,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<bool> {
+        const LIBRARY: &str = "cantrip_mechanics::library";
+        const SELECTION: &str = "cantrip_mechanics::select::Selection";
+        let Operation::Search {
+            player,
+            library,
+            top,
+            choices,
+            also,
+            either,
+            outside: false,
+        } = op
+        else {
+            return Ok(false);
+        };
+        let [choice] = choices.as_slice() else {
+            return Ok(false);
+        };
+        if !choice.constraints.is_empty() || format!("{player:?}") != format!("{library:?}") {
+            return Ok(false);
+        }
+        let zone_of = |zone: &EventZone, owner: &str| match zone {
+            EventZone::Graveyard => Ok(format!("Zone::graveyard({owner})")),
+            EventZone::Hand => Ok(format!("Zone::hand({owner})")),
+            _ => Err(gap("operation Search")),
+        };
+        let owner = format!("owner_{id}");
+        let shown = match (top, also.as_slice(), *either) {
+            (Some(n), [], false) => {
+                let n = self.fetch(self.number(n)?.code);
+                format!("if may_{id} {{ g.state().zone(Zone::library({owner})).iter().copied().take(({n}).max(0) as usize).collect::<Vec<ObjectId>>() }} else {{ Vec::new() }}")
+            }
+            (None, [zone], false)
+                if matches!(choice.count, Count::AsManyAsCan(_) | Count::Exactly(_)) =>
+            {
+                if format!("{:?}", self.after).contains("ReorderLibrary") {
+                    return Err(gap("cards found in two zones put on top of a library"));
+                }
+                let zone = zone_of(zone, &owner)?;
+                format!("(if may_{id} {{ {LIBRARY}::searched_cards(g, {owner}) }} else {{ Vec::new() }}).into_iter().chain(g.state().zone({zone}).iter().copied()).collect::<Vec<ObjectId>>()")
+            }
+            (None, [first, second], true) => {
+                let (first, second) = (zone_of(first, &owner)?, zone_of(second, &owner)?);
+                format!("(if may_{id} {{ {LIBRARY}::searched_cards(g, {owner}) }} else {{ Vec::new() }}).into_iter().chain(g.state().zone({first}).iter().copied()).chain(g.state().zone({second}).iter().copied()).collect::<Vec<ObjectId>>()")
+            }
+            _ => return Ok(false),
+        };
+        if effects::one_at_most(&choice.count) {
+            self.single.insert(result.0);
+        }
+        let filter = self.filter(&choice.filter, &Candidate::of("id"))?;
+        let destination = effects::search_destination(result, &self.after);
+        let purpose = match destination {
+            "Battlefield" | "BattlefieldTapped" => "PutOntoBattlefield",
+            "Graveyard" => "PutIntoGraveyard",
+            "Exile" => "Exile",
+            "TopOfLibrary" => "PutOnTop",
+            _ => "PutIntoHand",
+        };
+        let searcher = self.fetch(self.certain_player(player)?);
+        let count = self.fetch(self.select_count(&choice.count)?);
+        writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = searcher_{id}; let may_{id} = g.may_search(searcher_{id}, owner_{id}); let rule_count_{id} = {count}; let shown_{id}: Vec<ObjectId> = {shown}; let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }};").unwrap();
+        let whole = format!("{{ let rule = {SELECTION}::listed(rule_count_{id}, &shown_{id}, can_{id}.clone()); let found = if shown_{id}.is_empty() {{ Vec::new() }} else {{ match g.ask(searcher_{id}, RequestKind::SearchLibrary {{ source: asker.source, library: shown_{id}.clone(), rule: Box::new(rule), destination: SearchDestination::{destination} }})? {{ Answer::Cards(cards) => cards, _ => Vec::new() }} }}; if may_{id} {{ g.searched(searcher_{id}, owner_{id}); }} found }}");
+        if *either {
+            let [first, second] = also.as_slice() else {
+                return Ok(false);
+            };
+            let (first, second) = (zone_of(first, &owner)?, zone_of(second, &owner)?);
+            writeln!(self.functions, "static ASK_{id}: Question = Question::new(\"SearchLibrary\", \"search your library as well?\", \"Then shuffle. If you don't, you search only the other zones\", \"Search it too\", \"Not the library\");").unwrap();
+            writeln!(out, "let zones_{id}: Vec<ObjectId> = g.state().zone({first}).iter().chain(g.state().zone({second}).iter()).copied().collect(); let searched_{id} = {LIBRARY}::ask_may_search(g, searcher_{id}, asker.source, &ASK_{id})?; let found_{id}: Vec<ObjectId> = if searched_{id} {{ {whole} }} else {{ let in_zones: Vec<ObjectId> = can_{id}.iter().copied().filter(|o| zones_{id}.contains(o)).collect(); let rule = {SELECTION}::listed(rule_count_{id}, &zones_{id}, in_zones); let any = cantrip_api::select::first_answer(&*g, &rule, searcher_{id}, asker.source, &zones_{id}, true).is_some_and(|taken| !taken.is_empty()); if any {{ cantrip_mechanics::choose::select(g, searcher_{id}, asker.source, Purpose::{purpose}, zones_{id}.clone(), rule)? }} else {{ Vec::new() }} }};").unwrap();
+            self.searched.insert(result.0, format!("searched_{id}"));
+        } else {
+            writeln!(out, "let found_{id}: Vec<ObjectId> = {whole};").unwrap();
+            self.searched.insert(result.0, "true".to_string());
+        }
+        self.selections.insert(result.0, format!("found_{id}"));
+        Ok(true)
+    }
     /// A search past one library: "and/or" (the searcher picks whether the library
     /// is searched), or a list of zones searched one by one, the library last.
     pub(super) fn search_zones(
@@ -2583,6 +2947,12 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        if self.search_as_one(id, op, result, out)? {
+            return Ok(());
+        }
+        if matches!(op, Operation::Search { outside: true, .. }) {
+            return Err(gap("search with cards from outside the game"));
+        }
         let Operation::Search {
             player,
             library,
@@ -2678,6 +3048,52 @@ impl Compiler {
     }
 }
 
+/// How the picks of a move are asked for: once for each of a list of card types,
+/// or one card and every card that shares its name.
+enum ByKind {
+    Types(String),
+    SameName,
+}
+/// Words for the options of a choice whose line doesn't list them ("you may put it
+/// on the bottom of its owner's library instead"): where each option puts it, or
+/// which word it changes. Options these don't tell apart have no labels.
+fn lane_i_option_labels(options: &[Program]) -> Option<Vec<String>> {
+    let mut labels: Vec<String> = Vec::new();
+    for option in options {
+        let mut steps = Vec::new();
+        lane_m::flat_groups(&option.instructions, &mut steps);
+        let label = match steps.first()? {
+            Instruction::Effect {
+                operation: Operation::Move {
+                    objects, destination, ..
+                },
+                ..
+            } => match (objects, destination) {
+                (ObjectSet::Take { .. }, _) => "Top card of library",
+                (_, Destination::Battlefield(_)) => "Battlefield",
+                (_, Destination::OwnersHand) => "Hand",
+                (_, Destination::OwnersLibraryTop) => "Top of library",
+                (_, Destination::OwnersLibraryBottom) => "Bottom of library",
+                (_, Destination::OwnersGraveyard) => "Graveyard",
+                (_, Destination::Exile) => "Exile",
+                _ => return None,
+            },
+            Instruction::Effect {
+                operation: Operation::ChooseObjects {
+                    objects: ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Hand, .. }, .. },
+                    ..
+                },
+                ..
+            } => "Card from hand",
+            _ => return None,
+        };
+        if labels.iter().any(|seen| seen == label) {
+            return None;
+        }
+        labels.push(label.to_string());
+    }
+    Some(labels)
+}
 /// A target test in a slot of its own for each player: that player controls it.
 pub(super) fn per_player_target(count: &Count, test: String) -> String {
     let Count::PerPlayer { players, .. } = count else {

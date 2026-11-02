@@ -1412,6 +1412,23 @@ impl Compiler {
                 )
                 .unwrap();
             }
+            // "For each opponent who does, put a counter on each": the instruction
+            // again for each, not one instruction of more counters.
+            Operation::PutCounters { placements }
+                if matches!(placements.as_slice(), [CounterPlacement {
+                    amount: Expr::CountPlayers(PlayerSet::Matching { condition, .. }),
+                    selection: None,
+                    ..
+                }] if matches!(**condition, Condition::PlayerTook { .. })) =>
+            {
+                let times = self.number(&placements[0].amount)?.amount(u32::MAX.into(), "u32")?;
+                let mut once = placements[0].clone();
+                once.amount = Expr::Constant(1);
+                writeln!(out, "let times_{id} = {}; for _ in 0..times_{id} {{", self.fetch(times)).unwrap();
+                self.operation(&Operation::PutCounters { placements: vec![once] }, result, out)?;
+                writeln!(out, "}}").unwrap();
+                self.selections.remove(&result.0);
+            }
             Operation::PutCounters { placements } => {
                 writeln!(
                     out,
@@ -1476,6 +1493,14 @@ impl Compiler {
                         .amount(i16::MAX.into(), "i16")?;
                     let kind = counter_kind(&placement.kind)?;
                     writeln!(out, "let amount = {}; for t in {} {{ if let Target::Object(object) = t {{ counters_{id}.push((object, {kind}, amount)); }} }}", self.fetch(amount), self.fetch(self.recipients(&placement.recipients)?)).unwrap();
+                }
+                if let Some((local, by, own)) = self.notes.gathering_counters.clone() {
+                    let own = match own {
+                        true => format!(".filter(|c| g.state().obj(c.0).controller == {by})"),
+                        false => String::new(),
+                    };
+                    writeln!(out, "gathered_{local}.extend(counters_{id}.iter(){own}.map(|c| ({by}, c.0, c.1, c.2)));").unwrap();
+                    return Ok(());
                 }
                 writeln!(out, "let had_{id}: Vec<_> = counters_{id}.iter().map(|c| g.state().obj(c.0).counters(c.1)).collect(); g.add_counters_together(&counters_{id}); let applied_{id}: Vec<ObjectId> = counters_{id}.iter().zip(had_{id}).filter(|(c, had)| g.state().obj(c.0).counters(c.1) > *had).map(|(c, _)| c.0).collect();").unwrap();
                 self.selections.insert(result.0, format!("applied_{id}"));
@@ -1835,6 +1860,31 @@ impl Compiler {
                 optional: true,
             } if matches!(cost.parts.as_slice(), [CostPart::ManaAnyNumberOfTimes(_)]) => {
                 self.pay_any_number_of_times(id, player, cost, result, out)?
+            }
+            // "You may exile all cards from your hand face down": a cost only in that
+            // "if you do" reads it, and "all other cards" leaves out what it took.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(cost.parts.as_slice(), [CostPart::Move {
+                selections,
+                destination: Destination::Exile,
+                entry,
+                face_down: true,
+            }] if entry.states.is_empty() && entry.counters.is_empty() && !entry.tapped
+                && matches!(selections.as_slice(), [CostObjectSelection { choose: None, .. }])) =>
+            {
+                let [CostPart::Move { selections, .. }] = cost.parts.as_slice() else {
+                    return Err(gap("cost part Move"));
+                };
+                let payer = self.fetch(self.certain_player(player)?);
+                let cards = self.fetch(self.objects(&selections[0].objects)?);
+                let by = self.fetch(self.linked().to_string());
+                writeln!(out, "let payer_{id} = {payer}; let cards_{id}: Vec<ObjectId> = {cards}; let paid_{id} = cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?; let moved_{id}: Vec<ObjectId> = if paid_{id} {{ let by = {by}; g.exile_face_down(&cards_{id}, Some(by)) }} else {{ Vec::new() }};").unwrap();
+                self.moved.insert(result.0, format!("moved_{id}"));
+                self.before.insert(result.0, format!("moved_{id}.clone()"));
+                self.performed.insert(result.0, format!("paid_{id}"));
             }
             // "You may pay {X}": the payer says what X is as they pay (107.3f), and
             // paying it, whatever X, is doing it.
@@ -2613,6 +2663,19 @@ impl Compiler {
             {
                 let index = self.arrival_counters(filter, &then.counters)?;
                 format!("g.add_effect(item.object, o, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, Duration::EndOfTurn); moved.extend(g.put_all_onto_battlefield_as(&[(o, controller, false)])?.into_iter().filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)));")
+            }
+            // "If that card is an enchantment card, it enters tapped and attacking."
+            [EntryState::When { filter, entry: then }]
+                if counters.is_empty()
+                    && !entry.tapped
+                    && then.counters.is_empty()
+                    && matches!(then.states.as_slice(), [EntryState::Attacking { .. }]) =>
+            {
+                let test = self.filter(filter, &Candidate::of("o"))?;
+                let then = self.arrival(then)?;
+                let plain = EntrySpec { tapped: false, counters: Vec::new(), states: Vec::new() };
+                let otherwise = self.arrival(&plain)?;
+                format!("if {{ let q: &dyn Query = g; {test} }} {{ {then} }} else {{ {otherwise} }}")
             }
             _ => return self.arrival_in_state(entry, &counters),
         })

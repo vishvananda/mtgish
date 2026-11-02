@@ -1457,7 +1457,7 @@ impl Compiler {
             .map(|reference| format!("EffectKind::AddAbility({reference})"))
             .collect())
     }
-    fn aura_enchant(&mut self, hosts: &EnchantHosts) -> Result<Vec<String>> {
+    pub(super) fn aura_enchant(&mut self, hosts: &EnchantHosts) -> Result<Vec<String>> {
         let EnchantHosts::Permanents(filter) = hosts else {
             return Err(gap("granted Enchant"));
         };

@@ -5,6 +5,32 @@ use super::*;
 
 const M: &str = "cantrip_mechanics";
 
+/// The player and what they sacrifice one of each, of "sacrifices an artifact and a
+/// land of their choice".
+pub(super) fn sacrifice_slots(operations: &[Operation]) -> Option<(&PlayerRef, Vec<ObjectSet>)> {
+    let mut player: Option<&PlayerRef> = None;
+    let mut slots = Vec::new();
+    for operation in operations {
+        let Operation::Sacrifice {
+            players: PlayerSet::One(one),
+            objects,
+            choose: Some(Count::Exactly(Expr::Constant(1))),
+        } = operation
+        else {
+            return None;
+        };
+        if player.is_some_and(|player| format!("{player:?}") != format!("{one:?}")) {
+            return None;
+        }
+        player = Some(one);
+        slots.push(objects.clone());
+    }
+    Some((player?, slots))
+}
+/// How many of `slots` can each have a permanent of its own, none of `taken`: what
+/// "as many as they can" is, and so which choice of one still allows it (Release's
+/// ruling: an artifact creature must go as the artifact if a creature can go too).
+pub(super) const MOST_ASSIGNED: &str = "fn most_assigned(slots: &[Vec<ObjectId>], taken: &mut Vec<ObjectId>) -> usize {\n    let Some((first, rest)) = slots.split_first() else { return 0 };\n    let mut best = most_assigned(rest, taken);\n    for &object in first {\n        if !taken.contains(&object) {\n            taken.push(object);\n            best = best.max(1 + most_assigned(rest, taken));\n            taken.pop();\n        }\n    }\n    best\n}\n";
 /// The N of a price of only `{N}`.
 fn generic_mana(mana: &[Operand]) -> Option<i64> {
     match mana {
@@ -219,6 +245,45 @@ fn total_rule(functions: &mut String, name: &str, read: &str, words: &str, most:
         writeln!(functions, "fn {name}_of(q: &dyn Query, id: ObjectId) -> u64 {{ i64::from({read}).max(0) as u64 }}\nfn {name}(q: &dyn Query, choice: &Choice, most: u32) -> Verdict {{ let total: u64 = choice.selected.iter().map(|&c| {name}_of(q, c)).sum(); Verdict {{ complete: total <= u64::from(most), addable: Bits::of(choice.candidates.len(), |i| total + {name}_of(q, choice.candidates[i]) <= u64::from(most)) }} }}\nfn largest_{name}(q: &dyn Query, choice: &Choice, most: u32) -> Vec<ObjectId> {{ cantrip_api::select::largest_within(choice, |c| {name}_of(q, c), u64::from(most)) }}").unwrap();
     }
     format!("cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), {most}, {words:?})")
+}
+
+/// A cost asked again and again as a spell resolves.
+fn pays_by_the_time(cost: &Cost) -> bool {
+    matches!(
+        cost.parts.as_slice(),
+        [CostPart::Mana(_) | CostPart::Life(_) | CostPart::Discard { .. } | CostPart::Sacrifice { .. }]
+    )
+}
+
+/// What `in_state` would have to do that Cantrip has no call for.
+fn arrival_hole(states: &[EntryState]) -> &'static str {
+    match states {
+        [EntryState::Transformed, EntryState::AttachedTo(_) | EntryState::AttachedToPlayer(_)] => {
+            "returns transformed and attached"
+        }
+        [EntryState::Blocking(_)] => "put onto the battlefield blocking",
+        [EntryState::Flipped] => "returns flipped",
+        [EntryState::May(_)] => "may enter face down",
+        [EntryState::FaceDownAs(_)] => "put onto the battlefield face down as a stated creature",
+        [EntryState::FaceDownWith { .. }] => "put onto the battlefield face down with abilities",
+        [EntryState::FaceDownLand(_)] => "put onto the battlefield face down as a land",
+        [EntryState::Perpetual(_)] => "a perpetual change as it enters",
+        _ => "move arrival state",
+    }
+}
+
+/// A rule of at most `most` total power or mana value, `most` being code.
+pub(super) fn total_at_most_part(functions: &mut String, form: &str, most: &str) -> String {
+    if form == "TotalPowerIs" {
+        return total_rule(
+            functions,
+            "total_power",
+            "q.chars(id).power.unwrap_or(0)",
+            "with total power {n} or less",
+            most,
+        );
+    }
+    format!("{M}::select::total_mana_value_at_most({most})")
 }
 
 /// The instructions of one option of a choice between actions: a program, the
@@ -1215,17 +1280,39 @@ impl Compiler {
                 effects: _,
                 card: None,
             } => {
+                let feature = match targets {
+                    NewTargets::Each(_) | NewTargets::EachLegal => {
+                        "a copy of a spell for each object it could target".to_string()
+                    }
+                    NewTargets::Random(_) => "new targets chosen at random".to_string(),
+                    _ => feature,
+                };
                 let copier = self.one_actor(actor, &feature)?;
                 let object = self.fetch(self.object(object)?);
                 let times = self.fetch(self.number(times)?.amount(u32::MAX.into(), "u32")?);
                 let targets = self.new_targets(targets)?;
                 self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::on_stack(g, {copier}, spell, {times}, {targets})?; }}"), out);
             }
+            // The change of control comes first, so that "you" in the spell is its
+            // new controller as the targets are chosen again.
+            Operation::TakeSpell {
+                actor,
+                object,
+                targets: NewTargets::May,
+            } => {
+                let player = self.one_actor(actor, &feature)?;
+                let object = self.fetch(self.object(object)?);
+                writeln!(out, "let player_{id} = {player}; if let Some(spell) = {object} {{ g.change_controller(spell, player_{id}); g.choose_new_targets(spell, player_{id})?; }}").unwrap();
+            }
             Operation::TakeSpell {
                 actor,
                 object,
                 targets,
             } => {
+                let feature = match targets {
+                    NewTargets::Random(_) => "new targets chosen at random".to_string(),
+                    _ => feature,
+                };
                 let player = self.one_actor(actor, &feature)?;
                 let object = self.fetch(self.object(object)?);
                 let targets = self.new_targets(targets)?;
@@ -1236,10 +1323,48 @@ impl Compiler {
                 object,
                 targets,
             } => {
+                let feature = match targets {
+                    NewTargets::ToPlayers(_) => "a spell's target changed to a player".to_string(),
+                    NewTargets::Random(_) => "new targets chosen at random".to_string(),
+                    NewTargets::To(_) => {
+                        "a spell's target changed to a permanent of no stated kind".to_string()
+                    }
+                    _ => feature,
+                };
                 let player = self.one_actor(actor, &feature)?;
                 let object = self.fetch(self.object(object)?);
                 let targets = self.new_targets(targets)?;
                 self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::retarget(g, {player}, spell, {targets})?; }}"), out);
+            }
+            // The second of "copy each of those spells twice": the first put them all
+            // on the stack.
+            Operation::CopyEach { .. } if self.notes.copied_twice => {
+                self.notes.copied_twice = false;
+            }
+            // "In any order" (Display of Power's ruling): the copier says which next,
+            // and each copy goes on the stack as it is made. Twice over is one pool,
+            // since the two copies of a spell need not be stacked apart.
+            Operation::CopyEach {
+                actor,
+                objects,
+                targets: targets @ (NewTargets::May | NewTargets::Same),
+            } => {
+                let player = self.one_actor(actor, &feature)?;
+                let test = self.filter(objects, &Candidate::of("id"))?;
+                let spells = self.fetch(format!("q.state().stack.iter().filter(|i| i.kind == StackKind::Spell).map(|i| i.object).filter(|&id| {test}).collect::<Vec<ObjectId>>()"));
+                let new_targets = matches!(targets, NewTargets::May);
+                let twice = matches!(
+                    self.after.first(),
+                    Some(Instruction::Effect { operation, .. })
+                        if format!("{operation:?}") == format!("{op:?}")
+                );
+                self.notes.copied_twice = twice;
+                let doubled = if twice {
+                    format!("open_{id}.extend(open_{id}.clone()); ")
+                } else {
+                    String::new()
+                };
+                writeln!(out, "let player_{id} = {player}; let mut open_{id}: Vec<ObjectId> = {spells}; {doubled}while let Some(&first) = open_{id}.first() {{ let spell = if open_{id}.iter().all(|&o| o == first) {{ Some(first) }} else {{ let mut distinct = open_{id}.clone(); distinct.sort(); distinct.dedup(); {M}::choose::card(g, player_{id}, asker.source, Purpose::CopyWhich, distinct)? }}; let Some(spell) = spell else {{ break; }}; if let Some(at) = open_{id}.iter().position(|&o| o == spell) {{ open_{id}.remove(at); }} g.copy_spell(spell, player_{id}, {new_targets})?; }}").unwrap();
             }
             Operation::CopyEach {
                 actor,
@@ -1527,6 +1652,68 @@ impl Compiler {
                 for operation in operations {
                     self.operation(operation, result, out)?;
                 }
+            }
+            // "Sacrifices an artifact and a land of their choice": a permanent for
+            // each, all together.
+            Operation::Together(operations) if sacrifice_slots(operations).is_some() => {
+                let (player, slots) = sacrifice_slots(operations).expect("just seen");
+                let player = self.fetch(self.certain_player(player)?);
+                self.sacrifice_slots(id, &player, &slots, out)?;
+                writeln!(out, "let sacrificed_{id} = g.sacrifice(player_{id}, &chosen_{id});").unwrap();
+                self.moved.insert(result.0, format!("sacrificed_{id}"));
+                self.left_behind(result, effects::gone(&format!("chosen_{id}")));
+            }
+            // "Simultaneously untap all tapped creatures and tap all untapped
+            // creatures": who is which is read first, and it is one instruction.
+            Operation::Together(operations)
+                if operations
+                    .iter()
+                    .all(|operation| matches!(operation, Operation::Tap { .. })) =>
+            {
+                let (mut tapping, mut untapping) = (Vec::new(), Vec::new());
+                for (at, operation) in operations.iter().enumerate() {
+                    let Operation::Tap { objects, tapped } = operation else {
+                        return Err(gap(feature));
+                    };
+                    writeln!(out, "let turned_{id}_{at}: Vec<ObjectId> = ({}).into_iter().filter(|&o| g.state().obj(o).tapped != {tapped}).collect();", self.acted_on(objects)?).unwrap();
+                    let group = if *tapped { &mut tapping } else { &mut untapping };
+                    group.push(format!("turned_{id}_{at}"));
+                }
+                let mut turn = String::new();
+                for list in tapping {
+                    write!(turn, "g.tap_together(&{list}); ").unwrap();
+                }
+                for list in untapping {
+                    write!(turn, "for &object in &{list} {{ g.untap(object); }} ").unwrap();
+                }
+                writeln!(out, "cantrip_api::instruction(g, |g| {{ {turn}}});").unwrap();
+            }
+            // "That player simultaneously sacrifices the artifact and returns the
+            // artifact card", with both targets still legal.
+            Operation::Together(operations) if self.welds(operations) => {
+                let [Operation::Sacrifice {
+                    players: PlayerSet::One(player),
+                    objects: ObjectSet::One(ObjectRef::Target { slot: gone, index: gone_at }),
+                    ..
+                }, Operation::ChangeZone {
+                    cards: ObjectSet::One(ObjectRef::Target { slot: back, index: back_at }),
+                    ..
+                }] = operations.as_slice()
+                else {
+                    return Err(gap(feature));
+                };
+                let (gone, back) = (self.slot(gone)?, self.slot(back)?);
+                let player = self.fetch(self.certain_player(player)?);
+                writeln!(out, "let player_{id} = {player}; let gone_{id} = t_{gone}_raw.get({gone_at}).copied().filter(|t| t_{gone}.contains(t)).and_then(|t: Target| t.object()); let back_{id} = t_{back}_raw.get({back_at}).copied().filter(|t| t_{back}.contains(t)).and_then(|t: Target| t.object()); if let (Some(gone), Some(back)) = (gone_{id}, back_{id}) {{ g.sacrifice_and_return(player_{id}, &[gone], &[(back, player_{id})])?; }}").unwrap();
+            }
+            // Two calls are two batches of what dies, and no call takes both.
+            Operation::Together(operations)
+                if matches!(
+                    operations.as_slice(),
+                    [Operation::Destroy { regeneration: false, .. }, Operation::Destroy { regeneration: true, .. }]
+                ) =>
+            {
+                return Err(gap("destroyed together, some that can't be regenerated"));
             }
             Operation::Together(operations) => {
                 self.plan_code(&feature, "g.begin_simultaneous()", out);
@@ -1869,6 +2056,28 @@ impl Compiler {
                 let (mana, unpaid, paid) =
                     (parts(self, mana), parts(self, unpaid), parts(self, paid));
                 self.plan_code(&feature, &format!("{M}::players::any_may_pay(g, asker, {players}, &[{mana}], &[{unpaid}], &[{paid}])?"), out);
+            }
+            // "You may pay {1} up to three times", "for each, lose 1 life unless you
+            // pay {1}{W}": one payment, its number the payer's. A cost that isn't mana
+            // goes one at a time, until they stop: which times they stopped at is
+            // nothing the rest can tell.
+            Operation::PayRepeatedly {
+                player,
+                cost,
+                at_most,
+            } if pays_by_the_time(cost) => {
+                let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
+                if let [CostPart::Mana(symbols)] = cost.parts.as_slice() {
+                    self.helpers.insert("pay_question");
+                    let payer = self.fetch(self.certain_player(player)?);
+                    let mana = mana(symbols)?;
+                    writeln!(out, "let payer_{id} = {payer}; let most_{id}: u16 = {most}; let bound_{id}: i64 = if most_{id} == 0 {{ 0 }} else {{ i64::from(g.may_pay_times(payer_{id}, asker.source, asker.source, {mana}, most_{id}, &PAY_QUESTION)?) }}; let done_{id}: i64 = bound_{id};").unwrap();
+                } else {
+                    let ask = self.ask_to_pay(id, player, cost)?;
+                    writeln!(out, "let most_{id}: u16 = {most}; let mut bound_{id}: i64 = 0; for _ in 0..most_{id} {{ {ask} if paid_{id} {{ bound_{id} += 1; }} else {{ break; }} }} let done_{id}: i64 = bound_{id};").unwrap();
+                }
+                self.performed.insert(result.0, format!("done_{id}"));
+                self.values.insert(result.0, format!("bound_{id}"));
             }
             Operation::PayRepeatedly {
                 player,
@@ -2577,6 +2786,43 @@ impl Compiler {
         self.selections.insert(result.0, format!("picked_{id}"));
         Ok(())
     }
+    /// Whether these are "sacrifices that target and returns that target card".
+    fn welds(&self, operations: &[Operation]) -> bool {
+        matches!(
+            operations,
+            [Operation::Sacrifice {
+                players: PlayerSet::One(_),
+                objects: ObjectSet::One(ObjectRef::Target { .. }),
+                choose: None,
+            }, Operation::ChangeZone {
+                cards: ObjectSet::One(ObjectRef::Target { .. }),
+                count: None,
+                random: false,
+                group: None,
+                destination: Destination::OwnersBattlefield,
+                face_down: None,
+                ..
+            }]
+        )
+    }
+    /// `chosen_{id}`: a permanent `player_{id}` controls for each of `slots`, the
+    /// chooser's own but always as many as there can be.
+    pub(super) fn sacrifice_slots(
+        &mut self,
+        id: usize,
+        player: &str,
+        slots: &[ObjectSet],
+        out: &mut String,
+    ) -> Result<()> {
+        self.helpers.insert("most_assigned");
+        writeln!(out, "let player_{id}: PlayerId = {player}; let mut slots_{id}: Vec<Vec<ObjectId>> = Vec::new();").unwrap();
+        for slot in slots {
+            let list = self.fetch(self.objects(slot)?);
+            writeln!(out, "let slot: Vec<ObjectId> = {list}; slots_{id}.push(slot.into_iter().filter(|&o| g.controller(o) == player_{id} && g.can_sacrifice(player_{id}, o)).collect());").unwrap();
+        }
+        writeln!(out, "let mut chosen_{id}: Vec<ObjectId> = Vec::new(); for at in 0..slots_{id}.len() {{ let goal = most_assigned(&slots_{id}[at..], &mut chosen_{id}.clone()); let keeps: Vec<ObjectId> = slots_{id}[at].iter().copied().filter(|o| !chosen_{id}.contains(o)).filter(|&o| {{ let mut taken = chosen_{id}.clone(); taken.push(o); 1 + most_assigned(&slots_{id}[at + 1..], &mut taken) == goal }}).collect(); let picked = match keeps.as_slice() {{ [] => None, [one] => Some(*one), _ => {M}::choose::card(g, player_{id}, asker.source, Purpose::Sacrifice, keeps.clone())? }}; if let Some(o) = picked {{ chosen_{id}.push(o); }} }}").unwrap();
+        Ok(())
+    }
     /// Whether the next instruction exiles what `result` reveals, and nothing else.
     fn exiled_as_it_goes(&self, result: &ResultId) -> bool {
         matches!(
@@ -2884,9 +3130,10 @@ impl Compiler {
                 format!("if let Some(host) = {host} {{ moved.extend(g.put_onto_battlefield_attached(o, controller, host)?); }}")
             }
             states => {
+                let feature = arrival_hole(states);
                 let states = quoted(&format!("{states:?}"));
                 let call = planned::planned_value(
-                    "move arrival state",
+                    feature,
                     "None::<ObjectId>",
                     &format!("{M}::enter::in_state(g, o, controller, item, {states}, &[{counters}], {tapped})?"),
                 );

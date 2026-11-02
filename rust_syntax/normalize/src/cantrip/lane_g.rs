@@ -741,6 +741,12 @@ impl Compiler {
         let Some((object, price)) = exile_beside_a_price(cost) else {
             return Err(gap("cost part Move"));
         };
+        // The link is to the exiling ability's object, not to the token that was
+        // given the ability that reads it.
+        let later = format!("{:?}", self.after);
+        if later.contains("GrantAbility") && later.contains("Earlier { what: Exiled") {
+            return Err(gap("an exiled card read by an ability given to a token"));
+        }
         let evidence = price
             .parts
             .iter()
