@@ -463,10 +463,11 @@ impl Compiler {
             }
             K::Saddle => self.object_action(action, "g.become_saddled(object)", out)?,
             K::RemoveAllDamage => self.object_action(action, "g.heal(object)", out)?,
-            K::Harness => self.plan_for_object(
-                "engine: no Harness",
+            // A designation that stays with the permanent; harnessing one that
+            // already is does nothing (CR 701.64a), as `harness::ability` does.
+            K::Harness => self.object_action(
                 action,
-                &format!("{M}::harness::harness(g, object)"),
+                "if g.is_on_battlefield(object) && !g.state().effects.iter().any(|e| e.affected == object && e.kind == EffectKind::Harnessed) { g.add_effect(object, object, EffectKind::Harnessed, Duration::Indefinite); }",
                 out,
             )?,
             K::Assimilate => self.plan_for_object(

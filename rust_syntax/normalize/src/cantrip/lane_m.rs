@@ -903,7 +903,9 @@ impl Compiler {
         changes: &[Change],
         parts: &mut Parts,
     ) -> Result<bool> {
-        if !gives_flashback(changes) {
+        // "Flashback {1}": a price of its own (CR 118.9; Iroh, Grand Lotus).
+        let price = flashback_price(changes);
+        if !gives_flashback(changes) && price.is_none() {
             return Ok(false);
         }
         let EffectSubjects::Objects(ObjectSet::Zone {
@@ -922,10 +924,17 @@ impl Compiler {
         let tests = self.permission_tests(players, &ObjectFilter::Any, filter, "card");
         self.reader = reader;
         let printed = "q.card(q.chars(card).card)";
-        let body = format!(
-            "({} && {printed}.has_cost).then(|| Cost::mana({printed}.cost))",
-            tests?.join(" && ")
-        );
+        let body = match price {
+            Some(symbols) => format!(
+                "({}).then(|| Cost::mana({}))",
+                tests?.join(" && "),
+                mana(symbols)?
+            ),
+            None => format!(
+                "({} && {printed}.has_cost).then(|| Cost::mana({printed}.cost))",
+                tests?.join(" && ")
+            ),
+        };
         self.permission_entry(
             None,
             "granted_ways",
