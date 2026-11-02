@@ -1054,6 +1054,16 @@ impl Compiler {
             let feature = "engine: no event for a counter being removed";
             self.plan_event(&mut matched, feature, false)?;
         }
+        // "Whenever one or more counters are put on permanents you control, put that
+        // many": one happening for the player, of its total (CR 603.2c).
+        if self.counters_total && *per == BatchPer::Whole && !removed {
+            for arm in &mut matched.arms {
+                arm.locals = "let id = *object; let subject = Target::Player(asker.controller); let data = [*amount as u32, u32::MAX];".into();
+            }
+            matched.frame.object = None;
+            matched.sums = true;
+            return Ok(matched);
+        }
         matched.batch = Some(match per {
             BatchPer::Whole => false,
             BatchPer::Subject => true,
@@ -1792,7 +1802,13 @@ impl Compiler {
             && !read.contains("EventDestination");
         let summed = summed_at_recipient(event, body);
         let event = summed.as_ref().unwrap_or(event);
+        let says = format!("{read} {body:?}");
+        self.counters_total = says.contains("EventAmount")
+            && !["EventGroup", "EventSubject", "EventSource"]
+                .iter()
+                .any(|word| says.contains(word));
         let matched = self.event(event);
+        self.counters_total = false;
         self.recipient_subject = false;
         let controller_subject = std::mem::take(&mut self.controller_subject);
         if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {

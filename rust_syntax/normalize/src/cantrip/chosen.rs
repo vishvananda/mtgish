@@ -377,6 +377,9 @@ impl Compiler {
             other => return Err(gap(format!("object filter Chosen {other:?}"))),
         };
         if let Some((_, list)) = list {
+            if let Some(player) = self.own_choice.borrow().as_ref() {
+                return Ok(format!("{list}.iter().zip(&{list}_who).any(|(&chosen, &who)| Some(who) == {player} && {test})"));
+            }
             return Ok(format!("{list}.iter().any(|&chosen| {test})"));
         }
         if kind == ValueKind::Color && self.enters_two == Some(kind) {

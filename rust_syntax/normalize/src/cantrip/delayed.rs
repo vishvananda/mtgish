@@ -25,7 +25,7 @@ pub(super) struct Outer {
     /// `Source` says is carried.
     source_moved: bool,
     /// A reflexive ability, which is told one number as well as its subject.
-    reflexive: bool,
+    pub(super) reflexive: bool,
     /// `i64` code of the number it is told, worked out as it triggers.
     count: RefCell<Option<String>>,
 }
@@ -53,7 +53,7 @@ pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: 
 
 impl Compiler {
     /// Whether this body's stack item can read carried values.
-    fn carrying(&self) -> Option<&Outer> {
+    pub(super) fn carrying(&self) -> Option<&Outer> {
         let readable = self.reader == Reader::Resolution && self.stack_item;
         self.outer.as_deref().filter(|outer| {
             readable
@@ -231,6 +231,20 @@ impl Compiler {
         }
         *carried = Some(code);
         Ok(Some("i64::from(item.x)".into()))
+    }
+    /// The number of the event around a reflexive ability, told to it.
+    pub(super) fn told_event_amount(&self, n: &Expr) -> Result<String> {
+        let outer = self
+            .carrying()
+            .ok_or_else(|| gap("amount of an event its trigger does not carry"))?;
+        let inner = &outer.compiler;
+        let code = format!("({} as i64)", inner.fetch(inner.number(n)?.code));
+        let mut carried = outer.count.borrow_mut();
+        if carried.as_ref().is_some_and(|c| *c != code) {
+            return Err(gap("reflexive ability told two numbers"));
+        }
+        *carried = Some(code);
+        Ok("i64::from(item.x)".into())
     }
     /// An `Option<ObjectId>` this body cannot read for itself, if `object` is.
     pub(super) fn outside_object(&self, object: &ObjectRef) -> Result<Option<String>> {

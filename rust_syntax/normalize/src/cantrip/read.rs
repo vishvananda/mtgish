@@ -1143,6 +1143,15 @@ impl Compiler {
             {
                 count("q.event_objects(item).len() as i64".into())
             }
+            // "When you do, ... the amount of life you gained": the event was the
+            // ability around this one's, which tells this one the number.
+            Expr::EventAmount
+                if self.frame.amount.is_none()
+                    && self.event_at != EventAt::TargetFilter
+                    && self.carrying().is_some_and(|outer| outer.reflexive) =>
+            {
+                count(self.told_event_amount(n)?)
+            }
             // "That many" of an event the engine reports without the number, or of
             // several events the ability is one answer to.
             Expr::EventAmount if self.frame.amount.is_none() && self.event_at == EventAt::Item => {
@@ -1270,6 +1279,15 @@ impl Compiler {
             {
                 let result = lane_p::paid_by_moving(objects).expect("just seen");
                 count(format!("({}.len() as i64)", self.moved[&result.0]))
+            }
+            // "For each card less than two a player draws this way": what that
+            // player's run counted, drawing being no list of cards.
+            Expr::CountObjects(objects) if self.each_done(objects).is_some() => {
+                let (players, each, player) = self.each_done(objects).expect("just asked");
+                let who = self.player(player)?;
+                count(format!(
+                    "{players}.iter().position(|&p| Some(p) == {who}).map_or(0i64, |at| {each}[at])"
+                ))
             }
             Expr::CountObjects(objects) if lane_k::convoked(objects).is_some() => count(format!(
                 "{}.map_or(0, |o: ObjectId| q.history().convoked(o).count() as i64)",

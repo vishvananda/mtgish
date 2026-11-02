@@ -793,6 +793,10 @@ impl Compiler {
                 };
                 writeln!(declared, "let mut each_{k}: Vec<Vec<ObjectId>> = vec![Vec::new(); players_{id}.len()]; let mut all_{k}: Vec<ObjectId> = Vec::new();").unwrap();
                 writeln!(tail, "each_{k}[index_{id}] = {read}; all_{k}.extend(each_{k}[index_{id}].iter().copied());").unwrap();
+                if matches!(kind, ViewKind::Selected | ViewKind::Moved | ViewKind::Created) {
+                    let lists = (format!("players_{id}"), format!("each_{k}"));
+                    self.notes.each.entry(result).or_insert(lists);
+                }
             } else {
                 writeln!(
                     declared,
@@ -800,6 +804,10 @@ impl Compiler {
                 )
                 .unwrap();
                 writeln!(tail, "each_{k}[index_{id}] = {local};").unwrap();
+                if matches!(kind, ViewKind::Performed) {
+                    let lists = (format!("players_{id}"), format!("each_{k}"));
+                    self.notes.each_done.insert(result, lists);
+                }
             }
             // How much of something: all of them together is its sum. A reader
             // one player at a time may mean their own or the total; the AST
@@ -890,6 +898,15 @@ impl Compiler {
             declared.push_str(&declare);
             tail.push_str(&push);
             self.unread.push((list.clone(), vec![declare, push]));
+            // Whose each one is, where a later turn reads a player's own.
+            let who = format!("{list}_who");
+            let (declare, push) = (
+                format!("let mut {who}: Vec<PlayerId> = Vec::new();\n"),
+                format!("{who}.push(bound_{});\n", each.binding.0),
+            );
+            declared.push_str(&declare);
+            tail.push_str(&push);
+            self.unread.push((who, vec![declare, push]));
             self.chosen_lists.push((kind, list));
         }
         self.chosen = before.chosen;
@@ -1772,7 +1789,9 @@ impl Compiler {
                     &[Change::GrantKeyword(k.clone())],
                     parts,
                 ),
-                Ability::Triggered { .. } | Ability::Replacement { .. } => {
+                Ability::Triggered { .. }
+                | Ability::Replacement { .. }
+                | Ability::TriggerRule { .. } => {
                     self.ability_guard = Some(condition.clone());
                     self.static_guard = None;
                     let step = self.ability(inner, &label, parts, scope);

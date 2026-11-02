@@ -586,6 +586,8 @@ struct Compiler {
     unread: Vec<(String, Vec<String>)>,
     /// Locals that hold a value each player chose, by kind.
     chosen_lists: Vec<(ValueKind, String)>,
+    /// The bound player whose own choice in a walk a filter reads.
+    own_choice: std::cell::RefCell<Option<String>>,
     /// The local of the spells the last cast of cards made.
     played: Option<String>,
     /// Choices and searches that yield one object at most.
@@ -706,6 +708,8 @@ struct Compiler {
     subject_chooses: bool,
     /// Its slots leave that to the subject, and that is who the event binds.
     controller_subject: bool,
+    /// A batch of counters is read only as how many they were.
+    counters_total: bool,
     /// `CardDef::lasting_cost_changes`.
     made_cost_changes: Vec<String>,
     /// `CardDef::labels` of abilities to choose among as a body resolves.
@@ -997,6 +1001,7 @@ impl Compiler {
             hoisted: None,
             unread: Vec::new(),
             chosen_lists: Vec::new(),
+            own_choice: std::cell::RefCell::new(None),
             played: None,
             single: BTreeSet::new(),
             known_one: BTreeSet::new(),
@@ -1057,6 +1062,7 @@ impl Compiler {
             every_slot_chosen: false,
             subject_chooses: false,
             controller_subject: false,
+            counters_total: false,
             made_cost_changes: Vec::new(),
             choice_labels: Vec::new(),
             option_labels: false,

@@ -242,6 +242,12 @@ pub(super) struct Notes {
     /// For a step of a `ForEachPlayer`: the list of its players, and the test
     /// over `at`, an index into it, of whether that player's run did the step.
     pub took: BTreeMap<u32, (String, String)>,
+    /// A step of a walk: its players, and the list of what each of them did.
+    pub each: BTreeMap<u32, (String, String)>,
+    /// A step of a walk that counted: its players, and each one's number.
+    pub each_done: BTreeMap<u32, (String, String)>,
+    /// A step on what an earlier choice chose: that choice.
+    pub acted_of: BTreeMap<u32, u32>,
     /// What a choice offered, and if it was one player's, whom it was bound to
     /// and the list of players it went round.
     pub offered: BTreeMap<u32, (ObjectSet, Option<(u32, String)>)>,
@@ -319,6 +325,18 @@ impl Compiler {
         };
         for &what in acted_on(operation) {
             self.notes.earlier.push((what, result.clone()));
+        }
+        let chosen = match operation {
+            Operation::Move { objects, .. }
+            | Operation::Reveal { objects }
+            | Operation::Tap { objects, .. } => match objects {
+                ObjectSet::Selected(chosen) => Some(chosen.0),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(chosen) = chosen {
+            self.notes.acted_of.insert(result.0, chosen);
         }
         if format!("{operation:?}").contains("RollDie") {
             self.notes.earlier.push(("Rolled", result.clone()));
@@ -417,6 +435,51 @@ impl Compiler {
             return self.transition(result, &ObjectPhase::Before);
         }
         self.named(result)
+    }
+    /// A walk's count of what each player moved: its players, the counts, and whom.
+    pub(super) fn each_done<'a>(
+        &'a self,
+        objects: &'a ObjectSet,
+    ) -> Option<(&'a String, &'a String, &'a PlayerRef)> {
+        let ObjectSet::MovedBy {
+            result,
+            phase: ObjectPhase::After,
+            player,
+        } = objects
+        else {
+            return None;
+        };
+        let (players, each) = self.notes.each_done.get(&result.0)?;
+        Some((players, each, player))
+    }
+    /// What one player of an earlier walk acted on, as chosen, so what has left
+    /// reads as it last was (CR 608.2h). Cards revealed outside a walk came from a
+    /// hand or a library, which hold only their owner's cards (CR 400.3).
+    pub(super) fn earlier_by(&self, what: &EarlierObjects, binding: u32) -> Option<String> {
+        if self.reader != Reader::Resolution {
+            return None;
+        }
+        let word = form(what);
+        let (_, result) = self.notes.earlier.iter().rev().find(|(w, _)| *w == word)?;
+        let chosen = self.notes.acted_of.get(&result.0).unwrap_or(&result.0);
+        let walked = self.notes.each.get(chosen).or(self.notes.each.get(&result.0));
+        // "Choose a different opponent": each pick shuts out the rest, which a walk
+        // of independent picks doesn't.
+        if lane_k::printed_otherwise(self.line_text(), "a different") {
+            return None;
+        }
+        let Some((players, each)) = walked else {
+            return matches!(what, EarlierObjects::Revealed).then(|| {
+                let list = self.earlier_objects(what).ok()?;
+                Some(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{binding}).collect::<Vec<ObjectId>>()"))
+            })?;
+        };
+        let list = format!("{players}.iter().position(|&p| p == bound_{binding}).map_or_else(Vec::new, |at| {each}[at].clone())");
+        Some(match what {
+            // A commander that went elsewhere instead wasn't exiled (CR 903.9b).
+            EarlierObjects::Exiled => format!("({list}).into_iter().filter(|&o| q.state().obj(o).became.is_some_and(|now| q.state().obj(now).zone.is(ZoneKind::Exile))).collect::<Vec<ObjectId>>()"),
+            _ => list,
+        })
     }
     /// What paid a cost of the ability or spell being resolved, or, read outside
     /// a resolution, what the ability that exiled it linked to it (CR 607.2a).

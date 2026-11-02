@@ -1706,6 +1706,12 @@ impl Compiler {
             ObjectRef::Granter if self.reader == Reader::Resolution && self.stack_item => {
                 "granter(q, item)".to_string()
             }
+            // A token's ability naming the permanent that made it: the ability that
+            // created it, while that permanent is still that object. A copy of the
+            // token was made by something else (CR 400.7).
+            ObjectRef::Granter if self.reader == Reader::Layer => {
+                "q.history().all().iter().find_map(|r| match (r.event, r.cause) { (Event::Entered { permanent, .. }, Cause::Ability { source, .. }) if permanent == asker.source => Some(source), _ => None }).filter(|&o| q.state().obj(o).became.is_none())".to_string()
+            }
             ObjectRef::Granter => return held("q.granted_by(asker.source)"),
             ObjectRef::PairedWith(_) => {
                 return held(&format!(
@@ -2021,6 +2027,26 @@ impl Compiler {
                 };
                 counted(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{}){keep}.count() as i64", binding.0))
             }
+            // "For each card they revealed this way": that player's own share of an
+            // earlier walk, and any choice in it theirs too.
+            Expr::Earlier {
+                what,
+                measure: ObjectMeasure::Count,
+                result: None,
+                filter,
+                by: Some(PlayerRef::Bound(binding)),
+            } if self.earlier_by(what, binding.0).is_some() => {
+                let list = self.earlier_by(what, binding.0).expect("just asked");
+                *self.own_choice.borrow_mut() = Some(format!("Some(bound_{})", binding.0));
+                let keep = match filter {
+                    Some(filter) => self
+                        .filter(filter, &Candidate::of("id"))
+                        .map(|test| format!(".filter(|&id| {test})")),
+                    None => Ok(String::new()),
+                };
+                *self.own_choice.borrow_mut() = None;
+                counted(format!("({list}).into_iter(){}.count() as i64", keep?))
+            }
             // What an instruction named did: the AST says which. One whose
             // `result` is empty leaves the instruction to be found, so stays a gap.
             Expr::Earlier {
@@ -2303,6 +2329,9 @@ impl Compiler {
             },
             // What's on the stack is known by the object it came from, which an
             // ability shares with others of the same source.
+            ObjectFilter::OnStack(StackTrait::XInCost) if c.announced.is_none() => {
+                format!("q.mana_cost({id}).x > 0")
+            }
             ObjectFilter::OnStack(other) => planned::planned_value(
                 "object filter OnStack",
                 "false",
@@ -4678,6 +4707,7 @@ impl Compiler {
                 "a rule on triggering, where the card says whose abilities",
             ));
         }
+        let guard = self.ability_guard.take();
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let abilities = self.triggering_ability(abilities);
@@ -4685,12 +4715,17 @@ impl Compiler {
             Some(cause) => self.trigger_cause(cause),
             None => Ok("true".to_string()),
         };
+        // "As long as ...": asked as the ability triggers.
+        let guard = match &guard {
+            Some(guard) => self.condition(guard),
+            None => Ok("true".to_string()),
+        };
         (self.reader, self.event_at) = saved;
-        let (abilities, cause) = (abilities?, cause?);
+        let (abilities, cause, guard) = (abilities?, cause?, guard?);
         let function = format!("{label}_trigger_rule");
         writeln!(
             self.functions,
-            "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, event: &Event, triggering: &Triggering) -> bool {{ {abilities} && {cause} }}"
+            "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, event: &Event, triggering: &Triggering) -> bool {{ {guard} && {abilities} && {cause} }}"
         )
         .unwrap();
         parts.table(table, function);

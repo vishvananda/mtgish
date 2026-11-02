@@ -657,6 +657,13 @@ impl Compiler {
                 };
                 held_object(&feature, &format!("q.nth_chosen(asker, {index}, {by})"))
             }
+            ObjectRef::Earlier {
+                what,
+                by: Some(PlayerRef::Bound(binding)),
+            } if self.earlier_by(what, binding.0).is_some() => {
+                let list = self.earlier_by(what, binding.0).expect("just asked");
+                format!("({list}).first().copied()")
+            }
             ObjectRef::Earlier { what, by: Some(by) } => held_object(
                 &feature,
                 &format!(
@@ -666,6 +673,8 @@ impl Compiler {
                 ),
             ),
             // What the effect around this one applies to, which no local holds here.
+            // The spell a cost change is asked about.
+            ObjectRef::Affected if self.costed_spell => "Some(spell)".to_string(),
             ObjectRef::Affected => held_object(&feature, "asker.affected()"),
             ObjectRef::Bound(binding) => held_object(&feature, &format!("bound_{}", binding.0)),
             other => return self.object_stated(other),
@@ -738,6 +747,13 @@ impl Compiler {
                     self.object(of)?
                 ),
             ),
+            // Its targets are announced before its cost is worked out (CR 601.2f).
+            // "For each creature it targets": a creature counts once.
+            ObjectSet::TargetsOf(of)
+                if self.costed_spell && matches!(of, ObjectRef::Affected) =>
+            {
+                "{ let mut objects: Vec<ObjectId> = Vec::new(); for o in targets.iter().filter_map(|t| t.object()) { if !objects.contains(&o) { objects.push(o); } } objects }".to_string()
+            }
             ObjectSet::TargetsOf(of) => held_objects(
                 &feature,
                 &format!(
@@ -1054,12 +1070,11 @@ impl Compiler {
                 "{{ let those: Vec<ObjectId> = {}; let count = |c: Color| those.iter().filter(|&&o| q.chars(o).colors.has(c)).count(); let best = Color::ALL.into_iter().map(count).max().unwrap_or(0); best > 0 && Color::ALL.into_iter().any(|c| count(c) == best && {chars}.colors.has(c)) }}",
                 self.objects(objects)?
             ),
-            ObjectFilter::BandedWith(object) => held(
-                &feature,
-                &format!(
-                    "{}.is_some_and(|other: ObjectId| q.banded_with({id}, other))",
-                    self.object(object)?
-                ),
+            // An attacking band, numbered, and 0 for none (CR 702.22c). A creature
+            // isn't banded with itself.
+            ObjectFilter::BandedWith(object) => format!(
+                "{}.is_some_and(|other: ObjectId| {{ let band = |o: ObjectId| q.state().attackers.iter().find(|a| a.id == o).map_or(0, |a| a.band); {id} != other && band({id}) != 0 && band({id}) == band(other) }})",
+                self.object(object)?
             ),
             ObjectFilter::CanTargetOnly(filter) => held(
                 &feature,
@@ -1072,6 +1087,17 @@ impl Compiler {
                 &feature,
                 &format!("q.cast_from_among({id}, &{})", self.objects(objects)?),
             ),
+            // Each one's own, chosen in an earlier walk. "From their graveyard" with
+            // every graveyard offered isn't what the card says.
+            ObjectFilter::ChosenBy { kind, player }
+                if self.chosen_lists.iter().any(|(k, _)| k == kind)
+                    && !lane_k::printed_otherwise(self.line_text(), "their graveyard") =>
+            {
+                *self.own_choice.borrow_mut() = Some(self.player(player)?);
+                let test = self.chosen_filter(*kind, chars, id);
+                *self.own_choice.borrow_mut() = None;
+                test?
+            }
             ObjectFilter::ChosenBy { kind, player } => held(
                 &feature,
                 &format!(
@@ -1281,6 +1307,17 @@ impl Compiler {
                     &self.number(value)?.code,
                 ),
             ),
+            // What left it as it left the battlefield: those records just before
+            // its own, among others of the same move (CR 701.3d, 704.5n). An Aura has
+            // gone to a graveyard by the time anything reads this.
+            ObjectFilter::WasAttachedTo(host)
+                if !lane_k::printed_otherwise(self.line_text(), "Aura") =>
+            {
+                format!(
+                    "{}.is_some_and(|host: ObjectId| {{ let records = q.history().all(); records.iter().rposition(|r| matches!(r.event, Event::ZoneChange {{ old, from, .. }} if old == host && from.is(ZoneKind::Battlefield))).is_some_and(|left| records[..left].iter().rev().take_while(|r| matches!(r.event, Event::Unattached {{ .. }} | Event::ZoneChange {{ .. }})).any(|r| matches!(r.event, Event::Unattached {{ attachment, from }} if attachment == {id} && from == host))) }})",
+                    self.object(host)?
+                )
+            }
             ObjectFilter::WasAttachedTo(host) => held(
                 &feature,
                 &format!("{}.is_some_and(|host: ObjectId| q.was_attached_to({id}, host))", self.object(host)?),
