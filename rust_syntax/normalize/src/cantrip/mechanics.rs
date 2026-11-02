@@ -349,6 +349,13 @@ impl Compiler {
                     .replacements
                     .push(format!("{M}::replacements::BUYBACK"));
             }
+            // "Squad—Exile four cards from your graveyard" (CR 702.157a): paid any
+            // number of times, all of it for each.
+            K::Squad if mana_alone(cost, mechanic).is_err() => {
+                let code = self.mechanic_cost(cost, mechanic, label)?;
+                parts.field("kicker", format!("multikicker_cost({code})"));
+                constant(parts, "triggers::SQUAD");
+            }
             // "Kicker—Pay 3 life" (CR 702.33a): announced as an optional cost is,
             // and paying it kicks the spell once.
             K::Kicker
