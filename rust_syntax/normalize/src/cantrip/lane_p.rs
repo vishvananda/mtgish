@@ -3640,6 +3640,15 @@ impl Compiler {
                 self.fetch(self.object(object)?),
                 self.filter_now(filter)?
             ),
+            // Until the end of the untap step named (CR 502.3, 611.2a), with
+            // Cantrip's `lasting-rules`; a hole otherwise, as it always was.
+            D::DuringControllersNextUntapStep if planned::landed(&feature) => {
+                "Duration::DuringItsControllersNextUntapStep".to_string()
+            }
+            D::DuringNextUntapStep(player) if planned::landed(&feature) => format!(
+                "Duration::DuringNextUntapStepOf({})",
+                self.fetch(self.certain_player(player)?)
+            ),
             D::DuringControllersNextUntapSteps(steps) => format!(
                 "Duration::ControllersNextUntapSteps({})",
                 self.fetch(self.number(steps)?.code)

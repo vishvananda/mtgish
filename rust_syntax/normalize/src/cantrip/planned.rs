@@ -31,6 +31,59 @@ const LANDED: &[&str] = &[
     "numeric-expression-times-mutated",
 ];
 
+/// Cantrip features newer than the API this generator's snapshot pins
+/// (`cantrip_vocab.rs`), each with the requirements it lands: their code is
+/// written only when the Cantrip being written for has the feature, which the
+/// generator is told, since the snapshot names none: `MTGISH_CANTRIP_FEATURES`,
+/// a comma-separated list of these names. Without it the output is for the
+/// pinned Cantrip, and these stay holes.
+const SWITCHED: &[(&str, &[&str])] = &[(
+    // `CardDef::lasting_rules` with `Game::add_lasting_rule` (a rule on an open
+    // set, CR 611.2c), `EffectKind::DoesntUntap`, and the durations
+    // `DuringItsControllersNextUntapStep` and `DuringNextUntapStepOf`.
+    LASTING_RULES,
+    &[
+        "continuous-rule-untap-step",
+        "duration-during-controllers-next-untap-step",
+        "duration-during-next-untap-step",
+    ],
+)];
+/// The feature of `SWITCHED` that writes rules on open sets of objects.
+pub(super) const LASTING_RULES: &str = "lasting-rules";
+
+/// The `SWITCHED` features the Cantrip being written for has.
+fn features() -> &'static [String] {
+    static FEATURES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    FEATURES.get_or_init(|| {
+        let mut on: Vec<String> = std::env::var("MTGISH_CANTRIP_FEATURES")
+            .unwrap_or_default()
+            .split(',')
+            .map(str::trim)
+            .filter(|f| !f.is_empty())
+            .map(str::to_string)
+            .collect();
+        if let Some(unknown) = on.iter().find(|f| !SWITCHED.iter().any(|(name, _)| name == f)) {
+            panic!("MTGISH_CANTRIP_FEATURES names {unknown:?}, which is none of {:?}", SWITCHED.iter().map(|s| s.0).collect::<Vec<_>>());
+        }
+        on.sort();
+        on.dedup();
+        on
+    })
+}
+/// Whether the Cantrip being written for has the `SWITCHED` feature `name`.
+pub(super) fn switched_on(name: &str) -> bool {
+    features().iter().any(|f| f == name)
+}
+/// The `SWITCHED` features on, for what the output was written for.
+pub(super) fn features_on() -> String {
+    features().join(",")
+}
+/// Whether the requirement `id` has landed in the Cantrip being written for.
+fn landed_id(id: &str) -> bool {
+    LANDED.contains(&id)
+        || SWITCHED.iter().any(|(name, ids)| ids.contains(&id) && switched_on(name))
+}
+
 /// Counters that are more than a name, so no line in `counter_kinds!` finishes
 /// them: rad, poison, acorn, point and contract counters sit on players, and an
 /// exalted counter gives its keyword (CR 122.1b).
@@ -47,7 +100,7 @@ fn only_a_counter_name(feature: &str) -> bool {
 
 /// Whether the requirement `feature` has landed in Cantrip.
 pub(super) fn landed(feature: &str) -> bool {
-    LANDED.contains(&requirement(feature).as_str()) || only_a_counter_name(feature)
+    landed_id(&requirement(feature)) || only_a_counter_name(feature)
 }
 
 /// A value inside compiled code that Cantrip has no word for yet: `placeholder`
@@ -187,7 +240,7 @@ impl Compiler {
     /// `planned!("id" => code)`. Everything after it carries on as if it ran.
     pub(super) fn plan_code(&mut self, feature: &str, code: &str, out: &mut String) {
         let id = requirement(feature);
-        if LANDED.contains(&id.as_str()) {
+        if landed_id(&id) {
             writeln!(out, "{code}").unwrap();
             return;
         }
@@ -204,7 +257,7 @@ impl Compiler {
         parts: &mut Parts,
     ) {
         let id = requirement(feature);
-        if LANDED.contains(&id.as_str()) {
+        if landed_id(&id) {
             parts.entry(list, code.to_string());
             return;
         }

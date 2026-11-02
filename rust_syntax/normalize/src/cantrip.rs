@@ -246,7 +246,13 @@ fn generator_fingerprint() -> &'static str {
         .into_iter()
         .map(|(name, bytes)| (name, corpus::digest(bytes)))
         .collect();
-        corpus::digest(&serde_json::to_vec(&inputs).expect("generator input hashes"))
+        let hash = corpus::digest(&serde_json::to_vec(&inputs).expect("generator input hashes"));
+        // Written for a Cantrip with features the snapshot doesn't pin, the
+        // output is another generator's.
+        match planned::features_on() {
+            features if features.is_empty() => hash,
+            features => corpus::digest(format!("{hash} {features}").as_bytes()),
+        }
     })
 }
 fn keyword(value: &Keyword) -> Result<String> {
@@ -713,6 +719,8 @@ struct Compiler {
     lasting: Vec<String>,
     /// `CardDef::lasting_block_rules`.
     made_block_rules: Vec<String>,
+    /// `CardDef::lasting_rules`: rules on open sets (CR 611.2c).
+    made_lasting_rules: Vec<String>,
     /// Instructions that made an effect preventing damage: its amount comes later.
     prevented: BTreeSet<u32>,
     /// A resolving effect is on what its event is about.
@@ -1087,6 +1095,7 @@ impl Compiler {
             replaced_counter: None,
             lasting: Vec::new(),
             made_block_rules: Vec::new(),
+            made_lasting_rules: Vec::new(),
             prevented: BTreeSet::new(),
             rule_on_event_object: false,
             entering_labels: None,
@@ -2545,6 +2554,9 @@ fn emit_face(
     }
     for made in std::mem::take(&mut c.made_block_rules) {
         parts.table("lasting_block_rules", made);
+    }
+    for made in std::mem::take(&mut c.made_lasting_rules) {
+        parts.table("lasting_rules", made);
     }
     for made in std::mem::take(&mut c.made_cost_changes) {
         parts.table("lasting_cost_changes", made);
