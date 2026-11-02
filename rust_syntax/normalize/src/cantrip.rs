@@ -1390,6 +1390,13 @@ impl Compiler {
                     other if i == 0 && self.counts_own_x(other) => {
                         "TargetSpec::COUNTED".to_string()
                     }
+                    Expr::AnnouncedX
+                        if i == 0
+                            && self.slot_counts == target_counts::SlotCounts::Delayed
+                            && self.counted.is_some() =>
+                    {
+                        "TargetSpec::COUNTED".to_string()
+                    }
                     Expr::AnnouncedX => {
                         return Err(gap("target with a divided amount of an X it can't read")
                             .at(at))

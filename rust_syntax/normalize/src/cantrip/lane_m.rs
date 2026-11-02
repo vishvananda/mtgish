@@ -302,6 +302,56 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
     }
 }
 
+/// A player's move of what they choose among several zones, as the choice and the
+/// move of what was chosen: `fresh` numbers the choice.
+pub(super) fn chosen_then_moved(body: &Program, fresh: u32) -> Option<Program> {
+    let [Instruction::Effect {
+        result,
+        operation:
+            Operation::Move {
+                objects:
+                    ObjectSet::Chosen {
+                        chooser: PlayerSet::One(chooser @ PlayerRef::Bound(_)),
+                        objects,
+                        count,
+                    },
+                destination,
+                entry,
+                face_down,
+            },
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let count = match count {
+        Count::Exactly(n) => Count::AsManyAsCan(n.clone()),
+        other => other.clone(),
+    };
+    let chosen = ResultId(fresh);
+    Some(Program {
+        instructions: vec![
+            Instruction::Effect {
+                result: chosen.clone(),
+                operation: Operation::ChooseObjects {
+                    player: chooser.clone(),
+                    objects: (**objects).clone(),
+                    count,
+                    constraints: Vec::new(),
+                },
+            },
+            Instruction::Effect {
+                result: result.clone(),
+                operation: Operation::Move {
+                    objects: ObjectSet::Selected(chosen),
+                    destination: destination.clone(),
+                    entry: entry.clone(),
+                    face_down: *face_down,
+                },
+            },
+        ],
+    })
+}
+
 impl Compiler {
     /// What an instruction leaves for later ones to read back.
     pub(super) fn note_step(&mut self, instruction: &Instruction) {
@@ -435,6 +485,15 @@ impl Compiler {
             return self.transition(result, &ObjectPhase::Before);
         }
         self.named(result)
+    }
+    /// The sacrifice of several players that put what's last read in a graveyard.
+    pub(super) fn earlier_sacrifice(&self) -> Option<ResultId> {
+        let word = "PutInGraveyard";
+        let (_, result) = self.notes.earlier.iter().rev().find(|(w, _)| *w == word)?;
+        self.shares
+            .get(&result.0)
+            .is_some_and(|(_, share)| matches!(share, Share::Picks(_)))
+            .then(|| result.clone())
     }
     /// A walk's count of what each player moved: its players, the counts, and whom.
     pub(super) fn each_done<'a>(

@@ -1156,7 +1156,7 @@ impl Compiler {
                 && !matches!(event, EventSpec::Counters { .. });
             matched.frame.object = None;
         }
-        matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject);
+        matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject || matched.sums);
         Ok(matched)
     }
     /// An event by how many came before it this turn, of its own player's when

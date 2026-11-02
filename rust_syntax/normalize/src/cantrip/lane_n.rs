@@ -2206,7 +2206,9 @@ pub(super) fn toxic_of(ability: &Ability) -> Option<i64> {
 
 /// Whether what comes later reads the excess of a damage instruction.
 pub(super) fn reads_excess(after: &[Instruction], result: &ResultId) -> bool {
-    format!("{after:?}").contains(&format!("ExcessDamage {{ result: ResultId({})", result.0))
+    let after = format!("{after:?}");
+    after.contains(&format!("ExcessDamage {{ result: ResultId({})", result.0))
+        || after.contains(&format!("DealtExcessBy(ResultId({}))", result.0))
 }
 
 pub(super) fn read_as_damaged(after: &[Instruction], result: &ResultId) -> bool {

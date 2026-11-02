@@ -994,12 +994,13 @@ impl Compiler {
                 if self.each_discards_two(players, binding, steps, out) {
                     return Ok(());
                 }
+                let split = lane_m::chosen_then_moved(steps, 1_000_000 + i as u32);
                 let each = lane_i::EachPlayer {
                     players,
                     binding,
                     starting_with: starting_with.as_ref(),
                     in_chosen_direction: *in_chosen_direction,
-                    body: steps,
+                    body: split.as_ref().unwrap_or(steps),
                     rest: &body.instructions[i + 1..],
                 };
                 self.each_player(each, out)

@@ -642,6 +642,13 @@ impl Compiler {
             ObjectRef::MadeHere => {
                 held_object(&feature, &format!("q.made_by({})", self.linked()))
             }
+            ObjectRef::ChosenBy { result, chooser } if self.notes.each.contains_key(&result.0) => {
+                let (players, each) = &self.notes.each[&result.0];
+                format!(
+                    "{}.and_then(|who: PlayerId| {players}.iter().position(|&p| p == who)).and_then(|at| {each}[at].first().copied())",
+                    self.player(chooser)?
+                )
+            }
             ObjectRef::ChosenBy { result, chooser } => held_object(
                 &feature,
                 &format!(
@@ -716,6 +723,17 @@ impl Compiler {
                 filter,
                 held_objects(&feature, "q.outside_the_game(asker.controller)"),
             )?,
+            // "Another permanent card": what that player's own sacrifice put there.
+            ObjectSet::Earlier {
+                what: EarlierObjects::PutInGraveyard,
+                by: Some(PlayerSet::One(player)),
+            } if self.earlier_sacrifice().is_some() => {
+                self.objects(&ObjectSet::MovedBy {
+                    result: self.earlier_sacrifice().expect("just asked"),
+                    phase: ObjectPhase::After,
+                    player: player.clone(),
+                })?
+            }
             ObjectSet::Earlier {
                 what,
                 by: Some(players),

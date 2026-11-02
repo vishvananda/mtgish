@@ -1829,6 +1829,9 @@ impl Compiler {
                     (Some((moved, Share::Owner)), ObjectPhase::After) => format!(
                         "{moved}.iter().copied().filter(|&o| Some(q.state().obj(o).owner) == {who}).collect::<Vec<ObjectId>>()"
                     ),
+                    (Some((_, Share::Picks(picks))), ObjectPhase::After) => format!(
+                        "{picks}.iter().filter(|(who, _)| Some(*who) == {who}).filter_map(|(_, o)| q.state().obj(*o).became).collect::<Vec<ObjectId>>()"
+                    ),
                     (Some((_, Share::Picks(picks))), ObjectPhase::Before) => format!(
                         "{picks}.iter().filter(|(who, o)| Some(*who) == {who} && q.state().obj(*o).became.is_some()).map(|(_, o)| *o).collect::<Vec<ObjectId>>()"
                     ),
@@ -2344,6 +2347,11 @@ impl Compiler {
             ObjectFilter::DamagedBy(_) => held(format!(
                 "cantrip_mechanics::history::permanents_dealt_damage_by(q.history(), asker.source, since).contains(&{id})"
             )),
+            // Read from the damage events of the instruction (CR 120.10).
+            ObjectFilter::DealtExcessBy(result) if self.excess.contains_key(&result.0) => {
+                let excess = &self.excess[&result.0].0;
+                format!("{excess}.iter().any(|&(t, n)| t == Target::Object({id}) && n > 0)")
+            }
             ObjectFilter::DealtExcessBy(_) => held(format!("result.excess_to({id}) > 0")),
             ObjectFilter::ArrivedThisTurn { from: None } if !layer => {
                 format!("cantrip_mechanics::history::arrived_this_turn(q, {id})")

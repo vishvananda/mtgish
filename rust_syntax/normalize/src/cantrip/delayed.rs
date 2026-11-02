@@ -433,6 +433,11 @@ impl Compiler {
             },
             PlayerRef::EventSubject => self.frame.player.is_some(),
             PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
+            // A player chosen in the body around this ability goes with it.
+            PlayerRef::Chosen => {
+                self.chosen_local(ValueKind::Player).is_ok()
+                    || outer.compiler.chosen_local(ValueKind::Player).is_err()
+            }
             _ => true,
         };
         if local {

@@ -224,7 +224,8 @@ impl Compiler {
             return None;
         }
         let read = match self.slot_counts {
-            SlotCounts::Delayed => false,
+            // "When you do, distribute X": the X paid, told to the ability.
+            SlotCounts::Delayed => matches!(n, Expr::AnnouncedX) && self.counted.is_some(),
             SlotCounts::Announced => matches!(n, Expr::AnnouncedX),
             SlotCounts::Trigger { .. } if matches!(n, Expr::AnnouncedX) => self.counts_own_x(n),
             SlotCounts::Trigger { enters_itself } => {
