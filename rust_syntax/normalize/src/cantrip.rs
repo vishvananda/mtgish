@@ -480,6 +480,15 @@ struct Compiler {
     spell_targets: bool,
     /// "Kicker—Sacrifice an artifact or creature", as the face prints it.
     kicker_line: Option<String>,
+    /// The face's kicker costs in print: where there are two, "Kicker {1}{U} and/or
+    /// {B}" (CR 702.33e), the card's `kicker` is the first and its `optional_cost`
+    /// the second, whose payment is `paid`, not `kicked`.
+    kickers: Vec<String>,
+    /// The face is a sorcery.
+    sorcery: bool,
+    /// What this face's replacements already say it enters as, abilities and
+    /// keywords: `Entering::becomes` is one value, and each kicker can add to it.
+    entering_as: (Vec<String>, Vec<String>),
     /// The `labels` a question the code asks wants.
     wanted_labels: Option<String>,
     /// What each counter stage of the face prints.
@@ -509,6 +518,8 @@ struct Compiler {
     /// A trigger on damage to a player fires with that player as its subject.
     recipient_subject: bool,
     candidates: std::cell::RefCell<Vec<Candidate>>,
+    /// What this spell keeps of the board as it is cast: `CardDef::cast_fact`.
+    cast_fact: std::rc::Rc<std::cell::RefCell<Option<String>>>,
     affected_in_scope: bool,
     /// The condition of the enclosing `Ability::Conditional`, asked as layers run.
     static_guard: Option<Condition>,
@@ -895,6 +906,7 @@ impl Compiler {
             grouped: false,
             recipient_subject: false,
             candidates: Default::default(),
+            cast_fact: Default::default(),
             affected_in_scope: false,
             static_guard: None,
             trigger_gate: None,
@@ -990,6 +1002,9 @@ impl Compiler {
             whole_mills: Default::default(),
             spell_targets: false,
             kicker_line: None,
+            kickers: Vec::new(),
+            sorcery: false,
+            entering_as: Default::default(),
             wanted_labels: None,
             stages: BTreeMap::new(),
             stage_lines: Vec::new(),
@@ -2017,6 +2032,8 @@ fn emit_face(
     c.own_face = place.own_face;
     c.door = place.door;
     c.printed_mana = card.characteristics.mana_cost.clone();
+    c.sorcery = (card.characteristics.card_types.iter())
+        .any(|t| matches!(t, crate::mtg_types::CardType::Sorcery));
     c.enters_choosing = chosen::enters_choosing(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
@@ -2068,6 +2085,17 @@ fn emit_face(
         if let Some(feature) = failure {
             c.reset_after_gap();
             c.plan_ability(&feature, a, &format!("ability_{i}"));
+        }
+    }
+    if let Some(fact) = c.cast_fact.borrow_mut().take() {
+        writeln!(c.functions, "#[allow(unused_variables)] fn kept_as_cast(q: &dyn Query, asker: &Asker) -> u32 {{ ({fact}).max(0) as u32 }}").unwrap();
+        parts.field("cast_fact", "Some(kept_as_cast)".into());
+    }
+    // A cast announces one number, a kicker's when there is one: {X} stays unannounced.
+    if let (Some(kicker), Some(cost)) = (parts.fields.get("kicker"), &c.printed_mana) {
+        if cost.iter().any(|symbol| matches!(symbol, ManaSymbol::X)) {
+            let feature = gap("engine: X in a mana cost beside a kicker");
+            c.plan_trait("kicker", feature, kicker.clone());
         }
     }
     parts
@@ -2129,7 +2157,14 @@ fn emit_face(
     let mut subtypes = Vec::new();
     for t in &ch.subtypes {
         let n = name(t);
-        if crate::cantrip_vocab::SUBTYPES.contains(&n.as_str()) {
+        if n == "TimeLord" {
+            // Cantrip's oracle build splits a type line at spaces, and fails on "Time".
+            subtypes.push(planned::planned_value(
+                "engine: a two-word subtype in a card's type line",
+                "Subtype::TimeLord",
+                "Subtype::TimeLord",
+            ));
+        } else if crate::cantrip_vocab::SUBTYPES.contains(&n.as_str()) {
             subtypes.push(format!("Subtype::{n}"));
         } else {
             subtypes.push(lane_p::printed_subtype(&n));

@@ -132,6 +132,24 @@ fn performed_by_itself(cost: &Cost) -> bool {
     }
 }
 
+/// The one permanent a cost taps, named: "you may tap it".
+fn taps_one_object(cost: &Cost) -> Option<&ObjectRef> {
+    match cost.parts.as_slice() {
+        [CostPart::ChangeTapState {
+            selections,
+            tapped: true,
+            symbol: false,
+        }] => match selections.as_slice() {
+            [CostObjectSelection {
+                objects: ObjectSet::One(object),
+                choose: None,
+            }] if !matches!(object, ObjectRef::AttachedTo(_)) => Some(object),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 /// Whether `decider`'s "you may" is that they pay something the engine can ask
 /// about as one payment.
 pub(super) fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
@@ -1622,6 +1640,23 @@ impl Compiler {
                 optional: true,
             } if matches!(cost.parts.as_slice(), [CostPart::PlayerAction { .. }]) => {
                 self.player_action(id, player, &cost.parts[0], true, result, out)?
+            }
+            // "You may tap it": what can't be tapped can't be paid (CR 118.3), and
+            // "if you don't" holds of that too.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if self.asking.is_none() && taps_one_object(cost).is_some() => {
+                let object = taps_one_object(cost).expect("just seen");
+                let payer = self.fetch(self.certain_player(player)?);
+                let object = self.fetch(self.object(object)?);
+                writeln!(
+                    out,
+                    "let payer_{id} = {payer}; let paid_{id} = match {object}.filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield) && !g.state().obj(o).tapped) {{ Some(o) if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? => {{ g.tap(o); true }} _ => false }};"
+                )
+                .unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
             }
             // These parts have no cost of the engine's: the instruction itself is
             // what the player may do, and "if you do" reads whether it happened.

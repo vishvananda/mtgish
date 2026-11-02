@@ -1144,11 +1144,13 @@ impl Compiler {
                 aggregation,
             } => {
                 if filter.snow {
+                    // Who pays chooses which mana (CR 601.2h), but only a permanent's
+                    // rule tells mana apart by its source: not the spell being paid for.
                     return Ok(count(planned::planned_value(
-                        "snow mana spent",
+                        "engine: snow mana told apart as a spell is paid for",
                         "0i64",
                         &format!(
-                            "{}.map_or(0, |o: ObjectId| i64::from(q.obj(o).spent.snow))",
+                            "{}.map_or(0, |o: ObjectId| q.history().mana_spent_to_cast(o).filter(|(source, _)| *source != ObjectId::NONE && q.chars(*source).supertypes.snow).map(|(_, mana)| i64::from(mana.total())).sum::<i64>())",
                             self.object(object)?
                         ),
                     )));
@@ -1713,6 +1715,15 @@ impl Compiler {
                     test
                 }
             }
+            // A mana value is the object's, not its characteristics': a spell's holds its X
+            // (CR 202.3e).
+            ObjectFilter::Shares {
+                property: DistinctProperty::ManaValues,
+                with,
+            } => format!(
+                "{}.is_some_and(|o: ObjectId| q.mana_value({id}) == q.mana_value(o))",
+                self.object(with)?
+            ),
             ObjectFilter::Shares { property, with } => {
                 let test = lane_j::sharing(property)?;
                 format!(
@@ -1720,9 +1731,7 @@ impl Compiler {
                     self.object(with)?
                 )
             }
-            ObjectFilter::State(ObjectState::Kicked) => {
-                format!("q.state().obj({id}).kicked > 0")
-            }
+            ObjectFilter::State(ObjectState::Kicked) => self.was_kicked("", &id),
             ObjectFilter::State(ObjectState::Commander) => lane_g::commander(&id),
             // An optional additional cost, or the waterbend kicker that stands for one.
             ObjectFilter::State(ObjectState::CostPaid(CastCost::Additional)) => {
@@ -1887,6 +1896,19 @@ impl Compiler {
             Condition::PlayerIsActive(player) => {
                 format!("{} == Some(q.state().turn.active)", self.player(player)?)
             }
+            Condition::ObjectMatches {
+                object,
+                filter: ObjectFilter::State(ObjectState::Kicked),
+            } => {
+                let object = self.object(object)?;
+                let test = self.was_kicked(&object, "candidate");
+                format!("{object}.is_some_and(|candidate: ObjectId| {test})")
+            }
+            // "If the {1}{B} cost was paid": the one way of the card's that it was cast by.
+            Condition::ObjectMatches {
+                object: ObjectRef::Source,
+                filter: ObjectFilter::AlternateCostPaid(_),
+            } if self.stack_item && self.reader == Reader::Resolution => "item.way == 1".into(),
             Condition::ObjectMatches { object, filter } => format!(
                 "{}.is_some_and(|candidate: ObjectId| {})",
                 self.object(object)?,

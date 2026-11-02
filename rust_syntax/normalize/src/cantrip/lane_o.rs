@@ -16,21 +16,24 @@ pub(super) fn in_one_effect(changes: &[Change]) -> Vec<Change> {
         match change {
             Change::OnlyAbility(ability) => {
                 split.push(Change::RemoveAllAbilities);
-                split.push(Change::GrantAbility(ability.clone()));
+                split.push(grant_of(ability));
             }
             Change::OnlyAbilities(abilities) => {
                 split.push(Change::RemoveAllAbilities);
-                split.extend(
-                    abilities
-                        .iter()
-                        .cloned()
-                        .map(|a| Change::GrantAbility(Box::new(a))),
-                );
+                split.extend(abilities.iter().map(grant_of));
             }
             other => split.push(other.clone()),
         }
     }
     split
+}
+
+/// What is left of an ability a permanent keeps: a keyword is a change of its own.
+fn grant_of(ability: &Ability) -> Change {
+    match ability {
+        Ability::Keyword(keyword) => Change::GrantKeyword(keyword.clone()),
+        other => Change::GrantAbility(Box::new(other.clone())),
+    }
 }
 
 /// The player a player rule is asked of, in a test of what they are doing.
@@ -1691,15 +1694,13 @@ impl Compiler {
             // One effect: it loses the others, then has this (CR 613.1f).
             Change::OnlyAbility(ability) => {
                 let mut kinds = vec!["EffectKind::LoseAllAbilities".to_string()];
-                kinds.extend(self.effect_kinds(&Change::GrantAbility(ability.clone()))?);
+                kinds.extend(self.effect_kinds(&grant_of(ability))?);
                 kinds
             }
             Change::OnlyAbilities(abilities) => {
                 let mut kinds = vec!["EffectKind::LoseAllAbilities".to_string()];
                 for ability in abilities {
-                    kinds.extend(
-                        self.effect_kinds(&Change::GrantAbility(Box::new(ability.clone())))?,
-                    );
+                    kinds.extend(self.effect_kinds(&grant_of(ability))?);
                 }
                 kinds
             }
@@ -3504,6 +3505,25 @@ impl Compiler {
                     &format!("CantEnter {{ cards: {cards}, from: {from} }}"),
                     parts,
                 );
+            }
+            // "No more than two creatures can attack you each combat" (CR 508.1c),
+            // of what has the ability: a rule of the combat, asked of what is attacked.
+            Ability::AttackCap {
+                defender:
+                    defender @ (Recipients::Players(PlayerSet::One(PlayerRef::AbilityController))
+                    | Recipients::Objects(ObjectSet::One(ObjectRef::Source))),
+                amount: Expr::Constant(most),
+            } => {
+                let attacked = match defender {
+                    Recipients::Players(_) => "Target::Player(asker.controller)",
+                    _ => "Target::Object(asker.source)",
+                };
+                writeln!(
+                    self.functions,
+                    "#[allow(unused_variables)] fn {label}_limit(q: &dyn Query, asker: &Asker, attacked: Target) -> Option<u32> {{ (attacked == {attacked}).then_some({most}) }}"
+                )
+                .unwrap();
+                parts.table("attack_limits", format!("{label}_limit"));
             }
             Ability::AttackCap { defender, amount } => {
                 let (at, amount) = self

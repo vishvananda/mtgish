@@ -1167,8 +1167,8 @@ impl Compiler {
         if terms.then.is_some() || terms.face_down.is_some() {
             return Err(gap("play permission on other terms"));
         }
-        if !terms.effects.is_empty() {
-            return Err(gap("play permission with an effect on what is played"));
+        if let Some(effect) = terms.effects.first() {
+            return Err(gap(played_effect_hole(effect)));
         }
         let mut grant = format!("lands: {lands}, expiry: {expiry}, ");
         match &terms.cost {
@@ -2969,7 +2969,15 @@ impl Compiler {
                     let test = self.activation_condition(condition, &format!("{label}_if"))?;
                     write!(way, ".condition({test})").unwrap();
                 }
-                parts.table("ways", way);
+                // A way is an alternative cost (CR 118.9): one that pays the mana
+                // cost shuts out Fist of Suns or Dream Halls, which the permission
+                // leaves open. Only the printed keyword is a permission of its own.
+                if matches!(cost, PlayCost::Normal | PlayCost::Additional(_)) {
+                    let feature = "engine: a card's own terms to cast it from its graveyard";
+                    self.plan_entry(feature, "ways", &way, parts);
+                } else {
+                    parts.table("ways", way);
+                }
                 Ok(())
             }
             _ => Err(refused()),
@@ -3296,9 +3304,24 @@ impl Compiler {
             return Ok(());
         }
         let id = self.fresh();
+        let (earlier_abilities, earlier_keywords) = self.entering_as.clone();
+        self.entering_as.0.extend(abilities);
+        self.entering_as.1.extend(keywords);
+        // An earlier replacement on this card may have applied: both are so.
+        let (mut extra, mut chosen) = (String::new(), format!("&WHAT_{id}"));
+        if !earlier_abilities.is_empty() || !earlier_keywords.is_empty() {
+            extra = format!(
+                " static WHAT_{id}_TOO: EntersAs = EntersAs {{ abilities: &[{}], keywords: Keywords::of(&[{}]), ..EntersAs::NONE }};",
+                self.entering_as.0.join(", "),
+                self.entering_as.1.join(", ")
+            );
+            chosen = format!(
+                "if entering.becomes.is_some() {{ &WHAT_{id}_TOO }} else {{ &WHAT_{id} }}"
+            );
+        }
         writeln!(
             out,
-            "static WHAT_{id}: EntersAs = {what}; entering.becomes = Some(Becomes {{ what: &WHAT_{id}, card: {}, words: g.words(entering.object) }});",
+            "static WHAT_{id}: EntersAs = {what};{extra} entering.becomes = Some(Becomes {{ what: {chosen}, card: {}, words: g.words(entering.object) }});",
             self.fetch(self.source_card())
         )
         .unwrap();
@@ -3965,5 +3988,27 @@ impl Compiler {
             R::Prohibit(ObjectAction::Counter) => keyword("CantBeCountered"),
             other => return Err(gap(format!("static rule {}", rule_name(other)))),
         })
+    }
+}
+
+/// What a permission's effect on what it lets be played waits on. `PlayGrant` has
+/// `more` and no less, and `enters_tapped` is of lands; a spell's replacement is a
+/// `GrantedWay`'s, which a resolving effect is not.
+fn played_effect_hole(effect: &Operand) -> &'static str {
+    let term = match effect {
+        Operand::List(terms) => terms.first(),
+        other => Some(other),
+    };
+    match term {
+        Some(Operand::Term { form, .. }) if form == "DecreaseManaCost" => {
+            "engine: a play permission that costs less"
+        }
+        Some(Operand::Term { form, .. }) if form == "EntersTapped" => {
+            "engine: a spell a play permission casts enters tapped"
+        }
+        Some(Operand::Term { form, .. }) if form.starts_with("EntersWith") => {
+            "engine: a spell a play permission casts enters changed"
+        }
+        _ => "play permission with an effect on what is played",
     }
 }

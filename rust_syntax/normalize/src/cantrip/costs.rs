@@ -3,6 +3,46 @@
 //! then publishes nothing, so no card loses an ability silently.
 use super::*;
 
+/// What the land gains of "{N}, Exile this card from your hand: Target land gains
+/// "..." until this card is cast from exile. You may cast this card for as long as
+/// it remains exiled": Cantrip's `land_until_cast`, which all six that print it take.
+fn land_until_cast<'a>(cost: &Cost, body: &'a Program) -> Option<&'a Ability> {
+    use crate::ir::Duration as D;
+    let moves = |part: &CostPart| matches!(part, CostPart::Move { destination: Destination::Exile, .. });
+    if cost.parts.iter().filter(|part| moves(part)).count() != 1 {
+        return None;
+    }
+    let [Instruction::Effect {
+        operation:
+            Operation::CreateContinuousEffect {
+                changes: gains,
+                duration: D::UntilCast(ObjectRef::Source),
+                ..
+            },
+        ..
+    }, Instruction::Effect {
+        operation:
+            Operation::CreateContinuousEffect {
+                changes: permission,
+                ..
+            },
+        ..
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let ([Change::GrantAbility(gained)], [Change::PlayerRule(PlayerRule::PlayPermission {
+        cards: ObjectSet::One(ObjectRef::Source),
+        from: EventZone::Exile,
+        action: CardPlayAction::CastSpell,
+        filter: ObjectFilter::Any,
+    })]) = (gains.as_slice(), permission.as_slice())
+    else {
+        return None;
+    };
+    Some(gained)
+}
+
 /// Where an `Ability::Scoped` moves an ability, and what gates it.
 #[derive(Clone, Copy)]
 pub(super) struct Scope<'s> {
@@ -203,6 +243,19 @@ impl Compiler {
                 tapped: true,
                 symbol: false,
             } => {
+                // "Tap enchanted land": a permanent the Aura's controller may no
+                // longer control, and `tap_untapped` is of what you control.
+                if let [CostObjectSelection {
+                    objects: ObjectSet::One(ObjectRef::AttachedTo(_)),
+                    choose: None,
+                }] = selections.as_slice()
+                {
+                    return Ok(planned::planned_value(
+                        "engine: a cost that taps what its payer may not control",
+                        "Cost::NONE",
+                        "Cost { variable: Some(VariableCost::TapAttached), ..Cost::NONE }",
+                    ));
+                }
                 let [CostObjectSelection {
                     objects: ObjectSet::Battlefield(filter),
                     choose,
@@ -961,6 +1014,19 @@ impl Compiler {
                 condition,
                 ability,
             } => {
+                // "Max speed — ..." on a card in a graveyard: its scope, conditioned.
+                if let (None, Ability::Conditional { condition: held, then, otherwise }) =
+                    (condition, &**ability)
+                {
+                    if let ([only], true) = (then.as_slice(), otherwise.is_empty()) {
+                        let scoped = Ability::Scoped {
+                            zones: zones.clone(),
+                            condition: Some(held.clone()),
+                            ability: Box::new(only.clone()),
+                        };
+                        return self.ability(&scoped, label, parts, None);
+                    }
+                }
                 if self.from_command_zone(zones, condition.as_ref(), ability, label, parts)? {
                     return Ok(());
                 }
@@ -1013,6 +1079,20 @@ impl Compiler {
                 announcement,
                 body,
             } => {
+                if let Some(gained) = land_until_cast(cost, body) {
+                    let rest = Cost {
+                        parts: cost.parts.iter().filter(|part| !matches!(part, CostPart::Move { .. })).cloned().collect(),
+                    };
+                    let price = self.cost(&rest, label)?;
+                    let text = self.said(lane_k::Said::Activated, ability_text(body));
+                    let index = self.delayed.len();
+                    self.granted_refs(gained)?;
+                    parts.abilities.push(format!(
+                        "cantrip_mechanics::land_until_cast::ability::<{index}>({price}, {})",
+                        quoted(&text)
+                    ));
+                    return Ok(());
+                }
                 self.activation_cost = Some(cost.clone());
                 let index = parts.abilities.len();
                 let def = self.activated(

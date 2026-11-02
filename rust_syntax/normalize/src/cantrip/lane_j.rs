@@ -1425,8 +1425,8 @@ impl Compiler {
         Ok(matched)
     }
 
-    /// "Whenever you expend N" (CR 701.65a): the spending that reaches N mana
-    /// spent to cast spells this turn.
+    /// "Whenever you expend N" (CR 700.14): the cast whose payment takes the mana
+    /// spent to cast spells this turn from under N to N or more.
     pub(super) fn expends(
         &mut self,
         players: &PlayerSet,
@@ -1440,19 +1440,21 @@ impl Compiler {
         let (who, value) = self.matching(frame, |c| {
             Ok((c.player_in(players, "*player")?, c.number(value)?.code))
         })?;
-        let before = "q.history().this_turn().iter().filter_map(|r| match r.event { Event::ManaSpent { player: p, cast: true, mana, .. } if p == *player => Some(i64::from(mana.total())), _ => None }).sum::<i64>()";
-        Ok(held_arm(
-            "MANA_SPENT",
-            "Event::ManaSpent { player, cast: true, mana, .. }",
-            ONE,
-            vec![
-                who,
-                format!("{before} < {value}"),
-                format!("{before} + i64::from(mana.total()) >= {value}"),
-            ],
+        let before = "q.history().this_turn().iter().filter_map(|r| match r.event { Event::ManaSpent { player: p, on, cast: true, mana, .. } if p == *player && on != *spell => Some(i64::from(mana.total())), _ => None }).sum::<i64>()";
+        let paid = "q.history().mana_spent_to_cast(*spell).map(|(_, mana)| i64::from(mana.total())).sum::<i64>()";
+        Ok(single(
+            "SPELL_CAST",
+            Arm {
+                pattern: "Event::SpellCast { spell, player, .. }".into(),
+                locals: ONE.into(),
+                tests: vec![
+                    who,
+                    format!("{before} < {value}"),
+                    format!("{before} + {paid} >= {value}"),
+                ],
+            },
             frame,
             "Whenever a player expends",
-            "trigger event Player Expends",
         ))
     }
 
@@ -1897,10 +1899,11 @@ impl Compiler {
                     self.player_number("p", number)?
                 ))
             }
-            Expr::TimesKicked(object) => counted(format!(
-                "{}.map_or(0i64, |o: ObjectId| i64::from(q.state().obj(o).kicked))",
-                self.object(object)?
-            )),
+            Expr::TimesKicked(object) => {
+                let object = self.object(object)?;
+                let kicks = self.times_kicked(&object, "o");
+                counted(format!("{object}.map_or(0i64, |o: ObjectId| {kicks})"))
+            }
             // The history has this one only once it's done (CR 608.2m).
             Expr::TimesResolvedThisTurn if resolving => {
                 counted("q.history().resolutions(item.object, item.ability) as i64 + 1".into())
@@ -2226,6 +2229,13 @@ impl Compiler {
                 "({}).iter().any(|&o| o != {id} && cantrip_mechanics::same_name(q, {id}, o))",
                 self.objects(objects)?
             ),
+            ObjectFilter::SharesWithAny {
+                property: DistinctProperty::ManaValues,
+                with,
+            } if !layer => format!(
+                "({}).iter().any(|&o| q.mana_value({id}) == q.mana_value(o))",
+                self.objects(with)?
+            ),
             ObjectFilter::SharesWithAny { property, with } if !layer => format!(
                 "({}).iter().any(|&o| {{ let (a, b) = (&{chars}, &q.chars(o)); {} }})",
                 self.objects(with)?,
@@ -2342,7 +2352,14 @@ impl Compiler {
                 let list = self.objects(&ObjectSet::Named(result.clone()))?;
                 format!("({list}).contains(&{id})")
             }
-            ObjectFilter::KickedWith(_) => held(format!("q.state().obj({id}).kicked_with(kicker)")),
+            ObjectFilter::KickedWith(cost) => {
+                let words = mechanics::kicker_words(cost);
+                match self.kickers.iter().position(|k| Some(k) == words.as_ref()) {
+                    Some(0) => format!("q.state().obj({id}).kicked > 0"),
+                    Some(1) => format!("q.state().obj({id}).paid > 0"),
+                    _ => held(format!("q.state().obj({id}).kicked_with(kicker)")),
+                }
+            }
             ObjectFilter::AlternateCostPaid(_) => {
                 held(format!("q.state().obj({id}).alternate_cost_paid(cost)"))
             }
@@ -2625,6 +2642,15 @@ pub(super) fn instead_of_mana_cost(cost: &PlayCost) -> Option<(String, String)> 
             return Some((
                 "Without paying its mana cost".into(),
                 "InsteadOfManaCost::WithoutPaying".into(),
+            ))
+        }
+        // "Pay {0}": an alternative cost of no mana, which is not the mana cost.
+        PlayCost::Alternate(Operand::List(terms))
+            if super::mechanics::kicker_words(terms).as_deref() == Some("{0}") =>
+        {
+            return Some((
+                "Pay {0}".into(),
+                "InsteadOfManaCost::Mana(ManaCost::ZERO)".into(),
             ))
         }
         PlayCost::Alternate(Operand::Cost(cost)) => cost.parts.as_slice(),
