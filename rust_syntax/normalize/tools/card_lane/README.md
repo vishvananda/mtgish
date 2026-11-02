@@ -12,6 +12,18 @@ Oracle text, and write the scenarios. To widen the lane, teach the generator, no
 `backend_capable` in `ast check-cantrip` is a different question: that scan inlines whatever a card needs, so it says the
 card compiles, not that it needs nothing new.
 
+A row's file is `ast cantrip-tracked`'s, byte for byte, for every layout, and the row says the generator's `layout` and its
+`faces`, front first. The queue takes the Scryfall layouts in `LAYOUTS`: `normal`, the single-faced `saga`, `class`,
+`leveler`, `prototype`, `case` and `mutate`, and the cards of several faces, `transform`, `modal_dfc`, `adventure` (an Omen
+too), `split` (a Room too), `prepare` and `meld`. Each was checked by swapping the generated cards for all Cantrip has of
+that layout and playing its scenarios. Not tokens, flip cards, planes or art cards. A card is queued by Cantrip's name for
+it, both halves for a split card or a Room (`Claim // Fame`) and the front face otherwise (`Rona, Herald of Invasion`), and
+a format's list finds it by that, by the generator's name or by any face. Each face's Oracle text is compared with
+Scryfall's. `new-card.py` writes the content of most layouts; for `split`, `prepare` and `meld`, which it leaves to a
+person, `card_lane.py draft NAME` writes it with `new-card.py`'s own writer of a face, as Cantrip's own cards of those
+layouts have it. Every face's lines are in the report, the placeholders and the survivors, and a card's section says how
+a scenario reaches its other face, with a scenario of Cantrip's that does.
+
 The way of working is the `card-lane` skill, `.claude/skills/card-lane/SKILL.md` in this repository: plain commands and one
 set of instructions, so any model, or a person, can do a card. This file covers setting the lane up and running it as an
 unattended loop.

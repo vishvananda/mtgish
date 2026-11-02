@@ -125,6 +125,27 @@ A card that is wrong is worse than a card that is missing.
 6. **Finish.** Run `commit`. If it fails, fix what it names and run it again. If the brief says a driver runs the gates,
    stop after the report instead: it runs them and sends back what fails, in this same session.
 
+## Cards of several faces
+
+A card's name in the lane is the name Cantrip gives it: a split card or a Room by both halves (`Cease // Desist`), any other
+card of two faces by its front (`Delver of Secrets`). That one name is the card's file, its content and its scenarios'
+prefix. `report.json`'s `validation` lists every face's lines, front first, and each is owed what a front line is owed:
+validation, scenarios that run it, and an expectation that a change to it fails. A card's brief says how its other face is
+played, with a scenario of Cantrip's own that does it. In short:
+
+| Layout | Reaching the other face |
+| --- | --- |
+| Transform (CR 712) | What its text says turns it over. Then it is named by its back face: `? Bot1.Battlefield.Insectile Aberration.Transformed = true` |
+| Modal double-faced (CR 712.12) | `Bot1.Hand.Front.Cast(Ability: back face)`, or `.Play(Ability: back face)` for a land; it is then named by that face |
+| Adventure (CR 715) | `Bot1.Hand.Card.Cast(Ability: Adventure)`, then `Bot1.Exile.Card.Cast` casts the creature from exile |
+| Omen (CR 720) | `Bot1.Hand.Card.Cast(Ability: Omen)`; the card is then shuffled into its owner's library |
+| Prepare (CR 722) | Get it prepared (`? Bot1.Battlefield.Card.Prepared = true`), then `Bot1.Exile.Spell.Cast` casts a copy of its spell |
+| Split (CR 709) | `Bot1.Hand.A // B.Cast(Ability: A)`; an aftermath half from the graveyard, `Bot1.Graveyard.A // B.Cast(Ability: B)`; fuse is `Cast(Ability: Fuse)` |
+| Room (CR 709.5) | `Bot1.Hand.A // B.Cast(Ability: A)`, then `Bot1.Battlefield.A.Activate(Ability: right door)` unlocks B as a sorcery |
+| Meld (CR 712.4) | Cantrip has no melded card: no scenario melds it, and "(Melds with ...)" is reminder text |
+
+A scenario that never reaches a face leaves that face's lines unrun, and the coverage and mutation gates say so.
+
 ## Limits
 
 - Write only new files under `scenarios/`, deleting the placeholders you replace, and the packet's `report.json`. The card's file and content file are read-only,

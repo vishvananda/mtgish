@@ -130,6 +130,57 @@ def cmd_tool(args):
     runpy.run_path(str(CANTRIP / "tools" / "maintenance" / args.name), run_name="__main__")
 
 
+def drafted_content(found, face):
+    """The content file of a card new-card.py leaves to a person, from Scryfall's card and `face`, new-card.py's own
+    writer of one face: a split card's or a Room's halves as the oracle crate reads them (cease-desist.json, leave-chance.json),
+    a prepare card's spell (abigale-poet-laureate.json), a meld card as its own face alone (phyrexian-dragon-engine.json)."""
+    faces, layout = found["faces"], found.get("layout")
+    if layout == "split" and len(faces) == 2:
+        halves = []
+        for half in faces:
+            out = {k: v for k, v in face(half).items() if k in ("name", "manaCost", "type", "oracleText")}
+            if re.match(r"Aftermath\b", half.get("oracle_text", "")):
+                out["aftermath"] = True  # cast only from the graveyard (CR 702.127a)
+            halves.append(out)
+        return {"name": found["name"], "oracleText": "", "halves": halves}
+    if layout == "prepare" and len(faces) == 2:
+        spell = {k: v for k, v in face(faces[1]).items() if k in ("name", "manaCost", "type", "oracleText")}
+        return face(faces[0]) | {"prepare": spell}
+    if layout == "meld" and len(faces) == 1:
+        return face(faces[0])
+    return None
+
+
+def cmd_draft(args):
+    """Writes the content file of a card of a layout new-card.py leaves to a person, each face as new-card.py writes one."""
+    os.environ.update(environment())
+    os.chdir(CANTRIP)
+    maintenance = CANTRIP / "tools" / "maintenance"
+    sys.path.insert(0, str(maintenance))
+    import importlib.util
+    import scryfall
+    scryfall.CACHE = str(SCRYFALL)
+
+    def module(name, path):
+        spec = importlib.util.spec_from_file_location(name, path)
+        loaded = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(loaded)
+        return loaded
+    new_card = module("new_card", maintenance / "new-card.py")
+    index = module("ability_index", maintenance / "ability-index.py")
+    found = scryfall.card(args.name)
+    if found is None:
+        sys.exit(f"{args.name} is not on Scryfall")
+    names, core = [f["name"] for f in found["faces"]] + [found["name"]], new_card._core_keywords()
+    card = drafted_content(found, lambda f: new_card._face(f, names, index, core))
+    if card is None:
+        sys.exit(f"{found['name']} is a {found.get('layout')} card, which new-card.py writes itself")
+    path = content_file(card["name"])
+    path.write_text(json.dumps(card, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+    print(f"wrote {path.relative_to(CANTRIP)}")
+    return 0
+
+
 # ---- Names ----------------------------------------------------------------------------------------------------------
 
 def names_of(name):
@@ -156,6 +207,37 @@ def content_file(name):
     return CANTRIP / CONTENT_DIR / (names_of(name)[1] + ".json")
 
 
+# Scryfall layouts the queue takes by default: each one's generated cards were swapped for Cantrip's own and its scenarios
+# passed. Not a token, a flip card, a plane or an art series.
+LAYOUTS = ("normal", "saga", "class", "leveler", "prototype", "case", "mutate",
+           "transform", "modal_dfc", "adventure", "split", "prepare", "meld")
+DRAFTED = ("split", "prepare", "meld")  # new-card.py leaves these to a person; `draft` writes them as Cantrip's own cards have them
+JOINED = ("Split", "Room")  # the generator's layouts that Cantrip names by both halves, "Cease // Desist"
+
+
+def lane_name(row):
+    """The name Cantrip gives a generator row's card, its content file's `name`: a split card or a Room is both halves
+    ("Cease // Desist"), any other card of two faces its front face ("Delver of Secrets")."""
+    faces = row.get("faces") or [row["name"]]
+    return row["name"] if row.get("layout") in JOINED or len(faces) == 1 else faces[0]
+
+
+def content_faces(card):
+    """(name, Oracle text) of each face a content file has, front first: then the back face, an Adventure, an Omen, a
+    prepare spell, or a split card's or a Room's halves (whose whole card prints no text of its own)."""
+    faces = [] if card.get("halves") and not card.get("oracleText") else [(card.get("name", ""), card.get("oracleText", ""))]
+    for key in ("backFace", "adventure", "omen", "prepare"):
+        if isinstance(card.get(key), dict):
+            faces.append((card[key].get("name", ""), card[key].get("oracleText", "")))
+    return faces + [(half.get("name", ""), half.get("oracleText", "")) for half in card.get("halves") or []]
+
+
+def card_text(name):
+    """Every face's printed text, from the card's content file: all that validating the card covers."""
+    card = json.loads(content_file(name).read_text(encoding="utf-8-sig"))
+    return "\n".join(text for _, text in content_faces(card) if text)
+
+
 # ---- The queue ------------------------------------------------------------------------------------------------------
 
 def load_queue():
@@ -177,7 +259,7 @@ def implemented():
     for path in (CANTRIP / "content").glob("*/cards/*.json"):
         card = json.loads(path.read_text(encoding="utf-8-sig"))
         have.add(card["name"])
-        for face in ("backFace", "adventure", "omen"):
+        for face in ("backFace", "adventure", "omen", "prepare"):
             if isinstance(card.get(face), dict) and card[face].get("name"):
                 have.add(card[face]["name"])
         for half in card.get("halves") or []:
@@ -186,15 +268,22 @@ def implemented():
 
 
 def scryfall_cards():
+    """Each Scryfall card by its name and by each face's: its whole name, layout and each face's Oracle text."""
     code, out = shell(sys.executable, "-c", """
 import gzip, glob, json, sys
 path = sorted(glob.glob(sys.argv[1] + '/oracle-cards-*.jsonl.gz'))[-1]
-out = {}
+out, faces = {}, []
 with gzip.open(path) as f:
     for line in f:
         if line.strip():
             d = json.loads(line)
-            out[d['name']] = {'layout': d.get('layout'), 'oracle_text': d.get('oracle_text', ''), 'type_line': d.get('type_line', '')}
+            parts = d.get('card_faces') or [d]
+            card = {'name': d['name'], 'layout': d.get('layout'), 'oracle_text': d.get('oracle_text', ''), 'type_line': d.get('type_line', ''),
+                    'faces': {p['name']: p.get('oracle_text', '') for p in parts}}
+            out[d['name']] = card
+            faces += [(p['name'], card) for p in parts]
+for name, card in faces:  # a card's own name before another's face
+    out.setdefault(name, card)
 print(json.dumps(out))
 """, SCRYFALL)
     return json.loads(out) if code == 0 else {}
@@ -209,6 +298,32 @@ def plain(text):
 def oracle_differs(printed, ours):
     """Whether two Oracle texts say different things. oracle.json brackets a loyalty cost, `[+1]:`, and Scryfall does not."""
     return plain(printed) != plain(re.sub(r"(^|\n)\[([^\]]+)\]:", r"\1\2:", ours))
+
+
+def name_index(rows):
+    """Each row by every name a format's list could call it. A list names a card as Cantrip does, a split card by both
+    halves and any other card of two faces by its front; a row is found by that name first, then the generator's, then any
+    one face's, so a card's own name is never taken by another card's face."""
+    index = {}
+    for key in (lane_name, lambda row: row["name"], None):
+        for row in rows:
+            for each in [key(row)] if key else row.get("faces") or []:
+                index.setdefault(each, row)
+    return index
+
+
+def scryfall_problem(found, faces, oracle, layouts):
+    """Why a card's row does not stand for Scryfall's card, or None; and the faces whose Oracle text differs. `found` is
+    Scryfall's card (`scryfall_cards`), `faces` the row's, `oracle` mtgish's oracle.json by face name."""
+    if found is None:
+        return "not on Scryfall", []
+    if found["layout"] not in layouts:
+        return "layout " + found["layout"], []
+    if sorted(found["faces"]) != sorted(faces):
+        return "faces differ from Scryfall's", []
+    differs = [{"name": face, "scryfall": found["faces"][face], "mtgish": oracle[face].get("text", "")}
+               for face in faces if face in oracle and oracle_differs(found["faces"][face], oracle[face].get("text", ""))]
+    return ("Oracle text differs from mtgish's oracle.json" if differs else None), differs
 
 
 def cmd_queue(args):
@@ -234,29 +349,31 @@ def cmd_queue(args):
             oracle.setdefault(face["name"], face)
     issues = open_issues(args.format)
     old = {c["name"]: c for c in previous["cards"]}
-    rows_by_name = {row["name"]: row for row in rows}
-    order = [rows_by_name[n] for n in listed if n in rows_by_name]
+    rows_by_name = name_index(rows)
+    order =list({id(row): row for row in (rows_by_name[n] for n in listed if n in rows_by_name)}.values())
+    on_list = {id(row) for row in order}
     if not args.listed_only:
-        order += [row for row in rows if row["name"] not in set(listed)]
+        order += [row for row in rows if id(row) not in on_list]
+
+    def had(row):
+        return any(n in have for n in (lane_name(row), row["name"], *(row.get("faces") or [])))
     cards, skipped, details = [], collections.Counter(), []
-    stopped = collections.Counter(rows_by_name[n]["gap"] for n in listed if n in rows_by_name and n not in have and rows_by_name[n]["gap"])
+    stopped = collections.Counter(row["gap"] for row in order if id(row) in on_list and row["gap"] and not had(row))
     for row in order:
-        name = row["name"]
-        if row["gap"] or name in have or name in done:
+        name = lane_name(row)
+        if row["gap"] or had(row) or name in done:
             continue
-        reason = None
-        if name not in scryfall:
-            reason = "not on Scryfall"
-        elif scryfall[name]["layout"] not in args.layouts:
-            reason = "layout " + scryfall[name]["layout"]
-        elif name in oracle and oracle_differs(scryfall[name]["oracle_text"], oracle[name].get("text", "")):
-            reason = "Oracle text differs from mtgish's oracle.json"
-            details.append({"name": name, "scryfall": scryfall[name]["oracle_text"], "mtgish": oracle[name].get("text", "")})
+        found = scryfall.get(row["name"]) or scryfall.get(name)
+        faces = row.get("faces") or [row["name"]]
+        reason, differs = scryfall_problem(found, faces, oracle, args.layouts)
+        details += differs
         if reason:
             skipped[reason] += 1
             continue
         entry = old.get(name) or {"name": name, "status": "pending", "attempts": 0}
-        entry.update(listed=name in listed, issue=issues.get(name))
+        entry.update(listed=id(row) in on_list, issue=issues.get(name) or issues.get(row["name"]), layout=found["layout"])
+        if len(faces) > 1:
+            entry["faces"] = faces
         cards.append(entry)
     missing = [n for n in listed if n not in have]
     queue = {"format": args.format, "built": now(), "generator_commit": git_head(MTGISH), "cantrip_commit": git("rev-parse", "HEAD").strip(),
@@ -265,6 +382,8 @@ def cmd_queue(args):
     print(f"{args.format}: {len(listed)} listed, {len(missing)} missing, {sum(c['listed'] for c in cards)} of those have no gap")
     print(f"queued {len(cards)} with no gap: {sum(c['listed'] for c in cards)} listed, {sum(not c['listed'] for c in cards)} others; "
           f"{sum(1 for c in cards if not rows_by_name[c['name']]['rust'])} need no code; {len(kept)} earlier cards kept")
+    for layout, n in collections.Counter(c["layout"] for c in cards).most_common():
+        print(f"  queued {n}: layout {layout}")
     for reason, n in skipped.most_common(12):
         print(f"  skipped {n}: {reason}")
     for gap, n in stopped.most_common(12):
@@ -307,7 +426,7 @@ def generated_row(name):
         return ROWS[name]
     for line in (GEN / "rows.jsonl").open(encoding="utf-8"):
         row = json.loads(line)
-        if row["name"] == name:
+        if lane_name(row) == name:
             return row
     raise GeneratorBug(f"{name} has no generator row")
 
@@ -373,6 +492,9 @@ def brief(card, driven=False):
              f"- Card file: {code}",
              f"- Content file: `{CONTENT_DIR}/{slug}.json`, from Scryfall, read-only",
              f"- Placeholder scenarios: `{SCENARIOS_DIR}/{stem.replace('_', '-')}-*.cantrip`"]
+    if content_file(name).exists():
+        played = faces_section(card, json.loads(content_file(name).read_text(encoding="utf-8-sig")))
+        lines += ["", played] if played else []
     if driven:
         lines += ["", "A driver runs the gates and makes the commit. Stop after writing `report.json`; do not run `commit` or `abandon`."]
     return "\n".join(lines) + "\n"
@@ -383,8 +505,10 @@ def placeholders(card_name):
     one per printed line, each with a failing TODO: a placeholder left in fails `check`."""
     import cantrip_scenarios as cs
     card = json.loads(content_file(card_name).read_text(encoding="utf-8-sig"))
+    faces = content_faces(card)
+    several = len(faces) > 1  # cantrip_scenarios reads one face: a card of several gets a placeholder for each face's every line
     try:
-        scripts = cs.scenarios(card, cs.Pieces(str(CANTRIP / CONTENT_DIR)))
+        scripts = [] if several else cs.scenarios(card, cs.Pieces(str(CANTRIP / CONTENT_DIR)))
     except cs.Unwritable:
         scripts = []
     written = []
@@ -395,14 +519,15 @@ def placeholders(card_name):
             written.append(path.name)
     if written:
         return written
-    lines = [re.sub(r"\s*\([^)]*\)", "", l).strip() for l in card.get("oracleText", "").split("\n")]
-    lines = [l for l in lines if l and not all(w in cs.KEYWORDS for w in re.split(r",\s*", l.lower()))] or [""]
-    for number, line in enumerate(lines, 1):
+    lines = [(face, re.sub(r"\s*\([^)]*\)", "", l).strip()) for face, text in faces for l in text.split("\n")]
+    lines = [(face, l) for face, l in lines if l and not all(w in cs.KEYWORDS for w in re.split(r",\s*", l.lower()))] or [(card_name, "")]
+    for number, (face, line) in enumerate(lines, 1):
         code, out = tool("new-card.py", card_name, "--scenario", f"todo-line-{number}")
         if code != 0:
             sys.exit(out[-2000:])
         path = CANTRIP / out.strip().splitlines()[-1].removeprefix("wrote ")
-        path.write_text(f"# TODO placeholder for printed line {number}: {line}\n" + path.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+        of = f" of {face}" if several else ""
+        path.write_text(f"# TODO placeholder for printed line {number}{of}: {line}\n" + path.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
         written.append(path.name)
     return written
 
@@ -420,12 +545,15 @@ def repair_keywords(name):
     code to break no gate could tell. A keyword line ends in no period."""
     path = content_file(name)
     card = json.loads(path.read_text(encoding="utf-8-sig"))
-    core, have = core_keywords(), list(card.get("keywords") or [])
-    found = [core[part.strip().lower()] for line in printed_lines(card.get("oracleText", "")) if ";" in line and not line.endswith(".")
-             for part in line.split(";") if part.strip().lower() in core]
-    missing = [k for k in dict.fromkeys(found) if k not in have]
-    if missing:
-        card["keywords"] = have + missing
+    core, changed = core_keywords(), False
+    for face in [card] + ([card["backFace"]] if isinstance(card.get("backFace"), dict) else []):  # the faces whose keywords the oracle crate reads
+        have = list(face.get("keywords") or [])
+        found = [core[part.strip().lower()] for line in printed_lines(face.get("oracleText", "")) if ";" in line and not line.endswith(".")
+                 for part in line.split(";") if part.strip().lower() in core]
+        missing = [k for k in dict.fromkeys(found) if k not in have]
+        if missing:
+            face["keywords"], changed = have + missing, True
+    if changed:
         path.write_text(json.dumps(card, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
 
 
@@ -468,6 +596,10 @@ def prepare(card, build=True):
     packet.mkdir(parents=True, exist_ok=True)
     for stale in ("report.json", "check.json", "work.patch"):
         (packet / stale).unlink(missing_ok=True)
+    if card.get("layout") in DRAFTED and not content_file(name).exists():
+        code, out = shell(sys.executable, Path(__file__).resolve(), "draft", name)
+        if code != 0:
+            raise RuntimeError(f"draft wrote no content file for {name}:\n{out[-1500:]}")
     code, out = tool("new-card.py", name)
     (packet / "reference.md").write_text(out, encoding="utf-8")
     if code != 0 or not content_file(name).exists():
@@ -488,8 +620,7 @@ def prepare(card, build=True):
     (packet / "prior-art.md").write_text(prior_art(source, out), encoding="utf-8")
     points = parse_test_points(out)
     write_test_points(name, points)
-    oracle_text = json.loads(content_file(name).read_text(encoding="utf-8-sig")).get("oracleText", "")
-    (packet / "report.json").write_text(json.dumps(report_skeleton(points, parse_rulings(out), printed_lines(oracle_text)), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    (packet / "report.json").write_text(json.dumps(report_skeleton(points, parse_rulings(out), printed_lines(card_text(name))), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     scenarios = placeholders(name)
     if build:
         code, out = run_corpus(name)
@@ -698,7 +829,7 @@ def generated_problems(name):
 def called_texts(source):
     """The printed-text argument of each ability constructor: the last string literal at the call's own depth."""
     code = "\n".join(l for l in source.splitlines() if not l.lstrip().startswith("//"))
-    for match in re.finditer(r"\b(ability|triggered|mana_ability|static_ability|activated|loyalty_ability|replacement|prevention)\(", code):
+    for match in re.finditer(r"\b(ability|triggered|mana_ability|static_ability|activated|loyalty_ability|replacement|prevention|chapter)\(", code):
         i, depth, last, start = match.end(), 1, None, match.end()
         while i < len(code) and depth:
             c = code[i]
@@ -739,8 +870,7 @@ def functions(source):
 def style_problems(name, source):
     """What the review reads for mechanically: printed text in every ability, doc comments quoting the Oracle sentence
     and citing the rule, and none of the generator's scaffolding left."""
-    card = json.loads(content_file(name).read_text(encoding="utf-8-sig"))
-    oracle = plain(card.get("oracleText", "")).lower()
+    oracle = plain(card_text(name)).lower()
 
     def printed(text):
         """Whether these words are on the card. Oracle's reminder text counts: `Station (...)` is printed."""
@@ -860,7 +990,7 @@ def report_problems(name, points, looks, survivors, ran=None):
     if report is None:
         return [f"no report at {card_dir(name) / 'report.json'}"]
     problems = []
-    oracle_text = json.loads(content_file(name).read_text(encoding="utf-8-sig")).get("oracleText", "")
+    oracle_text = card_text(name)
     validated = {plain(str(v.get("line"))): v for v in report.get("validation") or [] if isinstance(v, dict)}
     for line in printed_lines(oracle_text):
         entry = validated.get(plain(line))
@@ -1065,8 +1195,10 @@ def block_opener(lines, number):
 
 
 def costs_mana(name):
-    cost = json.loads(content_file(name).read_text(encoding="utf-8-sig")).get("manaCost", "")
-    return bool(cost) and cost != "{0}"
+    """Whether the card, or a half of it, has a mana cost to pay."""
+    card = json.loads(content_file(name).read_text(encoding="utf-8-sig"))
+    costs = [card.get("manaCost", "")] + [half.get("manaCost", "") for half in card.get("halves") or []]
+    return any(cost and cost != "{0}" for cost in costs)
 
 
 def check(name, fast=False):
@@ -1610,8 +1742,8 @@ def open_batch(names):
         if len(ROWS) == len(wanted):
             break
         row = json.loads(line)
-        if row["name"] in wanted:
-            ROWS[row["name"]] = row
+        if lane_name(row) in wanted:
+            ROWS[lane_name(row)] = row
 
 
 def close_batch():
@@ -1739,6 +1871,88 @@ def keyword_lines(text, wanted=2):
     return out
 
 
+def facts_of(content):
+    """A content file's characteristics without its printed text, which the section lists line by line."""
+    def bare(face):
+        return {k: v for k, v in face.items() if k != "oracleText"} if isinstance(face, dict) else face
+    facts = {k: bare(v) for k, v in content.items() if k not in ("oracleText", "name")}
+    if isinstance(facts.get("halves"), list):
+        facts["halves"] = [bare(half) for half in facts["halves"]]
+    return facts
+
+
+def face_kind(card, content):
+    """How a card of several faces is played: one of FACE_PLAY's keys, or None for a card of one face."""
+    if content.get("halves"):
+        return "room" if "Room" in content["halves"][0].get("type", "") else "split"
+    for key in ("adventure", "omen", "prepare"):
+        if isinstance(content.get(key), dict):
+            return key
+    if isinstance(content.get("backFace"), dict):
+        return "modal_dfc" if card.get("layout") == "modal_dfc" or content.get("backFacePlayableAsLand") else "transform"
+    return "meld" if card.get("layout") == "meld" else None
+
+
+# How a scenario reaches each face, as Cantrip's own scenarios of such cards say it, and a line that finds one of them.
+FACE_PLAY = {
+    "transform": ("It is a double-faced card that transforms (CR 712): it is cast and enters as {front}, and what turns it over "
+                  "is in its text. Then it is named by its back face: `? Bot1.Battlefield.{other}.Transformed = true`, "
+                  "`Bot1.Battlefield.{other}.Power`. Its back face's lines are owed scenarios as the front's are: transform it, then play them.",
+                  r"\.Transformed = true"),
+    "modal_dfc": ("It is a modal double-faced card (CR 712.11, 712.12): either face can be cast, or played if it is a land. "
+                  "`Bot1.Hand.{front}.Cast(Ability: back face)` casts {other}, and `.Play(Ability: back face)` plays it as a land; "
+                  "on the battlefield it is named by the face it is: `Bot1.Battlefield.{other}`. Play each face in a scenario of its own.",
+                  r"\.(?:Cast|Play)\(Ability: back face\)"),
+    "adventure": ("It has an Adventure (CR 715): `Bot1.Hand.{front}.Cast(Ability: Adventure)` casts {other}. As that resolves the "
+                  "card goes to exile, and `Bot1.Exile.{front}.Cast` casts the creature from there. Play the Adventure, and the card cast as itself.",
+                  r"\.Cast\(Ability: Adventure\)"),
+    "omen": ("It has an Omen (CR 720): `Bot1.Hand.{front}.Cast(Ability: Omen)` casts {other}. As that resolves the card is "
+             "shuffled into its owner's library. Play the Omen, and the card cast as itself.",
+             r"\.Cast\((?:[^)]*; )?Ability: Omen"),
+    "prepare": ("It prepares (CR 722): its spell, {other}, is never in a hand. While the permanent is prepared "
+                "(`? Bot1.Battlefield.{front}.Prepared = true`), `Bot1.Exile.{other}.Cast` casts a copy of the spell, which "
+                "unprepares it. Get it prepared, then cast {other}.",
+                r"Bot\d\.Exile\.[^.]+\.Cast"),
+    "split": ("It is a split card (CR 709): `Bot1.Hand.{card}.Cast(Ability: {front})` casts a half, named by its name. A half "
+              "with aftermath is cast from the graveyard, `Bot1.Graveyard.{card}.Cast(Ability: {other})`, and a card with fuse "
+              "casts both halves with `Cast(Ability: Fuse)`. Off the stack the card is both halves at once, named `{card}`. Play each half.",
+              r" // [^.]+\.Cast\((?:[^)]*; )?Ability: (?!Fuse)"),
+    "room": ("It is a Room (CR 709.5): `Bot1.Hand.{card}.Cast(Ability: {front})` casts it with that door unlocked. On the "
+             "battlefield it is named by its unlocked doors (`? Bot1.Battlefield.{front}.Doors = {front}`), and "
+             "`Bot1.Battlefield.{front}.Activate(Ability: right door)` unlocks the other door, as a sorcery, for that door's "
+             "mana cost (`left door` for the first). Play each door, both cast and unlocked; `--dump` shows its name once both are.",
+             r"\.Activate\(Ability: (?:right|left) door"),
+    "meld": ("It is one card of a meld pair (CR 712.4). Cantrip has no melded card, so no scenario melds it: \"(Melds with ...)\" "
+             "is reminder text, and its other lines are all it owes.", None),
+}
+FACE_ART = {}  # a kind's prior-art scenario, found once a run
+
+
+def face_prior_art(kind):
+    """The shortest scenario of Cantrip's own that plays a card of this kind's other face, or ''."""
+    pattern = FACE_PLAY[kind][1]
+    if kind not in FACE_ART:
+        own = tuple(names_of(n)[0].replace("_", "-") + "-" for n in BATCH)
+        found = [p for p in (CANTRIP / SCENARIOS_DIR).glob("*.cantrip") if pattern and not p.name.startswith(own)
+                 and re.search(pattern, p.read_text(encoding="utf-8"))]
+        best = min(found, key=lambda p: p.stat().st_size, default=None)
+        FACE_ART[kind] = (f"`{SCENARIOS_DIR}/{best.name}`, a scenario of Cantrip's own that plays such a card:\n\n```\n"
+                          + best.read_text(encoding="utf-8")[:PRIOR_ART_CHARS].rstrip() + "\n```") if best else ""
+    return FACE_ART[kind]
+
+
+def faces_section(card, content):
+    """How this card's faces are played in a scenario, with one of Cantrip's that does it."""
+    kind = face_kind(card, content)
+    if kind is None:
+        return ""
+    faces = [face for face, _ in content_faces(content)]
+    front, other = faces[0], faces[-1]
+    text = FACE_PLAY[kind][0].format(front=front, other=other, card=content["name"])
+    art = face_prior_art(kind)
+    return f"Its faces: {text}" + (f"\n\n{art}" if art else "")
+
+
 def card_section(number, card):
     """What a worker needs of one card, so it reads nothing to get it."""
     name = card["name"]
@@ -1750,16 +1964,28 @@ def card_section(number, card):
     source = path.read_text(encoding="utf-8") if path.exists() else ""
     _, lint = tool("card-lint.py", name)
     looks = [line.split("/")[-1] for line in lint.splitlines() if ": LOOK:" in line]
-    facts = {k: v for k, v in content.items() if k not in ("oracleText", "name")}
-    out = [f"## Card {number}: {name}", "", json.dumps(facts, ensure_ascii=False), "", "Printed lines:"]
-    out += [f"{i}. {v['line']}" for i, v in enumerate(skeleton["validation"], 1)]
+    faces = content_faces(content)
+    out = [f"## Card {number}: {name}", "", json.dumps(facts_of(content), ensure_ascii=False), ""]
+    played = faces_section(card, content)
+    out += [played, ""] if played else []
+    if len(faces) > 1:
+        # Each face's lines, numbered on through the card as the report's `lines` are.
+        out.append("Printed lines, by face:")
+        numbered = iter(enumerate((v["line"] for v in skeleton["validation"]), 1))
+        for face, text in faces:
+            own = printed_lines(text)
+            out.append(f"- {face}:" + ("" if own else " none"))
+            out += [f"  {i}. {line}" for _, (i, line) in zip(own, numbered)]  # `own` first: zip stops on it, taking no extra number
+    else:
+        out.append("Printed lines:")
+        out += [f"{i}. {v['line']}" for i, v in enumerate(skeleton["validation"], 1)]
     if skeleton["test_points"]:
         out += ["", "Test points:"] + [f"{p['id']}. {p['point']}" for p in skeleton["test_points"]]
     if skeleton["rulings"]:
         out += ["", "Rulings:"] + [f"{i}. {r['ruling']}" for i, r in enumerate(skeleton["rulings"], 1)]
     if looks:
         out += ["", "Lint asks you to look at these; answer each in `looks`, naming its line as `line 12`:"] + looks
-    said = keyword_lines(content.get("oracleText", ""))
+    said = keyword_lines(card_text(name))
     if said:
         out += ["", "How other scenarios say its keywords, the card's name standing in another's:"] + said
     out += ["", f"Its file, `{CARDS_DIR}/{path.name}`:" if source else "It has no file: the content's keywords are the whole card.", ""]
@@ -2803,7 +3029,7 @@ def main():
     p.set_defaults(func=cmd_setup)
     p = sub.add_parser("queue")
     p.add_argument("--format", default="pioneer")
-    p.add_argument("--layouts", nargs="*", default=["normal"], help="Scryfall layouts the card files cover")
+    p.add_argument("--layouts", nargs="*", default=list(LAYOUTS), help="Scryfall layouts the card files cover")
     p.add_argument("--listed-only", action="store_true", help="only cards on the format's list")
     p.set_defaults(func=cmd_queue)
     p = sub.add_parser("rows", help="the generator rebuilt and its rows written again; the queue is left alone")
@@ -2828,6 +3054,9 @@ def main():
     p.add_argument("--outcome", choices=(*STOPS, "failed_gates"), default="failed_gates")
     p.add_argument("--reason", required=True)
     p.set_defaults(func=cmd_abandon)
+    p = sub.add_parser("draft", help="the content file of a split, Room, prepare or meld card, which new-card.py leaves to a person")
+    p.add_argument("name", help="the card's name as Cantrip has it: both halves of a split card, the front face of another")
+    p.set_defaults(func=cmd_draft)
     p = sub.add_parser("tool")
     p.add_argument("name")
     p.add_argument("rest", nargs=argparse.REMAINDER)
