@@ -16,6 +16,9 @@ A whole-corpus compile takes twenty minutes. The sample covers every requirement
 every form of hole and every Cantrip name the files use, with the smallest files
 that do, so a change to the generator is checked in about a minute. It is not a
 proof: run `--all` before calling a tree clean.
+
+`write` also lists the cards with holes in planned.txt. The crate's `proposals` feature compiles those with the code
+their holes hold, which tools/proposal_check.py type-checks against stubs of the Cantrip API it proposes.
 """
 import argparse
 import json
@@ -41,6 +44,8 @@ license.workspace = true
 [features]
 # Compile every card, not the sample: twenty minutes.
 all = []
+# Compile the planned cards (planned.txt) with the code their holes hold, to type-check what they propose.
+proposals = []
 
 [dependencies]
 cantrip-api.workspace = true
@@ -56,20 +61,27 @@ LIB = """//! Every card as mtgish generates it, tracked by data/cantrip_tracker.
 //! `planned_value!("feature", placeholder => code)` compiles as the placeholder and
 //! will say `code`. The rest of the file is the card's own code. A card with a hole
 //! never runs.
+//!
+//! With the `proposals` feature a hole is the code it holds instead, so what the
+//! generator proposes is type-checked: the planned cards only (planned.txt), against
+//! stubs of the Cantrip API they name that mtgish's tools/proposal_check.py writes.
 #![allow(dead_code, unused_imports, unused_mut, unused_variables, unused_macros)]
 #![allow(unused_assignments, unused_must_use, unreachable_code)]
 
+#[cfg(not(feature = "proposals"))]
 macro_rules! planned {
     ($id:literal => $($code:tt)*) => {};
     ($id:literal, $form:ident $(, $field:literal = $value:expr)* $(,)?) => {
         $(let _ = &$value;)*
     };
 }
+#[cfg(not(feature = "proposals"))]
 macro_rules! planned_value {
     ($feature:literal, $placeholder:expr => $($code:tt)*) => {
         $placeholder
     };
 }
+#[cfg(not(feature = "proposals"))]
 macro_rules! planned_item {
     ($id:literal => $($code:tt)*) => {};
     ($id:literal, $source:literal) => {
@@ -77,16 +89,77 @@ macro_rules! planned_item {
     };
 }
 
+#[cfg(feature = "proposals")]
+macro_rules! planned {
+    ($id:literal => $($code:tt)*) => {
+        $($code)*
+    };
+    ($id:literal, $form:ident $(, $field:literal = $value:expr)* $(,)?) => {
+        $(let _ = &$value;)*
+    };
+}
+#[cfg(feature = "proposals")]
+macro_rules! planned_value {
+    ($feature:literal, $placeholder:expr => $($code:tt)*) => {
+        $($code)*
+    };
+}
+/// `planned_item!("id" => list: code)`: `code` is an entry of the `CardDef` list `list`, or an item (a trigger's
+/// matcher). An entry is checked as the card's static will hold it: `@value` marks a field that is not a list and `@new`
+/// a list `CardDef` does not have yet (proposal_check.py marks them; unmarked is a list).
+/// `planned_item!("id" => item)` is the item: a function or static the card's tables will name.
+#[cfg(feature = "proposals")]
+macro_rules! planned_item {
+    ($id:literal => $list:ident : $(#[$meta:meta])* fn $($code:tt)*) => {
+        $(#[$meta])* fn $($code)*
+    };
+    ($id:literal => @value $list:ident : $($code:tt)*) => {
+        const _: () = {
+            static ENTRY: ::cantrip_api::CardDef =
+                ::cantrip_api::CardDef { $list: $($code)*, ..::cantrip_api::CardDef::BLANK };
+        };
+    };
+    ($id:literal => @new $list:ident : $($code:tt)*) => {
+        const _: () = $crate::proposals::new_card_entry($($code)*);
+    };
+    ($id:literal => $list:ident : $($code:tt)*) => {
+        const _: () = {
+            static ENTRY: ::cantrip_api::CardDef =
+                ::cantrip_api::CardDef { $list: &[$($code)*], ..::cantrip_api::CardDef::BLANK };
+        };
+    };
+    ($id:literal, $source:literal) => {
+        const _: &str = $source;
+    };
+    ($id:literal => $($item:tt)*) => {
+        $($item)*
+    };
+}
+
 include!(concat!(env!("OUT_DIR"), "/modules.rs"));
 """
 
-BUILD = """//! The modules to compile: the sample, or with the `all` feature every card.
+BUILD = """//! The modules to compile: the sample, with the `all` feature every card, or with `proposals` the planned cards.
+//!
+//! With `proposals` the cards are the ones planned.txt lists, from cards/. Set `CANTRIP_PROPOSALS` to a directory, as
+//! mtgish's tools/proposal_check.py writes it, to compile its cards/ instead (from its list.txt if it has one) with its
+//! stubs.rs as the module `proposals`.
 use std::fmt::Write;
+use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-changed=sample.txt");
+    println!("cargo:rerun-if-changed=planned.txt");
     println!("cargo:rerun-if-changed=build.rs");
-    let root = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    println!("cargo:rerun-if-env-changed=CANTRIP_PROPOSALS");
+    let root = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let lines = |path: PathBuf| -> Vec<String> {
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display())).lines().map(String::from).collect()
+    };
+    let proposals = std::env::var_os("CARGO_FEATURE_PROPOSALS").is_some();
+    let check = std::env::var_os("CANTRIP_PROPOSALS").filter(|_| proposals).map(PathBuf::from);
+    let mut cards = root.join("cards");
+    let mut out = String::new();
     let stems: Vec<String> = if std::env::var_os("CARGO_FEATURE_ALL").is_some() {
         let mut all: Vec<String> = std::fs::read_dir(root.join("cards"))
             .unwrap()
@@ -94,12 +167,20 @@ fn main() {
             .collect();
         all.sort();
         all
+    } else if let Some(dir) = &check {
+        cards = dir.join("cards");
+        let stubs = dir.join("stubs.rs");
+        println!("cargo:rerun-if-changed={}", dir.join("list.txt").display());
+        writeln!(out, "#[path = {:?}]\\nmod proposals;", stubs.to_string_lossy()).unwrap();
+        let list = dir.join("list.txt");
+        lines(if list.exists() { list } else { root.join("planned.txt") })
+    } else if proposals {
+        lines(root.join("planned.txt"))
     } else {
-        std::fs::read_to_string(root.join("sample.txt")).unwrap().lines().map(String::from).collect()
+        lines(root.join("sample.txt"))
     };
-    let mut out = String::new();
     for (i, stem) in stems.iter().enumerate() {
-        let path = root.join("cards").join(format!("{stem}.rs"));
+        let path = cards.join(format!("{stem}.rs"));
         writeln!(out, "#[path = {:?}]\\nmod card_{i};", path.to_string_lossy()).unwrap();
     }
     let out_dir = std::env::var_os("OUT_DIR").unwrap();
@@ -127,7 +208,8 @@ def stem_of(name):
     return stem or "unnamed"
 
 
-COUNTER_TABLE = "crates/cantrip-state/src/vocab.rs"
+HOLE = re.compile(r"\bplanned(?:_value|_item)?!")
+COUNTER_TABLE ="crates/cantrip-state/src/vocab.rs"
 HELD_VALUE = re.compile(r'planned_value!\("(?:[^"\\]|\\.)*", [\w:]+ => [\w:]+\)')
 
 
@@ -277,7 +359,7 @@ def write(args):
         manifest = root.read_text()
         if f'"{CRATE}"' not in manifest:
             root.write_text(manifest.replace('members = [\n', f'members = [\n    "{CRATE}",\n', 1))
-    wanted, sized, taken = set(), [], {}
+    wanted, sized, taken, planned = set(), [], {}, []
     for card in read_rows(args.rows):
         stem = stem_of(card["name"])
         taken[stem] = taken.get(stem, 0) + 1
@@ -288,7 +370,9 @@ def write(args):
         path = cards / f"{stem}.rs"
         if not path.exists() or path.read_text(encoding="utf-8") != text:
             path.write_text(text, encoding="utf-8")
-        forms = set(re.findall(r'planned!\("[^"]*", (\w+)', text))
+        if HOLE.search(text):
+            planned.append(stem)
+        forms =set(re.findall(r'planned!\("[^"]*", (\w+)', text))
         fields = set(re.findall(r'" = \{ let q', text))
         api = set(re.findall(r"\b[A-Z]\w+::[A-Z]\w+|cantrip_mechanics::\w+::\w+|\bg\.\w+\(|\bq\.\w+\(", text))
         sized.append((stem, len(text), set(card["requirements"]) | forms | fields | api | {card["layout"]}))
@@ -297,7 +381,9 @@ def write(args):
             stale.unlink()
     sample = sample_of(sized, args.sample)
     (crate / "sample.txt").write_text("".join(s + "\n" for s in sample))
-    print(f"{len(wanted)} cards, sample {len(sample)}")
+    # What the `proposals` feature compiles: every card with a hole, whose code proposal_check.py type-checks.
+    (crate / "planned.txt").write_text("".join(s + "\n" for s in sorted(planned)))
+    print(f"{len(wanted)} cards, sample {len(sample)}, {len(planned)} with holes")
 
 
 def check(args):
