@@ -545,6 +545,10 @@ impl Compiler {
                 );
                 self.table_entry(parts, table, &function, code);
             }
+            // Only a spell or ability can have a player search (CR 701.23): each asks.
+            PlayerAction::SearchLibraries => self.table_entry(parts, "cause_rules", function, format!(
+                "fn {function}(q: &dyn Query, asker: &Asker, causer: PlayerId, player: PlayerId, kind: CauseKind) -> bool {{ !({banned} && matches!(kind, CauseKind::Search {{ .. }})) }}"
+            )),
             PlayerAction::BlockWith(filter) => {
                 let test = self.filter(filter, &Candidate::of("blocker"))?;
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ let asker = &Asker::new(source, q.controller(source)); let player = q.controller(blocker); !({banned} && {test}) }}").unwrap();
