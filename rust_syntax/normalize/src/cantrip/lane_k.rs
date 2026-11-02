@@ -1869,14 +1869,19 @@ impl Compiler {
         if let Some(mode) = line.modes.iter().find(|mode| makes(mode)) {
             return mode.clone();
         }
+        // An activation's cost is no word of the effect: "Sacrifice this creature".
+        let words = match line.text.split_once(": ") {
+            Some((cost, words)) if !cost.contains(['"', '.']) => words,
+            _ => line.text.as_str(),
+        };
         let mut at = 0;
-        for sentence in line.text.split_inclusive(". ") {
+        for sentence in words.split_inclusive(". ") {
             if makes(sentence) {
-                return line.text[at..].to_string();
+                return words[at..].to_string();
             }
             at += sentence.len();
         }
-        line.text.clone()
+        words.to_string()
     }
     /// A flip whose line speaks of heads or tails has no winner (CR 705.2), and
     /// the rest are won or lost. The AST says the same words either way.

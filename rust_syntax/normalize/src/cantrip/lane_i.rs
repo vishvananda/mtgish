@@ -254,6 +254,17 @@ fn watched_filter(filter: &mut ObjectFilter) -> Option<ObjectRef> {
             Some(std::mem::replace(object, ObjectRef::Source))
         }
         ObjectFilter::All(filters) => filters.iter_mut().find_map(watched_filter),
+        // "A creature dealt damage by that creature".
+        ObjectFilter::Condition(condition) => match &mut **condition {
+            Condition::Compare { left, .. } => match left {
+                Expr::EventHistory { event, .. } => match &mut **event {
+                    EventSpec::Damage(damage) => watched_filter(&mut damage.sources),
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -287,6 +298,23 @@ pub(super) fn watched(event: &mut EventSpec) -> Option<ObjectRef> {
         }
         _ => None,
     }
+}
+
+/// The targets of a slot `event` is about each of, moved to the watcher's source:
+/// what they each do is an event of their own, so each has its own watcher.
+pub(super) fn watched_each(event: &mut EventSpec) -> Option<ObjectSet> {
+    let EventSpec::Damage(damage) = event else {
+        return None;
+    };
+    let ObjectFilter::InSet(set) = &damage.sources else {
+        return None;
+    };
+    if !matches!(**set, ObjectSet::Targets(_)) {
+        return None;
+    }
+    let list = (**set).clone();
+    damage.sources = ObjectFilter::SameObject(ObjectRef::Source);
+    Some(list)
 }
 
 /// Who may choose new targets, and for what, if that is all `body` does.
@@ -1022,9 +1050,11 @@ impl Compiler {
             // How much of something: all of them together is its sum. A reader
             // one player at a time may mean their own or the total; the AST
             // does not say which, so nothing is read for it.
+            let by_player = lane_n::read_player_by_player(each.rest, &result)
+                && !self.line_text().is_some_and(|line| line.contains("the total amount"));
             let total = (matches!(kind, ViewKind::Performed)
                 && local.starts_with("done_")
-                && !lane_n::read_player_by_player(each.rest, &result))
+                && !by_player)
             .then(|| format!("done_total_{k}"));
             if let Some(total) = &total {
                 writeln!(declared, "let mut {total}: i64 = 0;").unwrap();
@@ -1048,7 +1078,7 @@ impl Compiler {
                 let bound = format!("bound_{}", each.binding.0);
                 let rest = each.rest;
                 self.tally_share(result, &local, &bound, rest, &mut declared, &mut tail);
-                if lane_n::read_player_by_player(rest, &result) {
+                if by_player {
                     self.notes.read_as_own.insert(result);
                 }
             }

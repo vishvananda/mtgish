@@ -487,6 +487,17 @@ impl Compiler {
             };
             let from = self.fetch(self.players(from)?);
             let to = self.fetch(self.players(to)?);
+            // A player's counters are poison, energy and experience (CR 122.1), each
+            // given by this ability's controller: no placement of them is one event.
+            let more = match copies {
+                C::OneOfEachKind => Some(("1u32", "1i32")),
+                C::All => Some(("n", "n as i32")),
+                _ => None,
+            };
+            if let (Some((more, energy)), true, None) = (more, from == to, kind) {
+                writeln!(out, "for player in {from} {{ let (poison, energy, experience) = {{ let counters = g.state().player(player); (u32::from(counters.poison()), u32::from(counters.energy()), u32::from(counters.experience())) }}; let n = poison; if n > 0 {{ g.give_poison(player, {more}); }} let n = energy; if n > 0 {{ g.change_energy(player, {energy}); }} let n = experience; if n > 0 {{ g.give_experience(player, {more}); }} }}").unwrap();
+                return Ok(());
+            }
             let call = format!("let from: Vec<PlayerId> = {from}; let to: Vec<PlayerId> = {to}; {M}::counters::duplicate_on_players(g, asker, &from, &to, {})?;", quoted(&format!("{copies:?}")));
             self.plan_code("counters a player has, by kind", &call, out);
             return Ok(());
@@ -3150,6 +3161,34 @@ impl Compiler {
             }
             other => return self.choose_value_p(other, player, source, options, local, id, out),
         }
+        Ok(())
+    }
+    /// The controller's choice of one of the words for each of `players`.
+    pub(super) fn word_for_each_player(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        options: &[Operand],
+        out: &mut String,
+    ) -> Result<()> {
+        let words = options
+            .iter()
+            .map(|option| match option {
+                Operand::Text(word) => Ok(word.clone()),
+                _ => Err(gap("a choice of Word")),
+            })
+            .collect::<Result<Vec<String>>>()?;
+        if !self.word_options.is_empty() || self.entering_labels.is_some() {
+            return Err(gap("two choices of labels as it enters"));
+        }
+        let count = words.len();
+        let labels: Vec<String> = words.iter().map(|w| quoted(w)).collect();
+        self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+        self.word_options = words;
+        let players = self.fetch(self.players(players)?);
+        let local = format!("words_{id}");
+        writeln!(out, "let card_{id} = g.card_id(&CARD); let mut {local}: Vec<(PlayerId, u8)> = Vec::new(); for player in {players} {{ let word = {M}::choose::option(g, asker.controller, asker.source, card_{id}, 0..{count})?; {local}.push((player, word)); }}").unwrap();
+        self.player_words = Some(local);
         Ok(())
     }
     /// `Condition::ChosenWord`: this body's choice, or what the permanent keeps.

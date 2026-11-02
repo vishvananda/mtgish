@@ -1345,6 +1345,11 @@ impl Compiler {
         });
         tests.push(self.matching(frame, |c| c.filter(sources, &Candidate::of("source")))?);
         tests.push(self.matching(frame, |c| match recipients {
+            DamageRecipients::Any
+                if c.line_text().is_some_and(|t| t.contains("deals combat damage to a player")) =>
+            {
+                Err(gap("combat damage to a player, the player lost in the data"))
+            }
             DamageRecipients::Any => Ok("true".to_string()),
             DamageRecipients::Players(players) => Ok(format!(
                 "matches!(*target, Target::Player(p) if {})",
@@ -1754,11 +1759,32 @@ impl Compiler {
         body: &Program,
     ) -> Result<String> {
         if let Some(total) = limits.total {
+            // "This ability triggers only once": the engine records a triggering
+            // only of an ability limited each turn, and its text tells it from any
+            // other such ability of the object. Its matcher is asked alone: an
+            // intervening "if" is asked again as it resolves (CR 603.4).
             let free = TriggerLimits {
-                per_turn: limits.per_turn,
+                per_turn: limits.per_turn.or((total == 1).then_some(1)),
                 total: None,
             };
             let def = self.triggered(label, event, intervening_if, &free, announcement, body)?;
+            let text = def.split_once(", \"").and_then(|(_, text)| {
+                let mut escaped = false;
+                let end = text.find(|c| {
+                    let closes = c == '"' && !escaped;
+                    escaped = c == '\\' && !escaped;
+                    closes
+                })?;
+                Some(format!("\"{}\"", &text[..end]))
+            });
+            let matcher = format!("{label}_event");
+            if let (1, None, Some(text), true) =
+                (total, limits.per_turn, text, def.contains(&format!("{matcher})")))
+            {
+                let once = format!("{label}_once");
+                writeln!(self.functions, "#[allow(unused_variables)] fn {once}(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{ if q.history().all().iter().any(|r| matches!(r.event, Event::Triggered {{ source, ability }} if source == asker.source && matches!(q.card(ability.card).abilities.get(usize::from(ability.index)), Some(AbilityDef::Triggered(t)) if t.text == {text}))) {{ return None; }} {matcher}(q, asker, event) }}").unwrap();
+                return Ok(def.replacen(&format!("{matcher})"), &format!("{once})"), 1));
+            }
             return Ok(planned::planned_value(
                 "trigger total limit",
                 &def,

@@ -781,6 +781,15 @@ impl Compiler {
                 filter,
                 "{ let mut all: Vec<ObjectId> = q.state().battlefield().to_vec(); all.extend_from_slice(q.state().zone(Zone::STACK)); all.extend_from_slice(q.state().zone(Zone::COMMAND)); for p in q.state().seats() { for zone in [Zone::library(p), Zone::hand(p), Zone::graveyard(p), Zone::exile(p)] { all.extend_from_slice(q.state().zone(zone)); } } all }".into(),
             )?,
+            // The rest of a prevention whose parts have one source (CR 615.5).
+            ObjectSet::Damage(DamageSubject::Source)
+                if self.pending == Pending::Reshaped && self.frame.damage_source.is_some() =>
+            {
+                format!(
+                    "({}).into_iter().collect::<Vec<ObjectId>>()",
+                    self.object(&ObjectRef::Damage(DamageSubject::Source))?
+                )
+            }
             ObjectSet::Damage(subject) => held_objects(
                 &feature,
                 &format!("q.damage_objects(item, DamageSubject::{})", form(subject)),
@@ -1721,6 +1730,26 @@ impl Compiler {
     }
 }
 
+/// Whether a printed landwalk of `land` is a rule of the block of its own: of a
+/// land type Cantrip has no word for, or a type and a supertype together.
+pub(super) fn landwalk_rule(land: &ObjectFilter) -> bool {
+    let snow = |f: &ObjectFilter| {
+        matches!(f, ObjectFilter::Supertype(crate::mtg_types::SuperType::Snow))
+    };
+    let of_a_type = |f: &ObjectFilter| matches!(f, ObjectFilter::Subtype(_));
+    match land {
+        // A basic land type's landwalk is a keyword of its own, which is what
+        // anything reading or removing it asks after.
+        ObjectFilter::Subtype(kind) => !matches!(
+            name(kind).as_str(),
+            "Plains" | "Island" | "Swamp" | "Mountain" | "Forest"
+        ),
+        ObjectFilter::All(parts) => {
+            matches!(parts.as_slice(), [a, b] if (snow(a) && of_a_type(b)) || (snow(b) && of_a_type(a)))
+        }
+        _ => false,
+    }
+}
 /// "Nonbasic landwalk", and landwalk of what no word of Cantrip's names (CR 702.14).
 pub(super) fn landwalk(land: &ObjectFilter) -> Result<String> {
     let feature = format!("landwalk of {}", form(land));
@@ -1757,6 +1786,52 @@ fn land_filter(land: &ObjectFilter) -> Option<String> {
         ObjectFilter::All(parts) => {
             let parts = parts.iter().map(land_filter).collect::<Option<Vec<_>>>()?;
             format!("LandFilter::All(&[{}])", parts.join(", "))
+        }
+        _ => return None,
+    })
+}
+
+/// A measure over what matched, where its reads can be of the thing as it was. `test`
+/// is the event's test of a record and `scope` the records it asks of.
+pub(super) fn history_measured(
+    measure: &HistoryMeasure,
+    scope: &str,
+    test: &str,
+) -> Option<String> {
+    const DAMAGE: &str = "if let Event::Damage { source, target, amount, kind, .. } = event { let (source, amount, combat) = (*source, *amount, kind.is_combat());";
+    let spells = test.contains("Event::SpellCast {");
+    // What a spell was as it was cast (CR 601.2i), not what its card is now.
+    let as_cast = test.replace(
+        "q.chars(id)",
+        "cast_of(q, id).map_or_else(|| q.chars(id), |cast| cast.chars(q))",
+    );
+    let casts = format!("{scope}.filter_map({as_cast}).filter_map(|f: Fired| f.subject.object()).filter_map(|id| cast_of(q, id))");
+    Some(match measure {
+        // Each source once, by what it was as it dealt the damage and who controlled
+        // it then, whatever it has become since (CR 120.3, 609.7).
+        HistoryMeasure::DistinctSources if test.contains(DAMAGE) => {
+            let test = test
+                .replace(DAMAGE, "if let Event::Damage { source, target, amount, kind, controller, known, .. } = event { let (source, amount, combat, controller) = (*source, *amount, kind.is_combat(), *controller); let dealt = DamageDealt { source, target: *target, amount, combat, controller, known: *known };")
+                .replace("q.chars(source)", "dealt.chars(q)")
+                .replace("q.controller(source)", "controller");
+            format!("{{ let mut sources: Vec<ObjectId> = {scope}.filter(|r: &&Record| ({test})(*r).is_some()).filter_map(|r: &Record| if let Event::Damage {{ source, .. }} = r.event {{ Some(source) }} else {{ None }}).collect(); sources.sort(); sources.dedup(); sources.len() as i64 }}")
+        }
+        HistoryMeasure::Distinct(DistinctProperty::CardTypes) if spells => format!(
+            "{casts}.fold(TypeSet::NONE, |all, cast| cast.types.iter().fold(all, |all, t| all.with(t))).iter().count() as i64"
+        ),
+        HistoryMeasure::Property(Property::ManaValue, Aggregation::Sum) if spells => {
+            format!("{casts}.map(|cast| i64::from(cast.value(q))).sum::<i64>()")
+        }
+        HistoryMeasure::Property(Property::ManaValue, Aggregation::Maximum) if spells => {
+            format!("{casts}.map(|cast| i64::from(cast.value(q))).max().unwrap_or(0)")
+        }
+        // "Permanents you've sacrificed": no player in the data says whose.
+        HistoryMeasure::Distinct(_) if test.contains("ZoneReason::Sacrifice") => {
+            planned::planned_value(
+                "a sacrifice history with its player lost in the data",
+                "0i64",
+                "0i64",
+            )
         }
         _ => return None,
     })
@@ -1807,6 +1882,9 @@ impl Compiler {
         let HistoryWindow::SinceLastTurnOf(player) = window else {
             return Err(gap(feature.as_str()));
         };
+        if let Some(window) = self.since_their_last_turn(player)? {
+            return Ok(window);
+        }
         Ok(planned::planned_value(
             &feature,
             "q.history().this_turn().iter()",
@@ -1815,6 +1893,23 @@ impl Compiler {
                 self.player(player)?
             ),
         ))
+    }
+    /// The records since a player's last turn: the last one that isn't this one,
+    /// from where it began or where it ended as the card's words say, which the
+    /// AST doesn't. With none yet, the whole game.
+    fn since_their_last_turn(&self, player: &PlayerRef) -> Result<Option<String>> {
+        let Some(line) = self.line_text() else {
+            return Ok(None);
+        };
+        let player = self.player(player)?;
+        let theirs = format!("Some(r.active) == {player} && r.turn != history.turn");
+        Ok(if line.contains("beginning of your last turn") {
+            Some(format!("{{ let history = q.history(); let last = history.all().iter().rev().find(|r| {theirs}).map(|r| r.turn); history.all()[history.all().iter().position(|r| Some(r.turn) == last).unwrap_or(0)..].iter() }}"))
+        } else if line.contains("your last turn") {
+            Some(format!("{{ let history = q.history(); history.all()[history.all().iter().rposition(|r| {theirs}).map_or(0, |at| at + 1)..].iter() }}"))
+        } else {
+            None
+        })
     }
 }
 
@@ -2617,6 +2712,9 @@ impl Compiler {
         let feature = format!("history window {}", form(window));
         let code = match window {
             ObjectWindow::SinceLastTurnOf(player) => {
+                if let Some(window) = self.since_their_last_turn(player)? {
+                    return Ok(window);
+                }
                 return Ok(format!(
                     "{{ let of = {}; let all = q.history().all(); all[all.iter().rposition(|r| matches!(r.event, Event::TurnEnded {{ player }} if Some(player) == of)).map_or(0, |at| at + 1)..].iter() }}",
                     self.player(player)?
@@ -2628,11 +2726,11 @@ impl Compiler {
                     self.player(player)?
                 )
             }
+            // In their upkeep, "your last upkeep" is the one before it, and with none
+            // yet the whole game. An upkeep has no combat, so two in a turn read alike.
             ObjectWindow::SinceLastUpkeepOf(player) => {
-                format!(
-                    "cantrip_mechanics::history::since_last_upkeep_of(q, {}).iter()",
-                    self.player(player)?
-                )
+                let player = self.player(player)?;
+                return Ok(format!("{{ let history = q.history(); let upkeeping = q.state().turn.step() == Step::Upkeep; history.all()[history.select(EventQuery::kind(EventMask::STEP_BEGAN).step(Step::Upkeep)).rev().find(|r| Some(r.active) == {player} && !(upkeeping && r.turn == history.turn)).map_or(0, |r| r.serial as usize + 1)..].iter() }}"));
             }
             other => return Err(gap(format!("history window {}", form(other)))),
         };
@@ -2706,14 +2804,6 @@ impl Compiler {
             K::Reinforce => (
                 "abilities",
                 format!("{M}::reinforce::ability_x({}, {word})", price(self)?),
-            ),
-            K::BestowX | K::FreerunningX | K::SurgeX | K::WarpX => (
-                "ways",
-                format!("{M}::{module}::way_x({}, {word})", price(self)?),
-            ),
-            K::ForetellX => (
-                "abilities",
-                format!("{M}::foretell::ability_x({})", price(self)?),
             ),
             K::CommanderNinjutsu => (
                 "abilities",

@@ -383,15 +383,24 @@ impl Compiler {
                     def.push_str(".exile_after()");
                 }
                 if !matches!(require, ObjectFilter::Any) {
-                    if condition.is_some() {
-                        return Err(gap("permission with a requirement and a condition"));
-                    }
                     let saved = std::mem::replace(&mut self.reader, Reader::Query);
                     let test = self.filter(require, &Candidate::of("asker.source"));
                     self.reader = saved;
+                    let test = test?;
+                    // A way has one condition: "as long as" and the requirement are both of it.
+                    let stated = match condition {
+                        Some(condition) => {
+                            let stated =
+                                self.activation_condition(condition, &format!("{label}_if"))?;
+                            format!(" && {stated}(q, asker)")
+                        }
+                        None => String::new(),
+                    };
                     let function = format!("{label}_require");
-                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ {} }}", test?).unwrap();
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ ({test}){stated} }}").unwrap();
                     def.push_str(&format!(".condition({function})"));
+                    parts.table("ways", def);
+                    return Ok(());
                 }
                 let def = way(self, def, label)?;
                 parts.table("ways", def);
@@ -448,6 +457,18 @@ impl Compiler {
                 comparison: Comparison::NotEqual,
                 right: Expr::Constant(0),
             }) if condition.is_none() => parts.field("x_cant_be_zero", "true".into()),
+            // Blight X's own limit: `VariableCost::BlightX` announces X up to it.
+            CastingRule::Require(Condition::Compare {
+                left: Expr::AnnouncedX,
+                comparison: Comparison::LessOrEqual,
+                right,
+            }) if condition.is_none()
+                && parts
+                    .fields
+                    .get("additional_cost")
+                    .is_some_and(|cost| cost.contains("VariableCost::BlightX"))
+                && format!("{right:?}").contains("Toughness")
+                && format!("{right:?}").contains("Maximum") => {}
             // A test of what may be cast has no X to read: none is announced yet.
             CastingRule::Require(required)
                 if condition.is_none() && format!("{required:?}").contains("AnnouncedX") =>

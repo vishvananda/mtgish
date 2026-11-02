@@ -373,6 +373,25 @@ impl Compiler {
             parts.block_rules.push(format!("{function}_block"));
             return Ok(true);
         }
+        // "Can't be blocked as long as defending player controls ...": of each block,
+        // whoever is defending against that attacker (CR 506.2).
+        if let RuleChange::BlockedByDefender { players, unless } = rule {
+            let member = self.player_member(players).map_err(|_| gap(&feature))?;
+            let allowed = if *unless { member } else { format!("!({member})") };
+            let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}_block(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ let asker = &Asker::new(source, q.controller(source)); !{function}(q, asker, attacker) || q.defending_player(attacker).is_none_or(|player| {allowed}) }}").unwrap();
+            parts.block_rules.push(format!("{function}_block"));
+            return Ok(true);
+        }
+        // "Can't be turned face up" (CR 708.7) is the source's effect, no ability of
+        // the permanent, and stops every way of turning it up.
+        if matches!(rule, RuleChange::Prohibit(ObjectAction::TurnFaceUp)) {
+            let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
+            parts.table("face_up_bans", function.to_string());
+            return Ok(true);
+        }
         let code = self.rule_code(rule).map_err(|_| gap(&feature))?;
         let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
@@ -614,6 +633,20 @@ impl Compiler {
             ManaPayment::Abilities(filter) => {
                 format!("Payment::Abilities({})", self.ability_filter(filter)?)
             }
+        })
+    }
+    /// `bool`: whether a cost, told only what it pays for as `costing`, is one of
+    /// those `on` names. Which spell or ability it pays for a `CostBan` isn't told.
+    pub(super) fn cost_paid_for(&self, on: &ManaPayment) -> Result<String> {
+        const NOT_MANA: &str = "!(def.is_some_and(|d| d.is_mana_ability()))";
+        Ok(match on {
+            ManaPayment::Anything => "true".to_string(),
+            ManaPayment::Spells(ObjectFilter::Any) => "matches!(costing, CostFor::Spell)".to_string(),
+            ManaPayment::Abilities(ObjectFilter::Any) => "!matches!(costing, CostFor::Spell)".to_string(),
+            ManaPayment::Abilities(filter) if self.ability_test(filter)? == NOT_MANA => {
+                "matches!(costing, CostFor::Ability)".to_string()
+            }
+            _ => return Err(gap("a cost ban on some spells or abilities")),
         })
     }
     fn prohibition(&self, action: &PlayerAction) -> Result<String> {
@@ -1561,6 +1594,9 @@ impl Compiler {
         let Operand::Term { form: word, .. } = lost else {
             return Err(failed);
         };
+        if let Some(lost) = lost_keyword(lost) {
+            return Ok(vec![format!("EffectKind::LoseKeywords(Keywords::of(&[{lost}]))")]);
+        }
         match word.as_str() {
             // The enchant ability is the engine's to take.
             "Enchant" => Ok(vec![format!(
@@ -1606,6 +1642,16 @@ impl Compiler {
         lost: &Operand,
         failed: Diagnostic,
     ) -> Result<statics::LayerChange> {
+        if let Some(lost) = lost_keyword(lost) {
+            let and = match lost.as_str() {
+                "Keyword::Hexproof" => " chars.hexproof_from = HexproofFrom::NONE;",
+                _ => "",
+            };
+            return Ok(statics::LayerChange::of(
+                "Ability",
+                format!("chars.keywords = Keywords(chars.keywords.0 & !Keywords::of(&[{lost}]).0);{and}"),
+            ));
+        }
         let word = self.lost_word(lost).map_err(|_| failed.clone())?;
         Ok(statics::LayerChange::of(
             "Ability",
@@ -1829,14 +1875,7 @@ impl Compiler {
                 mode: ChangeMode::Add,
             } => L::of(
                 "Type",
-                format!(
-                    "{};",
-                    planned::planned_value(
-                        &feature,
-                        "()",
-                        "chars.subtypes = chars.subtypes.union(SubtypeSet::NONBASIC_LAND_TYPES)",
-                    )
-                ),
+                "chars.subtypes = chars.subtypes.union(SubtypeSet::LAND_TYPES.minus(SubtypeSet::of(&[Subtype::Plains, Subtype::Island, Subtype::Swamp, Subtype::Mountain, Subtype::Forest])));".into(),
             ),
             // Being all of them leaves nothing for "in addition" to add.
             Change::CreatureTypes {
@@ -2965,16 +3004,13 @@ impl Compiler {
     pub(super) fn mana_symbols(&self, objects: &ObjectSet, colors: &[ManaColor]) -> Result<String> {
         let colors = colors
             .iter()
-            .map(|c| color(c).map(|c| format!("Color::{c}")))
+            .map(|c| color(c).map(|c| format!("Color::{c}.mana()")))
             .collect::<Result<Vec<_>>>()?
             .join(", ");
-        Ok(planned::planned_value(
-            "mana symbols other than a devotion to one color",
-            "0i64",
-            &format!(
-                "{M}::devotion::symbols_among(q, {}, &[{colors}])",
-                self.objects(objects)?
-            ),
+        // A hybrid symbol of two of the colors is one symbol (CR 700.5, 107.4e).
+        Ok(format!(
+            "({}).into_iter().map(|id: ObjectId| {{ let cost = q.mana_cost(id); let colors = [{colors}]; colors.iter().map(|&m| i64::from(cost.symbols[m as usize]) + i64::from(cost.phyrexian[m as usize]) + i64::from(cost.twobrid[m as usize])).sum::<i64>() + cost.hybrid.iter().flatten().filter(|(a, b)| colors.contains(a) || colors.contains(b)).count() as i64 }}).sum::<i64>()",
+            self.objects(objects)?
         ))
     }
     /// `i64`: the counters among these players and objects.
@@ -3300,8 +3336,17 @@ impl Compiler {
             Err(failed) => failed,
         };
         let code = match quality {
+            // "Hexproof from that color": the color this ability just chose.
             Protection::Objects { filter, .. } => {
-                format!("HexproofFrom::of({})", self.over(filter, "id")?)
+                let over = self.over(filter, "id")?;
+                match over
+                    .strip_suffix(".is_some_and(|chosen| q.chars(id).colors.has(chosen))")
+                    .and_then(|o| o.rsplit_once("| Some("))
+                    .and_then(|(_, chosen)| chosen.strip_suffix(')'))
+                {
+                    Some(chosen) => format!("HexproofFrom::color({chosen})"),
+                    None => format!("HexproofFrom::of({over})"),
+                }
             }
             Protection::Players(players) => format!(
                 "HexproofFrom::of_players(|q: &dyn Query, asker: &Asker| {})",
@@ -3636,21 +3681,19 @@ impl Compiler {
                     parts,
                 );
             }
+            // Judged as the card exists where it is (CR 101.2): `EnterRule`.
             Ability::CantEnter { cards, from } => {
                 let (cards, from) = self.queried(|c| {
                     let cards = c.over(cards, "id")?;
                     let from = match from {
-                        Some(scope) => format!("Some({})", c.zone_scope(scope)?),
-                        None => "None".to_string(),
+                        Some(scope) => c.in_scope(scope, "id")?,
+                        None => "true".to_string(),
                     };
                     Ok((cards, from))
                 })?;
-                self.plan_entry(
-                    &feature,
-                    "cant_enter",
-                    &format!("CantEnter {{ cards: {cards}, from: {from} }}"),
-                    parts,
-                );
+                let function = format!("{label}_enter");
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ !({from} && ({cards})(q, asker, id)) }}").unwrap();
+                parts.table("enter_rules", function);
             }
             // "No more than two creatures can attack you each combat" (CR 508.1c),
             // of what has the ability: a rule of the combat, asked of what is attacked.
@@ -3839,4 +3882,30 @@ fn spell_words(body: &Ability) -> String {
 /// `rule_name` of `effects`: the words a rule's gaps go by.
 fn effects_rule_name(rule: &RuleChange) -> String {
     super::effects::rule_name(rule)
+}
+
+/// The keyword a loss of `lost` is. Losing hexproof loses every "hexproof from
+/// [quality]" too (CR 702.11e), and `LoseKeywords` says so of that bit.
+fn lost_keyword(lost: &Operand) -> Option<String> {
+    let Operand::Term {
+        form: word,
+        operands,
+        ..
+    } = lost
+    else {
+        return None;
+    };
+    match (word.as_str(), operands.as_slice()) {
+        ("AnyHexproof", []) => Some("Keyword::Hexproof".to_string()),
+        ("Landwalk", [Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Subtype(land)))]) => {
+            match name(land).as_str() {
+                "Plains" => Some("Keyword::Plainswalk".to_string()),
+                "Island" | "Swamp" | "Mountain" | "Forest" => {
+                    Some(format!("Keyword::{}walk", name(land)))
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
 }

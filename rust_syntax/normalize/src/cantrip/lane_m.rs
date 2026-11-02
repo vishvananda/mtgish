@@ -1424,6 +1424,19 @@ pub(super) fn turn_window(window: &TurnWindow, step: &str) -> Result<String> {
         TurnWindow::AfterCombat => format!("{step} > (Step::EndOfCombat as u8)"),
         TurnWindow::EndOfCombatStep => "q.state().turn.step() == Step::EndOfCombat".into(),
         TurnWindow::BeforeEndOfCombatStep => format!("{step} < (Step::EndOfCombat as u8)"),
+        TurnWindow::AfterUpkeep => format!("{step} > (Step::Upkeep as u8)"),
+        TurnWindow::BeforeEndStep => format!("{step} < (Step::End as u8)"),
+        TurnWindow::UntapStep => "q.state().turn.step() == Step::Untap".into(),
+        TurnWindow::ExtraTurn => {
+            "q.history().this_turn().iter().any(|r| matches!(r.event, Event::TurnBegan { extra: true, .. }))".into()
+        }
+        TurnWindow::BeforeFirstCombat => {
+            "!q.history().this_turn().iter().any(|r| matches!(r.event, Event::StepBegan { step: Step::BeginCombat }))".into()
+        }
+        // Read as the ability that asks triggers, this step's beginning isn't history yet.
+        TurnWindow::FirstEndStep => {
+            "q.state().turn.step() == Step::End && q.history().this_turn().iter().filter(|r| matches!(r.event, Event::StepBegan { step: Step::End })).count() <= 1".into()
+        }
         other => planned::planned_value(
             &format!("turn window {other:?}"),
             "false",

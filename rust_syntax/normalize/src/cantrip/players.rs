@@ -493,6 +493,19 @@ impl Compiler {
             }
         })
     }
+    /// `bool`: whether `card` is in the zones `scope` names, each its owner's.
+    pub(super) fn in_scope(&self, scope: &ZoneScope, card: &str) -> Result<String> {
+        Ok(match scope {
+            ZoneScope::Shared(zone) | ZoneScope::Players { zone, players: PlayerSet::All } => {
+                format!("q.obj({card}).zone.is({})", zone_kind(zone)?)
+            }
+            ZoneScope::Players { zone, players } => format!(
+                "(q.obj({card}).zone.is({}) && {{ let player = q.obj({card}).owner; {} }})",
+                zone_kind(zone)?,
+                self.player_member(players)?
+            ),
+        })
+    }
     pub(super) fn prohibit(
         &mut self,
         function: &str,
@@ -529,10 +542,50 @@ impl Compiler {
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, spell: ObjectId) -> bool {{ !({banned} && {test}) }}"
                 ));
             }
+            // "Players can't cast spells from graveyards" (CR 601.3): the zone is all
+            // a rule of casting is told of the spell.
+            PlayerAction::CastSpell {
+                from:
+                    Some(
+                        ZoneScope::Shared(zone)
+                        | ZoneScope::Players {
+                            zone,
+                            players: PlayerSet::All,
+                        },
+                    ),
+                filter: ObjectFilter::Any,
+            } => {
+                let zone = zone_kind(zone)?;
+                self.table_entry(parts, "cast_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, from: ZoneKind) -> bool {{ !({banned} && from == {zone}) }}"
+                ));
+            }
+            // What of the spell a rule reads, it reads of the card where it is as it's
+            // asked first; the spell it's asked of again is on the stack, and passes.
+            PlayerAction::CastSpell {
+                from: Some(scope),
+                filter,
+            } => {
+                let test = self.filter(filter, &cast_card())?;
+                let from = self.in_scope(scope, "spell")?;
+                self.table_entry(parts, "spell_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, spell: ObjectId) -> bool {{ !({banned} && {from} && {test}) }}"
+                ));
+            }
             PlayerAction::PlayLand { from: None, filter } => {
                 let test = self.filter(filter, &Candidate { controller: "player".into(), ..Candidate::of("land") })?;
                 self.table_entry(parts, "land_play_rules", function, format!(
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, land: ObjectId, face: CardId) -> bool {{ !({banned} && {test}) }}"
+                ));
+            }
+            PlayerAction::PlayLand {
+                from: Some(scope),
+                filter,
+            } => {
+                let test = self.filter(filter, &Candidate { controller: "player".into(), ..Candidate::of("land") })?;
+                let from = self.in_scope(scope, "land")?;
+                self.table_entry(parts, "land_play_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, land: ObjectId, face: CardId) -> bool {{ !({banned} && {from} && {test}) }}"
                 ));
             }
             PlayerAction::Activate(filter) => {
@@ -542,6 +595,33 @@ impl Compiler {
                     "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, object: ObjectId, ability: &ActivatedDef) -> bool {{ let player = q.controller(object); !({banned} && {test}) }}"
                 );
                 self.table_entry(parts, table, &function, code);
+            }
+            // Only a spell or ability can have a player search (CR 701.23): each asks.
+            PlayerAction::SearchLibraries => self.table_entry(parts, "cause_rules", function, format!(
+                "fn {function}(q: &dyn Query, asker: &Asker, causer: PlayerId, player: PlayerId, kind: CauseKind) -> bool {{ !({banned} && matches!(kind, CauseKind::Search {{ .. }})) }}"
+            )),
+            PlayerAction::BlockWith(filter) => {
+                let test = self.filter(filter, &Candidate::of("blocker"))?;
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ let asker = &Asker::new(source, q.controller(source)); let player = q.controller(blocker); !({banned} && {test}) }}").unwrap();
+                parts.block_rules.push(function.to_string());
+            }
+            // "Players can't pay life ... to cast spells or activate abilities" (CR 118.3):
+            // what a cost is paid for is all a ban is told of what it pays for.
+            PlayerAction::PayLife(on) => {
+                let paying = self.cost_paid_for(on)?;
+                self.table_entry(parts, "cost_bans", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ {banned} && {paying} && matches!(payment, CostPayment::Life) }}"
+                ));
+            }
+            PlayerAction::Sacrifice {
+                objects,
+                paying: Some(on),
+            } => {
+                let paying = self.cost_paid_for(on)?;
+                let test = self.filter(objects, &Candidate::of("permanent"))?;
+                self.table_entry(parts, "cost_bans", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ {banned} && {paying} && matches!(payment, CostPayment::Sacrifice(permanent) if {test}) }}"
+                ));
             }
             other => return Err(gap(format!("prohibited action {}", form(other)))),
         }

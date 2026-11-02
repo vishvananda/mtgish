@@ -133,6 +133,41 @@ fn performed_by_itself(cost: &Cost) -> bool {
 }
 
 /// The one permanent a cost taps, named: "you may tap it".
+/// What a card must be for `cost` to be "put a card like this from your hand onto
+/// the battlefield tapped and attacking", paid by the player whose hand it is.
+fn arrives_attacking_from_hand<'a>(player: &PlayerRef, cost: &'a Cost) -> Option<&'a ObjectFilter> {
+    let [CostPart::Move {
+        selections,
+        destination,
+        entry,
+        face_down: false,
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    let [CostObjectSelection {
+        objects:
+            ObjectSet::Zone {
+                scope:
+                    ZoneScope::Players {
+                        zone: EventZone::Hand,
+                        players: PlayerSet::One(owner),
+                    },
+                kind: ObjectKind::Card,
+                filter,
+            },
+        choose: Some(Count::Exactly(Expr::Constant(1))),
+    }] = selections.as_slice()
+    else {
+        return None;
+    };
+    let same = format!("{owner:?}") == format!("{player:?}")
+        && format!("{destination:?}") == format!("Battlefield({player:?})");
+    let attacking = format!("{entry:?}")
+        == "EntrySpec { tapped: true, counters: [], states: [Attacking { player: None, or_planeswalker: false }] }";
+    (same && attacking).then_some(filter)
+}
+
 fn taps_one_object(cost: &Cost) -> Option<&ObjectRef> {
     match cost.parts.as_slice() {
         [CostPart::ChangeTapState {
@@ -719,7 +754,9 @@ impl Compiler {
                 if self.object_as_it_enters(objects, count, rest, result, out)? {
                     return Ok(());
                 }
-                let purpose = purpose(result, rest)
+                // CR 609.7a: what the source does later is not what it is chosen for.
+                let purpose = lane_n::chooses_a_source(objects)
+                    .or_else(|| purpose(result, rest))
                     .or_else(|| purpose(result, &self.after))
                     .or_else(|| referred_to(result, rest).then_some("ChooseAsEnters"))
                     .or_else(|| referred_to(result, &self.after).then_some("ChooseAsEnters"))
@@ -789,7 +826,21 @@ impl Compiler {
                         } => Some(objects),
                         _ => None,
                     });
-                if format!("{next:?}") != format!("{:?}", Some(excluding)) {
+                // Or the next instructions take them out of the order at once.
+                let them = format!("{excluding:?}");
+                let moved = match body.instructions.get(i + 1) {
+                    Some(Instruction::If { then, otherwise, .. }) => [then, otherwise]
+                        .iter()
+                        .all(|branch| format!("{branch:?}").contains(&them)),
+                    Some(Instruction::Effect {
+                        operation:
+                            Operation::Move { objects, .. }
+                            | Operation::ChangeZone { cards: objects, .. },
+                        ..
+                    }) => format!("{objects:?}") == them,
+                    _ => false,
+                };
+                if format!("{next:?}") != format!("{:?}", Some(excluding)) && !moved {
                     return Err(gap("shuffle around cards that stay where they are"));
                 }
                 writeln!(
@@ -1106,6 +1157,9 @@ impl Compiler {
         self.open_guard(&local, out);
         if matches!(player, PlayerRef::OneOf(_)) {
             self.notes.performers.insert(result.0, format!("Some({local}_player)"));
+        }
+        if let Some(quality) = lane_n::quality_chosen(objects, self.line_text()) {
+            self.damage_sources.insert(local.clone(), quality.clone());
         }
         self.selections.insert(result.0, local);
         Ok(())
@@ -1701,6 +1755,15 @@ impl Compiler {
                     },
                 destination: Destination::OwnersGraveyard,
             } => self.counter_all_on_stack(id, players, result, out)?,
+            // "On your choice of the top or bottom": the question has no one in the data
+            // to ask, and the card says who.
+            Operation::Counter {
+                objects,
+                destination: Destination::OwnersLibraryTopOrBottom,
+            } if self.line_text().is_some_and(|line| line.contains("your choice of the top or bottom")) => {
+                writeln!(self.functions, "static TOP_OR_BOTTOM_{id}: Question = Question::new(\"PutOnTop\", \"put it on top of its owner's library?\", \"If you don't, it goes on the bottom\", \"Top\", \"Bottom\");").unwrap();
+                writeln!(out, "let objects_{id} = {}; let top_{id} = cantrip_mechanics::effects::ask_may(g, asker.controller, asker.source, Purpose::Ask(&TOP_OR_BOTTOM_{id}))?; cantrip_api::instruction(g, |g| {{ for spell in objects_{id} {{ g.counter_to(spell, if top_{id} {{ CounterTo::LibraryTop }} else {{ CounterTo::LibraryBottom }}); }} }});", self.fetch(self.objects(objects)?)).unwrap();
+            }
             Operation::Counter {
                 objects,
                 destination,
@@ -1762,6 +1825,11 @@ impl Compiler {
                     affected,
                     EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::Either(names)))
                         if names.iter().all(|name| matches!(name, ObjectFilter::SameObject(_)))
+                ) || matches!(
+                    // "Each creature dealt damage this way": done, so it gains no one.
+                    affected,
+                    EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
+                        if filters.iter().any(|f| matches!(f, ObjectFilter::DamagedBy(dealt) if self.moved.contains_key(&dealt.0)))
                 );
                 match evaluation {
                     EffectEvaluation::LiveObjects if !closed => {
@@ -1864,6 +1932,20 @@ impl Compiler {
                 optional: true,
             } if matches!(cost.parts.as_slice(), [CostPart::PlayerAction { .. }]) => {
                 self.player_action(id, player, &cost.parts[0], true, result, out)?
+            }
+            // "You may put a creature card from your hand onto the battlefield tapped
+            // and attacking" (CR 508.4): it's asked after the card what it attacks.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if self.asking.is_none() && arrives_attacking_from_hand(player, cost).is_some() => {
+                let filter = arrives_attacking_from_hand(player, cost).expect("just seen");
+                let payer = self.fetch(self.certain_player(player)?);
+                let test = self.filter(filter, &Candidate::of("id"))?;
+                writeln!(out, "let payer_{id} = {payer}; let put_{id}: Vec<ObjectId> = cantrip_mechanics::hand::may_put_onto_battlefield_attacking(g, payer_{id}, asker.source, |g, id| {{ let q: &dyn Query = g; {test} }})?.into_iter().collect(); let paid_{id} = !put_{id}.is_empty();").unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
+                self.moved.insert(result.0, format!("put_{id}"));
             }
             // "You may tap it": what can't be tapped can't be paid (CR 118.3), and
             // "if you don't" holds of that too.
@@ -2686,11 +2768,8 @@ impl Compiler {
             Destination::Exile if self.links_exile && self.pending != Pending::Entering => {
                 format!("{{ let by = g.text_linked(asker.source); g.exile_with(&objects_{id}, by, false) }}")
             }
-            Destination::Exile if self.links_exile => planned::planned_value(
-                "exile outside a stack item that an ability reads as exiled with its source",
-                &format!("g.exile_all(&objects_{id})"),
-                &format!("{{ let by = g.linked_to(asker.source); g.exile_with(&objects_{id}, by, false) }}"),
-            ),
+            // As it enters: `Entering::object` is the permanent it will be.
+            Destination::Exile if self.links_exile => format!("{{ let by = g.text_linked(asker.source); g.exile_with(&objects_{id}, by, false) }}"),
             Destination::Exile => format!("g.exile_all(&objects_{id})"),
             // `put_into_graveyard` refuses permanents, so name each destination.
             Destination::OwnersGraveyard => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::graveyard(g.state().obj(o).owner))).collect(); let moved = g.move_together(&moves, MoveReason::Other); moved.into_iter().filter(|&o| g.state().obj(o).zone.kind() == ZoneKind::Graveyard).collect::<Vec<ObjectId>>() }}"),

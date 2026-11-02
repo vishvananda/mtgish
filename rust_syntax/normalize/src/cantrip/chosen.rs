@@ -179,6 +179,15 @@ impl Compiler {
             self.value_to_come("a choice of several values", id, kind, &code, out);
             return Ok(());
         }
+        // "For each player, choose friend or foe": one player's choice of many
+        // words, whatever the data says of who makes it.
+        if kind == ValueKind::Word
+            && matches!(actor, PlayerSet::All)
+            && self.stack_item
+            && self.line_text().is_some_and(|t| t.contains("For each player, choose"))
+        {
+            return self.word_for_each_player(id, actor, options, out);
+        }
         let PlayerSet::One(player) = actor else {
             let players = self.fetch(self.players(actor)?);
             let code = format!(
@@ -532,6 +541,10 @@ impl Compiler {
             ValueKind::Color => Ok(Some((
                 format!("EffectKind::Protection(ColorSet::of({chosen}))"),
                 format!("chars.protection = chars.protection.with({chosen});"),
+            ))),
+            ValueKind::CardType => Ok(Some((
+                format!("EffectKind::ProtectionFromTypes(TypeSet::of(&[{chosen}]))"),
+                format!("chars.protection_types = TypeSet(chars.protection_types.0 | TypeSet::of(&[{chosen}]).0);"),
             ))),
             other => Err(gap(format!("protection from a chosen {other:?}"))),
         }

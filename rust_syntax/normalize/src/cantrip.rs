@@ -545,6 +545,10 @@ struct Compiler {
     mana_x: bool,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
+    /// "A source of your choice": each choice's local and the quality it asks.
+    damage_sources: BTreeMap<String, ObjectFilter>,
+    /// The quality of the source of your choice the made effect at hand is about.
+    choosing_source: Option<ObjectFilter>,
     /// What later reads ask of the instructions before them (`lane_m`).
     notes: lane_m::Notes,
     /// By slot: who controlled the items an earlier step countered.
@@ -562,6 +566,8 @@ struct Compiler {
     unchosen: BTreeMap<u32, String>,
     /// The words of a choice of `ValueKind::Word`, the card's `labels`.
     word_options: Vec<String>,
+    /// `Vec<(PlayerId, u8)>`: the word chosen for each player.
+    player_words: Option<String>,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
     /// The same transitions as `moved`, by the identities they left behind.
@@ -650,6 +656,7 @@ struct Compiler {
     reflexing: bool,
     /// The next closure is the body of a delayed ability asked of another object.
     source_moved: bool,
+    watching_object: Option<ObjectRef>,
     bound_players: BTreeSet<u32>,
     /// A mechanic asks for the first way, so no other way may come before it.
     only_way: bool,
@@ -989,11 +996,14 @@ impl Compiler {
             mana_x: false,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
+            damage_sources: BTreeMap::new(),
+            choosing_source: None,
             notes: Default::default(),
             countered: BTreeMap::new(),
             face_piles: None,
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
+            player_words: None,
             reveal_matches: BTreeMap::new(),
             revealed: false,
             creations: BTreeMap::new(),
@@ -1040,6 +1050,7 @@ impl Compiler {
             bound_objects: BTreeSet::new(),
             reflexing: false,
             source_moved: false,
+            watching_object: None,
             bound_players: BTreeSet::new(),
             costing_targets: false,
             mode_guard: None,

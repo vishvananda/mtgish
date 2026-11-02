@@ -507,7 +507,8 @@ impl Compiler {
                     _ => None,
                 };
                 if let Some(amount) = amount {
-                    let then = self.prevention_then(label, &arms, frame, &rest, "")?;
+                    let then =
+                        self.prevention_then(label, &arms, frame, &rest, "", (true, true))?;
                     return self.prevention(label, &arms, &extra, amount, hint, then, parts);
                 }
             }
@@ -708,6 +709,9 @@ impl Compiler {
         if !self.stack_item || self.pending != Pending::Nothing {
             return Err(gap("replacement made outside a resolving ability"));
         }
+        if self.divided_shields(event, limit, duration, body, out)? {
+            return Ok(());
+        }
         let saved = self.clone();
         let mark = out.len();
         let holes = self.gaps.len();
@@ -749,6 +753,7 @@ impl Compiler {
         if about.len() > 1 {
             return Err(gap("replacement made about several objects"));
         }
+        self.choosing_source = about.first().and_then(|o| self.source_chosen(o));
         let about = about.first().map(|o| self.object(o)).transpose()?;
         let hint = quoted(&self.said(lane_k::Said::Sentence, ability_text(body)));
         let label = format!("made_{}", self.fresh());
@@ -877,11 +882,14 @@ impl Compiler {
         about: bool,
     ) -> Result<(Option<String>, String)> {
         self.replacing = Default::default();
-        let (arms, frame) = self.watched(event)?;
+        let (mut arms, frame) = self.watched(event)?;
         self.note_event(event, &arms);
+        self.chosen_source(&mut arms, frame)?;
         let (extra, changes, rest) = self.program_parts(body, frame)?;
         if arms[0].kind == "Damage" && lane_n::prevents(&changes) {
-            let then = self.prevention_then(label, &arms, frame, &rest, "affected: ObjectId, ")?;
+            let alone = lane_n::parts_alone(event, to);
+            let then =
+                self.prevention_then(label, &arms, frame, &rest, "affected: ObjectId, ", alone)?;
             let of = self.made_prevention_amount(label, &arms, frame, &changes)?;
             let applies = format!("{label}_applies");
             self.watch_function(
@@ -893,6 +901,7 @@ impl Compiler {
             );
             let may = self.replacing.may.take();
             let text = quoted(&self.waiting_words());
+            let hint = lane_n::hint_or_words(hint, &text);
             self.made_preventions.push(lane_n::granted_prevention(
                 &hint,
                 &applies,
@@ -912,11 +921,7 @@ impl Compiler {
             } else if shield.is_some() {
                 "Shield::Next(shield)".to_string()
             } else if next_time {
-                planned::planned_value(
-                    "prevention limited by NextOccurrence",
-                    "Shield::All",
-                    "Shield::NextTime",
-                )
+                "Shield::NextTime".to_string()
             } else {
                 "Shield::All".to_string()
             };
@@ -933,6 +938,11 @@ impl Compiler {
             _ if shield.is_some() => false,
             other => return Err(gap(format!("replacement limited by {}", form(other)))),
         };
+        // `once` ends with the first assignment, and the next time is all of the
+        // event (CR 120.2): only damage to one recipient by one source is that.
+        if once && arms[0].kind == "Damage" && lane_n::parts_alone(event, to) != (true, true) {
+            return Err(gap("engine: no once-only replacement of a whole damage event"));
+        }
         let (kind, applies, apply, then) =
             self.reshaping(label, &arms, frame, &extra, &changes, &rest, true)?;
         let mut def =
@@ -1000,7 +1010,7 @@ impl Compiler {
         match (then, may) {
             (None, None) => parts.preventions.push(def),
             (Some(_), _) => self.plan_entry(
-                "prevention with an effect besides",
+                "engine: no static prevention with an effect besides",
                 "preventions",
                 &def,
                 parts,

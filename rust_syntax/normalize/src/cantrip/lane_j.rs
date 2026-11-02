@@ -1808,11 +1808,7 @@ impl Compiler {
             // CR 609.7a: permanents, spells, what those name, and what waits to apply.
             ObjectSet::DamageSources(filter) => format!(
                 "({}).into_iter().filter(|&id| {}).collect::<Vec<ObjectId>>()",
-                planned::planned_value(
-                    "object collection DamageSources",
-                    "Vec::<ObjectId>::new()",
-                    "cantrip_mechanics::damage_sources(q)"
-                ),
+                "cantrip_mechanics::prevention::damage_sources(q)",
                 self.filter(filter, &Candidate::of("id"))?
             ),
             ObjectSet::MovedBy {
@@ -2630,6 +2626,21 @@ impl Compiler {
             }
             Condition::MostVotes { .. } => held("g.votes().most(option)"),
             Condition::ChosenWord(word) => self.chosen_word(word)?,
+            Condition::VotedFor {
+                player,
+                option: VoteOption::Word(word),
+            } if self.player_words.is_some() => {
+                let index = self
+                    .word_options
+                    .iter()
+                    .position(|w| w == word)
+                    .ok_or_else(|| gap("condition VotedFor"))?;
+                format!(
+                    "{}.iter().any(|&(p, word)| Some(p) == {} && word == {index})",
+                    self.player_words.as_deref().unwrap_or_default(),
+                    self.player(player)?
+                )
+            }
             Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
                 held("g.votes().voted(option)")
             }
@@ -4136,7 +4147,7 @@ impl Compiler {
             ActivationFilter::Of(sources) => {
                 let test = self.filter(sources, &Candidate::of("object"))?;
                 match **sources {
-                    ObjectFilter::Chosen(..) => test,
+                    ObjectFilter::Chosen(..) | ObjectFilter::InZone(..) => test,
                     _ => format!("q.is_on_battlefield(object) && {test}"),
                 }
             }
@@ -4428,6 +4439,14 @@ impl Compiler {
     ) -> Result<String> {
         let spell = self.paid_for == PaidFor::Spell;
         let variable = match choose {
+            // Asked of a payer as it resolves, the size is known by then.
+            Some(Count::Exactly(n))
+                if label == lane_g::PAID && !matches!(n, Expr::AnnouncedX) =>
+            {
+                let n = self.fetch(self.number(n)?.code);
+                let filter = self.cost_filter(filter, label)?;
+                return Ok(format!("Cost::sacrifice(({n}).max(0) as u32, {filter})"));
+            }
             Some(Count::Exactly(Expr::AnnouncedX)) if spell => "SacrificeX",
             Some(Count::Exactly(Expr::AnnouncedX)) => {
                 let filter = self.cost_filter(filter, label)?;
