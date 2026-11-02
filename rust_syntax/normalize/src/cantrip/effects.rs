@@ -2170,6 +2170,18 @@ impl Compiler {
                 ..
             }]
         );
+        // `create_token_copies_together` makes no tapped token, and a call for each
+        // original would make a batch of each (CR 603.2c).
+        let several = matches!(
+            tokens,
+            [TokenSpec {
+                recipe: TokenRecipe::CopyEach { .. },
+                ..
+            }]
+        );
+        if several && entry.counters.is_empty() && entry.tapped {
+            return Err(gap("tapped token copies of several objects at once"));
+        }
         if !entry.states.is_empty() && (!(defined || copy) || !entry.counters.is_empty()) {
             return Err(gap("tokens entering in a special state"));
         }

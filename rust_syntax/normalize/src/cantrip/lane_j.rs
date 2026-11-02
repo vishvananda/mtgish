@@ -2553,10 +2553,16 @@ impl Compiler {
         let Some((power, toughness)) = &definition.power_toughness else {
             return Ok(false);
         };
+        let attacking = matches!(
+            entry.states.as_slice(),
+            [EntryState::Attacking {
+                or_planeswalker: false,
+                ..
+            }]
+        );
         if matches!((power, toughness), (Expr::Constant(_), Expr::Constant(_)))
-            || !entry.states.is_empty()
+            || !(entry.states.is_empty() || attacking)
             || !entry.counters.is_empty()
-            || entry.tapped
         {
             return Ok(false);
         }
@@ -2573,13 +2579,15 @@ impl Compiler {
         };
         writeln!(
             out,
-            "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend(g.create_token_copies_of(values_{id}, player, count_{id})?); }}",
+            "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend(g.create_token_copies_tapped(values_{id}, player, count_{id}, {})?); }}",
             self.fetch(count),
             self.fetch(power),
             self.fetch(toughness),
             self.fetch(self.players(players)?),
+            entry.tapped,
         )
         .unwrap();
+        self.token_state(id, entry, out)?;
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(true)
     }
@@ -4485,6 +4493,10 @@ impl Compiler {
                 );
                 self.plan_code("a token entering blocking", &code, out);
             }
+            // `create_token_attached` takes a definition: attached after it
+            // enters, a copy is seen unattached, and an Aura that can't enchant
+            // the host is made and dies where it should not be made (CR 303.4i).
+            [EntryState::AttachedTo(_)] => return Err(gap("a token copy attached as it enters")),
             _ => return Err(gap("tokens entering in a special state")),
         }
         Ok(())

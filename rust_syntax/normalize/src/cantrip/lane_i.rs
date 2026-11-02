@@ -131,8 +131,19 @@ impl Gathered {
             Gathered::Mill { .. } => "(PlayerId, u32)",
             Gathered::Damage { .. } => "(ObjectId, Target, u16)",
             Gathered::Tokens { .. } => "(CardId, PlayerId)",
+            Gathered::TokensAt { .. } => "(CardId, PlayerId, Target)",
+            Gathered::TokenCopies { .. } => "(Copiable, PlayerId)",
+            Gathered::TokenCopyAt { .. } => "Target",
         }
     }
+}
+/// What each player's tokens are made to do to their player or planeswalker.
+#[derive(Clone, Copy, PartialEq)]
+enum TokensAt {
+    /// "That's attacking that player" (CR 508.4).
+    Attacking,
+    /// "That attacks that player this turn if able" (CR 508.1d).
+    MustAttack,
 }
 enum Gathered {
     Objects {
@@ -161,6 +172,34 @@ enum Gathered {
         player: PlayerRef,
         token: TokenSpec,
         definition: TokenDefinition,
+        tapped: bool,
+        result: ResultId,
+    },
+    /// "For each opponent, create a token that's attacking that player": what
+    /// each attacks is known, or asked, before any token is made.
+    TokensAt {
+        player: PlayerRef,
+        token: TokenSpec,
+        definition: TokenDefinition,
+        tapped: bool,
+        defender: PlayerRef,
+        or_planeswalker: bool,
+        at: TokensAt,
+        result: ResultId,
+    },
+    /// "For each creature token, its controller creates a copy of it."
+    TokenCopies {
+        player: PlayerRef,
+        recipe: TokenRecipe,
+        result: ResultId,
+    },
+    /// "For each opponent, create a tapped token that's a copy of it attacking
+    /// that player": one creation, as myriad's, and each goes to its defender.
+    TokenCopyAt {
+        player: PlayerRef,
+        object: ObjectRef,
+        adjustments: Vec<Operand>,
+        defender: PlayerRef,
         tapped: bool,
         result: ResultId,
     },
@@ -470,8 +509,80 @@ impl Compiler {
                     tapped: entry.tapped,
                     result,
                 }),
+                [TokenSpec {
+                    amount: Expr::Constant(1),
+                    recipe: recipe @ (TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. }),
+                    ..
+                }] if !entry.tapped => Part::Gather(Gathered::TokenCopies {
+                    player: player.clone(),
+                    recipe: recipe.clone(),
+                    result,
+                }),
                 _ => Part::Unbatched(format!("per-player {}", form(operation))),
             },
+            Operation::CreateTokens {
+                players: PlayerSet::One(player),
+                tokens,
+                entry,
+            } if entry.counters.is_empty() && !is_bound(player, binding) => {
+                let unbatched = || Part::Unbatched(format!("per-player {}", form(operation)));
+                let [token] = tokens.as_slice() else {
+                    return unbatched();
+                };
+                let (defender, or_planeswalker, at) = match entry.states.as_slice() {
+                    [EntryState::Attacking {
+                        player: Some(defender),
+                        or_planeswalker,
+                    }] => (defender.clone(), *or_planeswalker, TokensAt::Attacking),
+                    [EntryState::RulesUntil {
+                        rules,
+                        until: Duration::EndOfTurn,
+                    }] => match rules.as_slice() {
+                        [Operand::Term { form, operands, .. }] if form == "MustAttackPlayer" => {
+                            match operands.as_slice() {
+                                [Operand::Player(defender)] => {
+                                    (defender.clone(), false, TokensAt::MustAttack)
+                                }
+                                _ => return unbatched(),
+                            }
+                        }
+                        _ => return unbatched(),
+                    },
+                    _ => return unbatched(),
+                };
+                if !is_bound(&defender, binding) {
+                    return unbatched();
+                }
+                match &token.recipe {
+                    TokenRecipe::Defined(definition) => Part::Gather(Gathered::TokensAt {
+                        player: player.clone(),
+                        token: token.clone(),
+                        definition: definition.clone(),
+                        tapped: entry.tapped,
+                        defender,
+                        or_planeswalker,
+                        at,
+                        result,
+                    }),
+                    TokenRecipe::Copy {
+                        object,
+                        adjustments,
+                    } if !or_planeswalker
+                        && at == TokensAt::Attacking
+                        && matches!(token.amount, Expr::Constant(1)) =>
+                    {
+                        Part::Gather(Gathered::TokenCopyAt {
+                            player: player.clone(),
+                            object: object.clone(),
+                            adjustments: adjustments.clone(),
+                            defender,
+                            tapped: entry.tapped,
+                            result,
+                        })
+                    }
+                    _ => unbatched(),
+                }
+            }
             _ if !bound && reads_earlier => Part::Once(instruction.clone()),
             _ if walked(operation) => Part::Walk,
             _ => Part::Unbatched(format!("per-player {}", form(operation))),
@@ -940,6 +1051,49 @@ impl Compiler {
                 let definition = self.token_definition(definition)?;
                 writeln!(out, "let def_{id} = g.card_id(&{definition}); let count_{id} = {}; let player_{id} = {}; gathered_{local}.extend(std::iter::repeat((def_{id}, player_{id})).take(count_{id} as usize));", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
             }
+            Gathered::TokensAt {
+                player,
+                token,
+                definition,
+                defender,
+                or_planeswalker,
+                ..
+            } => {
+                let amount = self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?;
+                let definition = self.token_definition(definition)?;
+                let defender = self.fetch(self.certain_player(defender)?);
+                writeln!(out, "let def_{id} = g.card_id(&{definition}); let count_{id} = {}; let player_{id} = {}; let defender_{id} = {defender};", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+                match or_planeswalker {
+                    true => writeln!(out, "let candidates_{id} = cantrip_mechanics::combat::player_or_their_planeswalkers(g, defender_{id}); for _ in 0..count_{id} {{ if let Some(target) = cantrip_mechanics::combat::choose_among(g, player_{id}, asker.source, &candidates_{id})? {{ gathered_{local}.push((def_{id}, player_{id}, target)); }} }}").unwrap(),
+                    false => writeln!(out, "gathered_{local}.extend(std::iter::repeat((def_{id}, player_{id}, Target::Player(defender_{id}))).take(count_{id} as usize));").unwrap(),
+                }
+            }
+            Gathered::TokenCopies { player, recipe, .. } => {
+                let player = self.fetch(self.certain_player(player)?);
+                let (originals, adjustments) = match recipe {
+                    TokenRecipe::Copy {
+                        object,
+                        adjustments,
+                    } => (
+                        format!(
+                            "{}.into_iter().collect::<Vec<ObjectId>>()",
+                            self.fetch(self.object(object)?)
+                        ),
+                        adjustments,
+                    ),
+                    TokenRecipe::CopyEach {
+                        objects,
+                        adjustments,
+                    } => (self.fetch(self.objects(objects)?), adjustments),
+                    _ => return Err(gap("per-player CreateTokens")),
+                };
+                let values = self.copy_values("Some(original)", adjustments)?;
+                writeln!(out, "let player_{id} = {player}; let originals_{id} = {originals}; for original in originals_{id} {{ if let Some(values) = {values} {{ gathered_{local}.push((values, player_{id})); }} }}").unwrap();
+            }
+            Gathered::TokenCopyAt { defender, .. } => {
+                let defender = self.fetch(self.certain_player(defender)?);
+                writeln!(out, "gathered_{local}.push(Target::Player({defender}));").unwrap();
+            }
         }
         Ok(())
     }
@@ -1021,6 +1175,44 @@ impl Compiler {
                     TokenWords::CreatingEffect => "g.words(asker.source)",
                 };
                 writeln!(out, "let words_{local} = {words}; let created_{local} = g.create_tokens_worded(&gathered_{local}, {tapped}, None, words_{local})?;").unwrap();
+                self.creations.insert(result.0, format!("created_{local}"));
+            }
+            Gathered::TokensAt {
+                token,
+                tapped,
+                at,
+                result,
+                ..
+            } => {
+                let words = match token.words {
+                    TokenWords::Rules => "Words::NONE",
+                    TokenWords::CreatingEffect => "g.words(asker.source)",
+                };
+                writeln!(out, "let words_{local} = {words}; let mut created_{local}: Vec<ObjectId> = Vec::new();").unwrap();
+                match at {
+                    // The tokens that attack the same thing enter together, as
+                    // `combat::create_attacking` has them.
+                    TokensAt::Attacking => writeln!(out, "let mut done_{local}: Vec<Target> = Vec::new(); for &(_, _, target) in &gathered_{local} {{ if done_{local}.contains(&target) {{ continue; }} done_{local}.push(target); let group: Vec<(CardId, PlayerId)> = gathered_{local}.iter().filter(|row| row.2 == target).map(|row| (row.0, row.1)).collect(); created_{local}.extend(g.create_tokens_worded(&group, {tapped}, Some(target), words_{local})?); }}").unwrap(),
+                    // Each player's share of what was made, however many that is
+                    // (CR 614.1a), as myriad shares its tokens out.
+                    TokensAt::MustAttack => writeln!(out, "let rows_{local}: Vec<(CardId, PlayerId)> = gathered_{local}.iter().map(|row| (row.0, row.1)).collect(); created_{local}.extend(g.create_tokens_worded(&rows_{local}, {tapped}, None, words_{local})?); if !gathered_{local}.is_empty() {{ let per_{local} = created_{local}.len().div_ceil(gathered_{local}.len()); g.one_instruction(&mut |g| {{ for (at, &token) in created_{local}.iter().enumerate() {{ let target = gathered_{local}[(at / per_{local}).min(gathered_{local}.len() - 1)].2; g.add_effect(asker.source, token, EffectKind::MustAttackAt(target), Duration::EndOfTurn); }} Ok(()) }})?; }}").unwrap(),
+                }
+                self.creations.insert(result.0, format!("created_{local}"));
+            }
+            Gathered::TokenCopies { result, .. } => {
+                writeln!(out, "let created_{local} = g.create_token_copies_together(&gathered_{local})?;").unwrap();
+                self.creations.insert(result.0, format!("created_{local}"));
+            }
+            Gathered::TokenCopyAt {
+                player,
+                object,
+                adjustments,
+                tapped,
+                result,
+                ..
+            } => {
+                let values = self.copy_values(&format!("original_{local}"), &adjustments)?;
+                writeln!(out, "let original_{local} = {}; let values_{local} = {values}; let player_{local} = {}; let created_{local} = match values_{local} {{ Some(values) if !gathered_{local}.is_empty() => g.create_token_copies_tapped(values, player_{local}, gathered_{local}.len() as u32, {tapped})?, _ => Vec::new() }}; if !gathered_{local}.is_empty() {{ let (share_{local}, extra_{local}) = (created_{local}.len() / gathered_{local}.len(), created_{local}.len() % gathered_{local}.len()); let mut from_{local} = 0; for (at, &target) in gathered_{local}.iter().enumerate() {{ let upto = from_{local} + share_{local} + usize::from(at < extra_{local}); g.enter_attacking(&created_{local}[from_{local}..upto], target); from_{local} = upto; }} }}", self.fetch(self.object(&object)?), self.fetch(self.certain_player(&player)?)).unwrap();
                 self.creations.insert(result.0, format!("created_{local}"));
             }
         }
