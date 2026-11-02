@@ -1420,6 +1420,27 @@ impl Compiler {
                 "Event::ZoneChange { new, from, to, reason: ZoneReason::PlayLand, .. }".into();
             matched.arms[1].tests.push(format!("from.is({zone})"));
         }
+        // "When you play a card exiled with this creature": the card the spell or
+        // land was, in exile as the move took it out, was linked to this ability's
+        // text (CR 607.2a). That row keeps its link.
+        // A spell's move to the stack is recorded before it is cast; a land's move is
+        // the event itself, its `old` the card in exile.
+        if let Some(ObjectRef::Source) = exiled_with {
+            let linked = "q.state().obj(old).exiled.is_some_and(|l| l.is_by_in(q.state(), q.linked_to(asker)))";
+            let cast = format!("q.history().all().iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ old, new, from, .. }} if new == id && from.is(ZoneKind::Exile) => Some(old), _ => None }}).is_some_and(|old: ObjectId| {linked})");
+            let [spell, land] = matched.arms.as_mut_slice() else {
+                return Err(gap("a card played from among those exiled with an object"));
+            };
+            let Some(rest) = land.pattern.strip_prefix("Event::ZoneChange { ") else {
+                return Err(gap("a card played from among those exiled with an object"));
+            };
+            if !rest.starts_with("old") {
+                land.pattern = format!("Event::ZoneChange {{ old, {rest}");
+            }
+            spell.tests.push(cast);
+            land.tests.push(format!("{{ let old = *old; {linked} }}"));
+            return Ok(matched);
+        }
         if let Some(object) = exiled_with {
             let by = self.matching(matched.frame, |c| c.object(object))?;
             let test = planned::planned_value(
