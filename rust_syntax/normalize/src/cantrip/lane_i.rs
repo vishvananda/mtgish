@@ -245,24 +245,8 @@ pub(super) fn watched(event: &mut EventSpec) -> Option<ObjectRef> {
 /// The targets of a slot `event` is about each of, moved to the watcher's source:
 /// what they each do is an event of their own, so each has its own watcher.
 pub(super) fn watched_each(event: &mut EventSpec) -> Option<ObjectSet> {
-    // "When a creature dealt damage this way dies this turn".
-    fn dealt(filter: &mut ObjectFilter) -> Option<ObjectSet> {
-        match filter {
-            ObjectFilter::DamagedBy(result) => {
-                let list = ObjectSet::Named(result.clone());
-                *filter = ObjectFilter::SameObject(ObjectRef::Source);
-                Some(list)
-            }
-            ObjectFilter::All(filters) => filters.iter_mut().find_map(dealt),
-            _ => None,
-        }
-    }
-    let damage = match event {
-        EventSpec::Damage(damage) => damage,
-        EventSpec::ZoneChange { objects, .. } | EventSpec::Object { objects, .. } => {
-            return dealt(objects)
-        }
-        _ => return None,
+    let EventSpec::Damage(damage) = event else {
+        return None;
     };
     let ObjectFilter::InSet(set) = &damage.sources else {
         return None;

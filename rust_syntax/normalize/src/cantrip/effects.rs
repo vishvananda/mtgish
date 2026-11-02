@@ -1657,6 +1657,11 @@ impl Compiler {
                     affected,
                     EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::Either(names)))
                         if names.iter().all(|name| matches!(name, ObjectFilter::SameObject(_)))
+                ) || matches!(
+                    // "Each creature dealt damage this way": done, so it gains no one.
+                    affected,
+                    EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
+                        if filters.iter().any(|f| matches!(f, ObjectFilter::DamagedBy(dealt) if self.moved.contains_key(&dealt.0)))
                 );
                 match evaluation {
                     EffectEvaluation::LiveObjects if !closed => {
