@@ -577,6 +577,9 @@ struct Compiler {
     /// The announcement slot whose filter is being compiled.
     choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
+    /// A damage instruction's excess (CR 120.10): the list of what each recipient
+    /// took past lethal, its recipients' local, and the one object it aimed at.
+    excess: BTreeMap<u32, (String, String, Option<String>)>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
     /// The local of the object a change is being applied to, while its value
@@ -591,6 +594,8 @@ struct Compiler {
     bound_objects: BTreeSet<u32>,
     /// The next closure is a reflexive ability's.
     reflexing: bool,
+    /// The next closure is the body of a delayed ability asked of another object.
+    source_moved: bool,
     bound_players: BTreeSet<u32>,
     /// A mechanic asks for the first way, so no other way may come before it.
     only_way: bool,
@@ -930,6 +935,7 @@ impl Compiler {
             door: None,
             choosing: None,
             performed: BTreeMap::new(),
+            excess: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
             affected_object: None,
@@ -938,6 +944,7 @@ impl Compiler {
             enters_choosing: Vec::new(),
             bound_objects: BTreeSet::new(),
             reflexing: false,
+            source_moved: false,
             bound_players: BTreeSet::new(),
             costing_targets: false,
             mode_guard: None,

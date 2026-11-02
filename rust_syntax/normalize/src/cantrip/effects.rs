@@ -1269,6 +1269,9 @@ impl Compiler {
                 amount,
                 preventable: true,
             } => {
+                if lane_n::names_no_card_type(recipients) {
+                    return Err(gap("damage to each permanent, a card type lost in the data"));
+                }
                 let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
                 let (declare, deal) = if lane_n::read_as_damaged(&self.after, result) {
                     self.performed.insert(result.0, format!("done_{id}"));
@@ -1292,6 +1295,21 @@ impl Compiler {
                     )
                 } else {
                     (String::new(), "g.damage_together(&batch);".to_string())
+                };
+                // CR 120.10, read from the damage events: what was dealt, to whom
+                // it was dealt, a redirection and a prevention included.
+                let (declare, deal) = if lane_n::reads_excess(&self.after, result) {
+                    let aimed = match recipients {
+                        Recipients::Objects(ObjectSet::One(object)) => Some(format!("{object:?}")),
+                        _ => None,
+                    };
+                    self.excess.insert(result.0, (format!("excess_{id}"), format!("recipients_{id}"), aimed));
+                    (
+                        format!("{declare}let mut excess_{id}: Vec<(Target, u32)> = Vec::new(); let since_{id} = g.history().head() as usize; "),
+                        format!("{deal} excess_{id}.extend(g.history().all()[since_{id}..].iter().filter_map(|r| match r.event {{ Event::Damage {{ source: s, target, recipient_excess, .. }} if s == source => Some((target, recipient_excess)), _ => None }}));"),
+                    )
+                } else {
+                    (declare, deal)
                 };
                 writeln!(out, "{declare}let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); {deal} }}", self.fetch(self.damage_source(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
             }
@@ -2035,6 +2053,7 @@ impl Compiler {
         self.moved.clear();
         self.before.clear();
         self.performed.clear();
+        self.excess.clear();
         self.values.clear();
         self.flips.clear();
         self.chosen.clear();
@@ -2665,6 +2684,8 @@ impl Compiler {
             self.fetch(self.object(source)?),
         )
         .unwrap();
+        let joined = lane_n::power_with_toughness(changes);
+        let changes = joined.as_deref().unwrap_or(changes);
         if let [Change::CopyOf { object, effects }] = changes {
             let original = self.fetch(self.objects(&ObjectSet::One(object.clone()))?);
             let values = self.copy_values(

@@ -1919,6 +1919,22 @@ impl Compiler {
             Expr::PaidCountersRemoved { .. } => {
                 held_number(feature, "i64::from(q.counters_paid(item))")
             }
+            Expr::ExcessDamage { result, to } if self.excess.contains_key(&result.0) => {
+                let (list, recipients, aimed) = &self.excess[&result.0];
+                let only = match &**to {
+                    ObjectFilter::Any => Some(String::new()),
+                    ObjectFilter::SameObject(object) if aimed.as_deref() == Some(format!("{object:?}").as_str()) => {
+                        Some(format!(".filter(|(t, _)| {recipients}.contains(t))"))
+                    }
+                    _ => None,
+                };
+                match only {
+                    Some(only) => counted(format!(
+                        "{list}.iter(){only}.map(|(_, n)| i64::from(*n)).sum::<i64>()"
+                    )),
+                    None => held_number(feature, "i64::from(result.excess)"),
+                }
+            }
             Expr::ExcessDamage { .. } => held_number(feature, "i64::from(result.excess)"),
             Expr::ChosenNumber => match self.chosen_local(ValueKind::Number) {
                 Ok(local) => counted(format!("i64::from({local})")),

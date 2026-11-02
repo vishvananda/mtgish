@@ -213,6 +213,20 @@ pub(super) fn watched(event: &mut EventSpec) -> Option<ObjectRef> {
         EventSpec::ZoneChange { objects, .. } | EventSpec::Object { objects, .. } => {
             watched_filter(objects)
         }
+        // One object, however it does it.
+        EventSpec::Either(events) => {
+            let mut parts = events.clone();
+            let mut seen = None;
+            for part in &mut parts {
+                let object = watched(part)?;
+                if seen.as_ref().is_some_and(|s| format!("{s:?}") != format!("{object:?}")) {
+                    return None;
+                }
+                seen = Some(object);
+            }
+            *events = parts;
+            seen
+        }
         _ => None,
     }
 }

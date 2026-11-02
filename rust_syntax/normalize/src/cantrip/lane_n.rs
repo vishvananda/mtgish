@@ -2015,6 +2015,35 @@ pub(super) fn keyword_until_end_of_turn(states: &[EntryState]) -> Option<&Keywor
     }
 }
 
+/// A power and a toughness set by one effect are the one thing the engine sets
+/// (CR 613.4b). `None` where the list does not say both.
+pub(super) fn power_with_toughness(changes: &[Change]) -> Option<Vec<Change>> {
+    let power = changes.iter().position(|c| matches!(c, Change::SetPower(_)))?;
+    let toughness = changes.iter().position(|c| matches!(c, Change::SetToughness(_)))?;
+    let (Change::SetPower(p), Change::SetToughness(t)) = (&changes[power], &changes[toughness])
+    else {
+        return None;
+    };
+    let mut joined = changes.to_vec();
+    joined[power] = Change::SetBasePowerToughness {
+        power: p.clone(),
+        toughness: t.clone(),
+    };
+    joined.remove(toughness);
+    Some(joined)
+}
+
+/// Damage to every other permanent, where the words were "each other creature":
+/// no card says that, and read as written it would burn planeswalkers.
+pub(super) fn names_no_card_type(recipients: &Recipients) -> bool {
+    format!("{recipients:?}").contains("Battlefield(Not(")
+}
+
+/// Whether what comes later reads the excess of a damage instruction.
+pub(super) fn reads_excess(after: &[Instruction], result: &ResultId) -> bool {
+    format!("{after:?}").contains(&format!("ExcessDamage {{ result: ResultId({})", result.0))
+}
+
 pub(super) fn read_as_damaged(after: &[Instruction], result: &ResultId) -> bool {
     format!("{after:?}").contains(&format!("DamagedBy(ResultId({}))", result.0))
 }

@@ -21,6 +21,9 @@ pub(super) struct Outer {
     matcher: bool,
     /// `Vec<Target>` code of each part such an effect keeps.
     pub(super) parts: RefCell<Vec<String>>,
+    /// Asked of what it watches, so what made it is not its source: the object
+    /// `Source` says is carried.
+    source_moved: bool,
     /// A reflexive ability, which is told one number as well as its subject.
     reflexive: bool,
     /// `i64` code of the number it is told, worked out as it triggers.
@@ -163,6 +166,10 @@ impl Compiler {
             ObjectRef::Damage(DamageSubject::Recipient) => self.frame.damage_recipient.is_some(),
             ObjectRef::RecipientObject { .. } => false,
             ObjectRef::Bound(binding) => self.bound_objects.contains(&binding.0),
+            ObjectRef::Source => {
+                let resolving = self.reader == Reader::Resolution && self.stack_item;
+                !(resolving && self.outer.as_ref().is_some_and(|o| o.source_moved))
+            }
             // "That card" of what the maker's instruction did: what a subject holds.
             ObjectRef::Query { objects, .. } => {
                 self.list_is_local(objects)
@@ -600,6 +607,7 @@ impl Compiler {
             made,
             matcher: self.watching,
             parts: RefCell::new(Vec::new()),
+            source_moved: std::mem::take(&mut self.source_moved),
             reflexive: std::mem::take(&mut self.reflexing),
             count: RefCell::new(None),
         });
@@ -679,6 +687,15 @@ impl Compiler {
         let (event, source) = self.watching_source(event, body)?;
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();
+        let (maker, _, _) = self.maker();
+        let says = format!("{body:?}");
+        if source != format!("Some({maker})") && says.contains("Source") {
+            // What is linked to the maker can't be read through a list (CR 607).
+            if says.contains("ExiledWith") {
+                return Err(gap("event trigger carrying values"));
+            }
+            self.source_moved = true;
+        }
         let (outer, def) = self.closing_for_matcher(false, |c| {
             // Its matcher is a function of its own: no local reaches it.
             c.reset_results();
@@ -769,11 +786,14 @@ impl Compiler {
             )
             .unwrap();
         }
-        let code = match player.as_ref() {
-            None => format!("if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}"),
-            Some(player) => format!("if let Some(source) = {source} {{ {about} let player = {}.map_or(Target::None, Target::Player); g.delayed_trigger_with({when}, source, {controller}, {ability}, player, &about); }}", self.fetch(player)),
-        };
-        self.plan_code("event trigger carrying values", &code, out);
+        match player.as_ref() {
+            // Its body reads the list; what its matcher reads is held where it is read.
+            None => writeln!(out, "if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}").unwrap(),
+            Some(player) => {
+                let code = format!("if let Some(source) = {source} {{ {about} let player = {}.map_or(Target::None, Target::Player); g.delayed_trigger_with({when}, source, {controller}, {ability}, player, &about); }}", self.fetch(player));
+                self.plan_code("event trigger carrying values", &code, out);
+            }
+        }
         Ok(())
     }
     /// `Operation::ReflexiveTrigger`.
