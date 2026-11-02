@@ -72,6 +72,7 @@ impl Compiler {
     ) -> Result<Option<String>> {
         let mut filters: Vec<Vec<String>> = Vec::new();
         let mut arrays = Vec::new();
+        let mut unused = Vec::new();
         for (i, mode) in modes.iter().enumerate() {
             let label = format!("{label}_mode_{i}");
             let announced = lane_p::without_modes(&mode.announcement);
@@ -87,6 +88,7 @@ impl Compiler {
             };
             filters.push(self.announced_filters.clone());
             arrays.push(array);
+            unused.push(format!("static {name}:"));
         }
         let first = filters[0].clone();
         let mut same = arrays[0].clone();
@@ -113,6 +115,7 @@ impl Compiler {
                 return Ok(None);
             };
             if bodies.iter().all(|body| *body == bodies[0]) {
+                unused.extend(tests[1..].iter().map(|test| format!("fn {test}(")));
                 continue;
             }
             let union = format!("{label}_target_{slot}");
@@ -135,6 +138,12 @@ impl Compiler {
         };
         self.implied_branch = Some(branch);
         let name = format!("{}_TARGETS", label.to_ascii_uppercase());
+        let kept: Vec<&str> = self
+            .functions
+            .lines()
+            .filter(|line| !unused.iter().any(|gone| line.contains(gone.as_str())))
+            .collect();
+        self.functions = kept.join("\n") + "\n";
         writeln!(self.functions, "{}", same.replacen("static ", &format!("static {name}"), 1)).unwrap();
         Ok(Some(name))
     }
