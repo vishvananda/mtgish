@@ -4,7 +4,7 @@
   "cards": 33529,
   "ready": 28327,
   "planned": 5154,
-  "data": 48,
+  "excluded": 48,
   "written": 172,
   "new_tokens": 198,
   "cards_with_new_tokens": 1004,
