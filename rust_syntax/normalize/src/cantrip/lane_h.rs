@@ -1167,8 +1167,8 @@ impl Compiler {
         if terms.then.is_some() || terms.face_down.is_some() {
             return Err(gap("play permission on other terms"));
         }
-        if !terms.effects.is_empty() {
-            return Err(gap("play permission with an effect on what is played"));
+        if let Some(effect) = terms.effects.first() {
+            return Err(gap(played_effect_hole(effect)));
         }
         let mut grant = format!("lands: {lands}, expiry: {expiry}, ");
         match &terms.cost {
@@ -3988,5 +3988,27 @@ impl Compiler {
             R::Prohibit(ObjectAction::Counter) => keyword("CantBeCountered"),
             other => return Err(gap(format!("static rule {}", rule_name(other)))),
         })
+    }
+}
+
+/// What a permission's effect on what it lets be played waits on. `PlayGrant` has
+/// `more` and no less, and `enters_tapped` is of lands; a spell's replacement is a
+/// `GrantedWay`'s, which a resolving effect is not.
+fn played_effect_hole(effect: &Operand) -> &'static str {
+    let term = match effect {
+        Operand::List(terms) => terms.first(),
+        other => Some(other),
+    };
+    match term {
+        Some(Operand::Term { form, .. }) if form == "DecreaseManaCost" => {
+            "engine: a play permission that costs less"
+        }
+        Some(Operand::Term { form, .. }) if form == "EntersTapped" => {
+            "engine: a spell a play permission casts enters tapped"
+        }
+        Some(Operand::Term { form, .. }) if form.starts_with("EntersWith") => {
+            "engine: a spell a play permission casts enters changed"
+        }
+        _ => "play permission with an effect on what is played",
     }
 }
