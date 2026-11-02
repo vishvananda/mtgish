@@ -1244,6 +1244,18 @@ impl Compiler {
                 mana: ManaProduction::SameTypeAsProduced,
                 restriction: None,
             } if self.stack_item => self.same_type_as_produced(out),
+            // "For each ..., add one mana of any type that land produced": each mana its own type, in any combination of
+            // the types the tap produced (Sasaya's Essence's rulings), whatever the data's choice timing says.
+            Operation::AddMana {
+                players: _,
+                mana: ManaProduction::Repeat { amount, production, .. },
+                restriction: None,
+            } if self.stack_item && matches!(**production, ManaProduction::SameTypeAsProduced) => {
+                let times = self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?);
+                writeln!(out, "for _ in 0..({times}) {{").unwrap();
+                self.same_type_as_produced(out);
+                writeln!(out, "}}").unwrap();
+            }
             Operation::AddMana {
                 players,
                 mana: ManaProduction::ColorsAmong { objects, each },

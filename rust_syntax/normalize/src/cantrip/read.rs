@@ -2289,21 +2289,17 @@ impl Compiler {
                 "false",
                 "q.state().could_mulligan(player)",
             ),
-            PlayerState::PossibleDefender => planned::planned_value(
-                "player state PossibleDefender",
-                "false",
-                "q.could_be_attacked(asker.controller, player)",
-            ),
+            // The defending players of a combat are the active player's opponents still in the game (CR 506.2).
+            PlayerState::PossibleDefender => {
+                "q.state().opponents(q.state().turn.active).any(|o| o == player)".into()
+            }
             PlayerState::RolledHighest => planned::planned_value(
                 "player state RolledHighest",
                 "false",
                 "q.rolled_highest(asker, player)",
             ),
-            PlayerState::CanDraw => planned::planned_value(
-                "player state CanDraw",
-                "false",
-                "q.can_draw(player)",
-            ),
+            // A player an effect says can't draw can't (CR 121.3, 101.2).
+            PlayerState::CanDraw => "!cantrip_api::cant_draw(q, player, 1)".into(),
             PlayerState::CompletedDungeon => {
                 "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"
                     .into()
