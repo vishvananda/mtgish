@@ -1087,7 +1087,8 @@ impl Compiler {
     ) -> Result<bool> {
         // "Flashback {1}": a price of its own (CR 118.9; Iroh, Grand Lotus).
         let price = flashback_price(changes);
-        if !gives_flashback(changes) && price.is_none() {
+        let escape = granted_escape(changes);
+        if !gives_flashback(changes) && price.is_none() && escape.is_none() {
             return Ok(false);
         }
         let EffectSubjects::Objects(ObjectSet::Zone {
@@ -1106,6 +1107,30 @@ impl Compiler {
         let tests = self.permission_tests(players, &ObjectFilter::Any, filter, "card");
         self.reader = reader;
         let printed = "q.card(q.chars(card).card)";
+        // "Each nonland card in your graveyard has escape. The escape cost is
+        // equal to the card's mana cost plus exile three other cards from your
+        // graveyard" (Underworld Breach; CR 702.138a, 113.6): the cost of the
+        // face cast, for a card that has a mana cost.
+        if let Some(exiled) = escape {
+            let body = format!(
+                "({} && {printed}.has_cost).then(|| cantrip_mechanics::escape::cost({printed}.cost, {exiled}))",
+                tests?.join(" && ")
+            );
+            self.permission_entry(
+                None,
+                "granted_ways",
+                &format!("{label}_escape_cost"),
+                (
+                    "q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId",
+                    "q, asker, card, player",
+                    "Option<Cost>",
+                ),
+                &body,
+                |cost| format!("cantrip_mechanics::escape::granted({cost})"),
+                parts,
+            );
+            return Ok(true);
+        }
         let body = match price {
             Some(symbols) => format!(
                 "({}).then(|| Cost::mana({}))",
@@ -1738,6 +1763,41 @@ pub(super) fn spells_joined(card: &Card) -> Option<Card> {
 
 /// Whether all these do is give flashback for the card's own mana cost.
 /// The mana a grant of flashback names as its cost, when it names one.
+/// "Has escape. The escape cost is equal to the card's mana cost plus exile N
+/// other cards from your graveyard": N.
+fn granted_escape(changes: &[Change]) -> Option<u8> {
+    let [Change::GrantAbility(ability)] = changes else {
+        return None;
+    };
+    let Ability::Mechanic {
+        mechanic: Mechanic::Escape,
+        cost: Some(cost),
+        amount: None,
+        filter: None,
+    } = &**ability
+    else {
+        return None;
+    };
+    let [CostPart::ManaCostOf(ObjectRef::Source), CostPart::Move {
+        selections,
+        destination: Destination::Exile,
+        ..
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    let [selection] = selections.as_slice() else {
+        return None;
+    };
+    let Some(Count::Exactly(Expr::Constant(exiled))) = &selection.choose else {
+        return None;
+    };
+    let shape = format!("{:?}", selection.objects);
+    let others = shape.contains("Graveyard")
+        && shape.contains("Not(SameObject(Source))")
+        && shape.contains("AbilityController");
+    others.then_some(u8::try_from(*exiled).ok()?)
+}
 fn flashback_price(changes: &[Change]) -> Option<&[ManaSymbol]> {
     let [Change::GrantAbility(ability)] = changes else {
         return None;
