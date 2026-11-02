@@ -690,6 +690,35 @@ impl Compiler {
                 layered.push((i, change, LayerChange::of("Ability", body)));
                 continue;
             }
+            // "Other Dogs you control have unleash" (Tesak, Judith's Hellhound):
+            // unleash's two static abilities, given (CR 702.98a, 614.12). The
+            // grantor's replacement has a creature it would give unleash enter
+            // with a +1/+1 counter if its controller, the grantor's, chooses;
+            // and what it gives unleash can't block while it has one.
+            if self.granted_way(&format!("{label}_{i}"), change, affected, parts)? {
+                continue;
+            }
+            if let (
+                Change::GrantAbility(granted),
+                ObjectSet::Battlefield(filter),
+                None,
+            ) = (change, affected, &condition)
+            {
+                if matches!(&**granted, Ability::Mechanic { mechanic: Mechanic::Unleash, cost: None, amount: None, .. }) {
+                    let test = self.queried(|c| c.filter(filter, &Candidate::entering()))?;
+                    let (applies, apply) = (format!("{label}_{i}_unleash_applies"), format!("{label}_{i}_unleash_apply"));
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {applies}(q: &dyn Query, asker: &Asker, proposal: &Proposal) -> bool {{ matches!(proposal, Proposal::ZoneChange(z) if z.to.is(ZoneKind::Battlefield) && {{ let id = z.object; {test} }}) }}").unwrap();
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {apply}(q: &dyn Query, asker: &Asker, proposal: &mut Proposal) {{ if let Proposal::ZoneChange(z) = proposal {{ z.counters[CounterKind::PlusOne as usize] += 1; }} }}").unwrap();
+                    writeln!(self.functions, "static {}: Question = Question::new(\"Unleash\", \"have it enter with a +1/+1 counter?\", \"It can't block as long as it has a +1/+1 counter on it\", \"Enter with a +1/+1 counter\", \"Enter without a counter\");", format!("{label}_{i}_UNLEASH").to_uppercase()).unwrap();
+                    parts.replacements.push(format!(
+                        "replacement(ReplacementKind::ZoneChange, {applies}, {apply}, \"unleash: enters with a +1/+1 counter\").optional(&{})",
+                        format!("{label}_{i}_UNLEASH").to_uppercase()
+                    ));
+                    let body = "if q.state().obj(affected).counters(CounterKind::PlusOne) > 0 { chars.keywords = chars.keywords.with(Keyword::CantBlock); }".to_string();
+                    layered.push((i, change, LayerChange { each: true, ..LayerChange::of("Ability", body) }));
+                    continue;
+                }
+            }
             layered.push((i, change, self.layered(|c| c.layer_change(change))?));
         }
         // Printed order isn't layer order. A later part of one effect follows
@@ -786,5 +815,72 @@ impl Compiler {
         }
         parts.statics.extend(defs);
         Ok(())
+    }
+    /// "Assassin spells you cast have freerunning {B}{B}" (Ezio Auditore da
+    /// Firenze), "each legendary spell you cast that's one or more colors has
+    /// web-slinging {G}{W}{U}" (Amazing Spider-Man): an alternative cost the
+    /// permanent gives the cards its controller casts, a `GrantedWay` from the
+    /// hand as the keyword's own way is (CR 702.173a, 702.188a, 601.3), asked of
+    /// the card as the face it would be cast as.
+    fn granted_way(
+        &mut self,
+        label: &str,
+        change: &Change,
+        affected: &ObjectSet,
+        parts: &mut Parts,
+    ) -> Result<bool> {
+        let Change::GrantAbility(granted) = change else {
+            return Ok(false);
+        };
+        let Ability::Mechanic {
+            mechanic: mechanic @ (Mechanic::Freerunning | Mechanic::WebSlinging),
+            cost: Some(cost),
+            amount: None,
+            filter: None,
+        } = &**granted
+        else {
+            return Ok(false);
+        };
+        let ObjectSet::Zone {
+            scope: ZoneScope::Shared(EventZone::Stack),
+            kind: ObjectKind::Spell,
+            filter: ObjectFilter::All(members),
+        } = affected
+        else {
+            return Ok(false);
+        };
+        let yours = |f: &ObjectFilter| {
+            format!("{f:?}") == "Cast { by: Some(One(AbilityController)), from: None }"
+        };
+        let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
+            return Ok(false);
+        };
+        if members.iter().filter(|f| yours(f)).count() != 1 {
+            return Ok(false);
+        }
+        let rest: Vec<ObjectFilter> = members.iter().filter(|f| !yours(f)).cloned().collect();
+        let test = self.queried(|c| c.filter(&ObjectFilter::All(rest), &Candidate::of("card")))?;
+        let mana = mana(symbols)?;
+        let (kind, text, paid, when) = match mechanic {
+            Mechanic::Freerunning => (
+                "Freerunning",
+                "Freerunning",
+                format!("Cost::mana({mana})"),
+                " && cantrip_mechanics::freerunning::assassin_dealt_combat_damage(q, asker)",
+            ),
+            _ => (
+                "WebSlinging",
+                "Web-slinging",
+                format!("Cost::mana({mana}).and(return_tapped_to_hand(1, cantrip_mechanics::targets::filters::creature))"),
+                "",
+            ),
+        };
+        let function = format!("{label}_way_cost");
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId) -> Option<Cost> {{ (player == asker.controller && ({test}){when}).then(|| {paid}) }}").unwrap();
+        parts.table(
+            "granted_ways",
+            format!("GrantedWay {{ text: {}, cost: {function}, from: ZoneKind::Hand, kind: WayKind::{kind}, ..GrantedWay::CAST }}", quoted(text)),
+        );
+        Ok(true)
     }
 }

@@ -529,7 +529,7 @@ impl Compiler {
         ))
     }
     /// `part`, with the reader of a plain function: a rule asked of the game.
-    fn queried<T>(&mut self, part: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+    pub(super) fn queried<T>(&mut self, part: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let compiled = part(self);
