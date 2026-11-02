@@ -612,6 +612,14 @@ class Rewrites(unittest.TestCase):
         self.assertEqual(unread, ["new"])
 
 
+class WorkerStream(unittest.TestCase):
+    def test_a_quoted_line_of_a_file_in_the_error_log_is_no_event(self):
+        usage = lane.Usage()
+        self.assertIsNone(lane.Codex("m", "e").read('      "Your upkeep trigger adds a muster counter."\n', usage))
+        self.assertIsNone(lane.Claude("m", "e").read('[1, 2]\n', usage))
+        self.assertEqual(usage.turns, 0)
+
+
 class Counters(unittest.TestCase):
     def test_a_card_wants_the_counters_it_uses_and_cantrip_has_no_line_for(self):
         code = ('let a = CounterKind::Spore; let b = CounterKind::Charge; for k in CounterKind::ALL {} let c = CounterKind::Spore;'
@@ -658,6 +666,16 @@ class Counters(unittest.TestCase):
                 self.assertTrue(lane.only_counter_lines())
                 lane.commit_counters("Some Card")
                 self.assertEqual(lane.git("rev-list", "--count", "HEAD").strip(), "2")
+
+    def test_a_card_of_keywords_alone_has_no_file_and_brings_no_counter(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            shell = self.repository(root)
+            with mock.patch.object(lane, "CANTRIP", root), mock.patch.object(lane, "shell", shell), \
+                    mock.patch.object(lane, "card_file", lambda _: root / "noble_elephant.rs"):
+                before = lane.git("rev-parse", "HEAD")
+                lane.commit_counters("Noble Elephant")
+                self.assertEqual(lane.git("rev-parse", "HEAD"), before)
 
     def test_anything_else_in_the_table_is_out_of_scope(self):
         with tempfile.TemporaryDirectory() as scratch:

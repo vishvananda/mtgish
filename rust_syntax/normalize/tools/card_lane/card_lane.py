@@ -1057,7 +1057,10 @@ def commit_counters(name):
     """A commit for each counter the card uses and HEAD has no line for, as Cantrip's own are made. It is built from HEAD,
     not the worktree: a card of the batch that was set aside leaves its line there, and a number must not skip it. The
     worktree stays as it is, since touching vocab.rs would rebuild every crate."""
-    source = card_file(name).read_text(encoding="utf-8")
+    path = card_file(name)
+    if not path.exists():  # a card of keywords alone is its content file, and names no counter
+        return
+    source = path.read_text(encoding="utf-8")
     for word in counters_wanted(source, git("show", f"HEAD:{COUNTER_TABLE}")):
         table = with_counters(git("show", f"HEAD:{COUNTER_TABLE}"), [word])
         blob = subprocess.run(["git", "-C", str(CANTRIP), "hash-object", "-w", "--stdin"], input=table, encoding="utf-8",
@@ -1164,6 +1167,12 @@ class Usage:
         return {"input": self.input, "cached": self.cached, "output": self.output, "turns": self.turns, "usd_api_equivalent": self.cost(model)}
 
 
+def worker_event(line):
+    """One event of a worker's stream. Its error log shares the stream, and a file's line quoted there can be JSON that is no event."""
+    event = json.loads(line)
+    return event if isinstance(event, dict) else {}
+
+
 class Codex:
     """`codex exec`, the way vizier runs it: no user config, no network, one writable tree plus the build and the
     packet, and a long wait so polling a build does not re-read the context. `turn.completed` on a resumed session gives
@@ -1187,7 +1196,7 @@ class Codex:
 
     def read(self, line, usage):
         """The session id, if this event names one."""
-        event = json.loads(line)
+        event = worker_event(line)
         if event.get("type") == "thread.started":
             return event.get("thread_id")
         if event.get("type") == "turn.completed":
@@ -1216,7 +1225,7 @@ class Claude:
         return command + (["--resume", session] if session else [])
 
     def read(self, line, usage):
-        event = json.loads(line)
+        event = worker_event(line)
         if event.get("type") == "result":
             u = event.get("usage") or {}
             usage.input += u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
