@@ -581,6 +581,12 @@ struct Compiler {
     /// An instruction exiled cards into piles ("in a face-down pile"), which
     /// a later choice of "those piles" reads.
     exiled_piles: bool,
+    /// The piles an instruction exiled whole ("exile the top four cards of your
+    /// library in a face-down pile"): each one's local, and whether it is face down.
+    exile_piles_made: Vec<(String, bool)>,
+    /// A choice between exiled piles, by its result: the local of the pile not chosen,
+    /// which "the other pile" reads.
+    pile_not_chosen: BTreeMap<u32, String>,
     /// The piles players separated (CR 700.3): the local of their rows, each a
     /// separator, its piles, the pile chosen and who may choose it.
     piles: Option<String>,
@@ -1075,6 +1081,8 @@ impl Compiler {
             countered: BTreeMap::new(),
             face_piles: None,
             exiled_piles: false,
+            exile_piles_made: Vec::new(),
+            pile_not_chosen: BTreeMap::new(),
             piles: None,
             piles_walk: None,
             pile_shape: (0, false),

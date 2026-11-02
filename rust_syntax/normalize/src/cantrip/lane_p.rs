@@ -2663,6 +2663,7 @@ impl Compiler {
                     (false, _) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_all(&objects_{id});").unwrap(),
                 }
                 self.moved.insert(result.0, format!("moved_{id}"));
+                self.exile_piles_made.push((format!("moved_{id}"), face_down));
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
                 return Ok(());
             }

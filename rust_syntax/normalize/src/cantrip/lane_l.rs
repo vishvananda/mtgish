@@ -2355,6 +2355,23 @@ impl Compiler {
                     Some(object) => self.fetch(self.object(object)?),
                     None => "None".to_string(),
                 };
+                // "Exile the top four cards of your library in a face-down pile, then
+                // exile the top four cards of your library in a face-up pile. An
+                // opponent chooses one of those piles" (Abstract Performance): the
+                // chooser sees the face-up pile's cards and how many the face-down one
+                // holds (CR 700.3b-d); the chosen pile is this choice's result, the
+                // other is "the other pile".
+                if let (true, None, [(down, true), (up, false)] | [(up, false), (down, true)]) = (
+                    names.is_empty() && self.piles.is_none() && from == "None" && !*random && object == "None",
+                    then,
+                    self.exile_piles_made.as_slice(),
+                ) {
+                    let (down, up) = (down.clone(), up.clone());
+                    writeln!(out, "let chooser_{id} = {player}; let (chosen_{id}, other_{id}) = {M}::choose::face_down_or_face_up_pile(g, chooser_{id}, asker.source, {down}.clone(), {up}.clone())?;").unwrap();
+                    self.selections.insert(result.0, format!("chosen_{id}"));
+                    self.pile_not_chosen.insert(result.0, format!("other_{id}"));
+                    return Ok(());
+                }
                 let then = then.as_ref().map(|d| form(d).to_string());
                 let code = format!("{M}::choose::of_piles(g, {player}, asker.source, {from}, {random}, &{names:?}, {object}, {then:?})?");
                 // "An opponent chooses one of those piles" of piles exiled by an
