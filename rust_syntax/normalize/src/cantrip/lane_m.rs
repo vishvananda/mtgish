@@ -618,16 +618,21 @@ impl Compiler {
         duration: &Duration,
         out: &mut String,
     ) -> Result<bool> {
-        if !gives_flashback(changes) {
+        if !gives_flashback(changes) && flashback_price(changes).is_none() {
             return Ok(false);
         }
         let (EffectSubjects::Objects(cards), Duration::EndOfTurn) = (affected, duration) else {
             return Err(gap("granted Casting"));
         };
+        // "Flashback {2}{R}{G}", where the words name a price of their own (CR 118.9).
+        let instead = match flashback_price(changes) {
+            Some(symbols) => format!("instead: Some({}), ", mana(symbols)?),
+            None => String::new(),
+        };
         let cards = self.fetch(self.objects(cards)?);
         writeln!(
             out,
-            "let cards_{id}: Vec<ObjectId> = {cards}; for card in cards_{id} {{ let owner = g.obj(card).owner; g.allow_play(card, owner, PlayGrant {{ expiry: Expiry::EndOfTurn, flashback: true, ..PlayGrant::CAST }}); }}"
+            "let cards_{id}: Vec<ObjectId> = {cards}; for card in cards_{id} {{ let owner = g.obj(card).owner; g.allow_play(card, owner, PlayGrant {{ {instead}expiry: Expiry::EndOfTurn, flashback: true, ..PlayGrant::CAST }}); }}"
         )
         .unwrap();
         Ok(true)
@@ -1236,6 +1241,26 @@ pub(super) fn spells_joined(card: &Card) -> Option<Card> {
 }
 
 /// Whether all these do is give flashback for the card's own mana cost.
+/// The mana a grant of flashback names as its cost, when it names one.
+fn flashback_price(changes: &[Change]) -> Option<&[ManaSymbol]> {
+    let [Change::GrantAbility(ability)] = changes else {
+        return None;
+    };
+    let Ability::Casting(CastingRule::Permission {
+        origin: CastingOrigin::Flashback,
+        cost,
+        leave_stack: Some(Destination::Exile),
+        ..
+    }) = &**ability
+    else {
+        return None;
+    };
+    match cost.parts.as_slice() {
+        [CostPart::Mana(symbols)] => Some(symbols),
+        _ => None,
+    }
+}
+
 fn gives_flashback(changes: &[Change]) -> bool {
     let [Change::GrantAbility(ability)] = changes else {
         return false;

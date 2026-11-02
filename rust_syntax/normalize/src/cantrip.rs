@@ -2157,7 +2157,14 @@ fn emit_face(
     let mut subtypes = Vec::new();
     for t in &ch.subtypes {
         let n = name(t);
-        if crate::cantrip_vocab::SUBTYPES.contains(&n.as_str()) {
+        if n == "TimeLord" {
+            // Cantrip's oracle build splits a type line at spaces, and fails on "Time".
+            subtypes.push(planned::planned_value(
+                "engine: a two-word subtype in a card's type line",
+                "Subtype::TimeLord",
+                "Subtype::TimeLord",
+            ));
+        } else if crate::cantrip_vocab::SUBTYPES.contains(&n.as_str()) {
             subtypes.push(format!("Subtype::{n}"));
         } else {
             subtypes.push(lane_p::printed_subtype(&n));
