@@ -2265,9 +2265,14 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             "ForEachPlayerMayCastASpellFromAmongCardsThatPlayerMilledThisWayWithoutPaying",
             [Players(players), Filter(spells), Run(result)],
         ) => cast(
-            players,
+            // "For each player, you may cast a card that player milled this way"
+            // (The Ur-Sphinx): you cast, once for each player's milled cards.
+            actor,
             matching(&ObjectSet::Named(result.clone()), spells),
-            may_one(),
+            Count::PerPlayer {
+                players: players.clone(),
+                each: Box::new(may_one()),
+            },
             None,
             free(),
         ),
