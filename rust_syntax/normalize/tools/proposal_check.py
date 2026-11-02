@@ -1207,6 +1207,36 @@ def read_from_untyped_field(text, at, name, spec):
     return False
 
 
+def generic_returns(spec):
+    """The names of stubs whose return is the generic `R`, no call site having settled it."""
+    keys = [f"m::{n}" for n in spec.methods] + [f"f::{m}::{n}" for m, n in spec.fns if spec.fns[(m, n)]["arity"]]
+    for owner, uses in (("on", spec.on), ("t", spec.types)):
+        keys += [f"{owner}::{ty}::{n}" for ty, use in uses.items() for n in use["fns"]]
+    return {k.split("::")[-1] for k in keys if spec.rets.get(k) is None}
+
+
+def bound_to_stub_value(text, at, name, spec):
+    """Whether `let name = ...` at `text[at]` binds the value a stub call ends with (through a `planned_value!` or a
+    block reading `q`), when no call site settles that stub's return: its type is the stub's generic `R`, which only
+    Cantrip's own signature would give (`g.ante(&objects)` is a `Vec<ObjectId>` there)."""
+    if not text or not re.fullmatch(r"\w+", name or ""):
+        return False
+    m = re.compile(rf"{re.escape(name)}\s*(?::[^=;]*)?=(?!=)").match(text, at)
+    if not m:
+        return False
+    end = m.end()
+    while end < len(text) and text[end] != ";":
+        end = balanced(text, end) if text[end] in "([{" else skip_string(text, end) if text[end] in "\"'" and \
+            skip_string(text, end) != end else end + 1
+    rhs = text[m.end() : end]
+    generic = generic_returns(spec)
+    for c in re.finditer(r"(\w+)\s*(?:::<[^()]*>)?\s*\(", rhs):
+        close = balanced(rhs, c.end() - 1)
+        if c.group(1) in generic and re.fullmatch(r"[\s)}?]*", rhs[close:]):
+            return True
+    return False
+
+
 def classify(d, text, spec):
     """(class, stub_fault) for one error."""
     code = (d.get("code") or {}).get("code")
@@ -1232,6 +1262,9 @@ def classify(d, text, spec):
             return "stub layer: a bare None given to a stub's generic argument or a proposed struct's field", True
         if read_from_untyped_field(text, span["byte_start"], snippet, spec):
             return "stub layer: a field of a new variant no other variant of its enum types", True
+        if bound_to_stub_value(text, span["byte_start"], snippet, spec) or \
+                any(re.search(rf"\b{re.escape(n)}\s*\(", snippet) for n in generic_returns(spec)):
+            return "stub layer: a stub's return or argument type the call doesn't settle", True
         return "type annotations needed", False
     if "`!`" in msg:
         return "stub layer: a stub's value its call doesn't type", True
