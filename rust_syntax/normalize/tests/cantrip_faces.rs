@@ -298,6 +298,6 @@ fn a_level_s_granted_ability_is_said_without_its_level_and_granted_with_it() {
     says("Lord of Shatterskull Pass", &[&format!("\"LEVEL 6+: {line}\""), &format!("\"{line}\"")]);
     // What a level's line quotes is the text of what it grants.
     let Some(file) = file("Joraga Treespeaker") else { return };
-    assert_eq!(file.matches("            \"{T}: Add {G}{G}.\",").count(), 2, "{file}");
+    assert_eq!(file.matches("\"{T}: Add {G}{G}.\")").count(), 2, "{file}");
     assert_eq!(file.matches("            \"LEVEL 5+: 1/4\",").count(), 1, "{file}");
 }

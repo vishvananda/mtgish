@@ -37,6 +37,7 @@ const CARDS: &[(&str, &str)] = &[
     // One search across graveyard, hand and library (CR 701.23a).
     ("Unmoored Ego", "let searches_1 = g.may_search(searcher_1, owner_1); let mut shown_1: Vec<ObjectId> = match searches_1 { true => cantrip_mechanics::library::searched_cards(g, owner_1), false => Vec::new() }; shown_1.extend(g.state().zone(Zone::graveyard(owner_1)).iter().copied());shown_1.extend(g.state().zone(Zone::hand(owner_1)).iter().copied());"),
     ("Unmoored Ego", "cantrip_mechanics::select::Count::UpTo({ let q: &dyn Query = g; (4i64)"),
+    ("Unmoored Ego", "match g.ask(searcher_1, RequestKind::SearchLibrary { source: asker.source, library: shown_1.clone(), rule: Box::new(rule_1), destination: SearchDestination::Exile })?"),
     // "Up to one": always asked.
     ("Enigmatic Incarnation", "let taken = cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible,"),
 ];
@@ -60,6 +61,7 @@ const GONE: &[(&str, &str)] = &[
     ("Enigmatic Incarnation", "AsManyAsCan(n) if"),
     ("Unmoored Ego", "left_1"),
     ("Unmoored Ego", "Zone::hand(owner_1)).to_vec()"),
+    ("Unmoored Ego", "choose::select(g, searcher_1"),
 ];
 
 fn modules(names: &[&str]) -> Option<BTreeMap<String, String>> {

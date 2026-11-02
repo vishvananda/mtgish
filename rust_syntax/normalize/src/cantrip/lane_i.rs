@@ -3824,10 +3824,11 @@ impl Compiler {
             writeln!(out, "let rule_count_{id} = {count}; let zone_{id} = {zone}; let mut shown_{id} = {LIBRARY}::searched_cards(g, searcher_{id}); shown_{id}.extend(g.state().zone(zone_{id}).iter().copied()); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let (found_{id}, searched_{id}) = {LIBRARY}::search_zone_and_or_library(g, searcher_{id}, asker.source, zone_{id}, SearchDestination::{destination}, Purpose::{purpose}, &ASK_{id}, {SELECTION}::listed(rule_count_{id}, &shown_{id}, can_{id}))?;").unwrap();
             self.searched.insert(result.0, format!("searched_{id}"));
         } else {
-            // One search across the zones named (CR 701.23a): the library's
-            // cards shown first and the other zones' with them, so "up to"
-            // is chosen having seen them all (Unmoored Ego). A library the
-            // effect can't search (CR 101.2) leaves the other zones searched.
+            // One search across the zones named (CR 701.23a), asked as Cantrip's
+            // own search of a zone and the library is: the library's cards shown
+            // first and the other zones' with them, so "up to" is chosen having
+            // seen them all (Unmoored Ego). A library the effect can't search
+            // (CR 101.2, Ashiok, Dream Render) leaves the other zones searched.
             let count = match &choice.count {
                 Count::AnyNumber => "cantrip_mechanics::select::Count::AnyNumber".to_string(),
                 Count::UpTo(n) => format!("cantrip_mechanics::select::Count::UpTo({})", self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?)),
@@ -3838,7 +3839,7 @@ impl Compiler {
                 let (zone, ..) = zone_of(zone, &format!("owner_{id}"))?;
                 write!(others, "shown_{id}.extend(g.state().zone({zone}).iter().copied());").unwrap();
             }
-            writeln!(out, "let searches_{id} = g.may_search(searcher_{id}, owner_{id}); let mut shown_{id}: Vec<ObjectId> = match searches_{id} {{ true => {LIBRARY}::searched_cards(g, owner_{id}), false => Vec::new() }}; {others} if searches_{id} {{ g.searched(searcher_{id}, owner_{id}); }} let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let found_{id}: Vec<ObjectId> = match shown_{id}.is_empty() {{ true => Vec::new(), false => cantrip_mechanics::choose::select(g, searcher_{id}, asker.source, Purpose::{purpose}, shown_{id}.clone(), {SELECTION}::listed({count}, &shown_{id}, can_{id}))? }};").unwrap();
+            writeln!(out, "let searches_{id} = g.may_search(searcher_{id}, owner_{id}); let mut shown_{id}: Vec<ObjectId> = match searches_{id} {{ true => {LIBRARY}::searched_cards(g, owner_{id}), false => Vec::new() }}; {others} let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let rule_{id} = {SELECTION}::listed({count}, &shown_{id}, can_{id}); let found_{id}: Vec<ObjectId> = match shown_{id}.is_empty() {{ true => Vec::new(), false => match g.ask(searcher_{id}, RequestKind::SearchLibrary {{ source: asker.source, library: shown_{id}.clone(), rule: Box::new(rule_{id}), destination: SearchDestination::{destination} }})? {{ Answer::Cards(cards) => cards, _ => Vec::new() }} }}; if searches_{id} {{ g.searched(searcher_{id}, owner_{id}); }}").unwrap();
             self.searched.insert(result.0, "true".to_string());
         }
         self.selections.insert(result.0, format!("found_{id}"));
