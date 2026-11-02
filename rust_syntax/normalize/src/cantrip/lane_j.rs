@@ -1861,6 +1861,16 @@ pub(super) fn held_number(feature: String, code: &str) -> Number {
 }
 
 impl Compiler {
+    /// A read of what the resolving spell or ability did or was about, open at
+    /// its arguments: `name(item` while one resolves, else `name_of(asker`,
+    /// the ability's source and controller asking, as `linked_to` is to
+    /// `linked` (a condition, a filter or a layer has no stack item).
+    pub(super) fn item_read(&self, name: &str) -> String {
+        match self.reader == Reader::Resolution && self.stack_item {
+            true => format!("{name}(item"),
+            false => format!("{name}_of(asker"),
+        }
+    }
     /// What the object Cantrip has chosen for this ability or as it entered is
     /// linked by.
     pub(super) fn linked(&self) -> &'static str {
@@ -2115,13 +2125,32 @@ impl Compiler {
                 "q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated { source, ability, .. } if source == item.object && ability == item.ability)).count() as i64".into(),
             ),
             Expr::AnnouncedX => held_number(feature, "i64::from(q.announced_x().unwrap_or(0))"),
-            Expr::CountManaSymbols { colors, .. } => held_number(
-                feature,
-                &format!(
-                    "i64::from(cantrip_mechanics::devotion::symbols_among(q, &objects, {}))",
-                    colors.len()
-                ),
-            ),
+            // Mana symbols as a layer reads them (devotion while
+            // characteristics are worked out): the objects' and the colors'.
+            Expr::CountManaSymbols { objects, colors } => {
+                let colors = colors
+                    .iter()
+                    .map(|c| color(c).map(|c| format!("Color::{c}.mana()")))
+                    .collect::<Result<Vec<_>>>()?
+                    .join(", ");
+                held_number(
+                    feature,
+                    &format!(
+                        "i64::from(cantrip_mechanics::devotion::symbols_among(q, &{}, &[{colors}]))",
+                        self.objects(objects)?
+                    ),
+                )
+            }
+            // How many counters a cost removed is the X announced with it
+            // (`VariableCost::RemoveAnyNumberOfCounters`): a mana ability has no
+            // stack item, and its X is its source's, as `lane_g::MANA_COUNTERS_X`
+            // reads it; a target's filter reads the X announced (CR 601.2b).
+            Expr::PaidCountersRemoved { .. } if self.mana_body => {
+                held_number(feature, "i64::from(q.obj(asker.source).x)")
+            }
+            Expr::PaidCountersRemoved { .. } if !resolving => {
+                held_number(feature, "i64::from(q.announced_x().unwrap_or(0))")
+            }
             Expr::PaidCountersRemoved { .. } => {
                 held_number(feature, "i64::from(q.counters_paid(item))")
             }
@@ -2857,6 +2886,20 @@ impl Compiler {
             other => return self.predicate_more(other, c),
         })
     }
+    /// An option of a vote, which the votes cast are read by: a word of the
+    /// ballot, a player or an object.
+    pub(super) fn vote_option(&self, option: &VoteOption) -> Result<String> {
+        Ok(match option {
+            VoteOption::Word(word) => format!("cantrip_mechanics::vote::Vote::Word({word:?})"),
+            VoteOption::Player(player) => {
+                format!("cantrip_mechanics::vote::Vote::Player({})", self.certain_player(player)?)
+            }
+            VoteOption::Object(object) => format!(
+                "cantrip_mechanics::vote::Vote::Object({}.unwrap_or(ObjectId::NONE))",
+                self.object(object)?
+            ),
+        })
+    }
     /// The rest of `condition`.
     pub(super) fn condition_rest(&self, condition: &Condition) -> Result<String> {
         let held = |code: &str| {
@@ -2893,7 +2936,11 @@ impl Compiler {
             Condition::SameTeam { player, other } => {
                 format!("{} == {}", self.player(player)?, self.player(other)?)
             }
-            Condition::MostVotes { .. } => held("g.votes().most(option)"),
+            // The votes cast as this resolves, read by an option (CR 701.38).
+            Condition::MostVotes { option, tied } => held(&format!(
+                "q.votes().most({}, {tied})",
+                self.vote_option(option)?
+            )),
             Condition::ChosenWord(word) => self.chosen_word(word)?,
             Condition::VotedFor {
                 player,
@@ -2910,8 +2957,16 @@ impl Compiler {
                     self.player(player)?
                 )
             }
-            Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
-                held("g.votes().voted(option)")
+            Condition::VotedFor { player, option } => held(&format!(
+                "{}.is_some_and(|p: PlayerId| q.votes().voted(p, {}))",
+                self.player(player)?,
+                self.vote_option(option)?
+            )),
+            Condition::Voted(option) => {
+                held(&format!("q.votes().count({}) > 0", self.vote_option(option)?))
+            }
+            Condition::AllVotedFor(option) => {
+                held(&format!("q.votes().unanimous({})", self.vote_option(option)?))
             }
             other => return self.condition_more(other),
         })
@@ -4557,11 +4612,14 @@ impl Compiler {
                 ))
             }
             [EntryState::AttachedToChosen(hosts)] if !entry.tapped && counters.is_empty() => {
+                // What each may be attached to is on the battlefield as they
+                // arrive, found before: data the call is given.
                 let hosts = self.filter(hosts, &Candidate::of("host"))?;
+                let hosts = self.fetch(format!("q.state().battlefield().iter().copied().filter(|&host| {hosts}).collect::<Vec<ObjectId>>()"));
                 Ok(planned::planned_value(
                     "several objects arriving attached",
                     NOTHING,
-                    &format!("{{ {pairs} g.put_all_onto_battlefield_attached_to_chosen(&rows_{id}, |g, host| {hosts})? }}"),
+                    &format!("{{ {pairs} let hosts: Vec<ObjectId> = {hosts}; g.put_all_onto_battlefield_attached_to_chosen(&rows_{id}, &hosts)? }}"),
                 ))
             }
             // "Return it to the battlefield tapped and attacking": all enter together

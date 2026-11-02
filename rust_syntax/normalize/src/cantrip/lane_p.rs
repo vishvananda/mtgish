@@ -952,9 +952,12 @@ impl Compiler {
             }
             ObjectSet::Damage(subject) => held_objects(
                 &feature,
-                &format!("q.damage_objects(item, DamageSubject::{})", form(subject)),
+                &format!("q.{}, DamageSubject::{})", self.item_read("damage_objects"), form(subject)),
             ),
-            ObjectSet::EventGroup => held_objects(&feature, "q.event_objects(item).to_vec()"),
+            ObjectSet::EventGroup => held_objects(
+                &feature,
+                &format!("q.{}).to_vec()", self.item_read("event_objects")),
+            ),
             ObjectSet::Unpaid(result) if self.unpaid.contains(&result.0) => {
                 format!("unpaid_{}.clone()", result.0)
             }
@@ -1209,7 +1212,10 @@ impl Compiler {
                     result.0
                 ),
             ),
-            Expr::Game(value) => held_number(feature, &format!("q.game_value(item, GameValue::{})", form(value))),
+            Expr::Game(value) => held_number(
+                feature,
+                &format!("q.{}, GameValue::{})", self.item_read("game_value"), form(value)),
+            ),
             Expr::Earlier {
                 what,
                 measure,
@@ -1664,7 +1670,8 @@ impl Compiler {
             ObjectFilter::SharesColorWithMana(mana) => held(
                 &feature,
                 &format!(
-                    "q.mana_colors(item, {}).intersects({chars}.colors)",
+                    "q.{}, {}).intersects({chars}.colors)",
+                    self.item_read("mana_colors"),
                     occurrence(mana)
                 ),
             ),
@@ -2000,7 +2007,7 @@ impl Compiler {
             Condition::VotedAs { player, other, same } => held(
                 &feature,
                 &format!(
-                    "{}.zip({}).is_some_and(|(a, b): (PlayerId, PlayerId)| g.votes().same(a, b) == {same})",
+                    "{}.zip({}).is_some_and(|(a, b): (PlayerId, PlayerId)| q.votes().same(a, b) == {same})",
                     self.player(player)?,
                     self.player(other)?
                 ),
@@ -2161,22 +2168,34 @@ pub(super) fn history_measure(measure: &HistoryMeasure, hits: &str) -> String {
 }
 
 impl Compiler {
-    /// A maximum hand size that isn't a stated number (CR 402.2).
-    pub(super) fn hand_size_to_come(&self, size: &HandSizeRule) -> Result<String> {
+    /// A permanent's rule for its controller's maximum hand size that isn't a
+    /// stated number (CR 402.2): "is increased by N" adjusts what the other
+    /// effects make it (CR 613.11), a number of its own; one the game says is a
+    /// function the rule asks.
+    pub(super) fn hand_size_to_come(&mut self, label: &str, size: &HandSizeRule) -> Result<String> {
         let feature = format!("hand size {}", form(size));
-        let (read, n) = match size {
-            HandSizeRule::Adjust(n) => (
-                "q.maximum_hand_size(asker.controller).saturating_add_signed",
-                n,
-            ),
-            HandSizeRule::Set(n) => ("Some", n),
+        let placeholder = "PlayRule::MaximumHandSize(Some(7))";
+        let rule = match size {
+            HandSizeRule::Adjust(Expr::Constant(n)) if i32::try_from(*n).is_ok() => {
+                format!("PlayRule::MaximumHandSizeAdjusted({n})")
+            }
+            HandSizeRule::Adjust(n) | HandSizeRule::Set(n) => {
+                let adjust = matches!(size, HandSizeRule::Adjust(_));
+                let function = format!("{label}_hand_size");
+                let n = self.number(n)?.code;
+                let (ty, value) = match adjust {
+                    true => ("i32", format!("({n}).clamp(i32::MIN.into(), i32::MAX.into()) as i32")),
+                    false => ("Option<u32>", format!("Some(({n}).clamp(0, u32::MAX.into()) as u32)")),
+                };
+                self.plan_item(&feature, &format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> {ty} {{ {value} }}"));
+                match adjust {
+                    true => format!("PlayRule::MaximumHandSizeAdjustedBy({function})"),
+                    false => format!("PlayRule::MaximumHandSizeOf({function})"),
+                }
+            }
             HandSizeRule::Unlimited => return Err(gap(feature.as_str())),
         };
-        Ok(planned::planned_value(
-            &feature,
-            "Some(7)",
-            &format!("{read}(({}) as _)", self.number(n)?.code),
-        ))
+        Ok(planned::planned_value(&feature, placeholder, &rule))
     }
     /// A window of the history no read names.
     pub(super) fn history_window_to_come(&self, window: &HistoryWindow) -> Result<String> {
@@ -2358,10 +2377,17 @@ impl Compiler {
         ))
     }
     pub(super) fn arrival_state(&mut self, state: &EntryState, failed: &str) -> Result<String> {
+        // A kind that reads the game reads it as the object arrives, past the
+        // `g` the arrival is made with.
         let changes = |c: &mut Self, changes: &[Change]| -> Result<String> {
             let mut kinds = Vec::new();
             for change in changes {
-                kinds.extend(c.effect_kinds(change)?);
+                for kind in c.effect_kinds(change)? {
+                    kinds.push(match kind.contains("q.") {
+                        true => c.fetch(kind),
+                        false => kind,
+                    });
+                }
             }
             Ok(kinds.join(", "))
         };

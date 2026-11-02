@@ -3714,7 +3714,10 @@ impl Compiler {
                 .fit(i16::MIN.into(), i16::MAX.into(), "i16")?;
             self.plan_code(
                 "event change as it enters a power and toughness read then",
-                &format!("entering.base_power_toughness = Some(({power}, {toughness}));"),
+                &format!(
+                    "let size = {}; entering.base_power_toughness = Some(size);",
+                    self.fetch(format!("({power}, {toughness})"))
+                ),
                 out,
             );
             return Ok(());

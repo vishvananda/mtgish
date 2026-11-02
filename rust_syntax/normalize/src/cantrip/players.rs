@@ -307,14 +307,14 @@ impl Compiler {
                 ));
             }
             PlayerRule::HandSize(size) if yours => {
-                let limit = match size {
-                    HandSizeRule::Unlimited => "None".to_string(),
+                let rule = match size {
+                    HandSizeRule::Unlimited => "PlayRule::MaximumHandSize(None)".to_string(),
                     HandSizeRule::Set(Expr::Constant(n)) if u32::try_from(*n).is_ok() => {
-                        format!("Some({n})")
+                        format!("PlayRule::MaximumHandSize(Some({n}))")
                     }
-                    other => self.hand_size_to_come(other)?,
+                    other => self.hand_size_to_come(label, other)?,
                 };
-                self.play_rule(label, format!("PlayRule::MaximumHandSize({limit})"), parts)?;
+                self.play_rule(label, rule, parts)?;
             }
             PlayerRule::AdditionalLandPlays(Count::Exactly(Expr::Constant(n)))
                 if yours && u8::try_from(*n).is_ok() =>

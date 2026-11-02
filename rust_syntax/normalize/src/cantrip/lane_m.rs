@@ -189,8 +189,14 @@ impl Compiler {
                     "cantrip_mechanics::stickers::has(q.state(), {id}, StickerKind::{kind:?})"
                 ),
             ),
-            S::MostVotes => unrecorded("MostVotes", format!("votes.most({id})")),
-            S::ReceivedAVote => unrecorded("ReceivedAVote", format!("votes.of({id}) > 0")),
+            S::MostVotes => unrecorded(
+                "MostVotes",
+                format!("q.votes().most(cantrip_mechanics::vote::Vote::Object({id}), true)"),
+            ),
+            S::ReceivedAVote => unrecorded(
+                "ReceivedAVote",
+                format!("q.votes().count(cantrip_mechanics::vote::Vote::Object({id})) > 0"),
+            ),
             S::PowerAboveBase => unrecorded(
                 "PowerAboveBase",
                 format!("{chars}.power.map(i64::from) > Some(q.base_power({id}))"),
@@ -821,7 +827,7 @@ impl Compiler {
             // grant's `instead` and a spell alternative's `InsteadOfManaCost`).
             if matches!(what, EarlierObjects::It) && self.card_costed {
                 return Ok(planned::planned_value(
-                    "a cost reading the card it is paid for",
+                    lane_o::CARD_IT_IS_PAID_FOR,
                     "Vec::<ObjectId>::new()",
                     "vec![card]",
                 ));
@@ -1507,7 +1513,7 @@ impl Compiler {
             ),
             Expr::Votes(option) => held_number(
                 "numeric expression Votes".into(),
-                &format!("q.votes().count({})", one_line(option)),
+                &format!("q.votes().count({})", self.vote_option(option)?),
             ),
             Expr::ManaSpentFrom { object, sources } if self.reader != Reader::Layer => counted(format!(
                 "{}.and_then(|o: ObjectId| cast_of(q, o)).map_or(0i64, |cast| q.history().mana_spent_to_cast(cast.spell).filter(|&(source, _)| {}).map(|(_, spent)| i64::from(spent.total())).sum::<i64>())",
