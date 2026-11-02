@@ -808,7 +808,20 @@ impl Compiler {
                 tokens,
                 entry,
             } if entry.counters.is_empty() && !is_bound(player, binding) => {
-                let unbatched = || Part::Unbatched(format!("per-player {}", form(operation)));
+                // Two creations no gather writes, for want of an engine call that
+                // makes them as one batch: tapped copies of several originals
+                // (`create_token_copies_together` makes none tapped), and tokens
+                // entering attached (no token is created attached).
+                let several_tapped = entry.tapped
+                    && matches!(tokens.as_slice(), [TokenSpec { recipe: TokenRecipe::CopyEach { .. }, .. }]);
+                let attached = entry.states.iter().any(|s| {
+                    matches!(s, EntryState::AttachedTo(_) | EntryState::AttachedToChosen(_) | EntryState::AttachedToPlayer(_))
+                });
+                let unbatched = || match () {
+                    _ if several_tapped => Part::Unbatched("per-player tapped token copies of several objects".into()),
+                    _ if attached => Part::Unbatched("per-player tokens entering attached".into()),
+                    _ => Part::Unbatched(format!("per-player {}", form(operation))),
+                };
                 let [token] = tokens.as_slice() else {
                     return unbatched();
                 };

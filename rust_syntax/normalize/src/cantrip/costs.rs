@@ -415,10 +415,22 @@ impl Compiler {
                     // A permanent spell's own cost, which CR 607.2q links to the
                     // permanent: Cantrip links only behold's exile so.
                     let printed = format!("{part:?}");
-                    if self.casting_costs.values().any(|cost| format!("{cost:?}").contains(&printed)) {
+                    if self.spell_cost
+                        || self.casting_costs.values().any(|cost| format!("{cost:?}").contains(&printed))
+                    {
                         return Err(gap("a card exiled to pay a permanent spell's cost, read as exiled with the permanent"));
                     }
-                    return Err(gap("exile cost an ability reads as exiled with its source"));
+                    // An activated ability's cost that exiles permanents exiles them
+                    // with its source (Cantrip's `pay_permanents` links them to the
+                    // ability, CR 607.2a): "Exile this Vehicle and four other artifact
+                    // creatures you control ... cards exiled with this Vehicle". What
+                    // it exiles from a graveyard or a hand is not linked.
+                    let permanents = selections.iter().all(|s| {
+                        matches!(s.objects, ObjectSet::Battlefield(_) | ObjectSet::One(ObjectRef::Source))
+                    });
+                    if !(permanents && self.activation_cost.is_some()) {
+                        return Err(gap("exile cost an ability reads as exiled with its source"));
+                    }
                 }
                 let [CostObjectSelection { objects, choose }] = selections.as_slice() else {
                     return self.move_cost_beyond(selections, destination, label);

@@ -2621,15 +2621,20 @@ impl Compiler {
                 self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, Destination::{}, &[{}]); }}", form(destination), entry.join(", ")), out);
             }
             // "An opponent gains control": the controller picks one, unasked if
-            // there is only one. The new controller keeps it (CR 611.2).
+            // there is only one. The new controller keeps it (CR 611.2), or has it
+            // for as long as it says ("until end of turn").
             Operation::GiveControl {
                 players,
                 objects,
-                until: None,
+                until,
             } if matches!(players, PlayerSet::One(_) | PlayerSet::OpponentsOf(_)) => {
+                let until = match until {
+                    Some(until) => self.duration(until)?,
+                    None => "Duration::Indefinite".to_string(),
+                };
                 let players = self.fetch(self.players(players)?);
                 let objects = self.fetch(self.objects(objects)?);
-                writeln!(out, "let players_{id}: Vec<PlayerId> = {players}; let objects_{id} = {objects}; let who_{id} = match players_{id}.as_slice() {{ [one] => Some(*one), _ => {M}::choose::player(g, asker.controller, asker.source, players_{id}.clone(), \"GainControl\", 0)? }}; if let Some(who) = who_{id} {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.gain_control(asker.source, object, who, Duration::Indefinite); }} }}); }}").unwrap();
+                writeln!(out, "let players_{id}: Vec<PlayerId> = {players}; let objects_{id} = {objects}; let who_{id} = match players_{id}.as_slice() {{ [one] => Some(*one), _ => {M}::choose::player(g, asker.controller, asker.source, players_{id}.clone(), \"GainControl\", 0)? }}; if let Some(who) = who_{id} {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.gain_control(asker.source, object, who, {until}); }} }}); }}").unwrap();
             }
             Operation::GiveControl {
                 players,
@@ -3577,6 +3582,22 @@ impl Compiler {
     }
     /// Objects exiled with counters: the counters come with them, as they arrive.
     pub(super) fn exile_with_counters(&mut self, id: usize, entry: &EntrySpec) -> Result<String> {
+        // "With a number of time counters on it equal to its mana value": each
+        // card's own, read as it arrives.
+        self.moving_one = Some("moved_o".into());
+        let each: Result<Vec<String>> = entry
+            .counters
+            .iter()
+            .map(|(kind, n)| {
+                let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+                Ok(format!("({}, {n})", counter_kind(kind)?))
+            })
+            .collect();
+        self.moving_one = None;
+        let each = each?;
+        if each.iter().any(|c| c.contains("moved_o")) {
+            return Ok(format!("{{ let exiled = g.exile_all(&objects_{id}); let puts: Vec<(ObjectId, CounterKind, i16)> = {{ let q: &dyn Query = g; exiled.iter().flat_map(|&moved_o| [{}].into_iter().map(move |(kind, n): (CounterKind, i16)| (moved_o, kind, n))).collect() }}; g.add_counters_together(&puts); exiled }}", each.join(", ")));
+        }
         let mut counters = Vec::new();
         for (kind, n) in &entry.counters {
             let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
