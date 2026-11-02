@@ -82,6 +82,39 @@ fn walked(op: &Operation) -> bool {
 }
 /// Whether an instruction held whole inside one player's turn of a walk does
 /// only what `walked` allows.
+/// A walk whose player may pay a cost, and whose later step does something
+/// unless they did, all of it about one thing done for them: each player's turn
+/// is the whole process.
+fn punished_in_turn(flat: &[Instruction], binding: &Binding) -> bool {
+    let paid: Vec<u32> = flat
+        .iter()
+        .filter_map(|step| match step {
+            Instruction::Effect {
+                result,
+                operation:
+                    Operation::PayCost {
+                        player: PlayerRef::Bound(payer),
+                        optional: true,
+                        ..
+                    },
+            } if payer.0 == binding.0 => Some(result.0),
+            _ => None,
+        })
+        .collect();
+    flat.len() <= 3
+        && paid.len() == 1
+        && flat.iter().any(|step| {
+            matches!(step, Instruction::If { condition, .. }
+                if format!("{condition:?}").contains(&format!("PaymentChosen(ResultId({}))", paid[0])))
+        })
+        && flat.iter().all(|step| match step {
+            Instruction::Effect { operation, .. } => {
+                matches!(operation, Operation::Mill { .. } | Operation::Reveal { .. } | Operation::PayCost { .. })
+            }
+            Instruction::If { .. } => true,
+            _ => false,
+        })
+}
 fn walks_whole(instruction: &Instruction) -> bool {
     let all = |program: &Program| program.instructions.iter().all(walks_whole);
     match instruction {
@@ -131,7 +164,7 @@ impl Gathered {
     /// What one thing gathered is.
     fn row(&self) -> &'static str {
         match self {
-            Gathered::Objects { .. } | Gathered::Cards { .. } => "ObjectId",
+            Gathered::Objects { .. } | Gathered::Offered { .. } | Gathered::Cards { .. } => "ObjectId",
             Gathered::Sacrifice { .. }
             | Gathered::SacrificeEach { .. }
             | Gathered::SacrificeRest { .. } => "(PlayerId, ObjectId)",
@@ -170,6 +203,15 @@ enum Gathered {
     Objects {
         objects: ObjectSet,
         then: Box<dyn Fn(ObjectSet) -> Operation>,
+    },
+    /// "For each opponent, you may put up to one target creature card from that
+    /// player's graveyard onto the battlefield": each is offered in turn, and
+    /// what was taken moves at once (Sepulchral Primordial).
+    Offered {
+        decider: PlayerRef,
+        objects: ObjectSet,
+        then: Box<dyn Fn(ObjectSet) -> Operation>,
+        result: ResultId,
     },
     Cards {
         amount: Expr,
@@ -426,6 +468,39 @@ impl Compiler {
             if !bound && reads_earlier {
                 return Part::Once(instruction.clone());
             }
+            if let Instruction::Optional { decider, body } = instruction {
+                if let [Instruction::Effect {
+                    result,
+                    operation:
+                        Operation::Move {
+                            objects,
+                            destination,
+                            entry,
+                            face_down,
+                        },
+                }] = body.instructions.as_slice()
+                {
+                    if !names(binding, decider)
+                        && names(binding, objects)
+                        && !names(binding, destination)
+                        && !names(binding, entry)
+                    {
+                        let (destination, entry, face_down) =
+                            (destination.clone(), entry.clone(), *face_down);
+                        return Part::Gather(Gathered::Offered {
+                            decider: decider.clone(),
+                            objects: objects.clone(),
+                            then: Box::new(move |objects| Operation::Move {
+                                objects,
+                                destination: destination.clone(),
+                                entry: entry.clone(),
+                                face_down,
+                            }),
+                            result: result.clone(),
+                        });
+                    }
+                }
+            }
             // CR 701.55d: "the entire process ... one at a time in APNAP order".
             if matches!(instruction, Instruction::ChooseOne { .. })
                 && self.line_text().is_some_and(|line| line.contains("villainous choice"))
@@ -448,6 +523,15 @@ impl Compiler {
                 let mut destination = destination.clone();
                 if let Destination::Battlefield(player) = &destination {
                     if is_bound(player, binding) {
+                        // Thieves' Auction: picks round the table until every
+                        // card is chosen, one that can't enter staying exiled.
+                        if self.line_text().is_some_and(|line| {
+                            line.contains("until all cards exiled this way have been chosen")
+                        }) {
+                            return Part::Unbatched(
+                                "auction of the exiled cards until each is chosen".into(),
+                            );
+                        }
                         if !self.own_cards(objects, binding, &flat[..step]) {
                             return Part::Unbatched(
                                 "per-player move under each player's control".into(),
@@ -783,6 +867,26 @@ impl Compiler {
                 &format!("players_{id} = cantrip_mechanics::players::in_chosen_direction(g, players_{id}, asker)?;"),
                 out,
             );
+        }
+        // "For each opponent, you mill a card, then return that card unless that
+        // player pays 3 life" (Sivriss): one opponent's whole process, then the
+        // next's, and nothing after reads what it did.
+        let mut made = BTreeSet::new();
+        for step in &each.body.instructions {
+            bound_results(step, &mut made);
+        }
+        let read_after = format!("{:?}", each.rest);
+        if punished_in_turn(&each.body.instructions, each.binding)
+            && !made.iter().any(|r| read_after.contains(&format!("ResultId({r})")))
+        {
+            let b = each.binding.0;
+            self.bound_players.insert(b);
+            writeln!(out, "for bound_{b} in players_{id}.iter().copied() {{").unwrap();
+            let walked = self.block(each.body, out, true);
+            writeln!(out, "}}").unwrap();
+            self.bound_players.remove(&b);
+            self.notes.walking = walking;
+            return walked;
         }
         // Flat: a Group is one step's words, and what a "may" or an "if" holds
         // are steps under it.
@@ -1350,6 +1454,11 @@ impl Compiler {
                 )
                 .unwrap();
             }
+            Gathered::Offered { decider, objects, .. } => {
+                let decider = self.fetch(self.certain_player(decider)?);
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let offered_{id}: Vec<ObjectId> = {objects}; if !offered_{id}.is_empty() {{ let decider_{id} = {decider}; if cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{ gathered_{local}.extend(offered_{id}); }} }}").unwrap();
+            }
             Gathered::Cards { amount, .. }
                 if whole_hand(amount, &PlayerSet::One(PlayerRef::Bound(each.binding.clone()))) =>
             {
@@ -1505,6 +1614,9 @@ impl Compiler {
                 let Instruction::Effect { result, .. } = program.instructions[at].clone() else {
                     return Err(gap("gathered step that is no operation"));
                 };
+                self.act_on_gathered(local, then.as_ref(), result, program, at, out);
+            }
+            Gathered::Offered { then, result, .. } => {
                 self.act_on_gathered(local, then.as_ref(), result, program, at, out);
             }
             Gathered::Cards { result, .. } => {
