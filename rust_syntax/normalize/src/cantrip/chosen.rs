@@ -143,6 +143,20 @@ pub(super) fn enters_choosing(card: &Card) -> Vec<ValueKind> {
             {
                 kinds.push(*kind);
             }
+            if let Instruction::Effect {
+                operation:
+                    Operation::ChooseValueWith {
+                        kind: ValueKind::CardType,
+                        terms,
+                        ..
+                    },
+                ..
+            } = instruction
+            {
+                if lane_p::entering_card_types_but(terms).is_some() {
+                    kinds.push(ValueKind::CardType);
+                }
+            }
         }
     }
     kinds

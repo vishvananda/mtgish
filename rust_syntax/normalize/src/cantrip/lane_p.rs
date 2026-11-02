@@ -371,6 +371,47 @@ pub(super) fn enters_sacrifices(card: &Card) -> bool {
     })
 }
 
+/// "Choose a card type other than creature or land" (Stenn, Arachne): the card
+/// types but those, as the options of a plain choice. `None` where `except`
+/// holds anything but card types.
+pub(super) fn card_types_but(except: &[Operand]) -> Option<Vec<Operand>> {
+    let but: Vec<&str> = except
+        .iter()
+        .map(|word| match word {
+            Operand::Vocabulary { family, form } if family == "CardType" => Some(form.as_str()),
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    Some(
+        CARD_TYPES
+            .iter()
+            .filter(|word| !but.contains(word))
+            .map(|word| Operand::Vocabulary {
+                family: "CardType".into(),
+                form: word.to_string(),
+            })
+            .collect(),
+    )
+}
+
+/// The card types but `except`, chosen as it enters on no other terms.
+pub(super) fn entering_card_types_but(terms: &ChoiceTerms) -> Option<Vec<Operand>> {
+    let ChoiceTerms {
+        options,
+        except,
+        count: None,
+        secret: false,
+        unchosen: false,
+        random: false,
+        ordered: false,
+        up_to: false,
+    } = terms
+    else {
+        return None;
+    };
+    (options.is_empty() && !except.is_empty()).then(|| card_types_but(except)).flatten()
+}
+
 pub(super) fn entering_card_type(card: &Card) -> Option<Vec<String>> {
     card.abilities.iter().find_map(|ability| {
         let Ability::Replacement {
@@ -391,6 +432,15 @@ pub(super) fn entering_card_type(card: &Card) -> Option<Vec<String>> {
                     },
                 ..
             } => Some(entering_types(options)),
+            Instruction::Effect {
+                operation:
+                    Operation::ChooseValueWith {
+                        kind: ValueKind::CardType,
+                        terms,
+                        ..
+                    },
+                ..
+            } => entering_card_types_but(terms).map(|options| entering_types(&options)),
             _ => None,
         })
     })

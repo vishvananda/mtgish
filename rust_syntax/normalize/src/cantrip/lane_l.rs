@@ -1154,6 +1154,15 @@ impl Compiler {
                         Err(_) => self.choose_value_terms(id, actor, *kind, terms, out)?,
                     }
                 }
+                // "As this enters, choose a card type other than creature": the
+                // other types, kept as its chosen option, as Arachne's.
+                terms if *kind == ValueKind::CardType
+                    && self.pending == Pending::Entering
+                    && lane_p::entering_card_types_but(terms).is_some() =>
+                {
+                    let options = lane_p::entering_card_types_but(terms).unwrap_or_default();
+                    self.choose_value(id, actor, *kind, 1, &options, out)?;
+                }
                 terms => {
                     self.choose_value_terms(id, actor, *kind, terms, out)?;
                     self.chosen_number_performed(*kind, result);
