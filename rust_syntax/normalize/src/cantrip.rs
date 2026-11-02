@@ -650,6 +650,8 @@ struct Compiler {
     affected_object: Option<&'static str>,
     /// The bestow cost, which makes the card two definitions.
     bestow: Option<String>,
+    /// What a bestow cost asks besides mana, an additional cost of the Aura.
+    bestow_extra: Option<String>,
     /// Values this body chose, each in a local.
     chosen: Vec<(ValueKind, String)>,
     /// Values the card chooses as it enters, which its permanent keeps.
@@ -1061,6 +1063,7 @@ impl Compiler {
             flips: BTreeMap::new(),
             affected_object: None,
             bestow: None,
+            bestow_extra: None,
             chosen: Vec::new(),
             enters_choosing: Vec::new(),
             mana_body: false,
@@ -2704,6 +2707,10 @@ fn emit_face(
     let mut listed = BTreeSet::new();
     c.extras.retain(|path| listed.insert(path.clone()));
     let bestow = c.bestow.take();
+    let bestowed = match c.bestow_extra.take() {
+        Some(extra) => format!("CardDef {{ additional_cost: Some({extra}), ..FACE }}"),
+        None => "FACE".to_string(),
+    };
     if bestow.is_some() {
         c.extras.push("BESTOWED".into());
     }
@@ -2750,7 +2757,7 @@ fn emit_face(
             let own = "pub static CARD: CardDef = CardDef {";
             let at = rust.rfind(own).expect("a module defines its card");
             format!("{}const FACE: CardDef = CardDef {{{}", &rust[..at], &rust[at + own.len()..])
-                + &format!("\npub static BESTOWED: CardDef = cantrip_mechanics::bestow::bestowed(FACE);\npub static CARD: CardDef = CardDef {{ bestow: Some(&BESTOWED), bestow_cost: {cost}, ..FACE }};\n")
+                + &format!("\npub static BESTOWED: CardDef = cantrip_mechanics::bestow::bestowed({bestowed});\npub static CARD: CardDef = CardDef {{ bestow: Some(&BESTOWED), bestow_cost: {cost}, ..FACE }};\n")
         }
         None => rust,
     };
