@@ -243,7 +243,7 @@ fn rendered(
     let unread = matchers_whose_data_is_unread(&file);
     let reads_data = |function: &syn::ItemFn| reads_data && !unread.contains(&function.sig.ident.to_string());
     flatten_tokens(&mut file, &mut BTreeSet::new());
-    use_shared_tokens(&mut file);
+    use_shared_tokens(&mut file, name);
     for item in &mut file.items {
         strip_allows(item);
         if let Item::Fn(function) = item {
@@ -3512,6 +3512,10 @@ const SHARED_TOKENS: &[(&str, &str)] = &[
     ("Blood", "BLOOD"),
     ("Powerstone", "POWERSTONE"),
     ("Map", "MAP"),
+    ("Gold", "GOLD"),
+    ("Mutagen", "MUTAGEN"),
+    ("Lander", "LANDER"),
+    ("Heartwood", "HEARTWOOD"),
 ];
 
 /// The words of `token!(Elf Warrior)` a token's definition is named by.
@@ -3525,50 +3529,27 @@ fn token_words(card: &syn::ExprStruct) -> Option<String> {
 /// Each `pub mod token_N` and `pub mod emblem_N` as items of the file: a token is a
 /// static beside the card (`..token!(Words)`), an emblem a static `EMBLEM`, their
 /// functions beside the card's. What each module became is returned by its name.
-/// `colors|types|power|toughness|keywords|name` of a token of plain characteristics, as `tools/shared_tokens.py` keys them.
-fn token_key(definition: &Expr) -> Option<String> {
-    let Expr::Struct(token) = definition else { return None };
-    let Expr::Macro(rest) = token.rest.as_deref()? else { return None };
-    if !rest.mac.path.is_ident("token") {
-        return None;
-    }
-    let mut fields: BTreeMap<String, String> = BTreeMap::new();
-    for field in &token.fields {
-        let syn::Member::Named(name) = &field.member else { return None };
-        fields.insert(name.to_string(), text_of(&field.expr));
-    }
-    if fields.keys().any(|field| !["colors", "types", "power", "toughness", "keywords", "text"].contains(&field.as_str())) {
-        return None;
-    }
-    let plain = |field: &str| fields.get(field).map_or(String::new(), |text| text.split_whitespace().collect());
-    let names = |field: &str, kind: &str| {
-        let text = plain(field);
-        let mut found: Vec<&str> = text.split(kind).skip(1).map(|rest| rest.split(|c: char| !c.is_alphanumeric()).next().unwrap_or("")).collect();
-        found.sort_unstable();
-        found.join(",")
-    };
-    let colors = plain("colors");
-    let bits = colors
-        .strip_prefix("Some(ColorSet(")
-        .and_then(|rest| rest.strip_suffix("))"))
-        .and_then(|number| number.parse::<u8>().ok())
-        .or(colors.is_empty().then_some(0))?;
-    let name = rest.mac.tokens.to_string();
-    Some(format!("{bits}|{}|{}|{}|{}|{name}", names("types", "CardType::"), plain("power"), plain("toughness"), names("keywords", "Keyword::")))
-}
-
-/// A token Cantrip already shares is named, not defined again: a hand-written card says `tokens::INSECT`.
-fn use_shared_tokens(file: &mut File) {
-    static SHARED: std::sync::OnceLock<BTreeMap<&str, &str>> = std::sync::OnceLock::new();
-    let shared = SHARED.get_or_init(|| include_str!("shared_tokens.tsv").lines().filter_map(|row| row.split_once('\t')).collect());
+/// A token Cantrip shares, or that the commit before the card will share, is named, not defined again. Which is read from
+/// `shared_tokens.tsv`, `card<TAB>the token's static here<TAB>its static in Cantrip`, which `tools/shared_tokens.py` writes
+/// by comparing every card's own definitions: run with `MTGISH_LOCAL_TOKENS` set for that, so that each card has them.
+fn use_shared_tokens(file: &mut File, card: &str) {
+    static SHARED: std::sync::OnceLock<BTreeMap<(&str, &str), &str>> = std::sync::OnceLock::new();
+    let shared = SHARED.get_or_init(|| {
+        if std::env::var_os("MTGISH_LOCAL_TOKENS").is_some() {
+            return BTreeMap::new();
+        }
+        let rows = include_str!("shared_tokens.tsv").lines();
+        rows.filter_map(|row| {
+            let mut fields = row.split('\t');
+            Some(((fields.next()?, fields.next()?), fields.next()?))
+        })
+        .collect()
+    });
     let mut named: BTreeMap<String, Expr> = BTreeMap::new();
     file.items.retain(|item| {
         let Item::Static(token) = item else { return true };
         let name = token.ident.to_string();
-        if name == "CARD" || text_of(&token.ty) != "CardDef" {
-            return true;
-        }
-        let Some(path) = token_key(&token.expr).and_then(|key| shared.get(key.as_str())) else {
+        let Some(path) = shared.get(&(card, name.as_str())).map(|path| path.to_string()) else {
             return true;
         };
         named.insert(name, syn::parse_str(&format!("cantrip_mechanics::tokens::{path}")).expect("a path"));

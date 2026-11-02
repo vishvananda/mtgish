@@ -253,7 +253,15 @@ impl Compiler {
         };
         let test = self.filter(filter, &Candidate::of("id"));
         (self.reader, self.event_at) = saved;
-        let test = test?;
+        let mut test = test?;
+        // A payer only ever pays with their own: "they control" says no more than that.
+        const THEIRS: &str = ") == Some(q.controller(id))";
+        if let Some(at) = test.find("Some(bound_") {
+            if let Some(end) = test[at..].find(THEIRS) {
+                let says = test[at..at + end + THEIRS.len()].to_string();
+                test = test.replace(&says, "true");
+            }
+        }
         if self.reads_a_local(&test) {
             return Err(gap(
                 "a cost at resolution filtered by who is asked to pay it",
@@ -766,7 +774,12 @@ impl Compiler {
                     quoted(&text)
                 )
             } else {
-                let adds = self.mana_ability(body, &format!("{label}_mana"))?;
+                self.mana_body = true;
+                self.activated_mana = Some(index);
+                let adds = self.mana_ability(body, &format!("{label}_mana"));
+                self.mana_body = false;
+                self.activated_mana = None;
+                let adds = adds?;
                 let colors = self.mana_colors.take();
                 self.paid_for = PaidFor::Mana;
                 let cost = self.cost(price, label);
@@ -1031,6 +1044,17 @@ impl Compiler {
     ) -> Result<()> {
         match ability {
             Ability::Keyword(k) => match k {
+                // "Snow swampwalk", "desertwalk": no word of Cantrip's says it, and it
+                // is a rule of the block all the same (CR 702.14c).
+                Keyword::Landwalk(land) if lane_p::landwalk_rule(land) => {
+                    let test = self.filter(land, &Candidate::of("land"))?;
+                    // The filter names the land type by the text of `asker.source`, and
+                    // a rule of the block is told its source outright (CR 612.2).
+                    let test = test.replace("asker.source", "source");
+                    let rule = format!("{label}_walk");
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {rule}(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ attacker != source || !q.defending_player(attacker).is_some_and(|defending| q.state().battlefield().iter().any(|&land| q.controller(land) == defending && q.chars(land).is(CardType::Land) && {test})) }}").unwrap();
+                    parts.block_rules.push(rule);
+                }
                 Keyword::Prowess => parts
                     .abilities
                     .push("cantrip_mechanics::triggers::PROWESS".into()),

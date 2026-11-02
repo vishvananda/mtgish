@@ -333,10 +333,10 @@ fn token_card(fields: &str) -> String {
     format!(
         r#"
 #[allow(unused_imports)] use cantrip_api::*;
-pub static BUG: CardDef = CardDef {{ {fields} ..token!(Insect) }};
-fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ let def = g.card_id(&BUG); g.create_tokens_worded(&[(def, item.controller)], false, None, g.words(item.object))?; Ok(()) }}
+pub static INSECT: CardDef = CardDef {{ {fields} ..token!(Insect) }};
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ let def = g.card_id(&INSECT); g.create_tokens_worded(&[(def, item.controller)], false, None, g.words(item.object))?; Ok(()) }}
 pub static CARD: CardDef = CardDef {{ name: "Sample", oracle: true, spell: spell(&[], ability_0), abilities: &[], ..CardDef::DEFAULT }};
-pub static EXTRA: &[&CardDef] = &[&BUG];
+pub static EXTRA: &[&CardDef] = &[&INSECT];
 "#
     )
 }
@@ -345,13 +345,14 @@ const PLAIN_INSECT: &str = "types: TypeSet::of(&[CardType::Creature]), colors: S
 
 #[test]
 fn a_token_cantrip_shares_is_named() {
+    // `shared_tokens.tsv` says which: Ant Queen's Insect is Cantrip's.
     let text = "Create a 1/1 green Insect creature token.";
-    let file = render(&token_card(PLAIN_INSECT), "Sample", text, Characteristics::Oracle).unwrap();
+    let file = render(&token_card(PLAIN_INSECT), "Ant Queen", text, Characteristics::Oracle).unwrap();
     println!("{file}");
     assert!(file.contains("use cantrip_mechanics::tokens;"), "{file}");
     assert!(file.contains("g.card_id(&tokens::INSECT)"), "{file}");
     assert!(file.contains("&[&tokens::INSECT]"), "{file}");
-    assert!(!file.contains("pub static BUG"), "{file}");
+    assert!(!file.contains("pub static INSECT"), "{file}");
 }
 
 #[test]

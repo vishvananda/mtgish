@@ -142,6 +142,7 @@ impl Compiler {
         self.history = None;
         self.choosing = None;
         self.costing_targets = false;
+        self.choosing_source = None;
         self.granting = false;
         self.outer = None;
         self.hoisted = None;

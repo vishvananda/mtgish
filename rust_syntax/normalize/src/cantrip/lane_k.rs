@@ -228,13 +228,16 @@ fn sentences(text: &str) -> Vec<String> {
 /// The sentences of a line of `kind` past its cost: an activated ability's
 /// cost isn't what it does.
 fn effect_sentences(kind: Said, text: &str) -> Vec<String> {
-    let mut sentences = sentences(text);
-    if kind == Said::Activated {
-        if let Some((_, effect)) = sentences[0].split_once(": ") {
-            sentences[0] = effect.to_string();
-        }
+    sentences(past_cost(kind, text))
+}
+
+/// A line past its activation cost, which is no word of the effect: "Sacrifice
+/// this creature: ...". A triggered ability's "When ...:" is no cost.
+fn past_cost(kind: Said, text: &str) -> &str {
+    match text.split_once(": ") {
+        Some((cost, words)) if kind != Said::Triggered && !cost.contains(['"', '.']) => words,
+        _ => text,
     }
-    sentences
 }
 
 /// Oracle words as Cantrip's `waiting_texts_match_oracle` compares them:
@@ -1516,6 +1519,24 @@ impl Compiler {
             .is_some_and(|line| line.text.contains("two target"));
         (same && printed).then_some(1)
     }
+    /// "Up to three other target creatures from the battlefield and/or creature
+    /// cards from graveyards": one count over two kinds of target is one slot, and
+    /// the second is what's read of it.
+    pub(super) fn limit_shared(announcement: &Announcement) -> Option<usize> {
+        let [first, second] = announcement.targets.as_slice() else {
+            return None;
+        };
+        let shared = matches!(second.constraints.as_slice(),
+            [SelectionConstraint::SharesLimitWith(slot)] if slot.0 == first.slot.0);
+        (shared
+            && first.constraints.is_empty()
+            && format!("{:?}", first.count) == format!("{:?}", second.count)
+            && first.distribute.is_none()
+            && second.distribute.is_none()
+            && first.chooser.is_none()
+            && second.chooser.is_none())
+        .then_some(1)
+    }
     /// What a block rule that lasts says, from the line that makes it: "can't be
     /// blocked except by creatures with haste", as the object has it for the turn.
     pub(super) fn block_rule_words(&self) -> Option<String> {
@@ -1957,7 +1978,7 @@ impl Compiler {
         let sentences = effect_sentences(line.kind, &line.head);
         match sentences.iter().position(|sentence| makes(sentence)) {
             Some(at) => self.printed_run(&sentences, at, sentences.len()),
-            None => line.text.clone(),
+            None => past_cost(line.kind, &line.text).to_string(),
         }
     }
     /// Whether the face prints `passage`, as Cantrip holds a waiting text to its
@@ -2030,6 +2051,17 @@ impl Compiler {
             }
         }
         first.unwrap_or_else(|| self.said(Said::Triggered, fallback))
+    }
+    /// A flip whose line speaks of heads or tails has no winner (CR 705.2), and
+    /// the rest are won or lost. The AST says the same words either way.
+    pub(super) fn flip_call(&self) -> Result<&'static str> {
+        let line = self
+            .line_text()
+            .ok_or_else(|| gap("a coin flip with no printed line"))?;
+        let called = line
+            .split(|c: char| !c.is_alphabetic())
+            .any(|word| word.eq_ignore_ascii_case("heads") || word.eq_ignore_ascii_case("tails"));
+        Ok(if called { "flip_coin_for_heads" } else { "flip_coin" })
     }
     /// The printed line being compiled.
     pub(super) fn line_text(&self) -> Option<&str> {

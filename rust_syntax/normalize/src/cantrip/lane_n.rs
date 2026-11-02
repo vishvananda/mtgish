@@ -105,26 +105,21 @@ pub(super) fn granted_prevention(
     of: Option<&str>,
     may: Option<&str>,
 ) -> String {
+    let then = then.map_or("None".to_string(), |then| format!("Some({then})"));
     let base = format!(
-        "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies}, then: None, text: {text} }}"
+        "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies}, then: {then}, text: {text} }}"
     );
-    let mut more = String::new();
-    match then {
-        Some(then) => write!(more, " then: Some({then}),").unwrap(),
-        None => more.push_str(" then: None,"),
-    }
+    let mut more = format!(" then: {then},");
     if let Some(of) = of {
         write!(more, " amount: Some({of}),").unwrap();
     }
     if let Some(may) = may {
         write!(more, " optional: Some(&{may}),").unwrap();
     }
-    if then.is_none() && of.is_none() && may.is_none() {
+    if of.is_none() && may.is_none() {
         return base;
     }
-    let feature = if then.is_some() {
-        "prevention with an effect besides"
-    } else if of.is_some() {
+    let feature = if of.is_some() {
         "prevention of part of the damage made at resolution"
     } else {
         "prevention a player may decline"
@@ -136,6 +131,51 @@ pub(super) fn granted_prevention(
             "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies},{more} text: {text} }}"
         ),
     )
+}
+
+/// What a made effect is shown as: the line's words where its body has none.
+pub(super) fn hint_or_words(hint: String, words: &str) -> String {
+    match hint.trim_matches(['"', ' ']).is_empty() {
+        true => words.to_string(),
+        false => hint,
+    }
+}
+
+/// The prompt of "a source of your choice": it is chosen, nothing more (CR 609.7a).
+pub(super) fn chooses_a_source(objects: &ObjectSet) -> Option<&'static str> {
+    matches!(objects, ObjectSet::DamageSources(_)).then_some("Choose")
+}
+
+/// The quality "a source of your choice" asks, which a shield asks again as damage
+/// would be dealt (CR 609.7b). A "creature of your choice with shadow" asks one too.
+pub(super) fn quality_chosen<'o>(
+    objects: &'o ObjectSet,
+    line: Option<&str>,
+) -> Option<&'o ObjectFilter> {
+    match objects {
+        ObjectSet::DamageSources(quality) => Some(quality),
+        ObjectSet::Battlefield(quality) if line?.contains("of your choice") => Some(quality),
+        _ => None,
+    }
+}
+
+/// Whether every part of what a made prevention prevents has one source, and one
+/// recipient: `to` is whether the effect keeps whom it protects.
+pub(super) fn parts_alone(event: &ReplacementEvent, to: bool) -> (bool, bool) {
+    let ReplacementEvent::Damage(damage) = event else {
+        return (false, false);
+    };
+    let one = |filter: &ObjectFilter| matches!(filter, ObjectFilter::SameObject(_));
+    // Only one spell resolves at a time, and a creature attacks only one player.
+    let source = one(&damage.sources) || matches!(damage.source_kind, ObjectKind::Spell);
+    let recipient = to
+        || match &damage.recipients {
+            DamageRecipients::Objects(objects) => one(objects),
+            DamageRecipients::Players(PlayerSet::One(_)) | DamageRecipients::Target { .. } => true,
+            DamageRecipients::Players(_) => source && matches!(damage.kind, DamageKind::Combat),
+            _ => false,
+        };
+    (source, recipient)
 }
 
 /// A redirection used up by how much it has moved: Cantrip's shields are for
@@ -314,6 +354,21 @@ fn always_cancels(steps: &[Instruction]) -> bool {
 }
 
 /// Whether a program prevents its event, whatever stands around that.
+/// Whether a program does nothing but prevent its damage.
+fn prevents_only(program: &Program) -> bool {
+    let mut steps = Vec::new();
+    lane_m::flat_groups(&program.instructions, &mut steps);
+    matches!(
+        steps.as_slice(),
+        [Instruction::Effect {
+            operation: Operation::ModifyEvent {
+                change: EventChange::PreventDamage
+            },
+            ..
+        }]
+    )
+}
+
 fn prevents_at_all(program: &Program) -> bool {
     let mut steps = Vec::new();
     lane_m::flat_groups(&program.instructions, &mut steps);
@@ -612,8 +667,11 @@ impl Compiler {
         }
         Err(gap("event change in the program of another event"))
     }
-    /// The follow-up of a prevention: `PreventionDef::then`, told how much it
-    /// prevented, which is what "if damage is prevented this way" reads.
+    /// The rest of a prevention (CR 615.5), run once for the damage event and told
+    /// what it prevented of each part, whose total is what "if damage is prevented
+    /// this way" reads. `alone` says the parts share a source and a recipient, so
+    /// "that source" and "that creature" name one thing; otherwise words that read
+    /// them are about each part, which the rest as one run can't say.
     pub(super) fn prevention_then(
         &mut self,
         label: &str,
@@ -621,6 +679,7 @@ impl Compiler {
         frame: Frame,
         rest: &[Instruction],
         about: &str,
+        alone: (bool, bool),
     ) -> Result<Option<String>> {
         if rest.is_empty() {
             return Ok(None);
@@ -630,10 +689,44 @@ impl Compiler {
         self.replacing.event = Some(("Damage", "e", frame));
         let prevented = self.replacing.prevented;
         let out = self.then_steps(frame, rest, prevented.map(|r| (r, "done_prevented")))?;
+        let (subject_alone, second_alone) = match frame.damage_source {
+            Some(Carried::Subject) => alone,
+            _ => (alone.1, alone.0),
+        };
+        if (!subject_alone && out.contains("subject")) || (!second_alone && out.contains("data[1]"))
+        {
+            return Err(gap("the rest of a prevention read for each of its parts"));
+        }
         let pass = if about.is_empty() { "" } else { "affected, " };
         writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2], done_prevented: u16) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
-        writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}e: &cantrip_api::DamageEvent, prevented: u16) {{ let q: &dyn Query = g; {locals} let _ = {then}_steps(g, asker, {pass}subject, data, prevented); }}").unwrap();
+        writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}parts: &[Prevented]) {{ let Some(first) = parts.first() else {{ return }}; let prevented = Prevented::total(parts).min(u16::MAX.into()) as u16; let e = &Prevented {{ amount: prevented, ..*first }}; let q: &dyn Query = g; {locals} let _ = {then}_steps(g, asker, {pass}subject, data, prevented); }}").unwrap();
         Ok(Some(then))
+    }
+    /// The quality of the choice `object` is, if it is a source of someone's choice.
+    pub(super) fn source_chosen(&self, object: &ObjectRef) -> Option<ObjectFilter> {
+        let ObjectRef::Result { result, .. } = object else {
+            return None;
+        };
+        self.damage_sources.get(self.selections.get(&result.0)?).cloned()
+    }
+    /// "A source of your choice", as damage is about to be dealt: that object or
+    /// the permanent it became, if it still has the quality it was chosen for
+    /// (CR 609.7a, 609.7b).
+    pub(super) fn chosen_source(&mut self, arms: &mut [Watched], frame: Frame) -> Result<()> {
+        let Some(quality) = self.choosing_source.take() else {
+            return Ok(());
+        };
+        let test = self.matching(frame, |c| c.filter(&quality, &Candidate::of("source")))?;
+        for arm in arms {
+            for read in &mut arm.tests {
+                *read = read.replace(
+                    "Some(affected) == Some(source)",
+                    "cantrip_mechanics::prevention::by_chosen_source(q, affected, e)",
+                );
+            }
+            arm.tests.push(test.clone());
+        }
+        Ok(())
     }
     /// How much of the damage a made prevention prevents, where it is not all.
     pub(super) fn made_prevention_amount(
@@ -1347,6 +1440,13 @@ impl Compiler {
             return Err(gap(format!("delayed trigger starting {}", form(start))));
         }
         let when = match expires {
+            // The rewrite kept "this turn" out of the AST, and without it the ability
+            // would wait past the turn.
+            None if lane_k::printed_otherwise(self.line_text(), "next")
+                && lane_k::printed_otherwise(self.line_text(), "this turn") =>
+            {
+                return Err(gap("delayed trigger this turn with no end in the AST"));
+            }
             None => "DelayedWhen::UntilEvent".to_string(),
             Some(D::EndOfTurn) => "DelayedWhen::NextThisTurn".to_string(),
             Some(other @ D::UntilStateBasedActionsChecked) => planned::planned_value(
@@ -1357,7 +1457,11 @@ impl Compiler {
             Some(other) => return Err(gap(format!("delayed trigger until {}", form(other)))),
         };
         let when = when.as_str();
-        let (watched, source) = self.watching_source(event, body)?;
+        let (watched, source, each) = self.watching_source(event, body)?;
+        if each.is_some() {
+            return Err(gap("delayed trigger on an event"));
+        }
+        self.watching_for_another(&source, body)?;
         let saved = self.clone();
         let mark = out.len();
         // Only what waits for one event keeps a subject (settle's `is_event`).
@@ -1401,6 +1505,57 @@ impl Compiler {
             }
         }
         Err(gap("delayed trigger on an event"))
+    }
+    /// "Prevent the next 5 damage that would be dealt this turn to any number of
+    /// targets, divided as you choose": each target's share is a shield of its own
+    /// (CR 601.2d, 615.7), and one that has become illegal goes with its share.
+    pub(super) fn divided_shields(
+        &mut self,
+        event: &ReplacementEvent,
+        limit: &ReplacementLimit,
+        duration: &crate::ir::Duration,
+        body: &Program,
+        out: &mut String,
+    ) -> Result<bool> {
+        let (ReplacementEvent::Damage(damage), ReplacementLimit::DamageToEach(share)) = (event, limit)
+        else {
+            return Ok(false);
+        };
+        let (DamageRecipients::Targets(slot), Expr::DistributedShare(shared)) =
+            (&damage.recipients, share)
+        else {
+            return Ok(false);
+        };
+        if slot.0 != shared.0 || self.slots.len() != 1 || !self.stack_item || !prevents_only(body) {
+            return Ok(false);
+        }
+        let duration = self.duration(duration)?;
+        let mut plain = event.clone();
+        if let ReplacementEvent::Damage(damage) = &mut plain {
+            damage.recipients = DamageRecipients::Any;
+        }
+        let hint = quoted(&self.said(lane_k::Said::Sentence, ability_text(body)));
+        let label = format!("made_{}", self.fresh());
+        let results = self.results();
+        let scope = self.affected_in_scope;
+        self.reset_results();
+        self.affected_in_scope = true;
+        let made = self.made_effect(
+            &label,
+            &plain,
+            &ReplacementLimit::TotalDamage(share.clone()),
+            Some("shield".to_string()),
+            body,
+            hint,
+            true,
+            false,
+        );
+        self.affected_in_scope = scope;
+        self.restore_results(results);
+        let (_, effect) = made?;
+        let effect = effect.replace("DURATION", &duration);
+        writeln!(out, "for slot in 0..item.target_count as usize {{ let to = g.state().target(item, slot); let shield = u16::try_from(g.state().share(item, slot)).unwrap_or(u16::MAX); if shield > 0 && g.target_legal(item, slot) {{ let about = to.object().unwrap_or(item.object); {effect} }} }}").unwrap();
+        Ok(true)
     }
     /// A made effect that reads the ability making it, closed over those
     /// values: `one` keeps them to the object the effect is about, which Cantrip
@@ -1458,12 +1613,30 @@ impl Compiler {
                 }
             }
         }
+        self.choosing_source = about.first().and_then(|o| self.source_chosen(o));
         let about = about.first().map(|o| self.object(o)).transpose()?;
         let each = each
             .first()
             .map(|slot| self.objects(&ObjectSet::Targets(slot.clone())))
             .transpose()?
             .map(|list| self.fetch(list));
+        // "Prevent all damage that would be dealt to those permanents": each is
+        // whom one prevention protects, and the effect ends with it (CR 400.7).
+        let those = match &mut plain {
+            ReplacementEvent::Damage(damage) if one && prevents_at_all(body) => {
+                match &damage.recipients {
+                    DamageRecipients::Objects(ObjectFilter::InResult(result)) => {
+                        let list = self.objects(&ObjectSet::Named(result.clone()))?;
+                        damage.recipients = DamageRecipients::Any;
+                        Some(self.fetch(list))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        let to = to.or(those.as_ref().map(|_| "vec![Target::Object(each)]".to_string()));
+        let each = each.or(those);
         let about = about.or(each.as_ref().map(|_| "Some(each)".to_string()));
         let hint = quoted(&ability_text(body));
         let label = format!("made_{}", self.fresh());
@@ -1499,6 +1672,10 @@ impl Compiler {
                 "let _ = (to, about); g.add_player_effect(item.controller, item.object, EffectKind::ReplacementRule {",
                 "let _ = to; g.add_effect(item.object, about, EffectKind::Replacement {",
             );
+        }
+        // An effect keeps one object: what it is about, or what it reads.
+        if about.is_some() && subject.is_some() && about != subject {
+            return Err(gap(KEPT));
         }
         let about = match about.or(subject) {
             Some(object) => self.fetch(object),
@@ -1603,12 +1780,9 @@ impl Compiler {
             return Err(gap("a choice of Recipient"));
         };
         let candidates = self.fetch(self.recipients(candidates)?);
-        let chosen = planned::planned_value(
-            "a choice of Recipient",
-            "Target::None",
-            &format!(
-                "cantrip_mechanics::choose::recipient(g, player_{id}, {source}, candidates_{id})?"
-            ),
+        // A lone candidate is no choice; with none the rest deals with no one.
+        let chosen = format!(
+            "match candidates_{id}.len() {{ 0 => Target::None, 1 => candidates_{id}[0], _ => match g.ask(player_{id}, RequestKind::ChooseTarget {{ label: \"\", slot_player: None, together: None, source: {source}, purpose: Purpose::Targets, candidates: candidates_{id}.clone(), optional: false, least: 1, count: 1, any_number: false }})? {{ Answer::Targets(chosen) => chosen.first().copied().unwrap_or(Target::None), _ => Target::None }} }}"
         );
         writeln!(
             out,
@@ -1923,6 +2097,8 @@ impl Compiler {
         let test = lane_i::STACK_ITEM;
         writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {targets}.into_iter().filter_map(|t| {{ let stack = &g.state().stack; stack.iter().position(|e| {test}).map(|at| (stack[at].object, at)) }}).collect(); let abilities_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind != StackKind::Spell).map(|&(o, _)| o).filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect(); let spells_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind == StackKind::Spell).map(|&(o, _)| o).collect(); let countered_{id} = g.counter_items(&items_{id}); let mut moved_{id}: Vec<ObjectId> = if countered_{id} > 0 {{ abilities_{id} }} else {{ Vec::new() }}; moved_{id}.extend(spells_{id}.into_iter().filter_map(|o| g.state().obj(o).became));").unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
+        // That spell, countered or not: a spell that can't be countered still is one.
+        self.left_behind(result, format!("items_{id}.iter().map(|&(o, _)| o).collect::<Vec<ObjectId>>()"));
     }
     /// A damage event's recipient a made effect keeps, as a test of `target`.
     pub(super) fn named_recipient(&self, recipients: &Recipients) -> Result<String> {
@@ -2183,7 +2359,9 @@ pub(super) fn toxic_of(ability: &Ability) -> Option<i64> {
 
 /// Whether what comes later reads the excess of a damage instruction.
 pub(super) fn reads_excess(after: &[Instruction], result: &ResultId) -> bool {
-    format!("{after:?}").contains(&format!("ExcessDamage {{ result: ResultId({})", result.0))
+    let after = format!("{after:?}");
+    after.contains(&format!("ExcessDamage {{ result: ResultId({})", result.0))
+        || after.contains(&format!("DealtExcessBy(ResultId({}))", result.0))
 }
 
 pub(super) fn read_as_damaged(after: &[Instruction], result: &ResultId) -> bool {

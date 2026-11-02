@@ -162,6 +162,17 @@ pub(super) enum EventAt {
 
 /// Whether `changes` read the object each is applied to, `ObjectRef::Affected`,
 /// rather than what an earlier result affected, `ObjectSet::Affected`.
+/// What a spell reading its own name also counts. "If this card is in a graveyard, effects from
+/// spells named Muscle Burst count it as a card named Muscle Burst" is a rule of the reader, and
+/// no card's module sees another's.
+fn counted_as_named(reader: &str, named: &str) -> Option<&'static str> {
+    match (reader, named) {
+        ("Muscle Burst", "Muscle Burst") => Some("Diligent Farmhand"),
+        ("Flame Burst", "Flame Burst") => Some("Pardic Firecat"),
+        _ => None,
+    }
+}
+
 pub(super) fn reads_affected(changes: impl std::fmt::Debug) -> bool {
     format!("{changes:?}")
         .replace("Affected(", "")
@@ -372,6 +383,23 @@ impl Compiler {
         for (i, spec) in self.slots.values() {
             if *i < referred {
                 let Count::Exactly(Expr::Constant(n)) = &spec.count else {
+                    // The only player among what's been chosen, wherever it falls.
+                    let players = self
+                        .slots
+                        .values()
+                        .filter(|(i, s)| *i < choosing && matches!(s.kind, TargetKind::Player))
+                        .count();
+                    let referred_player = self.slots.values().any(|(i, s)| {
+                        *i == referred
+                            && matches!(s.kind, TargetKind::Player)
+                            && matches!(s.count, Count::Exactly(Expr::Constant(1)))
+                    });
+                    if players == 1 && referred_player && index == 0 {
+                        return Ok(Some(
+                            "q.chosen_targets().iter().copied().find(|t: &Target| t.player().is_some())"
+                                .to_string(),
+                        ));
+                    }
                     return Ok(Some(planned::planned_value(
                         "target reference past a slot of no fixed size",
                         "None::<Target>",
@@ -753,6 +781,17 @@ impl Compiler {
                     zone_kind(zone)?
                 )
             }
+            // This card, which the cost that was just paid exiled from where it died.
+            ObjectSet::InZone { objects, zone }
+                if matches!(&**objects, ObjectSet::One(ObjectRef::Source))
+                    && self.notes.exiled_source.is_some() =>
+            {
+                format!(
+                    "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
+                    self.notes.exiled_source.clone().unwrap_or_default(),
+                    zone_kind(zone)?
+                )
+            }
             ObjectSet::InZone { objects, zone } => format!(
                 "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
                 self.objects(objects)?,
@@ -835,6 +874,13 @@ impl Compiler {
             CostPart::ChangeTapState { selections, .. } => {
                 selections.iter().any(|s| s.choose.is_some())
             }
+            CostPart::Move {
+                selections,
+                destination: Destination::OwnersHand,
+                ..
+            } => selections
+                .iter()
+                .all(|s| s.choose.is_some() && matches!(s.objects, ObjectSet::Battlefield(_))),
             _ => false,
         };
         match payment {
@@ -932,8 +978,10 @@ impl Compiler {
                 "{{ let other = {}; q.state().apnap().filter(|p| Some(*p) != other).collect::<Vec<PlayerId>>() }}",
                 self.player(player)?
             ),
+            // Target players act in turn order, not the order they were targeted in
+            // (CR 101.4).
             PlayerSet::Targets(slot) => format!(
-                "t_{}.iter().filter_map(|t| t.player()).collect::<Vec<PlayerId>>()",
+                "q.state().apnap().filter(|&p| t_{}.iter().any(|t| t.player() == Some(p))).collect::<Vec<PlayerId>>()",
                 self.slot(slot)?
             ),
             PlayerSet::Union(sets) => {
@@ -1053,6 +1101,12 @@ impl Compiler {
                 return Err(gap(format!("primitive numeric expression {name}")))
             }
             Expr::Constant(n) => Number::integer(*n),
+            Expr::AnnouncedX if self.notes.paid_x.is_some() => Number {
+                code: self.notes.paid_x.clone().unwrap_or_default(),
+                min: 0,
+                max: 255,
+                dynamic: true,
+            },
             Expr::AnnouncedX
                 if self.reader == Reader::Resolution
                     && self.stack_item
@@ -1060,6 +1114,33 @@ impl Compiler {
             {
                 Number {
                     code: "i64::from(item.x)".into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            // A delayed ability's source is the spell that made it, and that spell's
+            // X stays on its item after it has left the stack.
+            Expr::AnnouncedX
+                if self.reader == Reader::Resolution
+                    && self.stack_item
+                    && self.outer.as_ref().is_some_and(|outer| outer.made_by_a_spell()) =>
+            {
+                Number {
+                    code: "i64::from(q.state().left_stack(item.object).map_or(0, |made| made.x))"
+                        .into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            // A mana ability's {X} is kept on its source (CR 107.3a, 605.3a).
+            Expr::AnnouncedX
+                if self.mana_body
+                    && self.activation_cost.as_ref().is_some_and(target_counts::has_mana_x) =>
+            {
+                Number {
+                    code: "i64::from(q.obj(asker.source).x)".into(),
                     min: 0,
                     max: u16::MAX.into(),
                     dynamic: true,
@@ -1114,6 +1195,15 @@ impl Compiler {
                 if self.frame.members && self.grouped && self.event_at == EventAt::Item =>
             {
                 count("q.event_objects(item).len() as i64".into())
+            }
+            // "When you do, ... the amount of life you gained": the event was the
+            // ability around this one's, which tells this one the number.
+            Expr::EventAmount
+                if self.frame.amount.is_none()
+                    && self.event_at != EventAt::TargetFilter
+                    && self.carrying().is_some_and(|outer| outer.reflexive) =>
+            {
+                count(self.told_event_amount(n)?)
             }
             // "That many" of an event the engine reports without the number, or of
             // several events the ability is one answer to.
@@ -1181,7 +1271,8 @@ impl Compiler {
                     {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
-                    other => lane_p::history_measure(other, &hits),
+                    other => lane_p::history_measured(other, scope, &matched.history_test())
+                        .unwrap_or_else(|| lane_p::history_measure(other, &hits)),
                 };
                 // The event is one the engine will have: the question is stated.
                 let answer = match matched.planned.first() {
@@ -1242,6 +1333,15 @@ impl Compiler {
             {
                 let result = lane_p::paid_by_moving(objects).expect("just seen");
                 count(format!("({}.len() as i64)", self.moved[&result.0]))
+            }
+            // "For each card less than two a player draws this way": what that
+            // player's run counted, drawing being no list of cards.
+            Expr::CountObjects(objects) if self.each_done(objects).is_some() => {
+                let (players, each, player) = self.each_done(objects).expect("just asked");
+                let who = self.player(player)?;
+                count(format!(
+                    "{players}.iter().position(|&p| Some(p) == {who}).map_or(0i64, |at| {each}[at])"
+                ))
             }
             Expr::CountObjects(objects) if lane_k::convoked(objects).is_some() => count(format!(
                 "{}.map_or(0, |o: ObjectId| q.history().convoked(o).count() as i64)",
@@ -1632,6 +1732,9 @@ impl Compiler {
         compiled
     }
     fn predicate(&self, f: &ObjectFilter, c: &Candidate) -> Result<String> {
+        if let Some(either) = lane_p::any_of_filter(f) {
+            return self.predicate(&either, c);
+        }
         let (id, chars) = (c.id.as_str(), c.chars.as_str());
         let combine = |items: &[ObjectFilter], join: &str, identity: &str| -> Result<String> {
             if items.is_empty() {
@@ -1739,7 +1842,13 @@ impl Compiler {
             ObjectFilter::HasKeyword(k) => {
                 format!("{chars}.keywords.has({})", keyword(k)?)
             }
-            ObjectFilter::Name(words) => format!("{chars}.name == {}", quoted(words)),
+            ObjectFilter::Name(words) => {
+                let named = format!("{chars}.name == {}", quoted(words));
+                match counted_as_named(&self.card_name, words) {
+                    Some(other) => format!("({named} || {chars}.name == {})", quoted(other)),
+                    None => named,
+                }
+            }
             ObjectFilter::Property {
                 property,
                 comparison,
@@ -1793,8 +1902,16 @@ impl Compiler {
             ),
             ObjectFilter::Shares { property, with } => {
                 let test = lane_j::sharing(property)?;
+                // A spell that has left the stack is as it was cast.
+                let other = match with {
+                    ObjectRef::Earlier {
+                        what: EarlierObjects::LastCast,
+                        ..
+                    } => "q.history().cast_of(o).filter(|_| q.state().obj(o).became.is_some()).map_or_else(|| q.chars(o), |cast| cast.chars(q))",
+                    _ => "q.chars(o)",
+                };
                 format!(
-                    "{}.is_some_and(|o: ObjectId| {{ let (a, b) = (&{chars}, &q.chars(o)); {test} }})",
+                    "{}.is_some_and(|o: ObjectId| {{ let (a, b) = (&{chars}, &{other}); {test} }})",
                     self.object(with)?
                 )
             }
@@ -1888,7 +2005,14 @@ impl Compiler {
                     zone_kind(zone)?
                 )
             }
+            // "That player's graveyard", of the slot before: asked whether the ability
+            // can be offered at all, before that slot has chosen, any will do.
             ObjectFilter::InZone(ZoneScope::Players { zone, players }) => {
+                let owner = self.player_in(players, &format!("q.state().obj({id}).owner"))?;
+                let owner = match owner.contains("q.chosen_targets()") {
+                    true => format!("(q.chosen_targets().is_empty() || {owner})"),
+                    false => owner,
+                };
                 // An event's object is judged where it was (603.10); one named by
                 // the ability, as it is: a card gone from there isn't there (400.7).
                 let there = match id == "id" {
@@ -1896,9 +2020,8 @@ impl Compiler {
                     false => format!("q.state().obj({id}).became.is_none() && "),
                 };
                 format!(
-                    "({there}q.state().obj({id}).zone.kind() == {} && {})",
-                    zone_kind(zone)?,
-                    self.player_in(players, &format!("q.state().obj({id}).owner"))?
+                    "({there}q.state().obj({id}).zone.kind() == {} && {owner})",
+                    zone_kind(zone)?
                 )
             }
             ObjectFilter::InSet(objects) => {
@@ -2002,6 +2125,27 @@ impl Compiler {
                 "{}.is_some_and(|candidate: ObjectId| {})",
                 self.object(object)?,
                 self.filter(filter, &Candidate::of("candidate"))?
+            ),
+            // "Activate only if defending player controls ...", with no creature to
+            // say which: the one of them the controller would choose (CR 508.5a).
+            Condition::Not(inner)
+                if matches!(**inner, Condition::Controls { player: PlayerRef::DefendingPlayer, .. }) =>
+            {
+                let Condition::Controls { filter, minimum, .. } = &**inner else {
+                    unreachable!("a condition just matched");
+                };
+                format!(
+                    "q.state().opponents(q.state().turn.active).into_iter().any(|defending: PlayerId| q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == defending && {}).count() < {minimum})",
+                    self.filter(filter, &Candidate::of("id"))?
+                )
+            }
+            Condition::Controls {
+                player: PlayerRef::DefendingPlayer,
+                filter,
+                minimum,
+            } => format!(
+                "q.state().opponents(q.state().turn.active).into_iter().any(|defending: PlayerId| q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == defending && {}).count() >= {minimum})",
+                self.filter(filter, &Candidate::of("id"))?
             ),
             Condition::Controls {
                 player,

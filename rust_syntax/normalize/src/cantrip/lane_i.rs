@@ -64,6 +64,9 @@ fn walked(op: &Operation) -> bool {
             | Operation::PayAnyAmount { .. }
             | Operation::PayCost { .. }
             | Operation::PayRepeatedly { .. }
+            // One spell after another, the next player's on top (101.4c).
+            | Operation::PlayCards { .. }
+            | Operation::PlayWith { .. }
             | Operation::Reveal { .. }
             | Operation::RevealFromHand { .. }
             | Operation::RevealUntil { .. }
@@ -127,14 +130,41 @@ impl Gathered {
     fn row(&self) -> &'static str {
         match self {
             Gathered::Objects { .. } | Gathered::Cards { .. } => "ObjectId",
-            Gathered::Sacrifice { .. } => "(PlayerId, ObjectId)",
+            Gathered::Sacrifice { .. }
+            | Gathered::SacrificeEach { .. }
+            | Gathered::SacrificeRest { .. } => "(PlayerId, ObjectId)",
+            Gathered::Counters { .. } => "(PlayerId, ObjectId, CounterKind, i16)",
             Gathered::Mill { .. } => "(PlayerId, u32)",
             Gathered::Damage { .. } => "(ObjectId, Target, u16)",
             Gathered::Tokens { .. } => "(CardId, PlayerId)",
+            Gathered::TokensAt { .. } => "(CardId, PlayerId, Target)",
+            Gathered::TokenCopies { .. } => "(Copiable, PlayerId)",
+            Gathered::TokenCopyAt { .. } => "Target",
         }
     }
 }
+/// What each player's tokens are made to do to their player or planeswalker.
+#[derive(Clone, Copy, PartialEq)]
+enum TokensAt {
+    /// "That's attacking that player" (CR 508.4).
+    Attacking,
+    /// "That attacks that player this turn if able" (CR 508.1d).
+    MustAttack,
+}
 enum Gathered {
+    SacrificeEach {
+        slots: Vec<ObjectSet>,
+        result: ResultId,
+    },
+    Counters {
+        operation: Operation,
+        result: ResultId,
+    },
+    SacrificeRest {
+        objects: ObjectSet,
+        keep: Expr,
+        result: ResultId,
+    },
     Objects {
         objects: ObjectSet,
         then: Box<dyn Fn(ObjectSet) -> Operation>,
@@ -161,6 +191,34 @@ enum Gathered {
         player: PlayerRef,
         token: TokenSpec,
         definition: TokenDefinition,
+        tapped: bool,
+        result: ResultId,
+    },
+    /// "For each opponent, create a token that's attacking that player": what
+    /// each attacks is known, or asked, before any token is made.
+    TokensAt {
+        player: PlayerRef,
+        token: TokenSpec,
+        definition: TokenDefinition,
+        tapped: bool,
+        defender: PlayerRef,
+        or_planeswalker: bool,
+        at: TokensAt,
+        result: ResultId,
+    },
+    /// "For each creature token, its controller creates a copy of it."
+    TokenCopies {
+        player: PlayerRef,
+        recipe: TokenRecipe,
+        result: ResultId,
+    },
+    /// "For each opponent, create a tapped token that's a copy of it attacking
+    /// that player": one creation, as myriad's, and each goes to its defender.
+    TokenCopyAt {
+        player: PlayerRef,
+        object: ObjectRef,
+        adjustments: Vec<Operand>,
+        defender: PlayerRef,
         tapped: bool,
         result: ResultId,
     },
@@ -196,6 +254,17 @@ fn watched_filter(filter: &mut ObjectFilter) -> Option<ObjectRef> {
             Some(std::mem::replace(object, ObjectRef::Source))
         }
         ObjectFilter::All(filters) => filters.iter_mut().find_map(watched_filter),
+        // "A creature dealt damage by that creature".
+        ObjectFilter::Condition(condition) => match &mut **condition {
+            Condition::Compare { left, .. } => match left {
+                Expr::EventHistory { event, .. } => match &mut **event {
+                    EventSpec::Damage(damage) => watched_filter(&mut damage.sources),
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -231,6 +300,23 @@ pub(super) fn watched(event: &mut EventSpec) -> Option<ObjectRef> {
     }
 }
 
+/// The targets of a slot `event` is about each of, moved to the watcher's source:
+/// what they each do is an event of their own, so each has its own watcher.
+pub(super) fn watched_each(event: &mut EventSpec) -> Option<ObjectSet> {
+    let EventSpec::Damage(damage) = event else {
+        return None;
+    };
+    let ObjectFilter::InSet(set) = &damage.sources else {
+        return None;
+    };
+    if !matches!(**set, ObjectSet::Targets(_)) {
+        return None;
+    }
+    let list = (**set).clone();
+    damage.sources = ObjectFilter::SameObject(ObjectRef::Source);
+    Some(list)
+}
+
 /// Who may choose new targets, and for what, if that is all `body` does.
 pub(super) fn may_retarget(body: &Program) -> Option<(&PlayerRef, &ObjectRef)> {
     match body.instructions.as_slice() {
@@ -260,13 +346,24 @@ impl Compiler {
         if self.moved_their_own(objects, binding) {
             return true;
         }
-        match objects {
-            ObjectSet::Zone { scope, .. } => matches!(
+        let theirs = |scope: &ZoneScope| {
+            matches!(
                 scope,
                 ZoneScope::Players { players, zone }
                     if one_bound(players, binding)
                         && matches!(zone, EventZone::Hand | EventZone::Library | EventZone::Graveyard)
-            ),
+            )
+        };
+        match objects {
+            // "All cards in their graveyard", said of the set of all graveyards.
+            ObjectSet::Zone { scope, filter, .. } => {
+                let parts = match filter {
+                    ObjectFilter::All(parts) => parts.as_slice(),
+                    one => std::slice::from_ref(one),
+                };
+                theirs(scope)
+                    || parts.iter().any(|part| matches!(part, ObjectFilter::InZone(zone) if theirs(zone)))
+            }
             ObjectSet::Matching { objects, .. } | ObjectSet::Take { objects, .. } => {
                 self.own_cards(objects, binding, earlier)
             }
@@ -326,6 +423,12 @@ impl Compiler {
         let Instruction::Effect { operation, result } = instruction else {
             if !bound && reads_earlier {
                 return Part::Once(instruction.clone());
+            }
+            // CR 701.55d: "the entire process ... one at a time in APNAP order".
+            if matches!(instruction, Instruction::ChooseOne { .. })
+                && self.line_text().is_some_and(|line| line.contains("villainous choice"))
+            {
+                return Part::Walk;
             }
             return match walks_whole(instruction) {
                 true => Part::Walk,
@@ -395,6 +498,15 @@ impl Compiler {
                 choose: choose.clone(),
                 result,
             }),
+            // "Each opponent sacrifices an artifact creature and a nonartifact
+            // creature": each chooses in turn, then all of it goes together.
+            Operation::Together(operations)
+                if lane_l::sacrifice_slots(operations)
+                    .is_some_and(|(player, _)| is_bound(player, binding)) =>
+            {
+                let (_, slots) = lane_l::sacrifice_slots(operations).expect("just seen");
+                Part::Gather(Gathered::SacrificeEach { slots, result })
+            }
             // "Each player chooses five lands and sacrifices the rest": the
             // operation asks all of them, and they sacrifice together. It keeps
             // as many as it can, which "up to two" is not.
@@ -418,6 +530,18 @@ impl Compiler {
                     },
                 })
             }
+            // "Each player chooses up to two creatures, then sacrifices the rest."
+            Operation::SacrificeAllBut {
+                players,
+                objects,
+                keep,
+            } if one_bound(players, binding) && !names(binding, objects) && !names(binding, keep) => {
+                Part::Gather(Gathered::SacrificeRest {
+                    objects: objects.clone(),
+                    keep: keep.clone(),
+                    result,
+                })
+            }
             Operation::DiscardAllBut { players, keep }
                 if one_bound(players, binding)
                     && !names(binding, keep)
@@ -431,6 +555,16 @@ impl Compiler {
                         keep: keep.clone(),
                     },
                 })
+            }
+            // "Each player puts a counter on ...": each chooses in turn, then they all
+            // go on together (101.4), each put by its player (122.6).
+            Operation::PutCounters { placements }
+                if bound
+                    && placements
+                        .iter()
+                        .all(|p| matches!(p.recipients, Recipients::Objects(_))) =>
+            {
+                Part::Gather(Gathered::Counters { operation: operation.clone(), result })
             }
             Operation::Tap { objects, tapped } if names(binding, objects) => {
                 let tapped = *tapped;
@@ -470,8 +604,80 @@ impl Compiler {
                     tapped: entry.tapped,
                     result,
                 }),
+                [TokenSpec {
+                    amount: Expr::Constant(1),
+                    recipe: recipe @ (TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. }),
+                    ..
+                }] if !entry.tapped => Part::Gather(Gathered::TokenCopies {
+                    player: player.clone(),
+                    recipe: recipe.clone(),
+                    result,
+                }),
                 _ => Part::Unbatched(format!("per-player {}", form(operation))),
             },
+            Operation::CreateTokens {
+                players: PlayerSet::One(player),
+                tokens,
+                entry,
+            } if entry.counters.is_empty() && !is_bound(player, binding) => {
+                let unbatched = || Part::Unbatched(format!("per-player {}", form(operation)));
+                let [token] = tokens.as_slice() else {
+                    return unbatched();
+                };
+                let (defender, or_planeswalker, at) = match entry.states.as_slice() {
+                    [EntryState::Attacking {
+                        player: Some(defender),
+                        or_planeswalker,
+                    }] => (defender.clone(), *or_planeswalker, TokensAt::Attacking),
+                    [EntryState::RulesUntil {
+                        rules,
+                        until: Duration::EndOfTurn,
+                    }] => match rules.as_slice() {
+                        [Operand::Term { form, operands, .. }] if form == "MustAttackPlayer" => {
+                            match operands.as_slice() {
+                                [Operand::Player(defender)] => {
+                                    (defender.clone(), false, TokensAt::MustAttack)
+                                }
+                                _ => return unbatched(),
+                            }
+                        }
+                        _ => return unbatched(),
+                    },
+                    _ => return unbatched(),
+                };
+                if !is_bound(&defender, binding) {
+                    return unbatched();
+                }
+                match &token.recipe {
+                    TokenRecipe::Defined(definition) => Part::Gather(Gathered::TokensAt {
+                        player: player.clone(),
+                        token: token.clone(),
+                        definition: definition.clone(),
+                        tapped: entry.tapped,
+                        defender,
+                        or_planeswalker,
+                        at,
+                        result,
+                    }),
+                    TokenRecipe::Copy {
+                        object,
+                        adjustments,
+                    } if !or_planeswalker
+                        && at == TokensAt::Attacking
+                        && matches!(token.amount, Expr::Constant(1)) =>
+                    {
+                        Part::Gather(Gathered::TokenCopyAt {
+                            player: player.clone(),
+                            object: object.clone(),
+                            adjustments: adjustments.clone(),
+                            defender,
+                            tapped: entry.tapped,
+                            result,
+                        })
+                    }
+                    _ => unbatched(),
+                }
+            }
             _ if !bound && reads_earlier => Part::Once(instruction.clone()),
             _ if walked(operation) => Part::Walk,
             _ => Part::Unbatched(format!("per-player {}", form(operation))),
@@ -520,6 +726,18 @@ impl Compiler {
                 "let mut guard_{id}_{i} = vec![false; players_{id}.len()];"
             )
             .unwrap();
+        }
+        // "Each opponent who copied the spell this way": who said yes.
+        for step in &steps {
+            let (Some(guard), Instruction::Effect { result, operation: Operation::CopyOnStack { .. } }) =
+                (step.guard, &program.instructions[step.at])
+            else {
+                continue;
+            };
+            if matches!(guards[guard], Guard::May) {
+                let took = (format!("players_{id}"), format!("guard_{id}_{guard}[at]"));
+                self.notes.took.entry(result.0).or_insert(took);
+            }
         }
         self.bound_players.insert(each.binding.0);
         let mut views: Vec<View> = Vec::new();
@@ -587,8 +805,13 @@ impl Compiler {
                         out,
                     );
                     self.view_all(&views);
-                    if let Gathered::Sacrifice { result, .. } = &gathered {
+                    if let Gathered::Sacrifice { result, .. } | Gathered::SacrificeEach { result, .. } = &gathered {
                         let test = format!("gathered_{gather}.iter().any(|(who, _)| *who == players_{id}[at])");
+                        self.notes.took.insert(result.0, (format!("players_{id}"), test));
+                    }
+                    // "For each opponent who does": who took the offer, whatever it came to.
+                    if let (Gathered::Counters { result, .. }, Some(guard)) = (&gathered, step.guard) {
+                        let test = format!("guard_{id}_{guard}[at]");
                         self.notes.took.insert(result.0, (format!("players_{id}"), test));
                     }
                     self.after_gathering(gather, gathered, &mut program, at, out)?;
@@ -641,6 +864,21 @@ impl Compiler {
                     guards.push(Guard::If(condition.clone()));
                     let inner = guards.len() - 1;
                     self.flatten(each, &then.instructions, Some(inner), flat, steps, guards);
+                    continue;
+                }
+                // "For each flip you win, this. For each flip you lose, that": the
+                // flips stay as they fell, so the two are steps of their own.
+                Instruction::If {
+                    condition: condition @ Condition::CoinFlip { .. },
+                    then,
+                    otherwise,
+                } if guard.is_none() => {
+                    guards.push(Guard::If(condition.clone()));
+                    let inner = guards.len() - 1;
+                    self.flatten(each, &then.instructions, Some(inner), flat, steps, guards);
+                    guards.push(Guard::If(Condition::Not(Box::new(condition.clone()))));
+                    let inner = guards.len() - 1;
+                    self.flatten(each, &otherwise.instructions, Some(inner), flat, steps, guards);
                     continue;
                 }
                 _ => {}
@@ -793,6 +1031,10 @@ impl Compiler {
                 };
                 writeln!(declared, "let mut each_{k}: Vec<Vec<ObjectId>> = vec![Vec::new(); players_{id}.len()]; let mut all_{k}: Vec<ObjectId> = Vec::new();").unwrap();
                 writeln!(tail, "each_{k}[index_{id}] = {read}; all_{k}.extend(each_{k}[index_{id}].iter().copied());").unwrap();
+                if matches!(kind, ViewKind::Selected | ViewKind::Moved | ViewKind::Created) {
+                    let lists = (format!("players_{id}"), format!("each_{k}"));
+                    self.notes.each.entry(result).or_insert(lists);
+                }
             } else {
                 writeln!(
                     declared,
@@ -800,13 +1042,19 @@ impl Compiler {
                 )
                 .unwrap();
                 writeln!(tail, "each_{k}[index_{id}] = {local};").unwrap();
+                if matches!(kind, ViewKind::Performed) {
+                    let lists = (format!("players_{id}"), format!("each_{k}"));
+                    self.notes.each_done.insert(result, lists);
+                }
             }
             // How much of something: all of them together is its sum. A reader
             // one player at a time may mean their own or the total; the AST
             // does not say which, so nothing is read for it.
+            let by_player = lane_n::read_player_by_player(each.rest, &result)
+                && !self.line_text().is_some_and(|line| line.contains("the total amount"));
             let total = (matches!(kind, ViewKind::Performed)
                 && local.starts_with("done_")
-                && !lane_n::read_player_by_player(each.rest, &result))
+                && !by_player)
             .then(|| format!("done_total_{k}"));
             if let Some(total) = &total {
                 writeln!(declared, "let mut {total}: i64 = 0;").unwrap();
@@ -830,7 +1078,7 @@ impl Compiler {
                 let bound = format!("bound_{}", each.binding.0);
                 let rest = each.rest;
                 self.tally_share(result, &local, &bound, rest, &mut declared, &mut tail);
-                if lane_n::read_player_by_player(rest, &result) {
+                if by_player {
                     self.notes.read_as_own.insert(result);
                 }
             }
@@ -846,6 +1094,13 @@ impl Compiler {
                     _ => all.or(total),
                 },
             };
+            if matches!(kind, ViewKind::Flip) {
+                self.coin_turns = Some((format!("players_{id}"), format!("each_{k}")));
+                self.coins = Some((
+                    format!("(each_{k}.iter().filter(|&&flip| flip).count() as i64)"),
+                    format!("(each_{k}.iter().filter(|&&flip| !flip).count() as i64)"),
+                ));
+            }
             views.retain(|v| v.result != result || !same_kind(v.kind, kind));
             views.push(view);
             let took = match kind {
@@ -864,7 +1119,36 @@ impl Compiler {
                 }
             }
         }
-        // A value chosen in a turn is that turn's, and a local of it.
+        // A value chosen in a turn is that turn's, and a local of it; what "chosen
+        // this way" reads after them all is any of them.
+        let each_chose: Vec<(ValueKind, String)> = self
+            .chosen
+            .iter()
+            .filter(|(kind, local)| {
+                !before.chosen.iter().any(|(k, _)| k == kind) && local.starts_with("chosen_")
+            })
+            .cloned()
+            .collect();
+        for (kind, local) in each_chose {
+            let list = format!("each_{local}");
+            let (declare, push) = (
+                format!("let mut {list} = Vec::new();\n"),
+                format!("{list}.push({local});\n"),
+            );
+            declared.push_str(&declare);
+            tail.push_str(&push);
+            self.unread.push((list.clone(), vec![declare, push]));
+            // Whose each one is, where a later turn reads a player's own.
+            let who = format!("{list}_who");
+            let (declare, push) = (
+                format!("let mut {who}: Vec<PlayerId> = Vec::new();\n"),
+                format!("{who}.push(bound_{});\n", each.binding.0),
+            );
+            declared.push_str(&declare);
+            tail.push_str(&push);
+            self.unread.push((who, vec![declare, push]));
+            self.chosen_lists.push((kind, list));
+        }
         self.chosen = before.chosen;
         out.push_str(&declared);
         let binding = each.binding.0;
@@ -881,7 +1165,13 @@ impl Compiler {
         };
         // A "you may" that opened a guard in this turn closes it in this turn.
         let shut = "}".repeat(std::mem::replace(&mut self.guard_opened, guards_around));
-        writeln!(out, "{open} for (index_{id}, bound_{binding}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
+        // "And you draw a card" for each of them reads none of them.
+        let walked = format!("bound_{binding}");
+        let walked = match body.contains(&walked) || tail.contains(&walked) || closing.contains(&walked) {
+            true => walked,
+            false => "_".to_string(),
+        };
+        writeln!(out, "{open} for (index_{id}, {walked}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
     }
     /// A player's turn at a step that adds to a batch.
     fn gather(
@@ -918,6 +1208,27 @@ impl Compiler {
                 self.sacrifice_picks(id, &player, objects, choose.as_ref(), out)?;
                 writeln!(out, "gathered_{local}.extend(picks_{id}.iter().copied());").unwrap();
             }
+            Gathered::Counters { operation, result } => {
+                // "Puts counters on it": the token made for all of them is each one's own.
+                let own = matches!(operation, Operation::PutCounters { placements }
+                    if placements.iter().all(|p| !names(&each.binding, &p.recipients)
+                        && format!("{:?}", p.recipients).contains("Named(")));
+                self.notes.gathering_counters = Some((local, bound.clone(), own));
+                let done = self.operation(operation, result, out);
+                self.notes.gathering_counters = None;
+                done?;
+            }
+            Gathered::SacrificeRest { objects, keep, .. } => {
+                let keep = self.number(keep)?.amount(u32::MAX.into(), "u32")?;
+                let objects = self.fetch(self.objects(objects)?);
+                let keep = self.fetch(keep);
+                const M: &str = "cantrip_mechanics";
+                writeln!(out, "let own_{id}: Vec<ObjectId> = {objects}.into_iter().filter(|&o| g.controller(o) == {bound}).collect(); let kept_{id} = {M}::choose::select(g, {bound}, asker.source, Purpose::Keep, own_{id}.clone(), {M}::select::Selection::of({M}::select::up_to({keep}), &[]))?; gathered_{local}.extend(own_{id}.iter().filter(|o| !kept_{id}.contains(o)).map(|&o| ({bound}, o)));").unwrap();
+            }
+            Gathered::SacrificeEach { slots, .. } => {
+                self.sacrifice_slots(id, &bound, slots, out)?;
+                writeln!(out, "gathered_{local}.extend(chosen_{id}.iter().map(|&o| ({bound}, o)));").unwrap();
+            }
             Gathered::Mill { amount, .. } => {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
                 writeln!(
@@ -944,6 +1255,49 @@ impl Compiler {
                 let amount = self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?;
                 let definition = self.token_definition(definition)?;
                 writeln!(out, "let def_{id} = g.card_id(&{definition}); let count_{id} = {}; let player_{id} = {}; gathered_{local}.extend(std::iter::repeat((def_{id}, player_{id})).take(count_{id} as usize));", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+            }
+            Gathered::TokensAt {
+                player,
+                token,
+                definition,
+                defender,
+                or_planeswalker,
+                ..
+            } => {
+                let amount = self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?;
+                let definition = self.token_definition(definition)?;
+                let defender = self.fetch(self.certain_player(defender)?);
+                writeln!(out, "let def_{id} = g.card_id(&{definition}); let count_{id} = {}; let player_{id} = {}; let defender_{id} = {defender};", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+                match or_planeswalker {
+                    true => writeln!(out, "let candidates_{id} = cantrip_mechanics::combat::player_or_their_planeswalkers(g, defender_{id}); for _ in 0..count_{id} {{ if let Some(target) = cantrip_mechanics::combat::choose_among(g, player_{id}, asker.source, &candidates_{id})? {{ gathered_{local}.push((def_{id}, player_{id}, target)); }} }}").unwrap(),
+                    false => writeln!(out, "gathered_{local}.extend(std::iter::repeat((def_{id}, player_{id}, Target::Player(defender_{id}))).take(count_{id} as usize));").unwrap(),
+                }
+            }
+            Gathered::TokenCopies { player, recipe, .. } => {
+                let player = self.fetch(self.certain_player(player)?);
+                let (originals, adjustments) = match recipe {
+                    TokenRecipe::Copy {
+                        object,
+                        adjustments,
+                    } => (
+                        format!(
+                            "{}.into_iter().collect::<Vec<ObjectId>>()",
+                            self.fetch(self.object(object)?)
+                        ),
+                        adjustments,
+                    ),
+                    TokenRecipe::CopyEach {
+                        objects,
+                        adjustments,
+                    } => (self.fetch(self.objects(objects)?), adjustments),
+                    _ => return Err(gap("per-player CreateTokens")),
+                };
+                let values = self.copy_values("Some(original)", adjustments)?;
+                writeln!(out, "let player_{id} = {player}; let originals_{id} = {originals}; for original in originals_{id} {{ if let Some(values) = {values} {{ gathered_{local}.push((values, player_{id})); }} }}").unwrap();
+            }
+            Gathered::TokenCopyAt { defender, .. } => {
+                let defender = self.fetch(self.certain_player(defender)?);
+                writeln!(out, "gathered_{local}.push(Target::Player({defender}));").unwrap();
             }
         }
         Ok(())
@@ -987,7 +1341,13 @@ impl Compiler {
                 let discard = |objects| Operation::DiscardObjects { objects };
                 self.act_on_gathered(local, &discard, result, program, at, out);
             }
-            Gathered::Sacrifice { result, .. } => {
+            Gathered::Counters { result, .. } => {
+                writeln!(out, "let had_{local}: Vec<_> = gathered_{local}.iter().map(|c| g.state().obj(c.1).counters(c.2)).collect(); g.add_counters_together_by(&gathered_{local}); let applied_{local}: Vec<ObjectId> = gathered_{local}.iter().zip(had_{local}).filter(|(c, had)| g.state().obj(c.1).counters(c.2) > *had).map(|(c, _)| c.1).collect();").unwrap();
+                self.selections.insert(result.0, format!("applied_{local}"));
+            }
+            Gathered::Sacrifice { result, .. }
+            | Gathered::SacrificeEach { result, .. }
+            | Gathered::SacrificeRest { result, .. } => {
                 writeln!(
                     out,
                     "let sacrificed_{local} = g.sacrifice_each(&gathered_{local});"
@@ -1026,6 +1386,44 @@ impl Compiler {
                     TokenWords::CreatingEffect => "g.words(asker.source)",
                 };
                 writeln!(out, "let words_{local} = {words}; let created_{local} = g.create_tokens_worded(&gathered_{local}, {tapped}, None, words_{local})?;").unwrap();
+                self.creations.insert(result.0, format!("created_{local}"));
+            }
+            Gathered::TokensAt {
+                token,
+                tapped,
+                at,
+                result,
+                ..
+            } => {
+                let words = match token.words {
+                    TokenWords::Rules => "Words::NONE",
+                    TokenWords::CreatingEffect => "g.words(asker.source)",
+                };
+                writeln!(out, "let words_{local} = {words}; let mut created_{local}: Vec<ObjectId> = Vec::new();").unwrap();
+                match at {
+                    // The tokens that attack the same thing enter together, as
+                    // `combat::create_attacking` has them.
+                    TokensAt::Attacking => writeln!(out, "let mut done_{local}: Vec<Target> = Vec::new(); for &(_, _, target) in &gathered_{local} {{ if done_{local}.contains(&target) {{ continue; }} done_{local}.push(target); let group: Vec<(CardId, PlayerId)> = gathered_{local}.iter().filter(|row| row.2 == target).map(|row| (row.0, row.1)).collect(); created_{local}.extend(g.create_tokens_worded(&group, {tapped}, Some(target), words_{local})?); }}").unwrap(),
+                    // Each player's share of what was made, however many that is
+                    // (CR 614.1a), as myriad shares its tokens out.
+                    TokensAt::MustAttack => writeln!(out, "let rows_{local}: Vec<(CardId, PlayerId)> = gathered_{local}.iter().map(|row| (row.0, row.1)).collect(); created_{local}.extend(g.create_tokens_worded(&rows_{local}, {tapped}, None, words_{local})?); if !gathered_{local}.is_empty() {{ let per_{local} = created_{local}.len().div_ceil(gathered_{local}.len()); g.one_instruction(&mut |g| {{ for (at, &token) in created_{local}.iter().enumerate() {{ let target = gathered_{local}[(at / per_{local}).min(gathered_{local}.len() - 1)].2; g.add_effect(asker.source, token, EffectKind::MustAttackAt(target), Duration::EndOfTurn); }} Ok(()) }})?; }}").unwrap(),
+                }
+                self.creations.insert(result.0, format!("created_{local}"));
+            }
+            Gathered::TokenCopies { result, .. } => {
+                writeln!(out, "let created_{local} = g.create_token_copies_together(&gathered_{local})?;").unwrap();
+                self.creations.insert(result.0, format!("created_{local}"));
+            }
+            Gathered::TokenCopyAt {
+                player,
+                object,
+                adjustments,
+                tapped,
+                result,
+                ..
+            } => {
+                let values = self.copy_values(&format!("original_{local}"), &adjustments)?;
+                writeln!(out, "let original_{local} = {}; let values_{local} = {values}; let player_{local} = {}; let created_{local} = match values_{local} {{ Some(values) if !gathered_{local}.is_empty() => g.create_token_copies_tapped(values, player_{local}, gathered_{local}.len() as u32, {tapped})?, _ => Vec::new() }}; if !gathered_{local}.is_empty() {{ let (share_{local}, extra_{local}) = (created_{local}.len() / gathered_{local}.len(), created_{local}.len() % gathered_{local}.len()); let mut from_{local} = 0; for (at, &target) in gathered_{local}.iter().enumerate() {{ let upto = from_{local} + share_{local} + usize::from(at < extra_{local}); g.enter_attacking(&created_{local}[from_{local}..upto], target); from_{local} = upto; }} }}", self.fetch(self.object(&object)?), self.fetch(self.certain_player(&player)?)).unwrap();
                 self.creations.insert(result.0, format!("created_{local}"));
             }
         }
@@ -1135,7 +1533,8 @@ impl Compiler {
         if declines > 1 || (declines == 1 && !empty(options.last()?)) {
             return None;
         }
-        let mut labels = option_words::printed_options(&self.lines_said(), printed)?;
+        let mut labels = option_words::printed_options(&self.lines_said(), printed)
+            .or_else(|| (declines == 0).then(|| lane_i_option_labels(options)).flatten())?;
         // "From that player's graveyard or hand" is printed the other way round.
         if labels[0] == "Graveyard" && labels[1] == "Hand" {
             labels.swap(0, 1);
@@ -1370,6 +1769,23 @@ impl Compiler {
         writeln!(out, "}}").unwrap();
         Ok(())
     }
+    /// "Change the target to another creature": the chooser says which, and one the
+    /// spell can't take leaves it as it was (115.7b), so the next is asked for. The
+    /// spell's target changes if any of them can have it.
+    fn retarget_to(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        object: &ObjectRef,
+        to: &ObjectSet,
+        out: &mut String,
+    ) -> Result<()> {
+        let chooser = self.fetch(self.certain_player(player)?);
+        let spell = self.fetch(self.object(object)?);
+        let to = self.fetch(self.objects(to)?);
+        writeln!(out, "let chooser_{id} = {chooser}; let spell_{id}: Option<ObjectId> = {spell}; let mut open_{id}: Vec<ObjectId> = {to}; if let Some(spell) = spell_{id} {{ while !open_{id}.is_empty() {{ let to = match open_{id}.as_slice() {{ [one] => Some(*one), _ => cantrip_mechanics::choose::card(g, chooser_{id}, asker.source, Purpose::Choose, open_{id}.clone())? }}; let Some(to) = to else {{ break; }}; open_{id}.retain(|&o| o != to); g.change_a_target_to(Target::Object(spell), to, chooser_{id})?; let changed = {{ let q: &dyn Query = g; q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).is_some_and(|i| q.state().targets(i).contains(&Target::Object(to))) }}; if changed {{ break; }} }} }}").unwrap();
+        Ok(())
+    }
     /// Whether counters move in a way `move_counters` writes: a set number
     /// comes from one object, and "all" from each.
     fn moves_counters(
@@ -1601,6 +2017,13 @@ impl Compiler {
                     | NewTargets::May
                     | NewTargets::To(ObjectSet::One(ObjectRef::Source))),
             } => self.retarget(id, player, object, targets, out)?,
+            Operation::Retarget {
+                actor: PlayerSet::One(player),
+                object,
+                targets: NewTargets::To(to),
+            } if !matches!(to, ObjectSet::Battlefield(ObjectFilter::Not(_))) => {
+                self.retarget_to(id, player, object, to, out)?
+            }
             Operation::MoveCounters {
                 actor: PlayerSet::One(player),
                 from,
@@ -1750,7 +2173,9 @@ impl Compiler {
                     &[Change::GrantKeyword(k.clone())],
                     parts,
                 ),
-                Ability::Triggered { .. } | Ability::Replacement { .. } => {
+                Ability::Triggered { .. }
+                | Ability::Replacement { .. }
+                | Ability::TriggerRule { .. } => {
                     self.ability_guard = Some(condition.clone());
                     self.static_guard = None;
                     let step = self.ability(inner, &label, parts, scope);
@@ -1968,8 +2393,11 @@ impl Compiler {
         changes: &[Change],
         controller: &str,
     ) -> Result<String> {
-        if !self.stack_item || entry.tapped {
+        if !self.stack_item {
             return Err(gap("move arrival state"));
+        }
+        if entry.tapped {
+            return Err(gap("enters tapped as something else"));
         }
         let mut fields = Vec::new();
         let mut adds = Vec::new();
@@ -2026,6 +2454,22 @@ impl Compiler {
                 }
                 Change::RemoveAllAbilities => {
                     fields.push("loses_other_abilities: true".to_string())
+                }
+                // "It's an Aura enchantment with enchant [quality] and [ability], and
+                // it loses all other abilities."
+                Change::AddEnchantmentType(kind) if format!("{kind:?}").contains("Aura") => {
+                    fields.push("aura: true".to_string())
+                }
+                Change::OnlyAbilities(only) => {
+                    fields.push("loses_other_abilities: true".to_string());
+                    for ability in only {
+                        match ability {
+                            Ability::Enchant { hosts } => {
+                                self.aura_enchant(hosts)?;
+                            }
+                            ability => abilities.push(self.grant(ability)?.to_string()),
+                        }
+                    }
                 }
                 Change::Colors { .. } => return Err(gap("move arrival with a color")),
                 _ => return Err(gap("move arrival state")),
@@ -2160,6 +2604,9 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let unsupported = || gap("operation ChangeZone");
+        if matches!(op, Operation::ChangeZone { face_down: Some(_), .. }) {
+            return Err(gap("put onto the battlefield face down as a stated creature"));
+        }
         let Operation::ChangeZone {
             actor,
             cards,
@@ -2173,10 +2620,23 @@ impl Compiler {
         else {
             return Err(unsupported());
         };
+        if self.exile_with_entry(id, op, result, out)? {
+            return Ok(());
+        }
+        let by_kind = match group {
+            Some(group) if !random && matches!(count, Some(Count::AnyNumber)) => {
+                self.picked_by_kind(group)?
+            }
+            _ => None,
+        };
         let rule = match group {
             None => None,
+            Some(_) if by_kind.is_some() => None,
             Some(group) if count.is_some() && !random => {
-                Some(self.group_rule(group, cards).ok_or_else(unsupported)?)
+                Some(match self.total_at_most(id, group, out)? {
+                    Some(rule) => rule,
+                    None => self.group_rule(group, cards).ok_or_else(unsupported)?,
+                })
             }
             Some(_) => return Err(unsupported()),
         };
@@ -2215,7 +2675,17 @@ impl Compiler {
                     },
                 }];
                 let purpose = effects::purpose(&held, &rest).ok_or_else(unsupported)?;
-                if let Some(each) = and_or_parts(cards, count, self.line_text()) {
+                if let Some(kind) = by_kind {
+                    let chooser = self.fetch(self.certain_player(player)?);
+                    let pool = self.fetch(self.objects(cards)?);
+                    writeln!(out, "let chooser_{id} = {chooser}; let pool_{id}: Vec<ObjectId> = {pool}; let mut picked_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+                    const CHOOSE: &str = "cantrip_mechanics::choose";
+                    match kind {
+                        ByKind::Types(types) => writeln!(out, "let types_{id} = {types}; for t in types_{id} {{ let eligible: Vec<ObjectId> = pool_{id}.iter().copied().filter(|&c| !picked_{id}.contains(&c) && g.chars(c).is(t)).collect(); if eligible.is_empty() {{ continue; }} picked_{id}.extend({CHOOSE}::cards_from(g, chooser_{id}, asker.source, Purpose::{purpose}, pool_{id}.clone(), eligible, 1, true)?); }}").unwrap(),
+                        ByKind::SameName => writeln!(out, "let one_{id} = {CHOOSE}::cards(g, chooser_{id}, asker.source, Purpose::{purpose}, pool_{id}.clone(), 1, false)?; if let Some(&one) = one_{id}.first() {{ let q: &dyn Query = g; picked_{id} = pool_{id}.iter().copied().filter(|&c| cantrip_mechanics::same_name(q, c, one)).collect(); }}").unwrap(),
+                    }
+                    self.selections.insert(held.0, format!("picked_{id}"));
+                } else if let Some(each) = and_or_parts(cards, count, self.line_text()) {
                     let each = SelectionConstraint::OneForEach(each);
                     self.choose_with_rule(player, cards, count, &each, &held, &rest, out)?;
                 } else {
@@ -2240,6 +2710,107 @@ impl Compiler {
         self.selections.remove(&held.0);
         self.single.remove(&held.0);
         moved
+    }
+    /// What the group of a move says the picks are, when no one rule over the set
+    /// says it: "for each card type, a card of that type" asks once for each, and a
+    /// card taken for one of its types isn't there for another.
+    fn picked_by_kind(&mut self, group: &Operand) -> Result<Option<ByKind>> {
+        let (form, operands): (&str, &[Operand]) = match group {
+            Operand::Vocabulary { family, form } if family == "GroupFilter" => (form, &[]),
+            Operand::Term { family, form, operands } if family == "GroupFilter" => (form, operands),
+            _ => return Ok(None),
+        };
+        Ok(match (form, operands) {
+            ("OnePerCardType", []) => Some(ByKind::Types("CardType::ALL.to_vec()".to_string())),
+            ("OnePerPermanentType", []) => Some(ByKind::Types(
+                "cantrip_mechanics::targets::PERMANENT_CARD_TYPES.to_vec()".to_string(),
+            )),
+            ("OneAndAllSameName", []) => Some(ByKind::SameName),
+            ("OnePerCardTypeAmong", [Operand::Filter(ObjectFilter::All(tests))]) => {
+                let [ObjectFilter::Not(not), ObjectFilter::Cast { by: Some(PlayerSet::One(by)), from: None }] =
+                    tests.as_slice()
+                else {
+                    return Ok(None);
+                };
+                let ObjectFilter::CardType(not) = &**not else {
+                    return Ok(None);
+                };
+                let by = self.fetch(self.certain_player(by)?);
+                let not = card_type(not)?;
+                Some(ByKind::Types(format!("{{ let by = {by}; let q: &dyn Query = g; CardType::ALL.into_iter().filter(|&t| q.history().casts_by(by).any(|c| !c.is(CardType::{not}) && c.is(t))).collect::<Vec<CardType>>() }}")))
+            }
+            _ => None,
+        })
+    }
+    /// `.with(part)` for "with total power X or less" where X is worked out as it
+    /// resolves: its value is `most_{id}`, written here.
+    fn total_at_most(
+        &mut self,
+        id: usize,
+        group: &Operand,
+        out: &mut String,
+    ) -> Result<Option<String>> {
+        let Operand::Term { family, form, operands } = group else {
+            return Ok(None);
+        };
+        let [Operand::Comparison(Comparison::LessOrEqual, amount)] = operands.as_slice() else {
+            return Ok(None);
+        };
+        if family != "GroupFilter" || matches!(amount, Expr::Constant(_)) {
+            return Ok(None);
+        }
+        if form != "TotalPowerIs" && form != "TotalManaValueIs" {
+            return Ok(None);
+        }
+        let most = self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?);
+        writeln!(out, "let most_{id} = {most};").unwrap();
+        Ok(Some(format!(
+            ".with({})",
+            lane_l::total_at_most_part(&mut self.functions, form, &format!("most_{id}"))
+        )))
+    }
+    /// "Exile the other with a silver counter on it" and "exile them in a face-down
+    /// pile, and shuffle that pile". Whether this was one of those. The pile takes
+    /// its order as it's exiled, so its first card is as unknown as a shuffle makes it.
+    fn exile_with_entry(
+        &mut self,
+        id: usize,
+        op: &Operation,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<bool> {
+        let Operation::ChangeZone {
+            cards,
+            count: None,
+            random: false,
+            group: None,
+            destination: Destination::Exile,
+            entry,
+            face_down: None,
+            ..
+        } = op
+        else {
+            return Ok(false);
+        };
+        let [Operand::Vocabulary { family, form }] = entry.as_slice() else {
+            return Ok(false);
+        };
+        let objects = self.fetch(self.objects(cards)?);
+        match (family.as_str(), form.as_str()) {
+            ("CounterType", kind) => {
+                let kind = kind.strip_suffix("Counter").unwrap_or(kind);
+                writeln!(out, "let objects_{id} = {objects}; let moved_{id} = g.exile_all(&objects_{id}); for &exiled in &moved_{id} {{ g.add_counters(exiled, CounterKind::{kind}, 1); }}").unwrap();
+            }
+            (_, "ExilesIntoShuffledFaceDownPile") => {
+                let by = self.fetch(self.linked().to_string());
+                writeln!(out, "let mut pool_{id} = {objects}; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); objects_{id}.push(pool_{id}.remove(at)); }} let by_{id} = {by}; let moved_{id} = g.exile_face_down(&objects_{id}, Some(by_{id}));").unwrap();
+            }
+            _ => return Ok(false),
+        }
+        self.moved.insert(result.0, format!("moved_{id}"));
+        self.selections.insert(result.0, format!("moved_{id}"));
+        self.left_behind(result, effects::gone(&format!("objects_{id}")));
+        Ok(true)
     }
     fn chooses_top_or_bottom(
         &mut self,
@@ -2423,6 +2994,94 @@ impl Compiler {
         }
         Ok(())
     }
+    /// One search shown one list (701.23a): "the top third of your library", "your
+    /// library and graveyard", and "your graveyard, hand, and/or library", where the
+    /// searcher first says whether the library is among them (`library::
+    /// search_zone_and_or_library`, of two zones). Whether this was such a search.
+    fn search_as_one(
+        &mut self,
+        id: usize,
+        op: &Operation,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<bool> {
+        const LIBRARY: &str = "cantrip_mechanics::library";
+        const SELECTION: &str = "cantrip_mechanics::select::Selection";
+        let Operation::Search {
+            player,
+            library,
+            top,
+            choices,
+            also,
+            either,
+            outside: false,
+        } = op
+        else {
+            return Ok(false);
+        };
+        let [choice] = choices.as_slice() else {
+            return Ok(false);
+        };
+        if !choice.constraints.is_empty() || format!("{player:?}") != format!("{library:?}") {
+            return Ok(false);
+        }
+        let zone_of = |zone: &EventZone, owner: &str| match zone {
+            EventZone::Graveyard => Ok(format!("Zone::graveyard({owner})")),
+            EventZone::Hand => Ok(format!("Zone::hand({owner})")),
+            _ => Err(gap("operation Search")),
+        };
+        let owner = format!("owner_{id}");
+        let shown = match (top, also.as_slice(), *either) {
+            (Some(n), [], false) => {
+                let n = self.fetch(self.number(n)?.code);
+                format!("if may_{id} {{ g.state().zone(Zone::library({owner})).iter().copied().take(({n}).max(0) as usize).collect::<Vec<ObjectId>>() }} else {{ Vec::new() }}")
+            }
+            (None, [zone], false)
+                if matches!(choice.count, Count::AsManyAsCan(_) | Count::Exactly(_)) =>
+            {
+                if format!("{:?}", self.after).contains("ReorderLibrary") {
+                    return Err(gap("cards found in two zones put on top of a library"));
+                }
+                let zone = zone_of(zone, &owner)?;
+                format!("(if may_{id} {{ {LIBRARY}::searched_cards(g, {owner}) }} else {{ Vec::new() }}).into_iter().chain(g.state().zone({zone}).iter().copied()).collect::<Vec<ObjectId>>()")
+            }
+            (None, [first, second], true) => {
+                let (first, second) = (zone_of(first, &owner)?, zone_of(second, &owner)?);
+                format!("(if may_{id} {{ {LIBRARY}::searched_cards(g, {owner}) }} else {{ Vec::new() }}).into_iter().chain(g.state().zone({first}).iter().copied()).chain(g.state().zone({second}).iter().copied()).collect::<Vec<ObjectId>>()")
+            }
+            _ => return Ok(false),
+        };
+        if effects::one_at_most(&choice.count) {
+            self.single.insert(result.0);
+        }
+        let filter = self.filter(&choice.filter, &Candidate::of("id"))?;
+        let destination = effects::search_destination(result, &self.after);
+        let purpose = match destination {
+            "Battlefield" | "BattlefieldTapped" => "PutOntoBattlefield",
+            "Graveyard" => "PutIntoGraveyard",
+            "Exile" => "Exile",
+            "TopOfLibrary" => "PutOnTop",
+            _ => "PutIntoHand",
+        };
+        let searcher = self.fetch(self.certain_player(player)?);
+        let count = self.fetch(self.select_count(&choice.count)?);
+        writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = searcher_{id}; let may_{id} = g.may_search(searcher_{id}, owner_{id}); let rule_count_{id} = {count}; let shown_{id}: Vec<ObjectId> = {shown}; let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }};").unwrap();
+        let whole = format!("{{ let rule = {SELECTION}::listed(rule_count_{id}, &shown_{id}, can_{id}.clone()); let found = if shown_{id}.is_empty() {{ Vec::new() }} else {{ match g.ask(searcher_{id}, RequestKind::SearchLibrary {{ source: asker.source, library: shown_{id}.clone(), rule: Box::new(rule), destination: SearchDestination::{destination} }})? {{ Answer::Cards(cards) => cards, _ => Vec::new() }} }}; if may_{id} {{ g.searched(searcher_{id}, owner_{id}); }} found }}");
+        if *either {
+            let [first, second] = also.as_slice() else {
+                return Ok(false);
+            };
+            let (first, second) = (zone_of(first, &owner)?, zone_of(second, &owner)?);
+            writeln!(self.functions, "static ASK_{id}: Question = Question::new(\"SearchLibrary\", \"search your library as well?\", \"Then shuffle. If you don't, you search only the other zones\", \"Search it too\", \"Not the library\");").unwrap();
+            writeln!(out, "let zones_{id}: Vec<ObjectId> = g.state().zone({first}).iter().chain(g.state().zone({second}).iter()).copied().collect(); let searched_{id} = {LIBRARY}::ask_may_search(g, searcher_{id}, asker.source, &ASK_{id})?; let found_{id}: Vec<ObjectId> = if searched_{id} {{ {whole} }} else {{ let in_zones: Vec<ObjectId> = can_{id}.iter().copied().filter(|o| zones_{id}.contains(o)).collect(); let rule = {SELECTION}::listed(rule_count_{id}, &zones_{id}, in_zones); let any = cantrip_api::select::first_answer(&*g, &rule, searcher_{id}, asker.source, &zones_{id}, true).is_some_and(|taken| !taken.is_empty()); if any {{ cantrip_mechanics::choose::select(g, searcher_{id}, asker.source, Purpose::{purpose}, zones_{id}.clone(), rule)? }} else {{ Vec::new() }} }};").unwrap();
+            self.searched.insert(result.0, format!("searched_{id}"));
+        } else {
+            writeln!(out, "let found_{id}: Vec<ObjectId> = {whole};").unwrap();
+            self.searched.insert(result.0, "true".to_string());
+        }
+        self.selections.insert(result.0, format!("found_{id}"));
+        Ok(true)
+    }
     /// A search past one library: "and/or" (the searcher picks whether the library
     /// is searched), or a list of zones searched one by one, the library last.
     pub(super) fn search_zones(
@@ -2432,6 +3091,12 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        if self.search_as_one(id, op, result, out)? {
+            return Ok(());
+        }
+        if matches!(op, Operation::Search { outside: true, .. }) {
+            return Err(gap("search with cards from outside the game"));
+        }
         let Operation::Search {
             player,
             library,
@@ -2527,22 +3192,109 @@ impl Compiler {
     }
 }
 
+/// Whether `TargetSpec::EACH_OPPONENT`'s slots, one for each seat but the
+/// controller's, are for `players`, or for all of them but the controller's own,
+/// which `own_slot` is.
+pub(super) fn seats_have_slots(players: &PlayerSet) -> bool {
+    matches!(
+        players,
+        PlayerSet::All
+            | PlayerSet::OpponentsOf(PlayerRef::AbilityController)
+            | PlayerSet::OthersThan(PlayerRef::AbilityController)
+    )
+}
+
+/// How the picks of a move are asked for: once for each of a list of card types,
+/// or one card and every card that shares its name.
+enum ByKind {
+    Types(String),
+    SameName,
+}
+/// Words for the options of a choice whose line doesn't list them ("you may put it
+/// on the bottom of its owner's library instead"): where each option puts it, or
+/// which word it changes. Options these don't tell apart have no labels.
+fn lane_i_option_labels(options: &[Program]) -> Option<Vec<String>> {
+    let mut labels: Vec<String> = Vec::new();
+    for option in options {
+        let mut steps = Vec::new();
+        lane_m::flat_groups(&option.instructions, &mut steps);
+        // What a replacement does to the event says nothing of the option.
+        let first = steps.iter().find(|step| {
+            !matches!(step, Instruction::Effect { operation: Operation::ModifyEvent { .. }, .. })
+        })?;
+        let land = |filter: &ObjectFilter| {
+            matches!(filter, ObjectFilter::CardType(t) if form(t) == "Land")
+        };
+        let label = match first {
+            // "Choose land or nonland and reveal cards until you reveal one".
+            Instruction::Effect {
+                operation: Operation::RevealUntil { filter, .. },
+                ..
+            } if land(filter) => "Land",
+            Instruction::Effect {
+                operation: Operation::RevealUntil { filter: ObjectFilter::Not(filter), .. },
+                ..
+            } if land(filter) => "Nonland",
+            Instruction::Effect {
+                operation: Operation::Move {
+                    objects, destination, ..
+                },
+                ..
+            } => match (objects, destination) {
+                (ObjectSet::Take { .. }, _) => "Top card of library",
+                (_, Destination::Battlefield(_)) => "Battlefield",
+                (_, Destination::OwnersHand) => "Hand",
+                (_, Destination::OwnersLibraryTop) => "Top of library",
+                (_, Destination::OwnersLibraryBottom) => "Bottom of library",
+                (_, Destination::OwnersGraveyard) => "Graveyard",
+                (_, Destination::Exile) => "Exile",
+                _ => return None,
+            },
+            Instruction::Effect {
+                operation: Operation::ChooseObjects {
+                    objects: ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Hand, .. }, .. },
+                    ..
+                },
+                ..
+            } => "Card from hand",
+            _ => return None,
+        };
+        if labels.iter().any(|seen| seen == label) {
+            return None;
+        }
+        labels.push(label.to_string());
+    }
+    Some(labels)
+}
 /// A target test in a slot of its own for each player: that player controls it.
 pub(super) fn per_player_target(count: &Count, test: String) -> String {
     let Count::PerPlayer { players, .. } = count else {
         return test;
     };
-    let controls = match players {
-        PlayerSet::OpponentsOf(PlayerRef::AbilityController) => {
-            "cantrip_mechanics::targets::controlled_by_slot_opponent(q, id)".to_string()
-        }
-        _ => planned::planned_value(
+    let controls = match seats_have_slots(players) {
+        true => "cantrip_mechanics::targets::controlled_by_slot_opponent(q, id)".to_string(),
+        false => planned::planned_value(
             "target cardinality PerPlayer",
             "true",
             "cantrip_mechanics::targets::controlled_by_slot_player(q, id)",
         ),
     };
     format!("matches!(t, Target::Object(id) if {controls}) && ({test})")
+}
+
+/// The test of the slot for the controller in "for each player, up to one target
+/// [permanent] that player controls" (CR 601.2c): the engine's slots for each
+/// seat leave the controller's out, so it is a slot of its own, after the printed
+/// ones so that theirs keep their places. `None` for any other count.
+pub(super) fn own_slot(count: &Count, test: &str) -> Option<String> {
+    matches!(
+        count,
+        Count::PerPlayer {
+            players: PlayerSet::All,
+            ..
+        }
+    )
+    .then(|| format!("matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id) && q.controller(id) == asker.controller) && ({test})"))
 }
 
 /// `PlayWith` on no terms past what `PlayCards` says, as that.

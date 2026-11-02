@@ -16,8 +16,9 @@ const CARDS: &[(&str, &str)] = &[
     ("Voracious Bibliophile", "q.state().targets(i).len()"),
     // "Each token ... is created under your control instead".
     ("Crafty Cutpurse", "t.controller ="),
+    // "That player or a planeswalker that player controls": chosen as it resolves.
+    ("Vial Smasher the Fierce", "candidates: candidates_"),
     // What Cantrip doesn't have yet is named as a requirement.
-    ("Vial Smasher the Fierce", "a choice of Recipient"),
     ("Land Equilibrium", "event change then"),
     ("Twinning Staff", "replacement event CopySpell"),
     ("Vedalken Squirrel-Whacker", "replacement of RollD6"),
