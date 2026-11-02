@@ -892,15 +892,22 @@ impl Compiler {
         // An effect is made with no value of its own: "sources of the color of your
         // choice" is a definition for each color, and the choice says which is made.
         let by_color = results.chosen.iter().find(|(k, _)| *k == ValueKind::Color);
+        // "Lands tapped for mana produce mana of the chosen color instead" (Hall
+        // of Gemstone) is one for each color too.
+        let of_mana = format!("{body:?}").contains("ReplaceColoredMana(Amount { color: Chosen");
         let by_color = by_color.map(|(_, local)| local.clone()).filter(|local| {
             !local.starts_with("colors_")
-                && matches!(plain, ReplacementEvent::Damage(_))
-                && format!("{plain:?}").contains("Chosen(Color)")
-                && format!("{body:?}").contains("PreventDamage")
+                && (of_mana
+                    || (matches!(plain, ReplacementEvent::Damage(_))
+                        && format!("{plain:?}").contains("Chosen(Color)")
+                        && format!("{body:?}").contains("PreventDamage")))
         });
         let compiled = match by_color {
             Some(local) => {
-                let first = self.made_preventions.len();
+                let first = match of_mana {
+                    true => self.made_replacements.len(),
+                    false => self.made_preventions.len(),
+                };
                 let mut made = Ok((None, String::new()));
                 for color in lane_p::COLORS {
                     self.each_color = Some(format!("Color::{color}"));
@@ -926,8 +933,9 @@ impl Compiler {
                     .collect();
                 let last = first + lane_p::COLORS.len() - 1;
                 made.map(|(shield, kind)| {
-                    let index = format!("index: match {local} {{ {} }},", arms.join(", "));
-                    (shield, kind.replace(&format!("index: {last},"), &index))
+                    let index = format!("index: match {local} {{ {} }}", arms.join(", "));
+                    let kind = kind.replace(&format!("index: {last},"), &format!("{index},"));
+                    (shield, kind.replace(&format!("index: {last} }}"), &format!("{index} }}")))
                 })
             }
             None => self.made_effect(

@@ -931,7 +931,13 @@ impl Compiler {
             ("ManaProduction", C::ReplaceColoredMana(ManaProduction::Amount { color, .. })) => {
                 let colored =
                     "let colored: u32 = m.mana.0[..5].iter().sum(); m.mana.0[..5].fill(0);";
-                format!("{colored} {}", mana_gained(color, "colored"))
+                match (color, &self.each_color) {
+                    // One effect for each color, the chosen one made (`made`).
+                    (ManaColor::Chosen, Some(chosen)) => {
+                        format!("{colored} m.mana.0[{chosen} as usize] += colored;")
+                    }
+                    _ => format!("{colored} {}", mana_gained(color, "colored")),
+                }
             }
             ("ManaProduction", C::ReplaceMana(ManaProduction::Amount { color, .. })) => {
                 let all = "let all = m.total(); m.mana.0.fill(0);";
