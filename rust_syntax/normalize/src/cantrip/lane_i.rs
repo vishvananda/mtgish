@@ -477,6 +477,16 @@ impl Compiler {
                     operation: then(objects.clone()),
                 })
             }
+            // "For each opponent in turn order. Reveal ... That player may pay":
+            // one process after another, each seeing the last (Protection Racket).
+            Operation::PlayersDo {
+                players: PlayerSet::One(PlayerRef::Bound(walked)),
+                any_one: false,
+                optional: false,
+                once_each_turn: false,
+                otherwise,
+                ..
+            } if walked.0 == binding.0 && otherwise.is_empty() => Part::Walk,
             // "Each player shuffles all cards from their hand and all permanents
             // they own into their library": every card moves at once (CR 101.4),
             // each to its owner's zone, so the players' cards go together.
@@ -750,6 +760,10 @@ impl Compiler {
         let read = self.players(each.players).map(|p| self.fetch(p));
         let players = planned::planned_read(read, "Vec::<PlayerId>::new()", each.players);
         writeln!(out, "let mut players_{id}: Vec<PlayerId> = {players};").unwrap();
+        // Opponents come in seat order; the walk goes in turn order (CR 101.4).
+        if players.contains(".opponents(") {
+            writeln!(out, "{{ let order: Vec<PlayerId> = g.state().apnap().collect(); players_{id}.sort_by_key(|p| order.iter().position(|o| o == p)); }}").unwrap();
+        }
         let walking = (self.notes.walking).replace((each.binding.0, format!("players_{id}")));
         self.note_own(&each.body);
         if let Some(first) = each.starting_with {

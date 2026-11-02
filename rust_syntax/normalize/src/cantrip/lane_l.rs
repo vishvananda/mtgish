@@ -56,6 +56,15 @@ fn total_mana_value_at_least(constraints: &[SelectionConstraint]) -> Option<i64>
     }
 }
 
+/// A body where "you" is only who gains control: then "you" is the doer. One that
+/// also says "a creature you control" (Infernal Denizen) can't tell the doer from
+/// the ability's controller.
+fn you_only_gains_control(body: &[Operand]) -> bool {
+    let text = format!("{body:?}");
+    let gains = text.matches("SetController(AbilityController)").count();
+    gains > 0 && text.matches("AbilityController").count() == gains
+}
+
 /// What "do this only once each turn" offers, under a "may" that already asks it.
 pub(super) fn once_offered(body: &Program) -> Option<&Program> {
     match body.instructions.as_slice() {
@@ -1931,7 +1940,8 @@ impl Compiler {
                 body,
                 otherwise,
             } if otherwise.is_empty()
-                && body.iter().all(|step| matches!(step, Operand::Program(_))) =>
+                && body.iter().all(|step| matches!(step, Operand::Program(_)))
+                && (!*optional || you_only_gains_control(body)) =>
             {
                 let optional = *optional;
                 let among = self.fetch(self.players(players)?);
@@ -1952,6 +1962,27 @@ impl Compiler {
                     }
                 }
                 writeln!(out, "}}").unwrap();
+            }
+            // "Repeat the following process for each opponent in turn order ...
+            // That player may pay": the walk names the player, who is "that
+            // player" in the body, and "you" stays you (Protection Racket).
+            Operation::PlayersDo {
+                players: PlayerSet::One(PlayerRef::Bound(binding)),
+                any_one: false,
+                optional: false,
+                once_each_turn: false,
+                body,
+                otherwise,
+            } if otherwise.is_empty()
+                && self.bound_players.contains(&binding.0)
+                && body.iter().all(|step| matches!(step, Operand::Program(_))) =>
+            {
+                for step in body {
+                    let Operand::Program(program) = step else {
+                        unreachable!("just matched");
+                    };
+                    self.block(program, out, true)?;
+                }
             }
             Operation::PlayersDo {
                 players,
