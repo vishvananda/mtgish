@@ -496,7 +496,23 @@ impl Compiler {
             }
             let narrowed = lane_n::entering_if(event, body);
             let body = narrowed.as_ref().unwrap_or(body);
-            if narrowed.is_some() {
+            // "If this creature would enter and it wasn't cast or no mana was spent
+            // to cast it" (Primeval Spawn): as it would enter it is still the spell
+            // on the stack (`Entering::object`, CR 614.12), whose cast record the
+            // read finds; a card that wasn't cast has none.
+            let about_its_cast = |event: &ReplacementEvent| {
+                fn cast_only(f: &ObjectFilter) -> bool {
+                    match f {
+                        ObjectFilter::Cast { .. } | ObjectFilter::ManaSpent { .. } => true,
+                        ObjectFilter::Not(f) => cast_only(f),
+                        ObjectFilter::All(fs) | ObjectFilter::Either(fs) => fs.iter().all(cast_only),
+                        _ => false,
+                    }
+                }
+                matches!(event, ReplacementEvent::Enter { objects: ObjectFilter::All(fs) } if fs[1..].iter().all(cast_only))
+            };
+            if narrowed.is_some() && about_its_cast(event) {
+            } else if narrowed.is_some() {
                 // What it was cast as is the spell's, and it is leaving the stack.
                 self.gaps
                     .push(gap("as-enters replacement of another event"));
