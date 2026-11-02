@@ -38,6 +38,7 @@ mod target_counts;
 pub mod planned;
 mod players;
 mod playing;
+pub mod pr_cache;
 pub mod pr_form;
 mod read;
 mod replacements;

@@ -389,12 +389,25 @@ fn face_modules(layout: &str) -> &'static [&'static str] {
 }
 
 pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
+    tracked_cached(input, oracle, output, None)
+}
+
+/// `tracked`, keeping `pr_form`'s renders in `cache` from one run to the next
+/// (see `pr_cache`): a run after a change to the generator renders again only
+/// the modules that changed.
+pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<&Path>) -> corpus::Result<usize> {
+    use super::pr_cache::{Kept, Renders};
     let oracle = oracle_texts(oracle)?;
+    let renders = match cache {
+        Some(dir) => Renders::open(dir),
+        None => Renders::none(),
+    };
+    let mut keeper = renders.keeper();
     let mut artifact = corpus::Artifact::create(output)?;
     let mut count = 0;
     corpus::map_cards(
         input,
-        |line, source| -> corpus::Result<String> {
+        |line, source| -> corpus::Result<(String, Option<(Kept, bool)>)> {
             let identity = corpus::Identity::of(&source)?;
             let lowered = crate::unified::lower(&source);
             let name = identity.names.join(" // ");
@@ -410,6 +423,7 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                     gaps: face.gaps,
                 })
                 .collect();
+            let mut kept = None;
             let file = match faces.as_slice() {
                 [one, two]
                     if one.gaps.is_empty()
@@ -417,11 +431,15 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                         && !face_modules(&lowered.card.layout).is_empty() =>
                 {
                     match (&whole.rust, one.oracle.as_deref(), two.oracle.as_deref()) {
-                        (Some(raw), Some(first), Some(second)) => super::pr_form::render_faces(
-                            raw,
-                            face_modules(&lowered.card.layout),
-                            &[(&one.name, first), (&two.name, second)],
-                        ),
+                        (Some(raw), Some(first), Some(second)) => {
+                            let (file, render) = renders.render_faces(
+                                raw,
+                                face_modules(&lowered.card.layout),
+                                &[(&one.name, first), (&two.name, second)],
+                            );
+                            kept = render;
+                            file
+                        }
                         _ => None,
                     }
                 }
@@ -432,12 +450,16 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                     one.oracle.as_deref().and_then(|text| {
                         match card_file::card_file(&lowered.card.faces[0], text) {
                             Ok(file) => file,
-                            Err(_) => super::pr_form::render(
-                                &one.rust,
-                                &one.name,
-                                text,
-                                super::pr_form::Characteristics::Oracle,
-                            ),
+                            Err(_) => {
+                                let (file, render) = renders.render(
+                                    &one.rust,
+                                    &one.name,
+                                    text,
+                                    super::pr_form::Characteristics::Oracle,
+                                );
+                                kept = render;
+                                file
+                            }
                         }
                     })
                 }
@@ -456,17 +478,28 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                 rust: whole.rust,
                 file,
             };
+            let kept = kept.map(|kept| {
+                let found = renders.had(&kept);
+                (kept, found)
+            });
             // Written out here, on the workers: the rows are 200 MB of JSON.
-            Ok(serde_json::to_string(&card)?)
+            Ok((serde_json::to_string(&card)?, kept))
         },
-        |_, row| {
+        |_, (row, kept)| {
             artifact.write_all(row.as_bytes())?;
             artifact.write_all(b"\n")?;
+            if let Some((kept, found)) = kept {
+                keeper.keep(kept, found)?;
+            }
             count += 1;
             Ok(())
         },
     )?;
     artifact.commit()?;
+    if let Some(dir) = cache {
+        eprintln!("pr_form: {} renders from {}, {} rendered", keeper.found, dir.display(), keeper.rendered);
+    }
+    keeper.commit()?;
     Ok(count)
 }
 

@@ -136,7 +136,9 @@ fn run() -> Result<()> {
         [command, input, oracle, output] if command == "cantrip-tracked" => {
             #[cfg(feature="cantrip")]
             {
-            let count = mtgish_ast::cantrip::planned::tracked(Path::new(input), Path::new(oracle), Path::new(output))?;
+            // pr_form's renders are kept in the target directory, or MTGISH_PR_FORM_CACHE (`off` for none).
+            let cache = mtgish_ast::cantrip::pr_cache::default_dir();
+            let count = mtgish_ast::cantrip::planned::tracked_cached(Path::new(input), Path::new(oracle), Path::new(output), cache.as_deref())?;
             println!("{count} tracked cards");
             }
             #[cfg(not(feature="cantrip"))]
