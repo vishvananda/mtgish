@@ -3173,6 +3173,31 @@ impl Compiler {
             ObjectFilter::OnStack(StackTrait::Keyword(word)) => {
                 format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
             }
+            // "The first activated ability of an artifact you activate each turn
+            // costs {2} less" (Tezzeret, Betrayer of Flesh): the activations of the
+            // turn so far, as the history records each once it is activated (CR
+            // 602.2i), this one not yet among them. What an earlier one targeted
+            // (Professor Hojo) no record says: `BecameTarget` doesn't tell an
+            // activated ability from a triggered one.
+            ObjectFilter::NthCast {
+                ordinal,
+                spells,
+                by,
+                scope: CastScope::Turn,
+            } if self.ability_filter(spells).is_ok() => {
+                let which = self.ability_filter(spells)?;
+                if which.contains("targets") {
+                    return Err(gap("the targets of abilities activated earlier this turn"));
+                }
+                let by = match by {
+                    Some(players) => format!("({}).contains(&p)", self.players(players)?),
+                    None => "true".to_string(),
+                };
+                return Ok(format!(
+                    "({which})(q, asker, permanent, def) && (q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, player: p, .. }} if {by} && ({which})(q, asker, source, q.activated_ability(ability)))).count() as i64) == ({}) - 1",
+                    self.asked(ordinal)?
+                ));
+            }
             ObjectFilter::NthCast {
                 ordinal,
                 spells,
