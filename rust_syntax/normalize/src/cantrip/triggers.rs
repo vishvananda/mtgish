@@ -782,6 +782,14 @@ impl Compiler {
                     ("ControlledByAPlayer", [Operand::Players(players)]) => {
                         tests.push(self.matching(frame, |c| c.player_in(players, "controller"))?)
                     }
+                    // "An ability of a land you control named ...": its source, as `by`.
+                    ("AbilityOfAPermanent", [Operand::Objects(sources)])
+                        if matches!(kind, TargetingKind::Ability) =>
+                    {
+                        tests.push(self.matching(frame, |c| {
+                            Ok(format!("{}.contains(&by)", c.objects(sources)?))
+                        })?)
+                    }
                     (other, operands) => {
                         let feature = format!("targeted by {other}");
                         let operands = self.stated_operands(operands);
@@ -1054,6 +1062,16 @@ impl Compiler {
             let feature = "engine: no event for a counter being removed";
             self.plan_event(&mut matched, feature, false)?;
         }
+        // "Whenever one or more counters are put on permanents you control, put that
+        // many": one happening for the player, of its total (CR 603.2c).
+        if self.counters_total && *per == BatchPer::Whole && !removed {
+            for arm in &mut matched.arms {
+                arm.locals = "let id = *object; let subject = Target::Player(asker.controller); let data = [*amount as u32, u32::MAX];".into();
+            }
+            matched.frame.object = None;
+            matched.sums = true;
+            return Ok(matched);
+        }
         matched.batch = Some(match per {
             BatchPer::Whole => false,
             BatchPer::Subject => true,
@@ -1146,7 +1164,7 @@ impl Compiler {
                 && !matches!(event, EventSpec::Counters { .. });
             matched.frame.object = None;
         }
-        matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject);
+        matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject || matched.sums);
         Ok(matched)
     }
     /// An event by how many came before it this turn, of its own player's when
@@ -1193,7 +1211,13 @@ impl Compiler {
             frame: Frame::default(),
         });
         let past = asked.event(event)?;
-        let value = self.matching(matched.frame, |c| Ok(c.number(value)?.code))?;
+        let values = match value {
+            Expr::AnyOf(values) => values.clone(),
+            other => vec![other.clone()],
+        };
+        let values = self.matching(matched.frame, |c| {
+            values.iter().map(|value| Ok(c.number(value)?.code)).collect::<Result<Vec<_>>>()
+        })?;
         // Summed events are one happening: the rest of it is no earlier one.
         let others = if summed {
             ".filter(|r| !r.in_batch_of(event))"
@@ -1204,7 +1228,12 @@ impl Compiler {
             "q.history().this_turn().iter(){others}.filter_map({}){same}.count() as i64 + 1",
             past.history_test()
         );
-        let test = read::compare(&count, comparison, &value);
+        let tests: Vec<String> =
+            values.iter().map(|value| read::compare(&count, comparison, value)).collect();
+        let test = match tests.as_slice() {
+            [one] => one.clone(),
+            many => format!("({})", many.join(" || ")),
+        };
         let test = match summed {
             true => planned::planned_value("an ordinal of grouped events", "false", &test),
             false => test,
@@ -1296,6 +1325,10 @@ impl Compiler {
         }
         tests.push(match source_kind {
             ObjectKind::Any => "true".to_string(),
+            // Asked afterwards: not a spell, and not a card in another zone either.
+            ObjectKind::Permanent if self.history.is_some() => {
+                "q.state().obj(source).zone.is(ZoneKind::Battlefield)".to_string()
+            }
             ObjectKind::Permanent => "!q.state().obj(source).zone.is(ZoneKind::Stack)".to_string(),
             // A spell deals its damage as it resolves, still on the stack.
             ObjectKind::Spell if self.history.is_none() => {
@@ -1781,7 +1814,13 @@ impl Compiler {
             && !read.contains("EventDestination");
         let summed = summed_at_recipient(event, body);
         let event = summed.as_ref().unwrap_or(event);
+        let says = format!("{read} {body:?}");
+        self.counters_total = says.contains("EventAmount")
+            && !["EventGroup", "EventSubject", "EventSource"]
+                .iter()
+                .any(|word| says.contains(word));
         let matched = self.event(event);
+        self.counters_total = false;
         self.recipient_subject = false;
         let controller_subject = std::mem::take(&mut self.controller_subject);
         if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {

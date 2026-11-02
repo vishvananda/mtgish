@@ -757,7 +757,12 @@ impl Compiler {
                     quoted(&text)
                 )
             } else {
-                let adds = self.mana_ability(body, &format!("{label}_mana"))?;
+                self.mana_body = true;
+                self.activated_mana = Some(index);
+                let adds = self.mana_ability(body, &format!("{label}_mana"));
+                self.mana_body = false;
+                self.activated_mana = None;
+                let adds = adds?;
                 let colors = self.mana_colors.take();
                 self.paid_for = PaidFor::Mana;
                 let cost = self.cost(price, label);

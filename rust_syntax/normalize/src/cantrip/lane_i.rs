@@ -521,6 +521,18 @@ impl Compiler {
             )
             .unwrap();
         }
+        // "Each opponent who copied the spell this way": who said yes.
+        for step in &steps {
+            let (Some(guard), Instruction::Effect { result, operation: Operation::CopyOnStack { .. } }) =
+                (step.guard, &program.instructions[step.at])
+            else {
+                continue;
+            };
+            if matches!(guards[guard], Guard::May) {
+                let took = (format!("players_{id}"), format!("guard_{id}_{guard}[at]"));
+                self.notes.took.entry(result.0).or_insert(took);
+            }
+        }
         self.bound_players.insert(each.binding.0);
         let mut views: Vec<View> = Vec::new();
         let mut earlier = BTreeSet::new();
@@ -793,6 +805,10 @@ impl Compiler {
                 };
                 writeln!(declared, "let mut each_{k}: Vec<Vec<ObjectId>> = vec![Vec::new(); players_{id}.len()]; let mut all_{k}: Vec<ObjectId> = Vec::new();").unwrap();
                 writeln!(tail, "each_{k}[index_{id}] = {read}; all_{k}.extend(each_{k}[index_{id}].iter().copied());").unwrap();
+                if matches!(kind, ViewKind::Selected | ViewKind::Moved | ViewKind::Created) {
+                    let lists = (format!("players_{id}"), format!("each_{k}"));
+                    self.notes.each.entry(result).or_insert(lists);
+                }
             } else {
                 writeln!(
                     declared,
@@ -800,6 +816,10 @@ impl Compiler {
                 )
                 .unwrap();
                 writeln!(tail, "each_{k}[index_{id}] = {local};").unwrap();
+                if matches!(kind, ViewKind::Performed) {
+                    let lists = (format!("players_{id}"), format!("each_{k}"));
+                    self.notes.each_done.insert(result, lists);
+                }
             }
             // How much of something: all of them together is its sum. A reader
             // one player at a time may mean their own or the total; the AST
@@ -846,6 +866,13 @@ impl Compiler {
                     _ => all.or(total),
                 },
             };
+            if matches!(kind, ViewKind::Flip) {
+                self.coin_turns = Some((format!("players_{id}"), format!("each_{k}")));
+                self.coins = Some((
+                    format!("(each_{k}.iter().filter(|&&flip| flip).count() as i64)"),
+                    format!("(each_{k}.iter().filter(|&&flip| !flip).count() as i64)"),
+                ));
+            }
             views.retain(|v| v.result != result || !same_kind(v.kind, kind));
             views.push(view);
             let took = match kind {
@@ -864,7 +891,36 @@ impl Compiler {
                 }
             }
         }
-        // A value chosen in a turn is that turn's, and a local of it.
+        // A value chosen in a turn is that turn's, and a local of it; what "chosen
+        // this way" reads after them all is any of them.
+        let each_chose: Vec<(ValueKind, String)> = self
+            .chosen
+            .iter()
+            .filter(|(kind, local)| {
+                !before.chosen.iter().any(|(k, _)| k == kind) && local.starts_with("chosen_")
+            })
+            .cloned()
+            .collect();
+        for (kind, local) in each_chose {
+            let list = format!("each_{local}");
+            let (declare, push) = (
+                format!("let mut {list} = Vec::new();\n"),
+                format!("{list}.push({local});\n"),
+            );
+            declared.push_str(&declare);
+            tail.push_str(&push);
+            self.unread.push((list.clone(), vec![declare, push]));
+            // Whose each one is, where a later turn reads a player's own.
+            let who = format!("{list}_who");
+            let (declare, push) = (
+                format!("let mut {who}: Vec<PlayerId> = Vec::new();\n"),
+                format!("{who}.push(bound_{});\n", each.binding.0),
+            );
+            declared.push_str(&declare);
+            tail.push_str(&push);
+            self.unread.push((who, vec![declare, push]));
+            self.chosen_lists.push((kind, list));
+        }
         self.chosen = before.chosen;
         out.push_str(&declared);
         let binding = each.binding.0;
@@ -881,7 +937,13 @@ impl Compiler {
         };
         // A "you may" that opened a guard in this turn closes it in this turn.
         let shut = "}".repeat(std::mem::replace(&mut self.guard_opened, guards_around));
-        writeln!(out, "{open} for (index_{id}, bound_{binding}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
+        // "And you draw a card" for each of them reads none of them.
+        let walked = format!("bound_{binding}");
+        let walked = match body.contains(&walked) || tail.contains(&walked) || closing.contains(&walked) {
+            true => walked,
+            false => "_".to_string(),
+        };
+        writeln!(out, "{open} for (index_{id}, {walked}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
     }
     /// A player's turn at a step that adds to a batch.
     fn gather(
@@ -1745,7 +1807,9 @@ impl Compiler {
                     &[Change::GrantKeyword(k.clone())],
                     parts,
                 ),
-                Ability::Triggered { .. } | Ability::Replacement { .. } => {
+                Ability::Triggered { .. }
+                | Ability::Replacement { .. }
+                | Ability::TriggerRule { .. } => {
                     self.ability_guard = Some(condition.clone());
                     self.static_guard = None;
                     let step = self.ability(inner, &label, parts, scope);
@@ -2486,22 +2550,47 @@ impl Compiler {
     }
 }
 
+/// Whether `TargetSpec::EACH_OPPONENT`'s slots, one for each seat but the
+/// controller's, are for `players`, or for all of them but the controller's own,
+/// which `own_slot` is.
+pub(super) fn seats_have_slots(players: &PlayerSet) -> bool {
+    matches!(
+        players,
+        PlayerSet::All
+            | PlayerSet::OpponentsOf(PlayerRef::AbilityController)
+            | PlayerSet::OthersThan(PlayerRef::AbilityController)
+    )
+}
+
 /// A target test in a slot of its own for each player: that player controls it.
 pub(super) fn per_player_target(count: &Count, test: String) -> String {
     let Count::PerPlayer { players, .. } = count else {
         return test;
     };
-    let controls = match players {
-        PlayerSet::OpponentsOf(PlayerRef::AbilityController) => {
-            "cantrip_mechanics::targets::controlled_by_slot_opponent(q, id)".to_string()
-        }
-        _ => planned::planned_value(
+    let controls = match seats_have_slots(players) {
+        true => "cantrip_mechanics::targets::controlled_by_slot_opponent(q, id)".to_string(),
+        false => planned::planned_value(
             "target cardinality PerPlayer",
             "true",
             "cantrip_mechanics::targets::controlled_by_slot_player(q, id)",
         ),
     };
     format!("matches!(t, Target::Object(id) if {controls}) && ({test})")
+}
+
+/// The test of the slot for the controller in "for each player, up to one target
+/// [permanent] that player controls" (CR 601.2c): the engine's slots for each
+/// seat leave the controller's out, so it is a slot of its own, after the printed
+/// ones so that theirs keep their places. `None` for any other count.
+pub(super) fn own_slot(count: &Count, test: &str) -> Option<String> {
+    matches!(
+        count,
+        Count::PerPlayer {
+            players: PlayerSet::All,
+            ..
+        }
+    )
+    .then(|| format!("matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id) && q.controller(id) == asker.controller) && ({test})"))
 }
 
 /// `PlayWith` on no terms past what `PlayCards` says, as that.

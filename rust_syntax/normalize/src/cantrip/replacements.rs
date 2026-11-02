@@ -758,16 +758,58 @@ impl Compiler {
         self.affected_in_scope = true;
         // A loop's object is out of reach as well: it has to be the effect's.
         let bound = std::mem::take(&mut self.bound_objects);
-        let compiled = self.made_effect(
-            &label,
-            &plain,
-            limit,
-            shield,
-            body,
-            hint,
-            to.is_some(),
-            about.is_some(),
-        );
+        // An effect is made with no value of its own: "sources of the color of your
+        // choice" is a definition for each color, and the choice says which is made.
+        let by_color = results.chosen.iter().find(|(k, _)| *k == ValueKind::Color);
+        let by_color = by_color.map(|(_, local)| local.clone()).filter(|local| {
+            !local.starts_with("colors_")
+                && matches!(plain, ReplacementEvent::Damage(_))
+                && format!("{plain:?}").contains("Chosen(Color)")
+                && format!("{body:?}").contains("PreventDamage")
+        });
+        let compiled = match by_color {
+            Some(local) => {
+                let first = self.made_preventions.len();
+                let mut made = Ok((None, String::new()));
+                for color in lane_p::COLORS {
+                    self.each_color = Some(format!("Color::{color}"));
+                    made = self.made_effect(
+                        &format!("{label}_{}", color.to_lowercase()),
+                        &plain,
+                        limit,
+                        shield.clone(),
+                        body,
+                        hint.clone(),
+                        to.is_some(),
+                        about.is_some(),
+                    );
+                    self.each_color = None;
+                    if made.is_err() {
+                        break;
+                    }
+                }
+                let arms: Vec<String> = lane_p::COLORS
+                    .iter()
+                    .enumerate()
+                    .map(|(i, color)| format!("Color::{color} => {}", first + i))
+                    .collect();
+                let last = first + lane_p::COLORS.len() - 1;
+                made.map(|(shield, kind)| {
+                    let index = format!("index: match {local} {{ {} }},", arms.join(", "));
+                    (shield, kind.replace(&format!("index: {last},"), &index))
+                })
+            }
+            None => self.made_effect(
+                &label,
+                &plain,
+                limit,
+                shield,
+                body,
+                hint,
+                to.is_some(),
+                about.is_some(),
+            ),
+        };
         self.bound_objects = bound;
         self.affected_in_scope = scope;
         self.restore_results(results);

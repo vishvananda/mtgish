@@ -404,12 +404,21 @@ impl Compiler {
         if !self.slots.is_empty() {
             self.helpers.insert("announced");
         }
-        for (i, _) in self.slots.values() {
+        let slots: std::collections::BTreeSet<usize> = self.slots.values().map(|(i, _)| *i).collect();
+        for i in &slots {
+            let own = self.own_slots.get(i);
             match self.second_of_two == Some(*i) {
                 true => writeln!(
                     out,
                     "let t_{i}_raw: Vec<Target> = announced(g, item, 0, false).into_iter().skip(1).collect(); let t_{i} = announced(g, item, 0, true);"
                 ),
+                false if own.is_some() => {
+                    let own = own.unwrap();
+                    writeln!(
+                        out,
+                        "let t_{i}_raw: Vec<Target> = [announced(g, item, {i}, false), announced(g, item, {own}, false)].concat(); let t_{i}: Vec<Target> = [announced(g, item, {i}, true), announced(g, item, {own}, true)].concat();"
+                    )
+                }
                 false => writeln!(
                     out,
                     "let t_{i}_raw = announced(g, item, {i}, false); let t_{i} = announced(g, item, {i}, true);"
@@ -421,7 +430,11 @@ impl Compiler {
         let at = std::mem::replace(&mut self.event_at, EventAt::Item);
         let hoisted = self.hoisted.replace(Vec::new());
         let around = std::mem::take(&mut self.after);
+        let unread = std::mem::take(&mut self.unread);
+        let lists = std::mem::take(&mut self.chosen_lists);
         let compiled = self.program(body, &mut out, true);
+        self.chosen_lists = lists;
+        let kept = std::mem::replace(&mut self.unread, unread);
         self.after = around;
         let declared = std::mem::replace(&mut self.hoisted, hoisted);
         self.reader = reader;
@@ -432,6 +445,14 @@ impl Compiler {
                 0,
                 &format!("let mut {local}: Vec<ObjectId> = Vec::new();\n"),
             );
+        }
+        for (local, lines) in kept {
+            let rest = lines.iter().fold(out.clone(), |rest, line| rest.replace(line, ""));
+            if !rest.contains(&local) {
+                out = rest;
+            } else if local.ends_with("_kept") {
+                out.insert_str(0, &format!("let mut {local} = None;\n"));
+            }
         }
         Ok(out)
     }
@@ -569,7 +590,33 @@ impl Compiler {
         self.hoist(&inner.selections, Hoist::Selected, out);
         self.hoist(&inner.creations, Hoist::Created, out);
         self.hoist(&inner.before, Hoist::Before, out);
+        self.hoist_choices(&inner.chosen, out);
         Ok(())
+    }
+    /// A value a block chose stays readable past it, in one local for its kind, so
+    /// a read is of the latest choice whichever block ran (`choose_value`).
+    fn hoist_choices(&mut self, inner: &[(ValueKind, String)], out: &mut String) {
+        for (kind, local) in inner.iter().rev() {
+            let plain_before = |(k, l): &(ValueKind, String)| k == kind && !l.ends_with(chosen::KEPT);
+            if self.hoisted.is_none() || self.chosen.iter().any(plain_before) {
+                continue;
+            }
+            if local.ends_with(chosen::KEPT) {
+                self.chosen.retain(|(k, _)| k != kind);
+                self.chosen.insert(0, (*kind, local.clone()));
+                continue;
+            }
+            let prefix = local.split('_').next().unwrap_or("chosen");
+            let kept = format!("{prefix}_{}_kept", format!("{kind:?}").to_lowercase());
+            let line = format!("{kept} = Some({local});\n");
+            out.push_str(&line);
+            match self.unread.iter_mut().find(|(l, _)| *l == kept) {
+                Some((_, lines)) => lines.push(line),
+                None => self.unread.push((kept.clone(), vec![line])),
+            }
+            self.chosen.retain(|(k, _)| k != kind);
+            self.chosen.insert(0, (*kind, format!("{kept}{}", chosen::KEPT)));
+        }
     }
     /// Keep the objects a block just reported. `out` is at the block's end, so
     /// what didn't run leaves the list empty, as "those" then is.
@@ -947,12 +994,28 @@ impl Compiler {
                 if self.each_discards_two(players, binding, steps, out) {
                     return Ok(());
                 }
+                // "Each opponent discards a card, then each who didn't discard ...":
+                // together (CR 101.4), and what they discarded read by whose it was.
+                let asked = |i: &Instruction| format!("{i:?}").contains("Earlier { what: Discarded");
+                let together = self
+                    .after
+                    .iter()
+                    .any(asked)
+                    .then(|| lane_m::each_discards(players, binding, steps))
+                    .flatten();
+                if let Some(together) = together {
+                    self.note_step(&together);
+                    if let Instruction::Effect { operation, result } = &together {
+                        return self.operation(operation, result, out);
+                    }
+                }
+                let split = lane_m::chosen_then_moved(steps, 1_000_000 + i as u32);
                 let each = lane_i::EachPlayer {
                     players,
                     binding,
                     starting_with: starting_with.as_ref(),
                     in_chosen_direction: *in_chosen_direction,
-                    body: steps,
+                    body: split.as_ref().unwrap_or(steps),
                     rest: &body.instructions[i + 1..],
                 };
                 self.each_player(each, out)
@@ -1586,10 +1649,14 @@ impl Compiler {
             Operation::Counter {
                 objects,
                 destination: Destination::OwnersGraveyard,
-            } if self.stack_targets(objects).is_some() => match self.read_later(result) {
-                true => self.counter_reporting(id, objects, result, out),
-                false => self.counter_on_stack(id, objects, out),
-            },
+            } if self.stack_targets(objects).is_some() => {
+                let read = self.read_later(result)
+                    || format!("{:?}", self.after).contains("Earlier { what: Countered");
+                match read {
+                    true => self.counter_reporting(id, objects, result, out),
+                    false => self.counter_on_stack(id, objects, out),
+                }
+            }
             Operation::Counter {
                 objects:
                     ObjectSet::Zone {
@@ -1615,7 +1682,15 @@ impl Compiler {
                     Some(to) => format!("g.counter_to(spell, CounterTo::{to});"),
                     None => "g.counter(spell);".into(),
                 };
-                writeln!(out, "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for spell in objects_{id} {{ {call} }} }});", self.fetch(self.objects(objects)?)).unwrap();
+                let read = format!("{:?}", self.after).contains("Earlier { what: Countered");
+                let keep = match read {
+                    true => format!("let before_{id} = objects_{id}.clone(); "),
+                    false => String::new(),
+                };
+                writeln!(out, "let objects_{id} = {}; {keep}cantrip_api::instruction(g, |g| {{ for spell in objects_{id} {{ {call} }} }});", self.fetch(self.objects(objects)?)).unwrap();
+                if read {
+                    self.left_behind(result, format!("before_{id}.clone()"));
+                }
             }
             Operation::CreateContinuousEffect {
                 source,
@@ -1676,13 +1751,18 @@ impl Compiler {
                 self.values.insert(result.0, format!("value_{id}"));
             }
             Operation::FlipCoin { player } => {
+                let call = self.flip_call()?;
                 writeln!(
                     out,
-                    "let player_{id} = {}; let flip_{id} = g.flip_coin(player_{id});",
+                    "let player_{id} = {}; let flip_{id} = g.{call}(player_{id});",
                     self.fetch(self.certain_player(player)?)
                 )
                 .unwrap();
                 self.flips.insert(result.0, format!("flip_{id}"));
+                self.coins = Some((
+                    format!("i64::from(flip_{id})"),
+                    format!("i64::from(!flip_{id})"),
+                ));
             }
             Operation::ModifyEvent { change } => self.modify_entering(change, out)?,
             Operation::CreateTrigger {
@@ -1893,10 +1973,25 @@ impl Compiler {
                 cost,
                 optional: true,
             } => {
+                // The source's words "up to", which the instruction doesn't have.
+                let words = "discard up to";
+                if (lane_k::printed_otherwise(self.line_text(), words)
+                    || self.chapters.values().any(|chapter| chapter.contains(words)))
+                    && matches!(cost.parts.as_slice(), [CostPart::Discard { .. }])
+                {
+                    return Err(gap("discard of up to a number read as exactly that number"));
+                }
+                let discard = self.paid_discard(cost, result);
+                if discard.is_some() {
+                    writeln!(out, "let mark_{id} = {{ let q: &dyn Query = g; q.history().all().len() }};").unwrap();
+                }
                 let asked = self.ask_to_pay(id, player, cost)?;
                 writeln!(out, "{asked}").unwrap();
                 self.performed.insert(result.0, format!("paid_{id}"));
-                self.objects_that_paid(id, result, out);
+                match discard {
+                    Some(n) => self.discards_paid(id, n, result, out),
+                    None => self.objects_that_paid(id, result, out),
+                }
             }
             Operation::PayCost {
                 player,
@@ -2097,8 +2192,15 @@ impl Compiler {
         if let (true, Some(n)) = (optional, lane_k::blights(player, body)) {
             self.helpers.insert("pay_question");
             let payer = self.fetch(self.certain_player(player)?);
-            writeln!(out, "let payer_{id} = {payer}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, cantrip_mechanics::blight::cost({n}), &PAY_QUESTION)?;").unwrap();
             self.performed.insert(result.0, format!("paid_{id}"));
+            // "The blighted creature": the effect says which.
+            if self.reads_paid_objects(result) {
+                writeln!(out, "let payer_{id} = {payer}; let blighted_{id}: Vec<ObjectId> = cantrip_mechanics::blight::may_in_effect(g, payer_{id}, asker.source, {n}, &PAY_QUESTION)?.into_iter().collect(); let paid_{id} = !blighted_{id}.is_empty();").unwrap();
+                self.moved.insert(result.0, format!("blighted_{id}"));
+                self.before.insert(result.0, format!("blighted_{id}.clone()"));
+                return Ok(());
+            }
+            writeln!(out, "let payer_{id} = {payer}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, cantrip_mechanics::blight::cost({n}), &PAY_QUESTION)?;").unwrap();
             self.objects_that_paid(id, result, out);
             return Ok(());
         }
@@ -2138,6 +2240,8 @@ impl Compiler {
         self.unpaid.clear();
         self.hurt_players.clear();
         self.coins = None;
+        self.coin_turns = None;
+        self.coin_objects = None;
         self.values.clear();
         self.flips.clear();
         self.chosen.clear();
@@ -2666,6 +2770,10 @@ impl Compiler {
     ) -> Result<()> {
         self.sacrifice_picks(id, players, objects, choose, out)?;
         writeln!(out, "let sacrificed_{id} = g.sacrifice_each(&picks_{id});").unwrap();
+        // Kept with the text that read it (CR 607.2d).
+        if self.enters_sacrifices && self.pending == Pending::Entering {
+            writeln!(out, "entering.chosen_number = Some(sacrificed_{id}.len() as u32);").unwrap();
+        }
         self.moved.insert(result.0, format!("sacrificed_{id}"));
         self.shares.insert(
             result.0,

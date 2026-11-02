@@ -416,10 +416,39 @@ impl Compiler {
         writeln!(out, "let paid_{id} = !{}.is_empty();", self.moved(result)?).unwrap();
         Ok(())
     }
+    /// Whether what comes later asks which objects paid, not only how much.
+    pub(super) fn reads_paid_objects(&self, result: &ResultId) -> bool {
+        let mark = format!("CostObjects {{ payment: Resolution(ResultId({}))", result.0);
+        self.after.iter().any(|i| format!("{i:?}").contains(&mark))
+    }
+    /// The discard of a cost whose other parts are mana, if later instructions ask
+    /// for what it took: `may_pay` doesn't say, its records do. The whole is paid
+    /// after the mana is made (CR 601.2g-h), so a discard a mana ability cost comes
+    /// earlier than the last ones.
+    pub(super) fn paid_discard(&self, cost: &Cost, result: &ResultId) -> Option<u32> {
+        let mut parts = cost.parts.iter().filter(|p| !matches!(p, CostPart::Mana(_)));
+        match (parts.next(), parts.next()) {
+            (
+                Some(CostPart::Discard {
+                    count: Expr::Constant(n),
+                    random: false,
+                    ..
+                }),
+                None,
+            ) if self.reads_paid_objects(result) => u32::try_from(*n).ok(),
+            _ => None,
+        }
+    }
+    /// The cards `paid_discard` found, from the records since `mark_{id}`.
+    pub(super) fn discards_paid(&mut self, id: usize, n: u32, result: &ResultId, out: &mut String) {
+        writeln!(out, "let paid_objects_{id}: Vec<ObjectId> = if paid_{id} {{ let q: &dyn Query = g; let mut cards: Vec<ObjectId> = q.history().all()[mark_{id}..].iter().rev().filter_map(|r: &Record| match r.event {{ Event::Discarded {{ card, .. }} => Some(card), _ => None }}).take({n}).collect(); cards.reverse(); cards }} else {{ Vec::new() }};").unwrap();
+        self.moved.insert(result.0, format!("paid_objects_{id}"));
+        self.before
+            .insert(result.0, format!("paid_objects_{id}.clone()"));
+    }
     /// "Those that paid", where `may_pay` paid them: it does not say which.
     pub(super) fn objects_that_paid(&mut self, id: usize, result: &ResultId, out: &mut String) {
-        let mark = format!("Resolution(ResultId({}))", result.0);
-        if !self.after.iter().any(|i| format!("{i:?}").contains(&mark)) {
+        if !self.reads_paid_objects(result) {
             return;
         }
         let paid = planned::planned_value(
@@ -515,23 +544,20 @@ impl Compiler {
                     None
                 }
                 SelectionConstraint::OneForEach(filters) => {
-                    let filters = filters
+                    let tests = filters
                         .iter()
-                        .map(|f| {
-                            let test = self.filter(f, &Candidate::of("id"))?;
-                            Ok(format!(
-                                "|q: &dyn Query, asker: &Asker, id: ObjectId| {test}"
-                            ))
-                        })
+                        .map(|f| self.filter(f, &Candidate::of("id")))
                         .collect::<Result<Vec<_>>>()?;
-                    rule.planned.push((
-                        feature,
-                        format!(
-                            ".together({M}::select::one_for_each(&[{}]))",
-                            filters.join(", ")
-                        ),
-                    ));
-                    None
+                    let together = format!(".together({})", self.one_for_each(&tests));
+                    // "Choose up to two" of target modes: the card has modes, which
+                    // one slot isn't (CR 700.2).
+                    match lane_k::printed_otherwise(self.line_text(), "Choose up to") {
+                        true => {
+                            rule.planned.push((feature, together));
+                            None
+                        }
+                        false => Some(together),
+                    }
                 }
                 other => match self.set_rule(other) {
                     Some(part) => Some(format!(".together({part})")),
@@ -551,6 +577,18 @@ impl Compiler {
             }
         }
         Ok(rule)
+    }
+    /// "For each color, up to one target card of that color": the targets are one
+    /// each of the filters, a target that fits several being any one of them. What
+    /// a matching allows is a matroid, so taking what fits finds a largest set.
+    fn one_for_each(&mut self, tests: &[String]) -> String {
+        let name = format!("one_for_each_{}", self.fresh());
+        let (n, bits) = (tests.len(), tests.iter().enumerate());
+        let bits: String = bits
+            .map(|(i, test)| format!("if {test} {{ bits |= 1 << {i}; }} "))
+            .collect();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {name}_bits(q: &dyn Query, asker: &Asker, id: ObjectId) -> u32 {{ let mut bits = 0u32; {bits}bits }}\nfn {name}_fits(q: &dyn Query, choice: &Choice, set: &[ObjectId]) -> bool {{ let asker = &Asker::new(choice.source, choice.chooser); let mut used = vec![0u32]; for &id in set {{ let bits = {name}_bits(q, asker, id); let mut next: Vec<u32> = Vec::new(); for &taken in &used {{ for each in 0..{n} {{ let one = 1u32 << each; if bits & one != 0 && taken & one == 0 && !next.contains(&(taken | one)) {{ next.push(taken | one); }} }} }} used = next; }} !used.is_empty() }}\nfn {name}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ Verdict {{ complete: {name}_fits(q, choice, choice.selected), addable: Bits::of(choice.candidates.len(), |i| {{ let mut set = choice.selected.to_vec(); set.push(choice.candidates[i]); {name}_fits(q, choice, &set) }}) }} }}\nfn largest_{name}(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> {{ let mut kept: Vec<ObjectId> = Vec::new(); for &id in choice.candidates {{ kept.push(id); if !{name}_fits(q, choice, &kept) {{ kept.pop(); }} }} kept }}").unwrap();
+        format!("cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), 0, \"one for each\")")
     }
     /// The targets an earlier slot chose, read while a later slot is chosen. A slot
     /// of no fixed size has to be the last before this one: what follows it in
@@ -672,11 +710,12 @@ impl Compiler {
                 ".implied_by_target()".to_string(),
             ));
         }
+        // The combat before this one of that player's: from its beginning, while
+        // the steps are combat's, a later combat of the turn being another.
         if let Some(ModeHistory::LastCombat(player)) = &selection.unchosen {
             let player = self.certain_player(player)?;
-            planned.push((
-                "modes limited by earlier choices",
-                format!(".allowed({M}::history::mode_not_chosen_last_combat(|q: &dyn Query, asker: &Asker| {player}))"),
+            return Ok(format!(
+                "{modal}.allowed(|q: &dyn Query, asker: &Asker, mode: u8| {{ let you = {player}; let records = q.history().all(); let combat = |r: &Record| matches!(r.step, Step::BeginCombat | Step::DeclareAttackers | Step::DeclareBlockers | Step::CombatDamage | Step::EndOfCombat); let began = |r: &Record| matches!(r.event, Event::StepBegan {{ step: Step::BeginCombat }}); let starts: Vec<usize> = records.iter().enumerate().filter(|(_, r)| r.active == you && began(r)).map(|(at, _)| at).collect(); let at = starts.len().saturating_sub(2); starts.get(at).filter(|_| starts.len() >= 2).map_or(true, |&start| !records[start + 1..].iter().take_while(|r| combat(r) && !began(r)).any(|r| matches!(r.event, Event::ModesChosen {{ source, modes, .. }} if source == asker.source && modes & (1 << mode) != 0))) }})"
             ));
         }
         if selection.distinct_targets {
@@ -893,8 +932,13 @@ impl Compiler {
             Operation::FlipCoins { actor, count } => {
                 let player = self.one_actor(actor, "operation FlipCoins")?;
                 let count = self.number(count)?.amount(u32::MAX.into(), "u32")?;
-                writeln!(out, "let player_{id} = {player}; let count_{id} = {}; let mut done_{id}: i64 = 0; for _ in 0..count_{id} {{ if g.flip_coin(player_{id}) {{ done_{id} += 1; }} }}", self.fetch(count)).unwrap();
+                let call = self.flip_call()?;
+                writeln!(out, "let player_{id} = {player}; let count_{id} = {}; let mut done_{id}: i64 = 0; for _ in 0..count_{id} {{ if g.{call}(player_{id}) {{ done_{id} += 1; }} }}", self.fetch(count)).unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
+                self.coins = Some((
+                    format!("done_{id}"),
+                    format!("(i64::from(count_{id}) - done_{id})"),
+                ));
             }
             Operation::EachObject { objects, action } => {
                 writeln!(
@@ -1992,6 +2036,20 @@ impl Compiler {
                 called,
             } => {
                 let player = self.one_actor(actor, &feature)?;
+                if let (None, Some(each), false, false, false) =
+                    (times, each, *until_lost, *may_stop, *called)
+                {
+                    let call = self.flip_call()?;
+                    let each = self.fetch(self.objects(each)?);
+                    writeln!(out, "let player_{id} = {player}; let mut flips_{id}: Vec<(ObjectId, bool)> = Vec::new(); let mut done_{id}: i64 = 0; for object in {each} {{ let flip = g.{call}(player_{id}); if flip {{ done_{id} += 1; }} flips_{id}.push((object, flip)); }}").unwrap();
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.coins = Some((
+                        format!("done_{id}"),
+                        format!("(flips_{id}.len() as i64 - done_{id})"),
+                    ));
+                    self.coin_objects = Some(format!("flips_{id}"));
+                    return Ok(());
+                }
                 let times = match (times, each) {
                     (Some(times), None) => {
                         let n = self.number(times)?.amount(u32::MAX.into(), "u32")?;
@@ -2007,7 +2065,8 @@ impl Compiler {
                     self.plan_code(&feature, &format!("{M}::coins::flips(g, {player}, {times}, {until_lost}, {may_stop}, {called})?"), out);
                     return Ok(());
                 }
-                writeln!(out, "let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.flip_coin(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
+                let call = self.flip_call()?;
+                writeln!(out, "let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.{call}(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
                 self.coins = Some((
                     format!("done_{id}"),
@@ -2200,6 +2259,10 @@ impl Compiler {
             SelectionConstraint::CommonProperty(DistinctProperty::CardTypes) => {
                 format!("{M}::select::SHARE_A_CARD_TYPE")
             }
+            SelectionConstraint::NoCommonProperty(DistinctProperty::CreatureTypes) => {
+                self.helpers.insert("no_common_creature_type");
+                "cantrip_api::select::set_part(&(no_common_creature_type as SelectFn), &(largest_no_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share no creature types\")".to_string()
+            }
             SelectionConstraint::DifferentControllers => distinct_rule(
                 &mut self.functions,
                 "different_controllers",
@@ -2222,6 +2285,7 @@ impl Compiler {
                 let most = match amount {
                     Expr::Constant(n) if *n >= 0 => n.to_string(),
                     Expr::AnnouncedX => "TargetSpec::COUNTED".to_string(),
+                    other if self.counts_own_x(other) => "TargetSpec::COUNTED".to_string(),
                     _ => return None,
                 };
                 match property {
@@ -2719,6 +2783,7 @@ impl Compiler {
             self.single.insert(result.0);
         }
         self.selections.insert(result.0, format!("shown_{id}"));
+        self.notes.earlier.push(("Revealed", result.clone()));
         Ok(())
     }
     /// "Chosen at random", which the engine records as one (`Event::ChosenAtRandom`).

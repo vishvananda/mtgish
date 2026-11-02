@@ -81,6 +81,10 @@ impl Compiler {
                 "false",
                 &self.cast_by_way(id, "w.kind == WayKind::Prowl"),
             ),
+            // Cast by madness's own ability, its record says (CR 702.35a).
+            S::CostPaid(CastCost::Madness) if !layer => format!(
+                "{{ let records = q.history().all(); let spell = records.iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ old, new, reason: ZoneReason::Resolve, .. }} if new == {id} => Some(old), _ => None }}).unwrap_or({id}); records.iter().rev().any(|r| matches!(r.event, Event::Cast(cast) if cast.spell == spell) && matches!(r.cause, Cause::Ability {{ ability, .. }} if ability.is_madness())) }}"
+            ),
             S::CostPaid(CastCost::Madness) => planned::planned_value(
                 "object state CostPaid Madness",
                 "false",
@@ -162,10 +166,19 @@ impl Compiler {
                 "TributeNotPaid",
                 format!("q.state().obj({id}).marks.tribute_not_paid"),
             ),
-            S::Foretold => unrecorded(
-                "Foretold",
-                format!("cantrip_mechanics::foretell::foretold(q.state(), {id})"),
-            ),
+            // Foretelling is a player's own action, so what lets the card be cast
+            // names no spell or ability: the permission is the card's own, and a
+            // spell's cast keeps it (CR 702.143a).
+            S::Foretold => {
+                let row = self.card_row("o.card");
+                let cast = match layer {
+                    true => String::new(),
+                    false => " || q.history().cast_of(id).is_some_and(|cast| cast.granted_by().is_some_and(|by| by.ability == own))".to_string(),
+                };
+                format!(
+                    "{{ let id = {id}; let o = q.state().obj(id); let own = AbilityRef::spell(o.card); {row}.foretell.is_some() && (q.state().permissions.iter().any(|p| p.by.object == id && p.by.ability == own){cast}) }}"
+                )
+            }
             S::HasSticker => unrecorded(
                 "HasSticker",
                 format!("cantrip_mechanics::stickers::has_sticker(q.state(), {id})"),
@@ -215,9 +228,9 @@ impl Compiler {
                 "SnowManaOfOwnColorSpent",
                 format!("q.state().obj({id}).snow_spent.any_of({chars}.colors)"),
             ),
-            S::NonBasicLandType => unrecorded(
-                "NonBasicLandType",
-                format!("{chars}.has_nonbasic_land_type()"),
+            // CR 305.8: the five basic land types, and no other.
+            S::NonBasicLandType => format!(
+                "{chars}.subtypes.iter().any(|kind| kind.card_types().has(CardType::Land) && !matches!(kind, Subtype::Plains | Subtype::Island | Subtype::Swamp | Subtype::Mountain | Subtype::Forest))"
             ),
             other => return Err(gap(format!("object state {}", form(other)))),
         })
@@ -233,6 +246,12 @@ pub(super) struct Notes {
     /// For a step of a `ForEachPlayer`: the list of its players, and the test
     /// over `at`, an index into it, of whether that player's run did the step.
     pub took: BTreeMap<u32, (String, String)>,
+    /// A step of a walk: its players, and the list of what each of them did.
+    pub each: BTreeMap<u32, (String, String)>,
+    /// A step of a walk that counted: its players, and each one's number.
+    pub each_done: BTreeMap<u32, (String, String)>,
+    /// A step on what an earlier choice chose: that choice.
+    pub acted_of: BTreeMap<u32, u32>,
     /// What a choice offered, and if it was one player's, whom it was bound to
     /// and the list of players it went round.
     pub offered: BTreeMap<u32, (ObjectSet, Option<(u32, String)>)>,
@@ -262,7 +281,14 @@ pub(super) struct Notes {
 fn acted_on(op: &Operation) -> &'static [&'static str] {
     match op {
         Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
-        Operation::Sacrifice { .. } => &["Sacrificed"],
+        Operation::Sacrifice { .. } => &["Sacrificed", "PutInGraveyard"],
+        Operation::PayCost { cost, optional: true, .. }
+            if matches!(cost.parts.as_slice(), [CostPart::Sacrifice { .. }]) =>
+        {
+            &["Sacrificed"]
+        }
+        Operation::Destroy { .. } => &["PutInGraveyard"],
+        Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
         Operation::Reveal { .. }
@@ -283,6 +309,92 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         },
         _ => &[],
     }
+}
+
+/// A walk of players who each just discard, as the one discard it is.
+pub(super) fn each_discards(
+    players: &PlayerSet,
+    binding: &Binding,
+    body: &Program,
+) -> Option<Instruction> {
+    let [Instruction::Effect {
+        result,
+        operation:
+            Operation::PayCost {
+                player: PlayerRef::Bound(payer),
+                cost,
+                optional: false,
+            },
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let [CostPart::Discard {
+        count,
+        filter: ObjectFilter::Any,
+        random: false,
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    (payer.0 == binding.0).then(|| Instruction::Effect {
+        result: result.clone(),
+        operation: Operation::Discard {
+            players: players.clone(),
+            amount: count.clone(),
+            random: false,
+        },
+    })
+}
+
+/// A player's move of what they choose among several zones, as the choice and the
+/// move of what was chosen: `fresh` numbers the choice.
+pub(super) fn chosen_then_moved(body: &Program, fresh: u32) -> Option<Program> {
+    let [Instruction::Effect {
+        result,
+        operation:
+            Operation::Move {
+                objects:
+                    ObjectSet::Chosen {
+                        chooser: PlayerSet::One(chooser @ PlayerRef::Bound(_)),
+                        objects,
+                        count,
+                    },
+                destination,
+                entry,
+                face_down,
+            },
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let count = match count {
+        Count::Exactly(n) => Count::AsManyAsCan(n.clone()),
+        other => other.clone(),
+    };
+    let chosen = ResultId(fresh);
+    Some(Program {
+        instructions: vec![
+            Instruction::Effect {
+                result: chosen.clone(),
+                operation: Operation::ChooseObjects {
+                    player: chooser.clone(),
+                    objects: (**objects).clone(),
+                    count,
+                    constraints: Vec::new(),
+                },
+            },
+            Instruction::Effect {
+                result: result.clone(),
+                operation: Operation::Move {
+                    objects: ObjectSet::Selected(chosen),
+                    destination: destination.clone(),
+                    entry: entry.clone(),
+                    face_down: *face_down,
+                },
+            },
+        ],
+    })
 }
 
 impl Compiler {
@@ -308,6 +420,18 @@ impl Compiler {
         };
         for &what in acted_on(operation) {
             self.notes.earlier.push((what, result.clone()));
+        }
+        let chosen = match operation {
+            Operation::Move { objects, .. }
+            | Operation::Reveal { objects }
+            | Operation::Tap { objects, .. } => match objects {
+                ObjectSet::Selected(chosen) => Some(chosen.0),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(chosen) = chosen {
+            self.notes.acted_of.insert(result.0, chosen);
         }
         if format!("{operation:?}").contains("RollDie") {
             self.notes.earlier.push(("Rolled", result.clone()));
@@ -399,11 +523,86 @@ impl Compiler {
         {
             return Ok(format!("{found}.clone()"));
         }
-        // What was sacrificed is read as it last existed.
-        if matches!(what, EarlierObjects::Sacrificed) && self.before.contains_key(&result.0) {
+        // What was sacrificed or countered is read as it last existed.
+        if matches!(what, EarlierObjects::Sacrificed | EarlierObjects::Countered)
+            && self.before.contains_key(&result.0)
+        {
             return self.transition(result, &ObjectPhase::Before);
         }
         self.named(result)
+    }
+    /// What a mechanic of this object's own spell paid with, from the records just
+    /// before it became cast: the whole is paid after any mana is made (CR
+    /// 601.2g-h), so what a mana ability cost comes before it. A copy's is the
+    /// original's (CR 707.10).
+    fn paid_as_cast(&self, what: &EarlierObjects) -> Option<String> {
+        let event = match what {
+            EarlierObjects::Sacrificed if self.cast_pays.contains(&"Sacrificed") => {
+                "Event::ZoneChange { old, from, reason: ZoneReason::Sacrifice, .. } if from.is(ZoneKind::Battlefield) => Some(old)"
+            }
+            EarlierObjects::Discarded if self.cast_pays.contains(&"Discarded") => {
+                "Event::Discarded { card, .. } => Some(card)"
+            }
+            _ => return None,
+        };
+        let me = if self.stack_item { "item.object" } else { "asker.source" };
+        Some(format!(
+            "{{ let records = q.history().all(); let spell = q.history().original_spell(records.iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ old, new, reason: ZoneReason::Resolve, .. }} if new == {me} => Some(old), _ => None }}).unwrap_or({me})); records.iter().rposition(|r| matches!(r.event, Event::Cast(c) if c.spell == spell)).map_or_else(Vec::new, |cast| records[..cast].iter().rev().filter_map(|r| match r.event {{ {event}, _ => None }}).take(1).collect::<Vec<ObjectId>>()) }}"
+        ))
+    }
+    /// The sacrifice of several players that put what's last read in a graveyard.
+    pub(super) fn earlier_sacrifice(&self) -> Option<ResultId> {
+        let word = "PutInGraveyard";
+        let (_, result) = self.notes.earlier.iter().rev().find(|(w, _)| *w == word)?;
+        self.shares
+            .get(&result.0)
+            .is_some_and(|(_, share)| matches!(share, Share::Picks(_)))
+            .then(|| result.clone())
+    }
+    /// A walk's count of what each player moved: its players, the counts, and whom.
+    pub(super) fn each_done<'a>(
+        &'a self,
+        objects: &'a ObjectSet,
+    ) -> Option<(&'a String, &'a String, &'a PlayerRef)> {
+        let ObjectSet::MovedBy {
+            result,
+            phase: ObjectPhase::After,
+            player,
+        } = objects
+        else {
+            return None;
+        };
+        let (players, each) = self.notes.each_done.get(&result.0)?;
+        Some((players, each, player))
+    }
+    /// What one player of an earlier walk acted on, as chosen, so what has left
+    /// reads as it last was (CR 608.2h). Cards revealed outside a walk came from a
+    /// hand or a library, which hold only their owner's cards (CR 400.3).
+    pub(super) fn earlier_by(&self, what: &EarlierObjects, binding: u32) -> Option<String> {
+        if self.reader != Reader::Resolution {
+            return None;
+        }
+        let word = form(what);
+        let (_, result) = self.notes.earlier.iter().rev().find(|(w, _)| *w == word)?;
+        let chosen = self.notes.acted_of.get(&result.0).unwrap_or(&result.0);
+        let walked = self.notes.each.get(chosen).or(self.notes.each.get(&result.0));
+        // "Choose a different opponent": each pick shuts out the rest, which a walk
+        // of independent picks doesn't.
+        if lane_k::printed_otherwise(self.line_text(), "a different") {
+            return None;
+        }
+        let Some((players, each)) = walked else {
+            return matches!(what, EarlierObjects::Revealed).then(|| {
+                let list = self.earlier_objects(what).ok()?;
+                Some(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{binding}).collect::<Vec<ObjectId>>()"))
+            })?;
+        };
+        let list = format!("{players}.iter().position(|&p| p == bound_{binding}).map_or_else(Vec::new, |at| {each}[at].clone())");
+        Some(match what {
+            // A commander that went elsewhere instead wasn't exiled (CR 903.9b).
+            EarlierObjects::Exiled => format!("({list}).into_iter().filter(|&o| q.state().obj(o).became.is_some_and(|now| q.state().obj(now).zone.is(ZoneKind::Exile))).collect::<Vec<ObjectId>>()"),
+            _ => list,
+        })
     }
     /// What paid a cost of the ability or spell being resolved, or, read outside
     /// a resolution, what the ability that exiled it linked to it (CR 607.2a).
@@ -417,6 +616,13 @@ impl Compiler {
             (EarlierObjects::Sacrificed, CostPart::Sacrifice { .. }) => true,
             (EarlierObjects::Revealed, CostPart::Reveal { .. }) => true,
             (EarlierObjects::Discarded, CostPart::Discard { .. }) => true,
+            (
+                EarlierObjects::Returned,
+                CostPart::Move {
+                    destination: Destination::OwnersHand,
+                    ..
+                },
+            ) => true,
             (EarlierObjects::Unattached, CostPart::UnattachFrom { .. }) => true,
             (
                 EarlierObjects::Exiled,
@@ -435,9 +641,36 @@ impl Compiler {
             let at = cost.parts.iter().position(pays)?;
             Some((PaymentRef::Casting { ability: *ability }, at))
         });
+        if let Some(paid) = self.paid_as_cast(what) {
+            return Ok(paid);
+        }
         let Some((payment, at)) = by_activation.or(by_casting) else {
             if exiled {
                 return Ok(format!("q.exiled_with({})", self.linked()));
+            }
+            // The turn's own record of it.
+            let last = |event: &str, card: &str| {
+                format!("q.history().this_turn().iter().rev().find_map(|r| match r.event {{ {event} => Some({card}), _ => None }}).into_iter().collect::<Vec<ObjectId>>()")
+            };
+            match what {
+                EarlierObjects::LastDrawn => {
+                    return Ok(last(
+                        "Event::Drew { player, card } if player == asker.controller",
+                        "card",
+                    ))
+                }
+                EarlierObjects::LastCast => return Ok(last("Event::Cast(cast)", "cast.spell")),
+                // What a "one or more" ability triggered on (CR 603.2c).
+                EarlierObjects::LeftGraveyard if self.stack_item => {
+                    return Ok("q.event_objects(item).to_vec()".into())
+                }
+                // No step of its own: what the ability is about went there.
+                EarlierObjects::PutInGraveyard if self.stack_item => {
+                    if let Ok(card) = self.objects(&ObjectSet::One(ObjectRef::EventDestination)) {
+                        return Ok(card);
+                    }
+                }
+                _ => {}
             }
             // Cantrip keeps no record of this for a read to find.
             return Ok(planned::planned_value(
@@ -808,6 +1041,17 @@ impl Compiler {
                 measure: ObjectMeasure::Count,
                 ..
             } => counted("i64::from(q.state().obj(asker.source).paid)".into()),
+            // "The number of Forests sacrificed as it entered": all it sacrificed.
+            Expr::Earlier {
+                what: EarlierObjects::Sacrificed,
+                measure: ObjectMeasure::Count,
+                result: None,
+                by: None,
+                ..
+            } if self.enters_sacrifices && self.reader != Reader::Resolution => counted(format!(
+                "q.state().chosen_number({}).map_or(0i64, i64::from)",
+                self.linked()
+            )),
             Expr::Earlier {
                 what,
                 measure,
@@ -867,6 +1111,8 @@ impl Compiler {
             Expr::Dice(DiceMeasure::Result | DiceMeasure::Total) => {
                 match self.notes.earlier.iter().rev().find(|(w, _)| *w == "Rolled") {
                     Some((_, result)) => self.number(&Expr::DieResult(result.clone()))?,
+                    // The roll that triggered this.
+                    None if self.frame.amount.is_some() => self.number(&Expr::EventAmount)?,
                     None => held_number(
                         "numeric expression Dice".into(),
                         "g.last_roll(asker.controller).result",
@@ -951,6 +1197,9 @@ impl Compiler {
                 "numeric expression DraftNoted".into(),
                 &format!("q.draft_notes(asker.controller, {})", one_line(n)),
             ),
+            Expr::HeadsFlipped(result) if self.performed.contains_key(&result.0) => {
+                counted(self.performed[&result.0].clone())
+            }
             Expr::CoinFlipsWon(won) if self.coins.is_some() => {
                 let (wins, losses) = self.coins.as_ref().expect("flipped");
                 counted(if *won { wins.clone() } else { losses.clone() })

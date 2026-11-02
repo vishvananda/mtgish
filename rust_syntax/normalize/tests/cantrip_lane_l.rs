@@ -20,15 +20,9 @@ const CARDS: &[(&str, &str)] = &[
     // "When you do" of what happens whatever the game's state.
     ("Prishe's Wanderings", "reflexive_trigger"),
     // What Cantrip doesn't have yet is named as a requirement.
-    (
-        "Bioessence Hydra",
-        "amount of an event its trigger does not carry",
-    ),
     ("Midnight Crusader Shuttle", "villainous choice"),
-    (
-        "Wolf of Devil's Breach",
-        "objects that paid a cost at resolution",
-    ),
+    // "That many" of one or more counters at once: their total (CR 603.2c).
+    ("Bioessence Hydra", ".sums_per_subject()"),
 ];
 
 #[test]

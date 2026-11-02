@@ -114,6 +114,10 @@ impl Compiler {
             ObjectFilter::All(parts) => joined(self, parts, numbers, " && ")?,
             ObjectFilter::Either(parts) => joined(self, parts, numbers, " || ")?,
             ObjectFilter::Not(inner) => format!("!{}", self.spell_test(inner, id, numbers)?),
+            filter if lane_p::any_of_filter(filter).is_some() => {
+                let either = lane_p::any_of_filter(filter).expect("just asked");
+                self.spell_test(&either, id, numbers)?
+            }
             ObjectFilter::Property {
                 comparison, value, ..
             } => {

@@ -1347,6 +1347,13 @@ impl Compiler {
             return Err(gap(format!("delayed trigger starting {}", form(start))));
         }
         let when = match expires {
+            // The rewrite kept "this turn" out of the AST, and without it the ability
+            // would wait past the turn.
+            None if lane_k::printed_otherwise(self.line_text(), "next")
+                && lane_k::printed_otherwise(self.line_text(), "this turn") =>
+            {
+                return Err(gap("delayed trigger this turn with no end in the AST"));
+            }
             None => "DelayedWhen::UntilEvent".to_string(),
             Some(D::EndOfTurn) => "DelayedWhen::NextThisTurn".to_string(),
             Some(other @ D::UntilStateBasedActionsChecked) => planned::planned_value(
@@ -1464,6 +1471,23 @@ impl Compiler {
             .map(|slot| self.objects(&ObjectSet::Targets(slot.clone())))
             .transpose()?
             .map(|list| self.fetch(list));
+        // "Prevent all damage that would be dealt to those permanents": each is
+        // whom one prevention protects, and the effect ends with it (CR 400.7).
+        let those = match &mut plain {
+            ReplacementEvent::Damage(damage) if one && prevents_at_all(body) => {
+                match &damage.recipients {
+                    DamageRecipients::Objects(ObjectFilter::InResult(result)) => {
+                        let list = self.objects(&ObjectSet::Named(result.clone()))?;
+                        damage.recipients = DamageRecipients::Any;
+                        Some(self.fetch(list))
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        let to = to.or(those.as_ref().map(|_| "vec![Target::Object(each)]".to_string()));
+        let each = each.or(those);
         let about = about.or(each.as_ref().map(|_| "Some(each)".to_string()));
         let hint = quoted(&ability_text(body));
         let label = format!("made_{}", self.fresh());
@@ -1603,12 +1627,9 @@ impl Compiler {
             return Err(gap("a choice of Recipient"));
         };
         let candidates = self.fetch(self.recipients(candidates)?);
-        let chosen = planned::planned_value(
-            "a choice of Recipient",
-            "Target::None",
-            &format!(
-                "cantrip_mechanics::choose::recipient(g, player_{id}, {source}, candidates_{id})?"
-            ),
+        // A lone candidate is no choice; with none the rest deals with no one.
+        let chosen = format!(
+            "match candidates_{id}.len() {{ 0 => Target::None, 1 => candidates_{id}[0], _ => match g.ask(player_{id}, RequestKind::ChooseTarget {{ label: \"\", slot_player: None, together: None, source: {source}, purpose: Purpose::Targets, candidates: candidates_{id}.clone(), optional: false, least: 1, count: 1, any_number: false }})? {{ Answer::Targets(chosen) => chosen.first().copied().unwrap_or(Target::None), _ => Target::None }} }}"
         );
         writeln!(
             out,
@@ -1923,6 +1944,8 @@ impl Compiler {
         let test = lane_i::STACK_ITEM;
         writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {targets}.into_iter().filter_map(|t| {{ let stack = &g.state().stack; stack.iter().position(|e| {test}).map(|at| (stack[at].object, at)) }}).collect(); let abilities_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind != StackKind::Spell).map(|&(o, _)| o).filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect(); let spells_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind == StackKind::Spell).map(|&(o, _)| o).collect(); let countered_{id} = g.counter_items(&items_{id}); let mut moved_{id}: Vec<ObjectId> = if countered_{id} > 0 {{ abilities_{id} }} else {{ Vec::new() }}; moved_{id}.extend(spells_{id}.into_iter().filter_map(|o| g.state().obj(o).became));").unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
+        // That spell, countered or not: a spell that can't be countered still is one.
+        self.left_behind(result, format!("items_{id}.iter().map(|&(o, _)| o).collect::<Vec<ObjectId>>()"));
     }
     /// A damage event's recipient a made effect keeps, as a test of `target`.
     pub(super) fn named_recipient(&self, recipients: &Recipients) -> Result<String> {
@@ -2183,7 +2206,9 @@ pub(super) fn toxic_of(ability: &Ability) -> Option<i64> {
 
 /// Whether what comes later reads the excess of a damage instruction.
 pub(super) fn reads_excess(after: &[Instruction], result: &ResultId) -> bool {
-    format!("{after:?}").contains(&format!("ExcessDamage {{ result: ResultId({})", result.0))
+    let after = format!("{after:?}");
+    after.contains(&format!("ExcessDamage {{ result: ResultId({})", result.0))
+        || after.contains(&format!("DealtExcessBy(ResultId({}))", result.0))
 }
 
 pub(super) fn read_as_damaged(after: &[Instruction], result: &ResultId) -> bool {
