@@ -3296,9 +3296,24 @@ impl Compiler {
             return Ok(());
         }
         let id = self.fresh();
+        let (earlier_abilities, earlier_keywords) = self.entering_as.clone();
+        self.entering_as.0.extend(abilities);
+        self.entering_as.1.extend(keywords);
+        // An earlier replacement on this card may have applied: both are so.
+        let (mut extra, mut chosen) = (String::new(), format!("&WHAT_{id}"));
+        if !earlier_abilities.is_empty() || !earlier_keywords.is_empty() {
+            extra = format!(
+                " static WHAT_{id}_TOO: EntersAs = EntersAs {{ abilities: &[{}], keywords: Keywords::of(&[{}]), ..EntersAs::NONE }};",
+                self.entering_as.0.join(", "),
+                self.entering_as.1.join(", ")
+            );
+            chosen = format!(
+                "if entering.becomes.is_some() {{ &WHAT_{id}_TOO }} else {{ &WHAT_{id} }}"
+            );
+        }
         writeln!(
             out,
-            "static WHAT_{id}: EntersAs = {what}; entering.becomes = Some(Becomes {{ what: &WHAT_{id}, card: {}, words: g.words(entering.object) }});",
+            "static WHAT_{id}: EntersAs = {what};{extra} entering.becomes = Some(Becomes {{ what: {chosen}, card: {}, words: g.words(entering.object) }});",
             self.fetch(self.source_card())
         )
         .unwrap();

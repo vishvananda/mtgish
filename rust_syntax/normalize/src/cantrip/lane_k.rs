@@ -2047,6 +2047,7 @@ impl Compiler {
     }
     /// Read a face's Oracle text, once, before its abilities are compiled.
     pub(super) fn read_printed(&mut self, abilities: &[Ability], oracle: Option<&str>) {
+        self.kickers = mechanics::kickers(abilities);
         let Some(oracle) = oracle else {
             return;
         };

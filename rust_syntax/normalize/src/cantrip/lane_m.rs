@@ -57,6 +57,10 @@ impl Compiler {
             S::Bargained | S::CostPaid(CastCost::Teamwork) => {
                 format!("q.state().obj({id}).paid > 0")
             }
+            S::KickedTwice if self.kickers.len() > 1 => format!(
+                "{} >= 2",
+                self.times_kicked("Some(asker.source)", id)
+            ),
             S::KickedTwice => format!("q.state().obj({id}).kicked >= 2"),
             S::Warped => self.cast_by_way(id, "w.kind == WayKind::Warp"),
             S::CostPaid(CastCost::Surge) => self.cast_by_way(id, "w.kind == WayKind::Surge"),

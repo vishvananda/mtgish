@@ -77,6 +77,41 @@ fn symbols_text(cost: Option<&Cost>, mechanic: Mechanic) -> Result<String> {
     Ok(text)
 }
 
+/// The kicker costs of a face, as printed.
+pub(super) fn kickers(abilities: &[Ability]) -> Vec<String> {
+    let kicker = |ability: &Ability| match ability {
+        Ability::Mechanic {
+            mechanic: Mechanic::Kicker,
+            cost,
+            ..
+        } => symbols_text(cost.as_ref(), Mechanic::Kicker).ok(),
+        _ => None,
+    };
+    abilities.iter().filter_map(kicker).collect()
+}
+
+/// The cost "kicked with its {1}{U} kicker" names, as printed.
+pub(super) fn kicker_words(cost: &[Operand]) -> Option<String> {
+    let symbol = |operand: &Operand| match operand {
+        Operand::Term { form, operands, .. } => match (form.as_str(), operands.as_slice()) {
+            ("ManaCostGeneric", [Operand::Integer(n)]) => Some(format!("{{{n}}}")),
+            ("ManaCostGeneric", _) => None,
+            (form, []) => form.strip_prefix("ManaCost").map(|c| format!("{{{c}}}")),
+            _ => None,
+        },
+        _ => None,
+    };
+    cost.iter().map(symbol).collect()
+}
+
+/// How a card reads its own object.
+fn is_own(object: &str) -> bool {
+    matches!(
+        object,
+        "Some(asker.source)" | "Target::Object(asker.source).object()"
+    )
+}
+
 /// The `N` of a keyword, written into a const generic.
 fn number(amount: Option<&Expr>, mechanic: Mechanic) -> Result<u8> {
     amount
@@ -85,6 +120,36 @@ fn number(amount: Option<&Expr>, mechanic: Mechanic) -> Result<u8> {
 }
 
 impl Compiler {
+    /// Whether `id`, which `object` reads, was kicked (CR 702.33d). A spell's
+    /// second kicker is `paid` (`kickers`), and no card has both a kicker and an
+    /// optional cost of another kind, so what asks of any spell asks both.
+    pub(super) fn was_kicked(&self, object: &str, id: &str) -> String {
+        let (kicked, paid) = (
+            format!("q.state().obj({id}).kicked > 0"),
+            format!("q.state().obj({id}).paid > 0"),
+        );
+        match (is_own(object), self.kickers.len()) {
+            (true, 2) => format!("({kicked} || {paid})"),
+            (true, _) => kicked,
+            _ => format!(
+                "({kicked} || ({paid} && q.card(q.state().obj({id}).card).kicker.is_some()))"
+            ),
+        }
+    }
+    /// How many times `id`, which `object` reads, was kicked (CR 702.33d).
+    pub(super) fn times_kicked(&self, object: &str, id: &str) -> String {
+        let (kicked, paid) = (
+            format!("i64::from(q.state().obj({id}).kicked)"),
+            format!("i64::from(q.state().obj({id}).paid)"),
+        );
+        match (is_own(object), self.kickers.len()) {
+            (true, 2) => format!("({kicked} + {paid})"),
+            (true, _) => kicked,
+            _ => format!(
+                "({kicked} + if q.card(q.state().obj({id}).card).kicker.is_some() {{ {paid} }} else {{ 0 }})"
+            ),
+        }
+    }
     pub(super) fn mechanic(
         &mut self,
         mechanic: Mechanic,
@@ -291,7 +356,24 @@ impl Compiler {
                     K::Offspring => format!("Some({M}::offspring::kicker({mana}))"),
                     _ => format!("multikicker({mana})"),
                 };
-                if parts.fields.contains_key("kicker") {
+                let second = parts.fields.contains_key("kicker");
+                if second
+                    && matches!(mechanic, K::Kicker)
+                    && !parts.fields.contains_key("optional_cost")
+                {
+                    // "Kicker {1}{U} and/or {B}" (CR 702.33e): a card has one
+                    // `kicker`, so the other is an optional cost, and what reads
+                    // either goes by `Compiler::kickers`.
+                    let words = symbols_text(cost, mechanic)?;
+                    parts.field(
+                        "optional_cost",
+                        format!("Some(OptionalCost::new(Cost::mana({mana})))"),
+                    );
+                    parts.field(
+                        "labels",
+                        format!("&[\"Cast without kicking\", \"Kicker {words}\"]"),
+                    );
+                } else if second {
                     self.plan_entry(
                         "two costs a spell kicks with",
                         "second_kicker",

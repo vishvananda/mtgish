@@ -1706,9 +1706,7 @@ impl Compiler {
                     self.object(with)?
                 )
             }
-            ObjectFilter::State(ObjectState::Kicked) => {
-                format!("q.state().obj({id}).kicked > 0")
-            }
+            ObjectFilter::State(ObjectState::Kicked) => self.was_kicked("", &id),
             ObjectFilter::State(ObjectState::Commander) => lane_g::commander(&id),
             // An optional additional cost, or the waterbend kicker that stands for one.
             ObjectFilter::State(ObjectState::CostPaid(CastCost::Additional)) => {
@@ -1872,6 +1870,14 @@ impl Compiler {
             }
             Condition::PlayerIsActive(player) => {
                 format!("{} == Some(q.state().turn.active)", self.player(player)?)
+            }
+            Condition::ObjectMatches {
+                object,
+                filter: ObjectFilter::State(ObjectState::Kicked),
+            } => {
+                let object = self.object(object)?;
+                let test = self.was_kicked(&object, "candidate");
+                format!("{object}.is_some_and(|candidate: ObjectId| {test})")
             }
             Condition::ObjectMatches { object, filter } => format!(
                 "{}.is_some_and(|candidate: ObjectId| {})",

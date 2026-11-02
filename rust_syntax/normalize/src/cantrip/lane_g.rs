@@ -1568,6 +1568,19 @@ impl Compiler {
                 None,
             ) => {
                 let cost = self.cost(cost, label)?;
+                // Only a spell cast by its own permission at a time a sorcery
+                // couldn't be owes it: not one an effect casts, or another
+                // permission lets be cast then. Cantrip marks that for the
+                // cleanup rider, which a sorcery has no permanent to act on.
+                if self.sorcery && !self.own_face && !parts.fields.contains_key("cost_of_targets") {
+                    sole(parts, "cast_as_though_flash")?;
+                    parts.field("cast_as_though_flash", "true".into());
+                    parts.field("untimely_cleanup_rider", "true".into());
+                    let function = format!("{label}_of_flash");
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, targets: &[Target]) -> Cost {{ if q.state().obj(asker.source).marks.untimely_by_own_flash {{ {cost} }} else {{ Cost::NONE }} }}").unwrap();
+                    parts.field("cost_of_targets", format!("Some({function})"));
+                    return Ok(());
+                }
                 self.plan_entry(
                     "engine: no flash for an additional cost",
                     "flash_for",

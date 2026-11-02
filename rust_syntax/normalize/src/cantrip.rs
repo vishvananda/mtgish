@@ -480,6 +480,15 @@ struct Compiler {
     spell_targets: bool,
     /// "Kicker—Sacrifice an artifact or creature", as the face prints it.
     kicker_line: Option<String>,
+    /// The face's kicker costs in print: where there are two, "Kicker {1}{U} and/or
+    /// {B}" (CR 702.33e), the card's `kicker` is the first and its `optional_cost`
+    /// the second, whose payment is `paid`, not `kicked`.
+    kickers: Vec<String>,
+    /// The face is a sorcery.
+    sorcery: bool,
+    /// What this face's replacements already say it enters as, abilities and
+    /// keywords: `Entering::becomes` is one value, and each kicker can add to it.
+    entering_as: (Vec<String>, Vec<String>),
     /// The `labels` a question the code asks wants.
     wanted_labels: Option<String>,
     /// What each counter stage of the face prints.
@@ -990,6 +999,9 @@ impl Compiler {
             whole_mills: Default::default(),
             spell_targets: false,
             kicker_line: None,
+            kickers: Vec::new(),
+            sorcery: false,
+            entering_as: Default::default(),
             wanted_labels: None,
             stages: BTreeMap::new(),
             stage_lines: Vec::new(),
@@ -2017,6 +2029,8 @@ fn emit_face(
     c.own_face = place.own_face;
     c.door = place.door;
     c.printed_mana = card.characteristics.mana_cost.clone();
+    c.sorcery = (card.characteristics.card_types.iter())
+        .any(|t| matches!(t, crate::mtg_types::CardType::Sorcery));
     c.enters_choosing = chosen::enters_choosing(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
@@ -2068,6 +2082,13 @@ fn emit_face(
         if let Some(feature) = failure {
             c.reset_after_gap();
             c.plan_ability(&feature, a, &format!("ability_{i}"));
+        }
+    }
+    // A cast announces one number, a kicker's when there is one: {X} stays unannounced.
+    if let (Some(kicker), Some(cost)) = (parts.fields.get("kicker"), &c.printed_mana) {
+        if cost.iter().any(|symbol| matches!(symbol, ManaSymbol::X)) {
+            let feature = gap("engine: X in a mana cost beside a kicker");
+            c.plan_trait("kicker", feature, kicker.clone());
         }
     }
     parts
