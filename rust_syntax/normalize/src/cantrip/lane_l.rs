@@ -150,6 +150,11 @@ pub(super) fn chooses_what_pays(cost: &Cost) -> bool {
     }
 }
 
+/// A search for several things at once (CR 701.23h): cards fit when each can be
+/// one of the things searched for, none more than that thing's number, and any of
+/// them may go unfound (CR 701.23b).
+pub(super) const CLAUSES: &str = "fn clauses_fit(cards: &[ObjectId], clauses: &mut [(u32, &dyn Fn(ObjectId) -> bool)]) -> bool { let Some((&card, rest)) = cards.split_first() else { return true; }; for i in 0..clauses.len() { if clauses[i].0 > 0 && (clauses[i].1)(card) { clauses[i].0 -= 1; let fits = clauses_fit(rest, clauses); clauses[i].0 += 1; if fits { return true; } } } false }\nfn clauses_verdict(choice: &Choice, clauses: &mut [(u32, &dyn Fn(ObjectId) -> bool)]) -> Verdict { let complete = clauses_fit(choice.selected, clauses); let addable = Bits::of(choice.candidates.len(), |i| { let card = choice.candidates[i]; !choice.selected.contains(&card) && { let with: Vec<ObjectId> = choice.selected.iter().copied().chain([card]).collect(); clauses_fit(&with, clauses) } }); Verdict { complete, addable } }\n";
+
 impl Compiler {
     /// A count made by the ability that makes a reflexive one, which that reflexive
     /// ability reads: the engine tells it one count, kept as `item.x`.
@@ -1990,6 +1995,40 @@ impl Compiler {
         }
         Ok(rules)
     }
+    /// One rule over the cards of a search for several things: the most it can
+    /// take, and a judge that tells them off among the clauses, each with its own
+    /// quality and number. `None` where a clause is more than that.
+    fn clauses_judge(
+        &self,
+        id: usize,
+        choices: &[SearchChoice],
+    ) -> Result<Option<(String, String)>> {
+        let mut tests = Vec::new();
+        let mut counts = Vec::new();
+        for choice in choices {
+            let Count::UpTo(n) = &choice.count else {
+                return Ok(None);
+            };
+            if !choice.constraints.is_empty() {
+                return Ok(None);
+            }
+            let test = self.filter(&choice.filter, &Candidate::of("id"))?;
+            let n = self.number(n)?.amount(u32::MAX.into(), "u32")?;
+            tests.push(format!("&|id: ObjectId| {test}"));
+            counts.push(n);
+        }
+        let total = counts.join(" + ");
+        let rows: Vec<String> = counts
+            .iter()
+            .zip(&tests)
+            .map(|(n, test)| format!("({n}, {test})"))
+            .collect();
+        let judge = format!(
+            "#[allow(unused_variables)] fn clauses_{id}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ let asker = &Asker::new(choice.source, q.controller(choice.source)); clauses_verdict(choice, &mut [{}]) }}",
+            rows.join(", ")
+        );
+        Ok(Some((total, judge)))
+    }
     /// One search with several find clauses (CR 701.23h): the requirement is one
     /// episode with one result, so what reads the result stays real.
     pub(super) fn search_several(
@@ -1998,11 +2037,20 @@ impl Compiler {
         library: &PlayerRef,
         choices: &[SearchChoice],
         result: &ResultId,
+        destination: &str,
         out: &mut String,
     ) -> Result<()> {
         let id = self.fresh();
         let searcher = self.fetch(self.certain_player(player)?);
         let owner = self.fetch(self.certain_player(library)?);
+        if let Some((total, judge)) = self.clauses_judge(id, choices)? {
+            self.helpers.insert("clauses");
+            writeln!(self.functions, "{judge}").unwrap();
+            writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let found_{id} = {M}::library::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, {M}::select::Selection::new({M}::select::up_to({total})).with(cantrip_api::select::part(&(clauses_{id} as SelectFn), 0, \"one for each thing searched for\")))?;").unwrap();
+            self.selections.insert(result.0, format!("found_{id}"));
+            self.searched.insert(result.0, "true".into());
+            return Ok(());
+        }
         let mut clauses = Vec::new();
         for choice in choices {
             let test = self.filter(&choice.filter, &Candidate::of("id"))?;

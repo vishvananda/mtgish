@@ -2394,9 +2394,23 @@ impl Compiler {
                 "q.state().obj({id}).made_by == {}",
                 self.object(object)?
             )),
-            ObjectFilter::HasActivatedAbility(_) => {
-                held(format!("q.card_of({id}).activated.iter().any(|d| matches(d))"))
-            }
+            ObjectFilter::HasActivatedAbility(which) => match activation_test(which) {
+                Some(test) if layer => {
+                    let mut code = format!("{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Activated(d) if !d.special_action{test}))");
+                    if matches!(which, ActivationFilter::Mana) {
+                        code = format!("({code} || {chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Triggered(t) if t.mana_ability)))");
+                    }
+                    code
+                }
+                Some(test) => {
+                    let mut code = format!("{chars}.abilities().any(|a| q.activated_ability(a).is_some_and(|d| !d.special_action{test}))");
+                    if matches!(which, ActivationFilter::Mana) {
+                        code = format!("({code} || {chars}.abilities().any(|a| q.triggered_ability(a).is_some_and(|t| t.mana_ability)))");
+                    }
+                    code
+                }
+                None => held(format!("q.card_of({id}).activated.iter().any(|d| matches(d))")),
+            },
             other => return self.predicate_more(other, c),
         })
     }
@@ -2432,7 +2446,10 @@ impl Compiler {
                 self.player(attacker)?,
                 self.player(defender)?
             ),
-            Condition::SameTeam { .. } => held("q.state().same_team(a, b)"),
+            // No game of Cantrip's has teams: "your team" is you alone (CR 810 is the variant).
+            Condition::SameTeam { player, other } => {
+                format!("{} == {}", self.player(player)?, self.player(other)?)
+            }
             Condition::MostVotes { .. } => held("g.votes().most(option)"),
             Condition::ChosenWord(word) => self.chosen_word(word)?,
             Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
@@ -2883,6 +2900,33 @@ pub(super) enum PaidFor {
     Mana,
     Spell,
 }
+/// What `filter` adds to "an activated ability" over `d: &ActivatedDef`, starting
+/// with ` && `: nothing for any. `None` for what `d` alone doesn't say.
+fn activation_test(filter: &ActivationFilter) -> Option<String> {
+    fn test(filter: &ActivationFilter) -> Option<String> {
+        Some(match filter {
+            ActivationFilter::Any => "true".to_string(),
+            ActivationFilter::Mana => "d.mana.is_some()".to_string(),
+            ActivationFilter::Cycling => "d.cycling".to_string(),
+            ActivationFilter::Is(StackTrait::TapSymbolInCost) => "d.cost.tap".to_string(),
+            ActivationFilter::Not(inner) => format!("!({})", test(inner)?),
+            ActivationFilter::All(parts) => {
+                let parts: Option<Vec<String>> = parts.iter().map(test).collect();
+                format!("({})", parts?.join(" && "))
+            }
+            ActivationFilter::Either(parts) => {
+                let parts: Option<Vec<String>> = parts.iter().map(test).collect();
+                format!("({})", parts?.join(" || "))
+            }
+            ActivationFilter::Of(_) | ActivationFilter::Is(_) => return None,
+        })
+    }
+    match filter {
+        ActivationFilter::Any => Some(String::new()),
+        other => Some(format!(" && {}", test(other)?)),
+    }
+}
+
 /// How to tell which player of a batch did which part of it, for `ObjectSet::MovedBy`.
 #[derive(Clone, Debug)]
 pub(super) enum Share {

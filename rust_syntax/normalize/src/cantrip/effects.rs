@@ -678,7 +678,15 @@ impl Compiler {
                 result,
             } if also.is_empty() => {
                 let [choice] = choices.as_slice() else {
-                    return self.search_several(player, library, choices, result, out);
+                    let destination = search_destination(result, &body.instructions[i + 1..]);
+                    return self.search_several(
+                        player,
+                        library,
+                        choices,
+                        result,
+                        destination,
+                        out,
+                    );
                 };
                 let rules = self.search_rules(&choice.constraints)?;
                 if one_at_most(&choice.count) {

@@ -2188,6 +2188,7 @@ fn emit_face(
             "announced" => ANNOUNCED,
             "pay_question" => PAY_QUESTION,
             "about" => delayed::ABOUT,
+            "clauses" => lane_l::CLAUSES,
             other => unreachable!("no helper {other}"),
         });
     }
