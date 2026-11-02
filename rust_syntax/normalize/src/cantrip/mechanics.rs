@@ -178,7 +178,13 @@ impl Compiler {
             K::Warp | K::WarpX => Some("warp"),
             _ => None,
         };
-        if let Some(module) = way_module {
+        // "Freerunning—Return a blue creature you control to its owner's hand."
+        let freerunning_cost = matches!(mechanic, K::Freerunning) && mana_alone(cost, mechanic).is_err();
+        if freerunning_cost {
+            let cost = self.mechanic_cost(cost, mechanic, label)?;
+            let text = quoted(&self.said_word(format!("{mechanic:?}")));
+            parts.table("ways", format!("way({cost}, ZoneKind::Hand, {text}).condition({M}::freerunning::assassin_dealt_combat_damage).kind(WayKind::Freerunning)"));
+        } else if let Some(module) = way_module {
             let cost = mana_alone(cost, mechanic)?;
             let name = format!("{mechanic:?}");
             let text = quoted(&self.said_word(name.trim_end_matches('X').to_string()));
