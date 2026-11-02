@@ -343,8 +343,9 @@ def cmd_queue(args):
     kept = [c for c in previous["cards"] if c["status"] != "pending"]
     done = {c["name"] for c in kept}
     have, scryfall = implemented(), scryfall_cards()
-    oracle = {}
+    oracle, cards_of = {}, {}  # each face by name, and each card's faces by the set of their names
     for entry in json.loads((data / "oracle.json").read_text(encoding="utf-8")):
+        cards_of.setdefault(frozenset(face["name"] for face in entry["cards"]), {face["name"]: face for face in entry["cards"]})
         for face in entry["cards"]:
             oracle.setdefault(face["name"], face)
     issues = open_issues(args.format)
@@ -365,7 +366,8 @@ def cmd_queue(args):
             continue
         found = scryfall.get(row["name"]) or scryfall.get(name)
         faces = row.get("faces") or [row["name"]]
-        reason, differs = scryfall_problem(found, faces, oracle, args.layouts)
+        # A face is read from its own card: Eiganjo Dynastorian's Replenish is not Replenish the card, reminder text and all.
+        reason, differs = scryfall_problem(found, faces, cards_of.get(frozenset(faces), oracle), args.layouts)
         details += differs
         if reason:
             skipped[reason] += 1
@@ -1925,6 +1927,7 @@ FACE_PLAY = {
     "meld": ("It is one card of a meld pair (CR 712.4). Cantrip has no melded card, so no scenario melds it: \"(Melds with ...)\" "
              "is reminder text, and its other lines are all it owes.", None),
 }
+UNLIKE = {"transform": r"(?i)daybound|nightbound|becomes? (?:day|night)"}  # what a kind's prior art is not: day and night turn every such card over
 FACE_ART = {}  # a kind's prior-art scenario, found once a run
 
 
@@ -1934,7 +1937,7 @@ def face_prior_art(kind):
     if kind not in FACE_ART:
         own = tuple(names_of(n)[0].replace("_", "-") + "-" for n in BATCH)
         found = [p for p in (CANTRIP / SCENARIOS_DIR).glob("*.cantrip") if pattern and not p.name.startswith(own)
-                 and re.search(pattern, p.read_text(encoding="utf-8"))]
+                 and re.search(pattern, text := p.read_text(encoding="utf-8")) and not (kind in UNLIKE and re.search(UNLIKE[kind], text))]
         best = min(found, key=lambda p: p.stat().st_size, default=None)
         FACE_ART[kind] = (f"`{SCENARIOS_DIR}/{best.name}`, a scenario of Cantrip's own that plays such a card:\n\n```\n"
                           + best.read_text(encoding="utf-8")[:PRIOR_ART_CHARS].rstrip() + "\n```") if best else ""
