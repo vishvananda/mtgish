@@ -1882,6 +1882,14 @@ impl Compiler {
                     c.id
                 )
             }
+            // "The other pile" of a choice between exiled piles: the pile not
+            // chosen, not anything else in exile.
+            ObjectFilter::Not(p)
+                if matches!(&**p, ObjectFilter::InResult(r) if self.pile_not_chosen.contains_key(&r.0)) =>
+            {
+                let ObjectFilter::InResult(r) = &**p else { unreachable!() };
+                format!("{}.contains(&{})", self.pile_not_chosen[&r.0], c.id)
+            }
             ObjectFilter::Not(p) => format!("!({})", self.predicate(p, c)?),
             ObjectFilter::TargetsAny(recipients) => {
                 let wanted = self.targeted(recipients)?;

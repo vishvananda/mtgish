@@ -89,7 +89,7 @@
 "crates/cantrip-state/src/object.rs:1190"
 ],
 "how": "Most: a local (Harsh Mercy, Patriarch's Bidding, Phyrexian Splicer, Urza's Avenger, Gabriel Angelfire: choose then AddKeywords with UntilNextTurnOf). As it enters: chosen_subtype (Riptide Replicator, Volrath's Laboratory).",
-"note": "Lane g14, not settled: the ability is chosen by an instruction that is itself a hole (Akroma: operation-choose-value-with; Blitzwing: operation-choose-at-random; Gabriel Angelfire: a-choice-of-ability), so the grant reading it should follow that hole as a-choice-of-color-outside-its-body now does (chosen.rs follows_choice). Not done.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Akroma Avatar is a vanguard (no CardType in Cantrip); Blitzwing, Adaptive Assailant is held by its engine holes (LivingMetal, MoreThanMeetsTheEye) and operation-choose-at-random; Gabriel Angelfire by a-choice-of-ability and duration-until-next-upkeep.",
 "partial": "Across abilities after entry (A Killer Among Us, Oko, Psychic Paper, Seshiro): gap as a-choice row.",
 "verdict": "card-code"
 },
@@ -188,10 +188,10 @@
 "evidence": [
 "crates/cantrip-mechanics/src/choose.rs:322"
 ],
-"how": "labels left, right; seats order; choose::option_as_enters.",
-"note": "Lane g14, not settled: Pramikon's choose::direction as it enters and the reads of it (player-reference-in-chosen-direction).",
+"how": "Generator writes it (lane g16): left or right is choose::option_as_enters(g, entering, &CARD, 0..2) with labels [\"left\", \"right\"], and \"the opponent nearest in the chosen direction\" reads q.state().chosen_option(q.linked_to(source)) and walks q.state().turn_order_from(p), reversed for right (Pramikon, Sky Rampart).",
+"note": "No cards left: Pramikon holds only player-rule-attack-only.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "a-choice-of-number-made-again": {
 "evidence": [
@@ -272,6 +272,16 @@
 "partial": "Kept after entry: gap. Two values of one kind as it enters: encode the second in Entering.chosen_number (see condition-value-chosen-is).",
 "verdict": "gap"
 },
+"a-chosen-card-type-where-its-body-chose-a-creature-type-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Karona, False God: \"choose a creature type. Creatures of the chosen type get +3/+3\" reads IsCardtypeVariable(TheChosenCardtype) after ChooseACreatureType. Proposed: IsCreatureTypeVariable(TheChosenCreatureType).",
+"note": "",
+"partial": "",
+"verdict": "data"
+},
 "a-chosen-object-outside-its-body": {
 "evidence": [
 "crates/cantrip-api/src/game.rs:1113",
@@ -316,6 +326,20 @@
 "partial": "",
 "verdict": "gap"
 },
+"a-cost-s-filter-reading-the-x-announced": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:388",
+"crates/cantrip-rules/src/resolve.rs:334",
+"crates/cantrip-rules/src/actions.rs:1087",
+"crates/cantrip-rules/src/actions.rs:1113",
+"crates/cantrip-rules/src/actions.rs:9172",
+"crates/cantrip-api/src/card.rs:909"
+],
+"how": "Cost filters run with the Cx query, whose announced_x() is None (only Given implements it), and VariableCost has no 'mana value X' form, so a discard/exile/sacrifice of a card with mana value X (the Shoals' alternative cost, Knollspine Invocation, Kozilek, Nahiri's Sacrifice, Scrap Welder, Sidisi, Osgir, Fabrication Foundry, Arcanis, Bosh) cannot read X. Needs a cost-selection X in cantrip-rules.",
+"note": "lane g1",
+"partial": "",
+"verdict": "gap"
+},
 "a-count-of-modes-a-spell-or-an-activated-ability-reads": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:1906",
@@ -335,6 +359,15 @@
 "note": "Dimensional Breach, Ertai's Meddling. The rest of both cards generates; the body can test the members at resolution, but the trigger itself would still be put on the stack.",
 "partial": "Ertai's Meddling also needs a-card-put-onto-the-stack-as-a-copy-of-the-spell-it-was.",
 "verdict": "gap"
+},
+"a-delayed-ability-made-by-a-delayed-ability": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "The data nests 'When the targeted creature leaves the battlefield this turn, sacrifice this artifact' inside the first CreateTriggerUntil's ActionList, as though the damage made it. Oracle has two sentences of the activated ability: they are siblings. Read so, both are delayed abilities of one resolution.",
+"note": "Acidic Dagger. Filed upstream.",
+"partial": "",
+"verdict": "data"
 },
 "a-gift-that-changes-how-many-a-spell-targets": {
 "evidence": [
@@ -451,8 +484,10 @@
 "verdict": "gap"
 },
 "a-limit-on-the-x-announced": {
-"evidence": [],
-"how": "cast_only_if runs before X is announced, spell_rules come only from battlefield permanents, and no X cap exists: Open the Way, Spoils of War, Winter's Chill. Soul Immolation landed as Blight X's own limit.",
+"evidence": [
+"crates/cantrip-rules/src/actions.rs:5756"
+],
+"how": "cast_only_if runs before X is announced, spell_rules come only from battlefield permanents, and no X cap exists: Open the Way, Spoils of War, Winter's Chill. flash_if is judged before X is announced too (actions.rs:5756): Silver Scrutiny. Soul Immolation landed as Blight X's own limit.",
 "note": "from the reads lane",
 "partial": "",
 "verdict": "gap"
@@ -499,6 +534,16 @@
 "partial": "",
 "verdict": "data"
 },
+"a-mandatory-cost-the-card-s-if-you-don-t-is-read-after-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Ravenous Vampire: \"you may sacrifice a nonartifact creature. If you do, put a +1/+1 counter on this creature. If you don't, tap this creature\" is If(CostWasPaid, [MustCost(PutCounters(..)), Unless(CostWasPaid, [TapPermanent(ThisPermanent)])]), so it never taps. Proposed: [MayCost(SacrificeAPermanent(..)), If(CostWasPaid, [PutCounters(..)]), Unless(CostWasPaid, [TapPermanent(ThisPermanent)])].",
+"note": "",
+"partial": "",
+"verdict": "data"
+},
 "a-maximum-hand-size-of-other-players": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:2832",
@@ -531,16 +576,12 @@
 },
 "a-party-read-in-a-layer": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:245",
-"crates/cantrip-api/src/card.rs:269",
-"crates/cantrip-api/src/card.rs:288",
-"crates/cantrip-cards/src/cards/squawkroaster.rs:6",
-"crates/cantrip-cards/src/cards/squawkroaster.rs:8"
+"crates/cantrip-api/src/card.rs:245"
 ],
-"how": "In the PtDefine (Archpriest) or PtModify (Mace) apply, compute the party over the LayerQuery: q.state().battlefield() filtered by q.controller(id)==player && q.chars(id).is(Creature). Then take the same min-over-role-subsets matching the generator already emits for HasAFullParty (Archpriest's ability_1_if), reading q.chars(id).has_subtype(..). LayerQuery::chars gives other objects through the earlier layers, and types (layer 4) are settled before 7a/7c. Squawkroaster's CDA counts among permanents the same way.",
-"note": "Archpriest of Iona and Ravager's Mace. The ordering concern doesn't apply: dependencies are the layer pass's job (card.rs:243-244), and reads go through the view, which records them. Cheap: reuse the Query party expression with q: &dyn LayerQuery.",
+"how": "",
+"note": "Out-of-order reads unchecked.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "unsure"
 },
 "a-perpetual-change-as-it-enters": {
 "evidence": [
@@ -587,6 +628,15 @@
 "partial": "`OpeningHandAction` allows only `counter` and `exile_from_hand`, so reveal-and-remember is not in the form meant for it. The reveal comes at the upkeep, not before the game, so opponents mulligan and keep with the same information but lose it as they play out a first-turn response, and the prompt or",
 "verdict": "card-code"
 },
+"a-reveal-whose-sacrifice-the-data-gives-to-another-player": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "SacrificePermanent(ThisPermanent) sits inside PlayerAction(Ref_TargetPlayer, RevealCardsFromTheTopOfLibraryUntil...), so the revealing opponent sacrifices an artifact they don't control. Oracle's 'sacrifice this artifact' is yours.",
+"note": "Thought Dissector.",
+"partial": "",
+"verdict": "data"
+},
 "a-rule-on-triggering-where-the-card-says-whose-abilities": {
 "evidence": [
 "typescript_types/oracle_cards.d.ts:7065",
@@ -594,6 +644,15 @@
 ],
 "how": "Elesh Norn is PermanentsEnteringTheBattlefieldDontCauseAbilitiesToTrigger(And([IsPermanent, ControlledByAPlayer(Opponent)])): it filters the entering permanents, but Oracle filters the abilities (of permanents your opponents control) for any permanent entering. The grammar has only a Permanents arg; proposed a second arg like the AdditionalTime rule: (AnyPermanent, AbilityOfAPermanent(ControlledByAPlayer(Opponent))).",
 "note": "The generator refuses the entering-permanent reading on purpose.",
+"partial": "",
+"verdict": "data"
+},
+"a-sacrifice-history-with-its-player-lost-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "TheNumberOfCardTypesAmongThePermanentsSacrificedThisTurn has no player, where Oracle says 'permanents you've sacrificed this turn'; NumberOfPermanentsSacrificedByPlayerThisTurn(.., You) is the shape with one.",
+"note": "Korvold, Gleeful Glutton.",
 "partial": "",
 "verdict": "data"
 },
@@ -615,9 +674,18 @@
 "crates/cantrip-cards/src/cards/ertai_resurrected.rs:44"
 ],
 "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Target::Object(id) with q.state().stack read: find item, read item.object, kind, controller, Target::Ability(serial) for abilities.",
-"note": "Tracker missed that stack is public. Lane g14, not settled: q.stack_item_object reads the item a target names; both cards (Emissary of Grudges, Radiant Performer) hold Cantrip holes besides.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Emissary of Grudges holds on a secret choice, choose-new-targets-for-an-ability and cost-part-reveal-choice; Radiant Performer on a-copy-of-a-spell-for-each-object-it-could-target.",
 "partial": "",
 "verdict": "card-code"
+},
+"a-spell-s-target-changed-to-a-permanent-of-no-stated-kind": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "ChangeTheTargetOfSpellToAPermanent(Ref_TargetSpell, Other(ThisPermanent)): Oracle says 'change that spell's target to another creature', and the creature is lost.",
+"note": "Quicksilver Dragon. Filed upstream.",
+"partial": "With the data right it still needs a change to a chosen creature among the legal ones: no could-target query (see a-spell-s-target-changed-to-a-player).",
+"verdict": "data"
 },
 "a-spell-s-target-changed-to-a-player": {
 "evidence": [
@@ -661,18 +729,26 @@
 "partial": "",
 "verdict": "gap"
 },
+"a-target-count-read-from-another-target": {
+"evidence": [
+"crates/cantrip-rules/src/actions.rs:8450",
+"crates/cantrip-rules/src/actions.rs:8455",
+"crates/cantrip-rules/src/resolve.rs:227"
+],
+"how": "within_together and together_legal judge a slot's together rule with no earlier slot's targets, so 'up to N, where N is that opponent's ...' (Reap) has no read.",
+"note": "lane g1",
+"partial": "",
+"verdict": "gap"
+},
 "a-target-filter-reading-the-amount-its-ability-was-told": {
 "evidence": [
 "crates/cantrip-cards/src/cards/the_rise_of_sozin.rs:54",
-"crates/cantrip-rules/src/actions.rs:8407",
-"crates/cantrip-api/src/game.rs:860",
-"crates/cantrip-mechanics/src/select.rs:381",
-"crates/cantrip-cards/src/cards/the_rise_of_sozin.rs:31"
+"crates/cantrip-mechanics/src/select.rs:381"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: .together(select::total_mana_value_at_most(TargetSpec::COUNTED)) on a reflexive ability from reflexive_trigger_counted; any part with n=COUNTED.",
-"note": "Tracker misread. Confirmed end to end by Fire Lord Sozin.",
-"partial": "A plain target filter has no read of the count; it must be a part.",
-"verdict": "card-code"
+"how": "No card is left on this form. Ancient Brass Dragon lands: the told amount (a die result on a delayed/reflexive ability) becomes .together(select::total_mana_value_at_most(TargetSpec::COUNTED)), as Fire Lord Sozin. Vhal's two faces no longer carry it; they wait on engine-no-specialize-event.",
+"note": "Confirmed end to end by Fire Lord Sozin.",
+"partial": "",
+"verdict": "exists"
 },
 "a-target-from-a-graveyard-where-the-card-says-any": {
 "evidence": [
@@ -682,6 +758,25 @@
 ],
 "how": "From the Catacombs is TargetGraveyardCard(And([IsCardtype(Creature), InAPlayersGraveyard(SinglePlayer(You))])) and Restless Cottage UptoOneTargetGraveyardCard(InAPlayersGraveyard(SinglePlayer(You))); Oracle says \"from a graveyard\". Proposed: InAGraveyard / InAPlayersGraveyard(AnyPlayer). The generator's guard (lane_k::only_your_graveyard) refuses the mismatch on purpose.",
 "note": "Both cards are hand-written in Cantrip; the source data says your graveyard.",
+"partial": "",
+"verdict": "data"
+},
+"a-target-the-source-doesn-t-limit-to-yours": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "The data's target is TargetPermanent(And([IsNonCardtype(Creature), IsCardtype(Land)])) where Oracle says 'target noncreature land you control': ControlledByAPlayer(SinglePlayer(You)) is missing.",
+"note": "Tendril of the Mycotyrant. Filed upstream.",
+"partial": "",
+"verdict": "data"
+},
+"a-text-change-s-duration-given-to-one-of-its-options-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Whim of Volrath, Trait Doctoring, Crystal Spray: \"change the text ... by replacing all instances of one color word with another or one basic land type with another until end of turn\" gives the color-word option CreatePermanentLayerEffect with no duration. Proposed: CreatePermanentLayerEffectUntil(.., UntilEndOfTurn) for both options (Crystal Spray's DrawACard after both, not inside the first).",
+"note": "",
 "partial": "",
 "verdict": "data"
 },
@@ -821,21 +916,15 @@
 },
 "ability-functioning-in-the-command-zone": {
 "evidence": [
-"crates/cantrip-rules/src/settle.rs:866",
-"crates/cantrip-rules/src/settle.rs:868",
-"crates/cantrip-rules/src/settle.rs:1389",
-"crates/cantrip-rules/src/settle.rs:1393",
-"crates/cantrip-rules/src/layers.rs:1176",
-"crates/cantrip-rules/src/layers.rs:1178",
-"crates/cantrip-rules/src/actions.rs:4871",
-"crates/cantrip-rules/src/actions.rs:4880",
-"crates/cantrip-rules/src/actions.rs:5599",
-"crates/cantrip-rules/src/ops.rs:2016"
+"crates/cantrip-api/src/card.rs:325",
+"crates/cantrip-api/src/card.rs:327",
+"crates/cantrip-api/src/ability.rs:323",
+"crates/cantrip-api/src/ability.rs:675"
 ],
-"how": "Missing: the engine has no commander in the command zone. The only thing ever put there is an emblem (ops::create_emblem, ops.rs:2016), and the core treats everything in Zone::COMMAND as one. settle.rs:1389-1393 asks every trigger of a command-zone object with permanent=false, which skips the TriggeredDef::functions check at :866-868. layers.rs:1176-1178 notes all its statics as if on the battlefield. activated_options (actions.rs:4871-4880) never offers command-zone sources, so ActivatedDef.from=Command is dead.",
-"note": "Covers Arahbo, Edgar Markov, Inalla, Sidar Jabari and Sahir (Eminence triggers), Oloro (a command-zone-only trigger) and Derevi (a command-zone activated ability). The trigger API exists: AbilityDef::functions_in(ZoneKinds), ability.rs:675, and Trigger::functions_in, ability.rs:323. The engine never builds a game with a card in the command zone. Overlaps engine-no-commander.",
-"partial": "Arahbo, Edgar, Inalla and Sidar could land their battlefield half now: triggered(..).condition(if)...functions_in(ZoneKinds::of(&[Command, Battlefield])). The command half can't happen in any game Cantrip builds. Oloro's third ability and Derevi's activated ability do nothing until commander exists. Sahir's command-zone trigger is the same.",
-"verdict": "gap"
+"how": "",
+"note": "StaticDef.from is a zone, ZoneKind::Command has no use in layers or settle. Need a test.",
+"partial": "Triggers may function in a zone through functions_in.",
+"verdict": "unsure"
 },
 "ability-kicked-has": {
 "evidence": [
@@ -1070,6 +1159,18 @@
 "partial": "One permanent by resolving effect.",
 "verdict": "gap"
 },
+"an-activated-ability-s-target-count-read-as-it-is-activated": {
+"evidence": [
+"crates/cantrip-rules/src/actions.rs:9202",
+"crates/cantrip-api/src/card.rs:1363",
+"crates/cantrip-api/src/card.rs:1443",
+"crates/cantrip-api/src/card.rs:1662"
+],
+"how": "item.counted is X for an activated ability; ActivatedDef has no counted_by as TriggeredDef has, so 'up to N, where N is a count of the game' on an activation has no read. Agility Bobblehead, Endurance Bobblehead.",
+"note": "lane g1",
+"partial": "",
+"verdict": "gap"
+},
 "an-amount-read-by-each-player-as-their-own": {
 "evidence": [
 "crates/cantrip-api/src/game.rs:1283",
@@ -1121,6 +1222,25 @@
 "note": "Timothar, Baron of Bats; scenario passes.",
 "partial": "",
 "verdict": "exists"
+},
+"an-opponent-s-permanent-read-as-anyone-s-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "The data's target is TargetPermanent(And([IsNonCardtype(Land), IsPermanent])) beside TargetSpell(ControlledByAPlayer(Opponent)), where Oracle says 'target spell or nonland permanent an opponent controls': ControlledByAPlayer(Opponent) is missing from the permanent.",
+"note": "Sink into Stupor, Press the Enemy.",
+"partial": "",
+"verdict": "data"
+},
+"an-option-the-card-says-is-otherwise-free-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Bison Whistle: ChooseAnAction([[PutTopCardOfLibraryOfTypeOnBattlefield(IsCreatureType(Bison))], [RevealTopCardOfLibraryAndPutIntoHand(IsCardtype(Creature))], [PutTopOfLibraryInGraveyard], [DoNothing]]) makes \"Otherwise, you may put it into your graveyard\" a free choice. The graveyard is only for a card that is neither a Bison nor a creature card.",
+"note": "",
+"partial": "",
+"verdict": "data"
 },
 "an-ordinal-of-grouped-events": {
 "evidence": [
@@ -1273,16 +1393,12 @@
 "casting-rule-prohibit-targets": {
 "evidence": [
 "crates/cantrip-rules/src/attach.rs:29",
-"crates/cantrip-rules/src/resolve.rs:212",
-"crates/cantrip-rules/src/actions.rs:7094",
-"crates/cantrip-rules/src/actions.rs:7912",
-"crates/cantrip-state/src/object.rs:1126",
-"crates/cantrip-state/src/object.rs:72"
+"crates/cantrip-api/src/card.rs:622"
 ],
-"how": "Fold it into the enchant filter: && (!asker.spell || q.state().obj(asker.source).card_copy || q.state().stack.iter().any(|i| i.kind==StackKind::Spell && i.object==asker.source && i.cast_known != u32::MAX) || q.state().obj(id).tapped). cast_known is u32::MAX from announcement (actions.rs:7094) and is set at CR 601.2i (actions.rs:7912). So targets chosen while casting must be tapped, while target_legal at resolution (resolve.rs:212, spell:true, cast_known already set) does not require it. host_allows/704.5m and aura_hosts ask with spell:false (attach.rs:29), so those don't either.",
-"note": "Dream Leash and Enthralling Hold. No CastRule field is needed. Cheap: one extra conjunct in the enchant arm in place of the planned cast_rules item.",
+"how": "Enchant filter: !asker.spell || tapped keeps 704.5m clear, since host_allows asks with spell:false.",
+"note": "Check whether a filter can tell casting from resolution: an untapped target must stay legal as it resolves. Would need the spell's stack item read during choose_slots.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "unsure"
 },
 "casting-rule-tax-paid-as-life": {
 "evidence": [
@@ -1359,19 +1475,24 @@
 "partial": "",
 "verdict": "card-code"
 },
+"combat-damage-to-a-player-the-player-lost-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "The delayed trigger is WhenACreatureDealsCombatDamage(SinglePermanent(Ref_TargetPermanent)), any recipient, where Oracle says 'deals combat damage to a player'.",
+"note": "Fire Giant's Fury. Filed upstream.",
+"partial": "",
+"verdict": "data"
+},
 "combined-mana-choices-in-one-production": {
 "evidence": [
-"crates/cantrip-mechanics/src/lib.rs:788",
-"crates/cantrip-rules/src/validate.rs:248",
-"crates/cantrip-api/src/game.rs:1136",
-"crates/cantrip-state/src/object.rs:2389",
-"crates/cantrip-state/src/object.rs:2272",
-"crates/cantrip-host/src/view.rs:142"
+"crates/cantrip-api/src/game.rs:1126",
+"crates/cantrip-api/src/ability.rs:412"
 ],
-"how": "let a = choose_colors(g, p, src, ColorSet(0b11111), 1)?[0]; let b = choose_colors(g, p, src, ColorSet(0b11111 & !ColorSet::of(a).0), 1)?[0]; then g.add_restricted_mana(p, a.mana(), 2, r) and the same for b. It takes two asks because ChooseColors with a count of 2 allows the same color twice. The earlier audit note was wrong: Game::add_restricted_mana works from any effect, not only from a mana ability.",
-"note": "Open the Omenpaths. Cheap: about 4 lines.",
-"partial": "r = ManaRestriction::Spells(TypeSet::of(&[Creature, Enchantment])) works when paying (object.rs:2389). But it is not in ManaRestriction::NAMED, and the host view panics on it (view.rs:142). That fix belongs to mana-spending-predicate.",
-"verdict": "card-code"
+"how": "",
+"note": "Two choose_color calls are plain. Check for a call adding restricted mana from a spell: game.rs add_mana forms take no restriction; Adds.restricted is a mana ability's.",
+"partial": "",
+"verdict": "unsure"
 },
 "comparison-with-any-one-value": {
 "evidence": [
@@ -2023,16 +2144,14 @@
 },
 "copy-as-it-enters-for-a-duration": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:77",
-"crates/cantrip-rules/src/ops.rs:450",
-"crates/cantrip-rules/src/ops.rs:4604",
-"crates/cantrip-rules/src/ops.rs:4621",
-"crates/cantrip-api/src/game.rs:916"
+"crates/cantrip-api/src/card.rs:72",
+"crates/cantrip-api/src/game.rs:912",
+"crates/cantrip-api/src/card.rs:52"
 ],
-"how": "Missing: a duration on Entering's copy, e.g. Entering::copy_until: Duration. The core would turn it into a RestoreCopy effect on the new object as it arrives, the same way become_copy_of does (ops.rs:4612-4628). Today Entering.copy is written to new.copy for good (ops.rs:450). Game::become_copy can't stand in from an enters fn: it returns early unless the object is on the battlefield (ops.rs:4604), and the entering object becomes a new one anyway (CR 400.7).",
-"note": "Cursed Mirror only. A later ETB-style become_copy would miss the copied creature's own entering and ETB abilities, so it isn't a faithful workaround.",
+"how": "",
+"note": "Entering.copy has no duration. An Enters fn has g, so g.become_copy(entering.object,..,Duration::EndOfTurn) might work: check that an effect added before entry survives the move into the battlefield.",
 "partial": "",
-"verdict": "gap"
+"verdict": "unsure"
 },
 "copy-exception-add-ability": {
 "evidence": [
@@ -2159,31 +2278,25 @@
 },
 "cost-branch-additional-cost-with-targets-of-its-own": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:668",
-"crates/cantrip-rules/src/actions.rs:7633",
-"crates/cantrip-rules/src/actions.rs:8479",
-"crates/cantrip-rules/src/actions.rs:7418",
-"crates/cantrip-cards/src/cards/dispelling_exhale.rs:20"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "Missing: a TargetSpec bound conditioned on the optional cost being paid. TargetSpec::if_kicked applies only to `kicked` (card.rs:668), and choose_slots is given item.kicked, never item.paid (actions.rs:7633, 8479). The behold part itself exists: optional_cost: Some(behold::optional(gamma creature, \"Gamma creature\")) + late_targets.",
-"note": "Card: Hulk's Thunderclap. Approximation: a third slot between(0,1) whose filter reads q.obj(asker.source).paid > 0. paid is set before targets (actions.rs:7418), but the slot becomes optional when it should be required. OptionalCost{kicker: true} would make if_kicked work but wrongly marks the spell as kicked.",
-"partial": "",
-"verdict": "gap"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-branch-madness": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:2982",
-"crates/cantrip-api/src/card.rs:4782",
-"crates/cantrip-rules/src/actions.rs:7442",
-"crates/cantrip-rules/src/ops.rs:631",
-"crates/cantrip-api/src/event.rs:266",
-"crates/cantrip-api/src/card.rs:1832",
-"crates/cantrip-rules/src/actions.rs:7616"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "madness: Some(ManaCost{x:1, symbols {R}/{B}{B}/{U}{U}}). The X is announced from `instead` (actions.rs:7442-7446) and read as item.x. Detect 'madness cost was paid' from history: the spell's ZoneChange{new: spell, reason: Cast}.old is the source of a Triggered{ability: AbilityRef::madness(card)} record with no Resolved for it before the spell's Cast (the madness trigger casts during its own resolution, card.rs:4782). The effect then branches on that.",
-"note": "Cards: Avacyn's Judgment, From Under the Floorboards, Welcome to the Fold. No hand-written X-madness card exists yet. CostBranch{paid, unpaid} is the generator's guess, not API.",
-"partial": "Avacyn's Judgment: the divide total is fixed at cast through Divide.of_x: fn(u16)->u16 (card.rs:1832, actions.rs:7616-7620), so of_x = |x| if x==0 {2} else {x} is wrong for madness paid with X=0 (it divides 2, should divide 0). Divide can't read whether madness was paid.",
-"verdict": "card-code"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-objects-of-branch": {
 "evidence": [
@@ -2209,7 +2322,7 @@
 "crates/cantrip-cards/src/cards/nykthos_shrine_to_nyx.rs:19"
 ],
 "how": "Not landed: Captain America, Excavator, Veteran's Voice hold on other holes.",
-"note": "Overturns the tracker: the effect is not barred from reading what paid. No hand-written card reads it this way. Lane g14, not settled: q.paid_for read in a target filter (Veteran's Voice) and a divided total (Captain America); both cards hold Cantrip holes besides.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Captain America holds on cost-part-unattach-from and divided targets; Veteran's Voice on an engine hole (a cost that taps what its payer may not control).",
 "partial": "The listing on Adds is what mana planning sees, so a variable amount is not known in advance. A token sacrificed needs a last-known read. Gaps: Captain America (no divide on ActivatedDef), Territorial Strike's branch.",
 "verdict": "exists"
 },
@@ -2259,101 +2372,80 @@
 },
 "cost-part-life-equal-to-own-mana-value": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:773",
-"crates/cantrip-api/src/card.rs:1993",
-"crates/cantrip-api/src/card.rs:2008",
-"crates/cantrip-api/src/card.rs:2805",
-"crates/cantrip-state/src/object.rs:1652",
-"crates/cantrip-cards/src/cards/bolass_citadel.rs:15",
-"crates/cantrip-cards/src/cards/inside_information.rs:14"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "Eye of Duskmantle: one GrantedWay{from: Graveyard, lands: true, cost: |q,a,card,p| surveilled(card).then(|| Cost{life: q.mana_value(card), ..Cost::NONE})}. A cost with no X leaves X at 0. Gwenom: the life cost is PlayRule::LibraryTop's own semantics (Bolas's Citadel), and PlayGrant::life_for_mana_value / CastTerms::life for per-card permissions.",
-"note": "Cheap: in the GrantedCost arm, replace the hole with Cost{life: q.mana_value(card), ..Cost::NONE}. In a PlayGrant, set life_for_mana_value: true (the generated `alternate:` field does not exist).",
-"partial": "Eye of Duskmantle has a data bug (an extra plain-cost cast permission). Gwenom: the until-end-of-turn grant is the player-reference-affected form. No player-level EffectKind exists for library-top play (only PlayFromGraveyard, object.rs:1398). AddAbility(granted_play_rule(PlayRule::LibraryTop)) on Gwenom would end if Gwenom leaves, which the rules don't do.",
-"verdict": "exists"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-part-mana-any-number-of-times": {
 "evidence": [
-"crates/cantrip-api/src/ability.rs:1138",
-"crates/cantrip-cards/src/cards/lose_focus.rs:13",
-"crates/cantrip-mechanics/src/replicate.rs:13",
-"crates/cantrip-state/src/object.rs:1066",
-"crates/cantrip-api/src/card.rs:2932",
-"crates/cantrip-api/src/card.rs:1844",
-"crates/cantrip-rules/src/actions.rs:7603"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "Taste of Paradise: kicker: multikicker(mana(\"{1}{G}\")), and the effect gains 3 + 3*item.kicked. Replicate already writes its non-kicker 'any number of times' cost this way (lose_focus.rs).",
-"note": "Cheap: when the cost is a single ManaAnyNumberOfTimes part, emit CardDef.kicker = multikicker(mana) and read AdditionalCostPaid as item.kicked. Caveat: the spell then reads as 'kicked' to kicker-caring cards; replicate has the same caveat.",
-"partial": "Primitive Justice is a gap. It has two independent repeatable costs ({1}{R} and {1}{G}) whose counts set two target slots. CardDef.kicker holds one Kicker (card.rs:2932); OptionalCost is paid once (card.rs:1844-1848); StackItem keeps one kicked count (object.rs:1066); COUNTED slots read only x or kicked (actions.rs:7603).",
-"verdict": "exists"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-part-mana-cost-of": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:754",
-"crates/cantrip-api/src/card.rs:799",
-"crates/cantrip-api/src/card.rs:395",
-"crates/cantrip-api/src/card.rs:1366"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "Missing: a Cost part for 'pay the mana cost of the card this cost exiles'. ActivatedDef.cost is a constant Cost (card.rs:1366). exile_from_graveyard has a fixed count and filter, with no mana tied to the chosen card. AbilityCostChange only adds generic mana (CostDelta::more, card.rs:395) and can't see which card is chosen. Paying at resolution would break CR 602.2b.",
-"note": "Card: Back from the Brink. The engine-no-record-of-what-paid-a-cost hole is separate.",
-"partial": "",
-"verdict": "gap"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-part-mana-cost-reduced": {
 "evidence": [
-"crates/cantrip-mechanics/src/foretell.rs:16",
-"crates/cantrip-cards/src/cards/flash.rs:16",
-"crates/cantrip-state/src/object.rs:1618",
-"crates/cantrip-api/src/card.rs:3007",
-"crates/cantrip-api/src/card.rs:2181",
-"crates/cantrip-api/src/game.rs:59"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "In the card-written foretell special action that is granted to cards in hand, compute the cost at foretell time: let c = q.card(q.chars(card).card).cost; ManaCost{generic: c.generic.saturating_sub(2), ..c} (as flash.rs reduces 'its mana cost reduced by {2}'). Then g.allow_play(exiled, owner, PlayGrant{instead: Some(reduced), later_turns: true, ..PlayGrant::CAST}), as foretell.rs does with the printed cost.",
-"note": "Cards: Bohn, Dream Devourer, Singing Towers of Darillium. CardDef.foretell is a constant on the card's own def, so this lives only in the granted ability.",
-"partial": "Depends on engine-no-foretell-granted landing first. Edge case: for an {X} card with less than {2} generic, the leftover reduction should come off X (CR 118.7a, as GrantedMiracle::less and CastTerms::less do), but PlayGrant (object.rs:1616-1653) has no `less` field. That would be a small gap.",
-"verdict": "card-code"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-part-mana-from-treasure": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:1776",
-"crates/cantrip-state/src/state.rs:19",
-"crates/cantrip-rules/src/actions.rs:10404",
-"crates/cantrip-api/src/card.rs:2720"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "Missing: a spending restriction on a cost ('spend only mana produced by Treasures'). The producer of pool mana is tracked (GameState::mana_from, state.rs:19), but WayDef/Cost have no producer filter. spendable/take_mana (actions.rs:10404-10432) filter only by the mana's own ManaRestriction. ManaSourceRule (card.rs:2720) tells mana apart but enforces nothing. The way itself would be way(Cost::mana({R}{G}), Hand, text).",
-"note": "Card: Security Rhox.",
-"partial": "",
-"verdict": "gap"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-part-mana-reduced-for-each": {
 "evidence": [
-"crates/cantrip-api/src/game.rs:1281",
-"crates/cantrip-cards/src/cards/flash.rs:18",
-"crates/cantrip-api/src/card.rs:1800",
-"crates/cantrip-rules/src/actions.rs:9420",
-"crates/cantrip-rules/src/actions.rs:2641"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "Draco (effect-time): g.may_pay(player, src, src, Cost::mana(ManaCost{generic: 10u8.saturating_sub(2*n), ..ZERO}), &Q), with n the basic land types counted as in its generated cost fn. 'If not paid' means sacrifice.",
-"note": "Cheap for the MayCost context: emit Cost::mana with the reduced generic computed inline.",
-"partial": "Fugitive Codebreaker is a gap. The disguise turn-up cost is the constant WayDef::turn_up (card.rs:1800), read by special_action_printed_cost (actions.rs:9418-9424). The only cost changes applied come from battlefield texts (cost_change_sources, actions.rs:2634-2641), and a face-down permanent has none, so the card can't reduce its own disguise cost.",
-"verdict": "exists"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-part-mana-with-x": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:1412",
-"crates/cantrip-api/src/card.rs:470",
-"crates/cantrip-api/src/card.rs:395",
-"crates/cantrip-cards/src/cards/ghostfire_blade.rs:22",
-"crates/cantrip-mechanics/src/echo.rs:77",
-"crates/cantrip-mechanics/src/echo.rs:89",
-"crates/cantrip-mechanics/src/cleave.rs:10",
-"crates/cantrip-api/src/card.rs:1993",
-"crates/cantrip-api/src/card.rs:2064"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "No Cost part is needed; it depends on where the cost sits. Activated ability (Bludgeon Brawl equip, encore): mana ZERO plus .cost_change(|q,a,_,_| CostDelta::more(q.mana_value(a.source) as u8)), as in ghostfire_blade.rs. Echo: echo::ability(pay, text), where pay calls echo::resolve(g, item, Cost::mana(ManaCost{generic: life}), &echo::PAY). Unbound X (Lantern Flare): cleave::way(ManaCost{x:1,R,W}) + cleave::cleaved. A granted cast: a GrantedCost fn returning Cost::mana(generic = mana value).",
-"note": "Cards: Bludgeon Brawl, Graywater's Fixer, Sliver Gravemother, Volcano Hellion, Lantern Flare, Kentaro, Sarkhan. Cheap: the Lantern Flare arm (binding None) just emits Cost::mana(mana), a one-line change.",
-"partial": "Graywater's Fixer and Sliver Gravemother are blocked by engine-no-encore, Sarkhan by engine-no-perpetual-effects. Kentaro: SpellAlternative's cost is a constant InsteadOfManaCost (card.rs:2064-2074). A GrantedWay{from: Hand, cost: generic=mv} covers casts from hand only; Samurai cast from other zones need a computed InsteadOfManaCost variant (a gap), or one spell_alternatives entry per mana value. Volcano Hellion has a data bug (see below).",
-"verdict": "card-code"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-part-mana-x-bounded": {
 "evidence": [
@@ -2403,15 +2495,14 @@
 },
 "cost-part-play-from-top": {
 "evidence": [
-"crates/cantrip-mechanics/src/hideaway_play.rs:11",
-"crates/cantrip-api/src/game.rs:1307",
-"crates/cantrip-api/src/game.rs:1311",
-"crates/cantrip-mechanics/src/effects.rs:1066"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "This is not a cost; it is a resolution-time choice. For top = library top: if g.could_play_land_during_resolution(top), ask May, then g.play_land_during_resolution(top). Else if q.mana_value(top) <= item.data damage amount, effects::may_cast_without_paying(g, player, top) (returns whether it was cast). If neither happened, move top to hand. The pattern is hideaway_play::play_exiled_card.",
-"note": "Card: Ziatora's Envoy. Its cost-part-player-action and engine-no-blitz holes are separate.",
-"partial": "",
-"verdict": "card-code"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-part-player-action": {
 "evidence": [
@@ -2478,52 +2569,44 @@
 },
 "cost-part-waterbend-x": {
 "evidence": [
-"crates/cantrip-state/src/object.rs:1616",
-"crates/cantrip-api/src/game.rs:49",
-"crates/cantrip-api/src/card.rs:1420",
-"crates/cantrip-api/src/card.rs:1813",
-"crates/cantrip-state/src/object.rs:1601"
+"crates/cantrip-api/src/ability.rs:1132",
+"crates/cantrip-cards/src/cards/flash.rs:26",
+"crates/cantrip-api/src/card.rs:1776"
 ],
-"how": "Missing: a waterbend flag on a cast permission's alternative cost. Waterbend exists only for ActivatedDef.waterbend (card.rs:1420) and Kicker.waterbend (card.rs:1813); PlayGrant (object.rs:1616-1653) and CastTerms (game.rs:49) have none. The rest is expressible: allow_play(card, you, PlayGrant{instead: Some(ManaCost{generic: mv}), expiry: Expiry::WhileControls(hama)}); Expiry::WhileControls names Hama (object.rs:1601).",
-"note": "Card: Hama, the Bloodbender. 'During your turn' has no PlayCondition variant either (object.rs:1681-1688), and is missing from the RON.",
-"partial": "",
-"verdict": "gap"
+"how": "Effect-time: Back from the Brink (exile then pay read cost) and Flash pattern may_pay(of_mana(cost reduced)). Taste of Paradise: multikicker. Foretell for each card (Dream Devourer, Bohn, Singing Towers), encore X (Graywater's Fixer), cleave X (Lantern Flare), echo X (Volcano Hellion), waterbend X alternative (Hama), madness {X}, Eye of Duskmantle and Gwenom \"pay life equal to its mana value\": costs read from the game on a way, belongs with the cost partition.",
+"note": "Not settled here; overlaps costs.json. Check card.rs:3087 GrantedWay and how Bohn-style \"this cost is the mana cost less {2}\" would compute.",
+"partial": "WayDef.cost is a constant Cost, so a way whose size is read from the game has no form unless a granted way exists: see GrantedWay, card.rs:3087.",
+"verdict": "unsure"
 },
 "cost-selection-rule-distinct-count": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:925",
-"crates/cantrip-rules/src/actions.rs:1418",
-"crates/cantrip-rules/src/actions.rs:1503",
-"crates/cantrip-rules/src/actions.rs:11250",
-"crates/cantrip-api/src/game.rs:1281"
+"crates/cantrip-api/src/select.rs:153",
+"crates/cantrip-mechanics/src/select.rs:381"
 ],
-"how": "g.may_pay(you, src, src, Cost{variable: Some(VariableCost::ExileFromGraveyardWithTypes(4)), ..Cost::NONE}, &Q). Nethergoyf's escape uses this part. may_pay allows variable parts at resolution (actions.rs:11250) and enforces at least 4 types among the chosen cards (actions.rs:1503-1512).",
-"note": "Card: Winter, Cynical Opportunist. Cheap: map AnyNumberOfGroupCardsInGraveyards(your graveyard, ANumberOfDifferentCardTypes(>=n)) to that VariableCost in one arm.",
-"partial": "'Put a permanent card from among them' needs the exiled cards: that is the objects-that-paid-a-cost-at-resolution form.",
-"verdict": "exists"
+"how": "Baron Helmut Zemo, Fabrication Foundry, Winter: resolving ones are choose::select with a card-written Part. Printed ones have no set rule on Cost.",
+"note": "",
+"partial": "See engine-no-set-rule-on-what-a-cost-chooses in costs.",
+"verdict": "unsure"
 },
 "cost-selection-rule-total-mana-symbols": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:799",
-"crates/cantrip-api/src/card.rs:835",
-"crates/cantrip-api/src/card.rs:925",
-"crates/cantrip-api/src/card.rs:1366"
+"crates/cantrip-api/src/select.rs:153",
+"crates/cantrip-mechanics/src/select.rs:381"
 ],
-"how": "Missing: a Cost part 'exile any number of graveyard cards that pass a filter, judged together by a set rule' (for example VariableCost::ExileFromGraveyardSuchThat(Part)). Cost has only a fixed count (exile_from_graveyard, card.rs:799), total mana value N or more (collect_evidence, card.rs:835) and card types among them (card.rs:925). None counts black mana symbols, and an activated cost can't run a select Part.",
-"note": "Card: Baron Helmut Zemo (Boast cost). At resolution a choose::select Part would work, since a growing total is reachable by adding cards, but this is a printed activation cost.",
-"partial": "",
-"verdict": "gap"
+"how": "Baron Helmut Zemo, Fabrication Foundry, Winter: resolving ones are choose::select with a card-written Part. Printed ones have no set rule on Cost.",
+"note": "",
+"partial": "See engine-no-set-rule-on-what-a-cost-chooses in costs.",
+"verdict": "unsure"
 },
 "cost-selection-rule-total-property": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:1002",
-"crates/cantrip-api/src/card.rs:909",
-"crates/cantrip-api/src/card.rs:986"
+"crates/cantrip-api/src/select.rs:153",
+"crates/cantrip-mechanics/src/select.rs:381"
 ],
-"how": "Missing: a permanents cost of 'one or more' judged by a set rule, here total mana value equal to the announced X. PermanentCost.count is fixed (card.rs:1002-1011). VariableCost has sacrifice-X and one-or-more variants (card.rs:909-945) but none that exiles permanents with a total-property rule. The target filter already reads Query::announced_x.",
-"note": "Card: Fabrication Foundry.",
-"partial": "",
-"verdict": "gap"
+"how": "Baron Helmut Zemo, Fabrication Foundry, Winter: resolving ones are choose::select with a card-written Part. Printed ones have no set rule on Cost.",
+"note": "",
+"partial": "See engine-no-set-rule-on-what-a-cost-chooses in costs.",
+"verdict": "unsure"
 },
 "counter-into-owners-library-top-or-bottom": {
 "evidence": [
@@ -5076,15 +5159,13 @@
 },
 "craft-materials-that-must-have-something-in-common": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:872",
-"crates/cantrip-rules/src/actions.rs:630",
-"crates/cantrip-rules/src/actions.rs:716",
-"crates/cantrip-mechanics/src/select.rs:353"
+"crates/cantrip-mechanics/src/craft.rs:71",
+"crates/cantrip-mechanics/src/craft.rs:78"
 ],
-"how": "Missing: a rule of the materials together on Materials (for example `together: Option<Part>`), checked in can_pay (actions.rs:630-635) and choose_materials (actions.rs:677-721). Today each material passes only its own filter or MaterialPart filter, and RequestKind::Craft asks min/max with no set rule. select::SHARE_A_CARD_TYPE (select.rs:353) already exists to plug in.",
-"note": "Card: Apex Observatory // Eye of Ojer Taq. Its craft-with-two-sharing-a-type cost can't be validated today.",
+"how": "`craft::materials` checks each card on its own; a filter for two that share a type is pairwise.",
+"note": "Need to read how `Materials` selects, and whether the choice can be validated together.",
 "partial": "",
-"verdict": "gap"
+"verdict": "unsure"
 },
 "cumulative-upkeep-paid-other-than-in-mana-or-life": {
 "evidence": [
@@ -5117,6 +5198,16 @@
 "partial": "",
 "verdict": "gap"
 },
+"damage-prevented-to-its-targets-read-in-the-data-as-by-them": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Redeem: \"Prevent all damage that would be dealt this turn to up to two target creatures\" is CreatePreventDamageUntil(DamageWouldBeDealtByAPermanent(Ref_TargetPermanents), ..), damage by them. Proposed: DamageWouldBeDealtToARecipient(APermanent(Ref_TargetPermanents)).",
+"note": "",
+"partial": "",
+"verdict": "data"
+},
 "damage-source-kind-spell": {
 "evidence": [
 "crates/cantrip-api/src/history.rs:547"
@@ -5125,6 +5216,16 @@
 "note": "Source ids don't go away.",
 "partial": "",
 "verdict": "exists"
+},
+"damage-to-each-permanent-a-card-type-lost-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Arcbond's \"each other creature and each player\" is MultipleRecipients([EachPermanent(Other(Ref_TargetPermanent)), EachPlayer(AnyPlayer)]): the creature type is lost. Proposed: EachPermanent(And([IsCardtype(Creature), Other(Ref_TargetPermanent)])).",
+"note": "from the reads lane",
+"partial": "",
+"verdict": "data"
 },
 "delayed-ability-about-objects-and-a-player": {
 "evidence": [
@@ -5184,6 +5285,15 @@
 "note": "Catastrophe.",
 "partial": "",
 "verdict": "gap"
+},
+"discard-of-up-to-a-number-read-as-exactly-that-number": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "MayCost(DiscardNumberCards(Integer(2))) where Oracle says 'You may discard up to two cards': exactly two. The grammar has DiscardUptoNumberCards.",
+"note": "Fable of the Mirror-Breaker. Filed upstream.",
+"partial": "",
+"verdict": "data"
 },
 "discarding-x-cards-as-a-cost": {
 "evidence": [
@@ -5526,18 +5636,11 @@
 "verdict": "gap"
 },
 "duration-while-player-has-counter": {
-"evidence": [
-"crates/cantrip-api/src/card.rs:2627",
-"crates/cantrip-rules/src/counters.rs:335",
-"crates/cantrip-api/src/game.rs:840",
-"crates/cantrip-state/src/object.rs:1801",
-"crates/cantrip-api/src/event.rs:581",
-"crates/cantrip-rules/src/ops.rs:2072"
-],
-"how": "The duration is card-code: g.delayed_trigger(DelayedWhen::UntilEvent, src, you, delayed ability, Target::Player(p)), whose matches fn accepts Event::GameLost { player: p } (EventMask::GAME_OVER) only if p still has the counter and has not been without it since the trigger was made (from Delayed::since and history). On resolution, copy the objects that left with p via q.state().last_known(id).controller == p and copiable_values. Blocked because PlayerCounter is only Poison, Energy and Experience (PlayerCounts), so a contract counter on a player can't exist.",
-"note": "Miss Highwater. GameLost looks back (card.rs looks_back) and objects that cease to exist keep last-known rows (ops.rs:2072). In two-player the loss ends the game, so the trigger matters only in multiplayer.",
-"partial": "Once players can hold counters of any kind (the counters-on-a-player gap), this form is card-code.",
-"verdict": "gap"
+"evidence": [],
+"how": "",
+"note": "Miss Highwater: the duration itself is AsLongAs reading the player's counter, but 'when they lose, copy each artifact and creature they controlled' needs last-known permanents of a player gone from the game. Would need to read how a player leaving the game moves permanents and whether the record sur",
+"partial": "",
+"verdict": "unsure"
 },
 "dynamic-defining-token-characteristics": {
 "evidence": [
@@ -5552,6 +5655,13 @@
 "note": "",
 "partial": "Ochre Jelly: counters on a copy as it enters: placed after, so \"enters with\" triggers differ. Caller of the Untamed, Gut cycle: draft and specialize, unplayable. Esix: replacement of token creation: Proposal TokenCreation.copy can be set (replace.rs:181).",
 "verdict": "exists"
+},
+"each-player-s-return-read-as-yours-in-the-data": {
+"evidence": [],
+"how": "Data: All Hallow's Eve's \"each player returns all creature cards from their graveyard\" is PutEachCardFromEachPlayersGraveyardOntoTheBattlefield(.., AnyPlayer, [EntersNormally]) done by you, so you would control them all; Balthor and Orzhova say EachPlayerAction(AnyPlayer, ReturnEachCardFromPlayersGraveyardToBattlefield(.., ActionPlayer, ..)). Filed #173.",
+"note": "",
+"partial": "",
+"verdict": "data"
 },
 "earlier-objects-conjured": {
 "evidence": [
@@ -6128,18 +6238,13 @@
 },
 "engine-no-basic-mayhem": {
 "evidence": [
-"crates/cantrip-rules/src/actions.rs:5398",
-"crates/cantrip-rules/src/actions.rs:5478",
-"crates/cantrip-rules/src/actions.rs:5602",
-"crates/cantrip-rules/src/actions.rs:5637",
-"crates/cantrip-api/src/card.rs:1776",
-"crates/cantrip-mechanics/src/mayhem.rs:16",
-"crates/cantrip-api/src/card.rs:3046"
+"crates/cantrip-api/src/card.rs:2802",
+"crates/cantrip-mechanics/src/mayhem.rs:16"
 ],
-"how": "Missing: a land card's own permission to be played from its graveyard. land_plays allows a graveyard land only through (a) the controller's battlefield PlayRule::LandsFromGraveyard, which lets every land be played; (b) a GrantedWay with lands: true from battlefield permanents or emblems; (c) own_exile_casts, exile only; (d) an effect's PlayGrant. It never reads the card's own `ways`, and WayDef (card.rs:1776) has no lands flag. Fix: honor a graveyard WayDef with a condition on a land card in land_plays, or an own-graveyard counterpart of own_exile_casts.",
-"note": "Oscorp Industries (alone). mayhem::way is a cast-only WayDef.",
-"partial": "A self-trigger on discard that calls allow_play(lands: true, expiry end of turn) would use the stack and could be Stifled. Mayhem is a static ability, so that is wrong.",
-"verdict": "gap"
+"how": "Could be `play_rules: &[PlayRule::While(discarded_this_turn, &[PlayRule::LandsFromGraveyard])]`, which is too broad: it lets every land be played.",
+"note": "Need to check: the land-play path over `WayDef`, or a `LandsFromGraveyard` narrowed to this card.",
+"partial": "Mayhem's way is a cast. Land plays are not casts.",
+"verdict": "unsure"
 },
 "engine-no-bestow-x": {
 "evidence": [
@@ -6217,15 +6322,14 @@
 },
 "engine-no-casualty-granted": {
 "evidence": [
-"crates/cantrip-mechanics/src/casualty.rs:14",
-"crates/cantrip-rules/src/actions.rs:7408",
-"crates/cantrip-api/src/card.rs:2935",
-"crates/cantrip-api/src/card.rs:1844"
+"crates/cantrip-mechanics/src/casualty.rs:35",
+"crates/cantrip-mechanics/src/casualty.rs:61",
+"crates/cantrip-mechanics/src/replicate.rs:28"
 ],
-"how": "Missing: an optional additional cost granted by another permanent. Only CardDef.optional_cost (one per card) is announced at actions.rs:7408. casualty.rs:14-20 itself says granted casualty is not built: it needs the cost announced and the trigger firing as a printed one's, plus separate paid tracking per instance. Fix: a CardDef field for granted optional costs, read during the cast, each with its own paid count. The trigger half (casualty::trigger given by statics::grant_delayed_ability) already works.",
-"note": "Silverquill, the Disputant (alone).",
+"how": "Casualty, replicate, conspire are optional costs with a trigger on the spell.",
+"note": "Need to check whether an OptionalCost can be offered on a spell whose card does not print it. The trigger half is a grant; the cost half I did not settle.",
 "partial": "",
-"verdict": "gap"
+"verdict": "unsure"
 },
 "engine-no-casualty-x": {
 "evidence": [
@@ -6295,18 +6399,15 @@
 },
 "engine-no-compleated": {
 "evidence": [
-"crates/cantrip-rules/src/actions.rs:7581",
-"crates/cantrip-rules/src/actions.rs:8931",
-"crates/cantrip-rules/src/actions.rs:7877",
-"crates/cantrip-rules/src/actions.rs:7905",
-"crates/cantrip-api/src/history.rs:398",
-"crates/cantrip-rules/src/resolve.rs:561",
-"crates/cantrip-rules/src/counters.rs:278"
+"crates/cantrip-api/src/event.rs:84",
+"crates/cantrip-rules/src/actions.rs:7814",
+"crates/cantrip-state/src/object.rs:62",
+"crates/cantrip-api/src/card.rs:52"
 ],
-"how": "Missing: a record of how many Phyrexian symbols were paid with life. announce_life is a real per-symbol player choice (ChooseModes at 8931; phyrexian_with_life is only affordability advice). Its result is a local `life` (7581), never stored on StackItem, Obj or history::Cast. Fix: a life-paid or symbol count on Cast or Obj. Then compleated::enters reads it through Entering.object = the spell (resolve.rs:561) and sets Entering.counters[Loyalty] -= 2 per symbol (intrinsic loyalty is added on top, counters.rs:278).",
-"note": "Ajani, Jace, Lukka, Nahiri, Nissa, Tamiyo, Vraska. The four hybrid-Phyrexian ones also need engine-no-snow-or-hybrid-phyrexian-mana-symbol.",
-"partial": "Card-code approximation: CardDef.cast_fact (run at 7905, after the LifeChange at 7877) counts the caster's last LifeChange since the spell moved to the stack /2, read via history().fact_as_cast in `enters`. It misreads X life (merged into the same event), an even extra life cost, pay-2-life mana abilities, and life-loss doublers.",
-"verdict": "gap"
+"how": "Enter with fewer counters: `enters` reading how much life the cast paid. The likely form: find the spell's `Event::Cast` record and sum negative `Event::LifeChange` for the caster between the prior priority and it, `/ 2` for each {H}.",
+"note": "Need to check: that Phyrexian life is recorded before `Cast` with no other life change between, and that the choice to pay life per symbol is truly a player's (`phyrexian_with_life` looks automatic in the affordability path). A `Cast.life_paid` is a one-field fix if it is not readable.",
+"partial": "`Obj.spent` does not settle it: mana of that color may have paid generic. A life cost alongside the phyrexian (an additional cost) is in the same sum.",
+"verdict": "unsure"
 },
 "engine-no-conspire": {
 "evidence": [
@@ -6324,16 +6425,14 @@
 },
 "engine-no-conspire-granted": {
 "evidence": [
-"crates/cantrip-rules/src/actions.rs:7408",
-"crates/cantrip-rules/src/actions.rs:2383",
-"crates/cantrip-api/src/card.rs:2935",
-"crates/cantrip-api/src/card.rs:3087",
-"crates/cantrip-mechanics/src/casualty.rs:14"
+"crates/cantrip-mechanics/src/casualty.rs:35",
+"crates/cantrip-mechanics/src/casualty.rs:61",
+"crates/cantrip-mechanics/src/replicate.rs:28"
 ],
-"how": "Missing: a way for another object to offer an optional additional cost to a spell its card doesn't print. The cast announces only the spell's own def.optional_cost (actions.rs:7408), and the cost search does the same (actions.rs:2383). No CardDef field such as granted_optional_costs: &[(applies(q, asker, spell, player), OptionalCost)] is read during announcement (CR 601.2b). The copy trigger half is reachable: a static gives spells a delayed trigger with statics::grant_delayed_ability (Quandrix), reading obj.paid.",
-"note": "Raiding Schemes; Wort, the Raidmother. Printed conspire has no module either (engine-no-conspire). Its cost would be Cost.permanents with PermanentAction::Tap, count 2, and a filter for creatures sharing a color with the spell.",
-"partial": "A cast trigger ('when you cast, you may tap two creatures; if you do, copy') would pay at the wrong time (CR 601.2h): it can be responded to, and split second interacts differently.",
-"verdict": "gap"
+"how": "Casualty, replicate, conspire are optional costs with a trigger on the spell.",
+"note": "Need to check whether an OptionalCost can be offered on a spell whose card does not print it. The trigger half is a grant; the cost half I did not settle.",
+"partial": "",
+"verdict": "unsure"
 },
 "engine-no-cost-copies-a-mana-cost": {
 "evidence": [
@@ -6538,18 +6637,14 @@
 },
 "engine-no-discard-cause-in-events": {
 "evidence": [
-"crates/cantrip-api/src/event.rs:91",
-"crates/cantrip-api/src/history.rs:189",
-"crates/cantrip-rules/src/settle.rs:1348",
-"crates/cantrip-rules/src/lib.rs:1612",
-"crates/cantrip-rules/src/lib.rs:1469",
-"crates/cantrip-api/src/lib.rs:5",
-"crates/cantrip-cards/Cargo.toml:15"
+"crates/cantrip-api/src/history.rs:183",
+"crates/cantrip-rules/src/lib.rs:1502",
+"crates/cantrip-cards/src/cards/spinerock_tyrant.rs:13"
 ],
-"how": "Missing: the cause of the event a matcher is shown. Event::Discarded has no cause; the event's own Record (with Record::cause) is pushed before triggers are looked for, but a matcher's history is cut just before it (history_end = start); Cx::cause and Cx::resolving are pub(crate); State::agenda is pub but FrameKind is not re-exported by cantrip_api and card crates depend on cantrip-api alone. Smallest fix: `Query::cause(&self) -> Cause` (Cx answers with Cx::cause, a layer view with Cause::Rules). With it each card is card code: `matches!(q.cause(), Cause::Spell(_) | Cause::Ability{..})` and the resolving item's controller an opponent.",
-"note": "Ajani's Last Stand, Guerrilla Tactics, Mangara's Blessing, Metrognome, Orvar, Psychic Purge, Pure Intentions, Quagnoth, Sand Golem, Spiritual Focus. No hand-written card reads a cause in a matcher; Tamiyo, Collector of Tales' CauseRule is the engine asking, not a matcher.",
-"partial": "Guessing from the stack (top item's controller) is wrong when a resolving item casts or copies above itself and for a cost paid while an opponent's spell waits; formatting FrameKind with Debug is not card code. 'That player' (Psychic Purge) is the cause's controller, the same read.",
-"verdict": "gap"
+"how": "",
+"note": "Event has no cause and the Record comes after triggers are found. resolving() is pub(crate); Spinerock Tyrant shows a matcher can read q.state().stack. Need to check whether the resolving item is visible there as the event fires.",
+"partial": "",
+"verdict": "unsure"
 },
 "engine-no-disturb": {
 "evidence": [
@@ -6759,16 +6854,12 @@
 },
 "engine-no-emerge-granted": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:2004",
-"crates/cantrip-api/src/card.rs:3087",
-"crates/cantrip-api/src/card.rs:810",
-"crates/cantrip-rules/src/actions.rs:6574",
-"crates/cantrip-cards/src/cards/underworld_breach.rs:27"
+"crates/cantrip-api/src/card.rs:1997"
 ],
-"how": "New module in cantrip-mechanics (emerge::granted). CardDef.granted_ways = &[GrantedWay{text: \"Emerge\", from: ZoneKind::Hand, cost: fn → Some(Cost{mana: def.cost, permanents: Some(PermanentCost{count: 1, filter: creature, action: PermanentAction::Sacrifice, tapped: false}), emerge: true, ..Cost::NONE}) when caster == asker.controller and the face is a creature, ..GrantedWay::CAST}]. The core's emerge reduction keys on Cost.emerge, not on where the way came from.",
-"note": "Herigast, Erupting Nullkite. Its RON is a data bug (see below): the filter must be creature, not Saga.",
-"partial": "GrantedWay.from covers only the hand or graveyard, so a creature spell cast from exile or the library top by another permission gets no emerge. Rare.",
-"verdict": "card-code"
+"how": "Foretell, jump-start, rebound, emerge, prowl and madness: GrantedWay looks closest (flashback and spell_replacement cover jump-start).",
+"note": "Check per keyword: foretell has a special action as well as a way, rebound and madness are replacements around resolving or discarding, emerge sacrifices at casting. I did not settle these.",
+"partial": "",
+"verdict": "unsure"
 },
 "engine-no-encore": {
 "evidence": [
@@ -6987,17 +7078,12 @@
 },
 "engine-no-foretell-granted": {
 "evidence": [
-"crates/cantrip-rules/src/actions.rs:4879",
-"crates/cantrip-rules/src/actions.rs:4891",
-"crates/cantrip-rules/src/actions.rs:4898",
-"crates/cantrip-mechanics/src/statics.rs:637",
-"crates/cantrip-mechanics/src/foretell.rs:16",
-"crates/cantrip-cards/src/cards/quandrix_the_proof.rs:17"
+"crates/cantrip-api/src/card.rs:1997"
 ],
-"how": "New module in cantrip-mechanics (foretell::granted). The granter lists in `delayed[0]` an activated ability: cost {2}, `.from(ZoneKind::Hand).timing(Timing::OwnTurn).special_action()`. Its effect computes the card's mana cost minus {2}, calls g.exile_face_down, then g.allow_play(exiled, owner, PlayGrant{instead: Some(reduced), later_turns: true, ..PlayGrant::CAST}). A Layer::Ability static `.everywhere()` whose affects picks nonland cards in your hand with card.foretell None gives that ability with statics::grant_delayed_ability. activated_options reads layered chars.abilities of hand cards and matches def.from to the zone.",
-"note": "Bohn, Beguiling Balladeer; Dream Devourer; Singing Towers of Darillium. The cost is fixed when the card is foretold, so the card stays castable if the granter leaves.",
-"partial": "'Without foretell' should also check so_far for an already-granted foretell (two granters). Dream Devourer's 'whenever you foretell' has no Foretold event (separate form trigger-event-player-foretells). Singing Towers' IsForetold, its plane layout and chaos trigger are separate forms.",
-"verdict": "card-code"
+"how": "Foretell, jump-start, rebound, emerge, prowl and madness: GrantedWay looks closest (flashback and spell_replacement cover jump-start).",
+"note": "Check per keyword: foretell has a special action as well as a way, rebound and madness are replacements around resolving or discarding, emerge sacrifices at casting. I did not settle these.",
+"partial": "",
+"verdict": "unsure"
 },
 "engine-no-foretell-x": {
 "evidence": [
@@ -7134,18 +7220,12 @@
 },
 "engine-no-jump-start-granted": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:1997",
-"crates/cantrip-api/src/card.rs:2016",
-"crates/cantrip-cards/src/cards/iroh_grand_lotus.rs:48",
-"crates/cantrip-api/src/card.rs:544",
-"crates/cantrip-rules/src/actions.rs:5602",
-"crates/cantrip-state/src/object.rs:1616",
-"crates/cantrip-rules/src/actions.rs:5953"
+"crates/cantrip-api/src/card.rs:1997"
 ],
-"how": "New module in cantrip-mechanics (jump_start::granted). Niv-Mizzet: CardDef.granted_ways = &[GrantedWay{text: \"Jump-start\", cost: fn → Some(Cost{mana: def.cost, discard: Discards::one(1, None), ..Cost::NONE}) for an instant/sorcery card in your graveyard with exactly two colors, from: ZoneKind::Graveyard, flashback: true, ..GrantedWay::CAST}]. This is the same shape as Iroh's granted flashback.",
-"note": "Niv-Mizzet, Supreme; Filigree Racer. Jump-start (CR 702.133a) is a permission plus an additional cost, but this models it as an alternative cost (mana cost + discard). A permission GrantedWay route has additional: Cost::NONE, so it can't carry the discard.",
-"partial": "Filigree Racer is a gap. 'Gains jump-start until end of turn' comes from a resolving effect. granted_ways are read only from the battlefield and emblems (actions.rs:5602), so the grant would end if Racer dies. PlayGrant (object.rs:1616) has no non-mana additional cost: only `more` generic mana, nothing for a discard like retrace's Route.additional.",
-"verdict": "card-code"
+"how": "Foretell, jump-start, rebound, emerge, prowl and madness: GrantedWay looks closest (flashback and spell_replacement cover jump-start).",
+"note": "Check per keyword: foretell has a special action as well as a way, rebound and madness are replacements around resolving or discarding, emerge sacrifices at casting. I did not settle these.",
+"partial": "",
+"verdict": "unsure"
 },
 "engine-no-limit-on-activations-each-turn": {
 "evidence": [
@@ -7169,17 +7249,12 @@
 },
 "engine-no-madness-granted": {
 "evidence": [
-"crates/cantrip-rules/src/replace.rs:182",
-"crates/cantrip-api/src/card.rs:4776",
-"crates/cantrip-api/src/replace.rs:58",
-"crates/cantrip-mechanics/src/replacements.rs:133",
-"crates/cantrip-api/src/game.rs:1301",
-"crates/cantrip-api/src/game.rs:1315"
+"crates/cantrip-api/src/card.rs:1997"
 ],
-"how": "New module in cantrip-mechanics (madness::granted). Setting z.madness doesn't work: MADNESS_ABILITY reads the card's printed madness and does nothing without it (card.rs:4776). Instead the granter gets (1) a ZoneChange ReplacementDef: discard from Hand to Graveyard of a Vampire creature card you own, apply = replacements::exile_instead_linked_apply; (2) a triggered ability on ZoneChange{reason: Discard, to: Exile} of a card linked by q.exiled_with, subject = the card. Its effect asks May(Purpose::CastForMadness), calls g.cast_during_resolution(card, Some(its mana cost)), else g.move_to the graveyard.",
-"note": "Falkenrath Gorger. Its own trigger stands in for the card's madness trigger. The trigger is still on the stack and resolves if Gorger leaves after the discard.",
-"partial": "Cost = the card's mana cost; the separate form engine-no-cost-copies-a-mana-cost covers that. For a Vampire with printed madness, either let the player pick a replacement (linkage tells them apart) or apply only to cards with madness None.",
-"verdict": "card-code"
+"how": "Foretell, jump-start, rebound, emerge, prowl and madness: GrantedWay looks closest (flashback and spell_replacement cover jump-start).",
+"note": "Check per keyword: foretell has a special action as well as a way, rebound and madness are replacements around resolving or discarding, emerge sacrifices at casting. I did not settle these.",
+"partial": "",
+"verdict": "unsure"
 },
 "engine-no-mayhem-granted": {
 "evidence": [
@@ -7318,17 +7393,12 @@
 },
 "engine-no-prowl-granted": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:2110",
-"crates/cantrip-api/src/card.rs:3090",
-"crates/cantrip-api/src/history.rs:547",
-"crates/cantrip-api/src/history.rs:156",
-"crates/cantrip-mechanics/src/freerunning.rs:22",
-"crates/cantrip-cards/src/cards/dracogenesis.rs:13"
+"crates/cantrip-api/src/card.rs:1997"
 ],
-"how": "New module in cantrip-mechanics (prowl, with a condition shared with printed prowl, modelled on freerunning). CardDef.spell_alternatives = &[SpellAlternative{text: \"Prowl {2}{R}\", applies: player == asker.controller && face is a Dinosaur && q.history().damage_dealt() has a combat hit on a player whose controller == player and whose d.chars(q) shares a creature type with the spell, cost: InsteadOfManaCost::Mana(mana(\"{2}{R}\")), flash: false}]. This is the same pattern as Dracogenesis.",
-"note": "Hunting Velociraptor. SpellAlternative works from any zone the spell is cast from. DamageDealt keeps the source's chars as of the time it dealt the damage.",
+"how": "Foretell, jump-start, rebound, emerge, prowl and madness: GrantedWay looks closest (flashback and spell_replacement cover jump-start).",
+"note": "Check per keyword: foretell has a special action as well as a way, rebound and madness are replacements around resolving or discarding, emerge sacrifices at casting. I did not settle these.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "unsure"
 },
 "engine-no-rampage": {
 "evidence": [
@@ -7383,17 +7453,12 @@
 },
 "engine-no-rebound-granted": {
 "evidence": [
-"crates/cantrip-api/src/replace.rs:21",
-"crates/cantrip-api/src/replace.rs:81",
-"crates/cantrip-api/src/replace.rs:277",
-"crates/cantrip-rules/src/ops.rs:626",
-"crates/cantrip-rules/src/resolve.rs:441",
-"crates/cantrip-api/src/replace.rs:295"
+"crates/cantrip-api/src/card.rs:1997"
 ],
-"how": "New module in cantrip-mechanics (rebound::granted). Use a ReplacementDef{kind: ReplacementKind::ZoneChange}. applies: z.is_card, z.reason == ZoneReason::Resolve, from Stack to Graveyard, obj.cast_from == Some(Hand), instant/sorcery, controller matches the filter. apply: z.to = Zone::exile(owner); z.rebounding = true. ops::move_together then creates the core's REBOUND_ABILITY delayed trigger for any change with rebounding set, whichever replacement set it.",
-"note": "Cast Through Time; Trail of the Mage-Rings. The printed flag (CardDef.rebound) is read only off the spell's own def at resolve.rs:441. A printed and a granted instance don't double up: once one applies the card is in exile and the other no longer applies.",
-"partial": "Trail of the Mage-Rings is a plane. A ReplacementDef functions on the battlefield only, so it depends on the separate card-type-plane / layout-planar forms.",
-"verdict": "card-code"
+"how": "Foretell, jump-start, rebound, emerge, prowl and madness: GrantedWay looks closest (flashback and spell_replacement cover jump-start).",
+"note": "Check per keyword: foretell has a special action as well as a way, rebound and madness are replacements around resolving or discarding, emerge sacrifices at casting. I did not settle these.",
+"partial": "",
+"verdict": "unsure"
 },
 "engine-no-record-of-the-board-as-the-turn-began": {
 "how": "support in Cantrip's core",
@@ -7466,15 +7531,14 @@
 },
 "engine-no-replicate-granted": {
 "evidence": [
-"crates/cantrip-rules/src/actions.rs:2395",
-"crates/cantrip-rules/src/actions.rs:7507",
-"crates/cantrip-api/src/card.rs:2932",
-"crates/cantrip-mechanics/src/replicate.rs:5"
+"crates/cantrip-mechanics/src/casualty.rs:35",
+"crates/cantrip-mechanics/src/casualty.rs:61",
+"crates/cantrip-mechanics/src/replicate.rs:28"
 ],
-"how": "Missing: a kicker granted by another permanent. Replicate is the spell's own multi `kicker` (replicate.rs:5), and the cast reads only def.kicker (actions.rs:2395, 7507). No CardDef field lets a permanent give spells a kicker or multi-optional cost (e.g. granted_kickers with applies plus a Kicker built from the spell's mana cost). The trigger half (replicate::trigger given by statics::grant_delayed_ability, reading obj.kicked) works.",
-"note": "Ian Chesterton. The cost equals the spell's mana cost (engine-no-cost-copies-a-mana-cost); a granted cost function could compute it.",
+"how": "Casualty, replicate, conspire are optional costs with a trigger on the spell.",
+"note": "Need to check whether an OptionalCost can be offered on a spell whose card does not print it. The trigger half is a grant; the cost half I did not settle.",
 "partial": "",
-"verdict": "gap"
+"verdict": "unsure"
 },
 "engine-no-resolving-effect-sets-land-types": {
 "evidence": [
@@ -9465,30 +9529,23 @@
 },
 "mana-choice-among-different-bundles": {
 "evidence": [
-"crates/cantrip-mechanics/src/lands.rs:422",
-"crates/cantrip-mechanics/src/choose.rs:179",
-"crates/cantrip-state/src/decision.rs:1464",
-"crates/cantrip-api/src/card.rs:3048",
-"crates/cantrip-api/src/game.rs:1136"
+"crates/cantrip-api/src/card.rs:72",
+"crates/cantrip-api/src/card.rs:1379"
 ],
-"how": "add_by(fn): choose::one_of(g, asker.controller, asker.source, vec![Label::Card(card,0), Label::Card(card,1)]) over CardDef labels [\"{U}\", \"{C}{U}\"]. Then add U, or C plus U. Filter lands already ask inside add_by the same way (lands::add_two_of). List pool U as the part everyone knows.",
-"note": "Adarkar Unicorn. Cheap: about 5 lines and one labels entry.",
-"partial": "'Spend this mana only to pay cumulative upkeep costs' has no ManaRestriction variant. That gap belongs to mana-spending-purpose, so the card stays a hole.",
-"verdict": "card-code"
+"how": "Desert Cenote: two colors as it enters; Adarkar Unicorn: two labelled bundles; Ice Cauldron note.",
+"note": "",
+"partial": "One color only in Entering; bundles need two mana abilities or a labelled one.",
+"verdict": "unsure"
 },
 "mana-of-a-color-not-chosen-as-it-entered": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:81",
-"crates/cantrip-state/src/object.rs:229",
-"crates/cantrip-state/src/state.rs:1064",
-"crates/cantrip-host/src/view.rs:1197",
-"crates/cantrip-api/src/ability.rs:614",
-"crates/cantrip-api/src/card.rs:3098"
+"crates/cantrip-api/src/card.rs:72",
+"crates/cantrip-api/src/card.rs:1379"
 ],
-"how": "Missing: a slot for a set of chosen colors. Entering::chosen_color, Choices.color and GameState::chosen_color each hold one Option<Color>. The core needs a chosen_colors ColorSet in Entering, Choices and Entered, a GameState::chosen_colors(Linked) read, and a host ChoiceView entry. Then the mana ability is mana_ability(TAP, add_any_color(1), ..).colors_from(fn reading it), as Heraldic Banner does. Packing the colors into chosen_number would show up as a 'number' choice in the view, which is wrong.",
-"note": "Desert Cenote, Cryptic Spires. Not cheap.",
-"partial": "Cryptic Spires also needs a deck-time choice: 'circle as you create your deck' is a paper marking. No CardDef hook runs before the game except opening_hand, and nothing from deckbuilding reaches the game. A human could put it in the same 'stickers and the like' class (docs/rules-exceptions.md:11). Desert Cenote's 'up to two' needs a count choice too, because ChooseColors asks for an exact count.",
-"verdict": "gap"
+"how": "Desert Cenote: two colors as it enters; Adarkar Unicorn: two labelled bundles; Ice Cauldron note.",
+"note": "",
+"partial": "One color only in Entering; bundles need two mana abilities or a labelled one.",
+"verdict": "unsure"
 },
 "mana-production-colors-among": {
 "evidence": [
@@ -9525,43 +9582,33 @@
 },
 "mana-production-draft-noted-color": {
 "evidence": [
-"docs/events.md:126",
-"docs/events.md:150",
-"dotnet/src/Cantrip.Cards.Model/DraftAbility.cs:7",
-"crates/cantrip-host/src/bin/host.rs:40",
-"dotnet/src/Cantrip.Server/Rules/RulesHostFactory.cs:28"
+"crates/cantrip-api/src/card.rs:72",
+"crates/cantrip-api/src/card.rs:1379"
 ],
-"how": "Cantrip does play booster drafts, but the only draft ability is Cogwork Librarian's (DraftAbility::AdditionalPickPutThisIntoPack). Nothing from the draft reaches the game: the host's new-game message and RulesGameOptions carry seats, seed and basic lands only, and GameState has no per-player draft notes. Missing: a DraftAbility for 'reveal as drafted; right, you, left choose colors', a per-seat field carrying those colors into Setup/GameState, and a Query read. Then add_any_color(1).colors_from(fn reading it).",
-"note": "Paliano, the High City. Not cheap; the change spans the dotnet server and the core.",
-"partial": "",
-"verdict": "gap"
+"how": "Desert Cenote: two colors as it enters; Adarkar Unicorn: two labelled bundles; Ice Cauldron note.",
+"note": "",
+"partial": "One color only in Entering; bundles need two mana abilities or a labelled one.",
+"verdict": "unsure"
 },
 "mana-production-last-noted": {
 "evidence": [
-"crates/cantrip-api/src/event.rs:135",
-"crates/cantrip-rules/src/actions.rs:9203",
-"crates/cantrip-rules/src/actions.rs:9386",
-"crates/cantrip-rules/src/resolve.rs:669",
-"crates/cantrip-state/src/state.rs:43",
-"crates/cantrip-api/src/ability.rs:493",
-"crates/cantrip-api/src/game.rs:1130"
+"crates/cantrip-api/src/card.rs:72",
+"crates/cantrip-api/src/card.rs:1379"
 ],
-"how": "add_by(fn) that reads g.history(). Find the latest Resolved{source: asker.source, ability: the first ability}. Take that activation's ManaSpent{on: source, cast: false} records: they sit between its StackItem.since, set before costs are paid, and its AbilityActivated record. Their ManaTally is the noted mana. Add it with g.add_mana(asker.controller, m, n) for each Mana: one mana of the type for Jeweled Amulet, the whole tally for Ice Cauldron.",
-"note": "Ice Cauldron, Jeweled Amulet. Moderate cost, about 15 lines. If the first ability is activated twice in response, the resolution has to be matched to its activation through left_stack; usually only one is on the stack.",
-"partial": "Ice Cauldron's 'spend only to cast the last card exiled with this artifact' has no ManaRestriction variant (closed enum, object.rs:2013). That gap belongs to mana-spending-predicate, so Ice Cauldron stays a hole. Jeweled Amulet lands in full.",
-"verdict": "card-code"
+"how": "Desert Cenote: two colors as it enters; Adarkar Unicorn: two labelled bundles; Ice Cauldron note.",
+"note": "",
+"partial": "One color only in Entering; bundles need two mana abilities or a labelled one.",
+"verdict": "unsure"
 },
 "mana-production-lost-this-way": {
 "evidence": [
-"crates/cantrip-state/src/object.rs:1907",
-"crates/cantrip-state/src/state.rs:717",
-"crates/cantrip-api/src/game.rs:1130",
-"crates/cantrip-api/src/game.rs:1136"
+"crates/cantrip-api/src/card.rs:72",
+"crates/cantrip-api/src/card.rs:1379"
 ],
-"how": "Before the pool is emptied, take a snapshot of q.state().player(p).pool and q.state().restricted_of(p). After it, add the snapshot for asker.controller: g.add_mana per Mana for plain mana, g.add_restricted_mana(.., r) for each restricted part.",
-"note": "Drain Power. Cheap: about 6 lines.",
-"partial": "The card can't land until 'loses all unspent mana' does. There is no Game call to empty a pool; that is the engine-no-effect-empties-a-mana-pool hole. Check Drain Power's rulings on whether restrictions and lasting mana carry over.",
-"verdict": "card-code"
+"how": "Desert Cenote: two colors as it enters; Adarkar Unicorn: two labelled bundles; Ice Cauldron note.",
+"note": "",
+"partial": "One color only in Entering; bundles need two mana abilities or a labelled one.",
+"verdict": "unsure"
 },
 "mana-production-mana-cost-of": {
 "evidence": [
@@ -9576,14 +9623,13 @@
 },
 "mana-production-same-type-as-produced": {
 "evidence": [
-"crates/cantrip-mechanics/src/mana.rs:155",
-"crates/cantrip-mechanics/src/mana.rs:170",
-"crates/cantrip-mechanics/src/lib.rs:1012"
+"crates/cantrip-api/src/card.rs:72",
+"crates/cantrip-api/src/card.rs:1379"
 ],
-"how": "Landed: effects.rs writes a loop of add_one_mana_of_any_type_that_land_produced, one mana at a time (rulings: any combination of the types produced); test cantrip_lane_unsure. The generated matcher already puts [player, bitmask of types produced] in data, as that_land_produced does. Body: let n = count of other lands you control with cantrip_mechanics::same_name(q, id, land); for _ in 0..n { cantrip_mechanics::mana::add_one_mana_of_any_type_that_land_produced(g, item)?; }. Each mana asks its own type through Label::ManaType.",
-"note": "Sasaya's Essence. Cheap: about 3 lines in place of the hole.",
-"partial": "The card is still held by layout-flip and keyword-action-flip.",
-"verdict": "exists"
+"how": "Desert Cenote: two colors as it enters; Adarkar Unicorn: two labelled bundles; Ice Cauldron note.",
+"note": "",
+"partial": "One color only in Entering; bundles need two mana abilities or a labelled one.",
+"verdict": "unsure"
 },
 "mana-production-symbols-of": {
 "evidence": [
@@ -9926,16 +9972,12 @@
 },
 "move-to-command-zone": {
 "evidence": [
-"crates/cantrip-state/src/vocab.rs:1366",
-"crates/cantrip-rules/src/layers.rs:1176",
-"crates/cantrip-rules/src/layers.rs:1178",
-"crates/cantrip-rules/src/settle.rs:1389",
-"crates/cantrip-rules/src/actions.rs:5599"
+"crates/cantrip-state/src/vocab.rs:1366"
 ],
-"how": "Game::move_to(o, Zone::COMMAND) would move the card, but the core then treats it as an emblem. layers.rs:1176-1178 applies all its statics, and settle.rs:1389-1395 asks all its triggers. Only actions.rs:5601 filters emblems by types==NONE. Missing: a non-emblem command-zone object whose abilities don't function there (CR 113.6, 408.3), plus a commander designation (Query has no is_commander) for 'a commander you own' and 'each commander they control'.",
-"note": "Hellkite Courser and Leadership Vacuum, both also engine-no-commander.",
+"how": "Game::move_to with Zone::COMMAND.",
+"note": "Commander replacement unread.",
 "partial": "",
-"verdict": "gap"
+"verdict": "unsure"
 },
 "move-to-hand": {
 "evidence": [
@@ -9968,16 +10010,12 @@
 },
 "name-choice-and": {
 "evidence": [
-"crates/cantrip-state/src/decision.rs:292",
-"crates/cantrip-state/src/decision.rs:450",
-"crates/cantrip-mechanics/src/choose.rs:19",
-"crates/cantrip-mechanics/src/hand.rs:236",
-"crates/cantrip-cards/src/cards/kai_winn_faithless_leader.rs:11"
+"crates/cantrip-state/src/decision.rs:450"
 ],
-"how": "Don't use ChooseName: NameKind (decision.rs:292) restricts only by card types, not by what was revealed. In the enters fn, after the reveal, pick one card: cantrip_mechanics::choose::select(g, you, entering.object, Purpose::ChooseAsEnters, revealed.filter(nonland), Selection::of(Count::AsManyAsCan(1), &[]))?. Then set entering.chosen_card = Some(card id of the pick, a split card's left half as hand.rs:228 does). The spell rule already reads q.state().chosen_card(q.linked_to(asker)).",
-"note": "Alhammarret, High Arbiter. The answer is choosing a revealed card, not naming freely. Nothing is chosen when no nonland card was revealed.",
+"how": "",
+"note": "ChooseName takes looked_at and a kind. Check that a kind restricts it to the revealed nonland names; NameKind was not located.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "unsure"
 },
 "new-targets-chosen-at-random": {
 "evidence": [
@@ -10035,16 +10073,17 @@
 "numeric-expression-announced-x": {
 "evidence": [
 "crates/cantrip-api/src/game.rs:388",
-"crates/cantrip-rules/src/resolve.rs:236",
-"crates/cantrip-rules/src/actions.rs:9076",
-"crates/cantrip-rules/src/actions.rs:9155",
-"crates/cantrip-rules/src/actions.rs:9190",
-"crates/cantrip-api/src/card.rs:517"
+"crates/cantrip-rules/src/resolve.rs:334",
+"crates/cantrip-rules/src/actions.rs:9172",
+"crates/cantrip-rules/src/actions.rs:9187",
+"crates/cantrip-rules/src/actions.rs:9202",
+"crates/cantrip-rules/src/actions.rs:9584",
+"crates/cantrip-api/src/card.rs:1662"
 ],
-"how": "Shoals, storage lands, Haruspex, Petalmane Baku, Kyren Toy, Knollspine Invocation, Kozilek, Scrap Welder, Sidisi and Nahiri's Sacrifice keep the holes the earlier corrections gave them. Silver Scrutiny, Aladdin's Lamp and Taii Wakeen are gaps: nothing can read the X there. Hazel waits on another form.",
-"note": "Cost-filter trick is unproven in a hand-written card: test the pre-activation offer with an earlier activation of the same source on the stack.",
-"partial": "q.announced_x() itself is None in a cost filter: only Given implements it (resolve.rs:311, merge.rs:304). Gap: X in a cost with no {X} (Scrap Welder, Sidisi, Kozilek, Nahiri's Sacrifice: activate announces only for mana.x, loyalty -X and RemoveAnyNumberOfCounters, actions.rs:9125-9146); Shoals (alte",
-"verdict": "card-code"
+"how": "No card is left on this form (lane g1, full corpus). Landed: Aurelia's Vindicator (turned-face-up trigger counts obj.x via counted_by, X kept on Object::x by special_action actions.rs:9482), Nissa Steward of Elements (enters hook adds entering.x loyalty), Ancient Brass Dragon. Split onto new forms: removing-x-counters-to-activate-a-mana-ability (Calciform Pools, Crucible of the Spirit Dragon, Dreadship Reef, Fungal Reaches, Haruspex, Kyren Toy, Molten Slagheap, Petalmane Baku, Saltcrusted Steppe); a-cost-s-filter-reading-the-x-announced (the five Shoals, Knollspine Invocation, Kozilek, Nahiri's Sacrifice, Scrap Welder, Sidisi, Osgir, Fabrication Foundry, Arcanis, Bosh); the-x-of-the-ability-that-made-a-replacement-effect (Aladdin's Lamp, Taii Wakeen); the-x-of-the-monstrosity-a-becomes-monstrous-trigger-reads (Death Kiss, Vitality Hunter); a-limit-on-the-x-announced (Silver Scrutiny).",
+"note": "Rechecked against Cantrip at 54c3142ee, not the audit: q.announced_x() is a target filter's alone (Given only), so every X outside a spell/activation's own mana, loyalty or RemoveAnyNumberOfCounters cost is a gap.",
+"partial": "",
+"verdict": "exists"
 },
 "numeric-expression-any-of": {
 "evidence": [
@@ -10496,8 +10535,8 @@
 "crates/cantrip-cards/src/cards/indomitable_creativity.rs:15"
 ],
 "how": "Locals; a later ability uses history.",
-"note": "Lane g14, not settled: \"the cards they exiled this way\" read for each player outside the walk that exiled them (Memory Vessel, Triple Triad, Indomitable Creativity, Meta-Crisis). The walk gathers every player's cards into one list (gathered_N); it should keep each player's row (each_N[index], as the per-player change-zone walk does) and the later read take the row of the player bound. Generator work, not done.",
-"partial": "Not landed by lane g10. Indomitable Creativity (hand-written: locals `revealers`, `exiled` pairs), Memory Vessel and Triple Triad (cards each player exiled, read in a play permission), Meta-Crisis (phenomenon, not played).",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Meta-Crisis is a phenomenon; Memory Vessel holds on play-permission-lasting-until-next-turn and player-rule-for-a-while-prohibit-play-card; Triple Triad on play-permission-on-an-open-set-of-cards; Indomitable Creativity is hand-written (object-collection-moved-by, per-player-move-under-each-player-s-control).",
+"partial": "",
 "verdict": "card-code"
 },
 "object-collection-event-group": {
@@ -10527,11 +10566,13 @@
 "object-collection-moved-by": {
 "evidence": [
 "crates/cantrip-api/src/history.rs:363",
+"crates/cantrip-api/src/history.rs:547",
+"crates/cantrip-api/src/history.rs:182",
 "crates/cantrip-cards/src/cards/indomitable_creativity.rs:15"
 ],
-"how": "Landed by lane g13 for Rocco, Street Chef ('each player may play the card they exiled this way'): a walk's step that moves the top of the walked player's own library is that player's own, read by owner. Rocco holds on play-permission-on-an-open-set-of-cards and duration-until-next. Indomitable Creativity (hand-written) stays: its walk is over the destroyed permanents, the cards exiled are their controllers', and the players' walk after it reads what a walk over objects moved; the generator side is held on per-player-move-under-each-player-s-control and object-collection-earlier as well, so landing this read alone gains nothing.",
-"note": "",
-"partial": "",
+"how": "Three reads: Backdraft: `q.history().damage_dealt()` filtered by source `q.obj(s).card` sorcery. First Family: walk `q.permanents_of(you)` chars and `q.history().casts()` for `Cast.colors`, `|`-ing `ColorSet`. Herald of Vengeance: `q.history().all()` for last turn, `Event::Damage { recipient, source }`, read names through the object row.",
+"note": "Its only card left, Indomitable Creativity, is hand-written in Cantrip; lane g16 left it.",
+"partial": "A 'last turn' read needs the turn number off `Record.turn`, filtered from `all()`.",
 "verdict": "card-code"
 },
 "object-collection-outside-the-game": {
@@ -10555,16 +10596,12 @@
 },
 "object-collection-spliced-onto": {
 "evidence": [
-"crates/cantrip-rules/src/actions.rs:7568",
-"crates/cantrip-rules/src/actions.rs:7569",
-"crates/cantrip-rules/src/resolve.rs:128",
-"crates/cantrip-state/src/state.rs:1208",
-"crates/cantrip-state/src/state.rs:1452"
+"crates/cantrip-api/src/card.rs:3158"
 ],
-"how": "The spliced cards are the first item.data[0] members of the spell's stack item (actions.rs:7568-7569; resolve::spliced at resolve.rs:128-133 reads them this way). In card code: let i = q.state().stack.iter().find(|i| i.kind==StackKind::Spell && i.object==spell).or_else(|| q.state().left_stack(spell)) (the spell has just been countered). Then let m = q.state().members(i.members); take m[..(i.data[0] as usize).min(m.len())], map to q.state().obj(o).card, and compare names with the hand cards.",
-"note": "Minamo's Meddling. Read before the counter, or through left_stack after it. Cheap: replace q.spliced_onto(o) with that expression in the object-collection arm.",
+"how": "No record found.",
+"note": "Minamo's Meddling's question. Need to check for a `Revealed` record at splice.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "unsure"
 },
 "object-collection-targets-of": {
 "evidence": [
@@ -10616,15 +10653,12 @@
 },
 "object-filter-can-target-only": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:2435",
-"crates/cantrip-api/src/card.rs:245",
-"crates/cantrip-api/src/card.rs:16",
-"crates/cantrip-api/src/card.rs:661"
+"crates/cantrip-api/src/game.rs:562"
 ],
-"how": "Missing: TargetingForbid (card.rs:2435) gets (&dyn LayerQuery, source, by: &Asker, by_source: &Chars). Nothing tells it which target spec or ability is choosing; for an ability, Asker names only the source object. A TargetSpec.filter is fn(&dyn Query, ..) (card.rs:16, 661), which a LayerQuery can't call. So a Forbid can't decide whether the spell or ability 'can target only Walls'. It would need the targeting item's spec, or a Query, passed to the rule.",
-"note": "Wall of Shadows only. Its prevention and defender parts are fine.",
-"partial": "",
-"verdict": "gap"
+"how": "",
+"note": "",
+"partial": "Wall of Shadows: could every target choice: needs a walk of legal specs: not checked.",
+"verdict": "unsure"
 },
 "object-filter-cast-from-among": {
 "evidence": [],
@@ -10696,9 +10730,9 @@
 "crates/cantrip-cards/src/cards/chandra_awakened_inferno.rs:30",
 "crates/cantrip-cards/src/cards/anger_of_the_gods.rs:2"
 ],
-"how": "Landed for a spell whose one damage instruction is found through its If branches (Demonfire: `permanents_dealt_damage_by(q.history(), asker.source, 0)`), as before for one plain damage instruction. Huatli, Warrior Poet stays: its damage is a loyalty ability's, and the read is the same call from the ability's `since`; the generator's `damages_once` takes only a spell's body.",
-"note": "A clear misread: the proposed name is the real one. Four written cards use it. Lane g14, not settled: Huatli's read (permanents_dealt_damage_by from the ability's since) is inside the engine-no-resolving-rule-on-an-open-set-prohibit-block hole; damages_once should take the one activated ability that deals the damage.",
-"partial": "Huatli, Warrior Poet: extend `damages_once` (lane_p.rs) to the one activated ability that deals the damage, reading `item.since`.",
+"how": "Lands for an instant or sorcery whose only ability is the spell and which has one damage instruction: what its object dealt damage to is what it dealt damage to that way (Ghired's Belligerence, and Aurelia's Fury's creatures). Huatli and Demonfire stay held: an ability's source can deal other damage, and Demonfire's Hellbent is another ability.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Huatli, Warrior Poet holds on divided targets and an engine hole (prohibit block on an open set).",
+"partial": "Players dealt damage this way (Aurelia's Fury) are not permanents: walk `g.history().damage_dealt()` for `Target::Player`.",
 "verdict": "card-code"
 },
 "object-filter-dealt-excess-by": {
@@ -10726,7 +10760,7 @@
 "crates/cantrip-api/src/history.rs:331"
 ],
 "how": "`q.history().all()` for `Event::ZoneChange` to exile and read `Record.cause`, and `Record.turn`.",
-"note": "Lane g14, not settled: q.exiled_by is not in Cantrip; the read is a history scan of the ZoneChange to exile and its cause (Evelyn, Haldan). Both cards also hold Cantrip holes.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Evelyn holds on operation-play-with and player-rule-special-action; Haldan on play-permission-with-mana-as-though-any-color.",
 "partial": "",
 "verdict": "card-code"
 },
@@ -11140,8 +11174,8 @@
 "crates/cantrip-cards/src/cards/rottenmouth_viper.rs:12"
 ],
 "how": "A walk is a `for` loop: the object is its loop variable. Mind Grind: `for p in opponents { let mut lands = 0; .. reveal until ..}`.",
-"note": "Forms a problem of the generator's AST, not Cantrip's. Rottenmouth Viper (hand-written) stays: the bound read is the opponent inside 'loses 4 life unless that player sacrifices ... or discards', which sits under the ways-to-pay-chosen-for-every-time-first-then-all-paid-at-once gap; the read has nothing to run until that is written.",
-"partial": "Mind Grind lands (own_turns). Rottenmouth Viper stays: the bound object is read as a player inside a choice of actions for each opponent.",
+"note": "Its only card left, Rottenmouth Viper, is hand-written; the bound read sits under the ways-to-pay-chosen-for-every-time-first gap. Lane g16 left it.",
+"partial": "",
 "verdict": "card-code"
 },
 "object-reference-chosen-by": {
@@ -11171,8 +11205,8 @@
 "crates/cantrip-state/src/object.rs:416"
 ],
 "how": "The card lookup the audit gives is ambiguous with two copies, but needs no fallback: a static grant's stamp is its source's timestamp (layers.rs GEntry), and a resolved grant's is the effect's, so item.acquired names the giver exactly.",
-"note": "`ActionOption::granted_by` is what the core already uses for the sacrifice, so the fact exists; only triggered abilities lack a direct read. Lane g14, not settled: Tibalt's read is inside the play-permission-with-mana-as-though-any-color hole's ExileCast.",
-"partial": "Tibalt, Cosmic Impostor stays: the read is inside the play-permission-with-mana-as-though-any-color hole's ExileCast.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Tibalt, Cosmic Impostor holds on play-permission-with-mana-as-though-any-color.",
+"partial": "The card-based lookup is ambiguous when two copies of the Aura sit on one creature: then the effect's `Acquired.stamp` against `state.effects` picks the right one. An ability still on the stack after the granter left needs last-known handling; a text-changed or copied granter likewise.",
 "verdict": "card-code"
 },
 "object-reference-haunted-by": {
@@ -11498,6 +11532,15 @@
 "note": "Offering reduces by the sacrificed permanent's whole mana cost, colored symbols too. Emerge reduces by mana value only.",
 "partial": "way(Cost{emerge: true, permanents: sacrifice, ..}, Hand).instant_speed() is a generic-only stand-in.",
 "verdict": "gap"
+},
+"one-or-more-that-die-read-as-each-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "The data's trigger is WhenAPermanentDies(And([Other(ThisPermanent), And([IsCreatureType(Cat), ControlledByAPlayer(SinglePlayer(You))])])) where Oracle says 'Whenever one or more other Cats you control die' (Ajani; the Bee's and Townsfolk's are other creatures): a batch that triggers once (CR 603.2c), as WhenAnyNumberOfCreaturesOrPlaneswalkersDie(..) reads it. Read as each, two Cats dying together trigger twice.",
+"note": "Ajani, Nacatl Pariah; Great Fierce Bee; Vengeful Townsfolk.",
+"partial": "With the data right, the -4 still needs one permanent choosable for several types (cantrip_mechanics::each_opponent_keeps_one_of_each_type), and the trigger asks to exile Ajani when he is gone.",
+"verdict": "data"
 },
 "operation-abandon-scheme": {
 "evidence": [
@@ -11911,21 +11954,21 @@
 },
 "operation-note": {
 "evidence": [
-"crates/cantrip-api/src/history.rs:177",
-"crates/cantrip-api/src/history.rs:331",
-"crates/cantrip-api/src/event.rs:55",
-"crates/cantrip-api/src/event.rs:135",
-"crates/cantrip-api/src/event.rs:266",
-"crates/cantrip-rules/src/resolve.rs:669",
-"crates/cantrip-rules/src/ops.rs:611",
-"crates/cantrip-api/src/card.rs:82",
-"crates/cantrip-state/src/state.rs:1069",
-"crates/cantrip-state/src/state.rs:43"
+"crates/cantrip-state/src/object.rs:1085",
+"crates/cantrip-state/src/object.rs:1085",
+"crates/cantrip-api/src/game.rs:836",
+"crates/cantrip-api/src/game.rs:640",
+"crates/cantrip-api/src/history.rs:413",
+"crates/cantrip-mechanics/src/choose.rs:342"
 ],
-"how": "Cantrip has no store for a value noted at resolution. The only writable slots are Entering::chosen_* as a permanent enters and Game::remember_chosen_name. But each card's value can be rebuilt later from the full history (History::all, where each Record has a cause), last-known information, or a local variable. So the generator lowers the note to nothing, and the read rebuilds the value. Two exceptions: Favored Enemy writes entering.chosen_subtype, and Starlight Spectacular asks for creatures one at a time in a local loop.",
-"note": "11 cards. Not cheap: one lowering per kind of note, and most of the work sits in the reading forms (numeric-expression-noted, object-filter-noted, player-reference-prior, mana-production-last-noted).",
-"partial": "Dragonborn Immolator: notes the dead creature's power; the boon reads q.chars(asker.source).power (last-known information). Blocked by perpetual effects. Mephit's Enthusiasm / Molten Impact: excess damage; the boon sums recipient_excess over Event::Damage records whose cause is Cause::Spell(asker.source). Mephit's also blocked by perpetual. Laquatus's Champion / Soul Scourge: the target player; the leaves trigger reads the last BecameTarget{by: asker.source, ability: true, Player(p)}. Sigarda's Splendor: life total = current life minus the sum of LifeChange deltas after the later of its Resolved record and its entering ZoneChange. Ice Cauldron / Jeweled Amulet: mana spent, read from ManaSpent{on: source, cast: false}. Tawnos's Coffin: counters stay readable on the old object. Favored Enemy: entering.chosen_subtype, read with GameState::chosen_subtype. Starlight Spectacular: a loop of choose::card.",
-"verdict": "card-code"
+"how": "",
+"mixed": [
+"card-code",
+"unsure"
+],
+"note": "Ice Cauldron, Dragonborn Immolator's Gift (a gift condition): the former notes a mana type then spends it on one spell: mana restriction to a named spell is row 20's. Not read past their text.",
+"partial": "",
+"verdict": "unsure"
 },
 "operation-pay-repeatedly": {
 "evidence": [
@@ -12110,12 +12153,12 @@
 },
 "operation-return-after": {
 "evidence": [
-"crates/cantrip-state/src/object.rs:1801",
 "crates/cantrip-cards/src/cards/palace_jailer.rs:27",
-"crates/cantrip-api/src/game.rs:840"
+"crates/cantrip-cards/src/cards/palace_jailer.rs:36",
+"crates/cantrip-script/tests/real_cards/until_exile.rs:56"
 ],
-"how": "Landed: an exile followed by ReturnAfter WhileOnBattlefield(target) exiles with g.exile_with only while that target is a legal target still on the battlefield, then makes one DelayedWhen::UntilEvent ability per card exiled, whose source is the holder (its matches is asked of that source) and whose subject is the card; it returns the card under its owner's control when the holder leaves (Calix, Destiny's Hand, whole, 2 scenarios pass). This is Palace Jailer's hand-written shape. Lumbering Battlement is whole through exile_with(.., true) (g8).",
-"note": "",
+"how": "Generator writes it (lane g16): exile until an opponent becomes the monarch is g.exile_with linked plus one DelayedWhen::UntilEvent delayed trigger per card on EventMask::BECAME_MONARCH, returning it with put_onto_battlefield under its owner; nothing is exiled if an opponent already became the monarch since the source entered (CR 610.3b). Calix and Lumbering Battlement landed earlier (g11).",
+"note": "No cards left. Palace Jailer's generated file compiles in Cantrip 01aba4b15 and passes real_cards until_exile (2 tests) in place of the hand-written one.",
 "partial": "",
 "verdict": "exists"
 },
@@ -12247,15 +12290,11 @@
 },
 "per-player-change-zone": {
 "evidence": [
-"crates/cantrip-cards/src/cards/balance.rs:10",
-"crates/cantrip-cards/src/cards/adeline_resplendent_cathar.rs:8",
-"crates/cantrip-api/src/game.rs:674",
-"crates/cantrip-api/src/game.rs:612",
-"crates/cantrip-api/src/game.rs:728",
-"crates/cantrip-api/src/game.rs:809"
+"crates/cantrip-api/src/game.rs:732",
+"crates/cantrip-cards/src/cards/balance.rs:10"
 ],
-"how": "Not landed: Demonic Attorney, Mind Grind, Stronghold Gambit, The Great Aurora, Worldpurge hold on other holes.",
-"note": "Tracker misread: the choice falls before the batch, not between. proposed begin_batch is unnecessary. Lane g14, not settled: Mind Grind and Stronghold Gambit write g.begin_batch()/end_batch() around a per-player walk; the audit's note says the batch is not needed (the choice falls before it). Dropping the batch when no step in the walk asks is generator work, not done.",
+"how": "Generator writes it (lane g16): a change of zone in a per-player body whose cards are every player's (\"puts all cards revealed this way into their graveyard\") is one move of all of them, each to its owner's zone (CR 101.4), with g.move_together (Mind Grind). A move onto the battlefield still walks.",
+"note": "No cards left: Mind Grind holds only operation-limit-x; Stronghold Gambit now holds per-player-reveal-choices (gap) instead.",
 "partial": "The only limit: a suspension inside instruction. Steps that genuinely ask midway (a sacrifice whose replacement asks) are not one batch. Villainous cards here also need that row.",
 "verdict": "exists"
 },
@@ -12271,13 +12310,12 @@
 },
 "per-player-choice-of-what-to-exile-exiled-together": {
 "evidence": [
-"crates/cantrip-api/src/game.rs:712",
-"crates/cantrip-mechanics/src/choose.rs:179"
+"crates/cantrip-api/src/game.rs:732"
 ],
-"how": "Each player chooses one of several exiles ('exiles a card from their hand or a permanent they control'), then all chosen are exiled at once (CR 101.4): a walk of choose::one_of and the selection of each branch, gathering the objects, then one exile_all (game.rs:712) of all of them. The walk has no gather for a ChooseOne's branches yet: generator work, not landed. Nicol Bolas, Dragon-God, which also holds the-loyalty-abilities-of-other-permanents.",
-"note": "",
+"how": "Nicol Bolas, Dragon-God +1: each opponent in APNAP order chooses a card from their hand or a permanent they control (CR 101.4), then all are exiled at once with one g.move_together of (card, Zone::exile(owner)) - no begin_batch/end_batch, which Cantrip does not have.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Nicol Bolas is also held by the-loyalty-abilities-of-other-permanents (card-code; grant_loyalty_abilities_of does not exist in cantrip-mechanics).",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "per-player-choose-pile": {
 "evidence": [
@@ -12327,6 +12365,15 @@
 "partial": "",
 "verdict": "exists"
 },
+"per-player-give-control": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:1193"
+],
+"how": "Seize the Spotlight: for each opponent who chose fame (a walk over them, CR 101.4), the caster chooses a creature that player controls and g.gain_control(source, creature, you, Duration::EndOfTurn), then untaps those creatures and grants haste until end of turn.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Seize the Spotlight is also held by condition-voted-for (gap), which reads which opponents chose fame; this walk has nothing to run until that is written.",
+"partial": "",
+"verdict": "exists"
+},
 "per-player-in-a-chosen-direction": {
 "evidence": [
 "rust_syntax/normalize/src/cantrip/lane_i.rs:909",
@@ -12339,14 +12386,12 @@
 },
 "per-player-instruction-with-several-steps": {
 "evidence": [
-"crates/cantrip-state/src/vocab.rs:489",
-"crates/cantrip-api/src/game.rs:616",
-"crates/cantrip-api/src/game.rs:678"
+"crates/cantrip-state/src/vocab.rs:489"
 ],
-"how": "Spell Queller landed (a casting walk is one spell after another, CR 101.4c). Each player choosing among actions is split by lane g13: what to exile (Nicol Bolas) onto per-player-choice-of-what-to-exile-exiled-together, different actions (Eumidian Wastewaker) onto per-player-choice-among-different-actions-done-at-once. Left: Kharasha Foothills (a plane) and Tradewind Rider Avatar (a vanguard), neither of which Cantrip plays (no such card type, vocab.rs:489). Their walks would be generator work: Kharasha's 'you may create ... attacking that opponent' for each opponent as one creation, Tradewind's guarded returns as one return_to_hand.",
-"note": "Not landed for the plane and the vanguard: their cards can't be played, so nothing would run the code.",
-"partial": "",
-"verdict": "card-code"
+"how": "Its only cards are a plane (Kharasha Foothills) and a vanguard (Tradewind Rider Avatar): Cantrip's CardType has no Plane, Phenomenon or Vanguard, so neither card can be defined; the walk itself is not what holds them.",
+"note": "Spell Queller and the others landed earlier; what is left is held by card types Cantrip lacks.",
+"partial": "The only limit: a suspension inside instruction. Steps that genuinely ask midway (a sacrifice whose replacement asks) are not one batch. Villainous cards here also need that row.",
+"verdict": "gap"
 },
 "per-player-keyword-each": {
 "evidence": [
@@ -12380,12 +12425,16 @@
 },
 "per-player-move-under-each-player-s-control": {
 "evidence": [
-"rust_syntax/normalize/src/cantrip/lane_i.rs:546",
-"rust_syntax/normalize/src/cantrip/lane_m.rs:701"
+"crates/cantrip-cards/src/cards/balance.rs:10",
+"crates/cantrip-cards/src/cards/adeline_resplendent_cathar.rs:8",
+"crates/cantrip-api/src/game.rs:674",
+"crates/cantrip-api/src/game.rs:612",
+"crates/cantrip-api/src/game.rs:728",
+"crates/cantrip-api/src/game.rs:809"
 ],
-"how": "Landed for Pyxis of Pandemonium: \"permanent cards among them\" is what that player turned face up, their own, gathered and put onto the battlefield together. Thieves' Auction is split onto auction-of-the-exiled-cards-until-each-is-chosen.",
-"note": "Lane g14, not settled: Indomitable Creativity (hand-written) holds it with object-collection-moved-by and object-collection-earlier; the hand-written file keeps (revealer, exiled) pairs as locals.",
-"partial": "",
+"how": "Landed for cards in their own zone said of all zones (Second Sunrise). Thieves' Auction stays: a chosen card that can't enter stays exiled and the AST's repeat would never end; its rulings need the pick restricted to what can enter. Indomitable Creativity and Pyxis hold on other holes.",
+"note": "Its only card left, Indomitable Creativity, is hand-written in Cantrip; lane g16 left it.",
+"partial": "The only limit: a suspension inside instruction. Steps that genuinely ask midway (a sacrifice whose replacement asks) are not one batch. Villainous cards here also need that row.",
 "verdict": "exists"
 },
 "per-player-piles": {
@@ -12886,17 +12935,11 @@
 "verdict": "exists"
 },
 "player-collection-scoped": {
-"evidence": [
-"crates/cantrip-api/src/event.rs:103",
-"crates/cantrip-state/src/object.rs:2641",
-"crates/cantrip-api/src/game.rs:157",
-"crates/cantrip-cards/src/cards/attuma_atlantean_warlord.rs:11",
-"crates/cantrip-api/src/game.rs:872"
-],
-"how": "Each 'those players' is a set known as the ability resolves. Raging River: defending players of your attacking creatures, from q.state().attackers (Attacker::defending) or q.defending_player(id). Zurzoth: players your Devils attacked, from the Event::Attacks { defender: Target::Player(p), .. } records of this declaration in q.history(). Timesifter: the local set kept for the repeat. Chaos Dragon: the local list of opponents who rolled highest.",
-"note": "Chaos Dragon, Raging River, Timesifter, Zurzoth.",
-"partial": "Chaos Dragon's set is read later by an attack rule, and a fn pointer can't capture it. It can be carried with g.note_done(src, ability, p) per player and read by a CardDef::attack_rules fn on the Dragon (that is continuous-rule-prohibit-attack). Raging River's piles and Timesifter's repeat are other forms.",
-"verdict": "card-code"
+"evidence": [],
+"how": "",
+"note": "Unread.",
+"partial": "",
+"verdict": "unsure"
 },
 "player-keyword-protection": {
 "evidence": [
@@ -12967,8 +13010,8 @@
 "crates/cantrip-api/src/card.rs:514"
 ],
 "how": "Landed, but the audit's reading of it was too narrow: outside combat a state condition has no one defending player, and CR 508.5a makes it any opponent of the active player. Nuka-Nuke Launcher still holds on rad-counters and an event trigger.",
-"note": "Lane g14, not settled: Nuka-Nuke Launcher's read sits in the rad-counters hole; it is the attacking creature's defending player (q.defending_player(attacker), game.rs:157), not defending_player_now.",
-"partial": "Nuka-Nuke Launcher stays: the read is inside the rad-counters hole.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Nuka-Nuke Launcher holds on rad counters and an event trigger for until-end-of-next-turn.",
+"partial": "",
 "verdict": "exists"
 },
 "player-reference-first-willing": {
@@ -13248,15 +13291,14 @@
 },
 "player-rule-for-a-while-activation-grant": {
 "evidence": [
-"crates/cantrip-api/src/game.rs:1369",
-"crates/cantrip-rules/src/lib.rs:2631",
-"crates/cantrip-rules/src/actions.rs:5119",
-"crates/cantrip-cards/src/cards/comet_stellar_pup.rs:64"
+"crates/cantrip-api/src/game.rs:1365",
+"crates/cantrip-state/src/object.rs:1316",
+"crates/cantrip-api/src/card.rs:2465"
 ],
-"how": "g.allow_extra_loyalty_activations(permanent, 1) records a marker in the history that loyalty_available counts this turn. Kaito: g.allow_extra_loyalty_activations(asker.source, 1). Chain Veil and Urza III: loop over the planeswalkers you control as it resolves (q.state().battlefield() filtered on q.chars(id).is(CardType::Planeswalker) && q.controller(id)==asker.controller) and call it once each. Cheap: replace the hole with that loop, its filter taken from the RON filter.",
-"note": "Kaito, Dancing Shadow; The Chain Veil; Urza Assembles the Titans.",
-"partial": "Urza III ('planeswalkers you control twice this turn') is a rule-changing effect, so by CR 611.2c it should also reach planeswalkers you get later that turn. loyalty_available counts per object only (actions.rs:5119), with no player-level grant, so the loop misses those (a gap for full fidelity). Chain Veil's 'for each planeswalker you control' probably fixes the set at resolution, so the loop is right there (not checked against rulings).",
-"verdict": "exists"
+"how": "Protection from player for a player: PlayerProtectionFromEverything only as an EffectKind; static player_protection rule for a player. Loyalty twice: g.allow_extra_loyalty_activations(permanent, times). Permanents: per permanent loop (The Chain Veil). Visibility: EffectKind names none.",
+"note": "Only the loyalty ones are settled: exists.",
+"partial": "Player protection from one player or color for a duration: no EffectKind. Play with hand revealed for a duration: none found.",
+"verdict": "unsure"
 },
 "player-rule-for-a-while-additional-land-plays": {
 "evidence": [
@@ -13412,18 +13454,14 @@
 },
 "player-rule-for-a-while-grant-keyword": {
 "evidence": [
-"crates/cantrip-state/src/object.rs:1319",
-"crates/cantrip-state/src/object.rs:1329",
-"crates/cantrip-rules/src/layers.rs:3076",
-"crates/cantrip-rules/src/layers.rs:3267",
-"crates/cantrip-rules/src/layers.rs:3301",
-"crates/cantrip-api/src/card.rs:2465",
-"crates/cantrip-rules/src/ops.rs:3493"
+"crates/cantrip-api/src/game.rs:1365",
+"crates/cantrip-state/src/object.rs:1316",
+"crates/cantrip-api/src/card.rs:2465"
 ],
-"how": "Missing: an EffectKind for a player's protection from a player (PlayerProtectionFrom(PlayerId)), from colors (ColorSet), and hexproof from colors (HexproofFrom), about the effect's controller and listed in EffectKind::outlives_affected. The only player-level kinds are PlayerHexproof (all of hexproof) and PlayerProtectionFromEverything. layers::can_target's Target::Player arm and layers::player_protection read only those two, plus statics from the battlefield. player_protection takes only from: PlayerId, so protection by color would need the source object passed in at ops.rs:3493/3586.",
-"note": "Eon Frolicker, Guardian Archon, Noble Heritage (protection from a player), Seht's Tiger (from a color), Veil of Summer (hexproof from blue/black). A CardDef::player_protection static can't stand in: it works only while its source is on the battlefield (layers.rs:3267), so it would end when the creature leaves, and Veil is an instant.",
-"partial": "The permanent halves exist: Eon Frolicker's planeswalkers and Guardian Archon's target use g.add_effect(src, pw, EffectKind::ProtectionFromPlayer(p), dur) per permanent; Veil's permanents use EffectKind::HexproofFrom. Veil's 'can't be countered' is another form.",
-"verdict": "gap"
+"how": "Protection from player for a player: PlayerProtectionFromEverything only as an EffectKind; static player_protection rule for a player. Loyalty twice: g.allow_extra_loyalty_activations(permanent, times). Permanents: per permanent loop (The Chain Veil). Visibility: EffectKind names none.",
+"note": "Only the loyalty ones are settled: exists.",
+"partial": "Player protection from one player or color for a duration: no EffectKind. Play with hand revealed for a duration: none found.",
+"verdict": "unsure"
 },
 "player-rule-for-a-while-hand-size": {
 "evidence": [
@@ -13663,17 +13701,14 @@
 },
 "player-rule-for-a-while-visibility": {
 "evidence": [
-"crates/cantrip-engine/src/visibility.rs:90",
-"crates/cantrip-engine/src/visibility.rs:103",
-"crates/cantrip-engine/src/visibility.rs:119",
-"crates/cantrip-rules/src/ops.rs:140",
-"crates/cantrip-rules/src/lib.rs:2525",
-"crates/cantrip-api/src/card.rs:2823"
+"crates/cantrip-api/src/game.rs:1365",
+"crates/cantrip-state/src/object.rs:1316",
+"crates/cantrip-api/src/card.rs:2465"
 ],
-"how": "Missing: a lasting reveal. visibility::observable and ops::revealed_in_hidden_zones show a hidden card to everyone only while a stack item or trigger revealed it, or by the controller-only PlayRule::LookAtLibraryTop. Game::reveal is a one-time Event::Revealed. It needs an EffectKind (hand revealed of PlayerId / card revealed ObjectId / library top revealed) read in visibility::observable and ops::seen_by_all_in.",
-"note": "Firestorm Phoenix (one card in hand until that player's next turn), Sen Triplets (hand this turn), Stromgald Spy (hand while it's on the battlefield; Duration::WhileSourceOnBattlefield exists), Temporal Aperture (library top until end of turn or until the top changes).",
-"partial": "The cards' other parts (can't play it, play from that hand, play the top for free) are other forms.",
-"verdict": "gap"
+"how": "Protection from player for a player: PlayerProtectionFromEverything only as an EffectKind; static player_protection rule for a player. Loyalty twice: g.allow_extra_loyalty_activations(permanent, times). Permanents: per permanent loop (The Chain Veil). Visibility: EffectKind names none.",
+"note": "Only the loyalty ones are settled: exists.",
+"partial": "Player protection from one player or color for a duration: no EffectKind. Play with hand revealed for a duration: none found.",
+"verdict": "unsure"
 },
 "player-rule-hand-size-set": {
 "evidence": [
@@ -13920,85 +13955,60 @@
 "verdict": "gap"
 },
 "player-state-can-draw": {
-"evidence": [
-"crates/cantrip-api/src/card.rs:2282"
-],
-"how": "Landed: read.rs writes !cantrip_api::cant_draw(q, player, 1) (Tempt with Bunnies whole; test cantrip_lane_unsure). AllowedToDrawCards(p) = !cantrip_api::cant_draw(q, p, 1). Cheap: one expression in the player-filter arm.",
-"note": "Tempt with Bunnies. The filter isn't in the Oracle text but is right by CR 121.3: a player who can't draw can't take an offer to draw.",
+"evidence": [],
+"how": "",
+"note": "Eight small forms, unread one by one: received-a-vote is local to a vote; has-boon, could-mulligan and whole-pool have no state I know of.",
 "partial": "",
-"verdict": "exists"
+"verdict": "unsure"
 },
 "player-state-could-mulligan": {
-"evidence": [
-"crates/cantrip-rules/src/turn.rs:246",
-"crates/cantrip-rules/src/turn.rs:261",
-"crates/cantrip-api/src/card.rs:2855",
-"crates/cantrip-api/src/card.rs:3098",
-"crates/cantrip-state/src/object.rs:1920"
-],
-"how": "The fact can be read (!q.state().player(p).kept, mulligans < 7), but the mulligan loop in turn::opening asks only RequestKind::Mulligan and never asks card code. CardDef::opening_hand (OpeningHandAction) runs after mulligans and only puts the card onto the battlefield. Missing: a CardDef hook offered to undecided players during the mulligan loop.",
-"note": "Serum Powder (with a-reveal-from-an-opening-hand).",
+"evidence": [],
+"how": "",
+"note": "Eight small forms, unread one by one: received-a-vote is local to a vote; has-boon, could-mulligan and whole-pool have no state I know of.",
 "partial": "",
-"verdict": "gap"
+"verdict": "unsure"
 },
 "player-state-has-boon": {
-"evidence": [
-"crates/cantrip-state/src/object.rs:1903",
-"crates/cantrip-api/src/game.rs:824"
-],
-"how": "Boons are an Alchemy (Arena-only) mechanic, not in the Comprehensive Rules, and Cantrip has no boon object or player designation. An emblem (Game::create_emblem) is permanent and can't be the one-time boon.",
-"note": "Underbridge Warlock, Alchemy only. Better excluded as digital-only (like stickers) than built.",
+"evidence": [],
+"how": "",
+"note": "Eight small forms, unread one by one: received-a-vote is local to a vote; has-boon, could-mulligan and whole-pool have no state I know of.",
 "partial": "",
-"verdict": "gap"
+"verdict": "unsure"
 },
 "player-state-possible-defender": {
-"evidence": [
-"crates/cantrip-rules/src/turn.rs:670",
-"crates/cantrip-state/src/state.rs:654"
-],
-"how": "Landed: read.rs writes q.state().opponents(q.state().turn.active).any(|o| o == player); test cantrip_lane_unsure. The engine's defending players are the active player's opponents still in the game (attack_targets: q.state().opponents(active)). PossibleDefendingPlayerThisCombat = q.state().opponents(q.state().turn.active). Cheap: one expression.",
-"note": "Stand or Fall (its piles are other forms).",
+"evidence": [],
+"how": "",
+"note": "Eight small forms, unread one by one: received-a-vote is local to a vote; has-boon, could-mulligan and whole-pool have no state I know of.",
 "partial": "",
-"verdict": "exists"
+"verdict": "unsure"
 },
 "player-state-received-a-vote": {
-"evidence": [
-"crates/cantrip-mechanics/src/vote.rs:9",
-"crates/cantrip-mechanics/src/vote.rs:31"
-],
-"how": "A vote yields a per-candidate tally as a local value (vote::for_permanents returns Vec<u32> in candidate order). ReceivedAVote(p) = tally[index of p] > 0; DidntReceiveAVote = == 0; TheNumberOfVotesReceivedByPlayer = tally[index]. Cheap once operation-vote returns that tally for players.",
-"note": "Círdan the Shipwright, Mob Verdict. Depends on operation-vote (secret votes for players) and operation-reveal-choices, which are separate forms.",
+"evidence": [],
+"how": "",
+"note": "Eight small forms, unread one by one: received-a-vote is local to a vote; has-boon, could-mulligan and whole-pool have no state I know of.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "unsure"
 },
 "player-state-rolled-highest": {
-"evidence": [
-"crates/cantrip-api/src/game.rs:881",
-"crates/cantrip-api/src/event.rs:258"
-],
-"how": "g.roll_die returns Roll { result }, and the generated code already keeps each player's result in each_2 (indexed like players_0). RolledHighestD20Value(p) = each_2[pos(p)] == *each_2.iter().max(); ties all count as highest. Cheap.",
-"note": "Chaos Dragon.",
+"evidence": [],
+"how": "",
+"note": "Eight small forms, unread one by one: received-a-vote is local to a vote; has-boon, could-mulligan and whole-pool have no state I know of.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "unsure"
 },
 "player-state-shuffled-this-way": {
-"evidence": [
-"crates/cantrip-api/src/game.rs:875"
-],
-"how": "The generated code already records each yes in guard_0_0 (indexed like players_0). ShuffledLibraryThisWay(p) = players_0.iter().position(|&x| x == p).is_some_and(|i| guard_0_0[i]). Cheap.",
-"note": "Step Between Worlds.",
+"evidence": [],
+"how": "",
+"note": "Eight small forms, unread one by one: received-a-vote is local to a vote; has-boon, could-mulligan and whole-pool have no state I know of.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "unsure"
 },
 "player-state-whole-pool-in-deck": {
-"evidence": [
-"crates/cantrip-state/src/vocab.rs:489",
-"crates/cantrip-state/src/vocab.rs:1281"
-],
-"how": "Missing: a record of each player's card pool (deck plus starting sideboard) and of where each card started the game. CardType has no Conspiracy, and the Sideboard zone holds only its current contents.",
-"note": "Worldknit (Conspiracy draft-matters card; card-type-conspiracy and layout-conspiracy are gaps too).",
+"evidence": [],
+"how": "",
+"note": "Eight small forms, unread one by one: received-a-vote is local to a vote; has-boon, could-mulligan and whole-pool have no state I know of.",
 "partial": "",
-"verdict": "gap"
+"verdict": "unsure"
 },
 "plot-cost-other-than-mana": {
 "evidence": [
@@ -14080,12 +14090,13 @@
 },
 "printed-loyalty-expression": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:76"
+"crates/cantrip-api/src/card.rs:76",
+"crates/cantrip-cards/src/cards/chalice_of_the_void.rs:6"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: `enters` setting `e.counters[CounterKind::Loyalty as usize] = x`.",
+"how": "No card is left on this form. Nissa, Steward of Elements lands: an enters hook adds entering.x to the loyalty counters (CR 306.5b, 107.3m); printed loyalty X is 0 in the oracle build.",
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "prohibited-action-attack-with": {
 "evidence": [
@@ -14287,6 +14298,18 @@
 "partial": "Mixed kinds unread.",
 "verdict": "data"
 },
+"removing-x-counters-to-activate-a-mana-ability": {
+"evidence": [
+"crates/cantrip-rules/src/actions.rs:9584",
+"crates/cantrip-rules/src/actions.rs:9623",
+"crates/cantrip-rules/src/actions.rs:9187",
+"crates/cantrip-api/src/card.rs:940"
+],
+"how": "activate_mana_as announces only mana.x (kept on Object::x) and never reads cost.variable; RemoveAnyNumberOfCounters is announced only in activate. Rules work: announce it in activate_mana_as and keep it on Object::x as {X} is. Calciform Pools, Crucible of the Spirit Dragon, Dreadship Reef, Fungal Reaches, Haruspex, Kyren Toy, Molten Slagheap, Petalmane Baku, Saltcrusted Steppe.",
+"note": "lane g1",
+"partial": "",
+"verdict": "gap"
+},
 "replacement-destination-owners-library-bottom": {
 "evidence": [
 "crates/cantrip-api/src/replace.rs:16"
@@ -14298,101 +14321,79 @@
 },
 "replacement-destination-owners-library-top": {
 "evidence": [
-"crates/cantrip-rules/src/ops.rs:558",
-"crates/cantrip-rules/src/ops.rs:559",
-"crates/cantrip-rules/src/ops.rs:2987",
-"crates/cantrip-api/src/game.rs:719",
-"crates/cantrip-api/src/replace.rs:43"
+"crates/cantrip-mechanics/src/replacements.rs:405"
 ],
-"how": "Landed: lane_n writes z.to = Zone::library(owner); z.shuffle = false; (Gravebane Zombie whole; test cantrip_lane_unsure). Set z.to = Zone::library(q.state().obj(z.object).owner) and leave z.shuffle false. A card arriving in a library is inserted at index 0 (ops.rs:558-559), and index 0 is the top: draw takes .first(), ops.rs:2987. Delete the planned_value!(z.library_end = Some(LibraryEnd::Top)).",
-"note": "Gravebane Zombie, Library of Leng, Nephalia Academy, Pulmonic Sliver. Cheap: the destination arm stops emitting the planned_value and emits only the z.to line.",
-"partial": "Library of Leng and Nephalia Academy keep replacement-event-discard. Pulmonic Sliver keeps granted-replacement.",
-"verdict": "exists"
+"how": "z.to = Zone::library(owner) with shuffle false.",
+"note": "Check that arrival defaults to the top.",
+"partial": "",
+"verdict": "unsure"
 },
 "replacement-event-caused": {
 "evidence": [
-"crates/cantrip-api/src/replace.rs:108",
-"crates/cantrip-api/src/replace.rs:159",
-"crates/cantrip-api/src/replace.rs:347",
-"crates/cantrip-rules/src/lib.rs:1469"
+"crates/cantrip-api/src/replace.rs:16",
+"crates/cantrip-api/src/card.rs:2565"
 ],
-"how": "Missing: the cause at `applies` (`Query::cause()`, as engine-no-discard-cause-in-events). Zabaz: CounterPlacement names its putter player and whether an effect puts them, not which ability; with the cause, applies tests that the resolving triggered ability is a modular one. Silhouette: DamageEvent names the source dealing damage, not the spell or ability causing it; with the cause, applies reads the resolving item's targets (q.state().targets(item)) for the chosen creature.",
-"note": "Silhouette, Zabaz, the Glimmerwasp.",
-"partial": "Silhouette's shield for the turn also needs the prevention to be made by a resolving instant (a granted prevention or an effect on the creature).",
-"verdict": "gap"
+"how": "Dodecapod family: ReplacementDef ZoneChange with own_everywhere, z.reason==Discard. Who caused it: q.state().stack top item while resolving.",
+"note": "",
+"partial": "ZoneChange has no causer. Whether a resolving item is still in state.stack must be checked.",
+"verdict": "unsure"
 },
 "replacement-event-copy-spell": {
 "evidence": [
-"crates/cantrip-api/src/replace.rs:230",
-"crates/cantrip-api/src/replace.rs:244",
-"crates/cantrip-rules/src/ops.rs:2525",
-"crates/cantrip-rules/src/ops.rs:2533",
-"crates/cantrip-api/src/game.rs:846"
+"crates/cantrip-api/src/replace.rs:239"
 ],
-"how": "Missing: a Proposal::SpellCopy and ReplacementKind::SpellCopy, carrying the copier, the spell, a count and new-targets-for-the-added-copy. Proposal (replace.rs:230-240) has no copy event. copy_spell/copy_spell_as (ops.rs:2525-2545) copy once per call and apply no replacement, and Game::copy_spell has no count (game.rs:846). 'Copy it one or more times' isn't one event anywhere.",
-"note": "Twinning Staff only. Its activated ability lands with Game::copy_spell.",
+"how": "First each turn: applies reads history. Twinning Staff: no copy proposal in ReplacementKind.",
+"note": "Other partition likely owns these.",
 "partial": "",
-"verdict": "gap"
+"verdict": "unsure"
 },
 "replacement-event-countered": {
 "evidence": [
 "crates/cantrip-api/src/replace.rs:16",
-"crates/cantrip-rules/src/resolve.rs:692",
-"crates/cantrip-rules/src/lib.rs:1469"
+"crates/cantrip-api/src/card.rs:2565"
 ],
-"how": "Missing: the cause at `applies` (`Query::cause()`). Countering is a ZoneChange of the spell with reason ZoneReason::Counter; Guile's replacement needs to know the countering spell or ability is one you control. With it: ReplacementKind::ZoneChange, z.reason == Counter and the cause's controller asker.controller, z.to = exile, then a play permission without paying the mana cost.",
-"note": "Guile.",
-"partial": "'Instead exile that spell' also must keep the counter event itself from happening (no Countered trigger), which the ZoneChange replacement does since the move is the counter.",
-"verdict": "gap"
+"how": "Dodecapod family: ReplacementDef ZoneChange with own_everywhere, z.reason==Discard. Who caused it: q.state().stack top item while resolving.",
+"note": "",
+"partial": "ZoneChange has no causer. Whether a resolving item is still in state.stack must be checked.",
+"verdict": "unsure"
 },
 "replacement-event-discard": {
 "evidence": [
 "crates/cantrip-api/src/replace.rs:16",
-"crates/cantrip-api/src/replace.rs:274",
-"crates/cantrip-rules/src/lib.rs:1469",
-"crates/cantrip-api/src/lib.rs:5"
+"crates/cantrip-api/src/card.rs:2565"
 ],
-"how": "Missing: who causes a discard, at `applies`. ZoneChange carries reason == Discard but no cause, ReplacementApplies is fn(&dyn Query, &Asker, &Proposal), and Query has no cause (Cx::cause is pub(crate)). With `Query::cause()` each card is card code: ReplacementKind::ZoneChange applying on own card (own_everywhere) with z.reason == ZoneReason::Discard and the cause a spell or ability an opponent controls (Library of Leng: any spell or ability, not a cost or the cleanup discard).",
-"note": "Dodecapod, Library of Leng, Loxodon Smiter, Nephalia Academy, Nullhide Ferox, Obstinate Baloth, Wilt-Leaf Liege.",
-"partial": "Dodecapod, Loxodon Smiter, Nullhide Ferox, Obstinate Baloth, Wilt-Leaf Liege: z.to = battlefield (Dodecapod with z.counters two +1/+1). Library of Leng and Nephalia Academy also need the library top destination (replacement-destination-owners-library-top) and an optional choice.",
-"verdict": "gap"
+"how": "Dodecapod family: ReplacementDef ZoneChange with own_everywhere, z.reason==Discard. Who caused it: q.state().stack top item while resolving.",
+"note": "",
+"partial": "ZoneChange has no causer. Whether a resolving item is still in state.stack must be checked.",
+"verdict": "unsure"
 },
 "replacement-event-draw-caused-by": {
 "evidence": [
-"crates/cantrip-api/src/replace.rs:144",
-"crates/cantrip-api/src/replace.rs:274",
-"crates/cantrip-rules/src/lib.rs:1469"
+"crates/cantrip-api/src/replace.rs:16",
+"crates/cantrip-api/src/card.rs:2565"
 ],
-"how": "Missing: the cause at `applies` (`Query::cause()`). DrawInstruction names the player and count, not the ability; with the cause, applies tests Cause::Ability { source, ability } is a cycling ability of another nonland card, and the then fn exiles until a shared card type and offers the free cast.",
-"note": "Unpredictable Cyclone.",
-"partial": "The free cast and the random bottom order exist: cantrip_mechanics::discover::may_cast_free, library::rest_to_bottom_in_random_order, from the ReplacementThen.",
-"verdict": "gap"
+"how": "Dodecapod family: ReplacementDef ZoneChange with own_everywhere, z.reason==Discard. Who caused it: q.state().stack top item while resolving.",
+"note": "",
+"partial": "ZoneChange has no causer. Whether a resolving item is still in state.stack must be checked.",
+"verdict": "unsure"
 },
 "replacement-event-each-point": {
 "evidence": [
-"crates/cantrip-api/src/replace.rs:159",
-"crates/cantrip-api/src/replace.rs:320",
-"crates/cantrip-api/src/replace.rs:326",
-"crates/cantrip-state/src/object.rs:1395",
-"crates/cantrip-api/src/game.rs:1168"
+"crates/cantrip-api/src/replace.rs:239"
 ],
-"how": "Drop .each_point(). This is a GrantedReplacementDef of ReplacementKind::Damage, made through EffectKind::ReplacementRule as Words of Wind does. Its apply sets e.amount = 0. Its then removes as many echo counters as the damage it replaced: in made_6_then, g.remove_counters(asker.source, CounterKind::Echo, before.amount as i16), with before = Proposal::Damage(e). Today it removes 1. One replacement of the whole event is the same as one per point.",
-"note": "Soul Echo. Caveat: with fewer counters than damage, all of the damage is still replaced; I did not confirm that against the rulings. Cheap: in the each-point arm, change the amount from 1 to data[0].",
-"partial": "Soul Echo still has duration-until-next-upkeep (Duration::UntilNextUpkeepOf), so it isn't whole from this alone.",
-"verdict": "card-code"
+"how": "First each turn: applies reads history. Twinning Staff: no copy proposal in ReplacementKind.",
+"note": "Other partition likely owns these.",
+"partial": "",
+"verdict": "unsure"
 },
 "replacement-event-first-each-turn": {
 "evidence": [
-"crates/cantrip-cards/src/cards/mirrormind_crown.rs:17",
-"crates/cantrip-cards/src/cards/mirrormind_crown.rs:21",
-"crates/cantrip-mechanics/src/history.rs:36",
-"crates/cantrip-mechanics/src/history.rs:51",
-"crates/cantrip-api/src/replace.rs:273"
+"crates/cantrip-api/src/replace.rs:239"
 ],
-"how": "Drop .first_each_turn() and fold the test into `applies`, which reads q.history(). Tokens, as Mirrormind Crown does: && !q.history().select(EventQuery::kind(EventMask::ZONE_CHANGE).to(ZoneKind::Battlefield).reason(ZoneReason::Created).this_turn()).any(|r| matches!(r.event, Event::ZoneChange{new,..} if q.obj(new).owner == asker.controller)). Draws: q.history().count(EventQuery::kind(EventMask::DREW).player(p).this_turn()) minus the exempt draw-step draw == 0. Reed also needs !cantrip_mechanics::history::first_draw_in_own_draw_step(q, p).",
-"note": "Esix, Moonlit Meditation, Reed Richards and Scion of Halaster. Caveat, the same one Mirrormind Crown accepts: a first event that was replaced into nothing leaves no record, so the 'first time' isn't used up. Cheap: one history clause per proposal kind in the applies arm.",
-"partial": "Esix also needs token-recipe-copy and event-change. Moonlit needs instruction-choose-one and event-change. Scion needs engine-no-commander and granted-replacement. Reed is whole with this alone.",
-"verdict": "card-code"
+"how": "First each turn: applies reads history. Twinning Staff: no copy proposal in ReplacementKind.",
+"note": "Other partition likely owns these.",
+"partial": "",
+"verdict": "unsure"
 },
 "replacement-event-produce-color": {
 "evidence": [
@@ -14713,11 +14714,13 @@
 },
 "resolution-cost-mana-with-x": {
 "evidence": [
-"crates/cantrip-api/src/game.rs:1287",
-"crates/cantrip-cards/src/cards/tester_of_the_tangential.rs:19"
+"crates/cantrip-api/src/game.rs:1277",
+"crates/cantrip-api/src/game.rs:1283",
+"crates/cantrip-cards/src/cards/zoraline_cosmos_caller.rs:39",
+"crates/cantrip-cards/src/cards/tester_of_the_tangential.rs:20"
 ],
-"how": "No generated card needs it: its one card, Tester of the Tangential, is hand-written with g.may_pay_x(you, source, source, cost(\"{X}\"), &PAY_X), the X paid or None, and the reflexive 'when you do' given X through reflexive_trigger_counted. The generator's path, when a card needs it, is that call in place of effects::pay with Cost::mana_with_x; it is left alone here because its partner cost-part-mana-with-x is held as unsure by another lane.",
-"note": "No cards left.",
+"how": "g.may_pay / may_pay_x with a full Cost; hand-written on Meanders Guide, Zoraline, Comet Stellar Pup, Tester of the Tangential, Mister Hyde.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Tester of the Tangential's pay {X} is g.may_pay_x (game.rs:1287, as the hand-written card does); the cost part inside it is cost-part-mana-with-x (unsure, another lane's).",
 "partial": "",
 "verdict": "exists"
 },
@@ -14809,6 +14812,17 @@
 ],
 "how": "Generator writes it (lane g6); landed and checked in Cantrip 01aba4b15: Tectonic Giant: an empty cost is always paid.",
 "note": "",
+"partial": "",
+"verdict": "exists"
+},
+"result-this-instruction-does-not-report": {
+"evidence": [
+"crates/cantrip-mechanics/src/choose.rs:222",
+"crates/cantrip-api/src/game.rs:1077",
+"crates/cantrip-api/src/game.rs:1079"
+],
+"how": "A stand-in leaning on another hole that reports none. Abstract Performance landed: two piles exiled whole (face down, face up) are kept as the exile moves made them, the opponent chooses with choose::face_down_or_face_up_pile (choose.rs:222, as Riddles in the Dark does), and \"the other pile\" is the pile not chosen. No card holds it now.",
+"note": "Landed by the integrator after lane g16 fixed the lowering half (THIS_WAY in lower_named.rs).",
 "partial": "",
 "verdict": "exists"
 },
@@ -14981,11 +14995,13 @@
 },
 "search-with-cards-from-outside-the-game": {
 "evidence": [
+"crates/cantrip-api/src/game.rs:344",
+"crates/cantrip-api/src/game.rs:706",
 "crates/cantrip-cards/src/cards/turtles_forever.rs:21",
 "crates/cantrip-mechanics/src/outside.rs:11"
 ],
-"how": "Cantrip expresses it as hand-written Turtles Forever does: library::searched_cards(g, you) where g.may_search(you, you), the graveyard's cards and g.outside_the_game(you) shown as one selection, g.searched(you, you), then the cards from outside brought in with g.bring_into_hand_revealed and the rest moved to hand revealed (CR 400.11b, 701.23). The planned code's library::search_zones does not exist. Not landed: Invasion of Arcavios, the one card left, is also held by condition Searched ('if you search your library this way, shuffle'), which is a gap form of its own.",
-"note": "Unsettled: Invasion of Arcavios waits on condition-searched.",
+"how": "Turtles Forever searches the library and outside the game as one selection: `searched_cards` and `outside_the_game` shown together, a library card moved, one from outside brought in with `bring_into_hand_revealed`. Add the graveyard to the same pool.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Invasion of Arcavios is also held by condition-searched (gap: 'if you search your library this way' over a library, graveyard and outside-the-game search).",
 "partial": "",
 "verdict": "exists"
 },
@@ -15004,10 +15020,10 @@
 "evidence": [
 "crates/cantrip-api/src/select.rs:148",
 "crates/cantrip-api/src/select.rs:153",
-"crates/cantrip-cards/src/cards/extrapolate_the_impossible.rs:25"
+"crates/cantrip-cards/src/cards/extrapolate_the_impossible.rs:35"
 ],
-"how": "Generator writes it (lane g6); landed and checked in Cantrip 01aba4b15: Niv-Mizzet Reborn: select::part with a judge of one card for each color pair, as many as can be.",
-"note": "Extrapolate the Impossible (hand-written) is left held on purpose. Its 'with different names' is one line (select::DIFFERENT_NAMES, which the generator writes for DifferentNames), and lane g13 tried it: the card then came out whole but wrong, because the lowering reads 'put the card chosen this way into your hand' as a fresh choice of any card from outside the game (the source says TheCardsFromOutsideGameChosenThisWay, data/mtgish.lines.ron:9178), and 'exactly two' as as-many-as-can. Fix that lowering first; the hand-written pair() (extrapolate_the_impossible.rs:25) is the shape.",
+"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Card-written select::part, n=COUNTED.",
+"note": "No cards left. Lane g16 fixed the lowering g13 found: DifferentNames reduces to SelectionConstraint::DifferentNames (select::DIFFERENT_NAMES), RevealNumberGroupCardsFromOutsideGame is a choice then a reveal of it, \"exactly two\" is two or nothing, and PutACardFromOutsideGameInHand(TheCardsFromOutsideGameChosenThisWay) moves the opponent's pick, not a fresh card. Extrapolate the Impossible compiles in Cantrip 01aba4b15; its scenarios are written for the hand-written prompt order (one card, then its partner, no separate 'may'): with that order adjusted, extrapolate-the-impossible-reveals-two-and-puts-the-opponents-pick-into-hand passes. With one card outside the game it still asks the 'may' and lets the player pick one card, which then does nothing, where the hand-written asks nothing.",
 "partial": "",
 "verdict": "exists"
 },
@@ -16960,17 +16976,16 @@
 },
 "target-cardinality-up-to": {
 "evidence": [
-"crates/cantrip-api/src/card.rs:715",
-"crates/cantrip-api/src/ability.rs:782",
-"crates/cantrip-api/src/ability.rs:787",
-"crates/cantrip-api/src/ability.rs:716",
-"crates/cantrip-api/src/ability.rs:723",
-"crates/cantrip-api/src/card.rs:1658"
+"crates/cantrip-api/src/card.rs:1827",
+"crates/cantrip-rules/src/actions.rs:9202",
+"crates/cantrip-api/src/card.rs:1662",
+"crates/cantrip-rules/src/actions.rs:8450",
+"crates/cantrip-rules/src/resolve.rs:227"
 ],
-"how": "The up-to rule lands. Agility Bobblehead, Reap, monstrosity X, disguise X and Comet Storm stay held: each one's count reads an X or a branch that the announcement can't read.",
-"note": "Roughly 40 cards are the plain exists forms; about 25 need the together idiom; about 18 are the partial list. together is proven only for a rule, not yet as a count: no card uses it as a read count, so test first.",
-"partial": "Spell/activated read-from-game via together: judged again at resolution (a changed count makes the whole slot illegal, guard it with a check that the item already has targets); players are not counted by together, so \"any target\" counts fail; not honoured with Divide. Still gap: X plus multikicker i",
-"verdict": "card-code"
+"how": "No card is left on this form. A divided up-to whose bound is the total reads between(0, ANY_NUMBER) (ask_divided gives each target at least 1, CR 601.2d) or the trigger's counted read; a divided total of X is Divide { total: COUNTED, of_x: Some(fn) } as Shatterskull Smashing (Meteor Shower lands). An up-to after another gap now follows that gap (Black Hole, Grand Ossuary, Impact Resonance, Jaws of Stone, Living Inferno, Lukka, Make a Splash, Monstrous Onslaught, Quirion Beastcaller, The Wise Mothman, Undercity Upheaval, Volcanic Wind). Split: an-activated-ability-s-target-count-read-as-it-is-activated (Agility, Endurance Bobblehead); a-target-count-read-from-another-target (Reap); the-x-of-the-monstrosity-a-becomes-monstrous-trigger-reads (Death Kiss, Vitality Hunter).",
+"note": "",
+"partial": "",
+"verdict": "exists"
 },
 "target-constraint-at-random": {
 "evidence": [
@@ -17035,7 +17050,7 @@
 "crates/cantrip-cards/src/cards/kitsune_dragons_daughter.rs:54",
 "crates/cantrip-cards/src/cards/run_away_together.rs:32"
 ],
-"how": "One slot with union filter (battlefield or graveyard: Angel of Serenity). together(select::part/set_part). Equal or no common property: card-written Part.",
+"how": "No card is left on this form (lane g1 full corpus). One slot with union filter (battlefield or graveyard: Angel of Serenity). together(select::part/set_part). Equal or no common property: card-written Part.",
 "note": "",
 "partial": "set_part must be downward-closed; \"equal toughness\" is, once one is chosen.",
 "verdict": "exists"
@@ -17315,6 +17330,26 @@
 "partial": "",
 "verdict": "gap"
 },
+"the-x-of-the-ability-that-made-a-replacement-effect": {
+"evidence": [
+"crates/cantrip-state/src/object.rs:1169",
+"crates/cantrip-state/src/object.rs:1395"
+],
+"how": "A ContinuousEffect keeps no number and EffectKind::ReplacementRule names only card and index, so a replacement made by an X ability cannot read that X when it applies. Aladdin's Lamp, Taii Wakeen.",
+"note": "lane g1",
+"partial": "",
+"verdict": "gap"
+},
+"the-x-of-the-monstrosity-a-becomes-monstrous-trigger-reads": {
+"evidence": [
+"crates/cantrip-api/src/event.rs:169",
+"crates/cantrip-rules/src/ops.rs:4140"
+],
+"how": "Event::Monstrous carries only the permanent and ops::monstrosity keeps no N, so a 'when it becomes monstrous' trigger cannot read X (CR 701.37c). Death Kiss, Vitality Hunter.",
+"note": "lane g1",
+"partial": "",
+"verdict": "gap"
+},
 "token-copy-entering-with-counters": {
 "evidence": [
 "crates/cantrip-api/src/game.rs:322",
@@ -17345,11 +17380,15 @@
 },
 "token-recipe-copy": {
 "evidence": [
-"crates/cantrip-cards/src/cards/mirrormind_crown.rs:28",
-"crates/cantrip-api/src/replace.rs:175"
+"crates/cantrip-api/src/game.rs:322",
+"crates/cantrip-api/src/game.rs:805",
+"crates/cantrip-api/src/game.rs:812",
+"crates/cantrip-api/src/game.rs:834",
+"crates/cantrip-cards/src/cards/shark_typhoon.rs:19",
+"crates/cantrip-cards/src/cards/the_cloning_of_shredder.rs:11"
 ],
-"how": "Cantrip expresses it as Mirrormind Crown does: a ReplacementKind::TokenCreation replacement whose apply sets the proposal's token to the copied creature's copiable values (t.token = values.card; t.copy = Some(values), CR 707.2), the count left as it was. The generator's ModifyEvent ReplaceTokens with a Copy recipe should emit that apply. Not landed: Esix's only ModifyEvent is also held by replacement-event-first-each-turn, which another lane holds as unsure, and event-change-in-the-program-of-another-event; landing the copy alone would leave the card partial.",
-"note": "Unsettled: Esix waits on replacement-event-first-each-turn (unsure).",
+"how": "Not landed: Esix holds on replacing another event's tokens.",
+"note": "Lane g16 did not land it (out of time); the read sits inside other holes of the same card. Esix, Fractal Bloom is also held by event-change-in-the-program-of-another-event and replacement-event-first-each-turn (unsure); its copy recipe is a replacement of the Proposal::TokenCreation, not a token created by the ability.",
 "partial": "Ochre Jelly: counters on a copy as it enters: placed after, so \"enters with\" triggers differ. Caller of the Untamed, Gut cycle: draft and specialize, unplayable. Esix: replacement of token creation: Proposal TokenCreation.copy can be set (replace.rs:181).",
 "verdict": "exists"
 },
@@ -17412,17 +17451,13 @@
 },
 "trigger-event-caused": {
 "evidence": [
-"crates/cantrip-api/src/history.rs:189",
-"crates/cantrip-rules/src/settle.rs:1348",
-"crates/cantrip-rules/src/lib.rs:1612",
-"crates/cantrip-rules/src/lib.rs:1469",
-"crates/cantrip-api/src/event.rs:94",
-"crates/cantrip-api/src/lib.rs:5"
+"crates/cantrip-api/src/history.rs:183",
+"crates/cantrip-rules/src/lib.rs:1502"
 ],
-"how": "Missing: the same `Query::cause()` as engine-no-discard-cause-in-events. No event carries its cause (Countered { spell }, ZoneChange, LifeChange, Damage), the matcher's history stops before the event's own Record, and Cx::cause is pub(crate). With it: Baral and Lullmage Mentor match Countered / reason Counter with a cause you control; Firesong matches LIFE_CHANGE gains caused by a white instant or sorcery spell; Karmic Justice, Sacred Ground, Hero of Bretagard, Ranar, Sahir and The Madcap Jester match their zone or life events by the cause's controller.",
-"note": "Baral, Firesong and Sunspeaker, Hero of Bretagard, Karmic Justice, Lullmage Mentor, Ranar, Sacred Ground, Sahir, The Madcap Jester.",
-"partial": "An ability's controller is the resolving StackItem's, not its source's now: a Query::cause that names the item (or its controller) is better than Cause::Ability { source, .. } alone, which names a source (see trigger-event-player-taps-permanent).",
-"verdict": "gap"
+"how": "",
+"note": "Same check as feature 51.",
+"partial": "",
+"verdict": "unsure"
 },
 "trigger-event-causes-trigger": {
 "evidence": [
@@ -17790,16 +17825,12 @@
 },
 "trigger-event-player-discards-at-random": {
 "evidence": [
-"crates/cantrip-api/src/event.rs:91",
-"crates/cantrip-api/src/event.rs:261",
-"crates/cantrip-mechanics/src/lib.rs:284",
-"crates/cantrip-mechanics/src/lib.rs:292",
-"crates/cantrip-rules/src/lib.rs:2173"
+"crates/cantrip-api/src/event.rs:273"
 ],
-"how": "Missing: a random-discard event. Event::Discarded{player,card,undefined} has no at-random flag (event.rs:91). cantrip_mechanics::discard_at_random shuffles with g.random (no event) and then discard_together (lib.rs:284-295). ChosenAtRandom{count,index} (event.rs:261, emitted at rules lib.rs:2173) has no player and no subject. Nothing records targets or modes chosen at random. Needs Discarded.at_random (or a DiscardedAtRandom event) and a player/kind on ChosenAtRandom.",
-"note": "Chira, All In. Its coin-flip and die-roll halves exist now: Event::CoinFlipped/DieRolled{player} with EventMask::COIN_FLIPPED/DIE_ROLLED and once_per_batch. The planned names DISCARDED_AT_RANDOM, RANDOM_TARGETS, RANDOM_MODES and DICE_ROLLED don't exist.",
-"partial": "Flips and rolls are fine. Random discards, random targets and random modes are the gap.",
-"verdict": "gap"
+"how": "",
+"note": "",
+"partial": "ChosenAtRandom fires for choose_at_random.",
+"verdict": "unsure"
 },
 "trigger-event-player-discovers": {
 "evidence": [

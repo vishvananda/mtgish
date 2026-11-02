@@ -553,6 +553,8 @@ struct Compiler {
     /// What this triggered ability's event is always about, as "this creature"
     /// is: read where no event reaches, as "another creature" in a cost.
     event_object: Option<ObjectRef>,
+    /// The triggered ability's event is this object entering the battlefield.
+    source_entered: bool,
     /// While an instruction is compiled to happen only if its players exist:
     /// the local each stands for, and how to read it. See `lane_j`.
     present: std::rc::Rc<std::cell::RefCell<Option<Vec<(String, String)>>>>,
@@ -579,6 +581,12 @@ struct Compiler {
     /// An instruction exiled cards into piles ("in a face-down pile"), which
     /// a later choice of "those piles" reads.
     exiled_piles: bool,
+    /// The piles an instruction exiled whole ("exile the top four cards of your
+    /// library in a face-down pile"): each one's local, and whether it is face down.
+    exile_piles_made: Vec<(String, bool)>,
+    /// A choice between exiled piles, by its result: the local of the pile not chosen,
+    /// which "the other pile" reads.
+    pile_not_chosen: BTreeMap<u32, String>,
     /// The piles players separated (CR 700.3): the local of their rows, each a
     /// separator, its piles, the pile chosen and who may choose it.
     piles: Option<String>,
@@ -1062,6 +1070,7 @@ impl Compiler {
             static_guard: None,
             trigger_gate: None,
             event_object: None,
+            source_entered: false,
             present: Default::default(),
             picked: Default::default(),
             shares: BTreeMap::new(),
@@ -1075,6 +1084,8 @@ impl Compiler {
             countered: BTreeMap::new(),
             face_piles: None,
             exiled_piles: false,
+            exile_piles_made: Vec::new(),
+            pile_not_chosen: BTreeMap::new(),
             piles: None,
             piles_walk: None,
             pile_shape: (0, false),

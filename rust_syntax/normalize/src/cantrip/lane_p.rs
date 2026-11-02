@@ -585,7 +585,7 @@ impl Compiler {
     pub(super) fn from_outside(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::OutsideTheGame(_) => true,
-            ObjectSet::Selected(result) => self.notes.outside.contains(&result.0),
+            ObjectSet::Selected(result) | ObjectSet::Named(result) => self.notes.outside.contains(&result.0),
             ObjectSet::Union(sets) => sets.iter().any(|set| self.from_outside(set)),
             ObjectSet::Matching { objects, .. }
             | ObjectSet::Difference { objects, .. }
@@ -721,6 +721,18 @@ impl Compiler {
                 self.entering_labels = Some("&[\"left\", \"right\"]".into());
                 self.word_options = vec!["left".into(), "right".into()];
                 writeln!(out, "let player_{id} = {player}; let card_{id} = g.card_id(&CARD); let {local}: u8 = {M}::choose::option(g, player_{id}, {source}, card_{id}, 0..2)?;").unwrap();
+            }
+            // "As this enters, choose left or right" (Pramikon): the word, kept as
+            // its chosen option for its static ability to read (CR 607.2d).
+            ValueKind::Direction
+                if entering
+                    && self.entering_labels.is_none()
+                    && self.choice_labels.is_empty()
+                    && self.word_options.is_empty() =>
+            {
+                self.entering_labels = Some("&[\"left\", \"right\"]".into());
+                self.word_options = vec!["left".into(), "right".into()];
+                writeln!(out, "{M}::choose::option_as_enters(g, entering, &CARD, 0..2)?; let {local}: u8 = entering.chosen_option.map_or(0, |chosen| chosen.index);").unwrap();
             }
             ValueKind::Direction => {
                 let code = format!("{M}::choose::direction(g, {player}, {source})?");
@@ -2643,6 +2655,7 @@ impl Compiler {
                     (false, _) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_all(&objects_{id});").unwrap(),
                 }
                 self.moved.insert(result.0, format!("moved_{id}"));
+                self.exile_piles_made.push((format!("moved_{id}"), face_down));
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
                 return Ok(());
             }

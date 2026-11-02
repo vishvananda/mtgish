@@ -57,6 +57,12 @@ pub fn reads_scope(form: &str) -> bool {
 const THIS_WAY: &[(&[&str], &[&str])] = &[
     (&["Energy"], &["Energy"]),
     (&["Evidence"], &["Evidence"]),
+    // "The exiled pile chosen this way" reads the choice of a pile, not the
+    // last move of exiled cards (Abstract Performance).
+    (
+        &["PileChosen", "PileNotChosen"],
+        &["ChoosePile", "ChooseAnExiledPile", "ChooseAPermanentPile", "ChooseAGraveyardPile", "SeparatePiles", "IntoTwoPiles", "IntoNumberPiles"],
+    ),
     (&["Exploited"], &["Exploit"]),
     (&["CountersOfType"], &["Counters"]),
     (&["Discard"], &["Discard"]),

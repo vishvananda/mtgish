@@ -2388,6 +2388,21 @@ impl Compiler {
                     // the right, the one before (CR 101.4).
                     return Ok(format!("{from}.and_then(|p: PlayerId| {{ let order: Vec<PlayerId> = q.state().turn_order_from(p).collect(); if order.len() < 2 {{ None }} else if {direction} == 0 {{ Some(order[1]) }} else {{ order.last().copied() }} }})"));
                 }
+                // "The nearest opponent in the chosen direction" (Pramikon): the
+                // direction chosen as it entered, kept as its option (0 left, the
+                // next in turn order; 1 right, CR 101.4), and the first of `among`
+                // met going that way.
+                if let (Some(among), true) = (among, self.chosen_local(ValueKind::Direction).is_err()) {
+                    if self.entering_labels.as_deref() == Some("&[\"left\", \"right\"]") {
+                        // "The nearest opponent" of each player a rule asks: that
+                        // player's own opponents.
+                        let among = match self.rule_player && format!("{among:?}").contains("Opponent") {
+                            true => "q.state().opponents(p).into_iter().collect()".to_string(),
+                            false => self.players(among)?,
+                        };
+                        return Ok(format!("{from}.and_then(|p: PlayerId| {{ let among: Vec<PlayerId> = {among}; let right = q.state().chosen_option(q.linked_to(asker.source)).filter(|c| std::ptr::eq(q.cards().get(c.card), &CARD))?.index == 1; let mut order: Vec<PlayerId> = q.state().turn_order_from(p).skip(1).collect(); if right {{ order.reverse(); }} order.into_iter().find(|o| among.contains(o)) }})"));
+                    }
+                }
                 match among {
                     Some(among) => format!(
                         "q.nearest_in_chosen_direction(asker, {from}, {})",

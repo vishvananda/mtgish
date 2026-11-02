@@ -2352,6 +2352,23 @@ impl Compiler {
                     Some(object) => self.fetch(self.object(object)?),
                     None => "None".to_string(),
                 };
+                // "Exile the top four cards of your library in a face-down pile, then
+                // exile the top four cards of your library in a face-up pile. An
+                // opponent chooses one of those piles" (Abstract Performance): the
+                // chooser sees the face-up pile's cards and how many the face-down one
+                // holds (CR 700.3b-d); the chosen pile is this choice's result, the
+                // other is "the other pile".
+                if let (true, None, [(down, true), (up, false)] | [(up, false), (down, true)]) = (
+                    names.is_empty() && self.piles.is_none() && from == "None" && !*random && object == "None",
+                    then,
+                    self.exile_piles_made.as_slice(),
+                ) {
+                    let (down, up) = (down.clone(), up.clone());
+                    writeln!(out, "let chooser_{id} = {player}; let (chosen_{id}, other_{id}) = {M}::choose::face_down_or_face_up_pile(g, chooser_{id}, asker.source, {down}.clone(), {up}.clone())?;").unwrap();
+                    self.selections.insert(result.0, format!("chosen_{id}"));
+                    self.pile_not_chosen.insert(result.0, format!("other_{id}"));
+                    return Ok(());
+                }
                 let then = then.as_ref().map(|d| form(d).to_string());
                 let code = format!("{M}::choose::of_piles(g, {player}, asker.source, {from}, {random}, &{names:?}, {object}, {then:?})?");
                 // "An opponent chooses one of those piles" of piles exiled by an
@@ -3220,6 +3237,9 @@ impl Compiler {
         let purpose = effects::purpose(result, rest)
             .or_else(|| plain_purpose(result, rest))
             .unwrap_or("ChooseAsEnters");
+        if self.from_outside(objects) {
+            self.notes.outside.insert(result.0);
+        }
         let id = self.fresh();
         let chooser = self.fetch(self.certain_player(player)?);
         let pool = self.fetch(self.objects(objects)?);
@@ -3276,6 +3296,10 @@ impl Compiler {
             (SelectionConstraint::NoCommonProperty(DistinctProperty::ColorPairs), Count::AnyNumber) => &pairs,
             _ => count,
         };
+        let exactly = match count {
+            Count::Exactly(Expr::Constant(n)) if self.line_text().is_some_and(|line| line.contains(" exactly ")) => Some(*n),
+            _ => None,
+        };
         let count = self.fetch(self.select_count(count)?);
         let pool = match constraint {
             SelectionConstraint::TotalProperty {
@@ -3288,6 +3312,11 @@ impl Compiler {
             _ => pool,
         };
         writeln!(out, "let player_{id} = {chooser}; let pool_{id} = {pool}; let count_{id} = {count}; let picked_{id} = {M}::choose::select(g, player_{id}, asker.source, Purpose::{purpose}, pool_{id}, {M}::select::Selection::of(count_{id}, &[]).with({part}))?;").unwrap();
+        // "Reveal exactly two cards ... with different names": fewer is not doing
+        // it at all, where a plain "two" does as much as it can (CR 609.3).
+        if let Some(n) = exactly {
+            writeln!(out, "let picked_{id}: Vec<ObjectId> = if picked_{id}.len() == {n} {{ picked_{id} }} else {{ Vec::new() }};").unwrap();
+        }
         self.selections.insert(result.0, format!("picked_{id}"));
         Ok(())
     }

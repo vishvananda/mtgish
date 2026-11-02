@@ -2766,6 +2766,17 @@ impl Context {
                 face_down: false,
             }));
         }
+        // "Reveal exactly two cards you own with different names from outside the
+        // game": the cards are chosen, then revealed (Extrapolate the Impossible).
+        if let source::Action::RevealNumberGroupCardsFromOutsideGame(..) = value {
+            let choice = self.acted_by(actor, |context| context.acted_action(value, actor))?;
+            if let Instruction::Effect { result, operation: Operation::ChooseObjects { .. } } = &choice {
+                let objects = ObjectSet::Selected(result.clone());
+                let reveal = self.effect(Operation::Reveal { objects });
+                return Ok(Instruction::Group(Program { instructions: vec![choice, reveal] }));
+            }
+            return Ok(choice);
+        }
         self.acted_by(actor, |context| context.acted_action(value, actor))
     }
 
