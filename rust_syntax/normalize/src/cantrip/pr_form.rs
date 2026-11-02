@@ -1104,6 +1104,11 @@ impl VisitMut for Tidy {
                 let replaced: Option<Expr> = match method.as_str() {
                     // `Some(x).expect("a reference that always names a player")`
                     "expect" => some_of(&call.receiver),
+                    // `Some(item.object).map_or(0, |o: ObjectId| ..)`: a default for an object
+                    // that is always there, which no game reaches.
+                    "map_or" if call.args.len() == 2 => some_of(&call.receiver)
+                        .filter(|x| matches!(x, Expr::Path(_) | Expr::Field(_)))
+                        .and_then(|x| applied(&call.args[1], &x)),
                     // A list collected to be walked at once
                     "into_iter" => match &*call.receiver {
                         Expr::MethodCall(collect) if collect.method == "collect" => {
@@ -1144,7 +1149,8 @@ impl VisitMut for Tidy {
                     *node = replaced;
                 }
             }
-            // `x.clamp(0, 65535) as u16`: a cast, not a limit a rule sets.
+            // `x.clamp(0, 65535) as u16`: a cast, not a limit a rule sets. So is
+            // `n.min(i16::MAX.into()) as i16`, which `Number::amount` writes of a value never negative.
             Expr::Cast(cast) => {
                 if let Expr::MethodCall(call) = &*cast.expr {
                     if call.method == "clamp" {
@@ -1161,6 +1167,21 @@ impl VisitMut for Tidy {
                             (true, false) => parse_quote!((#value).max(0) as #ty),
                             (false, true) => parse_quote!(#value as #ty),
                             (false, false) => parse_quote!((#value) as #ty),
+                        };
+                    } else if call.method == "min"
+                        && call.args.len() == 1
+                        && text_of(&call.args[0]) == format!("{} :: MAX . into ()", text_of(&cast.ty))
+                    {
+                        let mut value = (*call.receiver).clone();
+                        strip_parens(&mut value);
+                        let ty = cast.ty.clone();
+                        *node = match matches!(
+                            value,
+                            Expr::Lit(_) | Expr::Path(_) | Expr::Field(_) | Expr::MethodCall(_)
+                                | Expr::Call(_) | Expr::Index(_)
+                        ) {
+                            true => parse_quote!(#value as #ty),
+                            false => parse_quote!((#value) as #ty),
                         };
                     }
                 }
@@ -1421,6 +1442,31 @@ fn is_zero_cost(cost: &Expr) -> bool {
         && cost.contains("hybrid : [None , None , None , None , None , None]")
         && cost.contains("twobrid : [0 , 0 , 0 , 0 , 0]")
         && cost.contains("phyrexian : [0 , 0 , 0 , 0 , 0]")
+}
+
+/// `{ let o: T = x; body }`: the closure `|o: T| body` applied to `x`. None for a closure
+/// whose body could leave it (`return`, `?`), or that takes its argument by a pattern.
+fn applied(closure: &Expr, value: &Expr) -> Option<Expr> {
+    let Expr::Closure(closure) = closure else {
+        return None;
+    };
+    let body = text_of(&closure.body);
+    if closure.inputs.len() != 1 || body.contains("return") || body.contains('?') {
+        return None;
+    }
+    let input = &closure.inputs[0];
+    match input {
+        Pat::Ident(_) => {}
+        Pat::Type(typed) if matches!(&*typed.pat, Pat::Ident(_)) => {}
+        _ => return None,
+    }
+    Some(match &*closure.body {
+        Expr::Block(block) => {
+            let statements = &block.block.stmts;
+            parse_quote!({ let #input = #value; #(#statements)* })
+        }
+        other => parse_quote!({ let #input = #value; #other }),
+    })
 }
 
 /// `x` of `Some(x)`.

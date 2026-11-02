@@ -447,8 +447,16 @@ impl Number {
             Err(gap(format!("numeric range for {kind}")))
         }
     }
+    /// A negative amount is 0 (CR 107.1b), so a value that can be negative is floored. One that
+    /// cannot (a count, an event's amount) is not: a floor no game reaches is code no scenario
+    /// can test, and breaking it changes nothing a game shows.
     fn amount(&self, max: i128, kind: &str) -> Result<String> {
-        if self.max <= max {
+        if self.min >= 0 && self.max <= max && self.dynamic {
+            Ok(format!("({}) as {kind}", self.code))
+        } else if self.min >= 0 && self.dynamic && type_max(kind) == Some(max) {
+            // The type's own bound, which `pr_form` reads as the cast it is.
+            Ok(format!("({}).min({kind}::MAX.into()) as {kind}", self.code))
+        } else if self.max <= max {
             Ok(format!("({}).max(0) as {kind}", self.code))
         } else if self.dynamic {
             Ok(format!("({}).clamp(0, {max}) as {kind}", self.code))
@@ -456,6 +464,17 @@ impl Number {
             Err(gap(format!("numeric range for {kind}")))
         }
     }
+}
+/// The greatest value of an integer type an `i64` converts back from.
+fn type_max(kind: &str) -> Option<i128> {
+    Some(match kind {
+        "u8" => u8::MAX.into(),
+        "u16" => u16::MAX.into(),
+        "u32" => u32::MAX.into(),
+        "i16" => i16::MAX.into(),
+        "i32" => i32::MAX.into(),
+        _ => return None,
+    })
 }
 #[derive(Clone)]
 struct Compiler {

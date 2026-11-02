@@ -1569,13 +1569,20 @@ impl Compiler {
                         return Ok(lane_j::held_number("comparison with any one value".to_string(), &code));
                     }
                 };
+                // A power or toughness is read only of what has one (CR 208.3): a 0
+                // put in for the rest is a default no creature takes.
+                let each = match property {
+                    Property::Power | Property::Toughness => {
+                        let field = if matches!(property, Property::Power) { "power" } else { "toughness" };
+                        format!("filter_map(|o: ObjectId| q.chars(o).{field}).map(i64::from)")
+                    }
+                    _ => format!("map(|o: ObjectId| {})", read.code),
+                };
                 Number {
-                    code: format!(
-                        "({}).into_iter().map(|o: ObjectId| {}).{reduce}",
-                        self.objects(objects)?,
-                        read.code
-                    ),
-                    min: i64::MIN.into(),
+                    code: format!("({}).into_iter().{each}.{reduce}", self.objects(objects)?),
+                    // A sum of values never negative is never negative, and so is the
+                    // greatest or least of them, or the 0 of none.
+                    min: if read.min >= 0 { 0 } else { i64::MIN.into() },
                     max: i64::MAX.into(),
                     dynamic: true,
                 }
