@@ -2377,10 +2377,17 @@ impl Compiler {
         ))
     }
     fn arrival_state(&mut self, state: &EntryState, failed: &str) -> Result<String> {
+        // A kind that reads the game reads it as the object arrives, past the
+        // `g` the arrival is made with.
         let changes = |c: &mut Self, changes: &[Change]| -> Result<String> {
             let mut kinds = Vec::new();
             for change in changes {
-                kinds.extend(c.effect_kinds(change)?);
+                for kind in c.effect_kinds(change)? {
+                    kinds.push(match kind.contains("q.") {
+                        true => c.fetch(kind),
+                        false => kind,
+                    });
+                }
             }
             Ok(kinds.join(", "))
         };

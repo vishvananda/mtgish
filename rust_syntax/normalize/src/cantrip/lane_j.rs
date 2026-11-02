@@ -4606,11 +4606,14 @@ impl Compiler {
                 ))
             }
             [EntryState::AttachedToChosen(hosts)] if !entry.tapped && counters.is_empty() => {
+                // What each may be attached to is on the battlefield as they
+                // arrive, found before: data the call is given.
                 let hosts = self.filter(hosts, &Candidate::of("host"))?;
+                let hosts = self.fetch(format!("q.state().battlefield().iter().copied().filter(|&host| {hosts}).collect::<Vec<ObjectId>>()"));
                 Ok(planned::planned_value(
                     "several objects arriving attached",
                     NOTHING,
-                    &format!("{{ {pairs} g.put_all_onto_battlefield_attached_to_chosen(&rows_{id}, |g, host| {hosts})? }}"),
+                    &format!("{{ {pairs} let hosts: Vec<ObjectId> = {hosts}; g.put_all_onto_battlefield_attached_to_chosen(&rows_{id}, &hosts)? }}"),
                 ))
             }
             // "Return it to the battlefield tapped and attacking": all enter together

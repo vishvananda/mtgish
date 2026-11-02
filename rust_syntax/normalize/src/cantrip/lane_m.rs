@@ -827,7 +827,7 @@ impl Compiler {
             // grant's `instead` and a spell alternative's `InsteadOfManaCost`).
             if matches!(what, EarlierObjects::It) && self.card_costed {
                 return Ok(planned::planned_value(
-                    "a cost reading the card it is paid for",
+                    lane_o::CARD_IT_IS_PAID_FOR,
                     "Vec::<ObjectId>::new()",
                     "vec![card]",
                 ));

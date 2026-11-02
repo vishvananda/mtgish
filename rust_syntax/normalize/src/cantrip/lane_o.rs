@@ -7,6 +7,8 @@
 use super::*;
 
 const M: &str = "cantrip_mechanics";
+/// A cost's read of the card it is paid for, which the cost is asked with.
+pub(super) const CARD_IT_IS_PAID_FOR: &str = "a cost reading the card it is paid for";
 /// `CardDef::becomes_aura_enchant` of an Aura that enchants the creature it put
 /// onto the battlefield (Necromancy).
 const AURA_PUT_WITH_THIS: &str = "Some(cantrip_mechanics::targets::CREATURE_PUT_ONTO_THE_BATTLEFIELD_WITH_THIS)";
@@ -299,8 +301,12 @@ impl Compiler {
                 players,
                 permanents,
             } => {
+                // The player is asked of the game as damage is assigned.
                 let players = match players {
-                    Some(player) => self.player(player)?,
+                    Some(player) => format!(
+                        "Some(|q: &dyn Query, asker: &Asker| -> Option<PlayerId> {{ {} }})",
+                        self.player(player)?
+                    ),
                     None => "None".to_string(),
                 };
                 format!(
@@ -1132,7 +1138,14 @@ impl Compiler {
             ),
             S::Scaled { change, per } => {
                 let per = match per {
-                    CostScale::Times(n) => format!("CostScale::Times({})", self.asked(n)?),
+                    CostScale::Times(n @ Expr::Constant(_)) => {
+                        format!("CostScale::Times({})", self.asked(n)?)
+                    }
+                    // A count the game says is read as the cost is: a function.
+                    CostScale::Times(n) => format!(
+                        "CostScale::TimesBy(|q: &dyn Query, asker: &Asker, player: PlayerId, spell: ObjectId| -> i64 {{ {} }})",
+                        self.asked(n)?
+                    ),
                     CostScale::EachTarget => "CostScale::EachTarget".to_string(),
                 };
                 format!(
@@ -1231,11 +1244,16 @@ impl Compiler {
                 self.asked(amount)?
             ),
             R::HandSize(HandSizeRule::Unlimited) => "PlayerRule::HandSize(HandSize::Unlimited)".into(),
-            R::HandSize(HandSizeRule::Set(n)) => {
-                format!("PlayerRule::HandSize(HandSize::Set({}))", self.asked(n)?)
-            }
-            R::HandSize(HandSizeRule::Adjust(n)) => {
-                format!("PlayerRule::HandSize(HandSize::Adjust({}))", self.asked(n)?)
+            // A number the game says is read as the rule is asked: a function.
+            R::HandSize(HandSizeRule::Set(n) | HandSizeRule::Adjust(n)) => {
+                let set = matches!(rule, R::HandSize(HandSizeRule::Set(_)));
+                let size = match (set, n) {
+                    (true, Expr::Constant(_)) => format!("HandSize::Set({})", self.asked(n)?),
+                    (false, Expr::Constant(_)) => format!("HandSize::Adjust({})", self.asked(n)?),
+                    (true, _) => format!("HandSize::SetBy(|q: &dyn Query, asker: &Asker| -> i64 {{ {} }})", self.asked(n)?),
+                    (false, _) => format!("HandSize::AdjustBy(|q: &dyn Query, asker: &Asker| -> i64 {{ {} }})", self.asked(n)?),
+                };
+                format!("PlayerRule::HandSize({size})")
             }
             R::AdditionalLandPlays(Count::Exactly(n)) => {
                 format!("PlayerRule::ExtraLandPlays({})", self.asked(n)?)
@@ -2771,6 +2789,17 @@ impl Compiler {
                 self.stated(what)?
             ),
             P::LifeEqualToOwnManaValue => "Cost::life_equal_to_mana_value()".to_string(),
+            // An X read of the card the cost is paid for ("where X is its mana
+            // value") is asked with that card.
+            P::ManaWithX { mana: symbols, x: Some(x) }
+                if self.card_costed && self.asked(x)?.contains(CARD_IT_IS_PAID_FOR) =>
+            {
+                format!(
+                    "Cost::mana_with_x_of_card({}, |q: &dyn Query, asker: &Asker, card: ObjectId| {})",
+                    mana(symbols)?,
+                    self.asked(x)?
+                )
+            }
             P::ManaWithX { mana: symbols, x } => format!(
                 "Cost::mana_with_x({}, {})",
                 mana(symbols)?,

@@ -995,14 +995,16 @@ impl Compiler {
             "cantrip_mechanics::backup::resolve(g, item, {n}, &[{}], {ability})",
             keywords.join(",")
         );
+        // What it grants is named as the ability's source and controller read
+        // it, before the call takes `g`.
         if !stated.is_empty() {
             call = planned::planned_value(
                 &feature,
                 &call,
                 &format!(
-                    "cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &[{}])",
+                    "{{ let granted = {{ let asker = &Asker::new(item.object, item.controller); let q: &dyn Query = g; [{}] }}; cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &granted) }}",
+                    stated.join(", "),
                     keywords.join(","),
-                    stated.join(", ")
                 ),
             );
         }
