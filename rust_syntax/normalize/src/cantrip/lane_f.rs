@@ -239,7 +239,7 @@ fn variant(card: &UnifiedCard, args: &Value) -> Option<String> {
 
 /// A dungeon's rooms as `CardDef::dungeon` lists them: where each one's arrows
 /// lead (CR 309.5a), by room.
-fn dungeon(face: &Card) -> String {
+fn dungeon(face: &Card) -> Vec<String> {
     let rooms: Vec<(&String, &Vec<String>)> = face
         .abilities
         .iter()
@@ -255,7 +255,7 @@ fn dungeon(face: &Card) -> String {
             .map(|at| at.to_string());
         format!("&[{}]", to.collect::<Vec<_>>().join(", "))
     });
-    format!("dungeon: &[{}]", arrows.collect::<Vec<_>>().join(", "))
+    arrows.collect()
 }
 
 /// A record being joined.
@@ -315,6 +315,19 @@ impl Joining<'_> {
         } else {
             let id = planned::requirement(feature);
             writeln!(self.place.holes, "planned_item!({id:?} => {field});").unwrap();
+            self.gaps.push(gap(feature).at("layout"));
+        }
+    }
+    /// The entries of the `CardDef` list `list`: a hole for each until `feature`
+    /// lands, as `planned_item!` holds one entry of a list.
+    fn plan_list(&mut self, feature: &str, list: &str, entries: &[String]) {
+        if planned::landed(feature) {
+            write!(self.place.fields, "{list}: &[{}], ", entries.join(", ")).unwrap();
+        } else {
+            let id = planned::requirement(feature);
+            for entry in entries {
+                writeln!(self.place.holes, "planned_item!({id:?} => {list}: {entry});").unwrap();
+            }
             self.gaps.push(gap(feature).at("layout"));
         }
     }
@@ -493,7 +506,7 @@ pub fn whole_printed(
                 // to do, or the hole of the one that prints it.
                 ("MeldPiece", _) => {}
                 ("Melded", _) => joining.plan_field(&layout, "melded: true"),
-                ("Dungeon", Some(face)) => joining.plan_field(&layout, &dungeon(face)),
+                ("Dungeon", Some(face)) => joining.plan_list(&layout, "dungeon", &dungeon(face)),
                 _ => {}
             }
             for at in 0..card.faces.len() {
