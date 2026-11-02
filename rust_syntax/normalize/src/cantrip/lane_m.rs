@@ -896,7 +896,7 @@ impl Compiler {
             Expr::TimesMutated(object) => held_number(
                 "numeric expression TimesMutated".into(),
                 &format!(
-                    "{}.map_or(0i64, |o: ObjectId| q.state().obj(o).mutations as i64)",
+                    "{}.map_or(0i64, |o: ObjectId| cantrip_mechanics::mutate::times_mutated(q, o) as i64)",
                     self.object(object)?
                 ),
             ),

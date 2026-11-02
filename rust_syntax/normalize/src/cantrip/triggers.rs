@@ -343,7 +343,7 @@ impl Compiler {
             ),
             ObjectEvent::Mutates => (
                 "MUTATED",
-                "Event::Mutated { permanent }",
+                "Event::Mutated { permanent, .. }",
                 "*permanent",
                 "u32::MAX",
                 plain,

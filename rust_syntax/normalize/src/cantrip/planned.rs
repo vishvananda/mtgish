@@ -25,7 +25,11 @@ pub fn requirement(feature: &str) -> String {
 
 /// Requirements that have landed in Cantrip: their code is no longer held back.
 /// Adding one here and regenerating is all a card waiting on it needs.
-const LANDED: &[&str] = &[];
+const LANDED: &[&str] = &[
+    "engine-no-mutate",
+    "engine-no-mutate-event",
+    "numeric-expression-times-mutated",
+];
 
 /// Whether the requirement `feature` has landed in Cantrip.
 pub(super) fn landed(feature: &str) -> bool {

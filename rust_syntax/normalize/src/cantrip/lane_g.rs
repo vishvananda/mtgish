@@ -2268,9 +2268,8 @@ impl Compiler {
             K::JumpStart => {
                 entries.push(("ways", format!("{M}::jump_start::way(\"Jump-start\")")));
             }
-            K::ReadAhead => {
-                entries.push(("enters", format!("{M}::read_ahead::enters")));
-            }
+            // A core keyword: it is on the card with the rest of its keywords, and the rules do the rest (CR 702.155).
+            K::ReadAhead => return Ok(()),
             K::Undaunted => {
                 entries.push(("own_cost_changes", format!("{M}::undaunted::cost")));
             }

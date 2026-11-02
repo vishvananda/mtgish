@@ -26,13 +26,17 @@
 16|Creature|Some(3)|Some(3)||Beast	BEAST_3_3
 16|Creature|Some(3)|Some(4)|Reach|Treefolk	TREEFOLK
 16|Creature|Some(4)|Some(4)|Trample|Beast	BEAST_4_4_TRAMPLE
+16|Creature|Some(4)|Some(4)||Rhino Warrior	RHINO_WARRIOR
 18|Creature|Some(0)|Some(0)||Fractal	FRACTAL
 1|Creature|Some(1)|Some(1)|Flying|Spirit	WHITE_FLYING_SPIRIT
+1|Creature|Some(1)|Some(1)|Lifelink|Cat	CAT_LIFELINK
 1|Creature|Some(1)|Some(1)||Ally	ALLY
+1|Creature|Some(1)|Some(1)||Cat	CAT
 1|Creature|Some(1)|Some(1)||Human	HUMAN
 1|Creature|Some(1)|Some(1)||Human Soldier	HUMAN_SOLDIER
 1|Creature|Some(1)|Some(1)||Rabbit	RABBIT
 1|Creature|Some(1)|Some(1)||Soldier	SOLDIER
+1|Creature|Some(2)|Some(2)|Vigilance|Knight	KNIGHT
 1|Creature|Some(2)|Some(2)|Vigilance|Samurai	SAMURAI
 1|Creature|Some(3)|Some(2)|Vigilance|Hero	HERO_3_2_WHITE_VIGILANCE
 1|Creature|Some(4)|Some(4)|Flying,Vigilance|Angel	ANGEL
@@ -48,6 +52,7 @@
 4|Creature|Some(2)|Some(2)||Zombie	ZOMBIE
 5|Creature|Some(1)|Some(1)|Flying|Inkling	INKLING
 6|Creature|Some(1)|Some(1)|Flying|Faerie	FAERIE_BLUE_BLACK
+8|Creature|Some(1)|Some(1)||Elemental	ELEMENTAL_1_1_RED
 8|Creature|Some(1)|Some(1)||Goblin	GOBLIN
 8|Creature|Some(1)|Some(1)||Officer	OFFICER
 8|Creature|Some(1)|Some(1)||Phyrexian Goblin	PHYREXIAN_GOBLIN
