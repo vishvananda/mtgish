@@ -306,6 +306,31 @@ impl Compiler {
         let linked = self.linked();
         format!("[q.state().chosen_color({linked}), q.state().chosen_number({linked}).map(|n| Color::ALL[n as usize])]")
     }
+    /// The `index`th choice this body made, in the order it made them (each local
+    /// is numbered as it is written), and its `Option` read.
+    pub(super) fn nth_chosen_local(&self, index: u32) -> Option<(ValueKind, String)> {
+        let number = |local: &str| -> Option<usize> {
+            let name = local.strip_suffix(KEPT).unwrap_or(local);
+            name.rsplit('_').next()?.parse().ok()
+        };
+        let mut made: Vec<(usize, ValueKind, &String)> = self
+            .chosen
+            .iter()
+            .filter_map(|(kind, local)| Some((number(local)?, *kind, local)))
+            .collect();
+        made.sort_by_key(|(n, ..)| *n);
+        made.dedup_by_key(|(n, ..)| *n);
+        let (_, kind, local) = made.get(index as usize)?;
+        // Only a lone value (a list is no one choice).
+        if local.starts_with("colors_") || local.contains(['(', ' ', '[']) && !local.ends_with(KEPT) {
+            return None;
+        }
+        let read = match local.strip_suffix(KEPT) {
+            Some(kept) => kept.to_string(),
+            None => format!("Some({local})"),
+        };
+        Some((*kind, read))
+    }
     /// The local that holds this choice, in the body that made it.
     pub(super) fn chosen_local(&self, kind: ValueKind) -> Result<String> {
         // A land type is what "a basic land type" chose too.

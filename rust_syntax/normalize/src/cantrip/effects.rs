@@ -1237,12 +1237,13 @@ impl Compiler {
                     }
                 }
                 let split = lane_m::chosen_then_moved(steps, 1_000_000 + i as u32);
+                let own = lane_i::own_turns(split.as_ref().unwrap_or(steps), binding);
                 let each = lane_i::EachPlayer {
                     players,
                     binding,
                     starting_with: starting_with.as_ref(),
                     in_chosen_direction: *in_chosen_direction,
-                    body: split.as_ref().unwrap_or(steps),
+                    body: own.as_ref().or(split.as_ref()).unwrap_or(steps),
                     rest: &body.instructions[i + 1..],
                 };
                 self.each_player(each, out)
@@ -2017,7 +2018,9 @@ impl Compiler {
                 duration,
                 evaluation,
             } => {
-                if self.flashback_until(id, affected, changes, duration, out)? {
+                if self.flashback_until(id, affected, changes, duration, out)?
+                    || self.play_this_until(id, affected, changes, duration, out)?
+                {
                     return Ok(());
                 }
                 if let EffectSubjects::Players(players) = affected {

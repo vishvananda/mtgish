@@ -619,11 +619,16 @@ impl Compiler {
         if !self.reads_paid_objects(result) {
             return;
         }
-        let paid = planned::planned_value(
-            "objects that paid a cost at resolution",
-            "Vec::<ObjectId>::new()",
-            "g.objects_that_paid()",
-        );
+        // A payment its own hole stands for (a cost part, a cost of moving cards
+        // Cantrip has no call for): what paid it is known only once it is paid.
+        let asked = format!("let paid_{id} = ");
+        let start = out.rfind(&asked).or_else(|| out.rfind("g.end_sentence();"));
+        let sentence = &out[start.unwrap_or(0)..];
+        let feature = match sentence.contains("planned") {
+            true => FOLLOWS_GAP,
+            false => "objects that paid a cost at resolution",
+        };
+        let paid = planned::planned_value(feature, "Vec::<ObjectId>::new()", "g.objects_that_paid()");
         writeln!(out, "let paid_objects_{id}: Vec<ObjectId> = {paid};").unwrap();
         self.moved.insert(result.0, format!("paid_objects_{id}"));
         self.before
@@ -960,6 +965,17 @@ impl Compiler {
             Operation::ChooseAtRandom { kind, options } => {
                 self.choose_at_random(id, *kind, options, out)?
             }
+            // "Choose a player or planeswalker that opponent is attacking": among what
+            // that player's attacking creatures attack (CR 506.2, 508.1b), asked only
+            // when there is more than one.
+            Operation::ChooseDefender {
+                actor: PlayerSet::One(chooser),
+                attacker,
+            } => {
+                let chooser = self.fetch(self.certain_player(chooser)?);
+                let attacker = self.fetch(self.certain_player(attacker)?);
+                writeln!(out, "let chooser_{id} = {chooser}; let attacker_{id} = {attacker}; let candidates_{id}: Vec<Target> = {{ let q: &dyn Query = g; let mut seen: Vec<Target> = Vec::new(); for a in q.state().attackers.iter() {{ let attacked = match a.target {{ Target::Player(_) => true, Target::Object(o) => q.chars(o).is(CardType::Planeswalker), _ => false }}; if attacked && q.controller(a.id) == attacker_{id} && !seen.contains(&a.target) {{ seen.push(a.target); }} }} seen }}; let defender_{id}: Option<Target> = {M}::combat::choose_among(g, chooser_{id}, asker.source, &candidates_{id})?;").unwrap();
+            }
             Operation::Exchange {
                 kind,
                 first,
@@ -1094,13 +1110,15 @@ impl Compiler {
                 self.selections.insert(result.0, format!("chosen_{id}"));
                 self.open_guard(&format!("chosen_{id}"), out);
             }
-            // "Attach an Equipment to it", of a token that may be more than one.
+            // "Attach an Equipment to it", of a token that may be more than one, and
+            // "attach one of them to a Samurai you control": the attachments are
+            // chosen, then the host among those there are (CR 701.3a).
             Operation::AttachChosen {
                 actor,
                 attachments,
                 count,
-                hosts: hosts @ ObjectSet::Created(_),
-            } => {
+                hosts,
+            } if !matches!(hosts, ObjectSet::One(_)) => {
                 let player = self.one_actor(actor, "operation AttachChosen")?;
                 let count = self.offered_count(count);
                 let count = self.fetch(self.select_count(&count)?);
@@ -1845,12 +1863,48 @@ impl Compiler {
             {
                 return Err(gap("destroyed together, some that can't be regenerated"));
             }
-            Operation::Together(operations) => {
-                self.plan_code(&feature, "g.begin_simultaneous()", out);
+            // "Choose a land type and a basic land type": choices change nothing, so
+            // made one after the other they are made together.
+            Operation::Together(operations)
+                if operations
+                    .iter()
+                    .all(|operation| matches!(operation, Operation::ChooseValue { .. })) =>
+            {
                 for operation in operations {
                     self.operation(operation, result, out)?;
                 }
-                self.plan_code(&feature, "g.end_simultaneous()", out);
+            }
+            Operation::Together(operations) => {
+                let mut parts = String::new();
+                let before = self.gaps.len();
+                for operation in operations {
+                    self.operation(operation, result, &mut parts)?;
+                }
+                // A part that can't be written yet already names what the file waits
+                // on; doing the parts at once is asked of them only once they can be.
+                if self.gaps.len() > before || parts.contains("planned") {
+                    let follows = planned::requirement(FOLLOWS_GAP);
+                    writeln!(out, "planned!({follows:?} => g.begin_simultaneous());").unwrap();
+                    out.push_str(&parts);
+                    writeln!(out, "planned!({follows:?} => g.end_simultaneous());").unwrap();
+                } else if operations
+                    .iter()
+                    .all(|operation| matches!(operation, Operation::DealDamage { .. }))
+                    && parts.matches("g.damage_together(&batch);").count() == operations.len()
+                {
+                    // "Each of those creatures deals damage equal to its toughness to the
+                    // other": every amount read first, then one event of damage (CR 120.3).
+                    writeln!(out, "let mut together_{id}: Vec<(ObjectId, Target, u16)> = Vec::new();").unwrap();
+                    out.push_str(&parts.replace(
+                        "g.damage_together(&batch);",
+                        &format!("together_{id}.extend(batch);"),
+                    ));
+                    writeln!(out, "g.damage_together(&together_{id});").unwrap();
+                } else {
+                    self.plan_code(&feature, "g.begin_simultaneous()", out);
+                    out.push_str(&parts);
+                    self.plan_code(&feature, "g.end_simultaneous()", out);
+                }
             }
             Operation::GameEffect { until, effect } => {
                 let until = self.duration(until)?;
@@ -3556,6 +3610,20 @@ impl Compiler {
                 writeln!(out, "let {local}: u32 = {number};").unwrap();
                 if entering {
                     writeln!(out, "entering.chosen_number = Some({local});").unwrap();
+                }
+            }
+            // "A random color that it isn't": one of the colors none of them has, each
+            // as likely; none when they are all colors.
+            (ValueKind::Color, [Operand::Term { family, form, operands }])
+                if family == "ChoosableColor" && form == "NotColorAmoungPermanents" =>
+            {
+                let [Operand::Objects(objects)] = operands.as_slice() else {
+                    return Err(gap("operation ChooseAtRandom"));
+                };
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let held_{id} = {{ let q: &dyn Query = g; ({objects}).into_iter().fold(ColorSet::NONE, |set, o: ObjectId| ColorSet(set.0 | q.chars(o).colors.0)) }}; let pool_{id}: Vec<Color> = Color::ALL.into_iter().filter(|&c| !held_{id}.has(c)).collect(); if pool_{id}.is_empty() {{ return Ok(()); }} let {local} = pool_{id}[g.choose_at_random(pool_{id}.len())];").unwrap();
+                if entering {
+                    writeln!(out, "entering.chosen_color = Some({local});").unwrap();
                 }
             }
             _ => return Err(gap("operation ChooseAtRandom")),

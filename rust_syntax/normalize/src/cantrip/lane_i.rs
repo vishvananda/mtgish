@@ -12,6 +12,30 @@ pub(super) struct EachPlayer<'a> {
     pub rest: &'a [Instruction],
 }
 
+/// "Each player who chose fame, ... that player": a step the data words as each of
+/// one player, the one walked, doing it is that player's own turn at it, where
+/// `PlayerRef::Acting` is the player walked.
+pub(super) fn own_turns(body: &Program, binding: &Binding) -> Option<Program> {
+    let own = |i: &Instruction| {
+        matches!(i, Instruction::Effect { operation: Operation::EachPlayer { players, .. }, .. } if one_bound(players, binding))
+    };
+    if !body.instructions.iter().any(own) {
+        return None;
+    }
+    let instructions = body
+        .instructions
+        .iter()
+        .map(|i| match i {
+            Instruction::Effect { result, operation: Operation::EachPlayer { players, action } }
+                if one_bound(players, binding) =>
+            {
+                Instruction::Effect { result: result.clone(), operation: (**action).clone() }
+            }
+            other => other.clone(),
+        })
+        .collect();
+    Some(Program { instructions })
+}
 /// Whether a part of a per-player body reads the player it is for.
 fn names(binding: &Binding, value: &impl std::fmt::Debug) -> bool {
     format!("{value:?}").contains(&format!("Bound(Binding({}))", binding.0))
@@ -40,7 +64,13 @@ fn bound_results(instruction: &Instruction, found: &mut BTreeSet<u32>) {
 fn walked(op: &Operation) -> bool {
     matches!(
         op,
-        Operation::ChooseObjects { .. }
+        // Mana goes into a pool, which no permanent sees (CR 106.4): each in turn
+        // is the same as all at once.
+        Operation::AddMana { .. }
+            // Separating into piles and picking one are choices, made in turn.
+            | Operation::Piles { .. }
+            | Operation::ChoosePile { then: None, .. }
+            | Operation::ChooseObjects { .. }
             | Operation::ChooseValue { .. }
             | Operation::ChooseValueWith { .. }
             | Operation::ChooseAtRandom { .. }
