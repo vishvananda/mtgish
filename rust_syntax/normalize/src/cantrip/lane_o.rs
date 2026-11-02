@@ -3219,6 +3219,11 @@ impl Compiler {
             ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Outlast)) => {
                 return Ok("def.is_some_and(|d| d.text.starts_with(\"Outlast\"))".into())
             }
+            // A ninjutsu ability, printed or given (`ninjutsu::ninjutsu`), commander
+            // ninjutsu among them (CR 702.49d).
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Ninjutsu)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Ninjutsu\") || d.text.starts_with(\"Commander ninjutsu\"))".into())
+            }
             ObjectFilter::OnStack(StackTrait::Keyword(word)) => {
                 format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
             }

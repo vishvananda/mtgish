@@ -2328,7 +2328,7 @@ impl Compiler {
             ObjectFilter::OnStack(StackTrait::SingleTarget) => match c.announced.as_deref() {
                 // "Targets only a single": however many times it was chosen (115.9c),
                 // where "with a single target" counts them.
-                None if self.line_text().is_some_and(|line| line.contains("only a single")) => {
+                None if self.line_text().is_some_and(|line| line.contains("only a single") || line.contains("targets only")) => {
                     format!("{on_stack}.is_some_and(|i| {{ let chosen = q.state().targets(i); !chosen.is_empty() && chosen.iter().all(|t| *t == chosen[0]) }})")
                 }
                 None => format!("{on_stack}.is_some_and(|i| q.state().targets(i).len() == 1)"),

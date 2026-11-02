@@ -908,8 +908,58 @@ impl Compiler {
                 let of = self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?;
                 format!("(def.is_some_and(|d| d.from == ZoneKind::Battlefield) && {of})")
             }
+            // The ability as it was put on the stack, its targets chosen and its
+            // costs paid (CR 602.2b, 601.2c-h) before it counts as activated: the
+            // item `serial` names (`activated_event`). A mana ability has none.
+            other if frame.activated == Some(Carried::Data(1)) && self.activation_item_test(other)?.is_some() => {
+                self.activation_item_test(other)?.expect("just seen")
+            }
             other => return self.activated_stated(other),
         })
+    }
+    /// What an activation trigger reads of the activated ability's stack item:
+    /// its targets (Ertha Jo, Bill Potts), the mana spent to activate it, as
+    /// each payment recorded it after the item was put on the stack (Dynaheir,
+    /// Vazi: CR 106.3, 601.2h, 602.2b).
+    fn activation_item_test(&self, filter: &ObjectFilter) -> Result<Option<String>> {
+        const ITEM: &str = "q.state().stack.iter().find(|i| serial != 0 && i.serial == serial && i.kind == StackKind::Activated)";
+        const SPENT: &str = "i.since as usize..).unwrap_or(&[]).iter().filter_map(|r| match r.event { Event::ManaSpent { on, cast: false, source, mana, .. } if on == id => Some((source, mana)), _ => None })";
+        Ok(Some(match filter {
+            ObjectFilter::TargetsAny(targets) => format!(
+                "{ITEM}.is_some_and(|i| q.state().targets(i).iter().any(|t: &Target| {}))",
+                self.targeted(targets)?
+            ),
+            // "Targets only [it]": however many times it was chosen (CR 115.9c).
+            ObjectFilter::OnStack(StackTrait::SingleTarget)
+                if self.line_text().is_some_and(|line| line.contains("targets only")) =>
+            {
+                format!("{ITEM}.is_some_and(|i| {{ let chosen = q.state().targets(i); !chosen.is_empty() && chosen.iter().all(|t| *t == chosen[0]) }})")
+            }
+            ObjectFilter::OnStack(StackTrait::SingleTarget) => {
+                format!("{ITEM}.is_some_and(|i| q.state().targets(i).len() == 1)")
+            }
+            ObjectFilter::ManaSpent {
+                color: None,
+                sources: None,
+                payers: None,
+                comparison,
+                value,
+            } => format!(
+                "{ITEM}.is_some_and(|i| {})",
+                read::compare(
+                    &format!("q.history().all().get({SPENT}.map(|(_, mana)| i64::from(mana.total())).sum::<i64>()"),
+                    comparison,
+                    &self.number(value)?.code,
+                )
+            ),
+            // A Treasure sacrificed for its mana is gone: what it was then
+            // (CR 608.2h), as `spent::mana_from_a_treasure_spent_to_cast` reads it.
+            ObjectFilter::ManaSpentFrom(sources) => format!(
+                "{ITEM}.is_some_and(|i| q.history().all().get({SPENT}.any(|(source, _)| source != ObjectId::NONE && {}))",
+                self.filter(sources, &Candidate::of("source"))?
+            ),
+            _ => return Ok(None),
+        }))
     }
     /// `EventSpec::Attack`. `data` is the attacker's controller, then its
     /// defending player, which is what a batch of them is split by.

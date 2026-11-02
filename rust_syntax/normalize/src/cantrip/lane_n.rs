@@ -1883,14 +1883,25 @@ impl Compiler {
         for (i, event) in events.iter().enumerate() {
             let each = format!("{label}_or_{i}");
             let def = self.triggered(&each, event, intervening_if, limits, announcement, body)?;
-            // "This ability triggers only once each turn" is of the one ability.
-            defs.push(match limits.per_turn {
-                Some(_) => planned::planned_value(
+            // "This ability triggers only once each turn" is of the one ability
+            // the sentence prints (Bill Potts): each counts its triggerings
+            // (`triggers_each_turn` records them), and each triggers only while
+            // those of the sentence's text, both together, are under the limit.
+            let text = first_literal(&def);
+            defs.push(match (limits.per_turn, text) {
+                (Some(n), Some(text)) if def.starts_with("triggered(") && !def.contains(".only_if(") && def.contains(".triggers_each_turn(") => {
+                    let function = format!("{label}_shared_limit");
+                    if i == 0 {
+                        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ q.history().this_turn().iter().filter(|r| matches!(r.event, Event::Triggered {{ source, ability }} if source == asker.source && q.triggered_ability(ability).is_some_and(|t| t.text == {text}))).count() < {n} }}").unwrap();
+                    }
+                    format!("{def}.only_if({function})")
+                }
+                (Some(_), _) => planned::planned_value(
                     "a limit shared by the abilities of one sentence",
                     &def,
                     &format!("{def}.limit_shared_with({})", quoted(label)),
                 ),
-                None => def,
+                (None, _) => def,
             });
         }
         Ok(defs.join(", "))
@@ -2502,4 +2513,19 @@ fn player_proposal(event: ReplacedPlayerEvent) -> (&'static str, bool) {
         E::UntapPermanents => ("StepUntapPermanents", false),
         _ => ("Unsupported", false),
     }
+}
+
+/// The first string literal in generated code, quotes and escapes kept: a
+/// definition's text, where nothing before it is quoted.
+fn first_literal(code: &str) -> Option<&str> {
+    let start = code.find('"')?;
+    let mut escaped = false;
+    for (at, ch) in code[start + 1..].char_indices() {
+        match ch {
+            '\\' if !escaped => escaped = true,
+            '"' if !escaped => return Some(&code[start..start + 1 + at + 1]),
+            _ => escaped = false,
+        }
+    }
+    None
 }
