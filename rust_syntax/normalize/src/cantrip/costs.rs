@@ -1373,6 +1373,20 @@ impl Compiler {
                     Some(scope) if scope.condition.is_some() => {
                         Err(gap("conditional scope on a triggered ability"))
                     }
+                    // "From any zone" does not expand a self-discard trigger beyond where a discarded card can end
+                    // (CR 113.6k, 702.29c). Its matcher already declares WHERE_A_DISCARD_ENDS; keep a narrower explicit
+                    // scope, but do not replace that declaration with every zone, including the stack.
+                    Some(scope)
+                        if matches!(event, EventSpec::Discard { source_only: true, .. })
+                            && [
+                                EventZone::Battlefield,
+                                EventZone::Graveyard,
+                                EventZone::Hand,
+                                EventZone::Library,
+                                EventZone::Exile,
+                            ]
+                            .iter()
+                            .all(|zone| scope.zones.contains(zone)) => def,
                     Some(scope) => {
                         let zones = zone_list(scope.zones);
                         def.and_then(|def| Ok(format!("{def}.functions_in({})", zones?)))
