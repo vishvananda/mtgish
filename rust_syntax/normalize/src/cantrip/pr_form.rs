@@ -2954,20 +2954,22 @@ fn use_shared_target_specs(file: &mut File) {
     // Share after the compiler's mode/slot analysis, which still needs its
     // local predicates to tell implied modes apart.
     let permanent: Expr = syn::parse_str("matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id))").unwrap();
-    let known = text_of(&permanent);
-    let names: BTreeSet<String> = file.items.iter().filter_map(|item| {
+    let another: Expr = syn::parse_str("(cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE.filter)(q, asker, t)").unwrap();
+    let known = [(text_of(&permanent), "PERMANENT"), (text_of(&another), "ANOTHER_ATTACKING_CREATURE")];
+    let names: BTreeMap<String, String> = file.items.iter().filter_map(|item| {
         let Item::Fn(function) = item else { return None };
-        (body_text(&function.block) == known).then(|| function.sig.ident.to_string())
+        known.iter().find(|(body, _)| body_text(&function.block) == *body)
+            .map(|(_, name)| (function.sig.ident.to_string(), name.to_string()))
     }).collect();
-    struct Shared<'a>(&'a BTreeSet<String>);
+    struct Shared<'a>(&'a BTreeMap<String, String>);
     impl VisitMut for Shared<'_> {
         fn visit_expr_mut(&mut self, node: &mut Expr) {
             visit_mut::visit_expr_mut(self, node);
             let Expr::Call(call) = node else { return };
-            if ident_of(&call.func).as_deref() == Some("target") && call.args.len() == 1
-                && ident_of(&call.args[0]).is_some_and(|name| self.0.contains(&name))
-            {
-                *node = parse_quote!(cantrip_mechanics::targets::PERMANENT);
+            if ident_of(&call.func).as_deref() == Some("target") && call.args.len() == 1 {
+                if let Some(shared) = ident_of(&call.args[0]).and_then(|name| self.0.get(&name)) {
+                    *node = syn::parse_str(&format!("cantrip_mechanics::targets::{shared}")).unwrap();
+                }
             }
         }
     }

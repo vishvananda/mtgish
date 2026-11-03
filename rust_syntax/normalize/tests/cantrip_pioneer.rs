@@ -8,6 +8,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 /// The card, and what its module has to say.
 const CARDS: &[(&str, &str)] = &[
+    ("Thousand-Faced Shadow", "cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE"),
+    ("Helitrooper", "cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE"),
     ("Thousand-Faced Shadow", "g.create_token_copies_attacking(values_0, player_0, count_0, true, None)"),
     // The flashback permission tests only the type the card has.
     ("Memory Deluge", "fn ability_1_require(q: &dyn Query, asker: &Asker) -> bool { (q.chars(asker.source).is(CardType::Instant)) }"),

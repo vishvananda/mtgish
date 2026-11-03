@@ -179,7 +179,7 @@ impl Compiler {
         let entering = *to == EventZone::Battlefield;
         // "That creature's controller chooses": the engine asks the subject.
         let controller = self.controller_subject && entering;
-        let frame = Frame {
+        let mut frame = Frame {
             object: Some(if controller { Carried::Data(0) } else { Carried::Subject }),
             player: controller.then_some(Carried::Subject),
             destination: Some(Carried::Data(0)),
@@ -195,6 +195,7 @@ impl Compiler {
             ObjectFilter::All(all) => all.iter().any(is_source),
             one => is_source(one),
         };
+        frame.subject_is_source = own && entering && !controller;
         let functions_there = own && !entering && from != Some(&EventZone::Battlefield);
         let id = if entering || from.is_none() || functions_there {
             "*new"
@@ -251,6 +252,10 @@ impl Compiler {
     fn object_event(&mut self, event: &ObjectEvent, objects: &ObjectFilter) -> Result<Matched> {
         let plain = Frame {
             object: Some(Carried::Subject),
+            subject_is_source: match objects {
+                ObjectFilter::All(all) => all.iter().any(|f| matches!(f, ObjectFilter::SameObject(ObjectRef::Source))),
+                f => matches!(f, ObjectFilter::SameObject(ObjectRef::Source)),
+            },
             ..Frame::default()
         };
         // Once however many block it, so the blockers are no one subject.

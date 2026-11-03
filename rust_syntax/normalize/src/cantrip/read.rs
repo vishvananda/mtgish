@@ -121,6 +121,9 @@ pub(super) struct Frame {
     /// target filter finds from the subject alone.
     pub subject_controller: Option<Carried>,
     pub battlefield_entry: bool,
+    /// A self-event's carried object is the ability source, including when its
+    /// target predicate is asked after the matcher has returned.
+    pub subject_is_source: bool,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -147,6 +150,7 @@ impl Frame {
             members: self.members && other.members,
             subject_controller: same(self.subject_controller, other.subject_controller),
             battlefield_entry: self.battlefield_entry && other.battlefield_entry,
+            subject_is_source: self.subject_is_source && other.subject_is_source,
         }
     }
 }

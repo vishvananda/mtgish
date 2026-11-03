@@ -1389,6 +1389,32 @@ impl Compiler {
     }
     /// The body of a `TargetFilter`, or a shared target for an unrestricted one.
     fn target_test(&self, spec: &TargetSpec) -> Result<String> {
+        fn parts<'a>(filter: &'a ObjectFilter, out: &mut Vec<&'a ObjectFilter>) {
+            match filter {
+                ObjectFilter::All(all) => all.iter().for_each(|f| parts(f, out)),
+                f => out.push(f),
+            }
+        }
+        let mut terms = Vec::new();
+        parts(&spec.filter, &mut terms);
+        let mut other = false;
+        let mut attacking = false;
+        let mut creature = false;
+        let shared = terms.iter().all(|f| match f {
+            ObjectFilter::Attacking => { attacking = true; true }
+            ObjectFilter::CardType(t) if name(t) == "Creature" => { creature = true; true }
+            ObjectFilter::Not(inner) => match inner.as_ref() {
+                ObjectFilter::SameObject(ObjectRef::Source) => { other = true; true }
+                ObjectFilter::SameObject(ObjectRef::EventSubject) if self.frame.subject_is_source => { other = true; true }
+                _ => false,
+            },
+            _ => false,
+        });
+        if shared && other && attacking && creature
+            && matches!(&spec.kind, TargetKind::Object(d) if d.kind == ObjectKind::Permanent && d.zones == [EventZone::Battlefield])
+        {
+            return Ok("(cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE.filter)(q, asker, t)".into());
+        }
         let id = Candidate::of("id");
         Ok(match &spec.kind {
             TargetKind::Object(domain) if lane_i::on_the_stack(domain) => {
