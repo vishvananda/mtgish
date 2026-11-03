@@ -3850,10 +3850,18 @@ impl Compiler {
         // Moon Sage ruling has it. `EffectKind::DoesntUntap`, a hole until
         // Cantrip has `lasting-rules`.
         let duration = self.duration(&lane_h::duration_on(affected, duration))?;
+        // A per-object snapshot reads only objects that still exist. When
+        // kinds do not read the affected object, pass it straight to the core,
+        // which owns effect eligibility (including effects that outlive it).
+        let objects = if read::reads_affected(changes) {
+            self.acted_on(affected)?
+        } else {
+            self.fetch(self.objects(affected)?)
+        };
         writeln!(
             out,
             "let objects_{id} = {}; let source_{id} = {}; let duration_{id} = {duration};",
-            self.acted_on(affected)?,
+            objects,
             self.fetch(self.object(source)?),
         )
         .unwrap();

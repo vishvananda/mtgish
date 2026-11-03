@@ -2949,8 +2949,7 @@ fn single_targets(file: &File) -> BTreeMap<String, Vec<bool>> {
     found
 }
 
-/// The announced-target reads of a function with `targets::object`, wherever its
-/// target slot is certain: each earlier spec is one exact target.
+/// A target spec whose local predicate duplicates a shared filter.
 fn use_shared_target_specs(file: &mut File) {
     // Share after the compiler's mode/slot analysis, which still needs its
     // local predicates to tell implied modes apart.
@@ -2977,6 +2976,8 @@ fn use_shared_target_specs(file: &mut File) {
     }
 }
 
+/// The announced-target reads of a function with `targets::object`, wherever its
+/// target slot is certain: each earlier spec is one exact target.
 fn use_shared_targets(file: &mut File) {
     let specs = single_targets(file);
     for item in &mut file.items {

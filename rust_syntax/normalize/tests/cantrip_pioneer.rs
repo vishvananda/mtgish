@@ -144,3 +144,13 @@ fn magma_opus_uses_shared_targets_and_tap_authority() {
     assert!(!file.contains(".tapped"), "{file}");
     assert!(!file.contains("Event::Tapped"), "{file}");
 }
+
+#[test]
+fn gideon_animation_leaves_effect_eligibility_to_the_core() {
+    let Some(modules) = modules(&["Gideon of the Trials"]) else { return };
+    let file = render(&modules["Gideon of the Trials"], "Gideon of the Trials",
+        "+1: Until your next turn, prevent all damage target permanent would deal.\n0: Until end of turn, Gideon becomes a 4/4 Human Soldier creature with indestructible that's still a planeswalker. Prevent all damage that would be dealt to him this turn.\n0: You get an emblem with \"As long as you control a Gideon planeswalker, you can't lose the game and your opponents can't win the game.\"",
+        Characteristics::Oracle).unwrap();
+    assert!(!file.contains("became.is_none()"), "{file}");
+    assert!(file.contains("g.add_effect("), "{file}");
+}
