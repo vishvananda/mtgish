@@ -291,6 +291,11 @@ impl Walker {
                         drop_permanent_types(&mut value["ZoneChange"]["objects"]);
                     }
                 }
+                ("EventSpec", "Either") if !self.keep_order => {
+                    if let Some(Value::Array(events)) = value.get_mut("Either") {
+                        events.sort_by_cached_key(Value::to_string);
+                    }
+                }
                 ("ObjectRef", "Damage") => {
                     if references
                         && self.damage_subjects.last().cloned().flatten().as_ref()
@@ -353,6 +358,13 @@ impl Walker {
                 }
             }
             Fields::Named(types) => {
+                // A loop or predicate binds only its own body. Keeping those
+                // ids in the ability-wide map makes a later sibling depend on
+                // traversal order, including when commutative events move.
+                let binding = types.iter().any(|(field, _)| field == "binding");
+                let previous_binding = binding
+                    .then(|| self.scopes.last().map(|s| s.maps.get("binding").cloned()))
+                    .flatten();
                 let created = events::created(owner, value);
                 let old_reductions = self.reference_reductions;
                 if matches!(
@@ -391,6 +403,16 @@ impl Walker {
                     }
                 }
                 self.reference_reductions = old_reductions;
+                if let (Some(previous), Some(scope)) = (previous_binding, self.scopes.last_mut()) {
+                    match previous {
+                        Some(map) => {
+                            scope.maps.insert("binding", map);
+                        }
+                        None => {
+                            scope.maps.remove("binding");
+                        }
+                    }
+                }
             }
         }
     }

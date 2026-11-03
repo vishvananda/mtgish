@@ -2,8 +2,10 @@ use crate::{canonical, ir::*, validate};
 use serde_json::{json, Value};
 
 mod audit;
+mod bindings;
 mod created;
 mod departures;
+mod event_order;
 
 // Reuse the existing canonical regression suite without building the export CLI.
 mod regressions {
