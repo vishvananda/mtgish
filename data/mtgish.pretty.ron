@@ -83426,7 +83426,7 @@ Card(
                 4,
                 4,
               )),
-              SetCreatureType(Elemental),
+              AddCreatureType(Elemental),
               AddCardtype(Creature),
               AddAbility([
                 Hexproof,
@@ -87319,7 +87319,7 @@ Card(
         SetColor(SimpleColorList([
           Red,
         ])),
-        SetCreatureType(Giant),
+        AddCreatureType(Giant),
         AddCardtype(Creature),
         AddAbility([
           Haste,
@@ -258910,7 +258910,7 @@ Card(
         SetColor(SimpleColorList([
           Black,
         ])),
-        SetCreatureType(Ooze),
+        AddCreatureType(Ooze),
         AddCardtype(Creature),
       ],
     ),
@@ -264352,7 +264352,7 @@ Card(
         SetColor(SimpleColorList([
           Red,
         ])),
-        SetCreatureType(Spirit),
+        AddCreatureType(Spirit),
         AddCardtype(Creature),
         AddAbility([
           Haste,
@@ -274104,7 +274104,7 @@ Card(
         SetColor(SimpleColorList([
           Red,
         ])),
-        SetCreatureType(Beast),
+        AddCreatureType(Beast),
         AddCardtype(Creature),
         AddAbility([
           Trample,
@@ -321034,7 +321034,7 @@ Card(
                 IsCardtype(Enchantment),
                 ControlledByAPlayer(SinglePlayer(You)),
               ]))),
-              SetCreatureType(Elemental),
+              AddCreatureType(Elemental),
               AddCardtype(Creature),
               AddAbility([
                 Trample,
@@ -383312,7 +383312,7 @@ Card(
               4,
               4,
             )),
-            SetCreatureType(Elemental),
+            AddCreatureType(Elemental),
             AddCardtype(Creature),
             AddAbility([
               Haste,
@@ -568458,7 +568458,7 @@ Card(
         SetColor(SimpleColorList([
           White,
         ])),
-        SetCreatureType(Wall),
+        AddCreatureType(Wall),
         AddCardtype(Creature),
         AddAbility([
           Defender,
@@ -583878,7 +583878,7 @@ Card(
         SetColor(SimpleColorList([
           Green,
         ])),
-        SetCreatureType(Spirit),
+        AddCreatureType(Spirit),
         AddCardtype(Creature),
         AddAbility([
           Vigilance,
@@ -687597,7 +687597,7 @@ Card(
                 Green,
                 Blue,
               ])),
-              SetCreatureType(Bird),
+              AddCreatureType(Bird),
               AddCardtype(Creature),
               AddAbility([
                 Flying,
@@ -696920,7 +696920,7 @@ Card(
                   1,
                   1,
                 )),
-                SetCreatureType(Elemental),
+                AddCreatureType(Elemental),
                 AddCardtype(Creature),
                 AddAbility([
                   Vigilance,
@@ -697096,7 +697096,7 @@ Card(
                 1,
                 1,
               )),
-              SetCreatureType(Elemental),
+              AddCreatureType(Elemental),
               AddCardtype(Creature),
               AddAbility([
                 Vigilance,
@@ -730600,7 +730600,7 @@ Card(
               SetColor(SimpleColorList([
                 Red,
               ])),
-              SetCreatureType(Elemental),
+              AddCreatureType(Elemental),
               AddCardtype(Creature),
             ],
             UntilEndOfTurn,
@@ -758385,7 +758385,7 @@ Card(
               SetColor(SimpleColorList([
                 Green,
               ])),
-              SetCreatureType(Elemental),
+              AddCreatureType(Elemental),
               AddCardtype(Creature),
             ],
             ForAsLongAsPermanentHasACounterOfTypeOnIt(
@@ -769193,7 +769193,7 @@ Card(
         SetColor(SimpleColorList([
           Green,
         ])),
-        SetCreatureType(Treefolk),
+        AddCreatureType(Treefolk),
         AddCardtype(Creature),
       ],
     ),
@@ -903587,7 +903587,7 @@ Card(
           4,
           4,
         )),
-        SetCreatureType(Elemental),
+        AddCreatureType(Elemental),
         AddCardtype(Creature),
         AddAbility([
           Reach,
@@ -904190,7 +904190,7 @@ Transforming(
                   6,
                   6,
                 )),
-                SetCreatureType(Elemental),
+                AddCreatureType(Elemental),
                 AddCardtype(Creature),
               ],
             ),
@@ -904239,7 +904239,7 @@ Card(
                 5,
                 5,
               )),
-              SetCreatureType(Elemental),
+              AddCreatureType(Elemental),
               AddCardtype(Creature),
               AddAbility([
                 Haste,
@@ -904419,7 +904419,7 @@ Card(
                 0,
                 0,
               )),
-              SetCreatureType(Elemental),
+              AddCreatureType(Elemental),
               AddCardtype(Creature),
               AddAbility([
                 Vigilance,
@@ -904585,7 +904585,7 @@ Card(
               4,
               4,
             )),
-            SetCreatureType(Elemental),
+            AddCreatureType(Elemental),
             AddCardtype(Creature),
             AddAbility([
               Trample,
@@ -1451817,7 +1451817,7 @@ Card(
                 IsCreatureType(Ally),
                 ControlledByAPlayer(SinglePlayer(You)),
               ]))),
-              SetCreatureType(Elemental),
+              AddCreatureType(Elemental),
               AddCardtype(Creature),
             ],
             UntilEndOfTurn,
@@ -1452063,7 +1452063,7 @@ Card(
         SetColor(SimpleColorList([
           Green,
         ])),
-        SetCreatureType(Elemental),
+        AddCreatureType(Elemental),
         AddCardtype(Creature),
       ],
     ),
@@ -1488330,7 +1488330,7 @@ Card(
                 5,
                 5,
               )),
-              SetCreatureType(Elemental),
+              AddCreatureType(Elemental),
               AddCardtype(Creature),
               AddAbility([
                 Haste,
@@ -1520863,7 +1520863,7 @@ Card(
         SetColor(SimpleColorList([
           Blue,
         ])),
-        SetCreatureType(Elemental),
+        AddCreatureType(Elemental),
         AddCardtype(Creature),
         AddAbility([
           Flying,

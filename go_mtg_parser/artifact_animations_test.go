@@ -45,9 +45,22 @@ func TestArtifactAnimationCreatureTypes(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixture = append(fixture, cottage...)
+	retained, err := os.ReadFile("../rust_syntax/normalize/tests/fixtures/retained_animations.ronl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture = append(fixture, retained...)
 	namePattern := regexp.MustCompile(`Name: "([^"]+)"`)
 	for _, expected := range strings.Split(strings.TrimSpace(string(fixture)), "\n") {
 		name := namePattern.FindStringSubmatch(expected)[1]
+		if _, ok := cards[name]; !ok {
+			for full, card := range cards {
+				if len(card.Cards) > 0 && card.Cards[0].Name == name {
+					name = full
+					break
+				}
+			}
+		}
 		t.Run(name, func(t *testing.T) {
 			card, ok := cards[name]
 			if !ok {

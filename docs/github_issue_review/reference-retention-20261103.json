@@ -1,0 +1,262 @@
+{
+  "id": "REF-003",
+  "date": "2026-11-03",
+  "source_base": "338780b6e1f62b08d23d500e48ed9f2129dddc92",
+  "semantic_pin": "effe4db4f5c4b0a90b3c58b396d6fa462bc233ca",
+  "rules_source": "https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt",
+  "producer": "English grammar templates with explicit land retention; source SetCreatureType must be AddCreatureType.",
+  "reported": [
+    {
+      "name": "Avalanche Caller",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Awaken the Ancient",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Corrupted Zendikon",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Crackling Emergence",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Crusher Zendikon",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Destiny Spinner",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Elemental Uprising",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Guardian Zendikon",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Harmonious Emergence",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Jolrael, Voice of Zhalfir",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Kamahl, Heart of Krosa",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Koth of the Hammer",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Nissa's Zendikon",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Nissa, Sage Animist",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/2/args/body/instructions/1/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Nissa, Worldwaker",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/2/args/body/instructions/1/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Vastwood Animist",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Vastwood Zendikon",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Wind Zendikon",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    }
+  ],
+  "additional_cards": [
+    {
+      "name": "Kamahl's Will",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/announcement/modes/modes/0/body/instructions/0/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Liege of the Tangle",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/body/instructions/1/args/operation/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Living Terrain",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/2/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Nissa, Vital Force",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Nissa, Who Shakes the World",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/body/instructions/2/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    },
+    {
+      "name": "Wakeroot Elemental",
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/changes/1/args/mode",
+          "before": "Set",
+          "after": "Add"
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "full_parser_records": 33529,
+    "changed_cards": 24,
+    "changed_modes": 24,
+    "other_changes": 0,
+    "go_parser_fixture_cards": 48,
+    "rust_focused_tests": 34,
+    "frozen_reference_modified": false
+  },
+  "upstream_issue": "https://github.com/i5jb/mtgish/issues/185"
+}
