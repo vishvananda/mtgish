@@ -96,9 +96,11 @@ def equivalent(tree, sha):
 def snapshot(root):
     root = Path(root)
     with connect(root) as db:
-        counts = {r['status']: r['n'] for r in db.execute('SELECT status,COUNT(*) AS n FROM integration_jobs GROUP BY status')}
+        revisions = {r['status']: r['n'] for r in db.execute('SELECT status,COUNT(*) AS n FROM integration_jobs GROUP BY status')}
+        counts = {r['status']: r['n'] for r in db.execute('''SELECT status,COUNT(*) AS n FROM integration_jobs
+            WHERE rowid IN (SELECT MAX(rowid) FROM integration_jobs GROUP BY name) GROUP BY status''')}
         held = [dict(r) for r in db.execute("SELECT id,name,candidate,status,detail FROM integration_jobs WHERE status IN ('running','needs_resolution')")]
-    result = dict(at=review.now(), counts=counts, held=held)
+    result = dict(at=review.now(), counts=counts, revision_counts=revisions, held=held)
     review.save(root/'integration/status.json', result)
     return result
 

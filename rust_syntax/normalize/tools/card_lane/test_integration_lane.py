@@ -116,3 +116,13 @@ class IntegrationTests(unittest.TestCase):
             self.assertIsNone(publish_lane.reserve(db,self.cfg))
             with self.assertRaisesRegex(RuntimeError,'Publication deferred'):
                 publish_lane.publish(self.root,self.cfg,db,1)
+
+    def test_card_counts_do_not_count_reapproved_revisions_as_new_cards(self):
+        with lane.connect(self.root) as db:
+            for key,name,status in [('a1','Alpha','assembled'),('b1','Beta','assembled'),('a2','Alpha','pending')]:
+                db.execute('INSERT INTO integration_jobs(id,name,candidate,source,status,steps,created) VALUES(?,?,?,?,?,?,?)',
+                           (key,name,'candidate','{}',status,'[]','now'))
+            db.commit()
+        state=lane.snapshot(self.root)
+        self.assertEqual(state['counts'],dict(assembled=1,pending=1))
+        self.assertEqual(state['revision_counts'],dict(assembled=2,pending=1))
