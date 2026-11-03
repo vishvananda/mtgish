@@ -1,7 +1,7 @@
 [
  {
   "match": "^a triggered ability carrying separate groups of objects$",
-  "class": "engine",
-  "needs": "A delayed or reflexive trigger carrying several distinct groups of objects, with group boundaries stored separately from real ObjectIds. The current event_objects list contains actual objects: ObjectId::NONE separators make visibility observation panic. Audit whether each card can use the existing subject and object-list channels before extending the trigger payload API."
+  "class": "generator",
+  "needs": "Carry distinct delayed or reflexive object bindings without sentinel ObjectIds. Reuse the existing subject and object-list channels where sufficient: Cantrip's hand-written Berserk already does. Audit the remaining cards before requesting a grouped trigger-payload API; the current event_objects list contains only real objects."
  }
 ]
