@@ -219411,7 +219411,7 @@ Card(
               6,
               6,
             )),
-            AddCreatureType(Construct),
+            SetCreatureType(Construct),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([
@@ -219550,7 +219550,7 @@ Card(
               2,
               1,
             )),
-            AddCreatureType(Construct),
+            SetCreatureType(Construct),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([
@@ -219573,7 +219573,7 @@ Card(
               3,
               2,
             )),
-            AddCreatureType(Construct),
+            SetCreatureType(Construct),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             LosesAbility(Flying),
@@ -219610,7 +219610,7 @@ Card(
           ThisPermanent,
           [
             SetPowerAndToughnessBoth(ValueX),
-            AddCreatureType(Construct),
+            SetCreatureType(Construct),
             AddCardtype(Artifact),
             AddCardtype(Creature),
           ],
@@ -223512,7 +223512,7 @@ Card(
             SetColor(SimpleColorList([
               Blue,
             ])),
-            AddCreatureType(Atog),
+            SetCreatureType(Atog),
             AddCardtype(Artifact),
             AddCardtype(Creature),
           ],
@@ -293328,7 +293328,7 @@ Card(
               2,
               2,
             )),
-            AddCreatureType(Beast),
+            SetCreatureType(Beast),
             AddCardtype(Artifact),
             AddCardtype(Creature),
           ],
@@ -328627,7 +328627,7 @@ Card(
         CreatePermanentLayerEffectUntil(
           ThisPermanent,
           [
-            AddCreatureType(Shapeshifter),
+            SetCreatureType(Shapeshifter),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             SetPT(PT(
@@ -402164,7 +402164,7 @@ Card(
               1,
               5,
             )),
-            AddCreatureType(Spirit),
+            SetCreatureType(Spirit),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([
@@ -475828,7 +475828,7 @@ Card(
             SetColor(SimpleColorList([
               Red,
             ])),
-            AddCreatureType(Giant),
+            SetCreatureType(Giant),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([
@@ -479389,7 +479389,7 @@ Card(
               3,
               3,
             )),
-            AddCreatureType(Dinosaur),
+            SetCreatureType(Dinosaur),
             AddCardtype(Artifact),
             AddCardtype(Creature),
           ],
@@ -526346,7 +526346,7 @@ Card(
               2,
               2,
             )),
-            AddCreatureType(Bird),
+            SetCreatureType(Bird),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([
@@ -526369,7 +526369,7 @@ Card(
               2,
               2,
             )),
-            AddCreatureType(Bird),
+            SetCreatureType(Bird),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([
@@ -567096,7 +567096,7 @@ Card(
               4,
               4,
             )),
-            AddCreatureType(Juggernaut),
+            SetCreatureType(Juggernaut),
             AddCardtype(Artifact),
             AddCardtype(Creature),
           ],
@@ -568032,7 +568032,7 @@ Card(
               2,
               2,
             )),
-            AddCreatureType(Golem),
+            SetCreatureType(Golem),
             AddCardtype(Artifact),
             AddCardtype(Creature),
           ],
@@ -668665,7 +668665,7 @@ Card(
               3,
               3,
             )),
-            AddCreatureType(Construct),
+            SetCreatureType(Construct),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([
@@ -755671,7 +755671,7 @@ Card(
               1,
               1,
             )),
-            AddCreatureType(Construct),
+            SetCreatureType(Construct),
             AddCardtype(Artifact),
             AddCardtype(Creature),
           ],
@@ -834122,7 +834122,7 @@ Card(
         CreatePermanentLayerEffectUntil(
           ThisPermanent,
           [
-            AddCreatureType(Shapeshifter),
+            SetCreatureType(Shapeshifter),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             SetPT(PT(
@@ -1065395,7 +1065395,7 @@ Card(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       Targeted(
         [
-          UptoOneTargetGraveyardCard(InAPlayersGraveyard(SinglePlayer(You))),
+          UptoOneTargetGraveyardCard(AnyCardInAnyGraveyard),
         ],
         ActionList([
           CreateTokens(
@@ -1118539,7 +1118539,7 @@ Card(
               3,
               3,
             )),
-            AddCreatureType(Vampire),
+            SetCreatureType(Vampire),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([
@@ -1281831,7 +1281831,7 @@ Card(
             SetColor(SimpleColorList([
               Green,
             ])),
-            AddCreatureType(Bear),
+            SetCreatureType(Bear),
             AddCardtype(Artifact),
             AddCardtype(Creature),
           ],
@@ -1505707,7 +1505707,7 @@ Card(
             SetColor(SimpleColorList([
               Green,
             ])),
-            AddCreatureType(Treefolk),
+            SetCreatureType(Treefolk),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([
@@ -1539745,7 +1539745,7 @@ Card(
               8,
               8,
             )),
-            AddCreatureType(Golem),
+            SetCreatureType(Golem),
             AddCardtype(Artifact),
             AddCardtype(Creature),
             AddAbility([

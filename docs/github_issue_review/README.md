@@ -190,3 +190,14 @@ Issues #8–#12 and our additional-examples comment on #2 have been shortened to
 - Four formerly reviewed capture findings are now repaired. The remaining 188 finding IDs and their complete matched evidence are unchanged: 151 scalar equivalences and 37 guarded context reviews. No card-name exceptions were added. These checks do not make the detector a complete semantic verifier; several GitHub bug families require the explicit card regressions.
 
 At the repair checkpoint, the source Rust schema represented the full corpus, while generic normalization covered 4,496 of 33,529 records using 12 operation kinds. Corrected source semantics exposed five previously hidden capability gaps (the entering-event alias, untargeted optional object selection, and the modified-permanent filter); Venom's corrected dies trigger became supported, giving a net reduction of four complete records. Subsequent AST implementation has added these generic capabilities; current progress is recorded in [AST_PLAN.md](../../AST_PLAN.md).
+
+
+## Reference findings, November 3, 2026
+
+The Oracle-grammar report REF-001 traced named artifact-creature animations back to nine English templates emitting `AddCreatureType` where CR 205.1b requires `SetCreatureType`. [Upstream #184](https://github.com/i5jb/mtgish/issues/184) covers the original 15 cards (17 nodes) and four more found by complete regeneration: Dire Mimic, Mimic, Sanguine Statuette and Xanthic Statue. The repaired corpus changes 21 creature-type modes across 19 cards. Bare animations and explicit retention wording retain their existing behavior.
+
+REF-002 is the previously reported [Restless Cottage #134](https://github.com/i5jb/mtgish/issues/134). Its attack trigger now accepts a card in any graveyard, retaining its card domain, graveyard zone, optional single target, Food creation and exile instruction. Its separate land animation is unchanged.
+
+The complete 33,529-record parse changes exactly these 20 cards. Whole-record Go regressions cover all 20 plus four controls; Rust regressions compare complete semantic trees while allowing only the specified 22 field changes. [Fresh export evidence](reference-mistakes-20261103.json) records their paths. The pinned Oracle-grammar reference cache and scorer were not edited; consumers must regenerate from the corrected corpus before updating their pins.
+
+Validation: the Go suite and 33 focused Rust tests pass; the template audit applies its input review and retains one pre-existing Cauldron Dance unused-capture finding; the literal audit has zero unreviewed findings. The existing `ast_baseline.json` identity check fails on both the unchanged parent corpus and the repaired corpus. Direct before/after comparisons verify identical record counts/order and no changes outside the intended operands; the stale baseline is not refreshed as part of these repairs.

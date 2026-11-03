@@ -1,0 +1,269 @@
+{
+  "date": "2026-11-03",
+  "source_base": "f320853cee74e7be81733b37c060cb302148beba",
+  "reported_semantic_pin": "effe4db4f5c4b0a90b3c58b396d6fa462bc233ca",
+  "rules_source": "https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt",
+  "producer": "grammars/english_grammar.json5; source AddCreatureType was faithfully lowered as Change::CreatureTypes(Add)",
+  "schema_version": 166,
+  "issues": [
+    {
+      "id": "REF-001",
+      "cards": [
+        {
+          "name": "Chimeric Egg",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Chimeric Sphere",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            },
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Chimeric Staff",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Chronatog Totem",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/2/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Darksteel Brute",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Ensouled Scimitar",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Foriysian Totem",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/2/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Fountain of Ichor",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Glint Hawk Idol",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/0/args/body/instructions/0/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            },
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Gruul War Plow",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Guardian Idol",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Iron Suitcase",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Levitating Statue",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Stuffed Bear",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes/2/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Weatherseed Totem",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/2/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        }
+      ],
+      "additional_cards_found_in_full_regeneration": [
+        {
+          "name": "Dire Mimic",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/changes/0/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Mimic",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes/0/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Sanguine Statuette",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/1/args/body/instructions/0/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        },
+        {
+          "name": "Xanthic Statue",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes/1/args/mode",
+              "before": "Add",
+              "after": "Set"
+            }
+          ]
+        }
+      ],
+      "upstream_issue": "https://github.com/i5jb/mtgish/issues/184"
+    },
+    {
+      "id": "REF-002",
+      "cards": [
+        {
+          "name": "Restless Cottage",
+          "changes": [
+            {
+              "path": "/faces/0/abilities/3/args/announcement/targets/0/filter",
+              "before": {
+                "kind": "InZone",
+                "args": {
+                  "Players": {
+                    "zone": "Graveyard",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                }
+              },
+              "after": {
+                "kind": "Any"
+              }
+            }
+          ]
+        }
+      ],
+      "upstream_issue": "https://github.com/i5jb/mtgish/issues/134"
+    }
+  ],
+  "validation": {
+    "full_parser_records": 33529,
+    "changed_source_records": 20,
+    "named_artifact_animation_cards": 19,
+    "creature_type_modes_changed": 21,
+    "graveyard_target_filters_changed": 1,
+    "other_source_changes": 0,
+    "parser_suite": "go test ./... -count=1",
+    "rust_regressions": 33,
+    "controls": [
+      "Blinkmoth Nexus",
+      "Dread Statuary",
+      "Karn, Silver Golem",
+      "Toymaker"
+    ],
+    "frozen_oracle_grammar_reference_modified": false,
+    "template_audit": "input review applied; one pre-existing unused Hasable capture in Cauldron Dance unchanged",
+    "literal_audit_unreviewed": 0,
+    "baseline_identity_check": "Existing ast_baseline.json rejects both unchanged parent corpus and repaired corpus. Direct before/after comparison confirms identical records/order and only intended operands changed."
+  }
+}
