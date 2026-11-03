@@ -373,7 +373,8 @@ def prompt(root, tree, folder, job):
         return compact_prompt(folder, json.loads(job["source"])["name"])
     command = f"python3 {HERE / 'review_lane.py'} --root {root}"
     return f"""You are a Terra worker in the card pipeline, reviewing code written by a DIFFERENT author.
-Work only on the current card. Read {folder / 'packet.md'} first: full Oracle text, rulings,
+Work on the current card and the existing callers its fixes require; do not pick another new card.
+Read {folder / 'packet.md'} first: full Oracle text, rulings,
 current code/content/shared definitions, scenarios and author evidence. Derive expected behavior from Oracle first.
 Once per context read .claude/skills/add-cards/review.md and the non-negotiables, Where code goes and Scenarios
 sections of its SKILL.md, plus write-game-script/SKILL.md. On later cards reuse those standards; read only
@@ -381,6 +382,8 @@ card-specific rule/helper definitions needed. Keep other reads bounded and purpo
 
 USER OVERRIDES the older review procedure: use Terra; YOU may fix card logic, scenarios, citations and shared
 mechanics. A fresh Terra context will confirm code changes. Do not hand easy fixes back to another author.
+Necessary fixes to affected existing callers and their scenarios are within this assignment: declare them all
+in affected_cards and run their required gates. Do not block solely because a shared fix needs those caller fixes.
 The mtgish generation lane's read-only-code restriction does not apply to this review/fix stage.
 Existing author histories and publication branches are preserved; do not edit a commit stack.
 No git mutations, pushes, GitHub, network, subagents, engine/core/client/harness/tool changes. Do not run the full
