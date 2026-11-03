@@ -236,6 +236,14 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
 /// primitive with no ordinary movement to read the permanent from.
 /// What a reviewed action row leaves for a later "this way" to name.
 pub fn yields(operation: &Operation) -> Option<&'static str> {
+    // Every manifest/cloak source supplies the same object-transition result,
+    // including an inline hand choice and multiple cards. Cardinality is a
+    // separate concern; consumers must not infer a singular object from this.
+    if matches!(operation, Operation::Manifest { .. }) {
+        return crate::primitive_spec::lookup("Action::ManifestTheTopCardOfPlayersLibrary")?
+            .yields
+            .as_deref();
+    }
     if matches!(operation, Operation::PutChosenCounters { .. }) {
         return Some("counters");
     }
