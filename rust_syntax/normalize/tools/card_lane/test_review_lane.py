@@ -70,6 +70,33 @@ class QueueTests(unittest.TestCase):
         with lane.connect(self.root) as db:
             self.assertEqual([dict(r) for r in db.execute("SELECT * FROM jobs")], jobs)
 
+    def test_reportless_confirmation_retry_keeps_candidate_review_and_rejection_count(self):
+        lane.save(self.root/'config.json', {'max_verifier_rejections':3})
+        with lane.connect(self.root) as db:
+            lane.enqueue(db,dict(name='A',commit='author',review_round=1,verifier_rejections=1))
+            db.execute("UPDATE jobs SET status='blocked',stage='confirm',candidate='validated',result='{}'")
+            job=dict(db.execute('SELECT * FROM jobs').fetchone())
+        review=lane.job_folder(self.root,job,'review');lane.save(review/'checks.json',{'ok':True})
+        old=lane.job_folder(self.root,job,'confirm');lane.save(old/'result.json',{'report':{}})
+        lane.retry_stopped(self.root,job['id'],'Quota restored')
+        with lane.connect(self.root) as db:retried=dict(db.execute('SELECT * FROM jobs').fetchone())
+        source=json.loads(retried['source'])
+        self.assertEqual((retried['status'],retried['stage'],retried['candidate']),('queued','confirm','validated'))
+        self.assertEqual((source['review_round'],source['verifier_rejections'],source['confirmation_attempt']),(1,1,1))
+        self.assertEqual(lane.job_folder(self.root,retried,'review'),review)
+        self.assertNotEqual(lane.job_folder(self.root,retried,'confirm'),old)
+        self.assertEqual(lane.read(old/'result.json'),{'report':{}})
+
+    def test_confirmation_retry_never_ignores_a_real_report_or_rejection_cap(self):
+        lane.save(self.root/'config.json', {'max_verifier_rejections':3})
+        for rejection_count,report in [(0,{'decision':'blocked'}),(3,{})]:
+            with self.subTest(rejections=rejection_count),lane.connect(self.root) as db:
+                db.execute('DELETE FROM jobs')
+                lane.enqueue(db,dict(name='A',commit='author',verifier_rejections=rejection_count))
+                db.execute("UPDATE jobs SET status='blocked',stage='confirm',candidate='candidate',result=?",(json.dumps({'report':report}),))
+                job=dict(db.execute('SELECT * FROM jobs').fetchone())
+            with self.assertRaises(ValueError):lane.retry_stopped(self.root,job['id'],'Changed environment')
+
     def test_verifier_limit_counts_rejections_instead_of_artifact_rounds(self):
         lane.save(self.root / "config.json", {"max_verifier_rejections": 3})
         with lane.connect(self.root) as db:

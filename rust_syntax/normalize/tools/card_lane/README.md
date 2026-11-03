@@ -176,6 +176,13 @@ An infrastructure stop retains completed
 review evidence and usage so an explicit resume can reuse an unchanged report and source.
 Drivers reload changed pipeline code at a clean card boundary, after finishing their lease, so later jobs
 receive scope and helper-pin updates without interrupting active cards or reusing an old resume argument.
+An explicit `retry JOB --reason ...` can also restart a stopped confirmation that produced no report.
+It retains the reviewed candidate and review evidence, writes a separate confirmation-attempt directory,
+and preserves the rejection count. A real confirmation report must follow the normal finding/fix path;
+neither retry form bypasses the rejection cap.
+Focused builds resolve an existing legacy module filename when its non-ASCII spelling differs from
+the current filename convention. Publisher counter-only prerequisite conflicts can merge plain appended
+vocabulary entries, retaining existing IDs and assigning new contiguous IDs; other conflicts remain blocked.
 First-card cache warmup is part of elapsed time;
 worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
 time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.

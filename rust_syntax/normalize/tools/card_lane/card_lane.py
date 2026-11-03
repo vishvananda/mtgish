@@ -212,7 +212,14 @@ def names_of(name):
     """(the card's file stem, its content slug, the generated oracle constant), by Cantrip's own rules."""
     import cantrip_candidates as cc
     constant = re.sub(r"[^A-Z0-9]+", "_", _ascii(name).replace("'", "").upper()).strip("_")
-    return cc.file_stem(name), cc.content_slug(name), constant
+    stem = cc.file_stem(name)
+    # Older Cantrip files sometimes dropped non-ASCII letters entirely, e.g.
+    # Bespoke Bō lives in bespoke_b.rs. Select the existing module in that case.
+    if not (CANTRIP / CARDS_DIR / (stem + '.rs')).exists():
+        legacy = cc.file_stem(name.encode('ascii', 'ignore').decode())
+        if (CANTRIP / CARDS_DIR / (legacy + '.rs')).exists():
+            stem = legacy
+    return stem, cc.content_slug(name), constant
 
 
 def _ascii(name):

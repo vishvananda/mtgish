@@ -213,7 +213,8 @@ def job_folder(root, job, stage):
     source = json.loads(job["source"]) if isinstance(job["source"], str) else job["source"]
     folder = Path(root) / "jobs" / job["id"]
     round_number = source.get("review_round", 0)
-    return folder / (f"round-{round_number}" if round_number else "") / stage
+    attempt = source.get('confirmation_attempt', 0) if stage == 'confirm' else 0
+    return folder / (f"round-{round_number}" if round_number else "") / (f'confirm-attempt-{attempt}' if attempt else stage)
 
 
 def handoff_verifier_findings(root):
@@ -282,8 +283,8 @@ def retry_stopped(root, job_id, reason):
     with connect(root) as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
-        if not row or row["stage"] != "review" or row["status"] not in ("blocked", "infrastructure"):
-            raise ValueError("only stopped review jobs can be explicitly retried")
+        if not row or row["status"] not in ("blocked", "infrastructure"):
+            raise ValueError("only stopped review jobs or reportless confirmations can be explicitly retried")
         job = dict(row)
         source = json.loads(job["source"])
         previous = json.loads(job["result"] or "{}")
@@ -291,6 +292,21 @@ def retry_stopped(root, job_id, reason):
         source.setdefault("verifier_rejections", source.get("review_round", 0))
         if source.get("verifier_rejections", 0) >= limit:
             raise ValueError("verifier rejection limit reached; retry cannot bypass it")
+        if job['stage'] == 'confirm':
+            prior_folder = job_folder(root, job, 'confirm')
+            if previous.get('report') or (prior_folder/'review.json').exists() or not job['candidate']:
+                raise ValueError('confirmation with a report requires its normal finding/fix process')
+            attempt = source.get('confirmation_attempt', 0) + 1
+            save(Path(root)/'jobs'/job_id/f'confirmation-retry-{attempt}.json', dict(at=now(),reason=reason,job=job))
+            source['confirmation_attempt'] = attempt
+            source['confirmation_retry_note'] = reason
+            db.execute("UPDATE jobs SET status='queued',source=?,result=?,worker=NULL,started=NULL,finished=NULL WHERE id=?",
+                       (json.dumps(source),json.dumps(dict(confirmation_retry=True,prior=str(prior_folder))),job_id))
+            event(db,job_id,None,'confirmation_retry_requested',dict(reason=reason,attempt=attempt,prior=str(prior_folder)))
+            db.commit()
+            return job_id
+        if job['stage'] != 'review':
+            raise ValueError('only stopped review jobs or reportless confirmations can be explicitly retried')
         if not job["branch"] or not previous.get("prepared_parent"):
             raise ValueError("stopped job lacks its preserved branch or prepared parent")
         round_number = source.get("review_round", 0) + 1
@@ -334,6 +350,8 @@ def prepare(root, tree, job):
     if source.get("review_round", 0):
         branch += f"-round-{source['review_round']}"
     if job["stage"] == "confirm":
+        if source.get('confirmation_attempt'):
+            branch += f"-attempt-{source['confirmation_attempt']}"
         git(tree, "checkout", "-b", branch, job["candidate"])
         return branch, git(tree, "rev-parse", "HEAD^"), source
     import shared_base

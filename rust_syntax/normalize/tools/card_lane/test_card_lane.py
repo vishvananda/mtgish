@@ -1327,6 +1327,16 @@ class StreamContextCheckpoint(Streams):
 
 
 class FocusedBuilds(unittest.TestCase):
+    def test_existing_legacy_non_ascii_module_is_selected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);cards=root/lane.CARDS_DIR;cards.mkdir(parents=True)
+            (cards/'bespoke_b.rs').write_text('pub static CARD: X;')
+            with mock.patch.object(lane,'CANTRIP',root):
+                self.assertEqual(lane.names_of('Bespoke Bō')[0],'bespoke_b')
+                self.assertEqual(lane.names_of('New Bō')[0],'new_bo')
+                (cards/'bespoke_bo.rs').write_text('pub static CARD: X;')
+                self.assertEqual(lane.names_of('Bespoke Bō')[0],'bespoke_bo')
+
     def test_closure_refresh_and_stable_list(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

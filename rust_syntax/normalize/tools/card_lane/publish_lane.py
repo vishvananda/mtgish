@@ -217,6 +217,73 @@ def validate_remote(repo, remote, expected):
         raise RuntimeError(f'remote {remote} does not point to {expected}: {url}')
 
 
+def merge_counter_additions(base, ours, theirs):
+    """Merge only appended counter vocabulary; retain every existing numeric ID."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from cantrip_tree import counter_block
+    entry = re.compile(r'^\s*(\w+) = (\d+), "([^"]*)", "([^"]*)";\s*$', re.M)
+
+    def table(text):
+        start, end = counter_block(text)
+        body = text[start:end]
+        values = entry.findall(body)
+        if [int(v[1]) for v in values] != list(range(len(values))):
+            raise ValueError('counter IDs are not contiguous')
+        return start, end, body, values
+
+    bs, be, body, before = table(base)
+    ts, te, added_body, incoming = table(theirs)
+    _, _, _, current = table(ours)
+    if theirs[:ts] != base[:bs] or theirs[te:] != base[be:] or not added_body.startswith(body):
+        raise ValueError('prerequisite changes more than appended counter vocabulary')
+    added = incoming[len(before):]
+    suffix = added_body[len(body):]
+    if incoming[:len(before)] != before or not added or entry.sub('',suffix).strip():
+        raise ValueError('counter prerequisite is not a plain append')
+    if current[:len(before)] != before:
+        raise ValueError('existing counter vocabulary changed')
+    known = {v[0]:v for v in current}
+    additions = []
+    for name, _, printed, token in added:
+        if name in known:
+            if known[name][2:] != (printed,token):
+                raise ValueError('counter spelling changed')
+            continue
+        additions.append(f'\n    {name} = {len(current)+len(additions)}, "{printed}", "{token}";')
+        known[name] = (name,'',printed,token)
+    _, end = counter_block(ours)
+    return ours[:end]+''.join(additions)+ours[end:]
+
+
+def resolve_counter_conflict(tree, sha):
+    path = 'crates/cantrip-state/src/vocab.rs'
+    if git(tree,'diff','--name-only','--diff-filter=U').splitlines() != [path]:
+        return False
+    # Only a vocabulary-only prerequisite is eligible for automatic resolution.
+    if git(tree,'diff-tree','--no-commit-id','--name-only','-r',sha).splitlines() != [path]:
+        return False
+    try:
+        merged = merge_counter_additions(git(tree,'show',sha+'^:'+path),
+                                         git(tree,'show','HEAD:'+path),git(tree,'show',sha+':'+path))
+    except ValueError:
+        return False
+    (tree/path).write_text(merged)
+    git(tree,'add','--',path)
+    if not git(tree,'diff','--cached','--name-only'):
+        git(tree,'cherry-pick','--skip')
+    else:
+        git(tree,'-c','core.editor=true','cherry-pick','--continue')
+    return True
+
+
+def pick_prerequisite(tree, sha):
+    try:
+        git(tree,'cherry-pick','--empty=drop',sha)
+    except RuntimeError:
+        if not resolve_counter_conflict(tree,sha):
+            raise
+
+
 def integration_checks(root, cfg, b, cards, tree, folder):
     scratch = tree / 'target' / 'tmp'
     scratch.mkdir(parents=True, exist_ok=True)
@@ -296,7 +363,9 @@ def publish(root, cfg, db, number):
                 raise RuntimeError('publisher worktree or branch already exists')
             env = dict(os.environ, COW_WORKTREE_CONFIG=p.get('cow_config', '/mnt/vizier/cow-cantrip.conf'))
             command(repo, p.get('cow_git', '/home/vishvananda/.local/bin/cow-git'), '-C', p.get('cow_base', '/mnt/vizier/base/cantrip'), 'worktree', 'add', '-b', b['branch'], str(tree), base, env=env)
-            for sha in prereqs + finals:
+            for sha in prereqs:
+                pick_prerequisite(tree, sha)
+            for sha in finals:
                 git(tree, 'cherry-pick', '--empty=drop', sha)
             head = git(tree, 'rev-parse', 'HEAD')
             (folder / 'composition.json').write_text(json.dumps(dict(prerequisites=prereqs, finals=finals), indent=2) + '\n')

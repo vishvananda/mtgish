@@ -10,6 +10,32 @@ import publish_lane as p
 
 
 class PublisherTests(unittest.TestCase):
+    def test_counter_merge_retains_ids_and_appends_distinct_kinds(self):
+        base='prefix\ncounter_kinds! {\n    A = 0, "a", "A";\n}\nsuffix\n'
+        ours=base.replace('\n}\n','\n    Vitality = 1, "vitality", "Vitality";\n}\n')
+        theirs=base.replace('\n}\n','\n    Scream = 1, "scream", "Scream";\n}\n')
+        merged=p.merge_counter_additions(base,ours,theirs)
+        self.assertIn('Vitality = 1',merged)
+        self.assertIn('Scream = 2',merged)
+        self.assertEqual(p.merge_counter_additions(base,merged,theirs),merged)
+        with self.assertRaises(ValueError):p.merge_counter_additions(base,ours,theirs.replace('suffix','changed'))
+        with self.assertRaises(ValueError):p.merge_counter_additions(base,ours,theirs.replace('A = 0','A = 2'))
+        with self.assertRaises(ValueError):p.merge_counter_additions(base,ours,theirs.replace('"a"','"other"'))
+
+    def test_counter_conflict_is_resolved_without_replacing_existing_kind(self):
+        path=self.repo/'crates/cantrip-state/src/vocab.rs';path.parent.mkdir(parents=True)
+        base='prefix\ncounter_kinds! {\n    A = 0, "a", "A";\n}\nsuffix\n'
+        path.write_text(base);self.git('add','.');self.git('commit','-qm','counter base')
+        parent=self.git('rev-parse','HEAD')
+        path.write_text(base.replace('\n}\n','\n    Scream = 1, "scream", "Scream";\n}\n'))
+        self.git('add','.');self.git('commit','-qm','Engine: scream counter');incoming=self.git('rev-parse','HEAD')
+        self.git('checkout','-q','--detach',parent)
+        path.write_text(base.replace('\n}\n','\n    Vitality = 1, "vitality", "Vitality";\n}\n'))
+        self.git('add','.');self.git('commit','-qm','Engine: vitality counter')
+        p.pick_prerequisite(self.repo,incoming)
+        self.assertIn('Vitality = 1',path.read_text());self.assertIn('Scream = 2',path.read_text())
+        self.assertEqual(self.git('status','--porcelain'),'')
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
