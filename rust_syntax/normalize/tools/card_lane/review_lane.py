@@ -482,12 +482,20 @@ def checks(root):
         if not record(card + " corpus", lambda c=card: lane.run_corpus(c),
                       lambda out: bool(re.search(r"[1-9]\d* pass, 0 fail, 0 known bugs?", out)) and bool(re.search(r"0 need cards", out))):
             break
-        record(card + " oracle", lambda c=card: lane.tool("new-card.py", c, "--no-write"),
-               lambda out: "matches Scryfall" in out and "DIFFERS" not in out)
-        record(card + " lint", lambda c=card: lane.tool("card-lint.py", c), lambda out: ": NEVER:" not in out)
-        files = [*([lane.card_file(card)] if lane.card_file(card).exists() else []), *lane.card_scenarios(card)]
-        record(card + " citations", lambda f=files: lane.tool("cr.py", "check", "--show", *f))
+        stem, slug = names(card)
+        edited = card == name or stem in changed_stems or any(
+            p.startswith(f"scenarios/{slug}-") or p == f"content/mtg/cards/{slug}.json" for p in changed)
+        if edited:
+            record(card + " oracle", lambda c=card: lane.tool("new-card.py", c, "--no-write"),
+                   lambda out: "matches Scryfall" in out and "DIFFERS" not in out)
+            record(card + " lint", lambda c=card: lane.tool("card-lint.py", c), lambda out: ": NEVER:" not in out)
+            files = [*([lane.card_file(card)] if lane.card_file(card).exists() else []), *lane.card_scenarios(card)]
+            record(card + " citations", lambda f=files: lane.tool("cr.py", "check", "--show", *f))
         record(card + " coverage", lambda c=card: lane.tool("card-coverage.py", c))
+        if not edited:
+            # Shared callers still play and measure their scenarios. Their
+            # unchanged card decisions do not need another mutation review.
+            continue
         lane.card_dir(card).mkdir(parents=True, exist_ok=True)
         gates = {card: lane.Gates(card, False)}
         at = time.monotonic()
@@ -497,6 +505,9 @@ def checks(root):
         rows.append(dict(gate=card+" mutation", ok=not unresolved and not gates[card].failures(),
                          seconds=round(time.monotonic()-at, 2), survivors=survivors, unresolved=unresolved,
                          details=gates[card].results))
+    shared = [p for p in changed if p.startswith("crates/cantrip-mechanics/")]
+    if shared:
+        record("shared citations", lambda: lane.tool("cr.py", "check", "--show", *shared))
     source = lane.card_file(name).read_text() if lane.card_file(name).exists() else ""
     if ("statics:" in source or "granted_static" in source) and all(r["ok"] for r in rows):
         record("layers", lambda: lane.shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases", env=lane.full_environment()))
@@ -518,6 +529,13 @@ def work_digest(tree):
             file = tree / path
             h.update(path.encode() + b"\0" + (file.read_bytes() if file.exists() else b"<deleted>"))
     return h.hexdigest()
+
+
+def completed_review_matches(tree, report_path, previous):
+    evidence = previous.get("completed_review")
+    return bool(isinstance(evidence, dict) and report_path.is_file() and
+                evidence.get("report_sha256") == hashlib.sha256(report_path.read_bytes()).hexdigest() and
+                evidence.get("source_digest") == work_digest(tree))
 
 
 def commit_candidate(tree, source, parent, paths):
@@ -614,7 +632,8 @@ def worker(root, slot, once=False, resume=None):
                         previous = json.loads(job["result"]) if job.get("result") else {}
                         branch, parent, source = job["branch"], previous.get("prepared_parent") or git(tree, "rev-parse", "HEAD^"), json.loads(job["source"])
                         cached_report=job_folder(root,job,job['stage'])/'review.json'
-                        resume_ready=previous.get('error','').startswith('declare every changed card in affected_cards') and cached_report.exists() and report_valid(read(cached_report),source['name'])
+                        resume_ready=(previous.get('error','').startswith('declare every changed card in affected_cards') or
+                                      completed_review_matches(tree,cached_report,previous)) and cached_report.exists() and report_valid(read(cached_report),source['name'])
                         resume = None
                     else:
                         branch, parent, source = prepare(root, tree, job)

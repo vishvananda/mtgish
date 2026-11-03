@@ -132,6 +132,12 @@ coverage, mutation checks and the layer contract when needed. Unresolved survivo
 manual meaning breaks stay visible to the reviewer/confirmation context. Confirmation cannot edit source or
 replace missing machine evidence with a self-reported pass.
 
+The current card and edited card files/scenario owners receive the full gate set. Existing callers affected only
+by a shared helper change still run their scenarios and coverage; their unchanged card decisions are not mutated
+again, and their unchanged Oracle/lint/citation checks are not repeated. Changed shared files receive citation
+checks, and the review/verifier must inspect the helper change and its specific meaning probes. This prevents a
+small helper correction from turning into mutation review of hundreds of unrelated card implementations.
+
 Both stages enable `CARD_LANE_FOCUSED=1`: builds include all scenario deck dependencies, transitive card-file
 dependencies and providers of shared extra definitions. The selector is refreshed after scenario changes. The
 layer contract uses the full registry, and an incomplete focused baseline cannot count as a caught mutation.

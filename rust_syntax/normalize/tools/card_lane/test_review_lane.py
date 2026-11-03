@@ -368,6 +368,44 @@ class GitTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def test_shared_callers_keep_scenario_coverage_without_unrelated_mutation_work(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);card=root/'a.rs';card.write_text('pub static CARD: X;')
+            lane.save(root/'review.json', {'affected_cards':['A','B','C']})
+            mutation=mock.Mock(return_value={})
+            gate=SimpleNamespace(results=[],failures=lambda:[])
+            tools=mock.Mock(return_value=(0,'matches Scryfall'))
+            corpus=mock.Mock(return_value=(0,'1 pass, 0 fail, 0 known bugs, 0 need cards'))
+            fake=SimpleNamespace(card_dir=lambda _:root/'state'/'cards'/'a',card_file=lambda _:card,
+                                 card_scenarios=lambda _:[],focus_cards=lambda _:None,run_corpus=corpus,
+                                 tool=tools,Gates=lambda *args:gate,mutation_gates=mutation)
+            with mock.patch.object(lane,'current',return_value={'tree':str(root),'folder':str(root),'name':'A'}), \
+                 mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'git',return_value='head'), \
+                 mock.patch.object(lane,'work_digest',return_value='stable'), \
+                 mock.patch.object(lane,'allowed_changes',return_value=['crates/cantrip-mechanics/src/targets.rs',
+                                                                       'crates/cantrip-cards/src/cards/c.rs']):
+                result=lane.checks(root)
+            self.assertTrue(result['ok'])
+            self.assertEqual([c.args[0] for c in corpus.call_args_list],['A','B','C'])
+            self.assertEqual([c.args[0] for c in mutation.call_args_list],[['A'],['C']])
+            self.assertIn(mock.call('card-coverage.py','B'),tools.call_args_list)
+            self.assertNotIn(mock.call('new-card.py','B','--no-write'),tools.call_args_list)
+            self.assertIn('shared citations',[g['gate'] for g in result['gates']])
+
+    def test_completed_review_requires_exact_source_and_report_for_gate_resume(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);report=root/'review.json';report.write_text('{"decision":"pass"}')
+            import hashlib
+            previous={'completed_review':{'report_sha256':hashlib.sha256(report.read_bytes()).hexdigest(),
+                                          'source_digest':'unchanged'}}
+            with mock.patch.object(lane,'work_digest',return_value='unchanged'):
+                self.assertTrue(lane.completed_review_matches(root,report,previous))
+            with mock.patch.object(lane,'work_digest',return_value='changed'):
+                self.assertFalse(lane.completed_review_matches(root,report,previous))
+            report.write_text('{"decision":"blocked"}')
+            with mock.patch.object(lane,'work_digest',return_value='unchanged'):
+                self.assertFalse(lane.completed_review_matches(root,report,previous))
+
     def test_review_scratch_probe_uses_common_dependency_aware_runner(self):
         fake=SimpleNamespace(cmd_corpus=mock.Mock(return_value=7))
         argv=['review_lane.py','corpus','--file','/tmp/probe.cantrip','--next']
