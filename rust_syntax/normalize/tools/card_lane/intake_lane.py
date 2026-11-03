@@ -131,7 +131,8 @@ def exclusion(card):
     if card['name'] in {'Chaos Orb', 'Falling Star'}: return 'dexterity'
     text = '\n'.join([card.get('oracle_text', '')] + [f.get('oracle_text', '') for f in card.get('card_faces', [])])
     if re.search(r'\bante\b', text, re.I): return 'ante'
-    if card.get('layout') in {'token','double_faced_token','emblem','art_series','planar','scheme','vanguard'}:
+    if re.search(r'\bsubgame\b', text, re.I): return 'subgame'
+    if card.get('layout') in {'token','double_faced_token','emblem','art_series','planar','scheme','vanguard','front_card'}:
         return 'not a playable Magic card'
     if card.get('games') and not set(card['games']) & {'paper','mtgo','arena'}: return 'not a playable Magic card'
     return None
@@ -201,7 +202,9 @@ def rows_at(path):
 def plan(root, names, sets, color, oracle=ORACLE, catalog=CATALOG, tree=CANTRIP, fetch=False):
     root = Path(root); cfg = read(root/'config.json'); queue = read(cfg['implementation_queue'])
     records = load_oracle(oracle); chosen = select(records,names,sets,color,catalog,root/'set-cache',fetch)
-    known = {c['name'] for c in queue['cards']}; done = implemented(cfg['base'], tree)
+    import shared_base
+    pin = shared_base.read_work_base(cfg, tree)
+    known = {c['name'] for c in queue['cards']}; done = implemented(pin['head'] if pin else cfg['base'], tree)
     rows = rows_at(Path(cfg['lane_root'])/'gen/rows.jsonl')
     result = []
     for name, card, line in chosen:

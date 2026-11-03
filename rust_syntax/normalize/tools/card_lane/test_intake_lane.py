@@ -30,6 +30,9 @@ class IntakeTests(unittest.TestCase):
         self.assertIsNone(intake.exclusion(self.cards['Crusade'][0]))
         self.assertEqual(intake.exclusion(self.cards['Chaos Orb'][0]),'dexterity')
         self.assertEqual(intake.exclusion(self.cards['Contract from Below'][0]),'ante')
+        self.assertEqual(intake.exclusion({'name':'Shahrazad', 'oracle_text':'Players play a MAGIC subgame, starting at 20 life.'}), 'subgame')
+        self.assertEqual(intake.exclusion({'name':'Subgame on a face', 'card_faces':[{'oracle_text':'Start a subgame.'}]}), 'subgame')
+        self.assertIsNone(intake.exclusion({'name':'Ordinary game', 'oracle_text':'You gain 2 life.'}))
     def test_files(self):
         p=self.root/'list'; p.write_text("Crusade\nChaos Orb\n")
         q=self.root/'json'; q.write_text('["Mixed"]')
@@ -54,6 +57,7 @@ class IntakeTests(unittest.TestCase):
         self.assertIn('source',intake.read(cache/'tst.json'))
     def test_canonical_token_face_colors_and_non_ante_cards(self):
         self.records['Crusade'].append(({'name':'Crusade','layout':'token','oracle_id':'token'},9))
+        self.records['Crusade'].append(({'name':'Crusade','layout':'front_card','oracle_id':'theme','type_line':'Card'},10))
         card = self.cards['Mixed'][0].copy()
         card.pop('colors'); card['card_faces']=[{'colors':['W']},{'colors':['U']}]
         self.records['Mixed']=[(card,4)]
@@ -70,6 +74,16 @@ class IntakeTests(unittest.TestCase):
         intake.save(self.root/'config.json',{'lane_root':str(lane),'implementation_queue':str(queue),'base':'def'})
         with patch.object(intake,'load_oracle',return_value=self.records), patch.object(intake,'implemented',return_value=set()):
             self.assertEqual(intake.plan(self.root,['Crusade'],[],None)[0]['readiness'],'pending')
+    def test_plan_counts_support_from_the_validated_worker_snapshot(self):
+        lane = self.root/'lane'; (lane/'gen').mkdir(parents=True)
+        queue = self.root/'queue.json'; intake.save(queue, {'cards':[]})
+        intake.save(self.root/'config.json', {'lane_root':str(lane), 'implementation_queue':str(queue), 'base':'old'})
+        with patch.object(intake,'load_oracle',return_value=self.records), \
+             patch('shared_base.read_work_base',return_value={'head':'validated'}), \
+             patch.object(intake,'implemented',return_value={'Crusade'}) as support:
+            self.assertEqual(intake.plan(self.root,['Crusade'],[],None)[0]['status'],'implemented')
+        support.assert_called_once_with('validated',intake.CANTRIP)
+
     def test_add_preserves_queue_and_reconciles(self):
         queue=self.root/'queue.json'; intake.save(queue,{'generator_commit':'abc','cards':[{'name':'Old','status':'committed'}]})
         intake.save(self.root/'config.json',{'implementation_queue':str(queue),'base':'def'})

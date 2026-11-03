@@ -89,7 +89,7 @@ Actual new client capabilities still require browser evidence.
 `intake_lane.py` selects and reserves canonical cards before enqueueing them. It accepts repeated `--card`,
 a newline/JSON list with `--file`, a complete `--set`, and `--set ... --color blue` (or W/U/B/R/G/C).
 Local Oracle and set data are preferred; `add` fetches and caches complete printings for an uncached set, while
-`plan` requires `--fetch-set` for that read. Ante, dexterity and non-card objects are excluded; flavor bans are
+`plan` requires `--fetch-set` for that read. Ante, subgame, dexterity and non-card objects are excluded; flavor bans are
 not exclusions. Existing queues and other workers' live claims are preserved. Claims and enqueueing have a journal.
 Only generator-ready candidates are reserved by default. Gaps and missing generation are catalogued in the journal
 as `deferred_unclaimed`; `--reserve-gaps` is an explicit opt-in. Slow reservation calls do not hold the shared queue
