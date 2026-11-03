@@ -1358,6 +1358,28 @@ class FocusedBuilds(unittest.TestCase):
                 self.assertIn("c", path.read_text().splitlines())
                 self.assertNotIn("b", path.read_text().splitlines())
 
+    def test_scratch_decks_do_not_expand_unrelated_scenarios(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cards, scenarios = root / lane.CARDS_DIR, root / lane.SCENARIOS_DIR
+            cards.mkdir(parents=True)
+            scenarios.mkdir(parents=True)
+            for stem in ("a", "mox", "dingus", "balance", "expensiveother", "dependency"):
+                (cards / f"{stem}.rs").write_text("use super::dependency::X;" if stem == "dingus" else "")
+            (cards / "provider.rs").write_text("pub static EXTRA: &[&X] = &[&tokens::THING];")
+            (scenarios / "unrelated.cantrip").write_text("[Bot1 Deck]\nMox\nExpensiveOther\n[Actions]\n")
+            scratch = root / "scratch.cantrip"
+            scratch.write_text("[Bot1 Deck]\nA\nMox\nDingus\nBalance\n[Actions]\n")
+            naming = lambda name: (name.lower(), name.lower(), name.upper())
+            with mock.patch.multiple(lane, CANTRIP=root, STATE=root / "state", STREAM=root / "missing-stream", QUEUE=root / "missing-queue", names_of=naming), \
+                 mock.patch.dict(os.environ, CARD_LANE_FOCUSED="1"), \
+                 mock.patch.object(lane.subprocess, "run", return_value=mock.Mock(returncode=0)):
+                lane.cmd_corpus(["--file", str(scratch)])
+                selected = set((lane.STATE / "focused-cards.txt").read_text().splitlines())
+                self.assertEqual(selected, {"a", "mox", "dingus", "balance", "dependency", "provider"})
+                lane.focus_cards(["A"], extra_decks=["Mox"])
+                self.assertNotIn("expensiveother", (lane.STATE / "focused-cards.txt").read_text().splitlines())
+
     def test_full_fallback_rejects_missing_cards_before_mutation(self):
         gates = {"A": mock.Mock()}
         shadow = mock.Mock()

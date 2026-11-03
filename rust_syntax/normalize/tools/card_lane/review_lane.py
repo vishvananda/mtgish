@@ -20,6 +20,7 @@ import sys
 import tempfile
 import time
 import traceback
+import unicodedata
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_ROOT = Path.home() / "card-lane" / "pipeline"
@@ -89,10 +90,12 @@ def enqueue(db, source, priority=0):
     return added
 
 
-def claim(db, worker):
+def claim(db, worker, role="all"):
     # A lease is never expired automatically: a killed worker may have valuable dirty files.
     db.execute("BEGIN IMMEDIATE")
-    row = db.execute("SELECT * FROM jobs WHERE status='queued' ORDER BY priority DESC,enqueued,id LIMIT 1").fetchone()
+    if role not in ("all", "review", "confirm"):
+        raise ValueError("reviewer role must be all, review, or confirm")
+    row = db.execute("SELECT * FROM jobs WHERE status='queued' AND (?='all' OR stage=?) ORDER BY priority DESC,enqueued,id LIMIT 1", (role, role)).fetchone()
     if row:
         db.execute("UPDATE jobs SET status='running',worker=?,started=?,finished=NULL WHERE id=?",
                    (worker, now(), row["id"]))
@@ -139,7 +142,11 @@ def sync(root):
 def names(name):
     sys.path.insert(0, str(HERE.parent))
     from cantrip_candidates import file_stem, content_slug
-    return file_stem(name), content_slug(name)
+    return file_stem(canonical_typography(name)), content_slug(canonical_typography(name))
+
+
+def canonical_typography(name):
+    return unicodedata.normalize('NFKC',name).translate(str.maketrans({'’':"'",'‘':"'",'“':'"','”':'"','–':'-','—':'-'}))
 
 
 def run(tree, *args, env=None, check=True):
@@ -182,10 +189,87 @@ def prerequisite_commits(tree, source):
     return [line.split(" ", 1)[0] for line in rows if not line.split(" ", 1)[1].startswith("Card:")]
 
 
+def job_folder(root, job, stage):
+    source = json.loads(job["source"]) if isinstance(job["source"], str) else job["source"]
+    folder = Path(root) / "jobs" / job["id"]
+    round_number = source.get("review_round", 0)
+    return folder / (f"round-{round_number}" if round_number else "") / stage
+
+
+def handoff_verifier_findings(root):
+    """Return substantive verifier blocks to review, preserving each round's evidence."""
+    count = 0
+    cfg = config(root)
+    limit = cfg.get("max_verifier_rejections", cfg.get("max_verifier_rounds", 3))
+    if not isinstance(limit, int) or limit < 1:
+        raise ValueError("max_verifier_rejections must be a positive integer")
+    with connect(root) as db:
+        db.execute("BEGIN IMMEDIATE")
+        for row in db.execute("SELECT * FROM jobs WHERE stage='confirm' AND status='blocked'").fetchall():
+            job = dict(row)
+            source = json.loads(job["source"])
+            round_number = source.get("review_round", 0)
+            confirm_dir = job_folder(root, job, "confirm")
+            report_path = confirm_dir / "review.json"
+            if not report_path.exists():
+                continue
+            report = read(report_path)
+            findings = report.get("findings")
+            if report.get("decision") != "blocked" or not isinstance(findings, list) or not any(findings):
+                continue
+            findings = [finding for finding in findings if finding]
+            review_dir = job_folder(root, job, "review")
+            checks_path, result_path = review_dir / "checks.json", review_dir / "result.json"
+            if not checks_path.exists() or not result_path.exists() or not job["candidate"]:
+                continue
+            checks, previous = read(checks_path), read(result_path)
+            if not checks.get("head") or not previous.get("prepared_parent"):
+                continue
+            detail = dict(round=round_number, findings=findings, count=len(findings),
+                          report=str(report_path), candidate=job["candidate"], review=str(review_dir))
+            # A capped job remains blocked; record its findings just once.
+            recorded = db.execute("SELECT 1 FROM events WHERE job=? AND kind='verification_blocked' AND json_extract(detail, '$.round')=?", (job["id"], round_number)).fetchone()
+            if not recorded:
+                event(db, job["id"], job["worker"], "verification_blocked", detail)
+            source["verifier_rejections"] = round_number + 1
+            if round_number + 1 >= limit:
+                db.execute("UPDATE jobs SET source=? WHERE id=?", (json.dumps(source), job["id"]))
+                continue
+            source["review_round"] = round_number + 1
+            source["retry_note"] = ("A fresh verifier blocked the previous candidate. Resolve every finding and prove the fixes.\n"
+                + "Findings (verbatim JSON):\n" + json.dumps(findings, indent=2, ensure_ascii=False)
+                + f"\nPrevious candidate: {job['candidate']}\nPrior review and proof: {review_dir}\nVerifier report: {report_path}\n")
+            retry = dict(retry_requested=True, retry_base=checks["head"], retry_candidate=job["candidate"],
+                         prepared_parent=previous["prepared_parent"])
+            db.execute("UPDATE jobs SET stage='review',status='queued',source=?,result=?,priority=?,worker=NULL,started=NULL,finished=NULL WHERE id=?",
+                       (json.dumps(source), json.dumps(retry), max(job["priority"], 1), job["id"]))
+            event(db, job["id"], None, "returned_for_fixes", {**detail, "next_round": round_number + 1})
+            count += 1
+        db.commit()
+    return count
+
+
 def prepare(root, tree, job):
     clean(tree)
     cfg, source = config(root), json.loads(job["source"])
+    previous = json.loads(job["result"]) if job.get("result") else {}
+    if previous.get("retry_requested") and job["stage"] == "review":
+        if previous.get("retry_base") and previous.get("retry_candidate"):
+            branch = f"review/{Path(root).name}/{job['id']}/review-round-{source['review_round']}"
+            git(tree, "checkout", "-b", branch, previous["retry_base"])
+            diff = subprocess.run(["git", "diff", "--binary", previous["retry_base"], previous["retry_candidate"]],
+                                  cwd=tree, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout
+            subprocess.run(["git", "apply", "--index"], cwd=tree, input=diff, check=True)
+            return branch, previous["prepared_parent"], source
+        branch = job["branch"] + "-retry-" + str(time.time_ns())
+        base = git(tree, "rev-parse", previous["wip_commit"] + "^") if previous.get("wip_commit") else job["branch"]
+        git(tree, "checkout", "-b", branch, base)
+        if previous.get("wip_commit"):
+            git(tree, "cherry-pick", "--no-commit", previous["wip_commit"])
+        return branch, previous["prepared_parent"], source
     branch = f"review/{Path(root).name}/{job['id']}/{job['stage']}"
+    if source.get("review_round", 0):
+        branch += f"-round-{source['review_round']}"
     if job["stage"] == "confirm":
         git(tree, "checkout", "-b", branch, job["candidate"])
         return branch, git(tree, "rev-parse", "HEAD^"), source
@@ -198,7 +282,7 @@ def prepare(root, tree, job):
 
 
 def packet(root, tree, job, source, lane):
-    folder = Path(root) / "jobs" / job["id"] / job["stage"]
+    folder = job_folder(root, job, job["stage"])
     folder.mkdir(parents=True, exist_ok=True)
     author = Path(source["packet"])
     for name in ("reference.md", "shared.md", "prior-art.md", "report.json", "check.json", "mutate.txt", "test-points.json"):
@@ -223,21 +307,34 @@ def packet(root, tree, job, source, lane):
             "## Author's line-by-line validation and evidence\n" + (folder / "author-report.json").read_text(),
             "## Scenarios\n" + "\n".join(f"### {p.relative_to(tree)}\n```\n{p.read_text()}\n```" for p in scenarios),
             "## Prior findings (leads to verify; not a verdict)\n" + json.dumps(hints, indent=2)]
+    if source.get("retry_note"):
+        body.append("## Retry instructions\n" + source["retry_note"])
     if job["stage"] == "confirm":
-        original = Path(root) / "jobs" / job["id"] / "review"
+        original = job_folder(root, job, "review")
         body += ["## Fix report\n" + (original / "review.json").read_text(),
                  "## Exact fixes to confirm\n```diff\n" + (original / "fixes.diff").read_text() + "\n```"]
     (folder / "packet.md").write_text("\n\n".join(body))
+    if job["stage"] == "confirm":
+        # Candidate content must be exactly what passed the original review's machine gates.
+        checked = read(original / "checks.json")
+        if checked.get("diff_digest") != work_digest(tree):
+            raise ValueError("confirmation candidate does not match checked source")
+        from review_confirmation import build_bundle
+        build_bundle(folder, original, source["name"], job["candidate"], git(tree, "rev-parse", "HEAD^{tree}"), source["commit"])
     return folder
 
 
 def prompt(root, tree, folder, job):
+    if job["stage"] == "confirm":
+        from review_confirmation import compact_prompt
+        return compact_prompt(folder, json.loads(job["source"])["name"])
     command = f"python3 {HERE / 'review_lane.py'} --root {root}"
     return f"""You are a Terra worker in the card pipeline, reviewing code written by a DIFFERENT author.
 Work only on the current card. Read {folder / 'packet.md'} first: full Oracle text, rulings,
 current code/content/shared definitions, scenarios and author evidence. Derive expected behavior from Oracle first.
-Then read .claude/skills/add-cards/review.md and the non-negotiables, Where code goes and Scenarios sections
-of its SKILL.md, plus write-game-script/SKILL.md once per context. Keep other reads bounded and purposeful.
+Once per context read .claude/skills/add-cards/review.md and the non-negotiables, Where code goes and Scenarios
+sections of its SKILL.md, plus write-game-script/SKILL.md. On later cards reuse those standards; read only
+card-specific rule/helper definitions needed. Keep other reads bounded and purposeful.
 
 USER OVERRIDES the older review procedure: use Terra; YOU may fix card logic, scenarios, citations and shared
 mechanics. A fresh Terra context will confirm code changes. Do not hand easy fixes back to another author.
@@ -253,8 +350,13 @@ Review every printed line, target, trigger, amount, duration, ordering, LKI, rul
 overlap, client implications and sufficiency. Fix what is needed. No new corner-case checklist without a reason.
 Commands: `{command} tool cr.py 701.20e`, `{command} corpus --card "CARD" --brief`,
 `{command} check` (driver gates, focused corpus/coverage/mutation/layers). `corpus` always builds current source.
-Run check after edits; read {folder / 'checks.json'}. Address surviving mutants with actual expectations or
-give a precise equivalence argument per survivor. Driver never treats a mutation run finishing as all caught.
+Play the focused corpus and necessary manual meaning probes, then finish your report and return. The driver
+automatically runs full coverage/mutation/layer gates AFTER you return, and resumes you only for failures.
+Do not run an initial full check before review/fixes, and do not poll successful gate runs or rerun unchanged gates.
+Use `check` yourself only to diagnose a gate failure returned by the driver. Address surviving mutants with
+actual expectations or give a precise equivalence argument per survivor. Driver never treats a completed run
+as all mutants caught. Never claim a pending machine check passed; report only evidence you actually ran.
+Serialize source edits, probes and checks: never mutate source while a check is running.
 Use {folder / 'scratch'} for temporary probes; restore every temporary break. For a manual break, save the
 original bytes, change ONE decision, show the scenario fails, restore, and show it passes. Record its evidence.
 During confirmation, inspect the exact fix diff against the full packet; make NO source edits. Confirm what the
@@ -305,11 +407,15 @@ def checks(root):
     report = read(folder / "review.json") if (folder / "review.json").exists() else {}
     changed = allowed_changes(tree, name)
     changed_stems = {Path(p).stem for p in changed if p.startswith("crates/cantrip-cards/")}
-    affected = list(dict.fromkeys([name, *report.get("affected_cards", [])]))
+    affected = list(dict.fromkeys(canonical_typography(n) for n in [name, *report.get("affected_cards", [])]))
     lane.focus_cards(affected)
     declared = {names(n)[0] for n in affected}
     if changed_stems - declared:
-        raise RuntimeError("declare every changed card in affected_cards before check: " + str(changed_stems - declared))
+        result=dict(at=now(),ok=False,seconds=0,diff_digest=work_digest(tree),gates=[dict(gate='affected cards',ok=False,seconds=0,
+                    detail="declare every changed card in affected_cards before check: " + str(changed_stems - declared))])
+        save(folder/'checks.json',result)
+        return result
+    initial_digest = work_digest(tree)
     rows, started = [], time.monotonic()
 
     def record(label, operation, ok=None):
@@ -345,7 +451,10 @@ def checks(root):
     source = lane.card_file(name).read_text() if lane.card_file(name).exists() else ""
     if ("statics:" in source or "granted_static" in source) and all(r["ok"] for r in rows):
         record("layers", lambda: lane.shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases", env=lane.full_environment()))
-    result = dict(at=now(), head=git(tree, "rev-parse", "HEAD"), diff_digest=work_digest(tree),
+    final_digest = work_digest(tree)
+    rows.append(dict(gate="stable source", ok=initial_digest == final_digest, seconds=0))
+    result = dict(at=now(), head=git(tree, "rev-parse", "HEAD"), diff_digest=final_digest,
+                  initial_digest=initial_digest,
                   ok=bool(rows) and all(r["ok"] for r in rows), seconds=round(time.monotonic()-started, 2), gates=rows)
     save(folder / "checks.json", result)
     return result
@@ -393,7 +502,7 @@ def commit_candidate(tree, source, parent, paths):
 def report_valid(report, name):
     return (report.get("decision") == "pass" and bool(report.get("validation")) and
             all(v.get("agrees") is True for v in report["validation"]) and
-            name in report.get("affected_cards", []) and bool(report.get("client")))
+            canonical_typography(name) in [canonical_typography(n) for n in report.get("affected_cards", [])] and bool(report.get("client")))
 
 
 def park_blocked(tree, source, folder, paths, result):
@@ -416,11 +525,14 @@ def worker(root, slot, once=False, resume=None):
     # Lock the slot across supervisors and invocations, independently of the DB job lease.
     with (folder / "slot.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        session, context_cards, previous_usage = None, 0, None
+        session, context_cards, previous_usage, session_role = None, 0, None, None
         while True:
             cfg = config(root)
             if not cfg.get("enabled", True):
                 return
+            role = cfg["reviewers"][slot].get("role", "all")
+            if role != session_role:
+                session, context_cards, previous_usage, session_role = None, 0, None, role
             if not resume:
                 clean(tree)
             with connect(root) as db:
@@ -436,7 +548,7 @@ def worker(root, slot, once=False, resume=None):
                     event(db, resume, slot, "resumed", {})
                     db.commit()
                 else:
-                    job = claim(db, slot)
+                    job = claim(db, slot, role)
             if not job:
                 save(folder / "live.json", dict(state="waiting", worker=slot, at=now(), context_cards=context_cards))
                 if once:
@@ -446,14 +558,18 @@ def worker(root, slot, once=False, resume=None):
             job["worker"] = slot
             started = time.monotonic()
             with connect(root) as db:
+                branch=parent=None
                 try:
+                    resume_ready=False
                     if resume:
                         previous = json.loads(job["result"]) if job.get("result") else {}
                         branch, parent, source = job["branch"], previous.get("prepared_parent") or git(tree, "rev-parse", "HEAD^"), json.loads(job["source"])
+                        cached_report=job_folder(root,job,job['stage'])/'review.json'
+                        resume_ready=previous.get('error','').startswith('declare every changed card in affected_cards') and cached_report.exists() and report_valid(read(cached_report),source['name'])
                         resume = None
                     else:
                         branch, parent, source = prepare(root, tree, job)
-                    state = Path(root) / "jobs" / job["id"] / job["stage"] / "state"
+                    state = job_folder(root, job, job["stage"]) / "state"
                     lane = load_lane(root, tree, state)
                     packet_dir = packet(root, tree, job, source, lane)
                     assignment = dict(tree=str(tree), folder=str(packet_dir), name=source["name"])
@@ -461,7 +577,8 @@ def worker(root, slot, once=False, resume=None):
                     os.environ["REVIEW_LANE_CURRENT"] = str(folder / "current.json")
                     original_environment = lane.environment
                     lane.environment = lambda: dict(original_environment(), REVIEW_LANE_CURRENT=str(folder / "current.json"), CARGO_BUILD_JOBS="8")
-                    if job["stage"] == "confirm":
+                    dedicated_verifier = cfg["reviewers"][slot].get("role") == "confirm"
+                    if job["stage"] == "confirm" and not dedicated_verifier:
                         session, context_cards, previous_usage = None, 0, None
                     cap = cfg.get("cards_per_context", 20)
                     try:
@@ -483,13 +600,17 @@ def worker(root, slot, once=False, resume=None):
                     deadline = time.monotonic() + cfg.get("timeout_seconds", 3600)
                     worker_seconds = 0
                     attempts = []
+                    recovered_completed_report=resume_ready
                     marker = packet_dir / "precompact-stop.json"
                     while attempt <= cfg.get("repairs", 3):
                         marker.unlink(missing_ok=True)
                         at = time.monotonic()
                         prior_session, prior_usage = session, previous_usage
-                        code, session, used = lane.spawn(backend, {"dirs": [packet_dir], "context_marker": str(marker)}, text, session,
-                                                         max(1, deadline-time.monotonic()), packet_dir / "worker.jsonl")
+                        if resume_ready:
+                            code,used,resume_ready=0,lane.Usage(),False
+                        else:
+                            code, session, used = lane.spawn(backend, {"dirs": [packet_dir], "context_marker": str(marker)}, text, session,
+                                                             max(1, deadline-time.monotonic()), packet_dir / "worker.jsonl")
                         worker_seconds += time.monotonic()-at
                         delta = used.record(backend.model)
                         delta.pop("usd_api_equivalent", None)  # measurement is tokens, not an inferred subscription bill
@@ -523,12 +644,14 @@ def worker(root, slot, once=False, resume=None):
                             if evidence.get("ok"):
                                 break
                         text = "Finish this same card. Fix the report and checks; do not pick another. " + json.dumps(dict(report_valid=report_valid(report, source["name"]), checks=evidence))
+                        if not session:text+='\n\n'+prompt(root,tree,packet_dir,job)
                         attempt += 1
                     usage = {k: sum(a["usage"].get(k, 0) for a in attempts) for k in ("input", "cached", "output", "turns")}
                     paths = allowed_changes(tree, source["name"])
                     result = dict(model=backend.model, session=session, seconds=round(time.monotonic()-started, 2), prepared_parent=parent,
                                   worker_seconds=round(worker_seconds, 2), validation_seconds=evidence.get("seconds"),
                                   rotations=rotations, attempts=attempts,
+                                  recovered_completed_report=recovered_completed_report,
                                   usage=usage, report=report, checks=evidence, branch=branch, changed=paths)
                     try:
                         result["context"] = session_context(session)
@@ -538,7 +661,8 @@ def worker(root, slot, once=False, resume=None):
                     if job["stage"] == "confirm":
                         verdict = "passed" if code == 0 and report_valid(report, source["name"]) else "blocked"
                         finish(db, job, verdict, result)
-                        session, context_cards, previous_usage = None, 0, None
+                        if not dedicated_verifier:
+                            session, context_cards, previous_usage = None, 0, None
                     elif code == 0 and report_valid(report, source["name"]) and evidence.get("ok"):
                         # Stage all allowed new scenarios too so the confirmation sees their exact diff.
                         if paths:
@@ -559,14 +683,68 @@ def worker(root, slot, once=False, resume=None):
                     save(packet_dir / "result.json", result)
                     print(source["name"], job["stage"], result["seconds"], "seconds", flush=True)
                 except Exception as error:
-                    finish(db, job, "infrastructure", dict(error=str(error), traceback=traceback.format_exc(), tree=str(tree)))
+                    branch=git(tree,'branch','--show-current')
+                    detail=dict(error=str(error),traceback=traceback.format_exc(),tree=str(tree),branch=branch)
+                    if parent is not None:detail['prepared_parent']=parent
+                    save(folder/'live.json',dict(state='infrastructure',worker=slot,card=job['name'],at=now(),error=str(error)))
+                    finish(db, job, "infrastructure", detail,branch=branch)
                     raise
             if once:
                 return
 
 
+def pipeline_flow(db, cfg):
+    flow = {name: dict(cards=0, workers=0, active_workers=0, rounds=[0,0,0,0])
+            for name in ('intake','implementation','review','fix','verify','ready','publishing','published','blocked')}
+    pool = sum(w.get('role','all') in ('review','all') for w in cfg.get('reviewers',{}).values())
+    flow['implementation']['workers'] = len(cfg.get('implementers',{}))
+    flow['review']['workers'] = flow['fix']['workers'] = pool
+    flow['verify']['workers'] = sum(w.get('role','all') in ('confirm','all') for w in cfg.get('reviewers',{}).values())
+    publishing = {}
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='publish_cards'").fetchone():
+        publishing = {r['job']:r['status'] for r in db.execute('SELECT p.job,b.status FROM publish_cards p JOIN publish_batches b ON b.number=p.batch')}
+    active = {name:set() for name in flow}
+    for row in db.execute('SELECT id,source,status,stage,worker FROM jobs'):
+        source=json.loads(row['source']);round_number=source.get('review_round',0)
+        completed=round_number+(row['stage']=='confirm' or row['status'] in ('passed','blocked','infrastructure'))
+        completed=min(3,max(completed,source.get('verifier_rejections',0)))
+        state=row['status']
+        if state=='passed':
+            pub=publishing.get(row['id'])
+            node='published' if pub=='published' else 'publishing' if pub else 'ready'
+        elif state in ('blocked','infrastructure'):
+            node='blocked'
+        elif row['stage']=='confirm':
+            node='verify'
+        else:
+            node='fix' if round_number else 'review'
+            completed=min(3,round_number)
+        flow[node]['cards']+=1;flow[node]['rounds'][completed]+=1
+        if state=='running' and row['worker']:active[node].add(row['worker'])
+    queued_names=set();implementation=[]
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='implementation_jobs'").fetchone():
+        implementation=[dict(r) for r in db.execute('SELECT name,revision,status,worker FROM implementation_jobs')]
+        for row in implementation:
+            if row['status']=='queued':queued_names.add(row['name'])
+            elif row['status']=='running':
+                flow['implementation']['cards']+=1;flow['implementation']['rounds'][0]+=1
+                active['implementation'].add(row['worker'])
+    intake_path=cfg.get('implementation_queue')
+    held=0
+    if intake_path and Path(intake_path).exists():
+        queue=read(intake_path)
+        indexed={r['name']:r for r in implementation if r['revision']==queue.get('generator_commit')}
+        for card in queue.get('cards',[]):
+            if card.get('status')=='pending' and card['name'] not in indexed:queued_names.add(card['name'])
+            if card.get('status') in ('generator_gap','deferred_blocked','needs_generation','needs_reservation'):held+=1
+    flow['intake'].update(cards=len(queued_names),queued=len(queued_names),held=held,rounds=[len(queued_names),0,0,0])
+    for name, workers in active.items():flow[name]['active_workers']=len(workers)
+    return flow
+
+
 def status(root):
     with connect(root) as db:
+        flow=pipeline_flow(db,config(root) if (Path(root)/'config.json').exists() else {})
         counts = [dict(r) for r in db.execute("SELECT stage,status,count(*) AS cards FROM jobs GROUP BY stage,status")]
         active = [dict(r) for r in db.execute("SELECT id,name,stage,worker,started FROM jobs WHERE status='running'")]
         results = [json.loads(r[0]) for r in db.execute("SELECT detail FROM events WHERE kind IN ('passed','queued','blocked','infrastructure')")]
@@ -584,13 +762,15 @@ def status(root):
         detail = json.loads(entry.pop("detail"))
         entry["detail"] = {k: detail[k] for k in ("stage", "seconds", "worker_seconds", "validation_seconds", "rotations", "context", "error") if k in detail}
         if "stage" not in entry["detail"] and detail.get("branch"):
-            entry["detail"]["stage"] = detail["branch"].rsplit("/", 1)[-1]
+            leaf=detail["branch"].rsplit("/",1)[-1]
+            phase=re.match(r'^(review|confirm)(?:-|$)',leaf)
+            entry["detail"]["stage"] = phase[1] if phase else leaf
         recent.append(entry)
     secs = sorted(r["seconds"] for r in results if "seconds" in r)
     end = now() if any(c["status"] in ("queued", "running") for c in counts) else last_finish
     elapsed = max(0, (dt.datetime.fromisoformat(end) - dt.datetime.fromisoformat(first_claim)).total_seconds()) if end and first_claim else 0
     ready = sum(c["cards"] for c in counts if c["status"] == "passed")
-    return dict(at=now(), counts=counts, active=active, implementation=producers,
+    return dict(at=now(), counts=counts, active=active, implementation=producers,flow=flow,
                 implementation_committed_names=implemented_names, completed_attempts=len(secs),
                 worker_progress=worker_progress, review_elapsed_seconds=elapsed,
                 review_rate_per_hour=3600*ready/elapsed if elapsed else None,
@@ -625,6 +805,8 @@ def main():
     elif args.command == "watch":
         while True:
             sync(args.root)
+            if config(args.root).get('handoff_enabled',True):
+                handoff_verifier_findings(args.root)
             save(args.root / "status.json", status(args.root))
             time.sleep(config(args.root).get("poll_seconds", 5))
     elif args.command == "check":
@@ -637,13 +819,8 @@ def main():
         else:
             # argparse's REMAINDER and flags are combined in source order below.
             flags = sys.argv[sys.argv.index("corpus") + 1:]
-            report = Path(assignment["folder"]) / "review.json"
-            affected = read(report).get("affected_cards", []) if report.exists() else []
-            selected = [flags[flags.index("--card") + 1]] if "--card" in flags else [assignment["name"]]
-            lane.focus_cards(list(dict.fromkeys([*selected, *affected])))
-            # A historical memo says a source state built successfully, not that the current binary
-            # still contains it after a temporary break. Let Cargo select/rebuild the exact source.
-            code, out = lane.shell("cargo", "run", "--profile", "cards", "-q", "-p", "cantrip-script", "--bin", "corpus", "--", *flags)
+            # The common runner includes decks from --file scratch probes in the focused registry.
+            return lane.cmd_corpus(flags)
         print(out)
         return code
     return 0

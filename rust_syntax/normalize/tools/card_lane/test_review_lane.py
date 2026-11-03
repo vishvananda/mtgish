@@ -38,6 +38,16 @@ class QueueTests(unittest.TestCase):
         with lane.connect(self.root) as db:
             self.assertEqual(db.execute("SELECT count(*) FROM events WHERE kind='claimed'").fetchone()[0], 60)
 
+    def test_review_and_confirmation_pools_claim_only_their_role(self):
+        with lane.connect(self.root) as db:
+            lane.enqueue(db, {'name':'Original','commit':'one'})
+            lane.enqueue(db, {'name':'Fix','commit':'two'},priority=100)
+            db.execute("UPDATE jobs SET stage='confirm' WHERE name='Fix'")
+            db.commit()
+            self.assertEqual(lane.claim(db,'r1','review')['name'],'Original')
+            self.assertIsNone(lane.claim(db,'r2','review'))
+            self.assertEqual(lane.claim(db,'verifier','confirm')['name'],'Fix')
+
     def test_sync_is_idempotent_per_name_and_revision(self):
         state = self.root / "producer"
         state.mkdir()
@@ -99,6 +109,35 @@ class QueueTests(unittest.TestCase):
         check.assert_called_once()
         with lane.connect(self.root) as db:
             self.assertEqual(db.execute("SELECT status FROM jobs").fetchone()[0], "blocked")
+
+    def test_dedicated_verifier_retains_independent_context_between_cards(self):
+        import card_lane
+        tree=self.root/'tree';tree.mkdir()
+        lane.save(self.root/'config.json',{'reviewers':{'verify':{'tree':str(tree),'role':'confirm'}},'review_model':'test','repairs':0})
+        with lane.connect(self.root) as db:
+            for name in ('A','B'):
+                lane.enqueue(db,{'name':name,'commit':name})
+            db.execute("UPDATE jobs SET stage='confirm',candidate='candidate'")
+        sessions=[]
+        def packet(root,tree,job,source,backend):
+            folder=self.root/job['id'];folder.mkdir()
+            lane.save(folder/'review.json',{'decision':'pass','validation':[{'agrees':True}],
+                                           'affected_cards':[source['name']],'client':'unchanged'})
+            return folder
+        def spawn(backend,card,prompt,session,timeout,log):
+            sessions.append(session)
+            if len(sessions)==2:
+                cfg=lane.config(self.root);cfg['enabled']=False;lane.save(self.root/'config.json',cfg)
+            used=card_lane.Usage();used.turns=1
+            return 0,'independent-verifier-session',used
+        fake=SimpleNamespace(environment=lambda:{},Usage=card_lane.Usage,
+                             Codex=lambda model,effort:SimpleNamespace(model=model),spawn=spawn)
+        with mock.patch.object(lane,'clean'),mock.patch.object(lane,'git',return_value=''), \
+             mock.patch.object(lane,'prepare',side_effect=lambda root,tree,job:('branch','parent',json.loads(job['source']))), \
+             mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'packet',side_effect=packet), \
+             mock.patch.object(lane,'prompt',return_value='confirm'),mock.patch.object(lane,'allowed_changes',return_value=[]):
+            lane.worker(self.root,'verify')
+        self.assertEqual(sessions,[None,'independent-verifier-session'])
 
 
 class GitTests(unittest.TestCase):
@@ -171,6 +210,137 @@ class GitTests(unittest.TestCase):
         self.assertIn("not publishable", self.git("show", "-s", "--format=%s", "HEAD"))
         self.assertEqual(result["wip_commit"], self.git("rev-parse", "HEAD"))
         self.assertIn("partial fix to retain", (folder / "blocked.patch").read_text())
+
+    def test_explicit_tooling_retry_reuses_parked_work_and_original_parent(self):
+        lane.save(self.root / 'config.json', {})
+        self.git('branch','parked',self.source)
+        self.git('checkout','parked')
+        path='crates/cantrip-cards/src/cards/test_card.rs'
+        self.write(path,'retained fix')
+        self.git('add',path)
+        self.git('commit','-qm','Review WIP')
+        wip=self.git('rev-parse','HEAD')
+        self.git('checkout','-qb','another-job')
+        source={'name':'Test Card','commit':self.source}
+        job={'id':'one','stage':'review','branch':'parked','source':json.dumps(source),
+             'result':json.dumps({'retry_requested':True,'prepared_parent':self.base,'wip_commit':wip})}
+        branch,parent,actual=lane.prepare(self.root,self.repo,job)
+        self.assertTrue(branch.startswith('parked-retry-'))
+        self.assertEqual((parent,actual),(self.base,source))
+        self.assertEqual(self.git('rev-parse','HEAD'),self.source)
+        self.assertEqual(self.git('rev-parse','parked'),wip)
+        self.assertEqual((self.repo/path).read_text(),'retained fix')
+        self.assertEqual(lane.allowed_changes(self.repo,'Test Card'),[path])
+
+
+    def test_verifier_handoff_materializes_candidate_and_preserves_evidence(self):
+        lane.save(self.root / "config.json", {})
+        path = "crates/cantrip-cards/src/cards/test_card.rs"
+        self.git("branch", "producer", self.source)
+        self.git("checkout", "-qb", "old-review")
+        self.write(path, "first fix")
+        candidate = lane.commit_candidate(self.repo, {"name": "Test Card", "commit": self.source}, self.base, [path])
+        self.git("checkout", "-q", "producer")
+        with lane.connect(self.root) as db:
+            lane.enqueue(db, {"name": "Test Card", "commit": self.source})
+            db.execute("UPDATE jobs SET stage='confirm',status='blocked',candidate=?,branch='old-review'", (candidate,))
+            db.commit()
+            job = dict(db.execute("SELECT * FROM jobs").fetchone())
+        review, confirm = lane.job_folder(self.root, job, "review"), lane.job_folder(self.root, job, "confirm")
+        lane.save(review / "checks.json", {"head": self.source})
+        lane.save(review / "result.json", {"prepared_parent": self.base})
+        finding = {"what": "A concrete issue with evidence"}
+        lane.save(confirm / "review.json", {"decision": "blocked", "findings": [finding]})
+        old_report = (confirm / "review.json").read_bytes()
+        self.assertEqual(lane.handoff_verifier_findings(self.root), 1)
+        self.assertEqual(lane.handoff_verifier_findings(self.root), 0)
+        with lane.connect(self.root) as db:
+            job = dict(db.execute("SELECT * FROM jobs").fetchone())
+            events = [r[0] for r in db.execute("SELECT kind FROM events ORDER BY id")]
+        self.assertEqual(events, ["verification_blocked", "returned_for_fixes"])
+        self.assertEqual((job["stage"], job["status"]), ("review", "queued"))
+        self.assertIn(finding["what"], json.loads(job["source"])["retry_note"])
+        self.assertEqual(lane.job_folder(self.root, job, "confirm"), self.root / "jobs" / job["id"] / "round-1" / "confirm")
+        _, parent, _ = lane.prepare(self.root, self.repo, job)
+        self.assertEqual(parent, self.base)
+        self.assertEqual(self.git("rev-parse", "HEAD"), self.source)
+        self.assertEqual((self.repo / path).read_text(), "first fix")
+        self.assertEqual(lane.allowed_changes(self.repo, "Test Card"), [path])
+        self.assertEqual(self.git("rev-parse", "old-review"), candidate)
+        self.assertEqual((confirm / "review.json").read_bytes(), old_report)
+        self.write(path, "second fix")
+        final = lane.commit_candidate(self.repo, {"name": "Test Card", "commit": self.source}, parent, [path])
+        self.assertEqual(self.git("show", final + ":" + path), "second fix")
+        self.assertEqual(self.git("show", "-s", "--format=%an", final), "Original Author")
+        self.assertEqual(self.git("rev-list", "--count", f"{self.base}..{final}"), "1")
+
+    def test_verifier_handoff_filters_and_caps(self):
+        lane.save(self.root / "config.json", {"max_verifier_rounds": 3})
+        with lane.connect(self.root) as db:
+            for name in ("pass", "empty", "infra", "cap"):
+                lane.enqueue(db, {"name": name, "commit": name, "review_round": 2 if name == "cap" else 0})
+            db.execute("UPDATE jobs SET stage='confirm',status=CASE WHEN name='infra' THEN 'infrastructure' ELSE 'blocked' END,candidate='candidate'")
+            db.commit()
+            jobs = [dict(r) for r in db.execute("SELECT * FROM jobs")]
+        for job in jobs:
+            review = lane.job_folder(self.root, job, "review")
+            lane.save(review / "checks.json", {"head": "base"})
+            lane.save(review / "result.json", {"prepared_parent": "parent"})
+            report = {"decision": "pass" if job["name"] == "pass" else "blocked",
+                      "findings": [] if job["name"] == "empty" else [{"what": "issue"}]}
+            lane.save(lane.job_folder(self.root, job, "confirm") / "review.json", report)
+        self.assertEqual(lane.handoff_verifier_findings(self.root), 0)
+        self.assertEqual(lane.handoff_verifier_findings(self.root), 0)
+        with lane.connect(self.root) as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM events WHERE kind='verification_blocked'").fetchone()[0], 1)
+            self.assertEqual(db.execute("SELECT count(*) FROM jobs WHERE stage='review'").fetchone()[0], 0)
+
+
+class CliTests(unittest.TestCase):
+    def test_review_scratch_probe_uses_common_dependency_aware_runner(self):
+        fake=SimpleNamespace(cmd_corpus=mock.Mock(return_value=7))
+        argv=['review_lane.py','corpus','--file','/tmp/probe.cantrip','--next']
+        with mock.patch('sys.argv',argv), mock.patch.object(lane,'current',return_value={'tree':'/tree','folder':'/packet'}), \
+             mock.patch.object(lane,'load_lane',return_value=fake):
+            self.assertEqual(lane.main(),7)
+        fake.cmd_corpus.assert_called_once_with(argv[2:])
+
+    def test_checks_reject_source_changes_during_validation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);card=root/'a.rs';card.write_text('pub static CARD: X;')
+            gate=SimpleNamespace(results=[],failures=lambda:[])
+            fake=SimpleNamespace(card_dir=lambda _:root/'state'/'cards'/'a', card_file=lambda _:card,
+                                 card_scenarios=lambda _:[], focus_cards=lambda _:None,
+                                 run_corpus=lambda _:(0,'1 pass, 0 fail, 0 known bugs, 0 need cards'),
+                                 tool=lambda *args:(0,'matches Scryfall'), Gates=lambda *args:gate,
+                                 mutation_gates=lambda *args:{})
+            assignment={'tree':str(root),'folder':str(root),'name':'A'}
+            with mock.patch.object(lane,'current',return_value=assignment),mock.patch.object(lane,'load_lane',return_value=fake), \
+                 mock.patch.object(lane,'allowed_changes',return_value=[]),mock.patch.object(lane,'git',return_value='head'), \
+                 mock.patch.object(lane,'work_digest',side_effect=['before','after']):
+                result=lane.checks(root)
+            self.assertFalse(result['ok'])
+            self.assertEqual(result['initial_digest'],'before')
+            self.assertEqual(result['diff_digest'],'after')
+            self.assertEqual(result['gates'][-1],{'gate':'stable source','ok':False,'seconds':0})
+
+    def test_typographic_apostrophe_does_not_hide_a_declared_caller(self):
+        self.assertEqual(lane.names('Hawkeye’s Bow'),lane.names("Hawkeye's Bow"))
+        report={'decision':'pass','validation':[{'agrees':True}], 'affected_cards':['Hawkeye’s Bow'],'client':'existing'}
+        self.assertTrue(lane.report_valid(report,"Hawkeye's Bow"))
+
+    def test_missing_affected_card_is_repair_feedback_not_an_infrastructure_crash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            fake=SimpleNamespace(focus_cards=lambda _:None,card_dir=lambda _:root/'state'/'cards'/'a')
+            with mock.patch.object(lane,'current',return_value={'tree':str(root),'folder':str(root),'name':'A'}), \
+                 mock.patch.object(lane,'load_lane',return_value=fake), \
+                 mock.patch.object(lane,'allowed_changes',return_value=['crates/cantrip-cards/src/cards/another.rs']), \
+                 mock.patch.object(lane,'work_digest',return_value='same'):
+                result=lane.checks(root)
+            self.assertFalse(result['ok'])
+            self.assertEqual(result['gates'][0]['gate'],'affected cards')
+            self.assertIn('another',result['gates'][0]['detail'])
 
 
 if __name__ == "__main__":

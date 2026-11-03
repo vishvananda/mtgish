@@ -112,11 +112,11 @@ def full_environment():
     return env
 
 
-def focus_cards(names):
-    """Select every file reachable by these cards' scenarios and keyword mutations."""
+def focus_cards(names, extra_decks=()):
+    """Select scenario closure for names and direct dependencies of extra deck cards."""
     if os.environ.get("CARD_LANE_FOCUSED") != "1":
         return
-    stems = files_played(names) | {names_of(name)[0] for name in names}
+    stems = files_played(names, extra_decks) | {names_of(name)[0] for name in (*names, *extra_decks)}
     path = STATE / "focused-cards.txt"
     data = "".join(stem + "\n" for stem in sorted(stems))
     if not path.exists() or path.read_text(encoding="utf-8") != data:
@@ -2593,11 +2593,11 @@ def shared_definitions():
     return set(providers.values())
 
 
-def files_played(names):
-    """The stems of the card files that scenarios of these cards play, what those files reach, and what any may reach."""
+def files_played(names, extra_decks=()):
+    """Scenario closure of names, plus direct extra deck cards and their Rust dependencies."""
     wanted = {name.lower() for name in names}
-    stems = {names_of(name)[0] for name in names}
-    for path in (CANTRIP / SCENARIOS_DIR).glob("*.cantrip"):
+    stems = {names_of(name)[0] for name in (*names, *extra_decks)}
+    for path in (CANTRIP / SCENARIOS_DIR).glob("*.cantrip") if wanted else ():
         decks = focus_metadata(path, deck_names)
         if wanted & {deck.lower() for deck in decks}:
             stems |= {names_of(deck)[0] for deck in decks}
@@ -3232,26 +3232,28 @@ def cmd_find(args):
 def cmd_corpus(flags):
     """Cantrip's corpus runner on this tree and this target directory, with any of its flags."""
     flags = flags[1:] if flags[:1] == ["--"] else flags
-    names = []
+    names, extra_decks = [], []
     for i, flag in enumerate(flags):
         if flag == "--card" and i + 1 < len(flags):
             names.append(flags[i + 1])
         elif flag.startswith("--card="):
             names.append(flag.partition("=")[2])
-        elif flag == "--file" and i + 1 < len(flags):
-            path = Path(flags[i + 1])
+        elif (flag == "--file" and i + 1 < len(flags)) or flag.startswith("--file="):
+            path = Path(flags[i + 1] if flag == "--file" else flag.partition("=")[2])
             path = path if path.is_absolute() else CANTRIP / path
             if path.is_file():
-                names.extend(deck_names(path.read_text(encoding="utf-8")))
+                extra_decks.extend(deck_names(path.read_text(encoding="utf-8")))
     if not names:
         if STREAM.exists():
             current = json.loads(STREAM.read_text(encoding="utf-8")).get("current")
             names = [current] if current else []
         if not names and QUEUE.exists():
             names = [c["name"] for c in json.loads(QUEUE.read_text(encoding="utf-8")).get("cards", []) if c.get("status") == "working"]
-    if names:
+    if extra_decks:
+        focus_cards(names, extra_decks=extra_decks)
+    elif names:
         focus_cards(names)
-    env = environment() if names else full_environment()
+    env = environment() if names or extra_decks else full_environment()
     return subprocess.run(["cargo", "run", "--profile", "cards", "-q", "-p", "cantrip-script", "--bin", "corpus", "--", *flags], cwd=CANTRIP, env=env).returncode
 
 

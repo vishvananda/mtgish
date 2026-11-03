@@ -45,8 +45,8 @@ Reviewers claim **one committed revision** at a time from a SQLite queue; import
 not duplicate work. Each reviewer owns a prepared CoW worktree and keeps its build cache. Each card starts on
 its own branch from the configured base plus its producer's prerequisite commits. Original producer branches and
 publication stacks stay untouched. The final candidate has shared prerequisites followed by one `Card:` commit,
-with the original card author and issue reference preserved. Nothing pushes, opens PRs or merges automatically.
-Code changes receive confirmation in a fresh Terra context; that confirmation checks the fixes, rather than
+with the original card author and issue reference preserved. These workers never publish or merge.
+Code changes receive confirmation from a separate Terra verifier; that confirmation checks the fixes, rather than
 paying for another complete original review. Allowed partial fixes on a blocked card are retained in an explicit
 unpublished `Review WIP:` commit on that card's own branch, freeing the slot for another card. Unexpected edits
 stop the slot for inspection. Leases are never silently expired and reassigned.
@@ -69,6 +69,36 @@ names to prepared worktrees; `producer_manifests` lists the existing implementat
 explicitly `gpt-6.1-terra`; `cards_per_context` defaults to **20**, independently of implementation batch size.
 `implementation_cards_per_context` also defaults to 20. `implementers` maps implementation slot names to
 prepared trees. The previous batch dispatcher is disabled once this consumer owns the shared queue.
+
+`reviewers.<slot>.role` selects `review`, `confirm`, or `all`. The current pool has four shared review/fix
+workers and one verifier. Verification findings return the card to fix work with immutable per-round artifacts.
+`max_verifier_rejections` defaults to **3**: the third rejection leaves the card blocked. There is no fourth
+automatic cycle. Cards without code changes skip confirmation. Full machine gates run after the review worker
+returns its report; only failures resume the model. Source must remain unchanged throughout those checks.
+
+### Deterministic intake and publication
+
+`intake_lane.py` selects and reserves canonical cards before enqueueing them. It accepts repeated `--card`,
+a newline/JSON list with `--file`, a complete `--set`, and `--set ... --color blue` (or W/U/B/R/G/C).
+Local Oracle and set data are preferred; `add` fetches and caches complete printings for an uncached set, while
+`plan` requires `--fetch-set` for that read. Ante, dexterity and non-card objects are excluded; flavor bans are
+not exclusions. Existing queues and other workers' live claims are preserved. Claims and enqueueing have a journal.
+
+```sh
+P=~/card-lane/pipeline-unlimited-20261103
+T=rust_syntax/normalize/tools/card_lane
+python3 "$T/intake_lane.py" --root "$P" plan --set 2ED --color blue
+python3 "$T/intake_lane.py" --root "$P" add --card "Card Name"
+python3 "$T/intake_lane.py" --root "$P" add --file cards.txt
+python3 "$T/publish_lane.py" --root "$P" plan
+python3 "$T/publish_lane.py" --root "$P" watch
+```
+
+Publication is explicitly enabled by `publisher.enabled`. The deterministic publisher freezes groups of **20
+approved cards**, ordered by issue/name, with prerequisites before card commits and duplicate prerequisites
+removed. It validates the integrated branch before pushing to the configured fork and opening one upstream PR.
+Membership is reserved atomically and PR creation is idempotent. Conflicts or failed checks retain the batch for
+inspection. `flush_final` allows the final smaller batch once all work is terminal. Nothing merges upstream.
 
 ### Context and measurements
 
