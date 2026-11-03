@@ -225,6 +225,7 @@ class Claims:
         self.ci.PULLS = self.ci.PULLS.replace('closingIssuesReferences(first:5)','closingIssuesReferences(first:100)')
         self.cards = cards
         self.holder = holder
+        self.since = (dt.datetime.now(dt.timezone.utc)-dt.timedelta(seconds=60)).isoformat()
         self.state = self.ci.read_state(REPO, fresh=True)
         login = self.ci.gh('api','user')['login']
         if login != holder.split('/')[0]: raise RuntimeError(f'authenticated as unexpected user {login}')
@@ -236,10 +237,27 @@ class Claims:
 
     def claim(self, name):
         ci = self.ci
-        # A previous process may have died after creating the issue. Refresh
-        # every issue before creation, including unlabeled ones.
-        self.state = ci.read_state(REPO, fresh=True)
+        # Discover newly created/retitled issues, including unlabeled ones,
+        # without rereading every historical claim and PR for every new card.
+        at = dt.datetime.now(dt.timezone.utc)
+        query = urllib.parse.urlencode({'state':'all','since':self.since,'per_page':100})
+        pages = ci.gh('api','--paginate','--slurp',f'repos/{REPO}/issues?{query}')
+        for page in pages:
+            for raw in page:
+                if 'pull_request' in raw: continue
+                number = raw['number']
+                if number in self.state:
+                    self.state[number].update(title=raw['title'],state=raw['state'].upper())
+                else:
+                    self.state[number] = ci.with_events(dict(number=number,title=raw['title'],state=raw['state'].upper(),
+                        labels={'nodes':raw.get('labels',[])},comments={'nodes':[]}))
+        self.since = (at-dt.timedelta(seconds=60)).isoformat()
         issue = self.find(name)
+        if issue:
+            # Existing claims still require fresh PR/branch activity as well as
+            # fresh comments before deciding whether somebody else owns them.
+            self.state = ci.read_state(REPO, fresh=True)
+            issue = self.find(name)
         if issue and issue['state'] != 'OPEN': raise RuntimeError(f'{name}: closed card issue #{issue["number"]}')
         if issue:
             issue = ci.read_issue(REPO, issue)
@@ -260,11 +278,12 @@ class Claims:
         return {'issue':issue['number'],'holder':held[0], 'expires_at':(held[2]+ci.HOLD).isoformat()}
 
 
-def add(root, candidates, claims_factory=Claims, oracle=ORACLE):
+def add(root, candidates, claims_factory=Claims, oracle=ORACLE, reserve_gaps=False):
     root = Path(root); cfg = read(root/'config.json'); queue_path = Path(cfg['implementation_queue'])
     journal_path = root/'intake-journal.json'
-    # Shared lock follows the queue, even when pipeline roots differ.
-    with Path(str(queue_path)+'.lock').open('a') as lock:
+    # Serialize the journal, but do not hold the shared queue lock across slow
+    # reservation calls: implementation workers need it to record outcomes.
+    with Path(str(journal_path)+'.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         journal = read(journal_path) if journal_path.exists() else {'cards':{}}
         holder = cfg.get('intake', {}).get('claimant', 'vishvananda/' + Path(cfg.get('lane_root', root)).name)
@@ -272,17 +291,22 @@ def add(root, candidates, claims_factory=Claims, oracle=ORACLE):
         for item in candidates:
             if item['status'] != 'candidate': continue
             name = item['name']; entry = dict(journal['cards'].get(name, {}), **item)
+            if item['readiness'] != 'pending' and not reserve_gaps:
+                entry['phase'] = 'deferred_unclaimed'
+                journal['cards'][name] = entry; save(journal_path,journal)
+                continue
             entry['phase'] = 'claiming'; journal['cards'][name] = entry; save(journal_path,journal)
             try:
                 entry.update(claims.claim(name)); entry['phase'] = 'claimed'; save(journal_path,journal)
-                # Reload inside the lock, preserving every existing card and metadata.
-                queue = read(queue_path)
-                if name not in {c['name'] for c in queue['cards']}:
-                    queue['cards'].append({'name':name,'status':item['readiness'],'issue':entry['issue'],
-                        'layout':item['layout'],'attempts':0,'listed':True,
-                        'oracle_id':item['oracle_id'],'oracle_source':item['oracle_source'],'oracle_line':item['oracle_line'],
-                        'generator_commit':queue['generator_commit'],'source_base':cfg['base']})
-                    save(queue_path,queue)
+                with Path(str(queue_path)+'.lock').open('a') as queue_lock:
+                    fcntl.flock(queue_lock, fcntl.LOCK_EX)
+                    queue = read(queue_path)
+                    if name not in {c['name'] for c in queue['cards']}:
+                        queue['cards'].append({'name':name,'status':item['readiness'],'issue':entry['issue'],
+                            'layout':item['layout'],'attempts':0,'listed':True,
+                            'oracle_id':item['oracle_id'],'oracle_source':item['oracle_source'],'oracle_line':item['oracle_line'],
+                            'generator_commit':queue['generator_commit'],'source_base':cfg['base']})
+                        save(queue_path,queue)
                 entry['phase'] = 'enqueued'; save(journal_path,journal)
             except Exception as exc:
                 entry['error'] = str(exc); save(journal_path,journal)
@@ -300,12 +324,13 @@ def main():
     parser.add_argument('--color')
     parser.add_argument('--oracle', type=Path, default=ORACLE)
     parser.add_argument('--fetch-set', action='store_true', help='fetch and cache missing complete set data')
+    parser.add_argument('--reserve-gaps', action='store_true', help='explicitly reserve held cards too; default only reserves generator-ready cards')
     parser.add_argument('--set-data', type=Path, default=CATALOG, help='directory with MTGJSON set files or Unlimited catalog')
     args = parser.parse_args()
     names = args.card + files_names(args.file)
     if not names and not args.set: parser.error('provide --card, --file, or --set')
     result = plan(args.root,names,args.set,args.color,oracle=args.oracle,catalog=args.set_data,fetch=args.fetch_set or args.action == 'add')
-    if args.action == 'add': add(args.root,result,oracle=args.oracle)
+    if args.action == 'add': add(args.root,result,oracle=args.oracle,reserve_gaps=args.reserve_gaps)
     print(json.dumps(result,ensure_ascii=False,indent=2))
 
 if __name__ == '__main__': main()

@@ -61,6 +61,34 @@ class ImplementationLaneTests(unittest.TestCase):
             assert source['commit'] == 'abc' and source['source_base'] == 'base'
             assert source['packet'] == str(tmp_path / 'A')
         assert impl.status(tmp_path)['counts'] == {'committed': 1}
+        imported = impl.review.read(tmp_path / 'source.json')['cards'][0]
+        assert imported['status'] == 'committed' and imported['commit'] == 'abc'
+
+    def test_finish_preserves_new_intake_and_does_not_clobber_new_revision(self):
+        queue = setup_root(self.tmp_path, [{'name':'A','status':'pending'},{'name':'New','status':'pending'}])
+        impl.sync(self.tmp_path)
+        with impl.connect(self.tmp_path) as db:
+            job = impl.claim(db, 'i1')
+        impl.finish(self.tmp_path, job, 'committed', {'card':{'name':'A','commit':'one'}})
+        cards = impl.review.read(queue)['cards']
+        assert cards[0]['status'] == 'committed' and cards[1] == {'name':'New','status':'pending'}
+        newer = impl.review.read(queue)
+        newer['generator_commit'] = 'new-revision'; newer['cards'][0]['status'] = 'pending'
+        impl.review.save(queue, newer)
+        impl.finish(self.tmp_path, job, 'blocked', {})
+        assert impl.review.read(queue) == newer
+
+    def test_sync_recovers_outcome_after_database_write_before_queue_write(self):
+        queue=setup_root(self.tmp_path,[{'name':'A','status':'pending'}])
+        impl.sync(self.tmp_path)
+        with impl.connect(self.tmp_path) as db:
+            job=impl.claim(db,'i1')
+            db.execute("UPDATE implementation_jobs SET status='committed',finished='then',result=? WHERE id=?",
+                       (json.dumps({'card':{'name':'A','commit':'saved'}}),job['id']))
+            db.commit()
+        impl.sync(self.tmp_path)
+        card=impl.review.read(queue)['cards'][0]
+        assert card['status']=='committed' and card['commit']=='saved' and card['finished']=='then'
 
 
     def test_session_rotation_and_usage(self):

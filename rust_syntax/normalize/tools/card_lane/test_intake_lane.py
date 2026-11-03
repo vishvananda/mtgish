@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import fcntl
+from types import SimpleNamespace
 from unittest.mock import patch
 import intake_lane as intake
 
@@ -71,7 +73,7 @@ class IntakeTests(unittest.TestCase):
     def test_add_preserves_queue_and_reconciles(self):
         queue=self.root/'queue.json'; intake.save(queue,{'generator_commit':'abc','cards':[{'name':'Old','status':'committed'}]})
         intake.save(self.root/'config.json',{'implementation_queue':str(queue),'base':'def'})
-        item={'name':'Crusade','status':'candidate','readiness':'needs_generation','layout':'normal','oracle_id':'1','oracle_source':'oracle','oracle_line':1}
+        item={'name':'Crusade','status':'candidate','readiness':'pending','layout':'normal','oracle_id':'1','oracle_source':'oracle','oracle_line':1}
         class FakeClaims:
             calls=0
             def __init__(self, records, holder): pass
@@ -84,7 +86,7 @@ class IntakeTests(unittest.TestCase):
         data=intake.read(queue)
         self.assertEqual([c['name'] for c in data['cards']],['Old','Crusade'])
         self.assertEqual(data['cards'][0]['status'],'committed')
-        self.assertEqual(data['cards'][1]['status'],'needs_generation')
+        self.assertEqual(data['cards'][1]['status'],'pending')
         self.assertEqual(intake.read(self.root/'intake-journal.json')['cards']['Crusade']['phase'],'enqueued')
     def test_other_claim_is_not_queued(self):
         q=self.root/'queue.json'; intake.save(q,{'generator_commit':'abc','cards':[]})
@@ -96,5 +98,54 @@ class IntakeTests(unittest.TestCase):
         with patch.object(intake,'load_oracle',return_value={}):
             with self.assertRaisesRegex(RuntimeError,'held by'): intake.add(self.root,[item],Held)
         self.assertEqual(intake.read(q)['cards'],[])
+
+    def test_generator_gaps_are_catalogued_without_reservation(self):
+        q=self.root/'queue.json';intake.save(q,{'generator_commit':'abc','cards':[]})
+        intake.save(self.root/'config.json',{'implementation_queue':str(q),'base':'def'})
+        claims=unittest.mock.Mock()
+        item={'name':'Crusade','status':'candidate','readiness':'generator_gap','layout':'normal'}
+        with patch.object(intake,'load_oracle',return_value={}):
+            intake.add(self.root,[item],lambda *args:claims)
+        claims.claim.assert_not_called()
+        self.assertEqual(intake.read(q)['cards'],[])
+        self.assertEqual(intake.read(self.root/'intake-journal.json')['cards']['Crusade']['phase'],'deferred_unclaimed')
+
+    def test_incremental_claim_lookup_detects_a_late_unlabeled_issue(self):
+        raw={'number':7,'title':'Card: Crusade','state':'closed','labels':[]}
+        ci=SimpleNamespace(gh=unittest.mock.Mock(return_value=[[raw]]),
+                           with_events=lambda x:x,read_state=unittest.mock.Mock(return_value={7:{**raw,'state':'CLOSED'}}),
+                           title=lambda name:'Card: '+name)
+        claims=intake.Claims.__new__(intake.Claims)
+        claims.ci,claims.state,claims.since,claims.holder=ci,{},'2026-11-03T00:00:00Z',intake.HOLDER
+        with self.assertRaisesRegex(RuntimeError,'closed card issue #7'):
+            claims.claim('Crusade')
+        self.assertEqual(ci.gh.call_count,1)
+        ci.read_state.assert_called_once_with(intake.REPO,fresh=True)
+
+    def test_incremental_lookup_keeps_full_lease_refresh_for_existing_claims(self):
+        issue={'number':7,'title':'Card: Crusade','state':'OPEN'}
+        ci=SimpleNamespace(gh=unittest.mock.Mock(return_value=[[]]),title=lambda name:'Card: '+name,
+                           read_state=unittest.mock.Mock(return_value={7:issue}),read_issue=lambda *args:issue,
+                           holder=lambda issue:('someone/worker',None,None))
+        claims=intake.Claims.__new__(intake.Claims)
+        claims.ci,claims.state,claims.since,claims.holder=ci,{7:issue},'2026-11-03T00:00:00Z',intake.HOLDER
+        with self.assertRaisesRegex(RuntimeError,'held by someone/worker'):
+            claims.claim('Crusade')
+        self.assertEqual(ci.gh.call_count,1)
+        ci.read_state.assert_called_once_with(intake.REPO,fresh=True)
+
+    def test_reservation_does_not_lock_out_implementation_outcomes(self):
+        q=self.root/'queue.json'; intake.save(q,{'generator_commit':'abc','cards':[]})
+        intake.save(self.root/'config.json',{'implementation_queue':str(q),'base':'def'})
+        class Claims:
+            def __init__(self,*args):pass
+            def claim(self,name):
+                with Path(str(q)+'.lock').open('a') as lock:
+                    fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                return {'issue':42}
+        item={'name':'Crusade','status':'candidate','readiness':'pending','layout':'normal','oracle_id':'1','oracle_source':'oracle','oracle_line':1}
+        with patch.object(intake,'load_oracle',return_value={}):
+            intake.add(self.root,[item],Claims)
+        self.assertEqual(intake.read(q)['cards'][0]['name'],'Crusade')
 
 if __name__ == '__main__': unittest.main()

@@ -27,6 +27,7 @@ def connect(root):
 
 def sync(root):
     cfg = review.config(root)
+    mirror_outcomes(root)
     queue = review.read(cfg['implementation_queue'])
     revision = queue.get('generator_commit')
     if not revision:
@@ -64,6 +65,31 @@ def finish(root, job, status, result):
     with connect(root) as db:
         db.execute('UPDATE implementation_jobs SET status=?,finished=?,result=? WHERE id=? AND status=\'running\'',
                    (status, review.now(), json.dumps(result), job['id']))
+    mirror_outcomes(root)
+
+
+def mirror_outcomes(root):
+    """Reconcile durable results after completion or a crash between DB and JSON writes."""
+    with connect(root) as db:
+        jobs = db.execute("SELECT * FROM implementation_jobs WHERE status NOT IN ('queued','running','unavailable')").fetchall()
+    if not jobs:
+        return
+    queue_path = Path(review.config(root)['implementation_queue'])
+    with Path(str(queue_path) + '.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        queue = review.read(queue_path)
+        by_name = {card['name']:card for card in queue['cards']}
+        changed = False
+        for job in jobs:
+            if queue.get('generator_commit') != job['revision'] or job['name'] not in by_name:
+                continue
+            card = by_name[job['name']]
+            before = dict(card)
+            card.update(json.loads(job['result'] or '{}').get('card', {}))
+            card.update(status=job['status'], finished=job['finished'], worker=job['worker'])
+            changed |= card != before
+        if changed:
+            review.save(queue_path, queue)
 
 
 class Session:

@@ -91,6 +91,9 @@ a newline/JSON list with `--file`, a complete `--set`, and `--set ... --color bl
 Local Oracle and set data are preferred; `add` fetches and caches complete printings for an uncached set, while
 `plan` requires `--fetch-set` for that read. Ante, dexterity and non-card objects are excluded; flavor bans are
 not exclusions. Existing queues and other workers' live claims are preserved. Claims and enqueueing have a journal.
+Only generator-ready candidates are reserved by default. Gaps and missing generation are catalogued in the journal
+as `deferred_unclaimed`; `--reserve-gaps` is an explicit opt-in. Slow reservation calls do not hold the shared queue
+lock, and implementation outcomes are mirrored back into intake, including recovery after interrupted writes.
 
 ```sh
 P=~/card-lane/pipeline-unlimited-20261103
