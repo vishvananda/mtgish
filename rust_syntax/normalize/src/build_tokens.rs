@@ -40,6 +40,9 @@ fn write_vocabularies() {
 }
 
 fn main() {
+    if env::var_os("CARGO_FEATURE_LEGACY").is_none() {
+        return;
+    }
     write_vocabularies();
     let mechanics_path =
         PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("rewrites/mechanics.json5");

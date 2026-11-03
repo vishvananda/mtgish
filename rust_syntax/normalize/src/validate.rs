@@ -2648,7 +2648,7 @@ impl<'a> Scope<'a> {
             Operand::Record(fields) => fields.iter().try_for_each(|f| self.operand(&f.value)),
             Operand::Form(named) => self.named(named),
             Operand::Vocabulary { form, .. } | Operand::Term { form, .. }
-                if crate::lower::reads_scope(form) =>
+                if crate::complete::reads_scope(form) =>
             {
                 Err(format!("{form} names something in scope").into())
             }
@@ -5104,7 +5104,7 @@ pub fn abilities(abilities: &[Ability]) -> Result {
     if let Some((index, why)) = first_invalid_abilities(abilities) {
         return Err(format!("abilities[{index}]: {why}"));
     }
-    match crate::unified::named_forms(&abilities).keys().next() {
+    match crate::complete::named_forms(&abilities).keys().next() {
         Some(form) => Err(format!("unreduced form {form}")),
         None => Ok(()),
     }
@@ -5128,7 +5128,7 @@ fn face(card: &Card) -> Result {
 
 pub fn card(card: &Card) -> Result {
     face(card)?;
-    match crate::unified::named_forms(card).keys().next() {
+    match crate::complete::named_forms(card).keys().next() {
         Some(form) => Err(format!("{}: unreduced form {form}", card.name)),
         None => Ok(()),
     }

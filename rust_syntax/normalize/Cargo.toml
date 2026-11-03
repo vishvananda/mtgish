@@ -5,16 +5,17 @@ edition = "2021"
 build = "src/build_tokens.rs"
 
 [features]
-default = []
-cantrip = ["dep:prettyplease"]
+default = ["legacy"]
+legacy = []
+cantrip = ["legacy", "dep:prettyplease"]
 
 [dependencies]
-mtgish-ir = { path = "../ir" }
+mtgish-ir = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "33ad1e6398459105f5f30dd325a72b931e9b8af4" }
 # Source AST is frozen independently of normalized-IR work. It is byte-identical
 # to the parent source at this split; new IR revisions can reuse this build.
 # Updating source enums also requires updating this explicit published revision.
 rust_syntax = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "449b4bcf461fd6476cb2c93b78c2b2ff2c78ce28" }
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 ron = "0.8.1"
 bincode = "2.0.1"
@@ -24,10 +25,11 @@ proc-macro2 = "1"
 prettyplease = { version = "0.2", optional = true }
 
 [build-dependencies]
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 syn = { version = "2", features = ["full"] }
 
 [[bin]]
 name = "ast"
 path = "src/bin/ast.rs"
+required-features = ["legacy"]
