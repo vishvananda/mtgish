@@ -1380,7 +1380,7 @@ impl Compiler {
             ObjectKind::Permanent if domain.zones == [EventZone::Battlefield] => {
                 "cantrip_mechanics::targets::permanent(q, id)".into()
             }
-            ObjectKind::Card => format!("{} && !q.state().obj(id).token", zones(&domain.zones)?),
+            ObjectKind::Card => format!("{} && !q.state().obj(id).token && !q.state().obj(id).card_copy", zones(&domain.zones)?),
             ObjectKind::Spell if domain.zones == [EventZone::Stack] => zones(&domain.zones)?,
             // "Target spell or permanent": whatever is in those zones.
             ObjectKind::Any => zones(&domain.zones)?,

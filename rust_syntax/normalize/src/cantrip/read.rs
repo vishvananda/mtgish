@@ -487,7 +487,9 @@ impl Compiler {
                 if matches!(**host, ObjectRef::Source)
                     && self.event_at == EventAt::Item
                     && self.frame.subject_is_attachment
-                    && self.line_text().is_some_and(|line| line.contains("destroy it") && line.contains("That land's controller")) =>
+                    && self.line_text().is_some_and(|line|
+                        line.contains("destroy it") && line.contains("That land's controller")
+                            || line.contains("untap the creature")) =>
             {
                 self.carried_object(self.frame.object)?
             }
@@ -585,6 +587,21 @@ impl Compiler {
             }
             PlayerRef::AbilityController => "Some(asker.controller)".into(),
             PlayerRef::Active => "Some(q.state().turn.active)".into(),
+            PlayerRef::ControllerOf(object)
+                if self.event_at == EventAt::Item && self.frame.subject_is_attachment
+                    && self.frame.subject_controller.is_some()
+                    && self.line_text().is_some_and(|line| line.contains("that player"))
+                    && matches!(&**object, ObjectRef::AttachedTo(host) if matches!(**host, ObjectRef::Source)) =>
+            {
+                self.carried_player(self.frame.subject_controller)?
+            }
+            PlayerRef::ControllerOf(object)
+                if self.pending == Pending::Entering && self.history.is_none()
+                    && (matches!(**object, ObjectRef::Source)
+                        || self.event_at == EventAt::Entering && matches!(**object, ObjectRef::EventSubject)) =>
+            {
+                "Some(entering.controller)".into()
+            }
             PlayerRef::ControllerOf(object)
                 if matches!(**object, ObjectRef::EventStackObject)
                     && self.frame.stack_controller.is_some() =>
@@ -856,7 +873,7 @@ impl Compiler {
                 format!(
                     "({}).into_iter().filter(|&{card}| {} && {}).collect::<Vec<ObjectId>>()",
                     self.zone(scope)?,
-                    object_kind(kind)?,
+                    object_kind(kind, card)?,
                     self.filter(filter, &Candidate::of(card))?
                 )
             }
@@ -2609,9 +2626,10 @@ pub(super) fn counters_on(id: &str, kind: Option<&crate::counter::CounterKind>) 
         ),
     })
 }
-fn object_kind(kind: &ObjectKind) -> Result<&'static str> {
+fn object_kind(kind: &ObjectKind, id: &str) -> Result<String> {
     Ok(match kind {
-        ObjectKind::Any | ObjectKind::Permanent | ObjectKind::Spell | ObjectKind::Card => "true",
+        ObjectKind::Any | ObjectKind::Permanent | ObjectKind::Spell => "true".into(),
+        ObjectKind::Card => format!("!q.state().obj({id}).token && !q.state().obj({id}).card_copy"),
         ObjectKind::Ability => return Err(gap("abilities on the stack in a zone query")),
     })
 }

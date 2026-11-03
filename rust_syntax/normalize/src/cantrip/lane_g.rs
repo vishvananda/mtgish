@@ -2522,18 +2522,19 @@ impl Compiler {
         const FEATURE: &str = "engine: no protection from this quality";
         let text = |what: &str| quoted(&format!("Protection from {what}"));
         match protection {
+            Protection::Objects {
+                kind: ObjectKind::Any,
+                filter: ObjectFilter::Color(c),
+            } => {
+                let word = color(c)?;
+                parts.statics.push(format!(
+                    "{M}::protection::from::<{{ Color::{word} as u8 }}>({})",
+                    text(&word.to_lowercase())
+                ));
+            }
             Protection::Each(qualities) => {
                 for quality in qualities {
-                    match quality {
-                        Protection::Objects {
-                            kind: ObjectKind::Any,
-                            filter: ObjectFilter::Color(c),
-                        } => {
-                            color(c)?;
-                            parts.protection |= 1 << color_index(c)?;
-                        }
-                        other => self.protection_beyond(other, parts)?,
-                    }
+                    self.protection_beyond(quality, parts)?;
                 }
             }
             Protection::Objects {

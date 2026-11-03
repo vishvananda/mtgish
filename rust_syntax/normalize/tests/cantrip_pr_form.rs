@@ -3,6 +3,43 @@
 use mtgish_ast::cantrip::pr_form::{render, render_two_faces, Characteristics};
 
 #[test]
+fn shared_damage_requires_the_same_source_slot_and_entire_effect() {
+    let raw = r#"
+use cantrip_api::*;
+fn resolve(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    let t = vec![g.state().target(item, 0)];
+    let recipients = t.clone();
+    let batch: Vec<(ObjectId, Target, u16)> = recipients.iter().map(|t| (item.object, *t, 4u16)).collect();
+    g.damage_together(&batch);
+    Ok(())
+}
+pub static CARD: CardDef = CardDef { spell: spell(&[cantrip_mechanics::targets::ANY], resolve), ..CardDef::BLANK };
+"#;
+    let render = |raw: &str| render(raw, "Sample", "This spell deals 4 damage to any target.", Characteristics::Oracle).unwrap();
+    assert!(render(raw).contains("effects::damage_first_target::<4>"));
+    for changed in [raw.replace("target(item, 0)", "target(item, 1)"),
+                    raw.replace("(item.object, *t,", "(item.subject.object().unwrap(), *t,"),
+                    raw.replace("Ok(())", "g.draw(item.controller, 1); Ok(())")] {
+        assert!(!render(&changed).contains("effects::damage_first_target::<"));
+    }
+}
+
+#[test]
+fn narrowing_casts_preserve_both_bounds_even_for_signed_values() {
+    let raw = r#"
+use cantrip_api::*;
+fn resolve(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    let amount = i64::from(item.data[0]) - 65536;
+    g.add_counters(item.object, CounterKind::PlusOne, amount.clamp(-32768, 32767) as i16);
+    Ok(())
+}
+pub static CARD: CardDef = CardDef { spell: spell(&[], resolve), ..CardDef::BLANK };
+"#;
+    let file = render(raw, "Sample", "Remove or put counters on this permanent.", Characteristics::Oracle).unwrap();
+    assert!(file.contains(".clamp(-32768, 32767) as i16"), "{file}");
+}
+
+#[test]
 fn entering_counter_fields_do_not_cite_countering_a_spell() {
     let raw = r#"
 use cantrip_api::*;
@@ -711,8 +748,7 @@ fn an_amount_that_cannot_be_negative_has_no_floor() {
         Characteristics::Oracle,
     )
     .unwrap();
-    assert!(abomination.contains("let amount = i64::from(item.data[0]) as i16;"), "{abomination}");
-    assert!(!abomination.contains("i16::MAX"), "{abomination}");
+    assert!(abomination.contains("min(i16::MAX.into()) as i16"), "{abomination}");
 }
 
 /// "When this artifact enters and when you sacrifice it": two zone changes, one `let .. else` binding what both read. An

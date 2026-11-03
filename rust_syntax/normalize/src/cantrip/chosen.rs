@@ -434,11 +434,7 @@ impl Compiler {
             ValueKind::CardType if self.entering_card_type.is_some() => "chosen_option",
             other => return lane_p::chosen_kept(self.linked(), other),
         };
-        let linked = match self.reader {
-            Reader::Layer => "q.linked_to(asker.source)",
-            Reader::Resolution if self.stack_item => "q.linked(item)",
-            _ => "q.linked_to(asker)",
-        };
+        let linked = self.linked();
         if let (ValueKind::CardType, Some(words)) = (kind, &self.entering_card_type) {
             let card = match self.reader {
                 Reader::Layer => "q.cards().get(c.card)",

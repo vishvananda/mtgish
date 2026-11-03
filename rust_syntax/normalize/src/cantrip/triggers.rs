@@ -1643,12 +1643,28 @@ impl Compiler {
                     TurnPoint::CleanupStepBegins => &["Cleanup"],
                     TurnPoint::DeclareAttackersStepBegins => &["DeclareAttackers"],
                 };
-                let frame = Frame {
-                    player: Some(Carried::Subject),
-                    ..Frame::default()
+                // A step named through an object's controller refers to both
+                // that object and that player. Keep the object selectable as a
+                // referenced source even after it leaves (CR 609.7a), and keep
+                // the triggering player independent of later control changes.
+                let (frame, locals, referenced) = match players {
+                    PlayerSet::One(PlayerRef::ControllerOf(object)) => {
+                        let object_read = self.object(object)?;
+                        let attached = matches!(&**object, ObjectRef::AttachedTo(host) if matches!(**host, ObjectRef::Source));
+                        (Frame {
+                            object: Some(Carried::Subject),
+                            player: Some(Carried::Data(0)),
+                            subject_controller: Some(Carried::Data(0)),
+                            subject_is_attachment: attached,
+                            ..Frame::default()
+                        }, format!("let subject = ({object_read}).map(Target::Object).unwrap_or(Target::None); let data = [u32::from(q.state().turn.active.0), 0];"), true)
+                    }
+                    _ => (Frame {
+                        player: Some(Carried::Subject),
+                        ..Frame::default()
+                    }, "let subject = Target::Player(q.state().turn.active); let data = [0u32; 2];".into(), false),
                 };
-                let players =
-                    self.matching(frame, |c| c.player_in(players, "q.state().turn.active"))?;
+                let players = self.matching(frame, |c| c.player_in(players, "q.state().turn.active"))?;
                 let steps = steps
                     .iter()
                     .map(|s| format!("Step::{s}"))
@@ -1658,8 +1674,9 @@ impl Compiler {
                     "STEP_BEGAN",
                     Arm {
                         pattern: "Event::StepBegan { step }".into(),
-                        locals: "let subject = Target::Player(q.state().turn.active); let data = [0u32; 2];".into(),
-                        tests: vec![format!("matches!(*step, {steps})"), players],
+                        locals,
+                        tests: [Some(format!("matches!(*step, {steps})")),
+                                referenced.then(|| "subject != Target::None".into()), Some(players)].into_iter().flatten().collect(),
                     },
                     frame,
                     "At the beginning of this step",

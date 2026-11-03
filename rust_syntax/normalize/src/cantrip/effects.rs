@@ -1731,6 +1731,13 @@ impl Compiler {
                 let amount = self.fetch(number.amount(max, ty)?);
                 let several = !matches!(players, PlayerSet::One(_));
                 let players = self.fetch(self.players(players)?);
+                let players = if matches!(op, Operation::Draw { players: PlayerSet::One(player), .. }
+                    if !matches!(player, PlayerRef::AbilityController | PlayerRef::Active))
+                {
+                    format!("({players}).into_iter().filter(|&p| g.state().in_game(p)).collect::<Vec<PlayerId>>()")
+                } else {
+                    players
+                };
                 writeln!(
                     out,
                     "let amount_{id} = {amount}; let players_{id} = {players};"
@@ -2144,6 +2151,11 @@ impl Compiler {
                     (String::new(), "g.attach(attachment, host);".to_string())
                 };
                 writeln!(out, "{flag}let attachments_{id} = {attachments}; let host_{id} = {host}; if let Some(host) = host_{id} {{ cantrip_api::instruction(g, |g| {{ for attachment in attachments_{id} {{ {attach} }} }}); }}").unwrap();
+            }
+            Operation::CreateRegenerationShields { objects: ObjectSet::One(ObjectRef::Source) }
+                if self.stack_item =>
+            {
+                writeln!(out, "cantrip_mechanics::regenerate::this(g, item);").unwrap();
             }
             Operation::CreateRegenerationShields { objects } => {
                 writeln!(out, "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.add_effect(asker.source, object, EffectKind::RegenerationShield, Duration::EndOfTurn); }} }});", self.acted_on(objects)?).unwrap();

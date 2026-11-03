@@ -1,0 +1,330 @@
+[
+  {
+    "name": "Black Knight",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Black Knight",
+        "manaCost": "{B}{B}",
+        "type": "Creature — Human Knight",
+        "text": "First strike (This creature deals combat damage before creatures without first strike.)\nProtection from white (This creature can't be blocked, targeted, dealt damage, or enchanted by anything white.)",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Death Ward",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Death Ward",
+        "manaCost": "{W}",
+        "type": "Instant",
+        "text": "Regenerate target creature."
+      }
+    ]
+  },
+  {
+    "name": "Demonic Torment",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Demonic Torment",
+        "manaCost": "{2}{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature can't attack.\nPrevent all combat damage that would be dealt by enchanted creature."
+      }
+    ]
+  },
+  {
+    "name": "Dragon Whelp",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dragon Whelp",
+        "manaCost": "{2}{R}{R}",
+        "type": "Creature — Dragon",
+        "text": "Flying\n{R}: This creature gets +1/+0 until end of turn. If this ability has been activated four or more times this turn, sacrifice this creature at the beginning of the next end step.",
+        "power": "2",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Drudge Skeletons",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Drudge Skeletons",
+        "manaCost": "{1}{B}",
+        "type": "Creature — Skeleton",
+        "text": "{B}: Regenerate this creature. (The next time this creature would be destroyed this turn, instead tap it, remove it from combat, and heal all damage on it.)",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Fear",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Fear",
+        "manaCost": "{B}{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature (Target a creature as you cast this. This card enters attached to that creature.)\nEnchanted creature has fear. (It can't be blocked except by artifact creatures and/or black creatures.)"
+      }
+    ]
+  },
+  {
+    "name": "Firebreathing",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Firebreathing",
+        "manaCost": "{R}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\n{R}: Enchanted creature gets +1/+0 until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "Holy Strength",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Holy Strength",
+        "manaCost": "{W}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature gets +1/+2."
+      }
+    ]
+  },
+  {
+    "name": "Jihad",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Jihad",
+        "manaCost": "{W}{W}{W}",
+        "type": "Enchantment",
+        "text": "As this enchantment enters, choose a color and an opponent.\nWhite creatures get +2/+1 as long as the chosen player controls a nontoken permanent of the chosen color.\nWhen the chosen player controls no nontoken permanents of the chosen color, sacrifice this enchantment."
+      }
+    ]
+  },
+  {
+    "name": "Living Artifact",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Living Artifact",
+        "manaCost": "{G}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant artifact\nWhenever you're dealt damage, put that many vitality counters on this Aura.\nAt the beginning of your upkeep, you may remove a vitality counter from this Aura. If you do, you gain 1 life."
+      }
+    ]
+  },
+  {
+    "name": "Mountain Yeti",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mountain Yeti",
+        "manaCost": "{2}{R}{R}",
+        "type": "Creature — Yeti",
+        "text": "Mountainwalk (This creature can't be blocked as long as defending player controls a Mountain.)\nProtection from white",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Prodigal Sorcerer",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Prodigal Sorcerer",
+        "manaCost": "{2}{U}",
+        "type": "Creature — Human Wizard Sorcerer",
+        "text": "{T}: This creature deals 1 damage to any target.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Raise Dead",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Raise Dead",
+        "manaCost": "{B}",
+        "type": "Sorcery",
+        "text": "Return target creature card from your graveyard to your hand."
+      }
+    ]
+  },
+  {
+    "name": "Regrowth",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Regrowth",
+        "manaCost": "{1}{G}",
+        "type": "Sorcery",
+        "text": "Return target card from your graveyard to your hand."
+      }
+    ]
+  },
+  {
+    "name": "Royal Assassin",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Royal Assassin",
+        "manaCost": "{1}{B}{B}",
+        "type": "Creature — Human Assassin",
+        "text": "{T}: Destroy target tapped creature.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Shivan Dragon",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Shivan Dragon",
+        "manaCost": "{4}{R}{R}",
+        "type": "Creature — Dragon",
+        "text": "Flying\n{R}: This creature gets +1/+0 until end of turn.",
+        "power": "5",
+        "toughness": "5"
+      }
+    ]
+  },
+  {
+    "name": "The Hive",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "The Hive",
+        "manaCost": "{5}",
+        "type": "Artifact",
+        "text": "{5}, {T}: Create a 1/1 colorless Insect artifact creature token with flying named Wasp. (It can't be blocked except by creatures with flying or reach.)"
+      }
+    ]
+  },
+  {
+    "name": "Unsummon",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Unsummon",
+        "manaCost": "{U}",
+        "type": "Instant",
+        "text": "Return target creature to its owner's hand."
+      }
+    ]
+  },
+  {
+    "name": "Wanderlust",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Wanderlust",
+        "manaCost": "{2}{G}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nAt the beginning of the upkeep of enchanted creature's controller, this Aura deals 1 damage to that player."
+      }
+    ]
+  },
+  {
+    "name": "Weakness",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Weakness",
+        "manaCost": "{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature gets -2/-1."
+      }
+    ]
+  },
+  {
+    "name": "White Knight",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "White Knight",
+        "manaCost": "{W}{W}",
+        "type": "Creature — Human Knight",
+        "text": "First strike (This creature deals combat damage before creatures without first strike.)\nProtection from black (This creature can't be blocked, targeted, dealt damage, or enchanted by anything black.)",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Cursed Land",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cursed Land",
+        "manaCost": "{2}{B}{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant land\nAt the beginning of the upkeep of enchanted land's controller, this Aura deals 1 damage to that player."
+      }
+    ]
+  },
+  {
+    "name": "Feedback",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Feedback",
+        "manaCost": "{2}{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant enchantment\nAt the beginning of the upkeep of enchanted enchantment's controller, this Aura deals 1 damage to that player."
+      }
+    ]
+  },
+  {
+    "name": "Paralyze",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Paralyze",
+        "manaCost": "{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nWhen this Aura enters, tap enchanted creature.\nEnchanted creature doesn't untap during its controller's untap step.\nAt the beginning of the upkeep of enchanted creature's controller, that player may pay {4}. If the player does, untap the creature."
+      }
+    ]
+  },
+  {
+    "name": "Super Intelligence",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Super Intelligence",
+        "manaCost": "{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nAt the beginning of the upkeep of enchanted creature's controller, that player draws a card."
+      }
+    ]
+  },
+  {
+    "name": "Warp Artifact",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Warp Artifact",
+        "manaCost": "{B}{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant artifact\nAt the beginning of the upkeep of enchanted artifact's controller, this Aura deals 1 damage to that player."
+      }
+    ]
+  }
+]

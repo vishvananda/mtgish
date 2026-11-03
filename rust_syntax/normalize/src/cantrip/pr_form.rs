@@ -273,6 +273,7 @@ fn rendered(
     use_shared_mana(&mut file);
     use_shared_effects(&mut file);
     one_target_lists(&mut file);
+    use_shared_effects(&mut file);
     drop_unreached(&mut file);
     drop_defaults(&mut file, characteristics);
     inline_target_lists(&mut file);
@@ -1174,43 +1175,8 @@ impl VisitMut for Tidy {
                     *node = replaced;
                 }
             }
-            // `x.clamp(0, 65535) as u16`: a cast, not a limit a rule sets. So is
-            // `n.min(i16::MAX.into()) as i16`, which `Number::amount` writes of a value never negative.
-            Expr::Cast(cast) => {
-                if let Expr::MethodCall(call) = &*cast.expr {
-                    if call.method == "clamp" {
-                        let value = (*call.receiver).clone();
-                        let ty = cast.ty.clone();
-                        let floor = eval(&call.args[0]) == Some(0);
-                        let atom = matches!(
-                            value,
-                            Expr::Lit(_) | Expr::Path(_) | Expr::Field(_) | Expr::MethodCall(_)
-                                | Expr::Call(_) | Expr::Index(_) | Expr::Paren(_)
-                        );
-                        *node = match (floor, atom) {
-                            (true, true) => parse_quote!(#value.max(0) as #ty),
-                            (true, false) => parse_quote!((#value).max(0) as #ty),
-                            (false, true) => parse_quote!(#value as #ty),
-                            (false, false) => parse_quote!((#value) as #ty),
-                        };
-                    } else if call.method == "min"
-                        && call.args.len() == 1
-                        && text_of(&call.args[0]) == format!("{} :: MAX . into ()", text_of(&cast.ty))
-                    {
-                        let mut value = (*call.receiver).clone();
-                        strip_parens(&mut value);
-                        let ty = cast.ty.clone();
-                        *node = match matches!(
-                            value,
-                            Expr::Lit(_) | Expr::Path(_) | Expr::Field(_) | Expr::MethodCall(_)
-                                | Expr::Call(_) | Expr::Index(_)
-                        ) {
-                            true => parse_quote!(#value as #ty),
-                            false => parse_quote!((#value) as #ty),
-                        };
-                    }
-                }
-            }
+            // Keep numeric bounds before narrowing casts. A cast wraps; the
+            // counter and event amount ranges overlap only up to i16::MAX.
             Expr::Call(call) if text_of(&call.func) == "Keywords :: of" && text_of(&call.args) == "& []" => {
                 *node = parse_quote!(Keywords::NONE);
             }
@@ -2956,7 +2922,16 @@ fn use_shared_target_specs(file: &mut File) {
     // local predicates to tell implied modes apart.
     let permanent: Expr = syn::parse_str("matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id))").unwrap();
     let another: Expr = syn::parse_str("(cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE.filter)(q, asker, t)").unwrap();
-    let known = [(text_of(&permanent), "PERMANENT"), (text_of(&another), "ANOTHER_ATTACKING_CREATURE")];
+    let mut known = vec![(text_of(&permanent), "PERMANENT"), (text_of(&another), "ANOTHER_ATTACKING_CREATURE")];
+    for (kind, helper) in [("Creature", "CREATURE"), ("Artifact", "ARTIFACT"),
+                           ("Land", "LAND"), ("Enchantment", "ENCHANTMENT")] {
+        for test in [format!("(q.chars(id).is(CardType::{kind}))"), format!("q.chars(id).is(CardType::{kind})")] {
+            let expr: Expr = syn::parse_str(&format!(
+                "matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id) && {test})"
+            )).unwrap();
+            known.push((text_of(&expr), helper));
+        }
+    }
     let names: BTreeMap<String, String> = file.items.iter().filter_map(|item| {
         let Item::Fn(function) = item else { return None };
         known.iter().find(|(body, _)| body_text(&function.block) == *body)
@@ -4181,7 +4156,14 @@ fn without_numbers(text: &str) -> String {
 /// A function that is a shared effect over again, as the shared effect.
 fn use_shared_effects(file: &mut File) {
     let mut named: BTreeMap<String, Expr> = BTreeMap::new();
-    for item in &file.items {
+    let regenerate: Block = parse_quote!({
+        let Some(target) = cantrip_mechanics::targets::object(g, item, 0) else { return Ok(()); };
+        cantrip_api::instruction(g, |g| {
+            g.add_effect(item.object, target, EffectKind::RegenerationShield, Duration::EndOfTurn);
+        });
+        Ok(())
+    });
+    for item in &mut file.items {
         let Item::Fn(function) = item else { continue };
         if text_of(&function.sig.inputs) != "g : & mut dyn Game , item : & StackItem" {
             continue;
@@ -4190,6 +4172,13 @@ fn use_shared_effects(file: &mut File) {
         if let Some((_, effect)) = SHARED_EFFECTS.iter().find(|(shared, _)| *shared == body) {
             let path = format!("cantrip_mechanics::effects::{effect}");
             named.insert(function.sig.ident.to_string(), syn::parse_str(&path).expect("a path"));
+        } else if body == body_text(&regenerate) {
+            function.block = Box::new(parse_quote!({
+                cantrip_mechanics::regenerate::target(g, item, 0);
+                Ok(())
+            }));
+        } else if let Some(effect) = shared_single_target_damage(&function.block) {
+            named.insert(function.sig.ident.to_string(), effect);
         }
     }
     struct Shared<'a>(&'a BTreeMap<String, Expr>);
@@ -4206,6 +4195,42 @@ fn use_shared_effects(file: &mut File) {
     for expr in definitions(file) {
         shared.visit_expr_mut(expr);
     }
+}
+
+fn shared_single_target_damage(block: &Block) -> Option<Expr> {
+    struct Amount(Option<Expr>);
+    impl<'ast> Visit<'ast> for Amount {
+        fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
+            let Expr::Tuple(tuple) = &*closure.body else { return };
+            if tuple.elems.len() == 3 && text_of(&tuple.elems[0]) == "item . object"
+                && text_of(&tuple.elems[1]) == "* t"
+            {
+                if let Expr::Lit(lit) = &tuple.elems[2] {
+                    if let Lit::Int(value) = &lit.lit {
+                        if value.base10_parse::<u16>().is_ok() {
+                            self.0 = Some(tuple.elems[2].clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let mut amount = Amount(None);
+    amount.visit_block(block);
+    let amount = amount.0?;
+    let known: Block = parse_quote!({
+        let t = vec![g.state().target(item, 0)];
+        let recipients = t.clone();
+        let batch: Vec<(ObjectId, Target, u16)> = recipients.iter().map(|t| (item.object, *t, #amount)).collect();
+        g.damage_together(&batch);
+        Ok(())
+    });
+    (without_numbers(&body_text(block)) == body_text(&known)).then(|| {
+        let Expr::Lit(lit) = amount else { unreachable!() };
+        let Lit::Int(value) = lit.lit else { unreachable!() };
+        let n = syn::LitInt::new(&value.base10_parse::<u16>().unwrap().to_string(), value.span());
+        parse_quote!(cantrip_mechanics::effects::damage_first_target::<#n>)
+    })
 }
 
 fn body_text(block: &Block) -> String {

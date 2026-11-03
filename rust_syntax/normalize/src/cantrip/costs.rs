@@ -1177,16 +1177,7 @@ impl Compiler {
                     };
                     parts.abilities.push(ward);
                 }
-                Keyword::Protection(protection) => match protection.as_ref() {
-                    Protection::Objects {
-                        kind: ObjectKind::Any,
-                        filter: ObjectFilter::Color(c),
-                    } => {
-                        color(c)?;
-                        parts.protection |= 1 << color_index(c)?;
-                    }
-                    other => self.protection_beyond(other, parts)?,
-                },
+                Keyword::Protection(protection) => self.protection_beyond(protection, parts)?,
                 Keyword::HexproofFrom(quality) => {
                     parts.field("hexproof_from", self.hexproof_of(quality)?)
                 }
