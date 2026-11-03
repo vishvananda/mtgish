@@ -293,6 +293,7 @@ impl Compiler {
         };
         let retain = format!("pool_{id}.retain(|&c| c != card_{id});");
         let retain = match may && among != "false" {
+            true if among == "true" => format!("if done_{id} {{ {retain} }}"),
             true => format!("if done_{id} || !{among} {{ {retain} }}"),
             false => retain,
         };

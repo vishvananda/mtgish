@@ -18,6 +18,25 @@ pub static EXTRA: &[&CardDef] = &[];
 "#;
 
 #[test]
+fn a_destructuring_assignment_keeps_its_bindings_mutable() {
+    let raw = r#"
+use cantrip_api::*;
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    let mut cards: Vec<ObjectId> = Vec::new();
+    if let Some(object) = item.subject.object() {
+        (cards,) = (g.return_to_hand(&[object]),);
+    }
+    g.exile_all(&cards);
+    Ok(())
+}
+pub static CARD: CardDef = CardDef { spell: spell(&[], ability_0), ..CardDef::BLANK };
+"#;
+    let file = render(raw, "Sample", "Return it to its owner's hand, then exile it.", Characteristics::Oracle).unwrap();
+    assert!(file.contains("let mut cards"), "{file}");
+    assert!(file.contains("(cards,) ="), "{file}");
+}
+
+#[test]
 fn one_target_reads_as_one_object() {
     let file = render(
         ONE_TARGET,

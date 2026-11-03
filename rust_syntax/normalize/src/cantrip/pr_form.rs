@@ -104,6 +104,11 @@ pub fn render_faces(raw: &str, modules: &[&str], faces: &[(&str, &str)]) -> Opti
         };
         merged = merged_faces(merged, second, &constant)?;
     }
+    // The token catalog names a multi-face card by its sorted faces, and its
+    // statics by their names after merging. Apply that mapping in this scope.
+    let mut names: Vec<&str> = faces.iter().map(|face| face.0).collect();
+    names.sort();
+    use_shared_tokens(&mut merged, &names.join(" // "));
     Some(written(merged))
 }
 
@@ -1640,10 +1645,20 @@ const READING_METHODS: &[&str] = &[
 /// Whether `name` is assigned, borrowed mutably, or has anything but a reading method
 /// called on it.
 fn is_changed(stmts: &[Stmt], name: &str) -> bool {
+    fn writes_to(left: &Expr, name: &str) -> bool {
+        match left {
+            Expr::Tuple(tuple) => tuple.elems.iter().any(|part| writes_to(part, name)),
+            Expr::Array(array) => array.elems.iter().any(|part| writes_to(part, name)),
+            Expr::Struct(fields) => fields.fields.iter().any(|part| writes_to(&part.expr, name)),
+            Expr::Paren(paren) => writes_to(&paren.expr, name),
+            Expr::Group(group) => writes_to(&group.expr, name),
+            _ => root_of(left).as_deref() == Some(name),
+        }
+    }
     struct Finds<'a>(&'a str, bool);
     impl<'ast> Visit<'ast> for Finds<'_> {
         fn visit_expr_assign(&mut self, node: &'ast syn::ExprAssign) {
-            self.1 |= root_of(&node.left).as_deref() == Some(self.0);
+            self.1 |= writes_to(&node.left, self.0);
             visit::visit_expr_assign(self, node);
         }
         fn visit_expr_binary(&mut self, node: &'ast syn::ExprBinary) {

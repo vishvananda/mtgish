@@ -183,6 +183,7 @@ impl Compiler {
             object: Some(if controller { Carried::Data(0) } else { Carried::Subject }),
             player: controller.then_some(Carried::Subject),
             destination: Some(Carried::Data(0)),
+            battlefield_entry: entering,
             ..Frame::default()
         };
         // CR 603.10: a departure is judged as the object last was, an arrival
@@ -204,7 +205,10 @@ impl Compiler {
         if let Some(from) = from {
             tests.push(format!("from.is({})", zone_kind(from)?));
         }
-        tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
+        tests.push(self.matching(frame, |c| c.filter(objects, &Candidate {
+            entry_from: entering,
+            ..Candidate::of("id")
+        }))?);
         // "Cards were put into exile": a token is no card (108.2).
         if !entering
             && self.line_text().is_some_and(|line| {

@@ -1002,6 +1002,7 @@ impl Compiler {
                     chars: "q.token_chars(t.token, t.copy)".into(),
                     controller: "t.controller".into(),
                     announced: None,
+                    entry_from: false,
                 };
                 if !chars_only(tokens) {
                     return Err(gap("replacement of token creation of what no token shows"));
@@ -3929,6 +3930,7 @@ impl Compiler {
             chars: "(*by_source)".into(),
             controller: "by.controller".into(),
             announced: None,
+            entry_from: false,
         };
         Ok(match filter {
             ObjectFilter::Any => "true".into(),

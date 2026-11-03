@@ -31,7 +31,7 @@ const CARDS: &[(&str, &str)] = &[
     // "Exile it ... lose life equal to its mana value": the card exiled, not the new top.
     ("Sorin the Mirthless", "let amount_5 = { let q: &dyn Query = g; ((objects_4.iter().copied().filter(|&o| q.state().obj(o).became.is_some())"),
     // "Entered the battlefield from your graveyard" is of the event that fired it.
-    ("Prized Amalgam", "match event { Event::ZoneChange { new, from, to, .. } if *new == candidate && to.is(ZoneKind::Battlefield) => Some(*from)"),
+    ("Prized Amalgam", "from.is(ZoneKind::Graveyard)"),
     // "If it's a creature" is the copy as it enters (CR 707.2).
     ("Spark Double", "entering.copy.as_ref().is_some_and(|c| c.extra_types.has(CardType::Creature) || !c.types_stated() && q.card(c.card).is(CardType::Creature))"),
     // A slot that takes only abilities reads no spell (Repudiate, Stifle).
@@ -50,6 +50,8 @@ const CARDS: &[(&str, &str)] = &[
 
 /// Forms these cards no longer hold.
 const GONE: &[(&str, &str)] = &[
+    // Accepting an optional move does not prove that the card entered.
+    ("Risen Reef", "(paid_1 as i64)"),
     // The last mode of a choice is the one left: it is not tested.
     ("Aether Gust", "if ability_0_mode_1_target_0(g, asker, chosen) { return ability_0_mode_1(g, item); }"),
     // Two types tested of a card that has one.
@@ -106,4 +108,23 @@ fn the_human_monk_is_one_token() {
     let file = render(&modules[cultivation], cultivation, printed, Characteristics::Oracle).unwrap();
     assert!(file.contains("g.card_id(&tokens::HUMAN_MONK)"), "{file}");
     assert!(!file.contains("pub mod token_"), "{file}");
+}
+
+#[test]
+fn first_counter_history_does_not_recheck_current_control() {
+    let Some(modules) = modules(&["Botanical Brawler"]) else { return };
+    let code = &modules["Botanical Brawler"];
+    // Only the triggering event asks who controls the permanent. Both history
+    // questions count the events on that permanent regardless of later control.
+    assert_eq!(code.matches("Some(asker.controller) == Some(q.controller(id))").count(), 1, "{code}");
+}
+
+#[test]
+fn animation_establishes_creature_before_its_subtypes() {
+    let Some(modules) = modules(&["Gideon, Ally of Zendikar"]) else { return };
+    let code = &modules["Gideon, Ally of Zendikar"];
+    let creature = code.find("EffectKind::AddTypes").unwrap();
+    let human = code.find("EffectKind::SetCreatureType").unwrap();
+    let soldier = code.find("EffectKind::AddSubtype").unwrap();
+    assert!(creature < human && human < soldier, "{code}");
 }

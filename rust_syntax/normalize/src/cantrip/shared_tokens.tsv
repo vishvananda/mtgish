@@ -77,7 +77,8 @@ Arboreal Alliance	TREEFOLK	TREEFOLK_0_0_GREEN
 Archangel Elspeth	SOLDIER	SOLDIER_1_1_WHITE
 Archdemon of Unx	ZOMBIE	ZOMBIE
 Archfiend's Vessel	DEMON	DEMON
-Architect of Restoration // The Restoration of Eiganjo	SPIRIT_2	SPIRIT_1_1_COLORLESS_2
+Architect of Restoration // The Restoration of Eiganjo	SPIRIT	SPIRIT_1_1_COLORLESS
+Architect of Restoration // The Restoration of Eiganjo	SPIRIT_2	SPIRIT_1_1_COLORLESS
 Ardoz, Cobbler of War	GOBLIN	GOBLIN_1_1_RED
 Argivian Cavalier	SOLDIER	SOLDIER
 Argoth, Sanctum of Nature	BEAR	BEAR
@@ -908,7 +909,7 @@ Kiora of Fire and Ashes	DRAGON	DRAGON_5_5
 Kiora of Fire and Ashes	DRAGON_2	DRAGON_5_5
 Kiora, Master of the Depths	OCTOPUS	OCTOPUS
 Kiora, the Crashing Wave	KRAKEN	KRAKEN
-Kirin-Touched Orochi // Teachings of the Kirin	SPIRIT	SPIRIT_1_1_COLORLESS_2
+Kirin-Touched Orochi // Teachings of the Kirin	SPIRIT	SPIRIT_1_1_COLORLESS
 Kirtar's Wrath	SPIRIT	WHITE_FLYING_SPIRIT
 Kithkeeper	KITHKIN	KITHKIN_1_1_GREEN_WHITE
 Kitt Kanto, Mayhem Diva	CITIZEN	CITIZEN_1_1_GREEN_WHITE

@@ -2981,6 +2981,23 @@ impl Compiler {
         }
         self.performed.insert(result.0, format!("paid_{id}"));
         self.action_paid(body, result);
+        // "If you don't put the card onto the battlefield" explicitly tests
+        // the movement (Risen Reef), unlike "if you do/don't" of a cost, which
+        // tests the choice to pay regardless of replacements (CR 118.12).
+        fn battlefield_move(body: &Program) -> Option<&ResultId> {
+            match body.instructions.as_slice() {
+                [Instruction::Group(body)] => battlefield_move(body),
+                [Instruction::If { then, otherwise, .. }] if otherwise.instructions.is_empty() => battlefield_move(then),
+                [Instruction::Effect { result, operation: Operation::Move { destination, .. } | Operation::MoveTopCard { destination, .. } }]
+                    if matches!(destination, Destination::Battlefield(_) | Destination::OwnersBattlefield) => Some(result),
+                _ => None,
+            }
+        }
+        if optional && self.line_text().is_some_and(|line| line.to_lowercase().contains("if you don't put")) {
+            if let Some(moved) = battlefield_move(body).and_then(|moved| self.moved.get(&moved.0)).cloned() {
+                self.performed.insert(result.0, format!("!{moved}.is_empty()"));
+            }
+        }
         Ok(())
     }
     pub(super) fn left_behind(&mut self, result: &ResultId, list: String) {
@@ -3799,6 +3816,14 @@ impl Compiler {
         };
         let becoming = self.becoming_replaces(changes);
         let changes = becoming.as_deref().unwrap_or(changes);
+        // Establish the creature card type before setting its creature types.
+        // The latter depends on the former in layer 4 (CR 613.8); adding the
+        // remaining subtypes first would let SetCreatureType erase them.
+        let mut ordered = changes.to_vec();
+        if changes.iter().any(|c| matches!(c, Change::CreatureTypes { mode: ChangeMode::Set, .. })) {
+            ordered.sort_by_key(|c| !matches!(c, Change::AddCardType(_) | Change::SetCardTypes(_)));
+        }
+        let changes = ordered.as_slice();
         // "Doesn't untap during its controller's next untap step" is no exert
         // (CR 701.43a: "your next untap step", the exerting player's): under a
         // change of control it waits on the new controller's, as the Tamiyo, the

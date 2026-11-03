@@ -32,6 +32,7 @@ const NAMES: &[&str] = &[
     "Sink into Stupor",
     "Stature, Size Shifter",
     "Temple of Power",
+    "The Restoration of Eiganjo",
     "Unlicensed Hearse",
     "Valakut Awakening",
     "Vengeful Townsfolk",
@@ -300,4 +301,11 @@ fn a_level_s_granted_ability_is_said_without_its_level_and_granted_with_it() {
     let Some(file) = file("Joraga Treespeaker") else { return };
     assert_eq!(file.matches("\"{T}: Add {G}{G}.\")").count(), 2, "{file}");
     assert_eq!(file.matches("            \"LEVEL 5+: 1/4\",").count(), 1, "{file}");
+}
+
+#[test]
+fn restoration_uses_the_same_plain_spirit_for_attacking_and_blocking() {
+    let Some(file) = file("The Restoration of Eiganjo") else { return };
+    assert!(!file.contains("pub static SPIRIT"), "{file}");
+    assert_eq!(file.matches("g.card_id(&cantrip_mechanics::tokens::SPIRIT_1_1_COLORLESS)").count(), 2, "{file}");
 }

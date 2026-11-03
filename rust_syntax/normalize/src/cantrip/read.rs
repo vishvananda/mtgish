@@ -31,6 +31,8 @@ pub(super) struct Candidate {
     /// Where the targets of a spell not on the stack yet are, if it has any
     /// to speak of: `None` for one that is.
     pub announced: Option<String>,
+    /// This candidate is the new object in the current battlefield-entry arm.
+    pub entry_from: bool,
 }
 impl Candidate {
     pub fn of(id: &str) -> Self {
@@ -39,6 +41,7 @@ impl Candidate {
             chars: format!("q.chars({id})"),
             controller: format!("q.controller({id})"),
             announced: None,
+            entry_from: false,
         }
     }
     pub fn affected() -> Self {
@@ -47,6 +50,7 @@ impl Candidate {
             chars: "(*so_far)".into(),
             controller: "q.controller(affected)".into(),
             announced: None,
+            entry_from: false,
         }
     }
     /// An object about to enter, which is controlled by the player it enters
@@ -116,6 +120,7 @@ pub(super) struct Frame {
     /// What holds the controller of the object that is the subject, which a
     /// target filter finds from the subject alone.
     pub subject_controller: Option<Carried>,
+    pub battlefield_entry: bool,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -141,6 +146,7 @@ impl Frame {
             blocker: same(self.blocker, other.blocker),
             members: self.members && other.members,
             subject_controller: same(self.subject_controller, other.subject_controller),
+            battlefield_entry: self.battlefield_entry && other.battlefield_entry,
         }
     }
 }
@@ -641,7 +647,7 @@ impl Compiler {
                 Recipients::Targets(slot) => c_slot_is_fixed(self, slot, 0),
                 _ => false,
             },
-            PlayerRef::OneOf(players) => self.present.borrow().is_some() || self.is_picked(players),
+            PlayerRef::OneOf(_) => false,
             _ => false,
         };
         if is_certain {
@@ -2310,7 +2316,13 @@ impl Compiler {
             Condition::ObjectMatches { object, filter } => format!(
                 "{}.is_some_and(|candidate: ObjectId| {})",
                 self.object(object)?,
-                self.filter(filter, &Candidate::of("candidate"))?
+                self.filter(filter, &Candidate {
+                    entry_from: matches!(object, ObjectRef::EventSubject)
+                        && self.event_at == EventAt::Matcher
+                        && self.history.is_none()
+                        && self.frame.battlefield_entry,
+                    ..Candidate::of("candidate")
+                })?
             ),
             // "Activate only if defending player controls ...", with no creature to
             // say which: the one of them the controller would choose (CR 508.5a).

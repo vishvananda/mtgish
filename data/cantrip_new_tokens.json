@@ -850,13 +850,8 @@
 "title": "the 1/1 blue Spirit token with flying"
 },
 "SPIRIT_1_1_COLORLESS": {
-"cards": 14,
+"cards": 16,
 "source": "/// A 1/1 colorless Spirit creature token (CR 111). Akki Ember-Keeper, Baku Altar and Concord with the Kami create this\n/// exact token.\npub static SPIRIT_1_1_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Spirit)\n};\n",
-"title": "the 1/1 Spirit token"
-},
-"SPIRIT_1_1_COLORLESS_2": {
-"cards": 2,
-"source": "/// A 1/1 colorless Spirit creature token (CR 111). Architect of Restoration // The Restoration of Eiganjo and\n/// Kirin-Touched Orochi // Teachings of the Kirin create this exact token.\npub static SPIRIT_1_1_COLORLESS_2: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Spirit)\n};\n",
 "title": "the 1/1 Spirit token"
 },
 "SPIRIT_1_1_WHITE": {

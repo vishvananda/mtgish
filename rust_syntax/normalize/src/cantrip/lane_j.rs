@@ -1393,7 +1393,24 @@ impl Compiler {
             event_at: EventAt::Matcher,
             frame: Frame::default(),
         });
-        let past = asked.event(event)?;
+        let intervening = self
+            .line_text()
+            .is_some_and(|line| line.contains("if it's the first time"));
+        // "The first time ... on that permanent" counts its counter events,
+        // including ones before a change of control or characteristics. The
+        // current event still has to match the printed trigger's filter.
+        let mut historical = event.clone();
+        if by_subject && intervening {
+            fn counters(event: &mut EventSpec) {
+                match event {
+                    EventSpec::Counters { objects, .. } => *objects = ObjectFilter::Any,
+                    EventSpec::Batch { event, .. } => counters(event),
+                    _ => {}
+                }
+            }
+            counters(&mut historical);
+        }
+        let past = asked.event(&historical)?;
         let same = if by_subject {
             ".filter(|f: &Fired| f.subject == subject)"
         } else {
@@ -1406,9 +1423,6 @@ impl Compiler {
         // "If it's the first time" (Botanical Brawler) is an intervening "if" asked again as the ability resolves (CR
         // 603.4), of the history as it then stands, as Cantrip's Captain America, Living Legend asks it: the event that
         // fired it is the only one.
-        let intervening = self
-            .line_text()
-            .is_some_and(|line| line.contains("if it's the first time"));
         if by_subject && intervening {
             self.first_again = Some(format!(
                 "{scope}.filter_map({}).filter(|f: &Fired| f.subject == item.subject).count() <= 1",
@@ -1984,7 +1998,7 @@ impl Compiler {
             PlayerRef::Holder(Designation::Initiative) => {
                 "q.state().seats().find(|&p| q.state().player(p).initiative)".into()
             }
-            PlayerRef::OneOf(players) => format!("Some({})", self.pick(players)?),
+            PlayerRef::OneOf(players) => self.pick(players)?,
             PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
                 // "That player or that planeswalker's controller", of a slot before.
                 Recipients::Target { slot, .. } | Recipients::Targets(slot)
@@ -2804,10 +2818,12 @@ impl Compiler {
                     _ => String::new(),
                 };
                 let close = if shown.is_empty() { "" } else { ")" };
-                let entered = format!(
+                let entered = if c.entry_from {
+                    format!("from.is({})", zone_kind(zone)?)
+                } else { format!(
                     "{shown}q.history().all().iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ new, from, to, .. }} if new == {id} && to.is(ZoneKind::Battlefield) => Some(from), _ => None }}){close}.is_some_and(|from| from.is({}))",
                     zone_kind(zone)?
-                );
+                ) };
                 match owners {
                     Some(players) => format!(
                         "({entered} && {})",
@@ -5069,11 +5085,6 @@ impl Compiler {
         }
         Ok(())
     }
-    /// Has this set already had its one player picked?
-    pub(super) fn is_picked(&self, players: &PlayerSet) -> bool {
-        let key = format!("{players:?}");
-        self.picked.borrow().named.iter().any(|(k, _)| *k == key)
-    }
     /// "An opponent chooses one of them": the player the controller picks as the
     /// instruction begins (CR 608.2d), asked only when there are several, and the
     /// same player for the rest of the instructions around it.
@@ -5083,7 +5094,7 @@ impl Compiler {
             return Ok(local.clone());
         }
         if !self.stack_item || self.reader != Reader::Resolution {
-            return self.picked_elsewhere(players);
+            return self.picked_elsewhere(players).map(|player| format!("Some({player})"));
         }
         if self.present.borrow().is_none() {
             return Err(gap("player reference OneOf"));
@@ -5092,7 +5103,7 @@ impl Compiler {
         let mut picked = self.picked.borrow_mut();
         let local = format!("picked_{}", picked.named.len());
         let statement = format!(
-            "let among: Vec<PlayerId> = {among};\nlet Some({local}) = (if among.len() > 1 {{ cantrip_mechanics::choose::player(g, asker.controller, asker.source, among, \"ChooseRevealedCard\", 0)? }} else {{ among.first().copied() }}) else {{ return Ok(()); }};\n"
+            "let among: Vec<PlayerId> = {among};\nlet {local} = if among.len() > 1 {{ cantrip_mechanics::choose::player(g, asker.controller, asker.source, among, \"ChooseRevealedCard\", 0)? }} else {{ among.first().copied() }};\n"
         );
         picked.named.push((key, local.clone()));
         picked.statements.push(statement);
@@ -5128,7 +5139,9 @@ impl Compiler {
             _ => (Vec::new(), Vec::new()),
         };
         if !names.is_empty() {
-            write!(out, "let ({},) = ", names.join(", ")).unwrap();
+            for name in &names {
+                writeln!(out, "let mut {name} = Default::default();").unwrap();
+            }
         }
         for (local, read) in &present {
             write!(out, "if let Some({local}) = {} {{ ", self.fetch(read)).unwrap();
@@ -5139,12 +5152,9 @@ impl Compiler {
             return Ok(());
         }
         if !names.is_empty() {
-            write!(out, "({},)", reads.join(", ")).unwrap();
-            out.push_str(&" } else { Default::default() }".repeat(present.len()));
-            out.push(';');
-        } else {
-            out.push_str(&" }".repeat(present.len()));
+            write!(out, "({},) = ({},);", names.join(", "), reads.join(", ")).unwrap();
         }
+        out.push_str(&" }".repeat(present.len()));
         out.push('\n');
         Ok(())
     }
