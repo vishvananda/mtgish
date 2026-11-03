@@ -290,16 +290,26 @@ def add(root, candidates, claims_factory=Claims, oracle=ORACLE, reserve_gaps=Fal
         fcntl.flock(lock, fcntl.LOCK_EX)
         journal = read(journal_path) if journal_path.exists() else {'cards':{}}
         holder = cfg.get('intake', {}).get('claimant', 'vishvananda/' + Path(cfg.get('lane_root', root)).name)
-        claims = claims_factory(canonical_records(load_oracle(oracle)), holder)
+        claims = None
         for item in candidates:
             if item['status'] != 'candidate': continue
             name = item['name']; entry = dict(journal['cards'].get(name, {}), **item)
+            # A frozen plan can be replayed after an interrupted API response.
+            # Reconcile a completed queue write before doing any remote work.
+            with Path(str(queue_path)+'.lock').open('a') as queue_lock:
+                fcntl.flock(queue_lock, fcntl.LOCK_EX)
+                queued = next((c for c in read(queue_path)['cards'] if c['name'] == name), None)
+            if queued and isinstance(entry.get('issue'), int) and queued.get('issue') == entry['issue']:
+                entry['phase'] = 'enqueued'; journal['cards'][name] = entry; save(journal_path,journal)
+                continue
             if item['readiness'] != 'pending' and not reserve_gaps:
                 entry['phase'] = 'deferred_unclaimed'
                 journal['cards'][name] = entry; save(journal_path,journal)
                 continue
             entry['phase'] = 'claiming'; journal['cards'][name] = entry; save(journal_path,journal)
             try:
+                if claims is None:
+                    claims = claims_factory(canonical_records(load_oracle(oracle)), holder)
                 entry.update(claims.claim(name)); entry['phase'] = 'claimed'; save(journal_path,journal)
                 with Path(str(queue_path)+'.lock').open('a') as queue_lock:
                     fcntl.flock(queue_lock, fcntl.LOCK_EX)
@@ -311,7 +321,7 @@ def add(root, candidates, claims_factory=Claims, oracle=ORACLE, reserve_gaps=Fal
                             'generator_commit':queue['generator_commit'],'source_base':cfg['base']})
                         save(queue_path,queue)
                 entry['phase'] = 'enqueued'; save(journal_path,journal)
-            except Exception as exc:
+            except (Exception, SystemExit) as exc:
                 entry['error'] = str(exc); save(journal_path,journal)
                 raise
     return journal

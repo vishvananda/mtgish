@@ -96,12 +96,30 @@ class IntakeTests(unittest.TestCase):
                 return {'issue':42,'holder':intake.HOLDER,'expires_at':'tomorrow'}
         with patch.object(intake,'load_oracle',return_value={}):
             intake.add(self.root,[item],FakeClaims)
-            intake.add(self.root,[item],FakeClaims)
+        # Recover a crash after the queue write but before the final journal write.
+        journal=intake.read(self.root/'intake-journal.json')
+        journal['cards']['Crusade']['phase']='claimed'
+        intake.save(self.root/'intake-journal.json',journal)
+        with patch.object(intake,'load_oracle',side_effect=AssertionError('unnecessary Oracle read')):
+            intake.add(self.root,[item],lambda *_: self.fail('completed claim was reread remotely'))
+        self.assertEqual(FakeClaims.calls, 1)
         data=intake.read(queue)
         self.assertEqual([c['name'] for c in data['cards']],['Old','Crusade'])
         self.assertEqual(data['cards'][0]['status'],'committed')
         self.assertEqual(data['cards'][1]['status'],'pending')
         self.assertEqual(intake.read(self.root/'intake-journal.json')['cards']['Crusade']['phase'],'enqueued')
+
+    def test_cli_api_failure_is_recorded_before_exiting(self):
+        queue=self.root/'queue.json'; intake.save(queue,{'generator_commit':'abc','cards':[]})
+        intake.save(self.root/'config.json',{'implementation_queue':str(queue),'base':'def'})
+        item=dict(name='Crusade',status='candidate',readiness='pending')
+        class Failed:
+            def claim(self,name):raise SystemExit('unexpected end of JSON input')
+        with patch.object(intake,'load_oracle',return_value={}):
+            with self.assertRaises(SystemExit):intake.add(self.root,[item],lambda *_: Failed())
+        self.assertEqual(intake.read(queue)['cards'],[])
+        self.assertEqual(intake.read(self.root/'intake-journal.json')['cards']['Crusade']['error'],
+                         'unexpected end of JSON input')
     def test_other_claim_is_not_queued(self):
         q=self.root/'queue.json'; intake.save(q,{'generator_commit':'abc','cards':[]})
         intake.save(self.root/'config.json',{'implementation_queue':str(q),'base':'def'})
