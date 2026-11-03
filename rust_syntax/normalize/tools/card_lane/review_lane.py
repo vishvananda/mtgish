@@ -338,7 +338,9 @@ def prepare(root, tree, job):
         return branch, git(tree, "rev-parse", "HEAD^"), source
     import shared_base
     if not source.get('publication_base'):
-        pin = shared_base.read_pin(cfg, tree)
+        # New producers already supply their frozen publication base. Older
+        # candidates retain their reviewed API until an explicit migration.
+        pin = shared_base.read_pin(cfg, tree) if cfg.get('review_use_shared_base') else None
         source.update(shared_base.metadata(pin) if pin else dict(publication_base=cfg['base']))
         with connect(root) as db:
             db.execute('UPDATE jobs SET source=? WHERE id=?', (json.dumps(source), job['id']))
@@ -704,6 +706,9 @@ def worker(root, slot, once=False, resume=None):
         while True:
             cfg = config(root)
             if not cfg.get("enabled", True):
+                return
+            if cfg['reviewers'][slot].get('draining') and not resume:
+                save(folder / 'live.json', dict(state='drained', worker=slot, at=now(), context_cards=context_cards))
                 return
             role = cfg["reviewers"][slot].get("role", "all")
             if role != session_role:

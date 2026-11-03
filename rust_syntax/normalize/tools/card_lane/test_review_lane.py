@@ -19,6 +19,13 @@ class QueueTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_draining_reviewer_stops_before_claiming_another_card(self):
+        lane.save(self.root/'config.json',dict(enabled=True,reviewers={'r7':dict(tree=str(self.root/'tree'),draining=True)}))
+        with mock.patch.object(lane,'claim') as claim:
+            lane.worker(self.root,'r7')
+        claim.assert_not_called()
+        self.assertEqual(lane.read(self.root/'workers/r7/live.json')['state'],'drained')
+
     def test_explicit_retry_preserves_work_and_round_evidence(self):
         lane.save(self.root / "config.json", {"max_verifier_rejections": 3})
         with lane.connect(self.root) as db:
@@ -272,7 +279,7 @@ class GitTests(unittest.TestCase):
         self.git('add','.');self.git('commit','-qm','Mechanics: shared')
         helper=self.git('rev-parse','HEAD')
         pin=dict(head=helper,commits=[helper],pr_url='https://github.com/org/repo/pull/1')
-        lane.save(self.root/'config.json',dict(base=self.base))
+        lane.save(self.root/'config.json',dict(base=self.base,review_use_shared_base=True))
         source=dict(name='Test Card',commit=self.source,source_base=self.base)
         with lane.connect(self.root) as db:
             lane.enqueue(db,source)

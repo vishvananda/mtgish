@@ -114,8 +114,9 @@ inspection. `flush_final` allows the final smaller batch once all work is termin
 `shared_base_manifest` optionally names an immutable validated helper pin: upstream `base`, full `head`,
 the exact linear list of `Engine:`/`Mechanics:` commits, its helper-only `pr_url`, and matching successful
 `validation` evidence. Promote it only after the helper branch passes integration checks. Card commits cannot
-enter this pin. New implementation jobs branch from it; new reviews freeze it separately from the original
-producer base. Already-running jobs, retries and confirmations retain their original revision. Publication
+enter this pin. New implementation jobs branch from it and pass that frozen base to review. Legacy candidates
+keep their existing review base; `review_use_shared_base` explicitly opts them into migration after prerequisites
+are reconciled. The review base remains separate from producer history. Already-running jobs, retries and confirmations retain their original revision. Publication
 freezes each card's base and helper dependencies, includes the prerequisite commits while upstream is pending,
 and links the helper PRs. Thus independent card batches can share helpers without depending on earlier card
 batches. Overlapping helper changes still stop for a semantic resolution rather than being deduplicated by name.
