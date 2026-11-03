@@ -2084,7 +2084,12 @@ impl Compiler {
                 }
             }
         }
-        let trigger = self.trigger(&matched, &format!("{label}_event"), &extra);
+        let trigger = if extra.is_empty() && announcement.targets.is_empty() && announcement.modes.is_none() {
+            recipes::shared_trigger(event, body)
+                .unwrap_or_else(|| self.trigger(&matched, &format!("{label}_event"), &extra))
+        } else {
+            self.trigger(&matched, &format!("{label}_event"), &extra)
+        };
         let members = self.members_targeted(event, label, matched.frame, body)?;
         self.grouped = matched.batch.is_some() || members.is_some();
         // "That many" of what it targeted is how many members it keeps.
@@ -2095,15 +2100,8 @@ impl Compiler {
             Some(_) if implied_by_target => Err(gap("a condition on modes a target implies")),
             Some(condition) => self.guarded_effect(condition, body, label),
             None if implied_by_target => self.implied_effect(announcement, label),
-            None => match self.first_again.take() {
-                Some(test) => {
-                    let test = self.fetch(test);
-                    self.tested_effect(test, body, label)
-                }
-                None => self.effect(body, label),
-            },
+            None => self.effect(body, label),
         };
-        self.first_again = None;
         self.grouped = false;
         self.frame = Frame::default();
         let effect = effect?;

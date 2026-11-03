@@ -4060,7 +4060,7 @@ pub(super) fn plain_play(op: &Operation) -> Option<Operation> {
 }
 
 /// A move's flags as a move's entry and destination.
-fn entry_of(operands: &[Operand], destination: &Destination) -> Option<(EntrySpec, Destination)> {
+pub(super) fn entry_of(operands: &[Operand], destination: &Destination) -> Option<(EntrySpec, Destination)> {
     fn read(
         operands: &[Operand],
         entry: &mut EntrySpec,

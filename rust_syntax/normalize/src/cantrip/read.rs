@@ -678,6 +678,23 @@ impl Compiler {
         }
     }
     /// `Vec<ObjectId>`.
+    /// A move's verb owns stale-object rejection (CR 400.7). An explicit zone
+    /// condition still identifies the cards the instruction names.
+    pub(super) fn moving_objects(&self, objects: &ObjectSet) -> Result<String> {
+        let ObjectSet::InZone { objects, zone } = objects else {
+            return self.objects(objects);
+        };
+        let pool = match &**objects {
+            ObjectSet::One(ObjectRef::Source) if self.notes.exiled_source.is_some() =>
+                self.notes.exiled_source.clone().unwrap_or_default(),
+            _ => self.moving_objects(objects)?,
+        };
+        Ok(format!(
+            "({pool}).into_iter().filter(|&id| q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
+            zone_kind(zone)?
+        ))
+    }
+
     pub(super) fn objects(&self, objects: &ObjectSet) -> Result<String> {
         let carried = match self.outside_objects(objects) {
             Err(_) if self.targets_gone(objects).is_some() => None,

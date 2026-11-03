@@ -1420,15 +1420,8 @@ impl Compiler {
             "{scope}.filter_map({}){same}.count() == 0",
             past.history_test()
         );
-        // "If it's the first time" (Botanical Brawler) is an intervening "if" asked again as the ability resolves (CR
-        // 603.4), of the history as it then stands, as Cantrip's Captain America, Living Legend asks it: the event that
-        // fired it is the only one.
-        if by_subject && intervening {
-            self.first_again = Some(format!(
-                "{scope}.filter_map({}).filter(|f: &Fired| f.subject == item.subject).count() <= 1",
-                past.history_test()
-            ));
-        }
+        // This ordinal belongs to the triggering event. Later placements do
+        // not make that first placement cease to be first (CR 603.4).
         // Summed events are one happening: the rest of it is no earlier one.
         let test = match matched.sums {
             true => planned::planned_value(
@@ -5123,7 +5116,7 @@ impl Compiler {
         let mut picked = self.picked.borrow_mut();
         let local = format!("picked_{}", picked.named.len());
         let statement = format!(
-            "let among: Vec<PlayerId> = {among};\nlet {local} = if among.len() > 1 {{ cantrip_mechanics::choose::player(g, asker.controller, asker.source, among, \"ChooseRevealedCard\", 0)? }} else {{ among.first().copied() }};\n"
+            "let among: Vec<PlayerId> = {among};\nlet {local} = if among.len() > 1 {{ cantrip_mechanics::choose::player(g, asker.controller, asker.source, among, \"Choose a player to make the choice\", 0)? }} else {{ among.first().copied() }};\n"
         );
         picked.named.push((key, local.clone()));
         picked.statements.push(statement);
@@ -5162,6 +5155,22 @@ impl Compiler {
             for name in &names {
                 writeln!(out, "let mut {name} = Default::default();").unwrap();
             }
+        }
+        // A fallible instruction with one optional player maps over that
+        // reference. None leaves its carried results empty and execution
+        // continues with the next instruction. Keep nonlocal control flow in
+        // the enclosing function rather than moving it into a closure.
+        if !inside && present.len() == 1
+            && !["return ", "break", "continue"].iter().any(|word| inner.contains(word))
+        {
+            let (local, read) = &present[0];
+            write!(out, "{}.map(|{local}| -> Result<(), Suspend> {{ ", self.fetch(read)).unwrap();
+            out.push_str(&inner);
+            if !names.is_empty() {
+                write!(out, "({},) = ({},);", names.join(", "), reads.join(", ")).unwrap();
+            }
+            out.push_str("Ok(()) }).transpose()?;\n");
+            return Ok(());
         }
         for (local, read) in &present {
             write!(out, "if let Some({local}) = {} {{ ", self.fetch(read)).unwrap();

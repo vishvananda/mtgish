@@ -2,6 +2,28 @@
 #![cfg(feature = "cantrip")]
 use mtgish_ast::cantrip::pr_form::{render, render_two_faces, Characteristics};
 
+#[test]
+fn entering_counter_fields_do_not_cite_countering_a_spell() {
+    let raw = r#"
+use cantrip_api::*;
+fn enters(_: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {
+    entering.counters[CounterKind::PlusOne as usize] = entering.counters[CounterKind::PlusOne as usize].saturating_add(2);
+    Ok(())
+}
+pub static CARD: CardDef = CardDef { name: "Sample", enters: Some(enters), ..CardDef::BLANK };
+"#;
+    let file = render(raw, "Sample", "This creature enters with two +1/+1 counters on it.", Characteristics::Oracle).unwrap();
+    assert!(file.contains("CR 614.1c, 122.6"), "{file}");
+    assert!(!file.contains("701.5a") && !file.contains("701.6a"), "{file}");
+}
+
+#[test]
+fn countering_a_spell_cites_the_counter_action() {
+    let file = render(&spell_card("g.counter_items(&[]);"), "Sample", "Counter target spell.", Characteristics::Oracle).unwrap();
+    assert!(file.contains("701.6a"), "{file}");
+    assert!(!file.contains("701.5a"), "{file}");
+}
+
 const ONE_TARGET: &str = r#"
 #[allow(unused_imports)] use cantrip_api::*;
 static ABILITY_0_TARGETS: &[cantrip_api::TargetSpec] = &[cantrip_mechanics::targets::CREATURE];

@@ -307,5 +307,6 @@ fn a_level_s_granted_ability_is_said_without_its_level_and_granted_with_it() {
 fn restoration_uses_the_same_plain_spirit_for_attacking_and_blocking() {
     let Some(file) = file("The Restoration of Eiganjo") else { return };
     assert!(!file.contains("pub static SPIRIT"), "{file}");
-    assert_eq!(file.matches("g.card_id(&cantrip_mechanics::tokens::SPIRIT_1_1_COLORLESS)").count(), 2, "{file}");
+    assert_eq!(file.matches("g.card_id(&cantrip_mechanics::tokens::SPIRIT_1_1_COLORLESS)").count(), 1, "{file}");
+    assert!(file.contains("triggers::THIS_ATTACKS_OR_BLOCKS"), "{file}");
 }

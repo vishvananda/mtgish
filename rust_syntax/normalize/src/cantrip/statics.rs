@@ -596,6 +596,12 @@ impl Compiler {
                 return self.player_static(label, players, changes, parts)
             }
         };
+        if matches!(kind, StaticKind::Ordinary) && self.static_guard.is_none()
+            && recipes::creature_anthem(affected, changes)
+        {
+            parts.statics.push("cantrip_mechanics::statics::CREATURES_YOU_CONTROL_GET_PLUS_ONE".into());
+            return Ok(());
+        }
         // The keyword's own layer rule, not a copy of it: a copy doesn't take
         // the types (707.9d), and neither does what grants the keyword later.
         if let StaticKind::CharacteristicDefining {

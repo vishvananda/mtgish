@@ -41,6 +41,7 @@ mod playing;
 pub mod pr_cache;
 pub mod pr_form;
 mod read;
+mod recipes;
 mod replacements;
 mod statics;
 mod survey;
@@ -125,6 +126,7 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            ("cantrip/recipes.rs", include_bytes!("cantrip/recipes.rs").as_slice()),
             (
                 "cantrip/lane_h.rs",
                 include_bytes!("cantrip/lane_h.rs").as_slice(),
@@ -543,7 +545,6 @@ struct Compiler {
     once_shared: Option<Option<u8>>,
     /// An "if it's the first time" the printed line asks of the object, as the
     /// resolving ability reads it (603.4).
-    first_again: Option<String>,
     /// Reading a test of whether this spell may be cast.
     cast_test: bool,
     /// Compiling a delayed triggered ability, whose words are the sentence that
@@ -1295,7 +1296,6 @@ impl Compiler {
             stage_lines: None,
             do_once: None,
             once_shared: None,
-            first_again: None,
             cast_test: false,
             waiting_trigger: false,
             face_text: String::new(),
@@ -1389,6 +1389,9 @@ impl Compiler {
     }
     /// The body of a `TargetFilter`, or a shared target for an unrestricted one.
     fn target_test(&self, spec: &TargetSpec) -> Result<String> {
+        if let Some(shared) = recipes::graveyard_permanent_target(spec) {
+            return Ok(shared);
+        }
         fn parts<'a>(filter: &'a ObjectFilter, out: &mut Vec<&'a ObjectFilter>) {
             match filter {
                 ObjectFilter::All(all) => all.iter().for_each(|f| parts(f, out)),
@@ -2471,6 +2474,8 @@ fn emit_face(
         feature: "invalid AST".into(),
         message: e,
     })?;
+    let combined = recipes::combine_attack_block(card);
+    let card = combined.as_ref().unwrap_or(card);
     let joined = lane_m::spells_joined(card);
     let card = joined.as_ref().unwrap_or(card);
     let mut c = Compiler::new();

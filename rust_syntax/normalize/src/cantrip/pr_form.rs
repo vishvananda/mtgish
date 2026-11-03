@@ -3979,12 +3979,14 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         ("tap", "701.26a"),
         ("untap", "502.3"),
         ("attach", "701.3a"),
-        ("counter", "701.5a"),
+        ("counter", "701.6a"),
         ("fight", "701.14a"),
         ("may_pay", "118.1"),
         ("add_mana", "106.3"),
     ];
+    let entering = text_of(&function.sig.inputs).contains("Entering");
     let mut cited: Vec<&str> = vec![match role {
+        _ if entering => "614.1c",
         Role::Trigger => "603.2",
         Role::Target => "115.1",
         Role::Static => "604.1",
@@ -3994,8 +3996,20 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Effect => "608.2",
     }];
     let body = text_of(&function.block);
+    if entering && body.contains("entering . counters") {
+        cited.push("122.6");
+    }
+    struct Methods(BTreeSet<String>);
+    impl<'ast> Visit<'ast> for Methods {
+        fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            self.0.insert(call.method.to_string());
+            visit::visit_expr_method_call(self, call);
+        }
+    }
+    let mut methods = Methods(BTreeSet::new());
+    methods.visit_block(&function.block);
     for (call, rule) in CALLS {
-        if cited.len() < 3 && body.contains(&format!(". {call}")) && !cited.contains(rule) {
+        if cited.len() < 3 && methods.0.iter().any(|method| method == call || method.starts_with(&format!("{call}_"))) && !cited.contains(rule) {
             cited.push(rule);
         }
     }

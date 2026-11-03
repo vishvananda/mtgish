@@ -8,6 +8,7 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 /// The card, and what its module has to say.
 const CARDS: &[(&str, &str)] = &[
+    ("Emergent Ultimatum", ".transpose()?"),
     ("Thousand-Faced Shadow", "cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE"),
     ("Helitrooper", "cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE"),
     ("Thousand-Faced Shadow", "g.create_token_copies_attacking(values_0, player_0, count_0, true, None)"),
@@ -29,7 +30,7 @@ const CARDS: &[(&str, &str)] = &[
     // "Its controller's graveyard" is the target's controller's.
     ("Drown in the Loch", "Some(id).map(|o: ObjectId| q.controller(o)) == Some(q.state().obj(card_in_zone).owner)"),
     // "You may put it onto the battlefield" is asked only when the top card is one.
-    ("Risen Reef", "let paid_1 = offered_1 && cantrip_mechanics::effects::ask_may("),
+    ("Risen Reef", "g.found_after_move(original).unwrap_or(original)"),
     ("Nissa, Steward of Elements", "if offered_2 && cantrip_mechanics::effects::ask_may("),
     // "Exile it ... lose life equal to its mana value": the card exiled, not the new top.
     ("Sorin the Mirthless", "let amount_5 = { let q: &dyn Query = g; ((objects_4.iter().copied().filter(|&o| q.state().obj(o).became.is_some())"),
@@ -40,8 +41,13 @@ const CARDS: &[(&str, &str)] = &[
     // A slot that takes only abilities reads no spell (Repudiate, Stifle).
     ("Repudiate", "stack.iter().position(|e| matches!(t, Target::Ability(serial) if e.kind != StackKind::Spell && e.serial == serial))"),
     ("Stifle", "q.state().stack.iter().any(|e| matches!(t, Target::Ability(serial) if e.kind != StackKind::Spell && e.serial == serial) && "),
-    // "If it's the first time" is asked again as it resolves (CR 603.4), as Captain America, Living Legend asks it.
-    ("Botanical Brawler", ".count() <= 1"),
+    // "First time" is the ordinal of the triggering placement, even after a later placement.
+    ("Botanical Brawler", ".count() == 0"),
+    ("Risen Reef", "this_or_another_of_subtype_you_control_enters"),
+    ("The Restoration of Eiganjo", "select::BASIC_PLAINS_CARD"),
+    ("The Restoration of Eiganjo", "triggers::THIS_ATTACKS_OR_BLOCKS"),
+    ("The Restoration of Eiganjo", "targets::card_in_your_graveyard_with_mana_value_at_most"),
+    ("Gideon, Ally of Zendikar", "statics::CREATURES_YOU_CONTROL_GET_PLUS_ONE"),
     // "Up to one": always asked.
     ("Enigmatic Incarnation", "let taken = cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible,"),
     // An opponent copying the trigger changes who "you" names (CR 603.4, 707.10).
@@ -56,6 +62,9 @@ const GONE: &[(&str, &str)] = &[
     ("Thousand-Faced Shadow", "g.enter_attacking("),
     // Accepting an optional move does not prove that the card entered.
     ("Risen Reef", "(paid_1 as i64)"),
+    ("Botanical Brawler", ".count() <= 1"),
+    ("Gideon, Ally of Zendikar", "EffectKind::SetCreatureType"),
+    ("Emergent Ultimatum", "Selection::listed"),
     // The last mode of a choice is the one left: it is not tested.
     ("Aether Gust", "if ability_0_mode_1_target_0(g, asker, chosen) { return ability_0_mode_1(g, item); }"),
     // Two types tested of a card that has one.
@@ -118,8 +127,7 @@ fn the_human_monk_is_one_token() {
 fn first_counter_history_does_not_recheck_current_control() {
     let Some(modules) = modules(&["Botanical Brawler"]) else { return };
     let code = &modules["Botanical Brawler"];
-    // Only the triggering event asks who controls the permanent. Both history
-    // questions count the events on that permanent regardless of later control.
+    // The history question counts placements regardless of later control.
     assert_eq!(code.matches("Some(asker.controller) == Some(q.controller(id))").count(), 1, "{code}");
 }
 
@@ -128,8 +136,9 @@ fn animation_establishes_creature_before_its_subtypes() {
     let Some(modules) = modules(&["Gideon, Ally of Zendikar"]) else { return };
     let code = &modules["Gideon, Ally of Zendikar"];
     let creature = code.find("EffectKind::AddTypes").unwrap();
-    let human = code.find("EffectKind::SetCreatureType").unwrap();
-    let soldier = code.find("EffectKind::AddSubtype").unwrap();
+    assert_eq!(code.matches("EffectKind::AddSubtype").count(), 3, "{code}");
+    let human = code.find("Subtype::Human").unwrap();
+    let soldier = code.find("Subtype::Soldier").unwrap();
     assert!(creature < human && human < soldier, "{code}");
 }
 

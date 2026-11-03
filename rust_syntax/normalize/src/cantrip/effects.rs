@@ -653,6 +653,11 @@ impl Compiler {
         let present = self.present.borrow_mut().take();
         let picked = self.picked.borrow().named.len();
         self.note_unless(body);
+        if self.after.is_empty() && self.sequence_recipe(body, out)? {
+            *self.present.borrow_mut() = present;
+            self.picked.borrow_mut().named.truncate(picked);
+            return Ok(());
+        }
         let mut i = 0;
         while i < body.instructions.len() {
             match self.one_question(&body.instructions[i..], out) {
@@ -976,6 +981,17 @@ impl Compiler {
                 operation: operation @ Operation::PlayCards { .. },
                 result,
             } => {
+                if let Operation::PlayCards {
+                    actor: PlayerSet::One(player), action: CardPlayAction::CastSpell,
+                    cards, count: Count::AnyNumber, cost: PlayCost::Free, into_exile: false,
+                } = operation {
+                    if !self.read_later(result) && !referred_to(result, &body.instructions[i + 1..]) {
+                        let player = self.fetch(self.certain_player(player)?);
+                        let cards = self.fetch(self.objects(cards)?);
+                        writeln!(out, "cantrip_mechanics::choose::cast_any_number_free(g, {player}, asker.source, &{cards})?;").unwrap();
+                        return Ok(());
+                    }
+                }
                 self.play_cards(operation, false, out)?;
                 self.report_played(result);
                 Ok(())
@@ -1039,6 +1055,10 @@ impl Compiler {
                     .or_else(|| self.read_later(result).then_some("ChooseAsEnters"))
                     // Nothing it says yet happens to them: the prompt's plain word.
                     .unwrap_or("Choose");
+                // Library prompt captions say "your library". A different
+                // player selecting the controller's card gets the neutral word.
+                let purpose = if matches!(purpose, "PutOnTop" | "PutOnBottom" | "PutOnLibrary")
+                    && !matches!(player, PlayerRef::AbilityController) { "Choose" } else { purpose };
                 self.choose(player, objects, count, result, purpose, out)
             }
             Instruction::Effect {
@@ -1095,6 +1115,14 @@ impl Compiler {
                 let searcher = self.fetch(self.certain_player(player)?);
                 let owner = self.fetch(self.certain_player(library)?);
                 let count = self.fetch(count);
+                if matches!(&choice.filter, ObjectFilter::Property { property: Property::ColorCount, comparison: Comparison::Equal, value: Expr::Constant(1) }) {
+                    let selector = format!("search_{id}_quality");
+                    writeln!(self.functions, "fn {selector}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ Verdict::each(choice, |id| {{ let asker = &Asker::new(choice.source, choice.player); {filter} }}) }}").unwrap();
+                    writeln!(out, "let found_{id} = cantrip_mechanics::library::search(g, {searcher}, {owner}, asker.source, SearchDestination::{destination}, cantrip_mechanics::select::Selection::new({count}).with(cantrip_api::select::part(&({selector} as SelectFn), 0, \"monocolored card\")){rules})?;").unwrap();
+                    self.selections.insert(result.0, format!("found_{id}"));
+                    self.searched.insert(result.0, "true".into());
+                    return Ok(());
+                }
                 writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let rule_count_{id} = {count}; let shown_{id} = cantrip_mechanics::library::searched_cards(g, owner_{id}); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let found_{id} = cantrip_mechanics::library::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, cantrip_mechanics::select::Selection::listed(rule_count_{id}, &shown_{id}, can_{id}){rules})?;").unwrap();
                 self.selections.insert(result.0, format!("found_{id}"));
                 self.searched.insert(result.0, "true".into());
@@ -3331,7 +3359,7 @@ impl Compiler {
         };
         let objects = lane_k::shuffled_in_though_gone(objects, destination);
         let outside = self.from_outside(objects);
-        let objects = self.fetch(self.objects(objects)?);
+        let objects = self.fetch(self.moving_objects(objects)?);
         let objects = lane_k::returning(objects, destination);
         let objects = lane_k::on_top_in_turn(objects, chosen, destination);
         let library = |place: String| format!("g.put_into_library(&objects_{id}, {place})");
@@ -3787,6 +3815,15 @@ impl Compiler {
     /// the source says, unless the card says it keeps them: the types added, as
     /// one set of them where the first was.
     fn becoming_replaces(&self, changes: &[Change]) -> Option<Vec<Change>> {
+        if self.line_text().is_some_and(|line| line.contains("still"))
+            && changes.iter().any(|c| matches!(c, Change::AddCardType(_) | Change::SetCardTypes(_)))
+            && changes.iter().any(|c| matches!(c, Change::CreatureTypes { mode: ChangeMode::Set, .. }))
+        {
+            return Some(changes.iter().map(|change| match change {
+                Change::CreatureTypes { mode: ChangeMode::Set, types } => Change::CreatureTypes { mode: ChangeMode::Add, types: types.clone() },
+                other => other.clone(),
+            }).collect());
+        }
         let says = |line: &String| {
             line.contains(" becomes a")
                 && !line.contains("in addition to")
@@ -3840,7 +3877,7 @@ impl Compiler {
         // The latter depends on the former in layer 4 (CR 613.8); adding the
         // remaining subtypes first would let SetCreatureType erase them.
         let mut ordered = changes.to_vec();
-        if changes.iter().any(|c| matches!(c, Change::CreatureTypes { mode: ChangeMode::Set, .. })) {
+        if changes.iter().any(|c| matches!(c, Change::CreatureTypes { .. })) {
             ordered.sort_by_key(|c| !matches!(c, Change::AddCardType(_) | Change::SetCardTypes(_)));
         }
         let changes = ordered.as_slice();
