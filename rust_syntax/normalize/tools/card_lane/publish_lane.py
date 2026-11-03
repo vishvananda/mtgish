@@ -44,6 +44,10 @@ def connect(root):
     if 'source_base' not in {r['name'] for r in db.execute('PRAGMA table_info(publish_batches)')}:
         db.execute('ALTER TABLE publish_batches ADD COLUMN source_base TEXT')
         db.commit()
+    for column in ('source_base', 'dependencies'):
+        if column not in {r['name'] for r in db.execute('PRAGMA table_info(publish_cards)')}:
+            db.execute(f'ALTER TABLE publish_cards ADD COLUMN {column} TEXT')
+    db.commit()
     return db
 
 
@@ -54,7 +58,10 @@ def eligible(db):
         issue = source.get('issue')
         if not isinstance(issue, int) or isinstance(issue, bool) or issue <= 0:
             raise ValueError(f"passed job {r['id']} has no numeric issue")
-        rows.append(dict(job=r['id'], name=r['name'], issue=issue, candidate=r['candidate']))
+        card = dict(job=r['id'], name=r['name'], issue=issue, candidate=r['candidate'])
+        if source.get('publication_base'):
+            card.update(source_base=source['publication_base'], dependencies=source.get('shared_dependencies', []))
+        rows.append(card)
     return sorted(rows, key=lambda r: (r['issue'], r['name'], r['job']))
 
 
@@ -94,8 +101,9 @@ def reserve(db, cfg):
         db.execute('INSERT INTO publish_batches(number,branch,status,created,source_base) VALUES(?,?,?,?,?)',
                    (number, branch, 'reserved', review.now(), cfg['base']))
         for i, c in enumerate(cards):
-            db.execute('INSERT INTO publish_cards(batch,position,job,name,issue,candidate) VALUES(?,?,?,?,?,?)',
-                       (number, i, c['job'], c['name'], c['issue'], c['candidate']))
+            db.execute('INSERT INTO publish_cards(batch,position,job,name,issue,candidate,source_base,dependencies) VALUES(?,?,?,?,?,?,?,?)',
+                       (number, i, c['job'], c['name'], c['issue'], c['candidate'], c.get('source_base'),
+                        json.dumps(c['dependencies']) if 'dependencies' in c else None))
         db.commit()
         return number
     except BaseException:
@@ -105,7 +113,13 @@ def reserve(db, cfg):
 
 def batch(db, number):
     row = db.execute('SELECT * FROM publish_batches WHERE number=?', (number,)).fetchone()
-    return dict(row), [dict(r) for r in db.execute('SELECT job,name,issue,candidate FROM publish_cards WHERE batch=? ORDER BY position', (number,))]
+    cards = []
+    for r in db.execute('SELECT job,name,issue,candidate,source_base,dependencies FROM publish_cards WHERE batch=? ORDER BY position', (number,)):
+        card = {k: r[k] for k in ('job','name','issue','candidate')}
+        if r['source_base']:
+            card.update(source_base=r['source_base'], dependencies=json.loads(r['dependencies'] or '[]'))
+        cards.append(card)
+    return dict(row), cards
 
 
 def update(db, number, **values):
@@ -159,8 +173,19 @@ def composition(repo, source_base, cards):
     prerequisites, finals, seen = [], [], set()
     for card in cards:
         candidate = card['candidate']
-        git(repo, 'merge-base', '--is-ancestor', source_base, candidate)
-        commits = git(repo, 'rev-list', '--reverse', '--first-parent', f'{source_base}..{candidate}').splitlines()
+        baseline = card.get('source_base', source_base)
+        for dependency in card.get('dependencies', []):
+            sha = dependency['commit']
+            git(repo, 'merge-base', '--is-ancestor', sha, baseline)
+            subject = git(repo, 'show', '-s', '--format=%s', sha)
+            if not subject.startswith(('Engine: ', 'Mechanics: ')):
+                raise RuntimeError(f'non-helper dependency {sha}: {subject}')
+            pid = patch_id(repo, sha)
+            if pid not in seen:
+                seen.add(pid)
+                prerequisites.append(sha)
+        git(repo, 'merge-base', '--is-ancestor', baseline, candidate)
+        commits = git(repo, 'rev-list', '--reverse', '--first-parent', f'{baseline}..{candidate}').splitlines()
         if not commits or commits[-1] != candidate:
             raise RuntimeError(f"invalid candidate ancestry: {card['name']}")
         for index, sha in enumerate(commits):
@@ -242,6 +267,9 @@ def pr_body(cards, prereqs, tested, set_name='Unlimited'):
     lines += [f"| {c['name'].replace('|', '&#124;')} | #{c['issue']} |" for c in cards]
     lines += ['', '## Integration', '', f'{len(prereqs)} shared prerequisite commits, followed by {len(cards)} card commits.',
               '', '## Validation', '', f'Focused corpus for {len(tested)} new and changed cards; full-registry layer contract; checked Rust workspace with CANTRIP_VERIFY=1.', '']
+    dependencies = sorted({d['pr_url'] for c in cards for d in c.get('dependencies', [])})
+    if dependencies:
+        lines += ['Prerequisite helper PRs: '+', '.join(dependencies)+'. These commits are included until they land upstream.', '']
     lines += [f"Closes #{c['issue']}" for c in cards]
     return '\n'.join(lines) + '\n'
 
@@ -266,7 +294,7 @@ def publish(root, cfg, db, number):
             env = dict(os.environ, COW_WORKTREE_CONFIG=p.get('cow_config', '/mnt/vizier/cow-cantrip.conf'))
             command(repo, p.get('cow_git', '/home/vishvananda/.local/bin/cow-git'), '-C', p.get('cow_base', '/mnt/vizier/base/cantrip'), 'worktree', 'add', '-b', b['branch'], str(tree), base, env=env)
             for sha in prereqs + finals:
-                git(tree, 'cherry-pick', sha)
+                git(tree, 'cherry-pick', '--empty=drop', sha)
             head = git(tree, 'rev-parse', 'HEAD')
             (folder / 'composition.json').write_text(json.dumps(dict(prerequisites=prereqs, finals=finals), indent=2) + '\n')
             update(db, number, status='validating', head=head)

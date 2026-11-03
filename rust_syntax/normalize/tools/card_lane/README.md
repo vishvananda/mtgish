@@ -111,6 +111,15 @@ removed. It validates the integrated branch before pushing to the configured for
 Membership is reserved atomically and PR creation is idempotent. Conflicts or failed checks retain the batch for
 inspection. `flush_final` allows the final smaller batch once all work is terminal. Nothing merges upstream.
 
+`shared_base_manifest` optionally names an immutable validated helper pin: upstream `base`, full `head`,
+the exact linear list of `Engine:`/`Mechanics:` commits, its helper-only `pr_url`, and matching successful
+`validation` evidence. Promote it only after the helper branch passes integration checks. Card commits cannot
+enter this pin. New implementation jobs branch from it; new reviews freeze it separately from the original
+producer base. Already-running jobs, retries and confirmations retain their original revision. Publication
+freezes each card's base and helper dependencies, includes the prerequisite commits while upstream is pending,
+and links the helper PRs. Thus independent card batches can share helpers without depending on earlier card
+batches. Overlapping helper changes still stop for a semantic resolution rather than being deduplicated by name.
+
 ### Context and measurements
 
 Both stages measure latest-request context from Codex rollouts, separately from cumulative token usage. They

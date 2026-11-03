@@ -170,10 +170,13 @@ def clean(tree):
 
 def load_lane(root, tree, state):
     cfg = config(root)
+    scratch = tree / 'target' / 'tmp'
+    scratch.mkdir(parents=True, exist_ok=True)
+    tempfile.tempdir = str(scratch)
     os.environ.update(CARD_LANE=cfg["lane_root"], CARD_LANE_CANTRIP=str(tree),
                       CARD_LANE_STATE=str(state), CARD_LANE_TARGET=str(tree / "target"),
                       CARD_LANE_BRANCH=git(tree, "branch", "--show-current"), CARGO_BUILD_JOBS="8",
-                      CARD_LANE_FOCUSED="1" if cfg.get("focused_builds", True) else "0")
+                      CARD_LANE_FOCUSED="1" if cfg.get("focused_builds", True) else "0", TMPDIR=str(scratch))
     spec = importlib.util.spec_from_file_location("review_card_lane", HERE / "card_lane.py")
     lane = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(lane)
@@ -318,8 +321,17 @@ def prepare(root, tree, job):
     if job["stage"] == "confirm":
         git(tree, "checkout", "-b", branch, job["candidate"])
         return branch, git(tree, "rev-parse", "HEAD^"), source
-    git(tree, "checkout", "-b", branch, cfg["base"])
+    import shared_base
+    if not source.get('publication_base'):
+        pin = shared_base.read_pin(cfg, tree)
+        source.update(shared_base.metadata(pin) if pin else dict(publication_base=cfg['base']))
+        with connect(root) as db:
+            db.execute('UPDATE jobs SET source=? WHERE id=?', (json.dumps(source), job['id']))
+        job['source'] = json.dumps(source)
+    git(tree, "checkout", "-b", branch, source['publication_base'])
     for commit in prerequisite_commits(tree, source):
+        if source.get('shared_dependencies') and not git(tree, 'cherry', 'HEAD', commit, commit+'^').startswith('+'):
+            continue  # Already supplied by the validated helper pin or upstream.
         git(tree, "cherry-pick", commit)
     parent = git(tree, "rev-parse", "HEAD")
     git(tree, "cherry-pick", source["commit"])
@@ -620,6 +632,10 @@ def commit_candidate(tree, source, parent, paths):
     own, slug = names(source["name"])
     owned = {f"crates/cantrip-cards/src/cards/{own}.rs", f"content/mtg/cards/{slug}.json"}
     owned.update(p for p in original_paths + paths if p.startswith(f"scenarios/{slug}-"))
+    # A test executing the new card cannot compile on the helper-only branch.
+    owned.update(p for p in original_paths + paths
+                 if p.startswith(f'crates/cantrip-mechanics/tests/{own}_') or
+                    p == f'crates/cantrip-mechanics/tests/{own}.rs')
     shared = [p for p in paths if p not in owned]
     if paths:
         git(tree, "add", "--", *paths)

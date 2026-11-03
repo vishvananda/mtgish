@@ -266,6 +266,36 @@ class GitTests(unittest.TestCase):
         self.assertEqual((self.repo / "untracked").read_text(), "keep me")
         self.assertEqual(self.git("rev-parse", "HEAD"), self.source)
 
+    def test_new_review_freezes_helper_pin_separately_from_producer_history(self):
+        self.git('checkout','-q','--detach',self.base)
+        self.write('crates/cantrip-mechanics/src/shared.rs','validated helper')
+        self.git('add','.');self.git('commit','-qm','Mechanics: shared')
+        helper=self.git('rev-parse','HEAD')
+        pin=dict(head=helper,commits=[helper],pr_url='https://github.com/org/repo/pull/1')
+        lane.save(self.root/'config.json',dict(base=self.base))
+        source=dict(name='Test Card',commit=self.source,source_base=self.base)
+        with lane.connect(self.root) as db:
+            lane.enqueue(db,source)
+            job=dict(db.execute('SELECT * FROM jobs').fetchone())
+        import shared_base
+        with mock.patch.object(shared_base,'read_pin',return_value=pin):
+            branch,parent,actual=lane.prepare(self.root,self.repo,job)
+        self.assertEqual(parent,helper)
+        self.assertEqual(actual['source_base'],self.base)
+        self.assertEqual(actual['publication_base'],helper)
+        with lane.connect(self.root) as db:
+            self.assertEqual(json.loads(db.execute('SELECT source FROM jobs').fetchone()[0]),actual)
+        self.assertEqual(self.git('show','HEAD:crates/cantrip-mechanics/src/shared.rs'),'validated helper')
+
+    def test_new_card_boundary_test_stays_with_card_not_helper_prerequisite(self):
+        self.git('checkout','-qb','boundary-review')
+        test='crates/cantrip-mechanics/tests/test_card_boundary.rs'
+        shared='crates/cantrip-mechanics/src/shared.rs'
+        self.write(test,'executes Test Card');self.write(shared,'shared helper')
+        candidate=lane.commit_candidate(self.repo,dict(name='Test Card',commit=self.source),self.base,[test,shared])
+        self.assertEqual(self.git('diff-tree','--no-commit-id','--name-only','-r',candidate+'^'),shared)
+        self.assertIn(test,self.git('diff-tree','--no-commit-id','--name-only','-r',candidate).splitlines())
+
     def test_blocked_edits_are_parked_without_publishing_or_discarding(self):
         self.git("branch", "producer", self.source)
         self.git("checkout", "-qb", "review-blocked")

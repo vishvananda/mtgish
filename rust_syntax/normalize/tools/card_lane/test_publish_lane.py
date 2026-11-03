@@ -51,7 +51,7 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual(batch['branch'], 'card/unlimited-20261103-batch-001')
         self.assertIsNone(p.reserve(self.db, self.cfg))
         with self.assertRaises(sqlite3.IntegrityError):
-            self.db.execute("INSERT INTO publish_cards VALUES(1,3,'other','A',7,'head')")
+            self.db.execute("INSERT INTO publish_cards(batch,position,job,name,issue,candidate) VALUES(1,3,'other','A',7,'head')")
         self.db.rollback()
         folder = p.manifest(self.root, batch, cards, self.cfg)
         p.manifest(self.root, batch, cards, self.cfg)
@@ -68,6 +68,40 @@ class PublisherTests(unittest.TestCase):
             self.git('cherry-pick', sha)
         self.assertEqual(self.git('log', '-1', '--format=%an'), 'Original Author')
         self.assertIn('Closes #2', self.git('log', '-1', '--format=%B'))
+
+    def test_mixed_pins_import_helpers_without_importing_upstream_card_history(self):
+        a = self.candidate('Alpha', 1)
+        shared = self.git('rev-parse', a+'^')
+        self.git('checkout', '-q', '--detach', shared)
+        (self.repo/'upstream-card').write_text('landed independently')
+        self.git('add', '.'); self.git('commit', '-qm', 'Card: Already upstream')
+        (self.repo/'new-helper').write_text('second helper')
+        self.git('add', '.'); self.git('commit', '-qm', 'Mechanics: second helper')
+        pin = self.git('rev-parse', 'HEAD')
+        (self.repo/'Beta').write_text('Beta')
+        self.git('add', '.'); self.git('commit', '-qm', 'Card: Beta\n\nCloses #2')
+        b = self.git('rev-parse', 'HEAD')
+        cards = [dict(name='Alpha',issue=1,candidate=a),
+                 dict(name='Beta',issue=2,candidate=b,source_base=pin,
+                      dependencies=[dict(commit=pin,pr_url='https://github.com/org/repo/pull/7')])]
+        prerequisites, finals = p.composition(self.repo, self.base, cards)
+        self.assertEqual(prerequisites,[shared,pin])
+        self.assertEqual(finals,[a,b])
+        self.assertIn('https://github.com/org/repo/pull/7',p.pr_body(cards, prerequisites, []))
+
+    def test_reservation_freezes_per_card_pins_and_helper_dependencies(self):
+        self.add_job('Alpha',1,'candidate'); self.add_job('Beta',2,'other')
+        source=dict(name='Alpha',issue=1,commit='candidate',publication_base='pin',
+                    shared_dependencies=[dict(commit='helper',pr_url='https://github.com/org/repo/pull/7')])
+        self.db.execute('UPDATE jobs SET source=? WHERE name=?',(json.dumps(source),'Alpha'));self.db.commit()
+        number=p.reserve(self.db,self.cfg)
+        b,cards=p.batch(self.db,number)
+        folder=p.manifest(self.root,b,cards,self.cfg)
+        self.cfg['shared_base_manifest']='a-newer-pin'
+        self.assertEqual(p.batch(self.db,number)[1],cards)
+        self.assertEqual(cards[0]['source_base'],'pin')
+        self.assertEqual(cards[0]['dependencies'],source['shared_dependencies'])
+        self.assertEqual(json.loads((folder/'manifest.json').read_text())['cards'],cards)
 
     def test_validation_failure_never_pushes_or_opens_pr(self):
         self.add_job('Alpha', 1, self.base); self.add_job('Beta', 2, self.base)

@@ -191,7 +191,14 @@ def worker(root, slot, once=False):
             started = time.monotonic()
             card = json.loads(job['card'])
             queue = json.loads(job['queue_meta'])
-            queue['cantrip_commit'] = base
+            import shared_base
+            pin = shared_base.read_pin(cfg, tree)
+            job_base = pin['head'] if pin else base
+            if pin:
+                # Each new card has a durable branch; completed candidates keep
+                # their references when the shared helper pin advances.
+                review.git(tree, 'checkout', '-b', 'implement/'+job['id'], job_base)
+            queue['cantrip_commit'] = job_base
             queue['cards'] = [card]
             lane.save_queue(queue)
             session.start_card()
@@ -203,7 +210,9 @@ def worker(root, slot, once=False):
                 result = dict(card=card, elapsed_seconds=round(time.monotonic()-started, 2), attempts=session.attempts)
                 if outcome == 'committed':
                     source = dict(card, producer=slot, producer_tree=str(tree),
-                                  packet=str(lane.card_dir(card['name'])), campaign=str(cfg['lane_root']), source_base=base)
+                                  packet=str(lane.card_dir(card['name'])), campaign=str(cfg['lane_root']), source_base=job_base)
+                    if pin:
+                        source.update(shared_base.metadata(pin))
                     # Enqueue before releasing the producer lease. Insertion is idempotent.
                     db = review.connect(root)
                     review.enqueue(db, source, cfg.get('priorities', {}).get(card['name'], 0))
