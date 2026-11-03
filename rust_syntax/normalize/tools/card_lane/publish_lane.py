@@ -218,7 +218,10 @@ def validate_remote(repo, remote, expected):
 
 
 def integration_checks(root, cfg, b, cards, tree, folder):
+    scratch = tree / 'target' / 'tmp'
+    scratch.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, CANTRIP_VERIFY='1', CARGO_BUILD_JOBS='8', CARGO_TARGET_DIR=str(tree / 'target'),
+               TMPDIR=str(scratch),
                PATH=str(Path(cfg['lane_root']) / 'bin') + os.pathsep + os.environ.get('PATH', ''))
     env.pop('CANTRIP_CARDS_ONLY', None)
     env.pop('CARD_LANE_FOCUSED', None)
