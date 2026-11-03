@@ -78,6 +78,11 @@ pub(super) fn shared_trigger(event: &EventSpec, body: &Program) -> Option<String
     if ["EventSubject", "EventOther", "EventAmount", "EventGroup", "EventDestination", "EventSource"].iter().any(|s| reads.contains(s)) {
         return None;
     }
+    if let EventSpec::Spell { event: SpellEvent::Cast, players: PlayerSet::All, spells: ObjectFilter::Color(color) } = event {
+        let color = name(color);
+        if !matches!(color.as_str(), "White" | "Blue" | "Black" | "Red" | "Green") { return None; }
+        return Some(format!("when_asked(EventMask::SPELL_CAST, cantrip_mechanics::triggers::a_player_casts_a_spell_of_color::<{{ Color::{color} as u8 }}>)"));
+    }
     let EventSpec::Either(events) = event else { return None };
     if events.len() != 2 { return None; }
     let own_event = |event: &EventSpec, wanted: ObjectEvent| matches!(event, EventSpec::Object { event, objects: ObjectFilter::SameObject(ObjectRef::Source) } if std::mem::discriminant(event) == std::mem::discriminant(&wanted));
@@ -101,9 +106,78 @@ pub(super) fn shared_trigger(event: &EventSpec, body: &Program) -> Option<String
     (exact && another && controlled).then_some(subtype).flatten().map(|t| format!("when_asked(EventMask::ZONE_CHANGE, cantrip_mechanics::triggers::this_or_another_of_subtype_you_control_enters::<{{ Subtype::{t} as u16 }}>)"))
 }
 
+#[cfg(test)]
+mod shared_payment_tests {
+    use super::*;
+
+    fn body() -> Program {
+        Program { instructions: vec![
+            Instruction::Effect { result: ResultId(7), operation: Operation::PayCost {
+                player: PlayerRef::AbilityController,
+                cost: Cost { parts: vec![CostPart::Mana(vec![ManaSymbol::Generic(1)])] }, optional: true,
+            } },
+            Instruction::If { condition: Condition::PaymentChosen(ResultId(7)),
+                then: Program { instructions: vec![Instruction::Effect { result: ResultId(8),
+                    operation: Operation::GainLife { players: PlayerSet::One(PlayerRef::AbilityController), amount: Expr::Constant(1) } }] },
+                otherwise: Program { instructions: vec![] },
+            },
+        ] }
+    }
+
+    #[test]
+    fn payment_recipe_requires_the_exact_payer_result_amount_and_branches() {
+        assert!(pay_to_gain_life(&body()).is_some());
+        for variant in 0..6 {
+            let mut b = body();
+            match variant {
+                0 => if let Instruction::Effect { operation: Operation::PayCost { optional, .. }, .. } = &mut b.instructions[0] { *optional = false; },
+                1 => if let Instruction::Effect { operation: Operation::PayCost { player, .. }, .. } = &mut b.instructions[0] { *player = PlayerRef::Active; },
+                2 => if let Instruction::If { condition, .. } = &mut b.instructions[1] { *condition = Condition::PaymentChosen(ResultId(9)); },
+                3 => if let Instruction::If { then, .. } = &mut b.instructions[1] {
+                    if let Instruction::Effect { operation: Operation::GainLife { amount, .. }, .. } = &mut then.instructions[0] { *amount = Expr::Constant(2); }
+                },
+                4 => if let Instruction::If { then, otherwise, .. } = &mut b.instructions[1] { *otherwise = then.clone(); },
+                5 => if let Instruction::If { then, .. } = &mut b.instructions[1] { then.instructions.push(then.instructions[0].clone()); },
+                _ => unreachable!(),
+            }
+            assert!(pay_to_gain_life(&b).is_none(), "variant {variant}");
+        }
+    }
+
+    #[test]
+    fn color_trigger_keeps_event_dependent_and_copy_matchers() {
+        let event = EventSpec::Spell { event: SpellEvent::Cast, players: PlayerSet::All,
+                                      spells: ObjectFilter::Color(ManaColor::Red) };
+        assert!(shared_trigger(&event, &body()).is_some());
+        let mut reads = body();
+        if let Instruction::If { then, .. } = &mut reads.instructions[1] {
+            if let Instruction::Effect { operation: Operation::GainLife { amount, .. }, .. } = &mut then.instructions[0] { *amount = Expr::EventAmount; }
+        }
+        assert!(shared_trigger(&event, &reads).is_none());
+        let copied = EventSpec::Spell { event: SpellEvent::Copy, players: PlayerSet::All,
+                                       spells: ObjectFilter::Color(ManaColor::Red) };
+        assert!(shared_trigger(&copied, &body()).is_none());
+    }
+}
+
 fn ungroup(mut body: &Program) -> &Program {
     while let [Instruction::Group(inner)] = body.instructions.as_slice() { body = inner; }
     body
+}
+
+/// The whole resolution is the existing optional fixed-mana payment recipe.
+/// A different payer, amount, condition, or either extra branch stays generated.
+pub(super) fn pay_to_gain_life(body: &Program) -> Option<&Cost> {
+    let [
+        Instruction::Effect { result, operation: Operation::PayCost { player: PlayerRef::AbilityController, cost, optional: true } },
+        Instruction::If { condition: Condition::PaymentChosen(paid), then, otherwise },
+    ] = ungroup(body).instructions.as_slice() else { return None };
+    if result.0 != paid.0 || !otherwise.instructions.is_empty()
+        || !cost.parts.iter().all(|p| matches!(p, CostPart::Mana(symbols) if !symbols.iter().any(|s| matches!(s, ManaSymbol::X))))
+    { return None; }
+    matches!(ungroup(then).instructions.as_slice(), [Instruction::Effect {
+        operation: Operation::GainLife { players: PlayerSet::One(PlayerRef::AbilityController), amount: Expr::Constant(1) }, ..
+    }]).then_some(cost)
 }
 
 fn basic_plains(filter: &ObjectFilter) -> bool {

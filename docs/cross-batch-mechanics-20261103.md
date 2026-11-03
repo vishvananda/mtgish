@@ -18,6 +18,18 @@ At upstream `b68ca30f9b385c76ab96ff997b6b4e9841c56a10`, both needed recipes alre
 
 Ivory Cup and Farmstead already use the payment recipe upstream. Kor Firewalker uses the color matcher.
 
+Reusing that matcher also requires retaining the triggering spell as its subject. Its upstream `Fired::PLAIN`
+loses the object reference needed by CR 609.7a after the spell is countered. With freshly generated shared
+recipes, the existing Crystal Rod and Iron Star countered-spell scenarios both reproduce this failure. A new
+Kor Firewalker scenario reproduces it using an already-supported card. Returning `Fired::about` from the
+one generic matcher fixes all three; the original scenarios remain intact.
+
+The generator now recognizes the exact color-cast and optional fixed-mana-payment-to-gain-one-life recipes.
+It uses the same helper for all five colors and Farmstead's differently priced payment. Other payers, amounts,
+payment results, nonempty alternate branches, extra instructions, copied spells, and event-dependent effects
+retain their own generated implementation. Schema 168 invalidates old generated caches. All seven relevant
+cards' focused corpora pass with the corrected matcher, including the original countered-spell cases.
+
 | Card | Current publication | Duplication to reconcile |
 | --- | --- | --- |
 | Ivory Cup | Closed PR 1106; already supported upstream | Retain the current upstream shared implementation. |

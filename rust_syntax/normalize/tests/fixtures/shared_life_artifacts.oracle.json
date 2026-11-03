@@ -1,0 +1,88 @@
+[
+  {
+    "name": "Crystal Rod",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Crystal Rod",
+        "manaCost": "{1}",
+        "type": "Artifact",
+        "text": "Whenever a player casts a blue spell, you may pay {1}. If you do, you gain 1 life."
+      }
+    ]
+  },
+  {
+    "name": "Farmstead",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Farmstead",
+        "manaCost": "{W}{W}{W}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant land\nEnchanted land has \"At the beginning of your upkeep, you may pay {W}{W}. If you do, you gain 1 life.\""
+      }
+    ]
+  },
+  {
+    "name": "Iron Star",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Iron Star",
+        "manaCost": "{1}",
+        "type": "Artifact",
+        "text": "Whenever a player casts a red spell, you may pay {1}. If you do, you gain 1 life."
+      }
+    ]
+  },
+  {
+    "name": "Ivory Cup",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ivory Cup",
+        "manaCost": "{1}",
+        "type": "Artifact",
+        "text": "Whenever a player casts a white spell, you may pay {1}. If you do, you gain 1 life."
+      }
+    ]
+  },
+  {
+    "name": "Kor Firewalker",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Kor Firewalker",
+        "manaCost": "{W}{W}",
+        "type": "Creature — Kor Soldier",
+        "text": "Protection from red\nWhenever a player casts a red spell, you may gain 1 life.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Throne of Bone",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Throne of Bone",
+        "manaCost": "{1}",
+        "type": "Artifact",
+        "text": "Whenever a player casts a black spell, you may pay {1}. If you do, you gain 1 life."
+      }
+    ]
+  },
+  {
+    "name": "Wooden Sphere",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Wooden Sphere",
+        "manaCost": "{1}",
+        "type": "Artifact",
+        "text": "Whenever a player casts a green spell, you may pay {1}. If you do, you gain 1 life."
+      }
+    ]
+  }
+]

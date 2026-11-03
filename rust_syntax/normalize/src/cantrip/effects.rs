@@ -546,6 +546,11 @@ impl Compiler {
     }
     pub(super) fn effect(&mut self, body: &Program, label: &str) -> Result<String> {
         self.reset_results();
+        if let Some(cost) = recipes::pay_to_gain_life(body) {
+            let cost = self.cost(cost, label)?;
+            self.chosen.clear();
+            return Ok(format!("|g, item| cantrip_mechanics::effects::may_pay_to_gain_life(g, item, {cost})"));
+        }
         let out = self.effect_body(body);
         self.chosen.clear();
         let out = out?;
