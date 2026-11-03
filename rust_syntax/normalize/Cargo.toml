@@ -10,11 +10,11 @@ legacy = []
 cantrip = ["legacy", "dep:prettyplease"]
 
 [dependencies]
-mtgish-ir = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "33ad1e6398459105f5f30dd325a72b931e9b8af4" }
+mtgish-ir = { path = "../ir" }
 # Source AST is frozen independently of normalized-IR work. It is byte-identical
 # to the parent source at this split; new IR revisions can reuse this build.
 # Updating source enums also requires updating this explicit published revision.
-rust_syntax = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "449b4bcf461fd6476cb2c93b78c2b2ff2c78ce28" }
+rust_syntax = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "2a7fc07c42002a3365b14a3b7a4135ff7641cb62" }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 ron = "0.8.1"
