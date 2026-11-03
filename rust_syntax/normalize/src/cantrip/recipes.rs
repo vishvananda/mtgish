@@ -144,7 +144,7 @@ impl Compiler {
         if format!("{fallback:?}") != format!("{looked:?}") { return Ok(false); }
         let Some((entry, _)) = lane_i::entry_of(entry, &Destination::OwnersBattlefield) else { return Ok(false) };
         if !entry.states.is_empty() || !entry.counters.is_empty() { return Ok(false); }
-        let objects = self.fetch(self.objects(looked)?);
+        let objects = "cantrip_mechanics::top_of_library(g, asker.controller, 1)";
         let tapped = entry.tapped;
         writeln!(out, "let looked = {objects}; g.look_at(asker.controller, &looked); g.end_sentence(); for original in looked {{ let mut entered = false; if g.chars(original).is(CardType::Land) && cantrip_mechanics::effects::ask_may(g, asker.controller, asker.source, Purpose::Optional)? {{ let arrived = g.put_onto_battlefield(original, g.obj(original).owner, {tapped})?; entered = g.is_on_battlefield(arrived); }} g.end_sentence(); if !entered {{ let card = g.found_after_move(original).unwrap_or(original); g.return_to_hand(&[card]); }} }}").unwrap();
         Ok(true)
