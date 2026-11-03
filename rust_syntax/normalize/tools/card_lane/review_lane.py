@@ -170,7 +170,7 @@ def clean(tree):
 
 def driver_stamp():
     return tuple((HERE / name).stat().st_mtime_ns for name in (
-        'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py'))
+        'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py', 'card_lane.py'))
 
 
 def reload_at_boundary(root, slot, tree, script, stamp):
@@ -839,7 +839,7 @@ def worker(root, slot, once=False, resume=None):
                             text = ("Continue this SAME card in fresh context. All partial fixes remain on disk. Read the packet, "
                                     "review.json checkpoint and any notes, validate existing work and finish it. Do not discard edits.\n\n" + prompt(root, tree, packet_dir, job))
                             continue
-                        if code != 0 or report.get("decision") in ("blocked", "checkpoint"):
+                        if code != 0 or not report or report.get("decision") in ("blocked", "checkpoint"):
                             break
                         if job["stage"] == "confirm":
                             if git(tree, "status", "--porcelain"):
@@ -866,9 +866,16 @@ def worker(root, slot, once=False, resume=None):
                     except (NameError, OSError, ValueError):
                         pass
                     context_cards += 1
+                    if not report:
+                        result['error']='Worker produced no review report; inspect worker.jsonl for the infrastructure failure.'
                     if job["stage"] == "confirm":
-                        verdict = "passed" if code == 0 and report_valid(report, source["name"]) else "blocked"
+                        verdict = ("infrastructure" if code != 0 or not report else
+                                   "passed" if report_valid(report, source["name"]) else "blocked")
                         finish(db, job, verdict, result)
+                        if verdict == 'infrastructure':
+                            save(packet_dir/'result.json',result)
+                            save(folder/'live.json',dict(state='infrastructure',worker=slot,card=source['name'],at=now(),error=result.get('error','Confirmation process failed')))
+                            return
                         if not dedicated_verifier:
                             session, context_cards, previous_usage = None, 0, None
                     elif code == 0 and report_valid(report, source["name"]) and evidence.get("ok"):
@@ -882,7 +889,7 @@ def worker(root, slot, once=False, resume=None):
                                branch=branch, fixed_by=slot, stage="confirm" if logic_changed else "review")
                     else:
                         # A blocker is preserved, never discarded or called a failed card because of capacity.
-                        status = "infrastructure" if code != 0 else "blocked"
+                        status = "infrastructure" if code != 0 or not report else "blocked"
                         park_blocked(tree, source, packet_dir, paths, result)
                         finish(db, job, status, result, branch=branch)
                         if status == "infrastructure":
@@ -1028,7 +1035,10 @@ def main():
     elif args.command == "retry":
         print("requeued", retry_stopped(args.root, args.job, args.reason))
     elif args.command == "watch":
+        stamp=driver_stamp()
         while True:
+            if driver_stamp()!=stamp:
+                os.execv(sys.executable,[sys.executable,'-u',str(HERE/'review_lane.py'),'--root',str(args.root),'watch'])
             sync(args.root)
             if config(args.root).get('handoff_enabled',True):
                 handoff_verifier_findings(args.root)

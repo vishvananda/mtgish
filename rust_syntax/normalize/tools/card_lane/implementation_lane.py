@@ -29,9 +29,15 @@ def connect(root):
 def sync(root):
     cfg = review.config(root)
     mirror_outcomes(root)
-    queue = review.read(cfg['implementation_queue'])
-    revision = queue.get('generator_commit')
-    if not revision:
+    path = Path(cfg['implementation_queue'])
+    with Path(str(path)+'.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        return sync_queue(root,review.read(path))
+
+
+def sync_queue(root,queue):
+    queue_revision = queue.get('generator_commit')
+    if not queue_revision:
         raise ValueError('implementation queue must have generator_commit')
     meta = {k: v for k, v in queue.items() if k != 'cards'}
     pending = [c for c in queue['cards'] if c.get('status') == 'pending']
@@ -40,14 +46,16 @@ def sync(root):
         db.execute('BEGIN IMMEDIATE')
         added = 0
         for card in pending:
+            revision = card.get('implementation_generator_revision', queue_revision)
+            job_meta = dict(meta, generator_commit=revision)
             retry = card.get('implementation_retry', 0)
             identity = card['name'] + '\0' + revision + (f'\0retry:{retry}' if retry else '')
             key = hashlib.sha256(identity.encode()).hexdigest()[:20]
             keys.add(key)
             added += db.execute('INSERT OR IGNORE INTO implementation_jobs(id,name,revision,card,queue_meta,status,enqueued) VALUES(?,?,?,?,?,?,?)',
-                                (key, card['name'], revision, json.dumps(card), json.dumps(meta), 'queued', review.now())).rowcount
+                                (key, card['name'], revision, json.dumps(card), json.dumps(job_meta), 'queued', review.now())).rowcount
             db.execute("UPDATE implementation_jobs SET status='queued',card=?,queue_meta=? WHERE id=? AND status='unavailable'",
-                       (json.dumps(card), json.dumps(meta), key))
+                       (json.dumps(card), json.dumps(job_meta), key))
         # A removed candidate cannot be claimed. Running and terminal leases are never reset.
         for row in db.execute("SELECT id FROM implementation_jobs WHERE status='queued'").fetchall():
             if row['id'] not in keys:
@@ -84,9 +92,11 @@ def mirror_outcomes(root):
         by_name = {card['name']:card for card in queue['cards']}
         changed = False
         for job in jobs:
-            if queue.get('generator_commit') != job['revision'] or job['name'] not in by_name:
+            if job['name'] not in by_name:
                 continue
             card = by_name[job['name']]
+            if card.get('implementation_generator_revision',queue.get('generator_commit')) != job['revision']:
+                continue
             if card.get('implementation_retry',0) != json.loads(job['card']).get('implementation_retry',0):
                 continue
             before = dict(card)

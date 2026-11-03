@@ -227,6 +227,26 @@ class QueueTests(unittest.TestCase):
         with lane.connect(self.root) as db:
             self.assertEqual(db.execute("SELECT status FROM jobs").fetchone()[0], "blocked")
 
+    def test_missing_report_stops_as_infrastructure_without_repeated_model_repairs(self):
+        tree=self.root/'tree';tree.mkdir();folder=self.root/'packet';folder.mkdir()
+        lane.save(self.root/'config.json',{'reviewers':{'slot':{'tree':str(tree)}},'review_model':'test','repairs':3})
+        source={'name':'A','commit':'one'}
+        with lane.connect(self.root) as db:lane.enqueue(db,source)
+        class Usage:
+            def record(self,model):return {}
+        spawn=mock.Mock(return_value=(0,None,Usage()))
+        fake=SimpleNamespace(environment=lambda:{},Usage=Usage,Codex=lambda model,effort:SimpleNamespace(model=model),spawn=spawn)
+        with mock.patch.object(lane,'clean'),mock.patch.object(lane,'prepare',return_value=('branch','parent',source)), \
+             mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'packet',return_value=folder), \
+             mock.patch.object(lane,'prompt',return_value='review'),mock.patch.object(lane,'allowed_changes',return_value=[]), \
+             mock.patch.object(lane,'work_digest',return_value='digest'):
+            lane.worker(self.root,'slot',once=True)
+        spawn.assert_called_once()
+        with lane.connect(self.root) as db:
+            row=db.execute('select status,result from jobs').fetchone()
+            self.assertEqual(row['status'],'infrastructure')
+            self.assertIn('no review report',json.loads(row['result'])['error'])
+
     def test_dedicated_verifier_retains_independent_context_between_cards(self):
         import card_lane
         tree=self.root/'tree';tree.mkdir()

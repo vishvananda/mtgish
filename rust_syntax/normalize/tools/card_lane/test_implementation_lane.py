@@ -111,6 +111,22 @@ class ImplementationLaneTests(unittest.TestCase):
         self.assertEqual(impl.review.read(queue)['cards'][0]['commit'],'new')
         with self.assertRaises(ValueError):impl.retry_stopped(self.tmp_path,new['id'],'No duplicate')
 
+    def test_one_card_can_advance_generator_revision_without_changing_an_active_lease(self):
+        queue=setup_root(self.tmp_path,[{'name':'A','status':'pending'},{'name':'B','status':'pending'}])
+        impl.sync(self.tmp_path)
+        with impl.connect(self.tmp_path) as db:active=impl.claim(db,'i1')
+        q=impl.review.read(queue);q['cards'][1]['implementation_generator_revision']='fixed';impl.review.save(queue,q)
+        self.assertEqual(impl.sync(self.tmp_path),1)
+        with impl.connect(self.tmp_path) as db:
+            self.assertEqual(db.execute('select status from implementation_jobs where id=?',(active['id'],)).fetchone()[0],'running')
+            updated=impl.claim(db,'i2')
+        self.assertEqual((updated['name'],updated['revision']),('B','fixed'))
+        self.assertEqual(json.loads(updated['queue_meta'])['generator_commit'],'fixed')
+        impl.finish(self.tmp_path,active,'committed',{'card':{'name':'A','commit':'old-source'}})
+        impl.finish(self.tmp_path,updated,'committed',{'card':{'name':'B','commit':'fixed-source'}})
+        cards=impl.review.read(queue)['cards']
+        self.assertEqual([c['commit'] for c in cards],['old-source','fixed-source'])
+
 
     def test_session_rotation_and_usage(self):
         tmp_path = self.tmp_path

@@ -188,6 +188,11 @@ numeric-range bounds immediately before `i16`/`u16` narrowing casts are accepted
 card-rule clamps remain rejected. `implementation_lane.py --root ROOT retry JOB --reason ...` explicitly
 queues a fresh attempt after a blocker changes, archiving the old packet and retaining its terminal job.
 Old outcomes cannot overwrite the retry, and active or committed implementations cannot be retried.
+Targeted fixes can pin a stopped card's `implementation_generator_revision` independently of the queue's
+default revision. Queue synchronization is locked while it imports those pins, and active leases on
+other cards retain their source and outcome identity.
+Review workers stop as infrastructure failures if no report was produced, without repeated model
+repair attempts or a fabricated rules rejection. The watcher reloads changed drivers between polls.
 First-card cache warmup is part of elapsed time;
 worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
 time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.
