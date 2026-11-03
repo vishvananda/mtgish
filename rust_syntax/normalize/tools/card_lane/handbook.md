@@ -110,6 +110,16 @@ one target. `! Bot2.Block(Blocker > Attacker)` and `! Bot1.Attack(Attacker > Bot
 Bot1.Search(Plains)` refuses a find. A bare `! Bot1.Choose` (also `Accept`, `Target`, `Modes`) says the question is not asked; it
 needs something since the line above that could have asked it, so `Bot1.Pass` first.
 
+A limit is shown by refusing an answer past it, at the question:
+- `! Bot1.Modes(Count: 0)`: choosing no mode is refused ("choose one or both" takes at least one).
+- `! Bot1.Choose(A; B)`, several names that may each be chosen: that one answer is refused (too many for "up to one").
+  `! Bot1.Choose()`: choosing nothing is refused.
+- `! Bot1.Target(Count: 2)`: the slot does not take that many. `! Bot1.Target(Count: 0)`: it takes at least one.
+- `! Bot1.Arrange(A | B; C)`: that placement is refused, one group per destination in the prompt's order (one card to the
+  hand where it takes two). `! Bot1.Arrange(Shuffle)`: shuffling instead is refused.
+- `! Bot2.Block(Count: 0)`, `! Bot1.Attack()`: declaring none is refused.
+- `! Bot1.PayCost(Times: 4)`: paying that many times is refused.
+
 A refusal lands on the next question, so put it where the action would otherwise be legal. An action the player can't pay for
 is not offered, and the runner judges a refused cast or activation again with mana to spare, failing it as "proves nothing":
 give the player the mana, or write `! Bot1.Hand.Card.Cast(Mana: short)` when the cost is the point. Pair a refusal with the

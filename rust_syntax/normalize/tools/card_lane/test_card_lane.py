@@ -1202,6 +1202,14 @@ class SyntaxNotes(unittest.TestCase):
         for text in ("Choose a creature type.", "Each player chooses a creature they control."):
             self.assertFalse(lane.MODES.search(text), text)
 
+    def test_a_stream_card_is_told(self):
+        """A stream worker reads only the handbook and each card's section, never `brief()`."""
+        import inspect
+        self.assertIn("NOTES", inspect.getsource(lane.card_section))
+        handbook = (Path(lane.__file__).parent / "handbook.md").read_text(encoding="utf-8")
+        for form in ("Modes(Count: 0)", "Arrange(A | B; C)", "Choose(A; B)"):
+            self.assertIn(form, handbook)
+
     def test_companion(self):
         self.assertTrue(lane.COMPANION.search("Companion — Each nonland card in your starting deck has mana value 3 or greater."))
         self.assertFalse(lane.COMPANION.search("Each creature you control is a companion of yours."))

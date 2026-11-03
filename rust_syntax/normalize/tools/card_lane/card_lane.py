@@ -2024,6 +2024,8 @@ def card_section(number, card):
     out = [f"## Card {number}: {name}", "", json.dumps(facts_of(content), ensure_ascii=False), ""]
     played = faces_section(card, content)
     out += [played, ""] if played else []
+    words = " ".join(text for _, text in faces)
+    out += [line for pattern, note in NOTES if pattern.search(words) for line in (note, "")]
     if len(faces) > 1:
         # Each face's lines, numbered on through the card as the report's `lines` are.
         out.append("Printed lines, by face:")
