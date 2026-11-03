@@ -47,6 +47,8 @@ def connect(root):
     for column in ('source_base', 'dependencies'):
         if column not in {r['name'] for r in db.execute('PRAGMA table_info(publish_cards)')}:
             db.execute(f'ALTER TABLE publish_cards ADD COLUMN {column} TEXT')
+    if 'prerequisites' not in {r['name'] for r in db.execute('PRAGMA table_info(publish_batches)')}:
+        db.execute('ALTER TABLE publish_batches ADD COLUMN prerequisites TEXT')
     db.commit()
     return db
 
@@ -98,8 +100,9 @@ def reserve(db, cfg):
         number = db.execute('SELECT COALESCE(MAX(number),0)+1 FROM publish_batches').fetchone()[0]
         prefix = cfg['publisher'].get('branch_prefix', 'card/unlimited-20261103-batch')
         branch = f'{prefix}-{number:03d}'
-        db.execute('INSERT INTO publish_batches(number,branch,status,created,source_base) VALUES(?,?,?,?,?)',
-                   (number, branch, 'reserved', review.now(), cfg['base']))
+        db.execute('INSERT INTO publish_batches(number,branch,status,created,source_base,prerequisites) VALUES(?,?,?,?,?,?)',
+                   (number, branch, 'reserved', review.now(), cfg['base'],
+                    json.dumps(cfg['publisher'].get('prerequisites', []))))
         for i, c in enumerate(cards):
             db.execute('INSERT INTO publish_cards(batch,position,job,name,issue,candidate,source_base,dependencies) VALUES(?,?,?,?,?,?,?,?)',
                        (number, i, c['job'], c['name'], c['issue'], c['candidate'], c.get('source_base'),
@@ -131,7 +134,11 @@ def manifest(root, b, cards, cfg):
     folder = Path(root) / 'publication' / 'batches' / f"{b['number']:03d}"
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / 'manifest.json'
-    data = json.dumps(dict(number=b['number'], branch=b['branch'], source_base=b['source_base'], cards=cards), indent=2) + '\n'
+    contents = dict(number=b['number'], branch=b['branch'], source_base=b['source_base'], cards=cards)
+    prerequisites = json.loads(b.get('prerequisites') or '[]')
+    if prerequisites:
+        contents['prerequisites'] = prerequisites
+    data = json.dumps(contents, indent=2) + '\n'
     try:
         with path.open('x') as f:
             f.write(data)
@@ -169,8 +176,23 @@ def patch_id(repo, commit):
     return out.split()[0]
 
 
-def composition(repo, source_base, cards):
+def composition(repo, source_base, cards, dependencies=()):
     prerequisites, finals, seen = [], [], set()
+    # Coordinator-pinned integration repairs precede all card prerequisites.
+    # They are frozen with the reservation, independent of the workers' bases.
+    for dependency in dependencies:
+        sha = dependency['commit']
+        if not re.fullmatch(r'[0-9a-f]{40}', sha):
+            raise RuntimeError('publication prerequisite must be an immutable commit')
+        subject = git(repo, 'show', '-s', '--format=%s', sha)
+        if not subject.startswith(('Engine: ', 'Mechanics: ')):
+            raise RuntimeError(f'non-helper publication prerequisite {sha}: {subject}')
+        if len(git(repo, 'rev-list', '--parents', '-n', '1', sha).split()) != 2:
+            raise RuntimeError(f'merge or root publication prerequisite: {sha}')
+        pid = patch_id(repo, sha)
+        if pid not in seen:
+            seen.add(pid)
+            prerequisites.append(sha)
     for card in cards:
         candidate = card['candidate']
         baseline = card.get('source_base', source_base)
@@ -332,14 +354,14 @@ def integration_checks(root, cfg, b, cards, tree, folder):
     return sorted(names)
 
 
-def pr_body(cards, prereqs, tested, set_name='Unlimited'):
+def pr_body(cards, prereqs, tested, set_name='Unlimited', dependencies=()):
     lines = [f'Adds {len(cards)} {set_name} cards.', '', '## Cards', '', '| Card | Issue |', '| --- | --- |']
     lines += [f"| {c['name'].replace('|', '&#124;')} | #{c['issue']} |" for c in cards]
     lines += ['', '## Integration', '', f'{len(prereqs)} shared prerequisite commits, followed by {len(cards)} card commits.',
               '', '## Validation', '', f'Focused corpus for {len(tested)} new and changed cards; full-registry layer contract; checked Rust workspace with CANTRIP_VERIFY=1.', '']
-    dependencies = sorted({d['pr_url'] for c in cards for d in c.get('dependencies', [])})
-    if dependencies:
-        lines += ['Prerequisite helper PRs: '+', '.join(dependencies)+'. These commits are included until they land upstream.', '']
+    links = sorted({d['pr_url'] for c in cards for d in c.get('dependencies', [])} | {d['pr_url'] for d in dependencies})
+    if links:
+        lines += ['Prerequisite helper PRs: '+', '.join(links)+'. These commits are included until they land upstream.', '']
     lines += [f"Closes #{c['issue']}" for c in cards]
     return '\n'.join(lines) + '\n'
 
@@ -355,7 +377,8 @@ def publish(root, cfg, db, number):
             check_approvals(db, cards)
             validate_remote(repo, p.get('upstream_remote', 'origin'), p['upstream_repo'])
             validate_remote(repo, p.get('fork_remote', 'fork'), p['fork_owner'] + '/' + p['upstream_repo'].split('/')[-1])
-            prereqs, finals = composition(repo, b['source_base'], cards)
+            dependencies = json.loads(b.get('prerequisites') or '[]')
+            prereqs, finals = composition(repo, b['source_base'], cards, dependencies)
             git(repo, 'fetch', p.get('upstream_remote', 'origin'), 'main')
             base = git(repo, 'rev-parse', p.get('base_ref', 'origin/main') + '^{commit}')
             update(db, number, status='composing', base=base)
@@ -372,7 +395,7 @@ def publish(root, cfg, db, number):
             update(db, number, status='validating', head=head)
             b, _ = batch(db, number)
             tested = integration_checks(root, cfg, b, cards, tree, folder)
-            (folder / 'pr.md').write_text(pr_body(cards, prereqs, tested, p.get('set_name', 'Unlimited')))
+            (folder / 'pr.md').write_text(pr_body(cards, prereqs, tested, p.get('set_name', 'Unlimited'), dependencies))
             update(db, number, status='validated')
             b, _ = batch(db, number)
         if b['status'] in ('composing', 'validating'):

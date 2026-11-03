@@ -111,6 +111,12 @@ removed. It validates the integrated branch before pushing to the configured for
 Membership is reserved atomically and PR creation is idempotent. Conflicts or failed checks retain the batch for
 inspection. `flush_final` allows the final smaller batch once all work is terminal. Nothing merges upstream.
 
+`publisher.prerequisites` may pin separately validated integration repairs as `{commit, pr_url}` entries.
+Reservations freeze these full commit IDs and PR links independently of the cards' source bases. They precede
+card prerequisites, deduplicate by patch, and appear in the PR description. Only linear `Engine:` or `Mechanics:`
+commits are accepted; card approvals and all integration gates still apply. Changing the configuration affects
+future reservations, leaving retained batches and their manifests intact.
+
 `shared_base_manifest` optionally names an immutable validated helper pin: upstream `base`, full `head`,
 the exact linear list of `Engine:`/`Mechanics:` commits, its helper-only `pr_url`, and matching successful
 `validation` evidence. Promote it only after the helper branch passes integration checks. Card commits cannot

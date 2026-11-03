@@ -131,6 +131,42 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual(cards[0]['dependencies'],source['shared_dependencies'])
         self.assertEqual(json.loads((folder/'manifest.json').read_text())['cards'],cards)
 
+    def test_publication_prerequisites_are_frozen_separately_from_card_bases(self):
+        a = self.candidate('Alpha', 1)
+        helper = self.git('rev-parse', a+'^')
+        self.git('checkout', '-q', '--detach', self.base)
+        (self.repo/'sampler').write_text('physical card repair')
+        self.git('add', '.'); self.git('commit', '-qm', 'Engine: sampler repair')
+        repair = self.git('rev-parse', 'HEAD')
+        deps = [dict(commit=repair, pr_url='https://github.com/org/repo/pull/8')]
+        self.cfg['publisher']['prerequisites'] = deps
+        self.cfg['publisher']['batch_size'] = 1
+        self.add_job('Alpha', 1, a)
+        number = p.reserve(self.db, self.cfg)
+        self.cfg['publisher']['prerequisites'] = []
+        b, cards = p.batch(self.db, number)
+        frozen = json.loads(b['prerequisites'])
+        self.assertEqual(frozen, deps)
+        folder = p.manifest(self.root, b, cards, self.cfg)
+        self.assertEqual(json.loads((folder/'manifest.json').read_text())['prerequisites'], deps)
+        prerequisites, finals = p.composition(self.repo, self.base, cards, frozen)
+        self.assertEqual(prerequisites, [repair, helper])
+        self.assertEqual(finals, [a])
+        self.git('checkout', '-q', '--detach', self.base)
+        for sha in prerequisites + finals:
+            self.git('cherry-pick', sha)
+        self.assertEqual(self.git('log', '-1', '--format=%an'), 'Original Author')
+        self.assertIn(deps[0]['pr_url'], p.pr_body(cards, prerequisites, [], dependencies=frozen))
+        # A card's copy of the same prerequisite is not applied twice.
+        self.assertEqual(p.composition(self.repo, self.base, cards,
+                                      [dict(commit=helper)])[0], [helper])
+
+    def test_publication_prerequisite_rejects_mutable_refs_and_card_commits(self):
+        a = self.candidate('Alpha', 1)
+        for bad in ('HEAD', a):
+            with self.subTest(commit=bad), self.assertRaises(RuntimeError):
+                p.composition(self.repo, self.base, [], [dict(commit=bad)])
+
     def test_validation_failure_never_pushes_or_opens_pr(self):
         self.add_job('Alpha', 1, self.base); self.add_job('Beta', 2, self.base)
         num = p.reserve(self.db, self.cfg)
