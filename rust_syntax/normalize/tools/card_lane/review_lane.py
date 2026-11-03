@@ -473,11 +473,15 @@ Use `checkpoint` ONLY for unfinished work that needs another context, never mere
 "fixes":[{{"file":"...","kind":"logic|scenario|citation|comment|sharing","what":"...","proof":"..."}}],
 "affected_cards":["current card", "every other existing card changed or shared caller affected"],
 "equivalent_mutants":[{{"mutant":"exact key", "why":"why no game can distinguish it"}}],
+"rust_mutation_tests":{{"Card Name":["cantrip-cards::integration_test_target"]}},
 "manual_breaks":[{{"change":"...","scenario":"...","fails_broken":true,"passes_restored":true,"evidence":"log"}}],
 "generator_findings":["recipe improvements so future generation keeps these fixes"],
 "client":"existing interactions / concrete gap", "notes":""}}
 No pass with unresolved blockers or insufficient evidence. If context grows large, write checkpoint notes and
 return; fresh context resumes these same files. Finish the current card and return, never pick the next yourself.
+Optional rust_mutation_tests maps an affected card to changed card/mechanics integration test targets. The driver
+can credit a surviving scenario mutant only if an actual Rust assertion fails under that exact source mutation
+and the test passes after restoration. A compiler failure never counts. Tests must already pass their baseline.
 """
 
 
@@ -535,6 +539,46 @@ def allowed_changes(tree, name):
                 path.startswith("scenarios/") and path.endswith(".cantrip")):
             raise RuntimeError(f"out-of-scope edit {path}; preserved for inspection")
     return sorted(set(paths))
+
+
+def native_mutant_check(lane, card, mutant, tests, allowed_tests, folder):
+    """Credit an assertion failure on the exact mutant, never a failed build."""
+    path=lane.card_file(card)
+    if not path.is_file() or not isinstance(mutant.get('line'),int):return None
+    original=path.read_bytes()
+    lines=original.decode().splitlines(keepends=True)
+    index=mutant.get('line',0)-1
+    was,changed=mutant.get('was'),mutant.get('now')
+    if (not isinstance(was,str) or not isinstance(changed,str) or '\n' in changed or
+        not 0<=index<len(lines) or lines[index].rstrip('\r\n')!=was):
+        return None
+    ending='\r\n' if lines[index].endswith('\r\n') else '\n' if lines[index].endswith('\n') else ''
+    lines[index]=changed+ending
+    for target in tests:
+        if not isinstance(target,str):continue
+        parts=tuple(target.split('::'))
+        if parts not in allowed_tests:continue
+        package,test=parts
+        tag=hashlib.sha256((card+'\0'+mutant['key']+'\0'+target).encode()).hexdigest()[:16]
+        broken_log=folder/f'native-mutant-{tag}-broken.log'
+        restored_log=folder/f'native-mutant-{tag}-restored.log'
+        command=('cargo','test','--profile','checked','-p',package,'--test',test)
+        started=time.monotonic()
+        try:
+            path.write_text(''.join(lines))
+            code,out=lane.shell(*command,env=lane.full_environment())
+            broken_log.write_text(out)
+        finally:
+            path.write_bytes(original)
+        if not (code!=0 and re.search(r'test result: FAILED\..*\b[1-9]\d* failed',out)):
+            continue
+        code,restored=lane.shell(*command,env=lane.full_environment())
+        restored_log.write_text(restored)
+        if code==0 and re.search(r'[1-9]\d* passed; 0 failed',restored):
+            return dict(test=target,mutant=mutant['key'],was=was,now=changed,
+                        source_sha256=hashlib.sha256(original).hexdigest(),
+                        seconds=round(time.monotonic()-started,2),broken_log=str(broken_log),restored_log=str(restored_log))
+    return None
 
 
 def checks(root):
@@ -630,9 +674,21 @@ def checks(root):
         survivors = lane.mutation_gates([card], gates).get(card, [])
         declared_equiv = {e.get("mutant"): e.get("why") for e in report.get("equivalent_mutants", []) if isinstance(e, dict)}
         unresolved = [s for s in survivors if not lane.known_equivalent(s) and not declared_equiv.get(s["key"])]
+        native_catches=[]
+        mapping=report.get('rust_mutation_tests',{})
+        tests=mapping.get(card,[]) if isinstance(mapping,dict) else []
+        if isinstance(tests,list) and tests and all(row['ok'] for row in rows):
+            for mutant in list(unresolved):
+                proof=native_mutant_check(lane,card,mutant,tests,integration_tests,folder)
+                if proof:
+                    unresolved.remove(mutant);native_catches.append(proof)
+                    rows.append(dict(gate=card+' native mutant '+mutant['key'],ok=True,seconds=proof['seconds'],
+                                     log=proof['broken_log'],proof=proof))
+                    rows.append(dict(gate=card+' native mutant restored '+mutant['key'],ok=True,seconds=0,
+                                     log=proof['restored_log']))
         rows.append(dict(gate=card+" mutation", ok=not unresolved and not gates[card].failures(),
                          seconds=round(time.monotonic()-at, 2), survivors=survivors, unresolved=unresolved,
-                         details=gates[card].results))
+                         native_catches=native_catches,details=gates[card].results))
     shared = [p for p in changed if p.startswith("crates/cantrip-mechanics/")]
     if shared:
         record("shared citations", lambda: lane.tool("cr.py", "check", "--show", *shared))

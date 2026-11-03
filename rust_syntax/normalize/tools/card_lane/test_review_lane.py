@@ -31,6 +31,41 @@ class QueueTests(unittest.TestCase):
             roots=json.loads(next(x.split('=',1)[1] for x in command if x.startswith('sandbox_workspace_write.writable_roots=')))
             self.assertTrue(all(Path(p).is_dir() for p in roots))
 
+    def test_native_mutation_requires_a_real_assertion_failure_and_restoration(self):
+        path=self.root/'card.rs';original='const COST: bool = false;\n';path.write_text(original)
+        calls=[]
+        def shell(*args,**kwargs):
+            calls.append(path.read_text())
+            return (1,'test result: FAILED. 0 passed; 1 failed') if 'true' in calls[-1] else (0,'test result: ok. 1 passed; 0 failed')
+        fake=SimpleNamespace(card_file=lambda _:path,shell=shell,full_environment=lambda:{})
+        mutant=dict(line=1,was=original.rstrip(),now='const COST: bool = true;',key='cost')
+        proof=lane.native_mutant_check(fake,'Card',mutant,['cantrip-cards::boundary'],{('cantrip-cards','boundary')},self.root)
+        self.assertIsNotNone(proof)
+        self.assertEqual(calls,['const COST: bool = true;\n',original])
+        self.assertEqual(path.read_text(),original)
+        self.assertTrue(Path(proof['broken_log']).is_file() and Path(proof['restored_log']).is_file())
+
+    def test_native_mutation_rejects_build_errors_unapproved_tests_and_wrong_source(self):
+        path=self.root/'card.rs';original='const COST: bool = false;\n';path.write_text(original)
+        shell=mock.Mock(return_value=(101,'error: failed to compile'))
+        fake=SimpleNamespace(card_file=lambda _:path,shell=shell,full_environment=lambda:{})
+        mutant=dict(line=1,was=original.rstrip(),now='const COST: bool = true;',key='cost')
+        allowed={('cantrip-cards','boundary')}
+        self.assertIsNone(lane.native_mutant_check(fake,'Card',mutant,['cantrip-cards::boundary'],allowed,self.root))
+        self.assertEqual(path.read_text(),original)
+        shell.assert_called_once();shell.reset_mock()
+        self.assertIsNone(lane.native_mutant_check(fake,'Card',mutant,['cantrip-cards::other'],allowed,self.root))
+        self.assertIsNone(lane.native_mutant_check(fake,'Card',{**mutant,'was':'different'},['cantrip-cards::boundary'],allowed,self.root))
+        shell.assert_not_called()
+
+    def test_native_mutation_restores_source_when_a_test_process_raises(self):
+        path=self.root/'card.rs';original='const COST: bool = false;\n';path.write_text(original)
+        fake=SimpleNamespace(card_file=lambda _:path,shell=mock.Mock(side_effect=RuntimeError('process failed')),full_environment=lambda:{})
+        with self.assertRaises(RuntimeError):
+            lane.native_mutant_check(fake,'Card',dict(line=1,was=original.rstrip(),now='const COST: bool = true;',key='cost'),
+                                     ['cantrip-cards::boundary'],{('cantrip-cards','boundary')},self.root)
+        self.assertEqual(path.read_text(),original)
+
     def test_draining_reviewer_stops_before_claiming_another_card(self):
         lane.save(self.root/'config.json',dict(enabled=True,reviewers={'r7':dict(tree=str(self.root/'tree'),draining=True)}))
         with mock.patch.object(lane,'claim') as claim:

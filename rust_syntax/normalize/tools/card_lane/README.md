@@ -193,6 +193,12 @@ default revision. Queue synchronization is locked while it imports those pins, a
 other cards retain their source and outcome identity.
 Review workers stop as infrastructure failures if no report was produced, without repeated model
 repair attempts or a fabricated rules rejection. The watcher reloads changed drivers between polls.
+For behavior an integration test observes but scenarios do not, a report may declare
+`"rust_mutation_tests": {"Card Name": ["cantrip-cards::test_target"]}`. Only changed integration
+targets that already pass baseline validation are eligible. The driver applies the exact surviving
+source mutation, requires a failing Rust test assertion, restores the original bytes in all cases,
+and requires a passing nonempty restored test run. Both logs and the original source hash are
+retained in the normal confirmation evidence. Build failures do not count as caught mutants.
 First-card cache warmup is part of elapsed time;
 worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
 time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.
