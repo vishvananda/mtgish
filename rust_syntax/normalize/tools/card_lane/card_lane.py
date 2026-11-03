@@ -76,8 +76,7 @@ SCENARIOS_DIR = "scenarios"
 
 # USD per million tokens: ordinary input, cached input, output. API-equivalent list prices as vizier's
 # scripts/card_agent_usage.py records them; a ChatGPT login is not billed by the token.
-RATES = {"gpt-6-luna": (.10, .01, .50), "gpt-5.6-luna": (.20, .02, 1.20), "gpt-6-sol": (2, .20, 10), "gpt-6.1-sol": (2, .10, 10), "gpt-6.1-terra": (1, .05, 5),
-         "gpt-6-astra": (10, 1, 50)}
+from usage_costs import RATES
 
 MUTATION_LIMIT = 200  # about 3 s each; a card past this is reported as partly tested, not passed silently
 PRIOR_ART, PRIOR_ART_CHARS = 3, 3000  # scenarios in a packet's prior-art.md, and the most of any one

@@ -814,8 +814,11 @@ def pipeline_flow(db, cfg):
 
 
 def status(root):
+    from usage_costs import pipeline_summary
     with connect(root) as db:
-        flow=pipeline_flow(db,config(root) if (Path(root)/'config.json').exists() else {})
+        cfg=config(root) if (Path(root)/'config.json').exists() else {}
+        flow=pipeline_flow(db,cfg)
+        costs=pipeline_summary(db,cfg)
         counts = [dict(r) for r in db.execute("SELECT stage,status,count(*) AS cards FROM jobs GROUP BY stage,status")]
         active = [dict(r) for r in db.execute("SELECT id,name,stage,worker,started FROM jobs WHERE status='running'")]
         results = [json.loads(r[0]) for r in db.execute("SELECT detail FROM events WHERE kind IN ('passed','queued','blocked','infrastructure')")]
@@ -841,7 +844,7 @@ def status(root):
     end = now() if any(c["status"] in ("queued", "running") for c in counts) else last_finish
     elapsed = max(0, (dt.datetime.fromisoformat(end) - dt.datetime.fromisoformat(first_claim)).total_seconds()) if end and first_claim else 0
     ready = sum(c["cards"] for c in counts if c["status"] == "passed")
-    return dict(at=now(), counts=counts, active=active, implementation=producers,flow=flow,
+    return dict(at=now(), counts=counts, active=active, implementation=producers,flow=flow,costs=costs,
                 implementation_committed_names=implemented_names, completed_attempts=len(secs),
                 worker_progress=worker_progress, review_elapsed_seconds=elapsed,
                 review_rate_per_hour=3600*ready/elapsed if elapsed else None,

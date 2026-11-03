@@ -126,7 +126,16 @@ with a live low-threshold Codex run, not just an assumed configuration setting. 
 
 Per-card artifacts live in `jobs/<revision-id>/<review-or-confirm>/`: full packet, worker stream, review report,
 gate logs, exact fix diff and result. Queue events retain each stage's elapsed time, token usage, context size and
-rotations; `status` reports review/confirmation counts and timing. First-card cache warmup is part of elapsed time;
+rotations; `status` reports review/confirmation counts, timing and cost estimates. Its `costs.cards` map
+sums implementation, review/fix and verifier usage, including rejected rounds. Original batch implementation
+costs are apportioned; newer one-card jobs use per-card token deltas. Results copied into sources or replayed
+during deterministic gate recovery count once. The top average uses cards that finished review/verification
+and have priced usage for both implementation and review; total cost includes blocked and unfinished cards'
+recorded attempts. In-flight usage is added when its result arrives. These are standard API-equivalent
+estimates, not subscription charges, and exclude tier, long-context, cache-write and regional adjustments.
+The dashboard shows the average and per-card costs; `~/card-lane/status.sh --costs` lists every recorded card
+with its stage breakdown, and `--json` includes the underlying accounting. Pricing lives in `usage_costs.py`.
+First-card cache warmup is part of elapsed time;
 worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
 time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.
 
