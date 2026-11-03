@@ -168,6 +168,21 @@ def clean(tree):
         raise RuntimeError(f"{tree}: unfinished work preserved; inspect it before restarting this slot")
 
 
+def driver_stamp():
+    return tuple((HERE / name).stat().st_mtime_ns for name in (
+        'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py'))
+
+
+def reload_at_boundary(root, slot, tree, script, stamp):
+    if driver_stamp() != stamp:
+        clean(tree)
+        # The slot lock is close-on-exec. Drop an already-consumed --resume
+        # argument and start fresh only after the previous lease has finished.
+        print('Reloading updated driver at clean card boundary', flush=True)
+        os.execv(sys.executable, [sys.executable, '-u', str(HERE / script),
+                                 '--root', str(root), 'worker', slot])
+
+
 def load_lane(root, tree, state):
     cfg = config(root)
     scratch = tree / 'target' / 'tmp'
@@ -685,6 +700,7 @@ def worker(root, slot, once=False, resume=None):
     with (folder / "slot.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         session, context_cards, previous_usage, session_role = None, 0, None, None
+        stamp = driver_stamp()
         while True:
             cfg = config(root)
             if not cfg.get("enabled", True):
@@ -694,6 +710,7 @@ def worker(root, slot, once=False, resume=None):
                 session, context_cards, previous_usage, session_role = None, 0, None, role
             if not resume:
                 clean(tree)
+                reload_at_boundary(root, slot, tree, 'review_lane.py', stamp)
             with connect(root) as db:
                 if resume:
                     db.execute("BEGIN IMMEDIATE")

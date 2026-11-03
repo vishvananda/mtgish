@@ -174,11 +174,13 @@ def worker(root, slot, once=False):
         backend = lane.Codex(cfg.get('producer_model', 'gpt-6.1-terra'), cfg.get('producer_effort', 'medium'))
         session = Session(lane, cfg, folder)
         lane.spawn = session.spawn
+        stamp = review.driver_stamp()
         while True:
             cfg = review.config(root)
             if not cfg.get('enabled', True):
                 return
             review.clean(tree)
+            review.reload_at_boundary(root, slot, tree, 'implementation_lane.py', stamp)
             sync(root)
             with connect(root) as db:
                 job = claim(db, slot)

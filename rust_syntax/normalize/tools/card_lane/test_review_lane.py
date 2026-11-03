@@ -398,6 +398,23 @@ class GitTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def test_updated_driver_reloads_only_at_clean_boundary_without_old_resume(self):
+        with mock.patch.object(lane,'driver_stamp',return_value=('new',)), \
+             mock.patch.object(lane,'clean') as clean,mock.patch.object(lane.os,'execv') as execv:
+            lane.reload_at_boundary('/campaign','r6',Path('/tree'),'review_lane.py',('old',))
+        clean.assert_called_once_with(Path('/tree'))
+        args=execv.call_args.args[1]
+        self.assertEqual(args[-4:],['--root','/campaign','worker','r6'])
+        self.assertNotIn('--resume',args)
+
+    def test_updated_driver_preserves_dirty_card_work_instead_of_reloading(self):
+        with mock.patch.object(lane,'driver_stamp',return_value=('new',)), \
+             mock.patch.object(lane,'clean',side_effect=RuntimeError('unfinished work preserved')), \
+             mock.patch.object(lane.os,'execv') as execv:
+            with self.assertRaisesRegex(RuntimeError,'preserved'):
+                lane.reload_at_boundary('/campaign','r6',Path('/tree'),'review_lane.py',('old',))
+        execv.assert_not_called()
+
     def test_only_additive_local_test_dependencies_and_matching_lockfile_are_allowed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);package=root/'crates/cantrip-cards';package.mkdir(parents=True)

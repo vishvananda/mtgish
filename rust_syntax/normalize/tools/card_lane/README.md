@@ -171,6 +171,8 @@ Reviewers may add Rust mechanics integration tests and existing local workspace 
 runtime dependencies and external dependency changes remain outside card review scope. The driver runs
 new integration tests and edited cards' inline Rust tests. An infrastructure stop retains completed
 review evidence and usage so an explicit resume can reuse an unchanged report and source.
+Drivers reload changed pipeline code at a clean card boundary, after finishing their lease, so later jobs
+receive scope and helper-pin updates without interrupting active cards or reusing an old resume argument.
 First-card cache warmup is part of elapsed time;
 worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
 time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.
