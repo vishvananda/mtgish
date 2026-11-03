@@ -1344,6 +1344,7 @@
     "ReturnEachPermanentToCommandZone({{PERMANENTS}})": "",
     "ReturnEnchantingGraveyardCardToBattlefield({{ENTER_FLAGS}})": "",
     "ReturnEnchantingGraveyardCardToHand": "",
+    "ReturnDiscardedCardToHand": "",
     "ReturnGraveyardCardToHand({{CARD_IN_GRAVEYARDS}})": "",
     "ReturnGraveyardCardToTopOrBottomOfLibrary({{CARD_IN_GRAVEYARDS}})": "",
     "ReturnGraveyardCardsToHand({{GRAVEYARD_CARDS}})": "",

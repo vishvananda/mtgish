@@ -9878,6 +9878,7 @@ pub enum Action {
   ReturnEachPermanentToCommandZone(Box<Permanents>),
   ReturnEnchantingGraveyardCardToBattlefield(Vec<EnterFlag>),
   ReturnEnchantingGraveyardCardToHand,
+  ReturnDiscardedCardToHand,
   ReturnGraveyardCardToHand(Box<CardInGraveyards>),
   ReturnGraveyardCardToTopOrBottomOfLibrary(Box<CardInGraveyards>),
   ReturnGraveyardCardsToHand(Box<CardsInGraveyards>),

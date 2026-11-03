@@ -1081,6 +1081,7 @@ type Action =
 | { "_Action": "ReturnEachPermanentToCommandZone", "args": Permanents }
 | { "_Action": "ReturnEnchantingGraveyardCardToBattlefield", "args": Array<EnterFlag> }
 | { "_Action": "ReturnEnchantingGraveyardCardToHand" }
+| { "_Action": "ReturnDiscardedCardToHand" }
 | { "_Action": "ReturnGraveyardCardToHand", "args": CardInGraveyards }
 | { "_Action": "ReturnGraveyardCardToTopOrBottomOfLibrary", "args": CardInGraveyards }
 | { "_Action": "ReturnGraveyardCardsToHand", "args": CardsInGraveyards }

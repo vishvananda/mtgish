@@ -1,0 +1,64 @@
+{
+  "id": "REF-004",
+  "summary": "Quagnoth adds an unprinted graveyard restriction to the discarded-card return.",
+  "status": "New; needs upstream review. Still counted as different by the grammar scorer.",
+  "reference_revision": "96edc74fbdfdc14a0ec251c5daeda0e5b227f5b3",
+  "rule": "400.7e, 701.9c and 614.6",
+  "cards": [
+    {
+      "name": "Quagnoth",
+      "text": "Split second\nShroud\nWhen a spell or ability an opponent controls causes you to discard this card, return it to your hand.",
+      "reference_changes": [
+        {
+          "path": "/2/args/ability/args/body/instructions/0/args/operation/args/objects/args",
+          "actual": {
+            "kind": "Query",
+            "args": {
+              "objects": {
+                "kind": "InZone",
+                "args": {
+                  "objects": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "EventDestination"
+                    }
+                  },
+                  "zone": "Graveyard"
+                }
+              },
+              "index": 0
+            }
+          },
+          "expected": {
+            "kind": "Discarded"
+          }
+        }
+      ]
+    }
+  ],
+  "reason": "The card returns itself after an opponent causes its discard without requiring it to be in the graveyard. A replacement can send the discarded card to exile while the discard trigger still occurs; the reference InZone(Graveyard) query then selects nothing. The native Discarded reference explicitly tracks the card after a discard wherever replacements sent it.",
+  "regression_scenarios": [
+    "Ordinary discard into the graveyard returns the card.",
+    "An opponent-caused discard modified to put the card in exile still permits the return from that first public destination.",
+    "Tergrid explicitly requires a graveyard card and must retain its graveyard restriction."
+  ],
+  "evidence": [
+    "Pinned Comprehensive Rules effective 2026-09-25, saved as reports/local/ir-grammar/work/event-destination-repair/rules.txt.",
+    "Frozen native IR documentation: rust_syntax/ir/src/ir.rs ObjectRef::Discarded versus EventDestination.",
+    "Saved current-reference gold and every grammar reading in work/event-destination-repair/before.jsonl and after.jsonl."
+  ],
+  "source_fix_note": "Check the source/template classification of Quagnoth\u2019s returned-card operand before regenerating the reference. Do not globally remove explicit graveyard guards from other cards.",
+  "date": "2026-11-03",
+  "producer": "English template returns the discarded event object rather than a graveyard-specific reference.",
+  "source_action": "ReturnDiscardedCardToHand",
+  "validation": {
+    "go": "49 full-card parser fixtures pass",
+    "rust": "14 targeted lowering/roundtrip/zone-control tests pass",
+    "source_corpus_records": 33529,
+    "source_records_changed": 1,
+    "changed_card": "Quagnoth",
+    "json_records_changed": 1,
+    "pretty_records_changed": 1,
+    "bindings": "New tagged member verified against ts-rs; unrelated existing bundled binding drift preserved"
+  }
+}

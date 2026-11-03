@@ -2769,6 +2769,19 @@ impl Context {
     }
 
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        if let source::Action::ReturnDiscardedCardToHand = value {
+            if !self.event.discarded {
+                return Err(invalid("this event discards no card"));
+            }
+            // CR 400.7e: the discard's new object can be in any public
+            // destination. A replacement does not imply a graveyard guard.
+            return Ok(self.effect(Operation::Move {
+                objects: ObjectSet::One(ObjectRef::Discarded),
+                destination: Destination::OwnersHand,
+                entry: EntrySpec::default(),
+                face_down: false,
+            }));
+        }
         if let source::Action::ReturnSpellOrPermanentToOwnersHand(object) = value {
             let objects = ObjectSet::One(self.spell_or_permanent(object)?);
             return Ok(self.effect(Operation::Move {

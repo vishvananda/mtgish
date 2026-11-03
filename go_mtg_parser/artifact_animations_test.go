@@ -13,6 +13,15 @@ import (
 // bare animations and explicit retention clauses preserve them. Compare the
 // entire source record so colors, PT, duration, keywords and ordering survive.
 func TestArtifactAnimationCreatureTypes(t *testing.T) {
+	testSourceReferenceFixtures(t, "artifact_animations.ronl", "restless_cottage.ronl", "retained_animations.ronl")
+}
+
+func TestDiscardedCardReturnReference(t *testing.T) {
+	testSourceReferenceFixtures(t, "discard_return.ronl")
+}
+
+func testSourceReferenceFixtures(t *testing.T, fixtureNames ...string) {
+	t.Helper()
 	englishFiles, _ := filepath.Glob("../grammars/english_grammar*.json5")
 	mtgishFiles, _ := filepath.Glob("../grammars/mtgish_grammar*.json5")
 	english := ReadGrammarJsoncFiles(englishFiles)
@@ -36,20 +45,14 @@ func TestArtifactAnimationCreatureTypes(t *testing.T) {
 	}
 	mtgish["QUOTED_NAME"] = LoadTemplatesFor(makeSelfPairs(quotedNames))
 	mtgishTree := CreateTokenReTriesFromTemplatesAndResults(mtgish)
-	fixture, err := os.ReadFile("../rust_syntax/normalize/tests/fixtures/artifact_animations.ronl")
-	if err != nil {
-		t.Fatal(err)
+	var fixture []byte
+	for _, name := range fixtureNames {
+		data, err := os.ReadFile(filepath.Join("../rust_syntax/normalize/tests/fixtures", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fixture = append(fixture, data...)
 	}
-	cottage, err := os.ReadFile("../rust_syntax/normalize/tests/fixtures/restless_cottage.ronl")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fixture = append(fixture, cottage...)
-	retained, err := os.ReadFile("../rust_syntax/normalize/tests/fixtures/retained_animations.ronl")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fixture = append(fixture, retained...)
 	namePattern := regexp.MustCompile(`Name: "([^"]+)"`)
 	for _, expected := range strings.Split(strings.TrimSpace(string(fixture)), "\n") {
 		name := namePattern.FindStringSubmatch(expected)[1]
@@ -71,7 +74,7 @@ func TestArtifactAnimationCreatureTypes(t *testing.T) {
 				t.Fatal(err)
 			}
 			if parsed.MtgishText != expected {
-				t.Errorf("animation changed:\n got: %s\nwant: %s", parsed.MtgishText, expected)
+				t.Errorf("source reference changed:\n got: %s\nwant: %s", parsed.MtgishText, expected)
 			}
 		})
 	}

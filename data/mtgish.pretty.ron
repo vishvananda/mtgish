@@ -1016729,7 +1016729,7 @@ Card(
         SingleCardInHand(ThisCardInHand),
       ),
       ActionList([
-        ReturnGraveyardCardToHand(Trigger_ThatGraveyardCard),
+        ReturnDiscardedCardToHand,
       ]),
     )),
   ],
