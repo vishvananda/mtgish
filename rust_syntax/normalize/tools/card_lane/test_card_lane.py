@@ -1192,5 +1192,20 @@ class RandomNote(unittest.TestCase):
             self.assertFalse(lane.RANDOM.search(text), text)
 
 
+class SyntaxNotes(unittest.TestCase):
+    """A card is told the scenario syntax its words need: no modes refused (Deafening Clarion), a companion (Keruga)."""
+
+    def test_modes(self):
+        for text in ("Choose one or both —\n• Deafening Clarion deals 3 damage", "Choose one —\n• Destroy X target artifacts",
+                     "Choose two. You may choose the same mode more than once. —"):
+            self.assertTrue(lane.MODES.search(text), text)
+        for text in ("Choose a creature type.", "Each player chooses a creature they control."):
+            self.assertFalse(lane.MODES.search(text), text)
+
+    def test_companion(self):
+        self.assertTrue(lane.COMPANION.search("Companion — Each nonland card in your starting deck has mana value 3 or greater."))
+        self.assertFalse(lane.COMPANION.search("Each creature you control is a companion of yours."))
+
+
 if __name__ == "__main__":
     unittest.main()

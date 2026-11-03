@@ -77,7 +77,7 @@ SCENARIOS_DIR = "scenarios"
 RATES = {"gpt-6-luna": (.10, .01, .50), "gpt-5.6-luna": (.20, .02, 1.20), "gpt-6-sol": (2, .20, 10), "gpt-6.1-sol": (2, .10, 10), "gpt-6.1-terra": (1, .05, 5),
          "gpt-6-astra": (10, 1, 50)}
 
-MUTATION_LIMIT = 40  # about 16 s each; a card past this is reported as partly tested, not passed silently
+MUTATION_LIMIT = 200  # about 3 s each; a card past this is reported as partly tested, not passed silently
 PRIOR_ART, PRIOR_ART_CHARS = 3, 3000  # scenarios in a packet's prior-art.md, and the most of any one
 STOPS = ("generator_bug", "engine_gap", "needs_review")  # what a worker can report instead of `done`; no gate can undo these
 BATCH = []  # the cards open together in the one tree, if any. Paths then go by owner: see `owner`
@@ -483,6 +483,13 @@ RANDOM_NOTE = ("A coin flip, a die roll or a choice at random is never left to c
                "faces in the order they come up (`6; 1; 3`). A coin is a two-sided die, so face 1 wins the flip and face 2 "
                "loses it, and one of N things at random is a die of N sides (`scenarios/README.md`, \"Dice\"). Play each "
                "result the card cares about. Never sweep RNG seeds.")
+MODES = re.compile(r"\bchoose (one|two|three|four|one or both|one or more|any number)\b[^—\n]*—", re.I)
+MODES_NOTE = ("A choice of modes is answered with `Bot1.Modes(<label>; <label>)`. `! Bot1.Modes(Count: 0)` refuses choosing no "
+              "mode at all, which shows the card asks for at least one; `! Bot1.Modes()` refuses the whole question instead.")
+COMPANION = re.compile(r"\bcompanion\b\s*—", re.I)
+COMPANION_NOTE = ("A companion starts outside the game (CR 702.139): a `[Bot1 Companion]` section names it, one card, and "
+                  "`Bot1.Sideboard.<Card>.TakeCompanion` pays {3} and puts it into its owner's hand (CR 116.2g).")
+NOTES = ((RANDOM, RANDOM_NOTE), (MODES, MODES_NOTE), (COMPANION, COMPANION_NOTE))
 
 
 def brief(card, driven=False):
@@ -505,8 +512,8 @@ def brief(card, driven=False):
         content = json.loads(content_file(name).read_text(encoding="utf-8-sig"))
         played = faces_section(card, content)
         lines += ["", played] if played else []
-        if RANDOM.search(" ".join(text for _, text in content_faces(content))):
-            lines += ["", RANDOM_NOTE]
+        text = " ".join(text for _, text in content_faces(content))
+        lines += [line for pattern, note in NOTES if pattern.search(text) for line in ("", note)]
     if driven:
         lines += ["", "A driver runs the gates and makes the commit. Stop after writing `report.json`; do not run `commit` or `abandon`."]
     return "\n".join(lines) + "\n"
