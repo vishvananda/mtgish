@@ -117,6 +117,17 @@ card prerequisites, deduplicate by patch, and appear in the PR description. Only
 commits are accepted; card approvals and all integration gates still apply. Changing the configuration affects
 future reservations, leaving retained batches and their manifests intact.
 
+Publication also checks the exact heads of other open card PRs from the configured fork owner. The
+`git merge-tree` check runs before integration tests and again before pushing, and records the pending heads
+and conflicting paths in `pending-pr-compatibility.json`. `publisher.check_pending_prs` defaults to true.
+This catches batches which pass alone but conflict with one another.
+
+Set `publisher.require_shared_pin` to require promotion of every new shared prerequisite to the validated
+common foundation before publishing cards which consume it. Already-landed equivalent patches and separately
+pinned publication repairs are accepted. Unpromoted helpers remain held for consolidation; changing a helper's
+name does not make it eligible. The shared foundation must be reconciled and validated serially, then consumed
+by card batches. Checking merge compatibility alone cannot identify equivalent code under different names.
+
 `shared_base_manifest` optionally names an immutable validated helper pin: upstream `base`, full `head`,
 the exact linear list of `Engine:`/`Mechanics:` commits, its helper-only `pr_url`, and matching successful
 `validation` evidence. Promote it only after the helper branch passes integration checks. Card commits cannot

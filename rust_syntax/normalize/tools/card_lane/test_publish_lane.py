@@ -50,6 +50,7 @@ class PublisherTests(unittest.TestCase):
         self.base = self.git('rev-parse', 'HEAD')
         self.db = p.connect(self.root)
         self.cfg = {'base': self.base, 'lane_root': str(self.root), 'publisher': {'enabled': True, 'batch_size': 2, 'repo': str(self.repo), 'upstream_repo': 'org/repo', 'fork_owner': 'me', 'worktree_root': str(self.root)}}
+        self.cfg['publisher']['check_pending_prs'] = False
 
     def tearDown(self):
         self.db.close(); self.tmp.cleanup()
@@ -227,6 +228,20 @@ class PublisherTests(unittest.TestCase):
                 p.publish(self.root, self.cfg, self.db, num)
         self.assertEqual(command.call_count, 0)
         self.assertEqual(git.call_count, 0)
+        self.assertEqual(p.batch(self.db, num)[0]['status'], 'blocked')
+
+    def test_pending_pr_conflict_stops_a_validated_batch_before_push(self):
+        self.add_job('Alpha', 1, self.base); self.add_job('Beta', 2, self.base)
+        num = p.reserve(self.db, self.cfg)
+        p.update(self.db, num, status='validated', base=self.base, head=self.base)
+        self.cfg['publisher']['check_pending_prs'] = True
+        with mock.patch.object(p, 'validate_remote'), \
+             mock.patch.object(p, 'pending_pr_checks', side_effect=RuntimeError('pending PR conflict')) as pending, \
+             mock.patch.object(p, 'git', side_effect=lambda repo, *args, **kw: self.base if args[:2] == ('rev-parse', 'HEAD') else '') as git:
+            with self.assertRaisesRegex(RuntimeError, 'pending PR conflict'):
+                p.publish(self.root, self.cfg, self.db, num)
+        self.assertEqual(pending.call_count, 1)
+        self.assertFalse(any('push' in call.args for call in git.call_args_list))
         self.assertEqual(p.batch(self.db, num)[0]['status'], 'blocked')
 
     def test_changed_candidate_stops_before_push(self):

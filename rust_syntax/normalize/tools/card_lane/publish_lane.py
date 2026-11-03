@@ -307,6 +307,8 @@ def pick_prerequisite(tree, sha):
 
 
 def integration_checks(root, cfg, b, cards, tree, folder):
+    if cfg['publisher'].get('check_pending_prs', True):
+        pending_pr_checks(cfg, b, tree, folder)
     scratch = tree / 'target' / 'tmp'
     scratch.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, CANTRIP_VERIFY='1', CARGO_BUILD_JOBS='8', CARGO_TARGET_DIR=str(tree / 'target'),
@@ -354,6 +356,26 @@ def integration_checks(root, cfg, b, cards, tree, folder):
     return sorted(names)
 
 
+def pending_pr_checks(cfg, b, tree, folder):
+    import pending_publications
+    p = cfg['publisher']
+    _, raw = external_read(command, tree, 'gh', 'pr', 'list', '--repo', p['upstream_repo'],
+                           '--author', p['fork_owner'], '--state', 'open', '--limit', '1000',
+                           '--json', 'number,headRefName,headRefOid,headRepositoryOwner')
+    pending = [pr for pr in json.loads(raw)
+               if pr['headRefName'].startswith('card/')
+               and pr.get('headRepositoryOwner', {}).get('login', '').lower() == p['fork_owner'].lower()]
+    for pr in pending:
+        if command(tree, 'git', 'cat-file', '-e', pr['headRefOid']+'^{commit}', check=False)[0]:
+            external_read(git, tree, 'fetch', p.get('fork_remote', 'fork'), pr['headRefOid'])
+    head = git(tree, 'rev-parse', 'HEAD')
+    result = pending_publications.check_heads(tree, b['branch'], head, pending)
+    pending_publications.save(folder/'pending-pr-compatibility.json', result)
+    if not result['ok']:
+        conflicts = ', '.join('#'+str(pr['pr']) for pr in result['checks'] if not pr['ok'])
+        raise RuntimeError('Integrated batch conflicts with pending PRs '+conflicts+'; reconcile the shared foundation first')
+
+
 def pr_body(cards, prereqs, tested, set_name='Unlimited', dependencies=()):
     lines = [f'Adds {len(cards)} {set_name} cards.', '', '## Cards', '', '| Card | Issue |', '| --- | --- |']
     lines += [f"| {c['name'].replace('|', '&#124;')} | #{c['issue']} |" for c in cards]
@@ -381,6 +403,13 @@ def publish(root, cfg, db, number):
             prereqs, finals = composition(repo, b['source_base'], cards, dependencies)
             git(repo, 'fetch', p.get('upstream_remote', 'origin'), 'main')
             base = git(repo, 'rev-parse', p.get('base_ref', 'origin/main') + '^{commit}')
+            if p.get('require_shared_pin', False):
+                import pending_publications
+                import shared_base
+                pin = shared_base.read_pin(cfg, repo)
+                if not pin:
+                    raise RuntimeError('Shared prerequisite promotion requires a validated foundation pin')
+                pending_publications.require_promoted(repo, base, prereqs, pin, dependencies)
             update(db, number, status='composing', base=base)
             if tree.exists() or command(repo, 'git', 'show-ref', '--verify', '--quiet', 'refs/heads/' + b['branch'], check=False)[0] == 0:
                 raise RuntimeError('publisher worktree or branch already exists')
@@ -405,6 +434,8 @@ def publish(root, cfg, db, number):
             if git(tree, 'status', '--porcelain') or git(tree, 'rev-parse', 'HEAD') != b['head']:
                 raise RuntimeError('validated worktree changed')
             check_approvals(db, cards)
+            if p.get('check_pending_prs', True):
+                pending_pr_checks(cfg, b, tree, folder)
             ref = 'refs/heads/' + b['branch']
             remote = p.get('fork_remote', 'fork')
             remote_line = external_read(git, repo, 'ls-remote', '--heads', remote, ref)
