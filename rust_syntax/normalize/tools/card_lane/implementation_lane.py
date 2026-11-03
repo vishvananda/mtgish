@@ -5,6 +5,7 @@ import fcntl
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import sys
 import time
@@ -39,7 +40,9 @@ def sync(root):
         db.execute('BEGIN IMMEDIATE')
         added = 0
         for card in pending:
-            key = hashlib.sha256((card['name'] + '\0' + revision).encode()).hexdigest()[:20]
+            retry = card.get('implementation_retry', 0)
+            identity = card['name'] + '\0' + revision + (f'\0retry:{retry}' if retry else '')
+            key = hashlib.sha256(identity.encode()).hexdigest()[:20]
             keys.add(key)
             added += db.execute('INSERT OR IGNORE INTO implementation_jobs(id,name,revision,card,queue_meta,status,enqueued) VALUES(?,?,?,?,?,?,?)',
                                 (key, card['name'], revision, json.dumps(card), json.dumps(meta), 'queued', review.now())).rowcount
@@ -84,12 +87,46 @@ def mirror_outcomes(root):
             if queue.get('generator_commit') != job['revision'] or job['name'] not in by_name:
                 continue
             card = by_name[job['name']]
+            if card.get('implementation_retry',0) != json.loads(job['card']).get('implementation_retry',0):
+                continue
             before = dict(card)
             card.update(json.loads(job['result'] or '{}').get('card', {}))
             card.update(status=job['status'], finished=job['finished'], worker=job['worker'])
             changed |= card != before
         if changed:
             review.save(queue_path, queue)
+
+
+def retry_stopped(root, job_id, reason):
+    """Queue a new attempt after a concrete fix, retaining the original terminal job."""
+    if not reason.strip():
+        raise ValueError('retry requires a concrete changed blocker')
+    path = Path(review.config(root)['implementation_queue'])
+    with Path(str(path)+'.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        with connect(root) as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT * FROM implementation_jobs WHERE id=?',(job_id,)).fetchone()
+            if not row or row['status'] in ('committed','running','queued','unavailable'):
+                raise ValueError('only stopped unsuccessful implementations can be retried')
+            queue=review.read(path)
+            card=next(c for c in queue['cards'] if c['name']==row['name'])
+            if card['status'] in ('pending','working','committed') or db.execute(
+                "SELECT 1 FROM implementation_jobs WHERE name=? AND status IN ('queued','running')",(row['name'],)).fetchone():
+                raise ValueError('card already active or completed')
+            attempt=card.get('implementation_retry',0)+1
+            review.save(Path(root)/'implementation-retries'/f'{job_id}-{attempt}.json',
+                        dict(at=review.now(),reason=reason,job=dict(row),card=card))
+            packet=Path(root)/'implementation'/str(row['worker'])/'state/cards'/review.names(row['name'])[0]
+            if packet.is_dir():
+                archive=Path(root)/'implementation-retries'/f'{job_id}-{attempt}'/'packet'
+                shutil.copytree(packet,archive)
+                card['implementation_previous_packet']=str(archive)
+            for key in ('failure','failed_gates','finished','started','context_marker'):
+                card.pop(key,None)
+            card.update(status='pending',implementation_retry=attempt,implementation_retry_note=reason)
+            review.save(path,queue)
+    return row['name']
 
 
 class Session:
@@ -244,6 +281,7 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('sync')
     sub.add_parser('status')
+    retry=sub.add_parser('retry');retry.add_argument('job');retry.add_argument('--reason',required=True)
     w = sub.add_parser('worker')
     w.add_argument('slot')
     w.add_argument('--once', action='store_true')
@@ -252,6 +290,8 @@ def main():
         print(sync(args.root))
     elif args.command == 'status':
         print(json.dumps(status(args.root), indent=2))
+    elif args.command == 'retry':
+        print(retry_stopped(args.root,args.job,args.reason))
     else:
         worker(args.root, args.slot, args.once)
 

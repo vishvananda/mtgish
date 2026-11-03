@@ -183,6 +183,11 @@ neither retry form bypasses the rejection cap.
 Focused builds resolve an existing legacy module filename when its non-ASCII spelling differs from
 the current filename convention. Publisher counter-only prerequisite conflicts can merge plain appended
 vocabulary entries, retaining existing IDs and assigning new contiguous IDs; other conflicts remain blocked.
+Implementation workers can write their own lane state for focus lists and memoized validation. Full
+numeric-range bounds immediately before `i16`/`u16` narrowing casts are accepted under RX-5; arbitrary
+card-rule clamps remain rejected. `implementation_lane.py --root ROOT retry JOB --reason ...` explicitly
+queues a fresh attempt after a blocker changes, archiving the old packet and retaining its terminal job.
+Old outcomes cannot overwrite the retry, and active or committed implementations cannot be retried.
 First-card cache warmup is part of elapsed time;
 worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
 time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.

@@ -90,6 +90,27 @@ class ImplementationLaneTests(unittest.TestCase):
         card=impl.review.read(queue)['cards'][0]
         assert card['status']=='committed' and card['commit']=='saved' and card['finished']=='then'
 
+    def test_explicit_retry_archives_packet_and_keeps_old_outcome_without_overwriting_retry(self):
+        queue=setup_root(self.tmp_path,[{'name':'A','status':'pending'}])
+        impl.sync(self.tmp_path)
+        with impl.connect(self.tmp_path) as db:old=impl.claim(db,'i1')
+        impl.finish(self.tmp_path,old,'needs_review',{'card':{'name':'A','failure':'state read-only'}})
+        packet=self.tmp_path/'implementation/i1/state/cards/a';packet.mkdir(parents=True)
+        (packet/'work.patch').write_text('prior scenarios')
+        impl.retry_stopped(self.tmp_path,old['id'],'State directory writable')
+        self.assertEqual(impl.sync(self.tmp_path),1)
+        self.assertEqual(impl.review.read(queue)['cards'][0]['status'],'pending')
+        with impl.connect(self.tmp_path) as db:
+            new=impl.claim(db,'i2')
+            self.assertEqual(db.execute('SELECT status FROM implementation_jobs WHERE id=?',(old['id'],)).fetchone()[0],'needs_review')
+        self.assertNotEqual(old['id'],new['id'])
+        card=json.loads(new['card']);self.assertEqual(card['implementation_retry'],1)
+        self.assertEqual((Path(card['implementation_previous_packet'])/'work.patch').read_text(),'prior scenarios')
+        impl.finish(self.tmp_path,new,'committed',{'card':{'name':'A','commit':'new'}})
+        impl.mirror_outcomes(self.tmp_path)
+        self.assertEqual(impl.review.read(queue)['cards'][0]['commit'],'new')
+        with self.assertRaises(ValueError):impl.retry_stopped(self.tmp_path,new['id'],'No duplicate')
+
 
     def test_session_rotation_and_usage(self):
         tmp_path = self.tmp_path

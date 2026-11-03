@@ -240,9 +240,9 @@ def merge_counter_additions(base, ours, theirs):
     suffix = added_body[len(body):]
     if incoming[:len(before)] != before or not added or entry.sub('',suffix).strip():
         raise ValueError('counter prerequisite is not a plain append')
-    if current[:len(before)] != before:
-        raise ValueError('existing counter vocabulary changed')
     known = {v[0]:v for v in current}
+    if any(v[0] not in known or known[v[0]][2:] != v[2:] for v in before):
+        raise ValueError('existing counter vocabulary changed')
     additions = []
     for name, _, printed, token in added:
         if name in known:

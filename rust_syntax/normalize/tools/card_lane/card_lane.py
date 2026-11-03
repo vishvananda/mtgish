@@ -966,13 +966,19 @@ def style_problems(name, source):
         return words.rstrip(".,;") in oracle
 
     problems = [] if re.search(r"^\s*///", source, re.M) else ["no doc comment quotes the Oracle text and cites the CR"]
+    # RX-5 retains engine numeric widths. A full-range guard immediately before
+    # narrowing preserves that representation; an arbitrary card-rule cap does not.
+    bounded_source = source
+    for kind, low, high in [('i16', '-32768', '32767'), ('u16', '0', '65535')]:
+        bounded_source = re.sub(r'\.clamp\(\s*'+low+r'\s*,\s*'+high+r'\s*\)\s+as\s+'+kind+r'\b',
+                                ' as '+kind, bounded_source)
     for text, line in called_texts(source):
         if not printed(text):
             problems.append(f"line {line}: ability text {text!r} is not the card's printed text")
     for pattern, why in ((r"#\[allow\(", "an #[allow] left from the generator"), (r"pub mod token_", "a token defined by hand: use cantrip_mechanics::tokens or a named token"),
                          (r"fn ability_\d+", "generator names (ability_0): name each function for what it does"),
                          (r"\bKeywords::of\(&\[\]\)", "generated characteristics left in"), (r"\.clamp\(", "a clamp: rules values are never cut down (review.md)")):
-        if re.search(pattern, source):
+        if re.search(pattern, bounded_source):
             problems.append(why)
     for fn, doc, _ in functions(source):
         if not doc:
@@ -1575,7 +1581,7 @@ class Codex:
     def command(self, card, session):
         env = environment()
         settings = ",".join(f"{k}={json.dumps(v)}" for k, v in env.items())
-        roots = json.dumps([str(TARGET), *map(str, card.get("dirs") or [card_dir(card["name"])])])
+        roots = json.dumps([str(TARGET), str(STATE), *map(str, card.get("dirs") or [card_dir(card["name"])])])
         command = ["codex", "exec", "--model", self.model, "--sandbox", "workspace-write", "--skip-git-repo-check", "--ignore-user-config", "--json",
                    "--color", "never", "--config", f"model_reasoning_effort={self.effort}", "--config", "sandbox_workspace_write.network_access=false",
                    "--config", f"sandbox_workspace_write.writable_roots={roots}", "--config", "shell_environment_policy.inherit=none",
@@ -1757,6 +1763,10 @@ def run_card(card, backend, args, queue):
         prepare(card)
         phases["prepare"] = round(time.time() - t, 1)
         prompt = brief(card, driven=True)
+        if card.get('implementation_retry_note'):
+            prompt += '\n\nCoordinator retry after a concrete fix: '+card['implementation_retry_note']
+            if card.get('implementation_previous_packet'):
+                prompt += '\nPrior immutable packet: '+card['implementation_previous_packet']+' . Reuse valid scenario-only work from its work.patch; never restore old generated Rust over the new output.'
         deadline = started + args.timeout
         while True:
             t = time.time()

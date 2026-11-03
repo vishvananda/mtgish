@@ -731,6 +731,23 @@ class Usage(unittest.TestCase):
         backend.read('{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":4,"output_tokens":2}}', usage)
         self.assertEqual((usage.input, usage.cached, usage.output, usage.turns), (10, 4, 2, 1))
 
+    def test_codex_can_write_its_lane_state_but_does_not_add_other_roots(self):
+        with mock.patch.multiple(lane,STATE=Path('/worker/state'),TARGET=Path('/worker/target')):
+            command=lane.Codex('model','medium').command({'dirs':['/worker/state/cards/a']},None)
+        roots=next(x.split('=',1)[1] for x in command if x.startswith('sandbox_workspace_write.writable_roots='))
+        self.assertEqual(json.loads(roots),['/worker/target','/worker/state','/worker/state/cards/a'])
+
+    def test_style_keeps_fixed_width_bounds_but_rejects_rule_caps(self):
+        with mock.patch.object(lane,'card_text',return_value='A test'):
+            for expression, allowed in [('n.clamp(-32768, 32767) as i16',True),
+                                         ('n.clamp(0, 65535) as u16',True),
+                                         ('n.clamp(0, 20) as u16',False),
+                                         ('n.clamp(-32768, 32767) as u16',False),
+                                         ('n.clamp(-32768, 32767)',False)]:
+                with self.subTest(expression=expression):
+                    problems=lane.style_problems('A',expression)
+                    self.assertEqual(not any('a clamp:' in p for p in problems),allowed)
+
     def test_claude_reads_its_result(self):
         backend, usage = lane.Claude(None, None), lane.Usage()
         line = '{"type":"result","session_id":"s1","num_turns":3,"total_cost_usd":0.5,"usage":{"input_tokens":5,"cache_read_input_tokens":7,"output_tokens":2}}'

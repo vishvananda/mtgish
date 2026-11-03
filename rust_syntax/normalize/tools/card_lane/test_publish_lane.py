@@ -18,6 +18,8 @@ class PublisherTests(unittest.TestCase):
         self.assertIn('Vitality = 1',merged)
         self.assertIn('Scream = 2',merged)
         self.assertEqual(p.merge_counter_additions(base,merged,theirs),merged)
+        wind=theirs.replace('\n}\n','\n    Wind = 2, "wind", "Wind";\n}\n')
+        self.assertIn('Wind = 3',p.merge_counter_additions(theirs,merged,wind))
         with self.assertRaises(ValueError):p.merge_counter_additions(base,ours,theirs.replace('suffix','changed'))
         with self.assertRaises(ValueError):p.merge_counter_additions(base,ours,theirs.replace('A = 0','A = 2'))
         with self.assertRaises(ValueError):p.merge_counter_additions(base,ours,theirs.replace('"a"','"other"'))
