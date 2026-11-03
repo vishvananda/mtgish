@@ -41,6 +41,9 @@ const CARDS: &[(&str, &str)] = &[
     ("Botanical Brawler", ".count() <= 1"),
     // "Up to one": always asked.
     ("Enigmatic Incarnation", "let taken = cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible,"),
+    // An opponent copying the trigger changes who "you" names (CR 603.4, 707.10).
+    ("Light-Paws, Emperor's Voice", "if !{ let q: &dyn Query = g; item.subject.object().is_some_and(|candidate: ObjectId| cast_of("),
+    ("Zacama, Primal Calamity", "if !{ let q: &dyn Query = g; item.subject.object().is_some_and(|candidate: ObjectId| cast_of("),
 ];
 
 /// Forms these cards no longer hold.
@@ -50,8 +53,6 @@ const GONE: &[(&str, &str)] = &[
     // Two types tested of a card that has one.
     ("Memory Deluge", "CardType::Sorcery"),
     ("Turn the Earth", "CardType::Sorcery"),
-    // Who cast it is fixed once it is cast.
-    ("Light-Paws, Emperor's Voice", "if !{ let q: &dyn Query = g; item.subject.object().is_some_and(|candidate: ObjectId| cast_of("),
     // Only cards with a way to cast are offered; no land is played.
     ("Torrential Gearhulk", "play_land_during_resolution"),
     ("Torrential Gearhulk", "open_0.len() > 1"),

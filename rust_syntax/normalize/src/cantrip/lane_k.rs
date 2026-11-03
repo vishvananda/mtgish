@@ -521,14 +521,22 @@ pub(super) fn asks_how_it_was_cast(condition: &Condition) -> bool {
         }
     )
 }
-/// An intervening "if" of how an object was cast by the ability's controller (or by anyone): what the game recorded when
-/// it was cast, which nothing changes, so asked again as the ability resolves (CR 603.4) it answers as it did when the
-/// event happened (Light-Paws, Emperor's Voice: "if you cast it"). The matcher asking it is all.
+/// An intervening "if" of how an object was cast, independent of who controls the ability: the recorded cast cannot
+/// change. A condition such as "if you cast it" must still be checked at resolution (CR 603.4): an opponent can copy
+/// Zacama's trigger, and "you" then names the copy's controller (CR 707.10).
 pub(super) fn cast_history_is_fixed(condition: &Condition) -> bool {
     matches!(
         condition,
         Condition::ObjectMatches {
-            filter: ObjectFilter::Cast { by: None | Some(PlayerSet::One(PlayerRef::AbilityController)), .. },
+            filter: ObjectFilter::Cast {
+                by: None,
+                from: None
+                    | Some(ZoneScope::Shared(_))
+                    | Some(ZoneScope::Players {
+                        players: PlayerSet::All,
+                        ..
+                    }),
+            },
             ..
         }
     )
