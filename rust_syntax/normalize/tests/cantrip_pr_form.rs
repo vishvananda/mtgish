@@ -234,7 +234,32 @@ pub static EXTRA: &[&CardDef] = &[];
     let file = render(raw, "Sample", "Draw a card. Destroy target creature.", Characteristics::Oracle).unwrap();
     println!("{file}");
     assert!(!file.contains("targets::object(g, item, 0)"), "{file}");
-    assert!(file.contains("t_0.contains(t)"), "{file}");
+    // Read once, as the item starts to resolve: its one target, legal then, or it would not resolve (CR 608.2b).
+    assert!(file.contains("let t_0 = vec![g.state().target(item, 0)];"), "{file}");
+    assert!(!file.contains("announced"), "{file}");
+}
+
+#[test]
+fn a_target_of_a_choice_of_several_modes_is_asked_whether_it_is_legal() {
+    let raw = r#"
+#[allow(unused_imports)] use cantrip_api::*;
+static ABILITY_0_TARGETS: &[cantrip_api::TargetSpec] = &[cantrip_mechanics::targets::CREATURE];
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+let t_0_raw = announced(g, item, 0, false); let t_0 = announced(g, item, 0, true);
+g.draw(item.controller, 1);
+let objects_0 = t_0_raw.get(0).copied().filter(|t| t_0.contains(t)).and_then(|t: Target| t.object()).into_iter().collect::<Vec<_>>();
+g.destroy_all(&objects_0);
+ Ok(()) }
+fn announced(g: &dyn Game, item: &StackItem, spec: u8, legal: bool) -> Vec<Target> { (0..g.state().targets(item).len()).filter(|&i| g.state().spec(item, i) == spec && (!legal || g.target_legal(item, i))).map(|i| g.state().target(item, i)).collect() }
+pub static CARD: CardDef = CardDef { name: "Sample", oracle: true, spell: spell(ABILITY_0_TARGETS, ability_0), ..CardDef::BLANK };
+pub static EXTRA: &[&CardDef] = &[];
+static ABILITY_1_MODES: ModalDef = ModalDef::new(&[]).choose(1, 2);
+"#;
+    let file = render(raw, "Sample", "Draw a card. Destroy target creature.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(!file.contains("targets::object(g, item, 0)"), "{file}");
+    // With more than one mode chosen, the item resolves for another mode's target though this one is illegal (CR 608.2b).
+    assert!(file.contains("announced(g, item, 0, true)"), "{file}");
 }
 
 #[test]

@@ -265,6 +265,7 @@ fn rendered(
     }
     use_shared_mana(&mut file);
     use_shared_effects(&mut file);
+    one_target_lists(&mut file);
     drop_unreached(&mut file);
     drop_defaults(&mut file, characteristics);
     inline_target_lists(&mut file);
@@ -2929,6 +2930,90 @@ fn use_shared_targets(file: &mut File) {
         let lone = singles.len() == 1 && singles[0];
         one_target_reads(&mut function.block, singles, lone);
     }
+}
+
+/// What `use_shared_targets` and the shared effects left of the reads of an item's one target, as one list
+/// (`one_target_list`).
+fn one_target_lists(file: &mut File) {
+    if chooses_many_modes(file) {
+        return;
+    }
+    let specs = single_targets(file);
+    for item in &mut file.items {
+        let Item::Fn(function) = item else { continue };
+        if specs.get(&function.sig.ident.to_string()).is_some_and(|singles| singles.len() == 1 && singles[0]) {
+            one_target_list(&mut function.block);
+        }
+    }
+}
+
+/// Whether a choice of modes in the file may take more than one: then one mode's target can be illegal while the item
+/// still resolves for another's (CR 608.2b), and its legality is the mode's to ask.
+fn chooses_many_modes(file: &File) -> bool {
+    struct Many(bool);
+    impl<'ast> Visit<'ast> for Many {
+        fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            if call.method == "choose" && text_of(&call.args) != "1 , 1" {
+                self.0 = true;
+            }
+            visit::visit_expr_method_call(self, call);
+        }
+    }
+    let mut many = Many(false);
+    many.visit_file(file);
+    many.0
+}
+
+/// The announced and the still-legal lists of the one target of an item that has exactly one (`announced(g, item, 0,
+/// false)` and `.., true)`), as one list, `vec![g.state().target(item, 0)]`. An item whose only target is illegal does not
+/// resolve (CR 608.2b), so both lists are that target as it starts to: a flag no game can tell, and a filter of each read
+/// by the other, are lines a reviewer would ask about.
+fn one_target_list(block: &mut Block) {
+    struct InMacros(bool);
+    impl<'ast> Visit<'ast> for InMacros {
+        fn visit_macro(&mut self, node: &'ast syn::Macro) {
+            self.0 |= node.tokens.to_string().split(|c: char| !(c.is_alphanumeric() || c == '_')).any(|w| w == "t_0" || w == "t_0_raw");
+        }
+    }
+    let at = |want: &str| {
+        block.stmts.iter().position(|stmt| match stmt {
+            Stmt::Local(local) => plain_binding(local).as_deref() == Some(want.split(' ').next().unwrap())
+                && local.init.as_ref().is_some_and(|init| text_of(&init.expr) == want.split_once(' ').unwrap().1),
+            _ => false,
+        })
+    };
+    let raw = at("t_0_raw announced (g , item , 0 , false)");
+    let legal = at("t_0 announced (g , item , 0 , true)");
+    if raw.is_none() && legal.is_none() {
+        return;
+    }
+    let mut in_macros = InMacros(false);
+    in_macros.visit_block(block);
+    if in_macros.0 {
+        return;
+    }
+    let first = raw.into_iter().chain(legal).min().unwrap();
+    block.stmts[first] = parse_quote!(let t_0 = vec![g.state().target(item, 0)];);
+    if let (Some(raw), Some(legal)) = (raw, legal) {
+        block.stmts.remove(raw.max(legal));
+    }
+    let named: Expr = parse_quote!(t_0);
+    let mut rename = Replace { name: "t_0_raw", with: &named };
+    for stmt in &mut block.stmts {
+        rename.visit_stmt_mut(stmt);
+    }
+    struct SelfFilter;
+    impl VisitMut for SelfFilter {
+        fn visit_expr_mut(&mut self, node: &mut Expr) {
+            visit_mut::visit_expr_mut(self, node);
+            if let Expr::MethodCall(call) = node {
+                if call.method == "filter" && text_of(&call.args) == "| t | t_0 . contains (t)" {
+                    *node = (*call.receiver).clone();
+                }
+            }
+        }
+    }
+    SelfFilter.visit_block_mut(block);
 }
 
 /// Which of the shared readers says exactly what `read` does, if one does. Anything
