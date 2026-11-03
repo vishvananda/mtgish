@@ -31,6 +31,8 @@ pub(super) struct Candidate {
     /// Where the targets of a spell not on the stack yet are, if it has any
     /// to speak of: `None` for one that is.
     pub announced: Option<String>,
+    /// This candidate is the new object in the current battlefield-entry arm.
+    pub entry_from: bool,
 }
 impl Candidate {
     pub fn of(id: &str) -> Self {
@@ -39,6 +41,7 @@ impl Candidate {
             chars: format!("q.chars({id})"),
             controller: format!("q.controller({id})"),
             announced: None,
+            entry_from: false,
         }
     }
     pub fn affected() -> Self {
@@ -47,6 +50,7 @@ impl Candidate {
             chars: "(*so_far)".into(),
             controller: "q.controller(affected)".into(),
             announced: None,
+            entry_from: false,
         }
     }
     /// An object about to enter, which is controlled by the player it enters
@@ -116,6 +120,7 @@ pub(super) struct Frame {
     /// What holds the controller of the object that is the subject, which a
     /// target filter finds from the subject alone.
     pub subject_controller: Option<Carried>,
+    pub battlefield_entry: bool,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -141,6 +146,7 @@ impl Frame {
             blocker: same(self.blocker, other.blocker),
             members: self.members && other.members,
             subject_controller: same(self.subject_controller, other.subject_controller),
+            battlefield_entry: self.battlefield_entry && other.battlefield_entry,
         }
     }
 }
@@ -162,6 +168,17 @@ pub(super) enum EventAt {
 
 /// Whether `changes` read the object each is applied to, `ObjectRef::Affected`,
 /// rather than what an earlier result affected, `ObjectSet::Affected`.
+/// What a spell reading its own name also counts. "If this card is in a graveyard, effects from
+/// spells named Muscle Burst count it as a card named Muscle Burst" is a rule of the reader, and
+/// no card's module sees another's.
+fn counted_as_named(reader: &str, named: &str) -> Option<&'static str> {
+    match (reader, named) {
+        ("Muscle Burst", "Muscle Burst") => Some("Diligent Farmhand"),
+        ("Flame Burst", "Flame Burst") => Some("Pardic Firecat"),
+        _ => None,
+    }
+}
+
 pub(super) fn reads_affected(changes: impl std::fmt::Debug) -> bool {
     format!("{changes:?}")
         .replace("Affected(", "")
@@ -254,7 +271,10 @@ fn object_state(state: &ObjectState, id: &str) -> Option<String> {
         S::FaceDown => format!("q.state().obj({id}).face_down"),
         S::Monstrous => format!("q.state().obj({id}).marks.monstrous"),
         S::Transformed => format!("q.state().obj({id}).transformed"),
-        S::Prepared => format!("q.state().obj({id}).prepared"),
+        // A prepared spell is a prepare spell, not a prepared permanent (722.3).
+        S::Prepared => format!(
+            "(q.state().obj({id}).prepared || q.state().obj({id}).zone.is(ZoneKind::Stack) && cantrip_mechanics::prepare::is_prepare_spell(q, {id}))"
+        ),
         S::Suspected => format!(
             "q.state().effects.iter().any(|e| e.affected == {id} && e.kind == EffectKind::Suspected)"
         ),
@@ -281,6 +301,10 @@ impl Compiler {
     }
     /// A read made while resolving, where `g` is the only reader.
     pub(super) fn fetch(&self, code: impl AsRef<str>) -> String {
+        // A reader with no `g` has its `q` already (a rule a table holds).
+        if self.reader != Reader::Resolution || self.tabled {
+            return code.as_ref().to_string();
+        }
         format!("{{ let q: &dyn Query = g; {} }}", code.as_ref())
     }
     pub(super) fn carried(&self, carried: Carried) -> Result<(String, String)> {
@@ -369,6 +393,23 @@ impl Compiler {
         for (i, spec) in self.slots.values() {
             if *i < referred {
                 let Count::Exactly(Expr::Constant(n)) = &spec.count else {
+                    // The only player among what's been chosen, wherever it falls.
+                    let players = self
+                        .slots
+                        .values()
+                        .filter(|(i, s)| *i < choosing && matches!(s.kind, TargetKind::Player))
+                        .count();
+                    let referred_player = self.slots.values().any(|(i, s)| {
+                        *i == referred
+                            && matches!(s.kind, TargetKind::Player)
+                            && matches!(s.count, Count::Exactly(Expr::Constant(1)))
+                    });
+                    if players == 1 && referred_player && index == 0 {
+                        return Ok(Some(
+                            "q.chosen_targets().iter().copied().find(|t: &Target| t.player().is_some())"
+                                .to_string(),
+                        ));
+                    }
                     return Ok(Some(planned::planned_value(
                         "target reference past a slot of no fixed size",
                         "None::<Target>",
@@ -606,7 +647,7 @@ impl Compiler {
                 Recipients::Targets(slot) => c_slot_is_fixed(self, slot, 0),
                 _ => false,
             },
-            PlayerRef::OneOf(players) => self.present.borrow().is_some() || self.is_picked(players),
+            PlayerRef::OneOf(_) => false,
             _ => false,
         };
         if is_certain {
@@ -750,6 +791,17 @@ impl Compiler {
                     zone_kind(zone)?
                 )
             }
+            // This card, which the cost that was just paid exiled from where it died.
+            ObjectSet::InZone { objects, zone }
+                if matches!(&**objects, ObjectSet::One(ObjectRef::Source))
+                    && self.notes.exiled_source.is_some() =>
+            {
+                format!(
+                    "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
+                    self.notes.exiled_source.clone().unwrap_or_default(),
+                    zone_kind(zone)?
+                )
+            }
             ObjectSet::InZone { objects, zone } => format!(
                 "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
                 self.objects(objects)?,
@@ -759,12 +811,20 @@ impl Compiler {
                 scope,
                 kind,
                 filter,
-            } => format!(
-                "({}).into_iter().filter(|&id| {} && {}).collect::<Vec<ObjectId>>()",
-                self.zone(scope)?,
-                object_kind(kind)?,
-                self.filter(filter, &Candidate::of("id"))?
-            ),
+            } => {
+                // Inside the filter of another object named `id` (a target's test), the cards of the zone are named
+                // apart, so a read of that object inside is of it, not of the card.
+                let card = match self.candidates.borrow().iter().any(|c| c.id == "id") {
+                    true => "card_in_zone",
+                    false => "id",
+                };
+                format!(
+                    "({}).into_iter().filter(|&{card}| {} && {}).collect::<Vec<ObjectId>>()",
+                    self.zone(scope)?,
+                    object_kind(kind)?,
+                    self.filter(filter, &Candidate::of(card))?
+                )
+            }
             ObjectSet::Take {
                 objects,
                 count,
@@ -832,6 +892,13 @@ impl Compiler {
             CostPart::ChangeTapState { selections, .. } => {
                 selections.iter().any(|s| s.choose.is_some())
             }
+            CostPart::Move {
+                selections,
+                destination: Destination::OwnersHand,
+                ..
+            } => selections
+                .iter()
+                .all(|s| s.choose.is_some() && matches!(s.objects, ObjectSet::Battlefield(_))),
             _ => false,
         };
         match payment {
@@ -905,8 +972,13 @@ impl Compiler {
             }
             _ => return Err(gap("zone that belongs to no player")),
         };
+        // Who may cast the card asks with it still in that zone: it is not one of those counted.
+        let other = match self.cast_test {
+            true => ".filter(|id: &ObjectId| *id != asker.source)",
+            false => "",
+        };
         Ok(format!(
-            "({players}).into_iter().flat_map(|p: PlayerId| q.state().zone(Zone::{per_player}(p)).to_vec()).collect::<Vec<ObjectId>>()"
+            "({players}).into_iter().flat_map(|p: PlayerId| q.state().zone(Zone::{per_player}(p)).to_vec()){other}.collect::<Vec<ObjectId>>()"
         ))
     }
     /// `Vec<PlayerId>`.
@@ -924,8 +996,10 @@ impl Compiler {
                 "{{ let other = {}; q.state().apnap().filter(|p| Some(*p) != other).collect::<Vec<PlayerId>>() }}",
                 self.player(player)?
             ),
+            // Target players act in turn order, not the order they were targeted in
+            // (CR 101.4).
             PlayerSet::Targets(slot) => format!(
-                "t_{}.iter().filter_map(|t| t.player()).collect::<Vec<PlayerId>>()",
+                "q.state().apnap().filter(|&p| t_{}.iter().any(|t| t.player() == Some(p))).collect::<Vec<PlayerId>>()",
                 self.slot(slot)?
             ),
             PlayerSet::Union(sets) => {
@@ -976,6 +1050,22 @@ impl Compiler {
             PlayerSet::One(player) => format!("{} == Some({who})", self.player(player)?),
             other => format!("({}).contains(&{who})", self.players(other)?),
         })
+    }
+    /// Whether `c`'s owner is one of `players`. Of a card tested inside another object's filter ("the number of cards
+    /// in its controller's graveyard", Drown in the Loch), a candidate `players` names is that object, never the card
+    /// itself: the card's own entries on the candidates (a filter within its filter) are set aside while `players` is
+    /// read.
+    fn owner_in(&self, players: &PlayerSet, c: &Candidate) -> Result<String> {
+        let who = format!("q.state().obj({}).owner", c.id);
+        let at = self.candidates.borrow().iter().rposition(|o| o.id != c.id).map_or(0, |at| at + 1);
+        let outside = at > 0 && format!("{players:?}").contains("Candidate");
+        if !outside {
+            return self.player_in(players, &who);
+        }
+        let inner: Vec<Candidate> = self.candidates.borrow_mut().drain(at..).collect();
+        let owner = self.player_in(players, &who);
+        self.candidates.borrow_mut().extend(inner);
+        owner
     }
     pub(super) fn property(&self, id: &str, property: &Property) -> Result<Number> {
         let pt = |field: &str| Number {
@@ -1040,11 +1130,55 @@ impl Compiler {
                 });
             }
         }
+        // "Each Aura you controlled that was attached to it": what was attached to it
+        // as it left the battlefield, the `Unattached` records just before its own
+        // move (CR 701.3d). Its Auras are in a graveyard by the time this is read
+        // (CR 704.5m), so each is judged as it last was there (CR 608.2h).
+        if let Expr::CountObjects(set) = n {
+            if let ObjectSet::Matching { objects, filter: ObjectFilter::WasAttachedTo(host) } = &**set {
+                if let ObjectSet::Battlefield(attached) = &**objects {
+                    let test = self.filter(attached, &Candidate::of("id"))?;
+                    return Ok(count(format!(
+                        "{}.map_or(0i64, |host: ObjectId| {{ let records = q.history().all(); records.iter().rposition(|r| matches!(r.event, Event::ZoneChange {{ old, from, .. }} if old == host && from.is(ZoneKind::Battlefield))).map_or(0i64, |left| records[..left].iter().rev().take_while(|r| matches!(r.event, Event::Unattached {{ .. }} | Event::ZoneChange {{ .. }})).filter_map(|r| match r.event {{ Event::Unattached {{ attachment, from }} if from == host => Some(attachment), _ => None }}).filter(|&id| {test}).count() as i64) }})",
+                        self.object(host)?
+                    )));
+                }
+            }
+        }
         Ok(match n {
             Expr::Primitive { name, .. } => {
                 return Err(gap(format!("primitive numeric expression {name}")))
             }
             Expr::Constant(n) => Number::integer(*n),
+            // "Sacrifice a creature with mana value X: Return target creature card
+            // with mana value X plus 1" (Sidisi): the X a cost's filter defines,
+            // which Cantrip announces none of (`costs::COST_FILTER_X`).
+            Expr::AnnouncedX
+                if self.activation_cost.as_ref().is_some_and(target_counts::x_in_cost_filter) =>
+            {
+                Number {
+                    code: planned::planned_value(
+                        costs::COST_FILTER_X,
+                        "0i64",
+                        "i64::from(q.announced_x().unwrap_or(0))",
+                    ),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            Expr::AnnouncedX if self.stating_cost => Number {
+                code: "i64::from(q.announced_x().unwrap_or(0))".into(),
+                min: 0,
+                max: u16::MAX.into(),
+                dynamic: true,
+            },
+            Expr::AnnouncedX if self.notes.paid_x.is_some() => Number {
+                code: self.notes.paid_x.clone().unwrap_or_default(),
+                min: 0,
+                max: 255,
+                dynamic: true,
+            },
             Expr::AnnouncedX
                 if self.reader == Reader::Resolution
                     && self.stack_item
@@ -1052,6 +1186,53 @@ impl Compiler {
             {
                 Number {
                     code: "i64::from(item.x)".into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            // A delayed ability's source is the spell that made it, and that spell's
+            // X stays on its item after it has left the stack.
+            Expr::AnnouncedX
+                if self.reader == Reader::Resolution
+                    && self.stack_item
+                    && self.outer.as_ref().is_some_and(|outer| outer.made_by_a_spell()) =>
+            {
+                Number {
+                    code: "i64::from(q.state().left_stack(item.object).map_or(0, |made| made.x))"
+                        .into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            // A mana ability's {X} is kept on its source (CR 107.3a, 605.3a).
+            Expr::AnnouncedX
+                if self.mana_body
+                    && self.activation_cost.as_ref().is_some_and(target_counts::has_mana_x) =>
+            {
+                Number {
+                    code: "i64::from(q.obj(asker.source).x)".into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            // "Remove X storage counters from this land: Add X mana", "Sacrifice X
+            // Goats: Add X mana": a mana ability announces only an {X} (CR 605.3a,
+            // `activate_mana_as`), so this X is the hole its cost is
+            // (`lane_g::MANA_COUNTERS_X`, or the cost's own).
+            Expr::AnnouncedX
+                if self.mana_body
+                    && self.activation_cost.as_ref().is_some_and(|cost| !target_counts::has_mana_x(cost)) =>
+            {
+                let removes = self.activation_cost.as_ref().is_some_and(target_counts::removes_x_counters);
+                Number {
+                    code: planned::planned_value(
+                        if removes { lane_g::MANA_COUNTERS_X } else { FOLLOWS_GAP },
+                        "0i64",
+                        "i64::from(q.obj(asker.source).x)",
+                    ),
                     min: 0,
                     max: u16::MAX.into(),
                     dynamic: true,
@@ -1107,11 +1288,35 @@ impl Compiler {
             {
                 count("q.event_objects(item).len() as i64".into())
             }
+            // "When you do, ... the amount of life you gained": the event was the
+            // ability around this one's, which tells this one the number.
+            Expr::EventAmount
+                if self.frame.amount.is_none()
+                    && self.event_at != EventAt::TargetFilter
+                    && self.carrying().is_some_and(|outer| outer.reflexive) =>
+            {
+                count(self.told_event_amount(n)?)
+            }
+            // "The number of opponents dealt damage this way" (Hordewing Skaab,
+            // Malcolm): a "one or more" ability's batch keeps its sources as
+            // members, and not the players they dealt damage to.
+            Expr::EventAmount
+                if self.frame.amount.is_none()
+                    && self.event_at == EventAt::Item
+                    && self.frame.damage_source == Some(Carried::Subject)
+                    && self.frame.player == Some(Carried::Data(1)) =>
+            {
+                count(planned::planned_value(
+                    "the players a one-or-more damage trigger's batch dealt damage to",
+                    "0i64",
+                    "q.event_players(item).len() as i64",
+                ))
+            }
             // "That many" of an event the engine reports without the number, or of
             // several events the ability is one answer to.
             Expr::EventAmount if self.frame.amount.is_none() && self.event_at == EventAt::Item => {
                 count(planned::planned_value(
-                    "amount of an event its trigger does not carry",
+                    self.event_amount_feature(),
                     "0i64",
                     "q.event_total(item)",
                 ))
@@ -1122,11 +1327,15 @@ impl Compiler {
                     && self.frame != Frame::default()
                     && matches!(self.event_at, EventAt::Matcher | EventAt::TargetFilter) =>
             {
-                count(planned::planned_value(
-                    "amount of an event its trigger does not carry",
-                    "0i64",
-                    "q.event_total_at(asker)",
-                ))
+                // As targets are chosen, a filter, a count or a divided total reads
+                // the event's subject alone (`Query::event_subject`).
+                let feature = match self.event_at {
+                    EventAt::TargetFilter if !self.event_planned => {
+                        "event value in a target filter beyond its subject"
+                    }
+                    _ => self.event_amount_feature(),
+                };
+                count(planned::planned_value(feature, "0i64", "q.event_total_at(asker)"))
             }
             Expr::EventAmount => {
                 let (_, data) = self.carried(
@@ -1165,15 +1374,57 @@ impl Compiler {
                     frame: self.frame,
                 });
                 let matched = asked.event(event)?;
-                let hits = format!("{scope}.filter_map({})", matched.history_test());
+                let hits = format!("{scope}.filter_map({})", faces::as_dealt(&matched.history_test()));
                 let answer = match measure {
-                    HistoryMeasure::Occurrences => format!("{hits}.count() as i64"),
+                    HistoryMeasure::Occurrences => faces::attackers_counted(event, &hits)
+                        .unwrap_or_else(|| format!("{hits}.count() as i64")),
                     HistoryMeasure::TotalAmount
                         if matched.frame.amount == Some(Carried::Data(0)) =>
                     {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
-                    other => lane_p::history_measure(other, &hits),
+                    // "The greatest amount of damage dealt by a source to a permanent
+                    // or player this turn" (Impact Resonance) sums each source's
+                    // damage to each recipient; "a source you controlled dealt 5 or
+                    // more damage this turn" (Dragon Cultist) all of a source's. Each
+                    // record's subject is its source and `data[1]` its recipient.
+                    HistoryMeasure::MostFromOneSource
+                        if matched.frame.amount == Some(Carried::Data(0))
+                            && matches!(
+                                &**event,
+                                EventSpec::Damage(DamageEvent {
+                                    subject: DamageSubject::Source,
+                                    grouping: DamageGrouping::SourceRecipient,
+                                    ..
+                                })
+                            ) =>
+                    {
+                        let key = match &**event {
+                            EventSpec::Damage(DamageEvent {
+                                recipients: DamageRecipients::Any,
+                                ..
+                            }) => "0",
+                            _ => "f.data[1]",
+                        };
+                        format!("{{ let mut most: Vec<(Target, u32, i64)> = Vec::new(); for f in {hits} {{ let key: u32 = {key}; match most.iter_mut().find(|d| d.0 == f.subject && d.1 == key) {{ Some(d) => d.2 += i64::from(f.data[0]), None => most.push((f.subject, key, i64::from(f.data[0]))) }} }} most.into_iter().map(|d| d.2).max().unwrap_or(0) }}")
+                    }
+                    // "The total power of Daleks that died this turn" (Genesis of the
+                    // Daleks): each record's subject is the object that moved, read as
+                    // it last existed where it was (its last-known row, CR 608.2h).
+                    HistoryMeasure::Property(
+                        property,
+                        aggregation @ (Aggregation::Sum | Aggregation::Maximum | Aggregation::Minimum),
+                    ) if matches!(&**event, EventSpec::ZoneChange { .. }) => {
+                        let value = self.property("id", property)?.code;
+                        let each = format!("{hits}.filter_map(|f: Fired| f.subject.object()).map(|id: ObjectId| {value})");
+                        match aggregation {
+                            Aggregation::Sum => format!("{each}.sum::<i64>()"),
+                            Aggregation::Maximum => format!("{each}.max().unwrap_or(0)"),
+                            _ => format!("{each}.min().unwrap_or(0)"),
+                        }
+                    }
+                    other => lane_p::history_measured(other, scope, &matched.history_test())
+                        .unwrap_or_else(|| lane_p::history_measure(other, &hits)),
                 };
                 // The event is one the engine will have: the question is stated.
                 let answer = match matched.planned.first() {
@@ -1235,6 +1486,15 @@ impl Compiler {
                 let result = lane_p::paid_by_moving(objects).expect("just seen");
                 count(format!("({}.len() as i64)", self.moved[&result.0]))
             }
+            // "For each card less than two a player draws this way": what that
+            // player's run counted, drawing being no list of cards.
+            Expr::CountObjects(objects) if self.each_done(objects).is_some() => {
+                let (players, each, player) = self.each_done(objects).expect("just asked");
+                let who = self.player(player)?;
+                count(format!(
+                    "{players}.iter().position(|&p| Some(p) == {who}).map_or(0i64, |at| {each}[at])"
+                ))
+            }
             Expr::CountObjects(objects) if lane_k::convoked(objects).is_some() => count(format!(
                 "{}.map_or(0, |o: ObjectId| q.history().convoked(o).count() as i64)",
                 self.object(lane_k::convoked(objects).expect("just asked"))?
@@ -1292,20 +1552,20 @@ impl Compiler {
                     DistinctProperty::CounterTypes => format!(
                         "{{ let mut seen = Vec::new(); for id in {objects} {{ for kind in CounterKind::ALL {{ if q.state().obj(id).counters(kind) > 0 && !seen.contains(&kind) {{ seen.push(kind); }} }} }} seen.len() as i64 }}"
                     ),
-                    DistinctProperty::PlaneswalkerTypes => planned::planned_value(
-                        "distinct PlaneswalkerTypes",
-                        "0i64",
-                        &subtypes("kind.is_planeswalker_type()"),
+                    // A planeswalker's subtypes of the planeswalker kind (CR 205.3j,
+                    // 306.3): a creature type an effect gave it is not one.
+                    DistinctProperty::PlaneswalkerTypes => {
+                        subtypes("kind.card_types().has(CardType::Planeswalker)")
+                    }
+                    // "Different color pairs among permanents ... that are exactly
+                    // two colors": a pair is the two colors of one such permanent
+                    // (Niv-Mizzet, Guildpact's ruling), so one of more colors has none.
+                    DistinctProperty::ColorPairs => format!(
+                        "{{ let mut seen = Vec::new(); for id in {objects} {{ let value = q.chars(id).colors; if value.iter().count() == 2 && !seen.contains(&value) {{ seen.push(value); }} }} seen.len() as i64 }}"
                     ),
-                    DistinctProperty::ColorPairs => planned::planned_value(
-                        "distinct ColorPairs",
-                        "0i64",
-                        &format!("cantrip_mechanics::domain::color_pairs(q, &{objects})"),
-                    ),
-                    DistinctProperty::UnlockedDoorNames => planned::planned_value(
-                        "distinct UnlockedDoorNames",
-                        "0i64",
-                        &format!("cantrip_mechanics::rooms::unlocked_door_names(q, &{objects})"),
+                    // A Room's names are its unlocked doors' alone (CR 709.5).
+                    DistinctProperty::UnlockedDoorNames => format!(
+                        "{{ let mut seen: Vec<&'static str> = Vec::new(); for id in {objects} {{ for name in cantrip_mechanics::library::object_names(q, id) {{ if !seen.contains(&name) {{ seen.push(name); }} }} }} seen.len() as i64 }}"
                     ),
                     other => return Err(gap(format!("distinct {}", form(other)))),
                 })
@@ -1342,20 +1602,27 @@ impl Compiler {
                     Aggregation::Minimum => "min().unwrap_or(0)",
                     Aggregation::AnyOf => {
                         let code = format!(
-                            "cantrip_mechanics::numbers::AnyOf(&({}).into_iter().map(|o: ObjectId| {}).collect::<Vec<i64>>())",
+                            "cantrip_mechanics::numbers::any_of(&({}).into_iter().map(|o: ObjectId| {}).collect::<Vec<i64>>())",
                             self.objects(objects)?,
                             read.code
                         );
                         return Ok(lane_j::held_number("comparison with any one value".to_string(), &code));
                     }
                 };
+                // A power or toughness is read only of what has one (CR 208.3): a 0
+                // put in for the rest is a default no creature takes.
+                let each = match property {
+                    Property::Power | Property::Toughness => {
+                        let field = if matches!(property, Property::Power) { "power" } else { "toughness" };
+                        format!("filter_map(|o: ObjectId| q.chars(o).{field}).map(i64::from)")
+                    }
+                    _ => format!("map(|o: ObjectId| {})", read.code),
+                };
                 Number {
-                    code: format!(
-                        "({}).into_iter().map(|o: ObjectId| {}).{reduce}",
-                        self.objects(objects)?,
-                        read.code
-                    ),
-                    min: i64::MIN.into(),
+                    code: format!("({}).into_iter().{each}.{reduce}", self.objects(objects)?),
+                    // A sum of values never negative is never negative, and so is the
+                    // greatest or least of them, or the 0 of none.
+                    min: if read.min >= 0 { 0 } else { i64::MIN.into() },
                     max: i64::MAX.into(),
                     dynamic: true,
                 }
@@ -1624,7 +1891,13 @@ impl Compiler {
         compiled
     }
     fn predicate(&self, f: &ObjectFilter, c: &Candidate) -> Result<String> {
+        if let Some(either) = lane_p::any_of_filter(f) {
+            return self.predicate(&either, c);
+        }
         let (id, chars) = (c.id.as_str(), c.chars.as_str());
+        if let Some(code) = self.used_to_craft(f, id)? {
+            return Ok(code);
+        }
         let combine = |items: &[ObjectFilter], join: &str, identity: &str| -> Result<String> {
             if items.is_empty() {
                 return Ok(identity.into());
@@ -1645,6 +1918,25 @@ impl Compiler {
             ObjectFilter::Any => "true".into(),
             ObjectFilter::All(items) => combine(items, " && ", "true")?,
             ObjectFilter::Either(items) => combine(items, " || ", "false")?,
+            // "The other piles" (Bend or Break): in a pile of a row that was not
+            // the one chosen, not anything outside the piles.
+            ObjectFilter::Not(p)
+                if matches!(**p, ObjectFilter::InPile(None)) && self.piles.is_some() =>
+            {
+                format!(
+                    "{}.iter().any(|row| row.1.iter().enumerate().any(|(at, pile)| row.2.is_some_and(|chosen| chosen != at) && pile.contains(&{})))",
+                    self.piles.clone().unwrap_or_default(),
+                    c.id
+                )
+            }
+            // "The other pile" of a choice between exiled piles: the pile not
+            // chosen, not anything else in exile.
+            ObjectFilter::Not(p)
+                if matches!(&**p, ObjectFilter::InResult(r) if self.pile_not_chosen.contains_key(&r.0)) =>
+            {
+                let ObjectFilter::InResult(r) = &**p else { unreachable!() };
+                format!("{}.contains(&{})", self.pile_not_chosen[&r.0], c.id)
+            }
             ObjectFilter::Not(p) => format!("!({})", self.predicate(p, c)?),
             ObjectFilter::TargetsAny(recipients) => {
                 let wanted = self.targeted(recipients)?;
@@ -1653,6 +1945,9 @@ impl Compiler {
                     Some("") => return Err(gap("targets of a spell as it is cast")),
                     Some(list) => format!("{list}.iter().any(|t| {wanted})"),
                 }
+            }
+            ObjectFilter::CardType(t) if self.card_in_graveyard == Some(c.id.as_str()) => {
+                format!("q.card(q.obj({id}).card).is(CardType::{})", card_type(t)?)
             }
             ObjectFilter::CardType(t) => format!("{chars}.is(CardType::{})", card_type(t)?),
             ObjectFilter::Supertype(t) => format!(
@@ -1684,9 +1979,7 @@ impl Compiler {
             ObjectFilter::Colorless => format!("{chars}.colors.is_empty()"),
             ObjectFilter::Chosen(kind) => self.chosen_filter(*kind, chars, id)?,
             ObjectFilter::ControlledBy(players) => self.player_in(players, &c.controller)?,
-            ObjectFilter::OwnedBy(players) => {
-                self.player_in(players, &format!("q.state().obj({id}).owner"))?
-            }
+            ObjectFilter::OwnedBy(players) => self.owner_in(players, c)?,
             // Always true of what it tests: it can only mean something outside the
             // filter, which `Candidate` doesn't name.
             ObjectFilter::SameObject(ObjectRef::Candidate)
@@ -1731,7 +2024,13 @@ impl Compiler {
             ObjectFilter::HasKeyword(k) => {
                 format!("{chars}.keywords.has({})", keyword(k)?)
             }
-            ObjectFilter::Name(words) => format!("{chars}.name == {}", quoted(words)),
+            ObjectFilter::Name(words) => {
+                let named = format!("{chars}.name == {}", quoted(words));
+                match counted_as_named(&self.card_name, words) {
+                    Some(other) => format!("({named} || {chars}.name == {})", quoted(other)),
+                    None => named,
+                }
+            }
             ObjectFilter::Property {
                 property,
                 comparison,
@@ -1785,8 +2084,16 @@ impl Compiler {
             ),
             ObjectFilter::Shares { property, with } => {
                 let test = lane_j::sharing(property)?;
+                // A spell that has left the stack is as it was cast.
+                let other = match with {
+                    ObjectRef::Earlier {
+                        what: EarlierObjects::LastCast,
+                        ..
+                    } => "q.history().cast_of(o).filter(|_| q.state().obj(o).became.is_some()).map_or_else(|| q.chars(o), |cast| cast.chars(q))",
+                    _ => "q.chars(o)",
+                };
                 format!(
-                    "{}.is_some_and(|o: ObjectId| {{ let (a, b) = (&{chars}, &q.chars(o)); {test} }})",
+                    "{}.is_some_and(|o: ObjectId| {{ let (a, b) = (&{chars}, &{other}); {test} }})",
                     self.object(with)?
                 )
             }
@@ -1865,6 +2172,16 @@ impl Compiler {
             ObjectFilter::ExiledWith(ObjectRef::Source) if self.reader != Reader::Layer => {
                 format!("q.exiled_with(q.linked_to(asker)).contains(&{id})")
             }
+            // "Target creature with fewer than X +1/+1 counters on it": before X
+            // is announced, the filter allows what some X would, as a property's does.
+            ObjectFilter::Counters {
+                kind,
+                comparison,
+                value: Expr::AnnouncedX,
+            } if self.choosing.is_some() => format!(
+                "q.announced_x().map_or(true, |x| {})",
+                compare(&counters_on(id, kind.as_ref())?, comparison, "i64::from(x)")
+            ),
             ObjectFilter::Counters {
                 kind,
                 comparison,
@@ -1880,11 +2197,25 @@ impl Compiler {
                     zone_kind(zone)?
                 )
             }
-            ObjectFilter::InZone(ZoneScope::Players { zone, players }) => format!(
-                "(q.state().obj({id}).zone.kind() == {} && {})",
-                zone_kind(zone)?,
-                self.player_in(players, &format!("q.state().obj({id}).owner"))?
-            ),
+            // "That player's graveyard", of the slot before: asked whether the ability
+            // can be offered at all, before that slot has chosen, any will do.
+            ObjectFilter::InZone(ZoneScope::Players { zone, players }) => {
+                let owner = self.owner_in(players, c)?;
+                let owner = match owner.contains("q.chosen_targets()") {
+                    true => format!("(q.chosen_targets().is_empty() || {owner})"),
+                    false => owner,
+                };
+                // An event's object is judged where it was (603.10); one named by
+                // the ability, as it is: a card gone from there isn't there (400.7).
+                let there = match id == "id" {
+                    true => String::new(),
+                    false => format!("q.state().obj({id}).became.is_none() && "),
+                };
+                format!(
+                    "({there}q.state().obj({id}).zone.kind() == {} && {owner})",
+                    zone_kind(zone)?
+                )
+            }
             ObjectFilter::InSet(objects) => {
                 format!("({}).contains(&{id})", self.objects(objects)?)
             }
@@ -1968,10 +2299,51 @@ impl Compiler {
                 object: ObjectRef::Source,
                 filter: ObjectFilter::AlternateCostPaid(_),
             } if self.stack_item && self.reader == Reader::Resolution => "item.way == 1".into(),
+            // "If it has the greatest power among creatures on the battlefield": what
+            // has left is not among them, whatever it last was.
+            Condition::ObjectMatches {
+                object,
+                filter:
+                    filter @ ObjectFilter::Property {
+                        value: Expr::Aggregate { objects, .. },
+                        ..
+                    },
+            } if matches!(**objects, ObjectSet::Battlefield(_)) => format!(
+                "{}.filter(|&o| cantrip_mechanics::targets::permanent(q, o)).is_some_and(|candidate: ObjectId| {})",
+                self.object(object)?,
+                self.filter(filter, &Candidate::of("candidate"))?
+            ),
             Condition::ObjectMatches { object, filter } => format!(
                 "{}.is_some_and(|candidate: ObjectId| {})",
                 self.object(object)?,
-                self.filter(filter, &Candidate::of("candidate"))?
+                self.filter(filter, &Candidate {
+                    entry_from: matches!(object, ObjectRef::EventSubject)
+                        && self.event_at == EventAt::Matcher
+                        && self.history.is_none()
+                        && self.frame.battlefield_entry,
+                    ..Candidate::of("candidate")
+                })?
+            ),
+            // "Activate only if defending player controls ...", with no creature to
+            // say which: the one of them the controller would choose (CR 508.5a).
+            Condition::Not(inner)
+                if matches!(**inner, Condition::Controls { player: PlayerRef::DefendingPlayer, .. }) =>
+            {
+                let Condition::Controls { filter, minimum, .. } = &**inner else {
+                    unreachable!("a condition just matched");
+                };
+                format!(
+                    "q.state().opponents(q.state().turn.active).into_iter().any(|defending: PlayerId| q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == defending && {}).count() < {minimum})",
+                    self.filter(filter, &Candidate::of("id"))?
+                )
+            }
+            Condition::Controls {
+                player: PlayerRef::DefendingPlayer,
+                filter,
+                minimum,
+            } => format!(
+                "q.state().opponents(q.state().turn.active).into_iter().any(|defending: PlayerId| q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == defending && {}).count() >= {minimum})",
+                self.filter(filter, &Candidate::of("id"))?
             ),
             Condition::Controls {
                 player,
@@ -2075,6 +2447,13 @@ impl Compiler {
             PlayerState::Initiative => "q.state().player(player).initiative".into(),
             PlayerState::StartingPlayer => "q.state().turn.starting == player".into(),
             PlayerState::InTheirUpkeep => format!("{active} && {step} == Step::Upkeep"),
+            PlayerState::InTheirMainPhase
+                if self
+                    .line_text()
+                    .is_some_and(|line| line.contains("isn't your main phase")) =>
+            {
+                return Err(gap("a main phase test that lost its negation"));
+            }
             PlayerState::InTheirMainPhase => format!(
                 "{active} && matches!({step}, Step::PrecombatMain | Step::PostcombatMain)"
             ),
@@ -2096,28 +2475,24 @@ impl Compiler {
             PlayerState::ReceivedAVote => planned::planned_value(
                 "player state ReceivedAVote",
                 "false",
-                "g.votes().received(player)",
+                &format!("q.votes().count(cantrip_mechanics::vote::Vote::Player(player)) > 0"),
             ),
             PlayerState::CouldMulligan => planned::planned_value(
                 "player state CouldMulligan",
                 "false",
                 "q.state().could_mulligan(player)",
             ),
-            PlayerState::PossibleDefender => planned::planned_value(
-                "player state PossibleDefender",
-                "false",
-                "q.could_be_attacked(asker.controller, player)",
-            ),
+            // The defending players of a combat are the active player's opponents still in the game (CR 506.2).
+            PlayerState::PossibleDefender => {
+                "q.state().opponents(q.state().turn.active).any(|o| o == player)".into()
+            }
             PlayerState::RolledHighest => planned::planned_value(
                 "player state RolledHighest",
                 "false",
                 "q.rolled_highest(asker, player)",
             ),
-            PlayerState::CanDraw => planned::planned_value(
-                "player state CanDraw",
-                "false",
-                "q.can_draw(player)",
-            ),
+            // A player an effect says can't draw can't (CR 121.3, 101.2).
+            PlayerState::CanDraw => "!cantrip_api::cant_draw(q, player, 1)".into(),
             PlayerState::CompletedDungeon => {
                 "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"
                     .into()
@@ -2163,6 +2538,15 @@ impl Compiler {
         Ok(format!(
             "{{ let creatures: Vec<ObjectId> = q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == {player} && q.chars(id).is(CardType::Creature)).collect(); (0u8..16).map(|roles: u8| creatures.iter().filter(|&&id| [Subtype::Cleric, Subtype::Rogue, Subtype::Warrior, Subtype::Wizard].iter().enumerate().any(|(i, &role)| (roles >> i) & 1 == 1 && q.chars(id).has_subtype(role))).count() as i64 + 4 - i64::from(roles.count_ones())).min().unwrap_or(0) }}"
         ))
+    }
+    /// What "that many" of an event waits on: the event itself where Cantrip has
+    /// none yet ("whenever you roll to visit your Attractions, if you roll a 6"),
+    /// since the number is what that event will say; else the number alone.
+    fn event_amount_feature(&self) -> &'static str {
+        match self.event_planned {
+            true => FOLLOWS_GAP,
+            false => "amount of an event its trigger does not carry",
+        }
     }
 }
 

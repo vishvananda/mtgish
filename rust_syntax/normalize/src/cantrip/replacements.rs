@@ -4,6 +4,11 @@
 //! ability about the source's own arrival is a part of `CardDef::enters`.
 use super::*;
 
+/// The X a number read with no stack item holds as a hole.
+const ANNOUNCED_X_HELD: &str = "planned_value!(\"numeric expression AnnouncedX\",";
+/// The same X in an effect a resolving ability made: the effect has no number of its own.
+const MADE_EFFECT_X: &str = "planned_value!(\"the X of the ability that made a replacement effect\",";
+
 /// One alternative of the pending event, as `Arm` is for a trigger: `locals`
 /// bind `subject` and `data` from `binding`, a proposal's payload.
 pub(super) struct Watched {
@@ -90,6 +95,49 @@ pub(super) fn capture_slot(event: &mut ReplacementEvent, found: &mut Vec<Slot>) 
 }
 
 /// A replacement runs after the ability that made it, without its targets.
+/// "All damage is dealt to you as though its source had infect" (CR 702.90b,
+/// 120.3b): a rule asked of the player as damage is dealt to them, as Phyrexian
+/// Unlife prints it, not a replacement of the event. Only when nothing but the
+/// player decides it.
+fn infect_rule(
+    label: &str,
+    active: &ReplacementActive,
+    arms: &[Watched],
+    extra: &[String],
+    changes: &[EventChange],
+    rest: &[Instruction],
+) -> Option<String> {
+    if !matches!(changes, [EventChange::DamageAsInfect])
+        || !rest.is_empty()
+        || !matches!(active, ReplacementActive::Battlefield)
+    {
+        return None;
+    }
+    let [arm] = arms else { return None };
+    if arm.kind != "Damage" {
+        return None;
+    }
+    let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
+    let reads = |test: &str, local: &str| {
+        test.match_indices(local).any(|(at, _)| {
+            let before = test[..at].chars().next_back();
+            let after = test[at + local.len()..].chars().next();
+            let word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+            !word(before) && before != Some('.') && !word(after)
+        })
+    };
+    if tests
+        .iter()
+        .any(|test| ["source", "amount", "combat", "data", "e"].iter().any(|local| reads(test, local)))
+    {
+        return None;
+    }
+    Some(format!(
+        "fn {label}_infect(q: &dyn Query, asker: &Asker, player: PlayerId) -> bool {{ let target = &Target::Player(player); let subject = *target; {} }}",
+        tests.join(" && ")
+    ))
+}
+
 fn names_target(recipients: &Recipients) -> bool {
     match recipients {
         Recipients::Targets(_) | Recipients::Target { .. } => true,
@@ -350,7 +398,7 @@ impl Compiler {
                 let players = self.fetch(self.players(players)?);
                 self.plan_code(
                     "event change as it enters SetController",
-                    &format!("let players = {players}; entering.controller = cantrip_mechanics::choose::player(g, entering.controller, entering.object, &players)?;"),
+                    &format!("let players = {players}; if let Some(chosen) = cantrip_mechanics::choose::player(g, entering.controller, entering.object, players, \"GainControl\", 0)? {{ entering.controller = chosen; }}"),
                     out,
                 );
             }
@@ -383,7 +431,7 @@ impl Compiler {
     ) {
         let mut body = String::new();
         for arm in arms {
-            let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
+            let tests: Vec<String> = arm.tests.iter().chain(extra).map(|t| lane_j::without_the_event(t)).collect();
             if prevention {
                 writeln!(
                     body,
@@ -441,12 +489,30 @@ impl Compiler {
                 self.escapes_with(body, label, parts)?;
                 return Ok(());
             }
-            if guard.is_some() {
+            // "If [condition], this enters with ...": the condition is asked as
+            // it would enter (CR 614.1c, 614.12), as a static one's is.
+            if guard.is_some() && self.static_guard.is_some() {
                 return Err(gap("conditional Replacement"));
             }
             let narrowed = lane_n::entering_if(event, body);
             let body = narrowed.as_ref().unwrap_or(body);
-            if narrowed.is_some() {
+            // "If this creature would enter and it wasn't cast or no mana was spent
+            // to cast it" (Primeval Spawn): as it would enter it is still the spell
+            // on the stack (`Entering::object`, CR 614.12), whose cast record the
+            // read finds; a card that wasn't cast has none.
+            let about_its_cast = |event: &ReplacementEvent| {
+                fn cast_only(f: &ObjectFilter) -> bool {
+                    match f {
+                        ObjectFilter::Cast { .. } | ObjectFilter::ManaSpent { .. } => true,
+                        ObjectFilter::Not(f) => cast_only(f),
+                        ObjectFilter::All(fs) | ObjectFilter::Either(fs) => fs.iter().all(cast_only),
+                        _ => false,
+                    }
+                }
+                matches!(event, ReplacementEvent::Enter { objects: ObjectFilter::All(fs) } if fs[1..].iter().all(cast_only))
+            };
+            if narrowed.is_some() && about_its_cast(event) {
+            } else if narrowed.is_some() {
                 // What it was cast as is the spell's, and it is leaving the stack.
                 self.gaps
                     .push(gap("as-enters replacement of another event"));
@@ -459,7 +525,7 @@ impl Compiler {
                 return Err(gap("as-enters replacement of another event"));
             }
             let function = format!("{label}_enters");
-            match self.static_guard.clone() {
+            match guard.or_else(|| self.static_guard.clone()) {
                 Some(condition) => self.entering(
                     &Program {
                         instructions: vec![Instruction::If {
@@ -507,9 +573,20 @@ impl Compiler {
                     _ => None,
                 };
                 if let Some(amount) = amount {
-                    let then = self.prevention_then(label, &arms, frame, &rest, "")?;
+                    let then =
+                        self.prevention_then(label, &arms, frame, &rest, "", (true, true))?;
                     return self.prevention(label, &arms, &extra, amount, hint, then, parts);
                 }
+            }
+        }
+        if let Some(rule) = infect_rule(label, active, &arms, &extra, &changes, &rest) {
+            writeln!(self.functions, "#[allow(unused_variables)] {rule}").unwrap();
+            parts.table("infect_damage_to", format!("{label}_infect"));
+            return Ok(());
+        }
+        if let [arm] = arms.as_slice() {
+            if arm.kind == "BeginTurn" && matches!(active, ReplacementActive::Battlefield) {
+                return self.turn_begin_rule(label, arm, frame, &extra, &changes, &rest, hint, parts);
             }
         }
         let (kind, applies, apply, then) =
@@ -525,6 +602,47 @@ impl Compiler {
             def.push_str(&format!(".optional(&{ask})"));
         }
         self.add_replacement(def, parts);
+        Ok(())
+    }
+    /// "If you would begin your turn while ..., you may skip that turn instead"
+    /// (CR 614.10): no proposal carries a turn's beginning, so the effect is a
+    /// `TurnBeginRule` (Time Vault), which its controller may decline, and what it
+    /// does besides skipping the turn is its `on_skip`. Only a turn of the
+    /// effect's controller: `on_skip` is told no player.
+    #[allow(clippy::too_many_arguments)]
+    fn turn_begin_rule(
+        &mut self,
+        label: &str,
+        arm: &Watched,
+        frame: Frame,
+        extra: &[String],
+        changes: &[EventChange],
+        rest: &[Instruction],
+        hint: String,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        const YOURS: &str = "Some(asker.controller) == Some(p.player)";
+        let skips = matches!(changes, [EventChange::Cancel]);
+        let Some(may) = self.replacing.may.take().filter(|_| skips && arm.tests.iter().any(|t| t == YOURS)) else {
+            return Err(gap("replacement of BeginTurn other than a turn of yours you may skip"));
+        };
+        // The rule asks its own question: the generic "instead" one goes.
+        let asked = format!("static {may}: Question");
+        if let Some(at) = self.functions.find(&asked) {
+            let end = self.functions[at..].find('\n').map_or(self.functions.len(), |n| at + n + 1);
+            self.functions.replace_range(at..end, "");
+        }
+        self.replacing.planned = None;
+        let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {label}_turn_begins(q: &dyn Query, asker: &Asker, player: PlayerId) -> bool {{ struct Seen {{ player: PlayerId }} let p = Seen {{ player }}; {} {} }}", arm.locals, tests.join(" && ")).unwrap();
+        let out = self.then_steps(frame, rest, None)?;
+        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {label}_on_skip(g: &mut dyn Game, asker: &Asker) -> Result<(), Suspend> {{ let subject = Target::Player(asker.controller); let data = [u32::MAX; 2]; {out} Ok(()) }}").unwrap();
+        let question = format!("{}_SKIP", label.to_uppercase());
+        writeln!(self.functions, "static {question}: Question = Question::new(\"SkipTurn\", \"skip this turn?\", {hint}, \"Skip the turn\", \"Take the turn\").no_default();").unwrap();
+        parts.table(
+            "turn_begin",
+            format!("TurnBeginRule {{ applies: {label}_turn_begins, on_skip: {label}_on_skip, question: &{question}, hint: {hint} }}"),
+        );
         Ok(())
     }
     /// What decides a replacement program and what it does: "if it does X,
@@ -708,6 +826,9 @@ impl Compiler {
         if !self.stack_item || self.pending != Pending::Nothing {
             return Err(gap("replacement made outside a resolving ability"));
         }
+        if self.divided_shields(event, limit, duration, body, out)? {
+            return Ok(());
+        }
         let saved = self.clone();
         let mark = out.len();
         let holes = self.gaps.len();
@@ -749,29 +870,89 @@ impl Compiler {
         if about.len() > 1 {
             return Err(gap("replacement made about several objects"));
         }
+        self.choosing_source = about.first().and_then(|o| self.source_chosen(o));
         let about = about.first().map(|o| self.object(o)).transpose()?;
         let hint = quoted(&self.said(lane_k::Said::Sentence, ability_text(body)));
         let label = format!("made_{}", self.fresh());
+        let functions_from = self.functions.len();
         let results = self.results();
         let scope = self.affected_in_scope;
         self.reset_results();
         self.affected_in_scope = true;
         // A loop's object is out of reach as well: it has to be the effect's.
         let bound = std::mem::take(&mut self.bound_objects);
-        let compiled = self.made_effect(
-            &label,
-            &plain,
-            limit,
-            shield,
-            body,
-            hint,
-            to.is_some(),
-            about.is_some(),
-        );
+        // An effect is made with no value of its own: "sources of the color of your
+        // choice" is a definition for each color, and the choice says which is made.
+        let by_color = results.chosen.iter().find(|(k, _)| *k == ValueKind::Color);
+        // "Lands tapped for mana produce mana of the chosen color instead" (Hall
+        // of Gemstone) is one for each color too.
+        let of_mana = format!("{body:?}").contains("ReplaceColoredMana(Amount { color: Chosen");
+        let by_color = by_color.map(|(_, local)| local.clone()).filter(|local| {
+            !local.starts_with("colors_")
+                && (of_mana
+                    || (matches!(plain, ReplacementEvent::Damage(_))
+                        && format!("{plain:?}").contains("Chosen(Color)")
+                        && format!("{body:?}").contains("PreventDamage")))
+        });
+        let compiled = match by_color {
+            Some(local) => {
+                let first = match of_mana {
+                    true => self.made_replacements.len(),
+                    false => self.made_preventions.len(),
+                };
+                let mut made = Ok((None, String::new()));
+                for color in lane_p::COLORS {
+                    self.each_color = Some(format!("Color::{color}"));
+                    made = self.made_effect(
+                        &format!("{label}_{}", color.to_lowercase()),
+                        &plain,
+                        limit,
+                        shield.clone(),
+                        body,
+                        hint.clone(),
+                        to.is_some(),
+                        about.is_some(),
+                    );
+                    self.each_color = None;
+                    if made.is_err() {
+                        break;
+                    }
+                }
+                let arms: Vec<String> = lane_p::COLORS
+                    .iter()
+                    .enumerate()
+                    .map(|(i, color)| format!("Color::{color} => {}", first + i))
+                    .collect();
+                let last = first + lane_p::COLORS.len() - 1;
+                made.map(|(shield, kind)| {
+                    let index = format!("index: match {local} {{ {} }}", arms.join(", "));
+                    let kind = kind.replace(&format!("index: {last},"), &format!("{index},"));
+                    (shield, kind.replace(&format!("index: {last} }}"), &format!("{index} }}")))
+                })
+            }
+            None => self.made_effect(
+                &label,
+                &plain,
+                limit,
+                shield,
+                body,
+                hint,
+                to.is_some(),
+                about.is_some(),
+            ),
+        };
         self.bound_objects = bound;
         self.affected_in_scope = scope;
         self.restore_results(results);
         let kind = compiled?;
+        // "{X}, {T}: ... this turn, it deals that much damage plus X instead" (Taii
+        // Wakeen), "the next time you would draw a card this turn, instead look at
+        // the top X cards" (Aladdin's Lamp): the effect is asked with no stack item,
+        // and `EffectKind::ReplacementRule` keeps no number of the ability that made it.
+        if self.functions.get(functions_from..).is_some_and(|made| made.contains(ANNOUNCED_X_HELD)) {
+            let made = self.functions.split_off(functions_from);
+            self.functions.push_str(&made.replace(ANNOUNCED_X_HELD, MADE_EFFECT_X));
+        }
         let to = to.map_or_else(
             || "Some(Target::None)".to_string(),
             |to| self.fetch(format!("({to}).first().copied()")),
@@ -835,11 +1016,14 @@ impl Compiler {
         about: bool,
     ) -> Result<(Option<String>, String)> {
         self.replacing = Default::default();
-        let (arms, frame) = self.watched(event)?;
+        let (mut arms, frame) = self.watched(event)?;
         self.note_event(event, &arms);
+        self.chosen_source(&mut arms, frame)?;
         let (extra, changes, rest) = self.program_parts(body, frame)?;
         if arms[0].kind == "Damage" && lane_n::prevents(&changes) {
-            let then = self.prevention_then(label, &arms, frame, &rest, "affected: ObjectId, ")?;
+            let alone = lane_n::parts_alone(event, to);
+            let then =
+                self.prevention_then(label, &arms, frame, &rest, "affected: ObjectId, ", alone)?;
             let of = self.made_prevention_amount(label, &arms, frame, &changes)?;
             let applies = format!("{label}_applies");
             self.watch_function(
@@ -850,9 +1034,12 @@ impl Compiler {
                 true,
             );
             let may = self.replacing.may.take();
+            let text = quoted(&self.waiting_words());
+            let hint = lane_n::hint_or_words(hint, &text);
             self.made_preventions.push(lane_n::granted_prevention(
                 &hint,
                 &applies,
+                &text,
                 then.as_deref(),
                 of.as_deref(),
                 may.as_deref(),
@@ -868,11 +1055,7 @@ impl Compiler {
             } else if shield.is_some() {
                 "Shield::Next(shield)".to_string()
             } else if next_time {
-                planned::planned_value(
-                    "prevention limited by NextOccurrence",
-                    "Shield::All",
-                    "Shield::NextTime",
-                )
+                "Shield::NextTime".to_string()
             } else {
                 "Shield::All".to_string()
             };
@@ -889,6 +1072,11 @@ impl Compiler {
             _ if shield.is_some() => false,
             other => return Err(gap(format!("replacement limited by {}", form(other)))),
         };
+        // `once` ends with the first assignment, and the next time is all of the
+        // event (CR 120.2): only damage to one recipient by one source is that.
+        if once && arms[0].kind == "Damage" && lane_n::parts_alone(event, to) != (true, true) {
+            return Err(gap("engine: no once-only replacement of a whole damage event"));
+        }
         let (kind, applies, apply, then) =
             self.reshaping(label, &arms, frame, &extra, &changes, &rest, true)?;
         let mut def =
@@ -927,6 +1115,7 @@ impl Compiler {
         then: Option<String>,
         parts: &mut Parts,
     ) -> Result<()> {
+        let hint = faces::prevention_hint(hint);
         let applies = format!("{label}_applies");
         self.watch_function(
             &applies,
@@ -956,7 +1145,7 @@ impl Compiler {
         match (then, may) {
             (None, None) => parts.preventions.push(def),
             (Some(_), _) => self.plan_entry(
-                "prevention with an effect besides",
+                "engine: no static prevention with an effect besides",
                 "preventions",
                 &def,
                 parts,

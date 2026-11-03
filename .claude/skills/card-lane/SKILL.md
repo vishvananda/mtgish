@@ -26,6 +26,7 @@ Each command sets up its own build environment. Run them from anywhere.
 | `card_lane.py check "Name"` | Every gate, including breaking the card. Takes minutes, so run it when the fast gates pass |
 | `card_lane.py commit "Name"` | Every gate, then exactly one commit, or no commit |
 | `card_lane.py abandon "Name" --outcome generator_bug --reason "..."` | Keeps the work as a patch, cleans the tree, records why |
+| `card_lane.py find --subtype Gamma --without Villain` | Cantrip's cards by `--type`, `--subtype`, `--keyword`, `--text`: what a scenario can put in a deck |
 | `card_lane.py tool cr.py check --show FILE` | Any tool in Cantrip's `tools/maintenance`, in the lane's environment |
 | `card_lane.py status` | The queue, and what each card cost |
 
@@ -91,8 +92,9 @@ A card that is wrong is worse than a card that is missing.
 
    The gate breaks numbers and comparisons, not meaning, so ask the card these yourself. An independent review blocked
    pilot cards on each of them:
-   - **Every ruling is specification.** Each gets an expectation, unless the card's own code decides nothing there. A ruling
-     with two halves gets both.
+   - **Every ruling is specification**: the card must be right by each. A scenario is owed only to a ruling the card's own
+     code decides, as Cantrip's add-cards skill asks; one about the engine or a shared mechanic is tested where that was
+     built. A ruling the card decides with two halves gets both.
    - **Order.** If swapping two of the card's steps leaves the end state the same, add a `?` at the point between them,
      usually at the question the second one asks. A sequence the text states must be able to fail.
    - **Last-known information.** If the code reads `old` rather than `new`, or a value that can change, use something whose
@@ -113,12 +115,36 @@ A card that is wrong is worse than a card that is missing.
    wrong one there is a generator bug. Do not run the whole corpus.
 5. **Fill in `report.json`.** Set `decision` to `done`. Give each test point its `scenario`, the file's name, and `line`, the
    line of that file holding the expectation that catches it, counted from 1: a `?`, a `!` or a line under `[Expect]`. Do the
-   same for each ruling, or say in `no_decision` why the card's own code decides nothing there. Each entry of `look_answers`
-   names the LOOK's line as `line 12`, or the other card's file for a repeated function. `equivalent_mutants` stays empty
-   unless the full gate reports a mutant that means the same thing: then add `{"mutant": "line 6: 4 to 5", "why": "..."}`, and
-   only if it truly changes nothing the rules can see. Run `check --fast` again: it passes when the report does.
+   same for each ruling the card's own code decides, and leave the others empty. Each entry of `look_answers`
+   names the LOOK's line as `line 12`, or the other card's file for a repeated function. The full gate prints each change no
+   scenario caught by the line it changes, with the printed line and test points that line answers to and the scenarios that
+   ran it: add an expectation that fails under it. `equivalent_mutants` stays empty unless no game could tell: then add
+   `{"mutant": "line 6: 4 to 5", "why": "..."}`. Before you call a change unreachable, look for the card that reaches it with
+   `find`. The lane names a sentence's end left out (`g.end_sentence()`) itself, with its reason (CR 603.8), and drops a
+   range made empty (`.choose(2, 1)`): neither is yours. Run `check --fast` again: it passes when the report does.
 6. **Finish.** Run `commit`. If it fails, fix what it names and run it again. If the brief says a driver runs the gates,
    stop after the report instead: it runs them and sends back what fails, in this same session.
+
+## Cards of several faces
+
+A card's name in the lane is the name Cantrip gives it: a split card or a Room by both halves (`Cease // Desist`), any other
+card of two faces by its front (`Delver of Secrets`). That one name is the card's file, its content and its scenarios'
+prefix. `report.json`'s `validation` lists every face's lines, front first, and each is owed what a front line is owed:
+validation, scenarios that run it, and an expectation that a change to it fails. A card's brief says how its other face is
+played, with a scenario of Cantrip's own that does it. In short:
+
+| Layout | Reaching the other face |
+| --- | --- |
+| Transform (CR 712) | What its text says turns it over. Then it is named by its back face: `? Bot1.Battlefield.Insectile Aberration.Transformed = true` |
+| Modal double-faced (CR 712.12) | `Bot1.Hand.Front.Cast(Ability: back face)`, or `.Play(Ability: back face)` for a land; it is then named by that face |
+| Adventure (CR 715) | `Bot1.Hand.Card.Cast(Ability: Adventure)`, then `Bot1.Exile.Card.Cast` casts the creature from exile |
+| Omen (CR 720) | `Bot1.Hand.Card.Cast(Ability: Omen)`; the card is then shuffled into its owner's library |
+| Prepare (CR 722) | Get it prepared (`? Bot1.Battlefield.Card.Prepared = true`), then `Bot1.Exile.Spell.Cast` casts a copy of its spell |
+| Split (CR 709) | `Bot1.Hand.A // B.Cast(Ability: A)`; an aftermath half from the graveyard, `Bot1.Graveyard.A // B.Cast(Ability: B)`; fuse is `Cast(Ability: Fuse)` |
+| Room (CR 709.5) | `Bot1.Hand.A // B.Cast(Ability: A)`, then `Bot1.Battlefield.A.Activate(Ability: right door)` unlocks B as a sorcery |
+| Meld (CR 712.4) | Cantrip has no melded card: no scenario melds it, and "(Melds with ...)" is reminder text |
+
+A scenario that never reaches a face leaves that face's lines unrun, and the coverage and mutation gates say so.
 
 ## Limits
 
@@ -130,6 +156,11 @@ A card that is wrong is worse than a card that is missing.
   right but the engine plays the rules wrongly, the decision is `engine_gap`. If a tool is broken or the tree is not what the
   brief describes, it is `needs_review`. Write the report, then run `abandon` with that outcome. Do this early. These outcomes
   are normal and cost the project little; a false pass costs it a lot.
+- A stop needs a game state, and a failing scenario where one can be written; "triggers could see the wrong state" is not one.
+  Before a `generator_bug`, compare a card Cantrip has by hand with the same words (`find-cards.py`). Code that does what
+  Cantrip's own card does is right: "each player loses 2 life" done player by player in one resolution is one event as far as
+  the rules can tell (CR 603.3, 704.3). If a scenario shows Cantrip's own way wrong too, the fault is in the shared code or the
+  engine, and the stop is `engine_gap`, naming both.
 - Never weaken a scenario to pass. Never assert what you know is wrong. No `# Known bug` scenarios in this lane.
 - No `git commit`, no `git add`, no `git push`, no `gh`, and no network. `commit` makes the commit. Do not write
   `Co-Authored-By` anywhere.

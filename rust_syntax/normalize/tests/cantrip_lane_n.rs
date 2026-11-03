@@ -16,16 +16,15 @@ const CARDS: &[(&str, &str)] = &[
     ("Voracious Bibliophile", "q.state().targets(i).len()"),
     // "Each token ... is created under your control instead".
     ("Crafty Cutpurse", "t.controller ="),
+    // "That player or a planeswalker that player controls": chosen as it resolves.
+    ("Vial Smasher the Fierce", "candidates: candidates_"),
     // What Cantrip doesn't have yet is named as a requirement.
-    ("Vial Smasher the Fierce", "a choice of Recipient"),
     ("Land Equilibrium", "event change then"),
     ("Twinning Staff", "replacement event CopySpell"),
     ("Vedalken Squirrel-Whacker", "replacement of RollD6"),
     ("Grifter's Blade", "what a permanent could be attached to"),
-    (
-        "\"Lifetime\" Pass Holder",
-        "amount of an event its trigger does not carry",
-    ),
+    // The amount follows the event Cantrip lacks.
+    ("\"Lifetime\" Pass Holder", "trigger event Player RollsToVisit"),
     // "If those permanents are exchanged this way".
     ("Gauntlets of Chaos", "traded_"),
     // "For each counter you put on a creature this way": once per counter.
@@ -42,25 +41,31 @@ const CARDS: &[(&str, &str)] = &[
         "Sacred Boon",
         "damage prevented by an effect of this ability",
     ),
-    (
-        "Bill Potts",
-        "a limit shared by the abilities of one sentence",
-    ),
+    // The sentence's limit, shared by its two abilities' triggerings.
+    ("Bill Potts", ".only_if(ability_0_shared_limit)"),
     ("Market Gnome", "trigger event WhileActivating"),
     (
         "Divine Deflection",
         "target reference outside a resolving ability",
     ),
-    ("Arcbond", "damage to each permanent, a card type lost in the data"),
+    // "Each other creature and each player" (#156): creatures, not every permanent.
+    (
+        "Arcbond",
+        "q.chars(id).is(CardType::Creature) && !(Some(asker.source) == Some(id))",
+    ),
     (
         "Undiscovered Paradise",
         "replacement made outside a resolving ability",
     ),
     ("The Mimeoplasm", "event change as it enters Entry CopyOf"),
     ("Martyrdom", "replacement made by a granted ability"),
-    ("Suffocation", "damage source kind Spell"),
-    ("Primeval Spawn", "as-enters replacement of another event"),
-    ("Quarum Trench Gnomes", "replacement event ProduceColor"),
+    // A spell as a source of damage is an object on the stack.
+    ("Suffocation", "q.state().obj(source).zone.is(ZoneKind::Stack)"),
+    // Its as-enters exile reads its cast record: only the play is left.
+    ("Primeval Spawn", "feature: \"operation PlayWith\""),
+    ("Quarum Trench Gnomes", "ReplacementKind::ManaProduction"),
+    // A granted exalted is the word its grant prints.
+    ("First Sliver's Chosen", "subject_gets_plus_one, \"Exalted\")"),
 ];
 
 /// Cards whose source lost a word, so code from it would say what the card does

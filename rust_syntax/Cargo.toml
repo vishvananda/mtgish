@@ -31,11 +31,21 @@ debug = 0
 
 # Optimized dependencies make corpus runs fast, and dropping debug assertions
 # removes standard library checks from hot generic code. Do not raise opt-level
-# here: at 1, rebuilding after an edit took about 3 minutes instead of 10 seconds.
+# on mtgish-ast: on 2026-11-02 at 1 it cut `ast cantrip-tracked` from 1003 G
+# instructions to 866 G, but an edit to one function rebuilt `ast` in 51 s
+# against 22-24 s, and the test binaries in 32 s against 17-19 s.
 [profile.dev.package."*"]
 opt-level = 2
+debug-assertions = false
+overflow-checks = false
 
 [profile.dev.package.mtgish-ast]
+debug-assertions = false
+
+# rust_syntax is unoptimized, and generic code it instantiates (serde_json's
+# writer, slices) is shared with mtgish-ast: without debug assertions it runs
+# without the standard library's checks, 15% of `ast cantrip-tracked`.
+[profile.dev.package.rust_syntax]
 debug-assertions = false
 
 [features]

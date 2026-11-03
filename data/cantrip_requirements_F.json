@@ -1,4 +1,5 @@
 [
+ {"match": "^engine: no stickers$", "class": "engine", "needs": "stickers (CR 123, Unfinity), a casual variant Cantrip does not play: its docs/rules-exceptions.md leaves stickers out, so each sticker of a sheet is a hole that keeps what it says"},
  {"match": "^layout Flip$", "class": "engine", "needs": "flip cards (CR 710): a flipped half that gives a flipped permanent its name, text, types and power and toughness and keeps its mana cost and colors", "api": "CardDef::flip: Option<&'static CardDef>"},
  {"match": "^keyword action Flip$", "class": "engine", "needs": "the flip action and the flipped status (CR 110.5, 710), which lasts until the permanent leaves the battlefield", "api": "Game::flip(object)"},
  {"match": "^layout MeldPiece$", "class": "engine", "needs": "meld pairs (CR 712.4): a card that names the oversized back face it melds into with its counterpart", "api": "CardDef::melds_into: Option<&'static str>"},

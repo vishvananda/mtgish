@@ -7767,13 +7767,13 @@ Card(
             ),
             ActionList([
               DestroyPermanent(Trigger_ThatOtherCreature),
-              CreateTriggerUntil(
-                WhenAPermanentLeavesTheBattlefield(SinglePermanent(Ref_TargetPermanent)),
-                ActionList([
-                  SacrificePermanent(ThisPermanent),
-                ]),
-                UntilEndOfTurn,
-              ),
+            ]),
+            UntilEndOfTurn,
+          ),
+          CreateTriggerUntil(
+            WhenAPermanentLeavesTheBattlefield(SinglePermanent(Ref_TargetPermanent)),
+            ActionList([
+              SacrificePermanent(ThisPermanent),
             ]),
             UntilEndOfTurn,
           ),
@@ -23414,7 +23414,7 @@ Transforming(
         ]),
       ),
       TriggerA(
-        WhenAPermanentDies(And([
+        WhenAnyNumberOfCreaturesOrPlaneswalkersDie(And([
           Other(ThisPermanent),
           And([
             IsCreatureType(Cat),
@@ -30115,12 +30115,15 @@ Card(
           ),
           [
             PutExiledCardIntoOwnersGraveyard(ThisExiledCard),
-            PutEachCardFromEachPlayersGraveyardOntoTheBattlefield(
-              IsCardtype(Creature),
+            EachPlayerAction(
               AnyPlayer,
-              [
-                EntersNormally,
-              ],
+              ReturnEachCardFromPlayersGraveyardToBattlefield(
+                IsCardtype(Creature),
+                ActionPlayer,
+                [
+                  EntersNormally,
+                ],
+              ),
             ),
           ],
         ),
@@ -55860,7 +55863,10 @@ Card(
               Ref_TargetPermanent,
               Trigger_ThatMuch,
               MultipleRecipients([
-                EachPermanent(Other(Ref_TargetPermanent)),
+                EachPermanent(And([
+                  IsCardtype(Creature),
+                  Other(Ref_TargetPermanent),
+                ])),
                 EachPlayer(AnyPlayer),
               ]),
             ),
@@ -123711,25 +123717,36 @@ Card(
       ]),
       ActionList([
         LookAtTopOfLibrary,
-        ChooseAnAction([
-          [
-            PutTopCardOfLibraryOfTypeOnBattlefield(
+        IfElse(
+          TopCardOfPlayersLibraryPassesFilter(
+            You,
+            Or([
               IsCreatureType(Bison),
+              IsCardtype(Creature),
+            ]),
+          ),
+          [
+            ChooseAnAction([
               [
-                EntersNormally,
+                PutTopCardOfLibraryOfTypeOnBattlefield(
+                  IsCreatureType(Bison),
+                  [
+                    EntersNormally,
+                  ],
+                ),
               ],
-            ),
+              [
+                RevealTopCardOfLibraryAndPutIntoHand(IsCardtype(Creature)),
+              ],
+              [
+                DoNothing,
+              ],
+            ]),
           ],
           [
-            RevealTopCardOfLibraryAndPutIntoHand(IsCardtype(Creature)),
+            MayAction(PutTopOfLibraryInGraveyard),
           ],
-          [
-            PutTopOfLibraryInGraveyard,
-          ],
-          [
-            DoNothing,
-          ],
-        ]),
+        ),
       ]),
     ),
   ],
@@ -276860,11 +276877,11 @@ Card(
                   ),
                 ],
               ),
-              DrawACard,
             ],
             [
               ChooseTwoBasicLandTypes,
-              CreateSpellEffect(
+              CreatePermanentSpellLayerEffect(
+                UntilEndOfTurn,
                 Ref_TargetSpell,
                 [
                   ReplaceLandTypeVariableWithNewLandTypeVariable(
@@ -276875,6 +276892,7 @@ Card(
               ),
             ],
           ]),
+          DrawACard,
         ]),
       ),
       Targeted(
@@ -276885,7 +276903,7 @@ Card(
           ChooseAnAction([
             [
               ChooseTwoColorWords,
-              CreatePermanentLayerEffect(
+              CreatePermanentLayerEffectUntil(
                 Ref_TargetPermanent,
                 [
                   ReplaceColorWordVariableWithNewColorWordVariable(
@@ -276893,6 +276911,7 @@ Card(
                     TheSecondChosenColorWord,
                   ),
                 ],
+                UntilEndOfTurn,
               ),
             ],
             [
@@ -276907,9 +276926,9 @@ Card(
                 ],
                 UntilEndOfTurn,
               ),
-              DrawACard,
             ],
           ]),
+          DrawACard,
         ]),
       ),
     ])),
@@ -426040,13 +426059,8 @@ Transforming(
             2,
           ],
           ActionList([
-            MayCost(DiscardNumberCards(Integer(2))),
-            If(
-              CostWasPaid,
-              [
-                DrawNumberCards(NumCardsDiscardedThisWay),
-              ],
-            ),
+            MayAction(DiscardUptoNumberCards(Integer(2))),
+            DrawNumberCards(NumCardsDiscardedThisWay),
           ]),
         ),
         SagaChapter(
@@ -452584,7 +452598,10 @@ Card(
           UntilEndOfTurn,
         ),
         CreateTriggerUntil(
-          WhenACreatureDealsCombatDamage(SinglePermanent(Ref_TargetPermanent)),
+          WhenACreatureDealsCombatDamageToAPlayer(
+            SinglePermanent(Ref_TargetPermanent),
+            AnyPlayer,
+          ),
           ActionList([
             Exile(
               [
@@ -555225,7 +555242,7 @@ Card(
   Rules: [
     Flying,
     TriggerA(
-      WhenAPermanentDies(And([
+      WhenAnyNumberOfCreaturesOrPlaneswalkersDie(And([
         Other(ThisPermanent),
         IsCardtype(Creature),
       ])),
@@ -702003,7 +702020,7 @@ Card(
         CreateEachPermanentLayerEffectUntil(
           And([
             IsCardtype(Creature),
-            IsCardtypeVariable(TheChosenCardtype),
+            IsCreatureTypeVariable(TheChosenCreatureType),
           ]),
           [
             AdjustPT(
@@ -730360,7 +730377,7 @@ Card(
       [
         CostReduceGeneric(1),
       ],
-      TheNumberOfCardTypesAmongThePermanentsSacrificedThisTurn,
+      TheNumberOfCardTypesAmongThePermanentsSacrificedByPlayerThisTurn(You),
     )),
     Flying,
     Trample,
@@ -904380,6 +904397,7 @@ Card(
           UptoOneTargetPermanent(And([
             IsNonCardtype(Creature),
             IsCardtype(Land),
+            ControlledByAPlayer(SinglePlayer(You)),
           ])),
         ],
         ActionList([
@@ -994134,6 +994152,7 @@ Card(
           TargetPermanent(And([
             IsNonCardtype(Land),
             IsPermanent,
+            ControlledByAPlayer(Opponent),
           ])),
         ],
         ActionList([
@@ -1020193,7 +1020212,10 @@ Card(
             [
               ChangeTheTargetOfSpellToAPermanent(
                 Ref_TargetSpell,
-                Other(ThisPermanent),
+                And([
+                  Other(ThisPermanent),
+                  IsCardtype(Creature),
+                ]),
               ),
             ],
           ),
@@ -1042400,10 +1042422,10 @@ Card(
           IsNonCardtype(Artifact),
           IsCardtype(Creature),
         ]))),
-        If(
+        IfElse(
           CostWasPaid,
           [
-            MustCost(PutCounters([
+            PutCounters([
               ACounterOfTypeOnPermanent(
                 PTCounter(
                   1,
@@ -1042411,13 +1042433,10 @@ Card(
                 ),
                 ThisPermanent,
               ),
-            ])),
-            Unless(
-              CostWasPaid,
-              [
-                TapPermanent(ThisPermanent),
-              ],
-            ),
+            ]),
+          ],
+          [
+            TapPermanent(ThisPermanent),
           ],
         ),
       ]),
@@ -1052030,7 +1052049,7 @@ Card(
       ],
       ActionList([
         CreatePreventDamageUntil(
-          DamageWouldBeDealtByAPermanent(Ref_TargetPermanents),
+          DamageWouldBeDealtToARecipient(APermanent(Ref_TargetPermanents)),
           [
             PreventThatDamage,
           ],
@@ -1191500,6 +1191519,7 @@ ModalDFC(
             TargetPermanent(And([
               IsNonCardtype(Land),
               IsPermanent,
+              ControlledByAPlayer(Opponent),
             ])),
           ],
           ActionList([
@@ -1226276,7 +1226296,7 @@ Card(
   Rules: [
     Haste,
     FromGraveyardOrBattlefield(TriggerA(
-      WhenAPermanentDies(And([
+      WhenAnyNumberOfCreaturesOrPlaneswalkersDie(And([
         Other(ThisPermanent),
         IsCardtype(Creature),
       ])),
@@ -1330055,6 +1330075,7 @@ Card(
           TargetPermanent(And([
             IsNonCardtype(Creature),
             IsCardtype(Land),
+            ControlledByAPlayer(SinglePlayer(You)),
           ])),
         ],
         ActionList([
@@ -1369485,7 +1369506,10 @@ Card(
                     PutTheCardFoundThisWayOntoTheBattlefield([
                       EntersUnderPlayersControl(You),
                     ]),
-                    SacrificePermanent(ThisPermanent),
+                    PlayerAction(
+                      You,
+                      SacrificePermanent(ThisPermanent),
+                    ),
                   ],
                 ),
                 PutTheRemainingCardsIntoGraveyard,
@@ -1390846,7 +1390870,7 @@ Card(
         PutGraveyardCardOntoBattlefield(
           Trigger_ThatGraveyardCard,
           [
-            EntersUnderOwnersControl,
+            EntersUnderPlayersControl(You),
             EntersWithLayerEffect([
               SetCardtype(Artifact),
             ]),
@@ -1401396,7 +1401420,7 @@ Card(
         ChooseAnAction([
           [
             ChooseTwoColorWords,
-            CreatePermanentLayerEffect(
+            CreatePermanentLayerEffectUntil(
               Ref_TargetPermanent,
               [
                 ReplaceColorWordVariableWithNewColorWordVariable(
@@ -1401404,6 +1401428,7 @@ Card(
                   TheSecondChosenColorWord,
                 ),
               ],
+              UntilEndOfTurn,
             ),
           ],
           [
@@ -1457367,7 +1457392,7 @@ Card(
   ],
   Rules: [
     TriggerA(
-      WhenAPermanentDies(And([
+      WhenAnyNumberOfCreaturesOrPlaneswalkersDie(And([
         Other(ThisPermanent),
         And([
           IsCardtype(Creature),
@@ -1510345,7 +1510370,7 @@ Card(
         ChooseAnAction([
           [
             ChooseTwoColorWords,
-            CreatePermanentLayerEffect(
+            CreatePermanentLayerEffectUntil(
               Ref_TargetPermanent,
               [
                 ReplaceColorWordVariableWithNewColorWordVariable(
@@ -1510353,6 +1510378,7 @@ Card(
                   TheSecondChosenColorWord,
                 ),
               ],
+              UntilEndOfTurn,
             ),
           ],
           [

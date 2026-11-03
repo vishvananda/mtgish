@@ -43,7 +43,37 @@ const CARDS: &[(&str, &str)] = &[
     // The copy keeps the original's target if it can't take this one.
     ("Ivy, Gleeful Spellthief", "g.change_a_target_to(Target::Object(copy)"),
     // No card can ask what a spell could target.
-    ("Precursor Golem", "operation-copy-on-stack"),
+    ("Precursor Golem", "a-copy-of-a-spell-for-each-object-it-could-target"),
+    // "The discarded card": the last discard of the payment, after its mana.
+    ("Wolf of Devil's Breach", ".rev()"),
+    ("Wolf of Devil's Breach", "Event::Discarded { card, .. } => Some(card)"),
+    // "The blighted creature": the effect says which, where a payment doesn't.
+    ("Grub, Notorious Auntie", "blight::may_in_effect("),
+    // "You may discard up to two cards" (#165): up to two, then that many drawn.
+    ("Fable of the Mirror-Breaker", "Count::UpTo((2i64)"),
+    // Emerge's and a kicker's payment, read from the records of the cast.
+    ("Adipose Offspring", "original_spell("),
+    ("Dralnu's Pet", "original_spell("),
+    // How many it sacrificed, kept with the text that reads it.
+    ("Wood Elemental", "entering.chosen_number = Some(sacrificed_"),
+    // Each opponent discards at once, and what they discarded is read by whose.
+    ("Kroxa, Titan of Death's Hunger", "discard_together("),
+    // A spell that deals damage once dealt damage that way to what it dealt it to.
+    ("Ghired's Belligerence", "permanents_dealt_damage_by(q.history(), asker.source, 0)"),
+    // An ability's `by` is its source.
+    ("Skophos Maze-Warden", ".contains(&by)"),
+    // Kicked or not, the same slot for each opponent.
+    ("Mega Flare", "controlled_by_slot_opponent("),
+    // A permanent asked of afterwards is one on the battlefield, not a card in a hand.
+    ("Herald of Vengeance", "zone.is(ZoneKind::Battlefield)"),
+    // The modes of the combat before this one of yours.
+    ("Yotian Courier", "Step::BeginCombat"),
+    // "You may untap it. Do this only once each turn": asked, and spent by a yes.
+    ("Legolas, Counter of Kills", "g.note_done(asker.source"),
+    // "When you next cast ... this turn" waits for this turn alone.
+    ("Repeated Reverberation", "DelayedWhen::NextThisTurn"),
+    // "This turn" of Seraph's trigger is no end of the delayed ability's wait.
+    ("Seraph", "DelayedWhen::UntilEvent"),
 ];
 
 #[test]

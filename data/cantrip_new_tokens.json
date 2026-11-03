@@ -1,0 +1,1057 @@
+{
+"ANGEL_3_3_WHITE": {
+"cards": 4,
+"source": "/// A 3/3 white Angel creature token with flying (CR 111). Elspeth Resplendent, Linvala, the Preserver and Seraphic\n/// Steed create this exact token.\npub static ANGEL_3_3_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(3),\n    toughness: Some(3),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Angel)\n};\n",
+"title": "the 3/3 white Angel token with flying"
+},
+"ANGEL_4_4_WHITE": {
+"cards": 18,
+"source": "/// A 4/4 white Angel creature token with flying (CR 111). Angelic Accord, Angelic Ascension and Angelic Favor create\n/// this exact token.\npub static ANGEL_4_4_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(4),\n    toughness: Some(4),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Angel)\n};\n",
+"title": "the 4/4 white Angel token with flying"
+},
+"ANGEL_WARRIOR": {
+"cards": 4,
+"source": "/// A 4/4 white Angel Warrior creature token with flying and vigilance (CR 111). Firja's Retribution, Great Hall of\n/// Starnheim and Starnheim Unleashed create this exact token.\npub static ANGEL_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(4),\n    toughness: Some(4),\n    keywords: Keywords::of(&[Keyword::Flying, Keyword::Vigilance]),\n    ..token!(Angel Warrior)\n};\n",
+"title": "the 4/4 white Angel Warrior token with flying and vigilance"
+},
+"ASSASSIN": {
+"cards": 4,
+"source": "/// A 1/1 black Assassin creature token with menace (CR 111). Aya of Alexandria, Headsplitter and Origin of the Hidden\n/// Ones create this exact token.\npub static ASSASSIN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Menace]),\n    ..token!(Assassin)\n};\n",
+"title": "the 1/1 black Assassin token with menace"
+},
+"ASTARTES_WARRIOR": {
+"cards": 5,
+"source": "/// A 2/2 white Astartes Warrior creature token with vigilance (CR 111). Birth of the Imperium, Defenders of Humanity\n/// and Inquisitorial Rosette create this exact token.\npub static ASTARTES_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Vigilance]),\n    ..token!(Astartes Warrior)\n};\n",
+"title": "the 2/2 white Astartes Warrior token with vigilance"
+},
+"BEAR_4_4_GREEN": {
+"cards": 2,
+"source": "/// A 4/4 green Bear creature token (CR 111). Bear's Companion and The Earth King create this exact token.\npub static BEAR_4_4_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(4),\n    toughness: Some(4),\n    ..token!(Bear)\n};\n",
+"title": "the 4/4 green Bear token"
+},
+"BEAST": {
+"cards": 9,
+"source": "/// A 4/4 green Beast creature token (CR 111). Baloth Cage Trap, Baloth Prime and Beast Attack create this exact token.\npub static BEAST: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(4),\n    toughness: Some(4),\n    ..token!(Beast)\n};\n",
+"title": "the 4/4 green Beast token"
+},
+"BIRD": {
+"cards": 17,
+"source": "/// A 1/1 white Bird creature token with flying (CR 111). Aether Channeler, Akim, the Soaring Wind and Battle Screech\n/// create this exact token.\npub static BIRD: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Bird)\n};\n",
+"title": "the 1/1 white Bird token with flying"
+},
+"BIRD_1_1_BLUE": {
+"cards": 5,
+"source": "/// A 1/1 blue Bird creature token with flying (CR 111). Alrund's Epiphany, Fable of Wolf and Owl and Ordered Migration\n/// create this exact token.\npub static BIRD_1_1_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Bird)\n};\n",
+"title": "the 1/1 blue Bird token with flying"
+},
+"BIRD_2_2_BLUE": {
+"cards": 5,
+"source": "/// A 2/2 blue Bird creature token with flying (CR 111). Perch Protection, Radagast, Wizard of Wilds and Song of\n/// Eärendil create this exact token.\npub static BIRD_2_2_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Bird)\n};\n",
+"title": "the 2/2 blue Bird token with flying"
+},
+"BIRD_2_2_GREEN": {
+"cards": 4,
+"source": "/// A 2/2 green Bird creature token with \"Whenever a land you control enters, this token gets +1/+0 until end of turn.\"\n/// (CR 111). Call the Mountain Chocobo, Chocobo Racetrack and Gysahl Greens create this exact token.\npub static BIRD_2_2_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(2),\n    toughness: Some(2),\n    abilities: &[\n        triggered(\n            when_asked(EventMask::ZONE_CHANGE, bird_2_2_green_when_land_control_enters),\n            bird_2_2_green_token_gets_1_0,\n            \"Whenever a land you control enters, this token gets +1/+0 until end of turn.\",\n        ),\n    ],\n    ..token!(Bird)\n};\n\n/// \"Whenever a land you control enters, this token gets +1/+0 until end of turn.\" (CR 608.2, 611.2a).\nfn bird_2_2_green_token_gets_1_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {\n    let objects_0 = {\n        let q: &dyn Query = g;\n        Some(item.object)\n            .into_iter()\n            .filter(|&o| q.state().obj(o).became.is_none())\n            .collect::<Vec<ObjectId>>()\n    };\n    instruction(\n        g,\n        |g| {\n            for &object in &objects_0 {\n                g.add_effect(\n                    item.object,\n                    object,\n                    EffectKind::Pump(1, 0),\n                    Duration::EndOfTurn,\n                );\n            }\n        },\n    );\n    Ok(())\n}\n\n/// \"Whenever a land you control enters\" (CR 603.2).\nfn bird_2_2_green_when_land_control_enters(\n    q: &dyn Query,\n    asker: &Asker,\n    event: &Event,\n) -> Option<Fired> {\n    let Event::ZoneChange { new, to, .. } = event else { return None };\n    let id = *new;\n    let subject = Target::Object(id);\n    if to.is(ZoneKind::Battlefield)\n        && (q.chars(id).is(CardType::Land) && asker.controller == q.controller(id))\n    {\n        return Fired::about(subject);\n    }\n    None\n}\n",
+"title": "the 2/2 green Bird token"
+},
+"BOAR": {
+"cards": 5,
+"source": "/// A 2/2 green Boar creature token (CR 111). Carefree Swinemaster, Contraband Livestock and Curse of the Swine create\n/// this exact token.\npub static BOAR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Boar)\n};\n",
+"title": "the 2/2 green Boar token"
+},
+"CAT_1_1_GREEN": {
+"cards": 2,
+"source": "/// A 1/1 green Cat creature token (CR 111). Rin and Seri, Inseparable and Waiting in the Weeds create this exact token.\npub static CAT_1_1_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Cat)\n};\n",
+"title": "the 1/1 green Cat token"
+},
+"CAT_2_2_GREEN": {
+"cards": 2,
+"source": "/// A 2/2 green Cat creature token (CR 111). Esika's Chariot and Jolrael, Mwonvuli Recluse create this exact token.\npub static CAT_2_2_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Cat)\n};\n",
+"title": "the 2/2 green Cat token"
+},
+"CAT_2_2_WHITE": {
+"cards": 5,
+"source": "/// A 2/2 white Cat creature token (CR 111). Ajani's Chosen, Ajani, Caller of the Pride and Kemba, Kha Enduring create\n/// this exact token.\npub static CAT_2_2_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Cat)\n};\n",
+"title": "the 2/2 white Cat token"
+},
+"CAT_WARRIOR": {
+"cards": 3,
+"source": "/// A 2/2 green Cat Warrior creature token with forestwalk (CR 111). Jedit Ojanen of Efrava, Jedit Ojanen, Mercenary and\n/// Lord Windgrace create this exact token.\npub static CAT_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Forestwalk]),\n    ..token!(Cat Warrior)\n};\n",
+"title": "the 2/2 green Cat Warrior token with forestwalk"
+},
+"CENTAUR": {
+"cards": 7,
+"source": "/// A 3/3 green Centaur creature token (CR 111). Call of the Conclave, Centaur Glade and Centaur's Herald create this\n/// exact token.\npub static CENTAUR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(3),\n    toughness: Some(3),\n    ..token!(Centaur)\n};\n",
+"title": "the 3/3 green Centaur token"
+},
+"CITIZEN_1_1_GREEN_WHITE": {
+"cards": 18,
+"source": "/// A 1/1 green and white Citizen creature token (CR 111). Boss's Chauffeur, Cabaretti Charm and Citizen's Crowbar\n/// create this exact token.\npub static CITIZEN_1_1_GREEN_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(17)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Citizen)\n};\n",
+"title": "the 1/1 green and white Citizen token"
+},
+"CITIZEN_1_1_WHITE": {
+"cards": 2,
+"source": "/// A 1/1 white Citizen creature token (CR 111). Icatian Crier and Icatian Town create this exact token.\npub static CITIZEN_1_1_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Citizen)\n};\n",
+"title": "the 1/1 white Citizen token"
+},
+"CONSTRUCT_0_0_COLORLESS": {
+"cards": 2,
+"source": "/// A 0/0 colorless Construct artifact creature token (CR 111). Metallurgic Summonings and Oviya Pashiri, Sage\n/// Lifecrafter create this exact token.\npub static CONSTRUCT_0_0_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Construct)\n};\n",
+"title": "the 0/0 Construct token"
+},
+"CONSTRUCT_1_1_COLORLESS": {
+"cards": 4,
+"source": "/// A 1/1 colorless Construct artifact creature token (CR 111). Jan Jansen, Chaos Crafter, Myriad Construct and\n/// Nimblewright Schematic create this exact token.\npub static CONSTRUCT_1_1_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Construct)\n};\n",
+"title": "the 1/1 Construct token"
+},
+"CONSTRUCT_1_1_COLORLESS_DEFENDER": {
+"cards": 2,
+"source": "/// A 1/1 colorless Construct artifact creature token with defender (CR 111). Daretti, Ingenious Iconoclast and\n/// Flamewright create this exact token.\npub static CONSTRUCT_1_1_COLORLESS_DEFENDER: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Defender]),\n    ..token!(Construct)\n};\n",
+"title": "the 1/1 Construct token with defender"
+},
+"CONSTRUCT_4_4_COLORLESS": {
+"cards": 2,
+"source": "/// A 4/4 colorless Construct artifact creature token (CR 111). Chrome Replicator and Retrofitter Foundry create this\n/// exact token.\npub static CONSTRUCT_4_4_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(4),\n    toughness: Some(4),\n    ..token!(Construct)\n};\n",
+"title": "the 4/4 Construct token"
+},
+"CONSTRUCT_6_12_COLORLESS": {
+"cards": 3,
+"source": "/// A 6/12 colorless Construct artifact creature token with trample (CR 111). Ancient Stone Idol, Stone Idol Generator\n/// and Stone Idol Trap create this exact token.\npub static CONSTRUCT_6_12_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(6),\n    toughness: Some(12),\n    keywords: Keywords::of(&[Keyword::Trample]),\n    ..token!(Construct)\n};\n",
+"title": "the 6/12 Construct token with trample"
+},
+"CRAB": {
+"cards": 3,
+"source": "/// A 0/3 blue Crab creature token (CR 111). Hard Evidence, Scuttletide and Specimen Collector create this exact token.\npub static CRAB: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(0),\n    toughness: Some(3),\n    ..token!(Crab)\n};\n",
+"title": "the 0/3 blue Crab token"
+},
+"DEMON": {
+"cards": 6,
+"source": "/// A 5/5 black Demon creature token with flying (CR 111). Archfiend's Vessel, Bloodsoaked Altar and Demonic Rising\n/// create this exact token.\npub static DEMON: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(5),\n    toughness: Some(5),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Demon)\n};\n",
+"title": "the 5/5 black Demon token with flying"
+},
+"DEMON_0_0_BLACK": {
+"cards": 4,
+"source": "/// A 0/0 black Demon creature token with flying (CR 111). Promise of Power, Reign of the Pit and Tivash, Gloom Summoner\n/// create this exact token.\npub static DEMON_0_0_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(0),\n    toughness: Some(0),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Demon)\n};\n",
+"title": "the 0/0 black Demon token with flying"
+},
+"DETECTIVE": {
+"cards": 8,
+"source": "/// A 2/2 white and blue Detective creature token (CR 111). Chalk Outline, Detective of the Month and Drag the Canal\n/// create this exact token.\npub static DETECTIVE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(3)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Detective)\n};\n",
+"title": "the 2/2 white and blue Detective token"
+},
+"DEVIL": {
+"cards": 7,
+"source": "/// A 1/1 red Devil creature token with \"When this token dies, it deals 1 damage to any target.\" (CR 111). Dance with\n/// Devils, Devils' Playground and Maestros Diabolist create this exact token.\npub static DEVIL: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(1),\n    toughness: Some(1),\n    abilities: &[\n        triggered(\n                when_asked(EventMask::ZONE_CHANGE, devil_when_token_dies),\n                devil_deals_1_damage_any_target,\n                \"When this token dies, it deals 1 damage to any target.\",\n            )\n            .targets(&[crate::targets::ANY]),\n    ],\n    ..token!(Devil)\n};\n\n/// \"When this token dies, it deals 1 damage to any target.\" (CR 608.2, 120.3).\nfn devil_deals_1_damage_any_target(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {\n    devil_token_1_announced(g, item, 0, false);\n    let t_0 = devil_token_1_announced(g, item, 0, true);\n    let source_0 = item.subject.object();\n    let recipients_0 = t_0.clone();\n    if let Some(source) = source_0 {\n        let batch: Vec<(ObjectId, Target, u16)> = recipients_0\n            .iter()\n            .map(|t| (source, *t, 1u16))\n            .collect();\n        g.damage_together(&batch);\n    }\n    Ok(())\n}\n\n/// \"When this token dies, it deals 1 damage to any target.\" (CR 608.2).\nfn devil_token_1_announced(\n    g: &dyn Game,\n    item: &StackItem,\n    spec: u8,\n    legal: bool,\n) -> Vec<Target> {\n    (0..g.state().targets(item).len())\n        .filter(|&i| {\n            g.state().spec(item, i) == spec && (!legal || g.target_legal(item, i))\n        })\n        .map(|i| g.state().target(item, i))\n        .collect()\n}\n\n/// \"When this token dies\" (CR 603.2).\nfn devil_when_token_dies(_: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {\n    let Event::ZoneChange { old, from, to, .. } = event else { return None };\n    let id = *old;\n    let subject = Target::Object(id);\n    if to.is(ZoneKind::Graveyard) && from.is(ZoneKind::Battlefield) && asker.source == id\n    {\n        return Fired::about(subject);\n    }\n    None\n}\n",
+"title": "the 1/1 red Devil token"
+},
+"DINOSAUR": {
+"cards": 5,
+"source": "/// A 3/3 green Dinosaur creature token with trample (CR 111). Baffling End, Crested Herdcaller and Raptor Hatchling\n/// create this exact token.\npub static DINOSAUR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(3),\n    toughness: Some(3),\n    keywords: Keywords::of(&[Keyword::Trample]),\n    ..token!(Dinosaur)\n};\n",
+"title": "the 3/3 green Dinosaur token with trample"
+},
+"DINOSAUR_3_1_RED": {
+"cards": 3,
+"source": "/// A 3/1 red Dinosaur creature token (CR 111). Bonehoard Dracosaur, Poetic Ingenuity and Scalestorm Summoner create\n/// this exact token.\npub static DINOSAUR_3_1_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(3),\n    toughness: Some(1),\n    ..token!(Dinosaur)\n};\n",
+"title": "the 3/1 red Dinosaur token"
+},
+"DINOSAUR_3_3_GREEN": {
+"cards": 2,
+"source": "/// A 3/3 green Dinosaur creature token (CR 111). Nurturing Bristleback and Palani's Hatcher create this exact token.\npub static DINOSAUR_3_3_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(3),\n    toughness: Some(3),\n    ..token!(Dinosaur)\n};\n",
+"title": "the 3/3 green Dinosaur token"
+},
+"DJINN_MONK": {
+"cards": 2,
+"source": "/// A 2/2 blue Djinn Monk creature token with flying (CR 111). Ojutai's Summons and Skywise Teachings create this exact\n/// token.\npub static DJINN_MONK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Djinn Monk)\n};\n",
+"title": "the 2/2 blue Djinn Monk token with flying"
+},
+"DOG": {
+"cards": 5,
+"source": "/// A 1/1 white Dog creature token (CR 111). Dog Walker, Hunted Bonebrute and Krovod Haunch create this exact token.\npub static DOG: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Dog)\n};\n",
+"title": "the 1/1 white Dog token"
+},
+"DRAGON": {
+"cards": 11,
+"source": "/// A 4/4 red Dragon creature token with flying (CR 111). Broodmate Dragon, Descent of the Dragons and Dragon Trainer\n/// create this exact token.\npub static DRAGON: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(4),\n    toughness: Some(4),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Dragon)\n};\n",
+"title": "the 4/4 red Dragon token with flying"
+},
+"DRAGON_6_6_RED": {
+"cards": 3,
+"source": "/// A 6/6 red Dragon creature token with flying (CR 111). Mega Flare, The Misty Mountains Cold and Utvara Hellkite\n/// create this exact token.\npub static DRAGON_6_6_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(6),\n    toughness: Some(6),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Dragon)\n};\n",
+"title": "the 6/6 red Dragon token with flying"
+},
+"DRAGON_ELEMENTAL": {
+"cards": 2,
+"source": "/// A 4/4 red Dragon Elemental creature token with flying and prowess (CR 111). Elemental Eruption and Eris, Roar of the\n/// Storm create this exact token.\npub static DRAGON_ELEMENTAL: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(4),\n    toughness: Some(4),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    abilities: &[crate::triggers::PROWESS],\n    ..token!(Dragon Elemental)\n};\n",
+"title": "the 4/4 red Dragon Elemental token with flying and prowess"
+},
+"DRAGON_SPIRIT": {
+"cards": 2,
+"source": "/// A 5/5 red Dragon Spirit creature token with flying (CR 111). Goro-Goro and Satoru and Goro-Goro, Disciple of Ryusei\n/// create this exact token.\npub static DRAGON_SPIRIT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(5),\n    toughness: Some(5),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Dragon Spirit)\n};\n",
+"title": "the 5/5 red Dragon Spirit token with flying"
+},
+"DRAKE": {
+"cards": 6,
+"source": "/// A 2/2 blue Drake creature token with flying (CR 111). Alandra, Sky Dreamer, Drake Hatcher and Drake Haven create\n/// this exact token.\npub static DRAKE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Drake)\n};\n",
+"title": "the 2/2 blue Drake token with flying"
+},
+"DRONE": {
+"cards": 3,
+"source": "/// A 1/1 colorless Drone artifact creature token with flying (CR 111). Desculpting Blast, Pinnacle Emissary and Station\n/// Monitor create this exact token.\npub static DRONE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    block_rules: &[drone_return_target_nonland_permanent_owners_rule],\n    ..token!(Drone)\n};\n\n/// \"Return target nonland permanent to its owner's hand. If it was attacking, create a 1/1 colorless Drone artifact\n/// creature token with flying and \"This token can block only creatures with flying.\"\" (CR 604.1).\nfn drone_return_target_nonland_permanent_owners_rule(\n    q: &dyn Query,\n    source: ObjectId,\n    blocker: ObjectId,\n    attacker: ObjectId,\n) -> bool {\n    let asker = &Asker::new(source, q.controller(source));\n    !(blocker == asker.source\n        && !((q.chars(attacker).is(CardType::Creature)\n            && q.chars(attacker).keywords.has(Keyword::Flying))))\n}\n",
+"title": "the 1/1 Drone token with flying"
+},
+"DWARF_BERSERKER": {
+"cards": 5,
+"source": "/// A 2/1 red Dwarf Berserker creature token (CR 111). Dwarven Hammer, Dwarven Reinforcements and Fearless Liberator\n/// create this exact token.\npub static DWARF_BERSERKER: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(2),\n    toughness: Some(1),\n    ..token!(Dwarf Berserker)\n};\n",
+"title": "the 2/1 red Dwarf Berserker token"
+},
+"ELDRAZI": {
+"cards": 3,
+"source": "/// A 10/10 colorless Eldrazi creature token (CR 111). Desolation Twin, Idol of Oblivion and Ulamog's Dreadsire create\n/// this exact token.\npub static ELDRAZI: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    power: Some(10),\n    toughness: Some(10),\n    ..token!(Eldrazi)\n};\n",
+"title": "the 10/10 Eldrazi token"
+},
+"ELDRAZI_HORROR": {
+"cards": 4,
+"source": "/// A 3/2 colorless Eldrazi Horror creature token (CR 111). Desperate Sentry, Enlightened Maniac and Otherworldly\n/// Outburst create this exact token.\npub static ELDRAZI_HORROR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    power: Some(3),\n    toughness: Some(2),\n    ..token!(Eldrazi Horror)\n};\n",
+"title": "the 3/2 Eldrazi Horror token"
+},
+"ELDRAZI_HORROR_3_2_COLORLESS": {
+"cards": 2,
+"source": "/// A 3/2 colorless Eldrazi Horror creature token (CR 111). Extricator of Flesh // Extricator of Sin and Howling Chorus\n/// // Shrill Howler create this exact token.\npub static ELDRAZI_HORROR_3_2_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    power: Some(3),\n    toughness: Some(2),\n    ..token!(Eldrazi Horror)\n};\n",
+"title": "the 3/2 Eldrazi Horror token"
+},
+"ELDRAZI_SCION": {
+"cards": 19,
+"source": "/// A 1/1 colorless Eldrazi Scion creature token with \"Sacrifice this token: Add {C}.\" (CR 111). Abstruse Interference,\n/// Adverse Conditions and Birthing Hulk create this exact token.\npub static ELDRAZI_SCION: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    abilities: &[\n        mana_ability(\n            SACRIFICE_THIS,\n            Adds {\n                pool: ManaPool([0, 0, 0, 0, 0, 1]),\n                ..add_by(eldrazi_scion_add_c_mana)\n            },\n            \"Sacrifice this token: Add {C}.\",\n        ),\n    ],\n    ..token!(Eldrazi Scion)\n};\n\n/// \"Sacrifice this token: Add {C}.\" (CR 605.3a, 106.3).\nfn eldrazi_scion_add_c_mana(g: &mut dyn Game, asker: &Asker, _: Option<Color>) -> Result<(), Suspend> {\n    g.add_mana(asker.controller, Mana::C, 1);\n    Ok(())\n}\n",
+"title": "the 1/1 Eldrazi Scion token"
+},
+"ELDRAZI_SPAWN": {
+"cards": 31,
+"source": "/// A 0/1 colorless Eldrazi Spawn creature token with \"Sacrifice this token: Add {C}.\" (CR 111). Awakening Zone, Basking\n/// Broodscale and Brood Birthing create this exact token.\npub static ELDRAZI_SPAWN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    power: Some(0),\n    toughness: Some(1),\n    abilities: &[\n        mana_ability(\n            SACRIFICE_THIS,\n            Adds {\n                pool: ManaPool([0, 0, 0, 0, 0, 1]),\n                ..add_by(eldrazi_spawn_add_c_mana)\n            },\n            \"Sacrifice this token: Add {C}.\",\n        ),\n    ],\n    ..token!(Eldrazi Spawn)\n};\n\n/// \"Sacrifice this token: Add {C}.\" (CR 605.3a, 106.3).\nfn eldrazi_spawn_add_c_mana(g: &mut dyn Game, asker: &Asker, _: Option<Color>) -> Result<(), Suspend> {\n    g.add_mana(asker.controller, Mana::C, 1);\n    Ok(())\n}\n",
+"title": "the 0/1 Eldrazi Spawn token"
+},
+"ELEMENTAL": {
+"cards": 7,
+"source": "/// A 4/4 blue and red Elemental creature token (CR 111). Elemental Masterpiece, Elemental Summoning and Magma Opus\n/// create this exact token.\npub static ELEMENTAL: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(10)),\n    power: Some(4),\n    toughness: Some(4),\n    ..token!(Elemental)\n};\n",
+"title": "the 4/4 blue and red Elemental token"
+},
+"ELEMENTAL_0_0_GREEN": {
+"cards": 4,
+"source": "/// A 0/0 green Elemental creature token (CR 111). Dance of the Tumbleweeds, Marath, Will of the Wild and Seed Guardian\n/// create this exact token.\npub static ELEMENTAL_0_0_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Elemental)\n};\n",
+"title": "the 0/0 green Elemental token"
+},
+"ELEMENTAL_0_0_GREEN_WHITE": {
+"cards": 2,
+"source": "/// A 0/0 green and white Elemental creature token with \"This token's power and toughness are each equal to the number\n/// of creatures you control.\" (CR 111). Vernal Sovereign and Voice of Resurgence create this exact token.\npub static ELEMENTAL_0_0_GREEN_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(17)),\n    power: Some(0),\n    toughness: Some(0),\n    statics: &[\n        characteristic_defining(\n            Layer::PtDefine,\n            elemental_0_0_green_white_create_green_white_elemental_creature_apply_0,\n            \"This token's power and toughness are each equal to the number of creatures you control.\",\n        ),\n    ],\n    ..token!(Elemental)\n};\n\n/// \"Whenever this creature enters or attacks, create a green and white Elemental creature token with \"This token's\n/// power and toughness are each equal to the number of creatures you control.\"\" (CR 604.1).\nfn elemental_0_0_green_white_create_green_white_elemental_creature_apply_0(\n    q: &dyn LayerQuery,\n    source: ObjectId,\n    chars: &mut Chars,\n) {\n    let asker = &Asker::new(source, q.controller(source));\n    let (p, t) = (\n        (q\n            .state()\n            .battlefield()\n            .iter()\n            .copied()\n            .filter(|&id| {\n                q.chars(id).is(CardType::Creature)\n                    && asker.controller == q.controller(id)\n            })\n            .collect::<Vec<ObjectId>>()\n            .len() as i64) as i16,\n        (q\n            .state()\n            .battlefield()\n            .iter()\n            .copied()\n            .filter(|&id| {\n                q.chars(id).is(CardType::Creature)\n                    && asker.controller == q.controller(id)\n            })\n            .collect::<Vec<ObjectId>>()\n            .len() as i64) as i16,\n    );\n    chars.power = Some(p);\n    chars.toughness = Some(t);\n}\n",
+"title": "the 0/0 green and white Elemental token"
+},
+"ELEMENTAL_1_1_BLUE_RED": {
+"cards": 4,
+"source": "/// A 1/1 blue and red Elemental creature token (CR 111). Joyful Stormsculptor, Preening Champion and Prismari Pianist\n/// create this exact token.\npub static ELEMENTAL_1_1_BLUE_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(10)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Elemental)\n};\n",
+"title": "the 1/1 blue and red Elemental token"
+},
+"ELEMENTAL_1_1_RED_HASTE": {
+"cards": 2,
+"source": "/// A 1/1 red Elemental creature token with haste (CR 111). Elemental Mastery and Tempt with Vengeance create this exact\n/// token.\npub static ELEMENTAL_1_1_RED_HASTE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Haste]),\n    ..token!(Elemental)\n};\n",
+"title": "the 1/1 red Elemental token with haste"
+},
+"ELEMENTAL_3_1_RED": {
+"cards": 4,
+"source": "/// A 3/1 red Elemental creature token with haste (CR 111). Chandra, Flamecaller, Feral Lightning and Lightning Coils\n/// create this exact token.\npub static ELEMENTAL_3_1_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(3),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Haste]),\n    ..token!(Elemental)\n};\n",
+"title": "the 3/1 red Elemental token with haste"
+},
+"ELEMENTAL_3_1_RED_HASTE_TRAMPLE": {
+"cards": 3,
+"source": "/// A 3/1 red Elemental creature token with haste and trample (CR 111). Akoum Stonewaker, Force of Rage and Valduk,\n/// Keeper of the Flame create this exact token.\npub static ELEMENTAL_3_1_RED_HASTE_TRAMPLE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(3),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Trample, Keyword::Haste]),\n    ..token!(Elemental)\n};\n",
+"title": "the 3/1 red Elemental token with haste and trample"
+},
+"ELEMENTAL_4_4_GREEN": {
+"cards": 2,
+"source": "/// A 4/4 green Elemental creature token (CR 111). Eyes of the Wisent and Walker of the Grove create this exact token.\npub static ELEMENTAL_4_4_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(4),\n    toughness: Some(4),\n    ..token!(Elemental)\n};\n",
+"title": "the 4/4 green Elemental token"
+},
+"ELEMENTAL_5_3_GREEN": {
+"cards": 2,
+"source": "/// A 5/3 green Elemental creature token (CR 111). Titania, Nature's Force and Titania, Protector of Argoth create this\n/// exact token.\npub static ELEMENTAL_5_3_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(5),\n    toughness: Some(3),\n    ..token!(Elemental)\n};\n",
+"title": "the 5/3 green Elemental token"
+},
+"ELEMENTAL_5_5_RED_GREEN": {
+"cards": 2,
+"source": "/// A 5/5 red and green Elemental creature token (CR 111). Elemental Spectacle and Omnath, Locus of Rage create this\n/// exact token.\npub static ELEMENTAL_5_5_RED_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(24)),\n    power: Some(5),\n    toughness: Some(5),\n    ..token!(Elemental)\n};\n",
+"title": "the 5/5 red and green Elemental token"
+},
+"ELEMENTAL_7_1_RED": {
+"cards": 2,
+"source": "/// A 7/1 red Elemental creature token with haste and trample (CR 111). Elemental Appeal and Zektar Shrine Expedition\n/// create this exact token.\npub static ELEMENTAL_7_1_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(7),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Trample, Keyword::Haste]),\n    ..token!(Elemental)\n};\n",
+"title": "the 7/1 red Elemental token with haste and trample"
+},
+"ELEPHANT": {
+"cards": 12,
+"source": "/// A 3/3 green Elephant creature token (CR 111). Autarch Mammoth, Bestial Menace and Call of the Herd create this exact\n/// token.\npub static ELEPHANT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(3),\n    toughness: Some(3),\n    ..token!(Elephant)\n};\n",
+"title": "the 3/3 green Elephant token"
+},
+"ELEPHANT_5_5_GREEN": {
+"cards": 3,
+"source": "/// A 5/5 green Elephant creature token (CR 111). Mammoth Bellow, Roar of Endless Song and Temur Monument create this\n/// exact token.\npub static ELEPHANT_5_5_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(5),\n    toughness: Some(5),\n    ..token!(Elephant)\n};\n",
+"title": "the 5/5 green Elephant token"
+},
+"ELF_2_2_BLACK_GREEN": {
+"cards": 4,
+"source": "/// A 2/2 black and green Elf creature token (CR 111). Morcant's Eyes, Scarblade's Malice and Stoic Grove-Guide create\n/// this exact token.\npub static ELF_2_2_BLACK_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(20)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Elf)\n};\n",
+"title": "the 2/2 black and green Elf token"
+},
+"ELF_KNIGHT": {
+"cards": 3,
+"source": "/// A 2/2 green and white Elf Knight creature token with vigilance (CR 111). Conclave Cavalier, Conclave Guildmage and\n/// Sprouting Renewal create this exact token.\npub static ELF_KNIGHT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(17)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Vigilance]),\n    ..token!(Elf Knight)\n};\n",
+"title": "the 2/2 green and white Elf Knight token with vigilance"
+},
+"ELF_WARRIOR": {
+"cards": 24,
+"source": "/// A 1/1 green Elf Warrior creature token (CR 111). Ambassador Oak, Battle for Bretagard and Dwynen's Elite create this\n/// exact token.\npub static ELF_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Elf Warrior)\n};\n",
+"title": "the 1/1 green Elf Warrior token"
+},
+"ELF_WARRIOR_1_1_GREEN_WHITE": {
+"cards": 2,
+"source": "/// A 1/1 green and white Elf Warrior creature token (CR 111). Mercy Killing and Rhys the Redeemed create this exact\n/// token.\npub static ELF_WARRIOR_1_1_GREEN_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(17)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Elf Warrior)\n};\n",
+"title": "the 1/1 green and white Elf Warrior token"
+},
+"FAERIE": {
+"cards": 7,
+"source": "/// A 1/1 blue Faerie creature token with flying (CR 111). Alela, Artful Provocateur, Faebloom Trick and Faerie\n/// Formation create this exact token.\npub static FAERIE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Faerie)\n};\n",
+"title": "the 1/1 blue Faerie token with flying"
+},
+"FAERIE_1_1_BLUE": {
+"cards": 2,
+"source": "/// A 1/1 blue Faerie creature token with flying (CR 111). Faerie Slumber Party and Into the Fae Court create this exact\n/// token.\npub static FAERIE_1_1_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    block_rules: &[faerie_1_1_blue_return_all_creatures_their_owners_rule],\n    ..token!(Faerie)\n};\n\n/// \"Return all creatures to their owners' hands. For each opponent who controlled a creature returned this way, you\n/// create two 1/1 blue Faerie creature tokens with flying and \"This token can block only creatures with flying.\"\" (CR\n/// 604.1).\nfn faerie_1_1_blue_return_all_creatures_their_owners_rule(\n    q: &dyn Query,\n    source: ObjectId,\n    blocker: ObjectId,\n    attacker: ObjectId,\n) -> bool {\n    let asker = &Asker::new(source, q.controller(source));\n    !(blocker == asker.source\n        && !((q.chars(attacker).is(CardType::Creature)\n            && q.chars(attacker).keywords.has(Keyword::Flying))))\n}\n",
+"title": "the 1/1 blue Faerie token with flying"
+},
+"FAERIE_DRAGON": {
+"cards": 3,
+"source": "/// A 1/1 blue Faerie Dragon creature token with flying (CR 111). Ancient Gold Dragon, Feywild Caretaker and Rasaad,\n/// Dragon Monk create this exact token.\npub static FAERIE_DRAGON: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Faerie Dragon)\n};\n",
+"title": "the 1/1 blue Faerie Dragon token with flying"
+},
+"FAERIE_ROGUE": {
+"cards": 4,
+"source": "/// A 1/1 black Faerie Rogue creature token with flying (CR 111). Alela, Cunning Conqueror, Bitterblossom and Tegwyll's\n/// Scouring create this exact token.\npub static FAERIE_ROGUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Faerie Rogue)\n};\n",
+"title": "the 1/1 black Faerie Rogue token with flying"
+},
+"FISH_1_1_BLUE": {
+"cards": 4,
+"source": "/// A 1/1 blue Fish creature token with cant be blocked (CR 111). Exotic Pets, Expendable Lackey and Reservoir Kraken\n/// create this exact token.\npub static FISH_1_1_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::CantBeBlocked]),\n    ..token!(Fish)\n};\n",
+"title": "the 1/1 blue Fish token with cant be blocked"
+},
+"FOREST_DRYAD": {
+"cards": 3,
+"source": "/// A 1/1 green Forest Dryad creature land token (CR 111). Autumn Willow, Harmony, Awaken the Woods and Staff of Titania\n/// create this exact token.\npub static FOREST_DRYAD: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Land, CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Forest Dryad)\n};\n",
+"title": "the 1/1 green Forest Dryad token"
+},
+"FRACTAL_0_0_GREEN_BLUE": {
+"cards": 2,
+"source": "/// A 0/0 green and blue Fractal creature token (CR 111). Imbraham, Dean of Theory // Kianne, Dean of Substance and\n/// Jadzi, Steward of Fate // Oracle's Gift create this exact token.\npub static FRACTAL_0_0_GREEN_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    colors: Some(ColorSet(18)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Fractal)\n};\n",
+"title": "the 0/0 green and blue Fractal token"
+},
+"FUNGUS": {
+"cards": 3,
+"source": "/// A 1/1 black Fungus creature token with cant block (CR 111). Broodrage Mycoid, Synapse Necromage and The Mycotyrant\n/// create this exact token.\npub static FUNGUS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::CantBlock]),\n    ..token!(Fungus)\n};\n",
+"title": "the 1/1 black Fungus token with cant block"
+},
+"GLIMMER": {
+"cards": 5,
+"source": "/// A 1/1 white Glimmer creature enchantment token (CR 111). Glimmer Seeker, Glimmerburst and Glimmerlight create this\n/// exact token.\npub static GLIMMER: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Enchantment, CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Glimmer)\n};\n",
+"title": "the 1/1 white Glimmer token"
+},
+"GNOME_1_1_COLORLESS": {
+"cards": 2,
+"source": "/// A 1/1 colorless Gnome artifact creature token (CR 111). Cosmium Kiln // Clay-Fired Bricks and The Golden-Gear\n/// Colossus // Tetzin, Gnome Champion create this exact token.\npub static GNOME_1_1_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Gnome)\n};\n",
+"title": "the 1/1 Gnome token"
+},
+"GOAT": {
+"cards": 6,
+"source": "/// A 0/1 white Goat creature token (CR 111). Clackbridge Troll, Contraband Livestock and Discordant Piper create this\n/// exact token.\npub static GOAT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(0),\n    toughness: Some(1),\n    ..token!(Goat)\n};\n",
+"title": "the 0/1 white Goat token"
+},
+"GOBLIN_1_1_BLACK_RED": {
+"cards": 3,
+"source": "/// A 1/1 black and red Goblin creature token (CR 111). Boggart Mischief, Elder Auntie and Sourbread Auntie create this\n/// exact token.\npub static GOBLIN_1_1_BLACK_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(12)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Goblin)\n};\n",
+"title": "the 1/1 black and red Goblin token"
+},
+"GOBLIN_1_1_RED": {
+"cards": 4,
+"source": "/// A 1/1 red Goblin creature token with haste (CR 111). Ardoz, Cobbler of War, Goblin Assault and Goblin Rabblemaster\n/// create this exact token.\npub static GOBLIN_1_1_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Haste]),\n    ..token!(Goblin)\n};\n",
+"title": "the 1/1 red Goblin token with haste"
+},
+"GOBLIN_2_1_RED": {
+"cards": 2,
+"source": "/// A 2/1 red Goblin creature token with haste (CR 111). Chief Magistrate of Mercadia and Rakdos Guildmage create this\n/// exact token.\npub static GOBLIN_2_1_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(2),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Haste]),\n    ..token!(Goblin)\n};\n",
+"title": "the 2/1 red Goblin token with haste"
+},
+"GOBLIN_ROGUE": {
+"cards": 3,
+"source": "/// A 1/1 black Goblin Rogue creature token (CR 111). Marsh Flitter, Warren Weirding and Weirding Shaman create this\n/// exact token.\npub static GOBLIN_ROGUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Goblin Rogue)\n};\n",
+"title": "the 1/1 black Goblin Rogue token"
+},
+"GOBLIN_SOLDIER": {
+"cards": 2,
+"source": "/// A 1/1 red and white Goblin Soldier creature token (CR 111). Goblin Trenches and Rise of the Hobgoblins create this\n/// exact token.\npub static GOBLIN_SOLDIER: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(9)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Goblin Soldier)\n};\n",
+"title": "the 1/1 red and white Goblin Soldier token"
+},
+"GOLEM_0_0_COLORLESS": {
+"cards": 2,
+"source": "/// A 0/0 colorless Golem artifact creature token (CR 111). Mask of the Jadecrafter and Rootwire Amalgam create this\n/// exact token.\npub static GOLEM_0_0_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Golem)\n};\n",
+"title": "the 0/0 Golem token"
+},
+"GRAVEBORN": {
+"cards": 2,
+"source": "/// A 3/1 black and red Graveborn creature token with haste (CR 111). Balduvian Dead and Sek'Kuar, Deathkeeper create\n/// this exact token.\npub static GRAVEBORN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(12)),\n    power: Some(3),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Haste]),\n    ..token!(Graveborn)\n};\n",
+"title": "the 3/1 black and red Graveborn token with haste"
+},
+"GREMLIN": {
+"cards": 4,
+"source": "/// A 1/1 red Gremlin creature token (CR 111). Gremlin Tamer, Midnight Mayhem and Razorkin Hordecaller create this exact\n/// token.\npub static GREMLIN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Gremlin)\n};\n",
+"title": "the 1/1 red Gremlin token"
+},
+"GREMLIN_2_2_RED": {
+"cards": 2,
+"source": "/// A 2/2 red Gremlin creature token (CR 111). Gremlin Infestation and Release the Gremlins create this exact token.\npub static GREMLIN_2_2_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Gremlin)\n};\n",
+"title": "the 2/2 red Gremlin token"
+},
+"GRIFFIN": {
+"cards": 3,
+"source": "/// A 2/2 white Griffin creature token with flying (CR 111). Griffin Aerie, Griffin Guide and Zeriam, Golden Wind create\n/// this exact token.\npub static GRIFFIN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Griffin)\n};\n",
+"title": "the 2/2 white Griffin token with flying"
+},
+"HALFLING": {
+"cards": 4,
+"source": "/// A 1/1 white Halfling creature token (CR 111). Farmer Cotton, Field-Tested Frying Pan and Of Herbs and Stewed Rabbit\n/// create this exact token.\npub static HALFLING: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Halfling)\n};\n",
+"title": "the 1/1 white Halfling token"
+},
+"HERO": {
+"cards": 8,
+"source": "/// A 1/1 colorless Hero creature token (CR 111). Aerith Rescue Mission, Champions from Beyond and Dragoon's Wyvern\n/// create this exact token.\npub static HERO: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Hero)\n};\n",
+"title": "the 1/1 Hero token"
+},
+"HIPPO": {
+"cards": 2,
+"source": "/// A 1/1 green Hippo creature token (CR 111). Phelddagrif and Questing Phelddagrif create this exact token.\npub static HIPPO: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Hippo)\n};\n",
+"title": "the 1/1 green Hippo token"
+},
+"HORROR": {
+"cards": 2,
+"source": "/// A 0/0 black Horror creature token (CR 111). Flesh Carver and Spoils of Blood create this exact token.\npub static HORROR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Horror)\n};\n",
+"title": "the 0/0 black Horror token"
+},
+"HUMAN_1_1_RED": {
+"cards": 3,
+"source": "/// A 1/1 red Human creature token (CR 111). Hanweir Garrison, Saint Traft and Rem Karolus and Stensia Uprising create\n/// this exact token.\npub static HUMAN_1_1_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Human)\n};\n",
+"title": "the 1/1 red Human token"
+},
+"HUMAN_1_1_WHITE": {
+"cards": 5,
+"source": "/// A 1/1 white Human creature token (CR 111). Devouring Sugarmaw // Have for Dinner, Lovestruck Beast // Heart's Desire\n/// and Oakhame Ranger // Bring Back create this exact token.\npub static HUMAN_1_1_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Human)\n};\n",
+"title": "the 1/1 white Human token"
+},
+"HUMAN_CITIZEN_1_1_GREEN_WHITE": {
+"cards": 4,
+"source": "/// A 1/1 green and white Human Citizen creature token (CR 111). Friendly Neighborhood, News Helicopter and Silk, Web\n/// Weaver create this exact token.\npub static HUMAN_CITIZEN_1_1_GREEN_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(17)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Human Citizen)\n};\n",
+"title": "the 1/1 green and white Human Citizen token"
+},
+"HUMAN_CLERIC": {
+"cards": 2,
+"source": "/// A 1/1 white and black Human Cleric creature token (CR 111). Ormendahl, Profane Prince // Westvale Abbey and Westvale\n/// Cult Leader // Hanweir Militia Captain create this exact token.\npub static HUMAN_CLERIC: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    colors: Some(ColorSet(5)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Human Cleric)\n};\n",
+"title": "the 1/1 white and black Human Cleric token"
+},
+"HUMAN_KNIGHT": {
+"cards": 4,
+"source": "/// A 2/2 red Human Knight creature token with haste and trample (CR 111). Forth Eorlingas!, Oath of Eorl and Riders of\n/// Rohan create this exact token.\npub static HUMAN_KNIGHT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Trample, Keyword::Haste]),\n    ..token!(Human Knight)\n};\n",
+"title": "the 2/2 red Human Knight token with haste and trample"
+},
+"HUMAN_MONK": {
+"cards": 2,
+"source": "/// A 1/1 green Human Monk creature token (CR 111). Careful Cultivation and Jugan Defends the Temple // Remnant of the\n/// Rising Star create this exact token.\npub static HUMAN_MONK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    abilities: &[mana_ability(TAP, add(Mana::G), \"{T}: Add {G}.\")],\n    ..token!(Human Monk)\n};\n",
+"title": "the 1/1 green Human Monk token"
+},
+"HUMAN_WARRIOR": {
+"cards": 4,
+"source": "/// A 1/1 white Human Warrior creature token (CR 111). Battle for Bretagard, Beskir Shieldmate and Maja, Bretagard\n/// Protector create this exact token.\npub static HUMAN_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Human Warrior)\n};\n",
+"title": "the 1/1 white Human Warrior token"
+},
+"HYDRA": {
+"cards": 2,
+"source": "/// A 0/0 green Hydra creature token (CR 111). Hydra Broodmaster and Zaxara, the Exemplary create this exact token.\npub static HYDRA: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Hydra)\n};\n",
+"title": "the 0/0 green Hydra token"
+},
+"ILLUSION": {
+"cards": 2,
+"source": "/// A 0/0 blue Illusion creature token (CR 111). Inscription of Insight and Skyclave Apparition create this exact token.\npub static ILLUSION: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Illusion)\n};\n",
+"title": "the 0/0 blue Illusion token"
+},
+"ILLUSION_1_1_BLUE": {
+"cards": 2,
+"source": "/// A 1/1 blue Illusion creature token with flying (CR 111). Meloku the Clouded Mirror and Moonblade Shinobi create this\n/// exact token.\npub static ILLUSION_1_1_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Illusion)\n};\n",
+"title": "the 1/1 blue Illusion token with flying"
+},
+"INKLING_2_1_WHITE_BLACK": {
+"cards": 10,
+"source": "/// A 2/1 white and black Inkling creature token with flying (CR 111). Blot Out the Sky, Combat Calligrapher and\n/// Dramatic Finale create this exact token.\npub static INKLING_2_1_WHITE_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(5)),\n    power: Some(2),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Inkling)\n};\n",
+"title": "the 2/1 white and black Inkling token with flying"
+},
+"INSECT_1_1_BLACK": {
+"cards": 4,
+"source": "/// A 1/1 black Insect creature token with flying (CR 111). Eumidian Hatchery, Fumulus, the Infestation and Scouring\n/// Swarm create this exact token.\npub static INSECT_1_1_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Insect)\n};\n",
+"title": "the 1/1 black Insect token with flying"
+},
+"INSECT_1_1_BLACK_GREEN": {
+"cards": 3,
+"source": "/// A 1/1 black and green Insect creature token (CR 111). Amzu, Swarm's Hunger, Izoni, Thousand-Eyed and The Hunger Tide\n/// Rises create this exact token.\npub static INSECT_1_1_BLACK_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(20)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Insect)\n};\n",
+"title": "the 1/1 black and green Insect token"
+},
+"INSECT_1_1_BLACK_GREEN_FLYING": {
+"cards": 3,
+"source": "/// A 1/1 black and green Insect creature token with flying (CR 111). Broodspinner, Infestation Sage and The Swarmweaver\n/// create this exact token.\npub static INSECT_1_1_BLACK_GREEN_FLYING: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(20)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Insect)\n};\n",
+"title": "the 1/1 black and green Insect token with flying"
+},
+"INSECT_1_1_GREEN": {
+"cards": 2,
+"source": "/// A 1/1 green Insect creature token with deathtouch and flying (CR 111). Hornet Nest and Hornet Queen create this\n/// exact token.\npub static INSECT_1_1_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying, Keyword::Deathtouch]),\n    ..token!(Insect)\n};\n",
+"title": "the 1/1 green Insect token with deathtouch and flying"
+},
+"JUNK": {
+"cards": 11,
+"source": "/// A colorless Junk artifact token with \"{T}, Sacrifice this token: Exile the top card of your library. You may play\n/// that card this turn. Activate only as a sorcery.\" (CR 111). Boomer Scrapper, Break Down and Commander Sofia Daguerre\n/// create this exact token.\npub static JUNK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact]),\n    abilities: &[\n        ability(\n                SACRIFICE_THIS.and(TAP),\n                junk_exile_top_card_library_play,\n                \"{T}, Sacrifice this token: Exile the top card of your library. You may play that card this turn. Activate only as a sorcery.\",\n            )\n            .sorcery_speed(),\n    ],\n    ..token!(Junk)\n};\n\n/// \"{T}, Sacrifice this token: Exile the top card of your library. You may play that card this turn. Activate only as a\n/// sorcery.\" (CR 608.2, 406.3).\nfn junk_exile_top_card_library_play(\n    g: &mut dyn Game,\n    item: &StackItem,\n) -> Result<(), Suspend> {\n    let objects_0 = {\n        let q: &dyn Query = g;\n        Some(item.controller)\n            .into_iter()\n            .flat_map(|p: PlayerId| q.state().zone(Zone::library(p)).to_vec())\n            .collect::<Vec<ObjectId>>()\n            .into_iter()\n            .take(1)\n            .collect::<Vec<ObjectId>>()\n    };\n    let moved_0 = g.exile_all(&objects_0);\n    g.end_sentence();\n    let cards_1_0 = moved_0\n        .clone()\n        .get(0)\n        .copied()\n        .into_iter()\n        .collect::<Vec<ObjectId>>();\n    let players_1_0 = Some(item.controller).into_iter().collect::<Vec<PlayerId>>();\n    instruction(\n        g,\n        |g| {\n            for &card in &cards_1_0 {\n                if g.obj(card).zone.is(ZoneKind::Exile) {\n                    for &player in &players_1_0 {\n                        g.allow_play(\n                            card,\n                            player,\n                            PlayGrant {\n                                lands: true,\n                                expiry: Expiry::EndOfTurn,\n                                ..PlayGrant::CAST\n                            },\n                        );\n                    }\n                }\n            }\n        },\n    );\n    Ok(())\n}\n",
+"title": "the Junk token"
+},
+"KITHKIN_1_1_GREEN_WHITE": {
+"cards": 7,
+"source": "/// A 1/1 green and white Kithkin creature token (CR 111). Ajani, Outland Chaperone, Brigid's Command and Catharsis\n/// create this exact token.\npub static KITHKIN_1_1_GREEN_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(17)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Kithkin)\n};\n",
+"title": "the 1/1 green and white Kithkin token"
+},
+"KITHKIN_SOLDIER": {
+"cards": 7,
+"source": "/// A 1/1 white Kithkin Soldier creature token (CR 111). Cenn's Enlistment, Cloudgoat Ranger and Guardian of Cloverdell\n/// create this exact token.\npub static KITHKIN_SOLDIER: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Kithkin Soldier)\n};\n",
+"title": "the 1/1 white Kithkin Soldier token"
+},
+"KNIGHT_2_2_WHITE": {
+"cards": 7,
+"source": "/// A 2/2 white Knight creature token (CR 111). Battle Menu, Recruitment Drive and Shadowheart, Cleric of Order create\n/// this exact token.\npub static KNIGHT_2_2_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Knight)\n};\n",
+"title": "the 2/2 white Knight token"
+},
+"KNIGHT_2_2_WHITE_BLUE": {
+"cards": 3,
+"source": "/// A 2/2 white and blue Knight creature token with vigilance (CR 111). Chivalric Alliance, Knight of the New Coalition\n/// and Xerex Strobe-Knight create this exact token.\npub static KNIGHT_2_2_WHITE_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(3)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Vigilance]),\n    ..token!(Knight)\n};\n",
+"title": "the 2/2 white and blue Knight token with vigilance"
+},
+"KNIGHT_2_2_WHITE_VIGILANCE": {
+"cards": 3,
+"source": "/// A 2/2 white Knight creature token with vigilance (CR 111). Imodane's Recruiter // Train Troops, Lonesome Unicorn //\n/// Rider in Need and Virtue of Loyalty // Ardenvale Fealty create this exact token.\npub static KNIGHT_2_2_WHITE_VIGILANCE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    colors: Some(ColorSet(1)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Vigilance]),\n    ..token!(Knight)\n};\n",
+"title": "the 2/2 white Knight token with vigilance"
+},
+"KNIGHT_ALLY": {
+"cards": 2,
+"source": "/// A 2/2 white Knight Ally creature token (CR 111). Allied Reinforcements and Gideon, Ally of Zendikar create this\n/// exact token.\npub static KNIGHT_ALLY: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Knight Ally)\n};\n",
+"title": "the 2/2 white Knight Ally token"
+},
+"KOR_ALLY": {
+"cards": 4,
+"source": "/// A 1/1 white Kor Ally creature token (CR 111). Captain's Claws, Oath of Gideon and Retreat to Emeria create this\n/// exact token.\npub static KOR_ALLY: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Kor Ally)\n};\n",
+"title": "the 1/1 white Kor Ally token"
+},
+"KOR_SOLDIER": {
+"cards": 3,
+"source": "/// A 1/1 white Kor Soldier creature token (CR 111). Conqueror's Pledge, Nahiri, the Lithomancer and Nomads' Assembly\n/// create this exact token.\npub static KOR_SOLDIER: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Kor Soldier)\n};\n",
+"title": "the 1/1 white Kor Soldier token"
+},
+"KOR_WARRIOR": {
+"cards": 2,
+"source": "/// A 1/1 white Kor Warrior creature token (CR 111). Nahiri, Heir of the Ancients and Squad Commander create this exact\n/// token.\npub static KOR_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Kor Warrior)\n};\n",
+"title": "the 1/1 white Kor Warrior token"
+},
+"KRAKEN": {
+"cards": 2,
+"source": "/// A 9/9 blue Kraken creature token (CR 111). Kiora, the Crashing Wave and Reef Worm create this exact token.\npub static KRAKEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(9),\n    toughness: Some(9),\n    ..token!(Kraken)\n};\n",
+"title": "the 9/9 blue Kraken token"
+},
+"MERCENARY": {
+"cards": 13,
+"source": "/// A 1/1 red Mercenary creature token with \"{T}: Target creature you control gets +1/+0 until end of turn. Activate\n/// only as a sorcery.\" (CR 111). Angelic Sell-Sword, At Knifepoint and Brimstone Roundup create this exact token.\npub static MERCENARY: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(1),\n    toughness: Some(1),\n    abilities: &[\n        ability(\n                TAP,\n                mercenary_target_creature_control_gets_1,\n                \"{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.\",\n            )\n            .targets(&[target(mercenary_target_creature_control_gets_1_target_0)])\n            .sorcery_speed(),\n    ],\n    ..token!(Mercenary)\n};\n\n/// \"{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.\" (CR 608.2, 611.2a).\nfn mercenary_target_creature_control_gets_1(\n    g: &mut dyn Game,\n    item: &StackItem,\n) -> Result<(), Suspend> {\n    let t_0_raw = mercenary_token_1_announced(g, item, 0, false);\n    let t_0 = mercenary_token_1_announced(g, item, 0, true);\n    let objects_0 = {\n        let q: &dyn Query = g;\n        t_0_raw\n            .get(0)\n            .copied()\n            .filter(|t| t_0.contains(t))\n            .and_then(|t: Target| t.object())\n            .into_iter()\n            .filter(|&o| q.state().obj(o).became.is_none())\n            .collect::<Vec<ObjectId>>()\n    };\n    instruction(\n        g,\n        |g| {\n            for &object in &objects_0 {\n                g.add_effect(\n                    item.object,\n                    object,\n                    EffectKind::Pump(1, 0),\n                    Duration::EndOfTurn,\n                );\n            }\n        },\n    );\n    Ok(())\n}\n\n/// \"{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.\" (CR 115.1).\nfn mercenary_target_creature_control_gets_1_target_0(\n    q: &dyn Query,\n    asker: &Asker,\n    t: Target,\n) -> bool {\n    matches!(\n        t, Target::Object(id) if crate::targets::permanent(q, id) && ((q\n        .chars(id).is(CardType::Creature) && asker.controller == q.controller(id)))\n    )\n}\n\n/// \"{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.\" (CR 608.2).\nfn mercenary_token_1_announced(\n    g: &dyn Game,\n    item: &StackItem,\n    spec: u8,\n    legal: bool,\n) -> Vec<Target> {\n    (0..g.state().targets(item).len())\n        .filter(|&i| {\n            g.state().spec(item, i) == spec && (!legal || g.target_legal(item, i))\n        })\n        .map(|i| g.state().target(item, i))\n        .collect()\n}\n",
+"title": "the 1/1 red Mercenary token"
+},
+"MERFOLK": {
+"cards": 5,
+"source": "/// A 1/1 blue Merfolk creature token (CR 111). Daughter of the Deep, Emperor Mihail II and Grandmother Goby create this\n/// exact token.\npub static MERFOLK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Merfolk)\n};\n",
+"title": "the 1/1 blue Merfolk token"
+},
+"MERFOLK_1_1_BLUE": {
+"cards": 4,
+"source": "/// A 1/1 blue Merfolk creature token with hexproof (CR 111). Aquatic Incursion, Deeproot Pilgrimage and Deeproot Waters\n/// create this exact token.\npub static MERFOLK_1_1_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Hexproof]),\n    ..token!(Merfolk)\n};\n",
+"title": "the 1/1 blue Merfolk token with hexproof"
+},
+"MERFOLK_WIZARD": {
+"cards": 3,
+"source": "/// A 1/1 blue Merfolk Wizard creature token (CR 111). Benthicore, Stonybrook Schoolmaster and Summon the School create\n/// this exact token.\npub static MERFOLK_WIZARD: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Merfolk Wizard)\n};\n",
+"title": "the 1/1 blue Merfolk Wizard token"
+},
+"MOOGLE": {
+"cards": 3,
+"source": "/// A 1/2 white Moogle creature token with lifelink (CR 111). Mog, Moogle Warrior, Moogles' Valor and Summon: Good King\n/// Mog XII create this exact token.\npub static MOOGLE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Lifelink]),\n    ..token!(Moogle)\n};\n",
+"title": "the 1/2 white Moogle token with lifelink"
+},
+"MOUSE": {
+"cards": 2,
+"source": "/// A 1/1 white Mouse creature token (CR 111). Enchanted Carriage and Three Blind Mice create this exact token.\npub static MOUSE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Mouse)\n};\n",
+"title": "the 1/1 white Mouse token"
+},
+"NECRON_WARRIOR": {
+"cards": 6,
+"source": "/// A 2/2 black Necron Warrior artifact creature token (CR 111). Biotransference, Imotekh the Stormlord and Necron\n/// Monolith create this exact token.\npub static NECRON_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Necron Warrior)\n};\n",
+"title": "the 2/2 black Necron Warrior token"
+},
+"OOZE": {
+"cards": 6,
+"source": "/// A 0/0 green Ooze creature token (CR 111). Convert to Slime, Gelatinous Genesis and Miming Slime create this exact\n/// token.\npub static OOZE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Ooze)\n};\n",
+"title": "the 0/0 green Ooze token"
+},
+"OOZE_0_0_GREEN": {
+"cards": 2,
+"source": "/// A 0/0 green Ooze creature token with trample (CR 111). Printlifter Ooze and Slime Against Humanity create this exact\n/// token.\npub static OOZE_0_0_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(0),\n    toughness: Some(0),\n    keywords: Keywords::of(&[Keyword::Trample]),\n    ..token!(Ooze)\n};\n",
+"title": "the 0/0 green Ooze token with trample"
+},
+"ORC_ARMY": {
+"cards": 27,
+"source": "/// A 0/0 black Orc Army creature token (CR 111). Assault on Osgiliath, Barad-dûr and Book of Mazarbul create this exact\n/// token.\npub static ORC_ARMY: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Orc Army)\n};\n",
+"title": "the 0/0 black Orc Army token"
+},
+"OX": {
+"cards": 2,
+"source": "/// A 2/2 white Ox creature token (CR 111). Bovine Intervention and Bruse Tarl, Roving Rancher create this exact token.\npub static OX: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Ox)\n};\n",
+"title": "the 2/2 white Ox token"
+},
+"OX_2_4_WHITE": {
+"cards": 2,
+"source": "/// A 2/4 white Ox creature token (CR 111). Ox Drover and Transmogrifying Wand create this exact token.\npub static OX_2_4_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(2),\n    toughness: Some(4),\n    ..token!(Ox)\n};\n",
+"title": "the 2/4 white Ox token"
+},
+"OX_4_4_GREEN": {
+"cards": 2,
+"source": "/// A 4/4 green Ox creature token (CR 111). Contraband Livestock and Klement, Nature Acolyte create this exact token.\npub static OX_4_4_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(4),\n    toughness: Some(4),\n    ..token!(Ox)\n};\n",
+"title": "the 4/4 green Ox token"
+},
+"PEGASUS": {
+"cards": 5,
+"source": "/// A 1/1 white Pegasus creature token with flying (CR 111). Gale, Holy Conduit, Pegasus Refuge and Pegasus Stampede\n/// create this exact token.\npub static PEGASUS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Pegasus)\n};\n",
+"title": "the 1/1 white Pegasus token with flying"
+},
+"PEST_1_1_BLACK_GREEN": {
+"cards": 10,
+"source": "/// A 1/1 black and green Pest creature token with this_dies with \"When this token dies, you gain 1 life.\" (CR 111).\n/// Beledros Witherbloom, Blight Mound and Containment Breach create this exact token.\npub static PEST_1_1_BLACK_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(20)),\n    power: Some(1),\n    toughness: Some(1),\n    abilities: &[\n        triggered(\n            crate::triggers::THIS_DIES,\n            pest_1_1_black_green_gain_1_life,\n            \"When this token dies, you gain 1 life.\",\n        ),\n    ],\n    ..token!(Pest)\n};\n\n/// \"When this token dies, you gain 1 life.\" (CR 608.2, 119.1).\nfn pest_1_1_black_green_gain_1_life(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {\n    g.gain_life(item.controller, 1);\n    Ok(())\n}\n",
+"title": "the 1/1 black and green Pest token with this_dies"
+},
+"PEST_1_1_BLACK_GREEN_THIS_ATTACKS": {
+"cards": 3,
+"source": "/// A 1/1 black and green Pest creature token with this_attacks with \"Whenever this token attacks, you gain 1 life.\" (CR\n/// 111). Essenceknit Scholar, Pestbrood Sloth and Send in the Pest create this exact token.\npub static PEST_1_1_BLACK_GREEN_THIS_ATTACKS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(20)),\n    power: Some(1),\n    toughness: Some(1),\n    abilities: &[\n        triggered(\n            crate::triggers::THIS_ATTACKS,\n            pest_1_1_black_green_this_attacks_gain_1_life,\n            \"Whenever this token attacks, you gain 1 life.\",\n        ),\n    ],\n    ..token!(Pest)\n};\n\n/// \"Whenever this token attacks, you gain 1 life.\" (CR 608.2, 119.1).\nfn pest_1_1_black_green_this_attacks_gain_1_life(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {\n    g.gain_life(item.controller, 1);\n    Ok(())\n}\n",
+"title": "the 1/1 black and green Pest token with this_attacks"
+},
+"PEST_1_1_BLACK_GREEN_THIS_DIES": {
+"cards": 2,
+"source": "/// A 1/1 black and green Pest creature token with this_dies with \"When this token dies, you gain 1 life.\" (CR 111).\n/// Eccentric Pestfinder // Turn Stones and Lisette, Dean of the Root // Valentin, Dean of the Vein create this exact\n/// token.\npub static PEST_1_1_BLACK_GREEN_THIS_DIES: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    colors: Some(ColorSet(20)),\n    power: Some(1),\n    toughness: Some(1),\n    abilities: &[\n        triggered(\n            crate::triggers::THIS_DIES,\n            pest_1_1_black_green_this_dies_gain_1_life,\n            \"When this token dies, you gain 1 life.\",\n        ),\n    ],\n    ..token!(Pest)\n};\n\n/// \"When this token dies, you gain 1 life.\" (CR 608.2, 119.1).\nfn pest_1_1_black_green_this_dies_gain_1_life(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {\n    g.gain_life(item.controller, 1);\n    Ok(())\n}\n",
+"title": "the 1/1 black and green Pest token with this_dies"
+},
+"PHYREXIAN_BEAST": {
+"cards": 2,
+"source": "/// A 3/3 green Phyrexian Beast creature token (CR 111). Goliath Hatchery and Viral Spawning create this exact token.\npub static PHYREXIAN_BEAST: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(3),\n    toughness: Some(3),\n    toxic: 1,\n    ..token!(Phyrexian Beast)\n};\n",
+"title": "the 3/3 green Phyrexian Beast token"
+},
+"PHYREXIAN_GOLEM": {
+"cards": 12,
+"source": "/// A 3/3 colorless Phyrexian Golem artifact creature token (CR 111). Blade Splicer, Conversion Chamber and Darksteel\n/// Splicer create this exact token.\npub static PHYREXIAN_GOLEM: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(3),\n    toughness: Some(3),\n    ..token!(Phyrexian Golem)\n};\n",
+"title": "the 3/3 Phyrexian Golem token"
+},
+"PHYREXIAN_INSECT": {
+"cards": 3,
+"source": "/// A 1/1 green Phyrexian Insect creature token with infect (CR 111). Carrion Call, Phyrexian Swarmlord and Trigon of\n/// Infestation create this exact token.\npub static PHYREXIAN_INSECT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Infect]),\n    ..token!(Phyrexian Insect)\n};\n",
+"title": "the 1/1 green Phyrexian Insect token with infect"
+},
+"PHYREXIAN_MYR": {
+"cards": 3,
+"source": "/// A 1/1 colorless Phyrexian Myr artifact creature token (CR 111). Myr Sire, Parasitic Implant and Shrine of Loyal\n/// Legions create this exact token.\npub static PHYREXIAN_MYR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Phyrexian Myr)\n};\n",
+"title": "the 1/1 Phyrexian Myr token"
+},
+"PIRATE": {
+"cards": 2,
+"source": "/// A 2/2 black Pirate creature token with menace (CR 111). Fathom Fleet Captain and Vraska, Relic Seeker create this\n/// exact token.\npub static PIRATE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Menace]),\n    ..token!(Pirate)\n};\n",
+"title": "the 2/2 black Pirate token with menace"
+},
+"PLANT": {
+"cards": 7,
+"source": "/// A 0/1 green Plant creature token (CR 111). Audience with Trostani, Avenger of Zendikar and Insidious Roots create\n/// this exact token.\npub static PLANT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(0),\n    toughness: Some(1),\n    ..token!(Plant)\n};\n",
+"title": "the 0/1 green Plant token"
+},
+"PLANT_1_1_GREEN": {
+"cards": 2,
+"source": "/// A 1/1 green Plant creature token (CR 111). Grismold, the Dreadsower and Grovetender Druids create this exact token.\npub static PLANT_1_1_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Plant)\n};\n",
+"title": "the 1/1 green Plant token"
+},
+"PLANT_WARRIOR": {
+"cards": 2,
+"source": "/// A 4/2 green Plant Warrior creature token with reach (CR 111). Vengeful Regrowth and Yuma, Proud Protector create\n/// this exact token.\npub static PLANT_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(4),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Reach]),\n    ..token!(Plant Warrior)\n};\n",
+"title": "the 4/2 green Plant Warrior token with reach"
+},
+"RACCOON": {
+"cards": 2,
+"source": "/// A 3/3 green Raccoon creature token (CR 111). Gourmand's Talent and Sylvan Scavenging create this exact token.\npub static RACCOON: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(3),\n    toughness: Some(3),\n    ..token!(Raccoon)\n};\n",
+"title": "the 3/3 green Raccoon token"
+},
+"RAT": {
+"cards": 11,
+"source": "/// A 1/1 black Rat creature token (CR 111). Big Apple, 3 a.m., Chittering Witch and Lab Rats create this exact token.\npub static RAT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Rat)\n};\n",
+"title": "the 1/1 black Rat token"
+},
+"RHINO": {
+"cards": 3,
+"source": "/// A 4/4 green Rhino creature token with trample (CR 111). Crashing Footfalls, Horncaller's Chant and Trostani's\n/// Summoner create this exact token.\npub static RHINO: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(4),\n    toughness: Some(4),\n    keywords: Keywords::of(&[Keyword::Trample]),\n    ..token!(Rhino)\n};\n",
+"title": "the 4/4 green Rhino token with trample"
+},
+"ROBOT": {
+"cards": 2,
+"source": "/// A 1/1 colorless Robot artifact creature token with flying (CR 111). Robotics Mastery and Spider-Slayer, Hatred Honed\n/// create this exact token.\npub static ROBOT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Robot)\n};\n",
+"title": "the 1/1 Robot token with flying"
+},
+"ROBOT_HERO": {
+"cards": 2,
+"source": "/// A 1/1 colorless Robot Hero artifact creature token with flying (CR 111). Shuri, Vibranium Technologist and Virtual\n/// Assistant create this exact token.\npub static ROBOT_HERO: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Robot Hero)\n};\n",
+"title": "the 1/1 Robot Hero token with flying"
+},
+"ROBOT_VILLAIN": {
+"cards": 4,
+"source": "/// A 2/2 colorless Robot Villain artifact creature token (CR 111). Age of Ultron, Robot Domination and Ultron Drone\n/// create this exact token.\npub static ROBOT_VILLAIN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Robot Villain)\n};\n",
+"title": "the 2/2 Robot Villain token"
+},
+"ROGUE": {
+"cards": 3,
+"source": "/// A 2/2 black Rogue creature token (CR 111). Currency Converter, Misfortune Teller and Waste Management create this\n/// exact token.\npub static ROGUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Rogue)\n};\n",
+"title": "the 2/2 black Rogue token"
+},
+"SAND_WARRIOR": {
+"cards": 4,
+"source": "/// A 1/1 white, red, and green Sand Warrior creature token (CR 111). Desert Warfare, Hazezon Tamar and Hazezon, Shaper\n/// of Sand create this exact token.\npub static SAND_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(25)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Sand Warrior)\n};\n",
+"title": "the 1/1 white, red, and green Sand Warrior token"
+},
+"SAPROLING": {
+"cards": 78,
+"source": "/// A 1/1 green Saproling creature token (CR 111). Aether Mutation, Artifact Mutation and Aura Mutation create this\n/// exact token.\npub static SAPROLING: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Saproling)\n};\n",
+"title": "the 1/1 green Saproling token"
+},
+"SAPROLING_1_1_GREEN": {
+"cards": 2,
+"source": "/// A 1/1 green Saproling creature token (CR 111). Brightcap Badger // Fungus Frolic and Supply // Demand create this\n/// exact token.\npub static SAPROLING_1_1_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Saproling)\n};\n",
+"title": "the 1/1 green Saproling token"
+},
+"SATYR": {
+"cards": 2,
+"source": "/// A 2/2 red and green Satyr creature token with haste (CR 111). Revel of the Fallen God and Xenagos, the Reveler\n/// create this exact token.\npub static SATYR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(24)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Haste]),\n    ..token!(Satyr)\n};\n",
+"title": "the 2/2 red and green Satyr token with haste"
+},
+"SATYR_1_1_RED": {
+"cards": 2,
+"source": "/// A 1/1 red Satyr creature token with cant block (CR 111). Heroes of the Revel and Satyr's Cunning create this exact\n/// token.\npub static SATYR_1_1_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::CantBlock]),\n    ..token!(Satyr)\n};\n",
+"title": "the 1/1 red Satyr token with cant block"
+},
+"SHAPESHIFTER_2_2_BLUE": {
+"cards": 2,
+"source": "/// A 2/2 blue Shapeshifter creature token with changeling (CR 111). Maskwood Nexus and The Bears of Littjara create\n/// this exact token.\npub static SHAPESHIFTER_2_2_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Changeling]),\n    ..token!(Shapeshifter)\n};\n",
+"title": "the 2/2 blue Shapeshifter token with changeling"
+},
+"SHAPESHIFTER_2_2_COLORLESS": {
+"cards": 2,
+"source": "/// A 2/2 colorless Shapeshifter creature token with changeling (CR 111). Birthing Boughs and Irregular Cohort create\n/// this exact token.\npub static SHAPESHIFTER_2_2_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Changeling]),\n    ..token!(Shapeshifter)\n};\n",
+"title": "the 2/2 Shapeshifter token with changeling"
+},
+"SKELETON": {
+"cards": 3,
+"source": "/// A 1/1 black Skeleton creature token (CR 111). Death-Priest of Myrkul, Hag of Death's Legion and Skeletal Swarming\n/// create this exact token.\npub static SKELETON: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Skeleton)\n};\n",
+"title": "the 1/1 black Skeleton token"
+},
+"SKELETON_1_1_BLACK": {
+"cards": 2,
+"source": "/// A 1/1 black Skeleton creature token with \"{B}: Regenerate this token.\" (CR 111). Drudge Spell and Skeletonize create\n/// this exact token.\npub static SKELETON_1_1_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    abilities: &[ability(cost(\"{B}\"), skeleton_1_1_black_regenerate_token, \"{B}: Regenerate this token.\")],\n    ..token!(Skeleton)\n};\n\n/// \"{B}: Regenerate this token.\" (CR 608.2, 611.2a).\nfn skeleton_1_1_black_regenerate_token(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {\n    let objects_0 = {\n        let q: &dyn Query = g;\n        Some(item.object)\n            .into_iter()\n            .filter(|&o| q.state().obj(o).became.is_none())\n            .collect::<Vec<ObjectId>>()\n    };\n    instruction(\n        g,\n        |g| {\n            for object in objects_0 {\n                g.add_effect(\n                    item.object,\n                    object,\n                    EffectKind::RegenerationShield,\n                    Duration::EndOfTurn,\n                );\n            }\n        },\n    );\n    Ok(())\n}\n",
+"title": "the 1/1 black Skeleton token"
+},
+"SKELETON_4_1_BLACK": {
+"cards": 2,
+"source": "/// A 4/1 black Skeleton creature token with menace (CR 111). Gut, True Soul Zealot and Rasaad, Shadow Monk create this\n/// exact token.\npub static SKELETON_4_1_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(4),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Menace]),\n    ..token!(Skeleton)\n};\n",
+"title": "the 4/1 black Skeleton token with menace"
+},
+"SKELETON_PIRATE": {
+"cards": 2,
+"source": "/// A 2/2 black Skeleton Pirate creature token (CR 111). Corpses of the Lost and Skeleton Crew create this exact token.\npub static SKELETON_PIRATE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Skeleton Pirate)\n};\n",
+"title": "the 2/2 black Skeleton Pirate token"
+},
+"SLIVER": {
+"cards": 6,
+"source": "/// A 1/1 colorless Sliver creature token (CR 111). Brood Sliver, Hive Stirrings and Rukarumel, Biologist create this\n/// exact token.\npub static SLIVER: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Sliver)\n};\n",
+"title": "the 1/1 Sliver token"
+},
+"SNAKE": {
+"cards": 9,
+"source": "/// A 1/1 green Snake creature token (CR 111). Bestial Menace, Cobra Trap and Orochi Hatchery create this exact token.\npub static SNAKE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Snake)\n};\n",
+"title": "the 1/1 green Snake token"
+},
+"SNAKE_1_1_BLACK": {
+"cards": 2,
+"source": "/// A 1/1 black Snake creature token with deathtouch (CR 111). Aphelia, Viper Whisperer and Ophiomancer create this\n/// exact token.\npub static SNAKE_1_1_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Deathtouch]),\n    ..token!(Snake)\n};\n",
+"title": "the 1/1 black Snake token with deathtouch"
+},
+"SOLDIER_1_1_COLORLESS": {
+"cards": 10,
+"source": "/// A 1/1 colorless Soldier artifact creature token (CR 111). Conscripted Infantry, Emergency Weld and Mass Production\n/// create this exact token.\npub static SOLDIER_1_1_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Soldier)\n};\n",
+"title": "the 1/1 Soldier token"
+},
+"SOLDIER_1_1_RED": {
+"cards": 2,
+"source": "/// A 1/1 red Soldier creature token with haste (CR 111). Akroan Crusader and Frontline Heroism create this exact token.\npub static SOLDIER_1_1_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Haste]),\n    ..token!(Soldier)\n};\n",
+"title": "the 1/1 red Soldier token with haste"
+},
+"SOLDIER_1_1_RED_WHITE": {
+"cards": 4,
+"source": "/// A 1/1 red and white Soldier creature token with haste (CR 111). Assemble the Legion, Blaze Commando and Caesar,\n/// Legion's Emperor create this exact token.\npub static SOLDIER_1_1_RED_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(9)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Haste]),\n    ..token!(Soldier)\n};\n",
+"title": "the 1/1 red and white Soldier token with haste"
+},
+"SOLDIER_1_1_WHITE": {
+"cards": 10,
+"source": "/// A 1/1 white Soldier creature token with lifelink (CR 111). Archangel Elspeth, Dawn of Hope and Emmara, Soul of the\n/// Accord create this exact token.\npub static SOLDIER_1_1_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Lifelink]),\n    ..token!(Soldier)\n};\n",
+"title": "the 1/1 white Soldier token with lifelink"
+},
+"SOLDIER_2_2_RED": {
+"cards": 3,
+"source": "/// A 2/2 red Soldier creature token with \"Firebending\" (CR 111). Cruel Administrator, Fire Nation Attacks and Fire\n/// Nation Occupation create this exact token.\npub static SOLDIER_2_2_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(2),\n    toughness: Some(2),\n    abilities: &[crate::firebending::trigger::<1>(\"Firebending\")],\n    ..token!(Soldier)\n};\n",
+"title": "the 2/2 red Soldier token"
+},
+"SOLDIER_2_2_RED_2": {
+"cards": 2,
+"source": "/// A 2/2 red Soldier creature token (CR 111). Fire Nation Archers and Zuko, Avatar Hunter create this exact token.\npub static SOLDIER_2_2_RED_2: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Soldier)\n};\n",
+"title": "the 2/2 red Soldier token"
+},
+"SPAWN": {
+"cards": 2,
+"source": "/// A 3/3 red Spawn creature token (CR 111). Magnus the Red and The Lost and the Damned create this exact token.\npub static SPAWN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(3),\n    toughness: Some(3),\n    ..token!(Spawn)\n};\n",
+"title": "the 3/3 red Spawn token"
+},
+"SPIDER_2_1_BLACK": {
+"cards": 2,
+"source": "/// A 2/1 black Spider creature token with menace and reach (CR 111). Drider and Lolth, Spider Queen create this exact\n/// token.\npub static SPIDER_2_1_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Reach, Keyword::Menace]),\n    ..token!(Spider)\n};\n",
+"title": "the 2/1 black Spider token with menace and reach"
+},
+"SPIRIT_0_0_WHITE": {
+"cards": 2,
+"source": "/// A 0/0 white Spirit creature token (CR 111). Abzan Monument and Severance Priest create this exact token.\npub static SPIRIT_0_0_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Spirit)\n};\n",
+"title": "the 0/0 white Spirit token"
+},
+"SPIRIT_1_1_BLUE": {
+"cards": 2,
+"source": "/// A 1/1 blue Spirit creature token with flying (CR 111). Geist Snatch and Saint Traft and Rem Karolus create this\n/// exact token.\npub static SPIRIT_1_1_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Spirit)\n};\n",
+"title": "the 1/1 blue Spirit token with flying"
+},
+"SPIRIT_1_1_COLORLESS": {
+"cards": 16,
+"source": "/// A 1/1 colorless Spirit creature token (CR 111). Akki Ember-Keeper, Baku Altar and Concord with the Kami create this\n/// exact token.\npub static SPIRIT_1_1_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Spirit)\n};\n",
+"title": "the 1/1 Spirit token"
+},
+"SPIRIT_1_1_WHITE": {
+"cards": 2,
+"source": "/// A 1/1 white Spirit creature token (CR 111). Great Arashin City and Revival of the Ancestors create this exact token.\npub static SPIRIT_1_1_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Spirit)\n};\n",
+"title": "the 1/1 white Spirit token"
+},
+"SPIRIT_1_1_WHITE_BLACK": {
+"cards": 7,
+"source": "/// A 1/1 white and black Spirit creature token with flying (CR 111). Beckon Apparition, Ethereal Absolution and Kaya's\n/// Guile create this exact token.\npub static SPIRIT_1_1_WHITE_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(5)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Spirit)\n};\n",
+"title": "the 1/1 white and black Spirit token with flying"
+},
+"SPIRIT_2_2_RED": {
+"cards": 2,
+"source": "/// A 2/2 red Spirit creature token with menace (CR 111). Chishiro, the Shattered Blade and Gift of Wrath create this\n/// exact token.\npub static SPIRIT_2_2_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Menace]),\n    ..token!(Spirit)\n};\n",
+"title": "the 2/2 red Spirit token with menace"
+},
+"SPIRIT_2_2_WHITE": {
+"cards": 3,
+"source": "/// A 2/2 white Spirit creature token with flying (CR 111). Obscura Ascendancy, Phantom Interference and Wrangler of the\n/// Damned create this exact token.\npub static SPIRIT_2_2_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Spirit)\n};\n",
+"title": "the 2/2 white Spirit token with flying"
+},
+"SPIRIT_3_2_RED_WHITE": {
+"cards": 12,
+"source": "/// A 3/2 red and white Spirit creature token (CR 111). Ceaseless Conflict, Illuminate History and Illustrious Historian\n/// create this exact token.\npub static SPIRIT_3_2_RED_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(9)),\n    power: Some(3),\n    toughness: Some(2),\n    ..token!(Spirit)\n};\n",
+"title": "the 3/2 red and white Spirit token"
+},
+"SQUID": {
+"cards": 2,
+"source": "/// A 1/1 blue Squid creature token with islandwalk (CR 111). Chasm Skulker and Coral Barrier create this exact token.\npub static SQUID: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Islandwalk]),\n    ..token!(Squid)\n};\n",
+"title": "the 1/1 blue Squid token with islandwalk"
+},
+"TENTACLE": {
+"cards": 2,
+"source": "/// A 1/1 blue Tentacle creature token (CR 111). Nadir Kraken and The Watcher in the Water create this exact token.\npub static TENTACLE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Tentacle)\n};\n",
+"title": "the 1/1 blue Tentacle token"
+},
+"THOPTER_1_1_BLUE": {
+"cards": 3,
+"source": "/// A 1/1 blue Thopter artifact creature token with flying (CR 111). Breya, Etherium Shaper, Sharding Sphinx and Thopter\n/// Foundry create this exact token.\npub static THOPTER_1_1_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Thopter)\n};\n",
+"title": "the 1/1 blue Thopter token with flying"
+},
+"THOPTER_1_1_COLORLESS": {
+"cards": 3,
+"source": "/// A 1/1 colorless Thopter artifact creature token with flying (CR 111). Aetherwing, Golden-Scale Flagship // Invasion\n/// of Kaladesh, Depose // Deploy and Fuss // Bother create this exact token.\npub static THOPTER_1_1_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Thopter)\n};\n",
+"title": "the 1/1 Thopter token with flying"
+},
+"TREEFOLK_0_0_GREEN": {
+"cards": 3,
+"source": "/// A 0/0 green Treefolk creature token (CR 111). Arboreal Alliance, Assemble the Entmoot and Sylvan Offering create\n/// this exact token.\npub static TREEFOLK_0_0_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Treefolk)\n};\n",
+"title": "the 0/0 green Treefolk token"
+},
+"TROLL_WARRIOR": {
+"cards": 2,
+"source": "/// A 4/4 green Troll Warrior creature token with trample (CR 111). Gnottvold Slumbermound and Waking the Trolls create\n/// this exact token.\npub static TROLL_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(4),\n    toughness: Some(4),\n    keywords: Keywords::of(&[Keyword::Trample]),\n    ..token!(Troll Warrior)\n};\n",
+"title": "the 4/4 green Troll Warrior token with trample"
+},
+"TYRANID": {
+"cards": 2,
+"source": "/// A 1/1 green Tyranid creature token (CR 111). Termagant Swarm and Tervigon create this exact token.\npub static TYRANID: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Tyranid)\n};\n",
+"title": "the 1/1 green Tyranid token"
+},
+"TYRANID_GARGOYLE": {
+"cards": 2,
+"source": "/// A 1/1 blue Tyranid Gargoyle creature token with flying (CR 111). Gargoyle Flock and Tyranid Harridan create this\n/// exact token.\npub static TYRANID_GARGOYLE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Tyranid Gargoyle)\n};\n",
+"title": "the 1/1 blue Tyranid Gargoyle token with flying"
+},
+"TYRANID_WARRIOR": {
+"cards": 2,
+"source": "/// A 3/3 green Tyranid Warrior creature token with trample (CR 111). Lictor and Tyranid Invasion create this exact\n/// token.\npub static TYRANID_WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(3),\n    toughness: Some(3),\n    keywords: Keywords::of(&[Keyword::Trample]),\n    ..token!(Tyranid Warrior)\n};\n",
+"title": "the 3/3 green Tyranid Warrior token with trample"
+},
+"VAMPIRE": {
+"cards": 12,
+"source": "/// A 1/1 white Vampire creature token with lifelink (CR 111). Call to the Feast, Charismatic Conqueror and Elenda's\n/// Hierophant create this exact token.\npub static VAMPIRE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Lifelink]),\n    ..token!(Vampire)\n};\n",
+"title": "the 1/1 white Vampire token with lifelink"
+},
+"VAMPIRE_DEMON": {
+"cards": 4,
+"source": "/// A 4/3 white and black Vampire Demon creature token with flying (CR 111). Canonized in Blood, Clavileño, First of the\n/// Blessed and March of the Canonized create this exact token.\npub static VAMPIRE_DEMON: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(5)),\n    power: Some(4),\n    toughness: Some(3),\n    keywords: Keywords::of(&[Keyword::Flying]),\n    ..token!(Vampire Demon)\n};\n",
+"title": "the 4/3 white and black Vampire Demon token with flying"
+},
+"VAMPIRE_KNIGHT": {
+"cards": 3,
+"source": "/// A 1/1 black Vampire Knight creature token with lifelink (CR 111). Call the Bloodline, Elenda and Azor and Sorin,\n/// Grim Nemesis create this exact token.\npub static VAMPIRE_KNIGHT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Lifelink]),\n    ..token!(Vampire Knight)\n};\n",
+"title": "the 1/1 black Vampire Knight token with lifelink"
+},
+"VEHICLE": {
+"cards": 3,
+"source": "/// A 3/2 colorless Vehicle artifact token with \"Crew 1\" (CR 111). Chandra, Spark Hunter, Mu Yanling, Wind Rider and\n/// Wish Good Luck create this exact token.\npub static VEHICLE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact]),\n    power: Some(3),\n    toughness: Some(2),\n    abilities: &[crate::crew::crew(1, \"Crew 1\")],\n    ..token!(Vehicle)\n};\n",
+"title": "the 3/2 Vehicle token"
+},
+"VIBRANIUM": {
+"cards": 5,
+"source": "/// A colorless Vibranium artifact token with indestructible with \"{T}: Add {C}. This mana can't be spent to cast a\n/// nonartifact spell.\" (CR 111). Dora Milaje Elite, Shuri's Fabricator and T'Challa, the Black Panther create this\n/// exact token.\npub static VIBRANIUM: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact]),\n    keywords: Keywords::of(&[Keyword::Indestructible]),\n    abilities: &[\n        mana_ability(\n            TAP,\n            Adds {\n                pool: ManaPool([0, 0, 0, 0, 0, 1]),\n                ..add_each(&[])\n            }\n                .only_for(ManaRestriction::NotNonartifactSpells),\n            \"{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.\",\n        ),\n    ],\n    ..token!(Vibranium)\n};\n",
+"title": "the Vibranium token with indestructible"
+},
+"WALL": {
+"cards": 2,
+"source": "/// A 0/3 white Wall creature token with defender (CR 111). Rammas Echor, Ancient Shield and Teyo, the Shieldmage create\n/// this exact token.\npub static WALL: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(0),\n    toughness: Some(3),\n    keywords: Keywords::of(&[Keyword::Defender]),\n    ..token!(Wall)\n};\n",
+"title": "the 0/3 white Wall token with defender"
+},
+"WARRIOR": {
+"cards": 9,
+"source": "/// A 1/1 white Warrior creature token (CR 111). Blaring Recruiter, Herald of Anafenza and Mardu Charm create this exact\n/// token.\npub static WARRIOR: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Warrior)\n};\n",
+"title": "the 1/1 white Warrior token"
+},
+"WARRIOR_1_1_RED": {
+"cards": 6,
+"source": "/// A 1/1 red Warrior creature token (CR 111). Dalkovan Encampment, Mardu Monument and Rally the Horde create this exact\n/// token.\npub static WARRIOR_1_1_RED: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(8)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Warrior)\n};\n",
+"title": "the 1/1 red Warrior token"
+},
+"WARRIOR_1_1_WHITE": {
+"cards": 5,
+"source": "/// A 1/1 white Warrior creature token with vigilance (CR 111). Cartouche of Solidarity, Oketra the True and Oketra's\n/// Monument create this exact token.\npub static WARRIOR_1_1_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    keywords: Keywords::of(&[Keyword::Vigilance]),\n    ..token!(Warrior)\n};\n",
+"title": "the 1/1 white Warrior token with vigilance"
+},
+"WIZARD": {
+"cards": 4,
+"source": "/// A 0/1 black Wizard creature token with \"Whenever you cast a noncreature spell, this token deals 1 damage to each\n/// opponent.\" (CR 111). Circle of Power, Mysidian Elder and Queen Brahne create this exact token.\npub static WIZARD: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(0),\n    toughness: Some(1),\n    abilities: &[\n        triggered(\n            when_asked(EventMask::SPELL_CAST, wizard_when_cast_noncreature_spell),\n            wizard_token_deals_1_damage_opponent,\n            \"Whenever you cast a noncreature spell, this token deals 1 damage to each opponent.\",\n        ),\n    ],\n    ..token!(Wizard)\n};\n\n/// \"Whenever you cast a noncreature spell, this token deals 1 damage to each opponent.\" (CR 608.2, 120.3).\nfn wizard_token_deals_1_damage_opponent(\n    g: &mut dyn Game,\n    item: &StackItem,\n) -> Result<(), Suspend> {\n    let recipients_0 = {\n        let q: &dyn Query = g;\n        q.state()\n            .opponents(item.controller)\n            .collect::<Vec<PlayerId>>()\n            .into_iter()\n            .map(Target::Player)\n            .collect::<Vec<Target>>()\n    };\n    let batch: Vec<(ObjectId, Target, u16)> = recipients_0\n        .iter()\n        .map(|t| (item.object, *t, 1u16))\n        .collect();\n    g.damage_together(&batch);\n    Ok(())\n}\n\n/// \"Whenever you cast a noncreature spell\" (CR 603.2).\nfn wizard_when_cast_noncreature_spell(\n    q: &dyn Query,\n    asker: &Asker,\n    event: &Event,\n) -> Option<Fired> {\n    let Event::SpellCast { spell, player, .. } = event else { return None };\n    let id = *spell;\n    let subject = Target::Object(id);\n    if asker.controller == *player && !(q.chars(id).is(CardType::Creature)) {\n        return Fired::about(subject);\n    }\n    None\n}\n",
+"title": "the 0/1 black Wizard token"
+},
+"WIZARD_0_1_BLACK": {
+"cards": 2,
+"source": "/// A 0/1 black Wizard creature token with \"Whenever you cast a noncreature spell, this token deals 1 damage to each\n/// opponent.\" (CR 111). Lindblum, Industrial Regency // Mage Siege and Trance Kuja, Fate Defied // Kuja, Genome\n/// Sorcerer create this exact token.\npub static WIZARD_0_1_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    colors: Some(ColorSet(4)),\n    power: Some(0),\n    toughness: Some(1),\n    abilities: &[\n        triggered(\n            when_asked(EventMask::SPELL_CAST, wizard_0_1_black_when_cast_noncreature_spell),\n            wizard_0_1_black_token_deals_1_damage_opponent,\n            \"Whenever you cast a noncreature spell, this token deals 1 damage to each opponent.\",\n        ),\n    ],\n    ..token!(Wizard)\n};\n\n/// \"Whenever you cast a noncreature spell, this token deals 1 damage to each opponent.\" (CR 608.2, 120.3).\nfn wizard_0_1_black_token_deals_1_damage_opponent(\n    g: &mut dyn Game,\n    item: &StackItem,\n) -> Result<(), Suspend> {\n    let recipients_0 = {\n        let q: &dyn Query = g;\n        q.state()\n            .opponents(item.controller)\n            .collect::<Vec<PlayerId>>()\n            .into_iter()\n            .map(Target::Player)\n            .collect::<Vec<Target>>()\n    };\n    let batch: Vec<(ObjectId, Target, u16)> = recipients_0\n        .iter()\n        .map(|t| (item.object, *t, 1u16))\n        .collect();\n    g.damage_together(&batch);\n    Ok(())\n}\n\n/// \"Whenever you cast a noncreature spell\" (CR 603.2).\nfn wizard_0_1_black_when_cast_noncreature_spell(\n    q: &dyn Query,\n    asker: &Asker,\n    event: &Event,\n) -> Option<Fired> {\n    let Event::SpellCast { spell, player, .. } = event else { return None };\n    let id = *spell;\n    let subject = Target::Object(id);\n    if asker.controller == *player && !(q.chars(id).is(CardType::Creature)) {\n        return Fired::about(subject);\n    }\n    None\n}\n",
+"title": "the 0/1 black Wizard token"
+},
+"WOLF_2_2_GREEN": {
+"cards": 7,
+"source": "/// A 2/2 green Wolf creature token (CR 111). Arlinn, Embraced by the Moon // Arlinn Kord, Arlinn, the Moon's Fury //\n/// Arlinn, the Pack's Hope and Garruk, the Veil-Cursed // Garruk Relentless create this exact token.\npub static WOLF_2_2_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    colors: Some(ColorSet(16)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Wolf)\n};\n",
+"title": "the 2/2 green Wolf token"
+},
+"WORM": {
+"cards": 4,
+"source": "/// A 1/1 black and green Worm creature token (CR 111). Creakwood Liege, Lluwen, Imperfect Naturalist and Worm Harvest\n/// create this exact token.\npub static WORM: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(20)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Worm)\n};\n",
+"title": "the 1/1 black and green Worm token"
+},
+"WURM": {
+"cards": 4,
+"source": "/// A 6/6 green Wurm creature token (CR 111). Crush of Wurms, Garruk, Primal Hunter and Roar of the Wurm create this\n/// exact token.\npub static WURM: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(6),\n    toughness: Some(6),\n    ..token!(Wurm)\n};\n",
+"title": "the 6/6 green Wurm token"
+},
+"WURM_5_5_GREEN": {
+"cards": 3,
+"source": "/// A 5/5 green Wurm creature token with trample (CR 111). Advent of the Wurm, Armada Wurm and Worldspine Wurm create\n/// this exact token.\npub static WURM_5_5_GREEN: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(16)),\n    power: Some(5),\n    toughness: Some(5),\n    keywords: Keywords::of(&[Keyword::Trample]),\n    ..token!(Wurm)\n};\n",
+"title": "the 5/5 green Wurm token with trample"
+},
+"ZOMBIE_0_0_BLACK": {
+"cards": 2,
+"source": "/// A 0/0 black Zombie creature token (CR 111). Ritual of the Returned and Soul Separator create this exact token.\npub static ZOMBIE_0_0_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Zombie)\n};\n",
+"title": "the 0/0 black Zombie token"
+},
+"ZOMBIE_0_0_BLUE": {
+"cards": 2,
+"source": "/// A 0/0 blue Zombie creature token (CR 111). Geralf, Visionary Stitcher and Stitcher Geralf create this exact token.\npub static ZOMBIE_0_0_BLUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(2)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Zombie)\n};\n",
+"title": "the 0/0 blue Zombie token"
+},
+"ZOMBIE_1_1_WHITE": {
+"cards": 2,
+"source": "/// A 1/1 white Zombie creature token (CR 111). On Wings of Gold and Wizened Mentor create this exact token.\npub static ZOMBIE_1_1_WHITE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(1)),\n    power: Some(1),\n    toughness: Some(1),\n    ..token!(Zombie)\n};\n",
+"title": "the 1/1 white Zombie token"
+},
+"ZOMBIE_2_2_BLACK": {
+"cards": 15,
+"source": "/// A 2/2 black Zombie creature token with decayed (CR 111). Crowded Crypt, Curse of the Restless Dead and Diregraf\n/// Horde create this exact token.\npub static ZOMBIE_2_2_BLACK: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Decayed]),\n    ..token!(Zombie)\n};\n",
+"title": "the 2/2 black Zombie token with decayed"
+},
+"ZOMBIE_2_2_BLACK_2": {
+"cards": 4,
+"source": "/// A 2/2 black Zombie creature token (CR 111). Deluge of the Dead // Invasion of Innistrad, Hildibrand Manderville //\n/// Gentleman's Rise and Liliana, Defiant Necromancer // Liliana, Heretical Healer create this exact token.\npub static ZOMBIE_2_2_BLACK_2: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    supertypes: Supertypes {\n        basic: false,\n        legendary: false,\n        snow: false,\n    },\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Zombie)\n};\n",
+"title": "the 2/2 black Zombie token"
+},
+"ZOMBIE_3_3_COLORLESS": {
+"cards": 2,
+"source": "/// A 3/3 colorless Zombie artifact creature token (CR 111). Ashnod, Flesh Mechanist and Transmogrant Altar create this\n/// exact token.\npub static ZOMBIE_3_3_COLORLESS: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),\n    power: Some(3),\n    toughness: Some(3),\n    ..token!(Zombie)\n};\n",
+"title": "the 3/3 Zombie token"
+},
+"ZOMBIE_ARMY": {
+"cards": 24,
+"source": "/// A 0/0 black Zombie Army creature token (CR 111). Angrath, Captain of Chaos, Aven Eternal and Bleeding Edge create\n/// this exact token.\npub static ZOMBIE_ARMY: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(0),\n    toughness: Some(0),\n    ..token!(Zombie Army)\n};\n",
+"title": "the 0/0 black Zombie Army token"
+},
+"ZOMBIE_BERSERKER": {
+"cards": 3,
+"source": "/// A 2/2 black Zombie Berserker creature token (CR 111). Deathknell Berserker, Draugr's Helm and Rise of the Dread Marn\n/// create this exact token.\npub static ZOMBIE_BERSERKER: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Zombie Berserker)\n};\n",
+"title": "the 2/2 black Zombie Berserker token"
+},
+"ZOMBIE_DRUID": {
+"cards": 7,
+"source": "/// A 2/2 black Zombie Druid creature token (CR 111). Adorned Crocodile, Essence Anchor and Sultai Monument create this\n/// exact token.\npub static ZOMBIE_DRUID: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Zombie Druid)\n};\n",
+"title": "the 2/2 black Zombie Druid token"
+},
+"ZOMBIE_KNIGHT": {
+"cards": 2,
+"source": "/// A 2/2 black Zombie Knight creature token with menace (CR 111). Bladewing, Deathless Tyrant and Josu Vess, Lich\n/// Knight create this exact token.\npub static ZOMBIE_KNIGHT: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(4)),\n    power: Some(2),\n    toughness: Some(2),\n    keywords: Keywords::of(&[Keyword::Menace]),\n    ..token!(Zombie Knight)\n};\n",
+"title": "the 2/2 black Zombie Knight token with menace"
+},
+"ZOMBIE_ROGUE": {
+"cards": 4,
+"source": "/// A 2/2 blue and black Zombie Rogue creature token (CR 111). Geralf, the Fleshwright, Gisa, the Hellraiser and Outlaw\n/// Stitcher create this exact token.\npub static ZOMBIE_ROGUE: CardDef = CardDef {\n    types: TypeSet::of(&[CardType::Creature]),\n    colors: Some(ColorSet(6)),\n    power: Some(2),\n    toughness: Some(2),\n    ..token!(Zombie Rogue)\n};\n",
+"title": "the 2/2 blue and black Zombie Rogue token"
+}
+}

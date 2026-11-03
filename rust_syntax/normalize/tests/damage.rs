@@ -67,7 +67,8 @@ fn effect(operation: Operation) -> Instruction {
 
 #[test]
 fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
-    let incomplete = ["Lost Vale", "Vault of Catlacan"];
+    // Named by their front faces (Lost Vale, Vault of Catlacan), as a card of two faces is named.
+    let incomplete = ["Dowsing Dagger", "Storm the Vault"];
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);

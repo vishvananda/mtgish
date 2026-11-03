@@ -17,6 +17,8 @@ mod copies;
 mod costs;
 mod delayed;
 mod effects;
+mod faces;
+mod first_printed;
 mod keywords;
 mod lane_f;
 mod lane_g;
@@ -36,6 +38,7 @@ mod target_counts;
 pub mod planned;
 mod players;
 mod playing;
+pub mod pr_cache;
 pub mod pr_form;
 mod read;
 mod replacements;
@@ -445,8 +448,16 @@ impl Number {
             Err(gap(format!("numeric range for {kind}")))
         }
     }
+    /// A negative amount is 0 (CR 107.1b), so a value that can be negative is floored. One that
+    /// cannot (a count, an event's amount) is not: a floor no game reaches is code no scenario
+    /// can test, and breaking it changes nothing a game shows.
     fn amount(&self, max: i128, kind: &str) -> Result<String> {
-        if self.max <= max {
+        if self.min >= 0 && self.max <= max && self.dynamic {
+            Ok(format!("({}) as {kind}", self.code))
+        } else if self.min >= 0 && self.dynamic && type_max(kind) == Some(max) {
+            // The type's own bound, which `pr_form` reads as the cast it is.
+            Ok(format!("({}).min({kind}::MAX.into()) as {kind}", self.code))
+        } else if self.max <= max {
             Ok(format!("({}).max(0) as {kind}", self.code))
         } else if self.dynamic {
             Ok(format!("({}).clamp(0, {max}) as {kind}", self.code))
@@ -454,6 +465,25 @@ impl Number {
             Err(gap(format!("numeric range for {kind}")))
         }
     }
+    /// `amount`, but a fixed number written as its literal, for a static's
+    /// table, where `max` is not callable.
+    fn constant(&self, max: i128, kind: &str) -> Result<String> {
+        match (self.dynamic, self.min == self.max) {
+            (false, true) if (0..=max).contains(&self.min) => Ok(self.min.to_string()),
+            _ => self.amount(max, kind),
+        }
+    }
+}
+/// The greatest value of an integer type an `i64` converts back from.
+fn type_max(kind: &str) -> Option<i128> {
+    Some(match kind {
+        "u8" => u8::MAX.into(),
+        "u16" => u16::MAX.into(),
+        "u32" => u32::MAX.into(),
+        "i16" => i16::MAX.into(),
+        "i32" => i32::MAX.into(),
+        _ => return None,
+    })
 }
 #[derive(Clone)]
 struct Compiler {
@@ -490,6 +520,13 @@ struct Compiler {
     kickers: Vec<String>,
     /// The face is a sorcery.
     sorcery: bool,
+    /// The card types the face prints.
+    printed_types: Vec<crate::mtg_types::CardType>,
+    /// The name of a card in a graveyard whose card types a filter reads off the card there (CR 715.4, 709.4): a way
+    /// to cast granted to cards in a graveyard ("each instant and sorcery card in your graveyard has flashback") asks
+    /// about the card, while `q.chars` reads it as the face it would be cast as (Bonecrusher Giant's Stomp is an
+    /// instant; the card is a creature card). A permission to cast spells (Lurrus) reads the face (CR 715.3a).
+    pub(super) card_in_graveyard: Option<&'static str>,
     /// What this face's replacements already say it enters as, abilities and
     /// keywords: `Entering::becomes` is one value, and each kicker can add to it.
     entering_as: (Vec<String>, Vec<String>),
@@ -497,10 +534,23 @@ struct Compiler {
     wanted_labels: Option<String>,
     /// What each counter stage of the face prints.
     stages: BTreeMap<i64, Vec<lane_k::Line>>,
-    /// What's left of the printed lines of the stage being compiled.
-    stage_lines: Vec<lane_k::Line>,
+    /// What's left of the printed lines of the stage being compiled, while one is.
+    stage_lines: Option<Vec<lane_k::Line>>,
     /// The next "may" is done once each turn, under this key.
     do_once: Option<u8>,
+    /// The abilities of one sentence are being written ("whenever this or that"):
+    /// the key of its "do this only once each turn", one for them all.
+    once_shared: Option<Option<u8>>,
+    /// An "if it's the first time" the printed line asks of the object, as the
+    /// resolving ability reads it (603.4).
+    first_again: Option<String>,
+    /// Reading a test of whether this spell may be cast.
+    cast_test: bool,
+    /// Compiling a delayed triggered ability, whose words are the sentence that
+    /// makes it (`delayed_words`).
+    waiting_trigger: bool,
+    /// All of the face's Oracle text: a printed line holds one ability's words.
+    face_text: String,
     /// The next tap or untap is a "may", which offers doing nothing with them.
     may_tap_or_untap: bool,
     /// Payments of "unless you pay": those ask whether to, whatever paying is.
@@ -519,11 +569,17 @@ struct Compiler {
     frame: Frame,
     /// A batch trigger's members are in reach: `Query::event_objects`.
     grouped: bool,
+    /// The trigger being written waits on an event Cantrip doesn't have yet, so
+    /// what that event would say ("that many") comes with it.
+    event_planned: bool,
     /// A trigger on damage to a player fires with that player as its subject.
     recipient_subject: bool,
     candidates: std::cell::RefCell<Vec<Candidate>>,
     /// What this spell keeps of the board as it is cast: `CardDef::cast_fact`.
     cast_fact: std::rc::Rc<std::cell::RefCell<Option<String>>>,
+    /// How many instances of an ability a static ability gave with "only once
+    /// each turn": `CardDef::granted_once_each_turn`, the fn's body.
+    granted_once: std::rc::Rc<std::cell::RefCell<Option<String>>>,
     affected_in_scope: bool,
     /// The condition of the enclosing `Ability::Conditional`, asked as layers run.
     static_guard: Option<Condition>,
@@ -532,6 +588,8 @@ struct Compiler {
     /// What this triggered ability's event is always about, as "this creature"
     /// is: read where no event reaches, as "another creature" in a cost.
     event_object: Option<ObjectRef>,
+    /// The triggered ability's event is this object entering the battlefield.
+    source_entered: bool,
     /// While an instruction is compiled to happen only if its players exist:
     /// the local each stands for, and how to read it. See `lane_j`.
     present: std::rc::Rc<std::cell::RefCell<Option<Vec<(String, String)>>>>,
@@ -545,12 +603,38 @@ struct Compiler {
     mana_x: bool,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
+    /// "A source of your choice": each choice's local and the quality it asks.
+    damage_sources: BTreeMap<String, ObjectFilter>,
+    /// The quality of the source of your choice the made effect at hand is about.
+    choosing_source: Option<ObjectFilter>,
     /// What later reads ask of the instructions before them (`lane_m`).
     notes: lane_m::Notes,
     /// By slot: who controlled the items an earlier step countered.
     countered: BTreeMap<u16, String>,
     /// The instruction that separated a face-down pile and a face-up pile.
     face_piles: Option<usize>,
+    /// An instruction exiled cards into piles ("in a face-down pile"), which
+    /// a later choice of "those piles" reads.
+    exiled_piles: bool,
+    /// The piles an instruction exiled whole ("exile the top four cards of your
+    /// library in a face-down pile"): each one's local, and whether it is face down.
+    exile_piles_made: Vec<(String, bool)>,
+    /// A choice between exiled piles, by its result: the local of the pile not chosen,
+    /// which "the other pile" reads.
+    pile_not_chosen: BTreeMap<u32, String>,
+    /// The piles players separated (CR 700.3): the local of their rows, each a
+    /// separator, its piles, the pile chosen and who may choose it.
+    piles: Option<String>,
+    /// A separation inside a per-player walk pushes its row into this local.
+    piles_walk: Option<String>,
+    /// How many piles each row has, and whether they are face down.
+    pile_shape: (i64, bool),
+    /// The `PlayersPayRepeatedly` whose unpaid payments a walk keeps, one
+    /// entry of its payer for each.
+    unpaid_rows: BTreeSet<u32>,
+    /// What each player of a walk turned face up, as said for the walked player:
+    /// "among them" of a later walk of the same players (Pyxis of Pandemonium).
+    turned_up: Option<(u32, ObjectSet)>,
     /// The cards that ended each reveal, by the result that names all it showed.
     reveal_matches: BTreeMap<u32, String>,
     /// This resolution has revealed something. The AST does not always tie a
@@ -562,6 +646,8 @@ struct Compiler {
     unchosen: BTreeMap<u32, String>,
     /// The words of a choice of `ValueKind::Word`, the card's `labels`.
     word_options: Vec<String>,
+    /// `Vec<(PlayerId, u8)>`: the word chosen for each player.
+    player_words: Option<String>,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
     /// The same transitions as `moved`, by the identities they left behind.
@@ -573,6 +659,20 @@ struct Compiler {
     activation_cost: Option<Cost>,
     /// Each additional cost this card declares, by its ability's index.
     casting_costs: BTreeMap<u32, Cost>,
+    /// A cost this card's spell pays beyond its additional costs is being written.
+    spell_cost: bool,
+    /// The cost of the option of a choice of costs whose body is being compiled
+    /// ("as an additional cost, choose a creature you control or ...").
+    option_cost: Option<Cost>,
+    /// "As this enters, choose a creature": the permanent keeps the object chosen
+    /// (`Entering::chosen_object`), which its other abilities read (CR 607.2d).
+    chose_object_as_enters: bool,
+    /// What a mechanic's cost of this card's own spell took, by earlier objects' word.
+    cast_pays: Vec<&'static str>,
+    /// "As this enters, sacrifice any number": how many is what it keeps.
+    enters_sacrifices: bool,
+    /// An instant or sorcery whose one instruction that deals damage is all it deals.
+    damages_once: bool,
     /// Moves that already said when they end, in one call with the move.
     returning: BTreeSet<u32>,
     /// The `Divide` of the announcement just compiled, until a definition that
@@ -581,6 +681,15 @@ struct Compiler {
     /// Locals an effect declares up front to outlive its nested blocks. `None`
     /// in code that isn't an effect's own body.
     hoisted: Option<Vec<String>>,
+    /// Values kept past the block or turn that chose them, and the lines that keep
+    /// them, which go if nothing read them.
+    unread: Vec<(String, Vec<String>)>,
+    /// Locals that hold a value each player chose, by kind.
+    chosen_lists: Vec<(ValueKind, String)>,
+    /// The kinds an earlier ability's locals held: out of scope here, and kept nowhere a later ability could read.
+    earlier_chosen_lists: Vec<ValueKind>,
+    /// The bound player whose own choice in a walk a filter reads.
+    own_choice: std::cell::RefCell<Option<String>>,
     /// The local of the spells the last cast of cards made.
     played: Option<String>,
     /// Choices and searches that yield one object at most.
@@ -589,6 +698,8 @@ struct Compiler {
     known_one: BTreeSet<u32>,
     /// Some ability of the card reads what was exiled with its source.
     links_exile: bool,
+    /// Some ability of the card takes cards from one player's graveyard.
+    one_graveyard: bool,
     /// A face other than the definition an object's `card` names: `lane_f`.
     own_face: bool,
     /// Which door of its Room this face is.
@@ -602,6 +713,10 @@ struct Compiler {
     hurt_players: BTreeMap<u32, String>,
     /// The flips a coin-flipping instruction won and lost.
     coins: Option<(String, String)>,
+    /// The players who each flipped a coin, and how each came up.
+    coin_turns: Option<(String, String)>,
+    /// A coin flipped for each object: `(object, flip)`.
+    coin_objects: Option<String>,
     /// A damage instruction's excess (CR 120.10): the list of what each recipient
     /// took past lethal, its recipients' local, and the one object it aimed at.
     excess: BTreeMap<u32, (String, String, Option<String>)>,
@@ -612,15 +727,40 @@ struct Compiler {
     affected_object: Option<&'static str>,
     /// The bestow cost, which makes the card two definitions.
     bestow: Option<String>,
+    /// What a bestow cost asks besides mana, an additional cost of the Aura.
+    bestow_extra: Option<String>,
+    /// A choice this card makes is a hole: a planned as-event ability ("As this
+    /// creature transforms into Shinryu, choose an opponent") or a choice of a
+    /// card type the craft materials share. What reads that value follows it.
+    as_event_chooses: bool,
     /// Values this body chose, each in a local.
     chosen: Vec<(ValueKind, String)>,
     /// Values the card chooses as it enters, which its permanent keeps.
     enters_choosing: Vec<ValueKind>,
+    /// The body of a mana ability is being written.
+    mana_body: bool,
+    /// The place on its card of the mana ability being written.
+    activated_mana: Option<usize>,
+    /// The color a definition made once for each color is written for.
+    each_color: Option<String>,
+    /// It chooses two of this kind as it enters: the second in its chosen number.
+    enters_two: Option<ValueKind>,
+    /// A rule on the cost of `spell` is being written.
+    costed_spell: bool,
+    /// A cost paid for a card in place of its mana cost is being written ("{X}
+    /// rather than its mana cost, where X is its mana value"): "it" is that card.
+    card_costed: bool,
+    /// The local each object being moved is, while what it arrives with is read:
+    /// "exile a card with a number of time counters on it equal to its mana value".
+    moving_one: Option<String>,
+    /// The card types it offers, if it chooses one as it enters.
+    entering_card_type: Option<Vec<String>>,
     bound_objects: BTreeSet<u32>,
     /// The next closure is a reflexive ability's.
     reflexing: bool,
     /// The next closure is the body of a delayed ability asked of another object.
     source_moved: bool,
+    watching_object: Option<ObjectRef>,
     bound_players: BTreeSet<u32>,
     /// A mechanic asks for the first way, so no other way may come before it.
     only_way: bool,
@@ -630,6 +770,16 @@ struct Compiler {
     paradigm: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// A cost part is being stated for a `Cost` that can't say it yet: its X is
+    /// the announced one, read as the cost is paid (CR 601.2b, 601.2h).
+    stating_cost: bool,
+    /// What is stated is data a static table holds (a play term's rider, a copy
+    /// effect's exceptions): no `q` or `asker` is there to read the card by, so a
+    /// granted ability is named by its place in the card's lists.
+    tabled: bool,
+    /// A spell's additional cost read the game for its size, so it is worked out
+    /// as the total cost is (`cost_of_targets`, CR 601.2f).
+    cost_reads_board: bool,
     /// An intervening "if" that reads the event, for each mode to ask again.
     mode_guard: Option<Condition>,
     /// What the cost being compiled is paid for.
@@ -648,6 +798,9 @@ struct Compiler {
     delayed: Vec<String>,
     /// The filter of each slot the last announcement compiled.
     announced_filters: Vec<String>,
+    /// For a slot for each player, the slot of the controller's own that goes with
+    /// it (`lane_i::own_slot`), by their places among the slots.
+    own_slots: BTreeMap<usize, usize>,
     /// Compiling a delayed ability's body: what it carries from its maker.
     outer: Option<Rc<delayed::Outer>>,
     /// `CardDef::granted_preventions` and `granted_replacements`.
@@ -660,6 +813,25 @@ struct Compiler {
     lasting: Vec<String>,
     /// `CardDef::lasting_block_rules`.
     made_block_rules: Vec<String>,
+    /// `CardDef::lasting_object_rules`: rules a resolving effect gives an object
+    /// (`EffectKind::ObjectRule`) or a set (`LastingRuleKind::ObjectRule`), each
+    /// with what it waits on.
+    made_object_rules: Vec<(String, String)>,
+    /// `CardDef::lasting_about`: "for as long as" conditions about something
+    /// the effect's ability named as it resolved (`Duration::AsLongAsAbout`),
+    /// each with what it waits on.
+    made_lasting_about: Vec<(String, String)>,
+    /// `CardDef::lasting_until`: the events "until" durations end on
+    /// (`Duration::UntilEvent`), each with what it waits on.
+    made_lasting_until: Vec<(String, String)>,
+    /// `CardDef::lasting_rules`: rules on open sets (CR 611.2c), each with
+    /// what it waits on where Cantrip has none and whether it is a rule beyond
+    /// those #897 has.
+    made_lasting_rules: Vec<(String, String, bool)>,
+    /// `CardDef::play_terms`: what a permission to play a card is on beside
+    /// data (a test, a cost, what playing it does), each with what it waits
+    /// on once the hole that wrote it says.
+    made_play_terms: Vec<(Option<String>, String)>,
     /// Instructions that made an effect preventing damage: its amount comes later.
     prevented: BTreeSet<u32>,
     /// A resolving effect is on what its event is about.
@@ -682,6 +854,8 @@ struct Compiler {
     subject_chooses: bool,
     /// Its slots leave that to the subject, and that is who the event binds.
     controller_subject: bool,
+    /// A batch of counters is read only as how many they were.
+    counters_total: bool,
     /// `CardDef::lasting_cost_changes`.
     made_cost_changes: Vec<String>,
     /// `CardDef::labels` of abilities to choose among as a body resolves.
@@ -690,6 +864,9 @@ struct Compiler {
     option_labels: bool,
     /// The abilities the body's `ChooseValue` offered.
     ability_choice: Vec<Ability>,
+    /// "Choose two abilities from among ...": the sets of `ability_choice`
+    /// offered, each one of the card's words, by index.
+    ability_sets: Vec<Vec<usize>>,
     granting: bool,
     /// What `plan_entry` holds for the granted ability being compiled.
     holding: Option<Vec<(&'static str, String)>>,
@@ -697,6 +874,9 @@ struct Compiler {
     granted_rules: usize,
     /// Rules of granted abilities, once `plan_entry` lands them.
     late: Vec<String>,
+    /// Entries of the card's own tables that ask whether an object has a
+    /// granted ability (Tomik, Orzhov Lawmage's attack limit).
+    late_tables: Vec<(&'static str, String)>,
     /// `CardDef::becomes_aura_enchant`.
     aura: Option<String>,
     /// `player` is the player a stated rule is asked of.
@@ -941,13 +1121,16 @@ impl Compiler {
             event_at: EventAt::Nowhere,
             frame: Frame::default(),
             grouped: false,
+            event_planned: false,
             recipient_subject: false,
             candidates: Default::default(),
             cast_fact: Default::default(),
+            granted_once: Default::default(),
             affected_in_scope: false,
             static_guard: None,
             trigger_gate: None,
             event_object: None,
+            source_entered: false,
             present: Default::default(),
             picked: Default::default(),
             shares: BTreeMap::new(),
@@ -955,11 +1138,22 @@ impl Compiler {
             mana_x: false,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
+            damage_sources: BTreeMap::new(),
+            choosing_source: None,
             notes: Default::default(),
             countered: BTreeMap::new(),
             face_piles: None,
+            exiled_piles: false,
+            exile_piles_made: Vec::new(),
+            pile_not_chosen: BTreeMap::new(),
+            piles: None,
+            piles_walk: None,
+            pile_shape: (0, false),
+            unpaid_rows: BTreeSet::new(),
+            turned_up: None,
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
+            player_words: None,
             reveal_matches: BTreeMap::new(),
             revealed: false,
             creations: BTreeMap::new(),
@@ -968,13 +1162,24 @@ impl Compiler {
             asking: None,
             activation_cost: None,
             casting_costs: BTreeMap::new(),
+            spell_cost: false,
+            option_cost: None,
+            chose_object_as_enters: false,
+            cast_pays: Vec::new(),
+            enters_sacrifices: false,
+            damages_once: false,
             returning: BTreeSet::new(),
             dividing: None,
             hoisted: None,
+            unread: Vec::new(),
+            chosen_lists: Vec::new(),
+            earlier_chosen_lists: Vec::new(),
+            own_choice: std::cell::RefCell::new(None),
             played: None,
             single: BTreeSet::new(),
             known_one: BTreeSet::new(),
             links_exile: false,
+            one_graveyard: false,
             own_face: false,
             door: None,
             choosing: None,
@@ -982,18 +1187,34 @@ impl Compiler {
             unpaid: BTreeSet::new(),
             hurt_players: BTreeMap::new(),
             coins: None,
+            coin_turns: None,
+            coin_objects: None,
             excess: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
             affected_object: None,
             bestow: None,
+            bestow_extra: None,
+            as_event_chooses: false,
             chosen: Vec::new(),
             enters_choosing: Vec::new(),
+            mana_body: false,
+            activated_mana: None,
+            each_color: None,
+            enters_two: None,
+            costed_spell: false,
+            card_costed: false,
+            moving_one: None,
+            entering_card_type: None,
             bound_objects: BTreeSet::new(),
             reflexing: false,
             source_moved: false,
+            watching_object: None,
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            stating_cost: false,
+            tabled: false,
+            cost_reads_board: false,
             mode_guard: None,
             paying: lane_g::Paying::Ability,
             counted: None,
@@ -1006,12 +1227,18 @@ impl Compiler {
             extras: Vec::new(),
             delayed: Vec::new(),
             announced_filters: Vec::new(),
+            own_slots: BTreeMap::new(),
             outer: None,
             made_preventions: Vec::new(),
             made_replacements: Vec::new(),
             replaced_counter: None,
             lasting: Vec::new(),
             made_block_rules: Vec::new(),
+            made_object_rules: Vec::new(),
+            made_lasting_about: Vec::new(),
+            made_lasting_until: Vec::new(),
+            made_lasting_rules: Vec::new(),
+            made_play_terms: Vec::new(),
             prevented: BTreeSet::new(),
             rule_on_event_object: false,
             entering_labels: None,
@@ -1022,14 +1249,17 @@ impl Compiler {
             every_slot_chosen: false,
             subject_chooses: false,
             controller_subject: false,
+            counters_total: false,
             made_cost_changes: Vec::new(),
             choice_labels: Vec::new(),
             option_labels: false,
             ability_choice: Vec::new(),
+            ability_sets: Vec::new(),
             granting: false,
             holding: None,
             granted_rules: 0,
             late: Vec::new(),
+            late_tables: Vec::new(),
             aura: None,
             rule_player: false,
             functions: String::new(),
@@ -1057,11 +1287,18 @@ impl Compiler {
             kicker_line: None,
             kickers: Vec::new(),
             sorcery: false,
+            printed_types: Vec::new(),
+            card_in_graveyard: None,
             entering_as: Default::default(),
             wanted_labels: None,
             stages: BTreeMap::new(),
-            stage_lines: Vec::new(),
+            stage_lines: None,
             do_once: None,
+            once_shared: None,
+            first_again: None,
+            cast_test: false,
+            waiting_trigger: false,
+            face_text: String::new(),
             may_tap_or_untap: false,
             unless_paid: BTreeSet::new(),
             replacing: Default::default(),
@@ -1155,7 +1392,7 @@ impl Compiler {
         let id = Candidate::of("id");
         Ok(match &spec.kind {
             TargetKind::Object(domain) if lane_i::on_the_stack(domain) => {
-                self.stack_target_test(&spec.filter)?
+                self.stack_target_test(domain, &spec.filter)?
             }
             TargetKind::Object(domain) => format!(
                 "matches!(t, Target::Object(id) if {} && ({}))",
@@ -1212,10 +1449,7 @@ impl Compiler {
             }
             // One slot for each opponent, "that player" being whose it is.
             Count::PerPlayer { players, each } if constant_one(each) => {
-                if matches!(
-                    players,
-                    PlayerSet::OpponentsOf(PlayerRef::AbilityController)
-                ) {
+                if lane_i::seats_have_slots(players) {
                     ".between(0, TargetSpec::EACH_OPPONENT)".into()
                 } else {
                     format!(
@@ -1229,17 +1463,17 @@ impl Compiler {
                 }
             }
             // How many is read as the slot is chosen, and a slot's size is a constant.
-            Count::UpTo(n) => format!(
-                ".between(0, {})",
-                planned::planned_value(
-                    "target cardinality UpTo",
-                    "1u32",
-                    &format!(
-                        "TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {})",
-                        self.number(n)?.amount(u32::MAX.into(), "u32")?
-                    ),
+            Count::UpTo(n) => {
+                let read = self.number(n)?.amount(u32::MAX.into(), "u32")?;
+                format!(
+                    ".between(0, {})",
+                    planned::planned_value(
+                        target_counts::up_to_feature(self.slot_counts, self.activation_cost.is_some(), &read),
+                        "1u32",
+                        &format!("TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {read})"),
+                    )
                 )
-            ),
+            }
             other => return self.target_count_rest(other),
         })
     }
@@ -1272,6 +1506,10 @@ impl Compiler {
                 &["common_creature_type"],
                 ".together(cantrip_api::select::set_part(&(common_creature_type as SelectFn), &(largest_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share a creature type\"))",
             ),
+            DistinctProperty::Toughness => (
+                &["common_toughness"],
+                ".together(cantrip_api::select::set_part(&(common_toughness as SelectFn), &(largest_common_toughness as cantrip_api::select::LargestFn), 0, \"with equal toughness\"))",
+            ),
             other => return Err(gap(format!("target constraint CommonProperty {other:?}"))),
         };
         self.helpers.extend(helpers);
@@ -1279,23 +1517,54 @@ impl Compiler {
     }
     fn announced_targets(&mut self, a: &Announcement, label: &str) -> Result<String> {
         let mut targets = Vec::new();
+        let mut own_tests = Vec::new();
         self.announced_filters.clear();
+        self.own_slots.clear();
         self.second_of_two = self.two_targets(a);
+        // Slots a target of the AST is more than one of, before this one.
+        let mut shift = 0;
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
             if lane_k::only_your_graveyard(self.line_text(), &spec.filter) {
                 return Err(gap("a target from a graveyard, where the card says any").at(at));
             }
             let mut rule = lane_l::SlotRule::default();
+            if Self::limit_shared(a) == Some(i) {
+                self.slots.insert(spec.slot.0, (0, spec.clone()));
+                continue;
+            }
             // The second of "two target creatures" is the same slot's.
             if self.second_of_two == Some(i) {
                 self.slots.insert(spec.slot.0, (i, spec.clone()));
+                continue;
+            }
+            let i = i + shift;
+            if faces::two_from_one_graveyard(i, spec)
+                && Self::limit_shared(a).is_none()
+                && self.second_of_two.is_none()
+            {
+                self.choosing = Some(i);
+                let test = self.slot_test(spec, &rule).map_err(|e| e.at(&at));
+                self.choosing = None;
+                let test = test?;
+                let (first, second) = (format!("{label}_target_{i}"), format!("{label}_target_{i}_same_graveyard"));
+                writeln!(self.functions, "#[allow(unused_variables)] fn {first}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}").unwrap();
+                writeln!(self.functions, "#[allow(unused_variables)] fn {second}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {} }}", faces::same_graveyard_as_first(&test)).unwrap();
+                targets.push(format!("target({first}).optional()"));
+                targets.push(format!("target({second}).optional()"));
+                self.announced_filters.push(first);
+                self.announced_filters.push(second);
+                self.slots.insert(spec.slot.0, (i, spec.clone()));
+                self.own_slots.insert(i, i + 1);
+                shift += 1;
                 continue;
             }
             let oracle = target_counts::oracle_slot(&self.card_name, spec);
             let spec = oracle.as_ref().unwrap_or(spec);
             let each_player = target_counts::each_player_slot(spec);
             let spec = each_player.as_ref().unwrap_or(spec);
+            let told = self.told_mana_value_slot(spec);
+            let spec = told.as_ref().unwrap_or(spec);
             let doubled;
             let spec = if self.second_of_two.is_some() {
                 doubled = TargetSpec {
@@ -1324,7 +1593,7 @@ impl Compiler {
                 // Cantrip divides only among a first slot's targets.
                 let total = self
                     .number(total)
-                    .and_then(|n| n.amount(u32::MAX.into(), "u32"))
+                    .and_then(|n| n.constant(u32::MAX.into(), "u32"))
                     .map_err(|e| e.at(&at))?;
                 self.dividing = Some(planned::planned_value(
                     "target with a divided amount",
@@ -1332,7 +1601,18 @@ impl Compiler {
                     &format!("Divide::of_slot({i}, {total})"),
                 ));
             } else if let Some(total) = &spec.distribute {
+                // "X plus 1 damage divided as you choose" (Meteor Shower): the X
+                // announced, through a function of it (`Divide::of_x`, as
+                // Shatterskull Smashing's "twice X").
+                let of_x = match total {
+                    Expr::Constant(_) | Expr::AnnouncedX => None,
+                    other if i == 0 && self.slot_counts == Default::default() => {
+                        self.total_of_x(other, label)
+                    }
+                    _ => None,
+                };
                 let total = match total {
+                    _ if of_x.is_some() => "TargetSpec::COUNTED".to_string(),
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
                     Expr::AnnouncedX
                         if i == 0 && self.slot_counts == Default::default() =>
@@ -1340,6 +1620,22 @@ impl Compiler {
                         "TargetSpec::COUNTED".to_string()
                     }
                     other if i == 0 && self.counts_own_x(other) => {
+                        "TargetSpec::COUNTED".to_string()
+                    }
+                    Expr::AnnouncedX
+                        if i == 0
+                            && self.slot_counts == target_counts::SlotCounts::Delayed
+                            && self.counted.is_some() =>
+                    {
+                        "TargetSpec::COUNTED".to_string()
+                    }
+                    // "When you do, distribute that many": the number the
+                    // reflexive ability was given (CR 603.12).
+                    Expr::Performed(r) | Expr::CountersRemoved(r) | Expr::DieResult(r)
+                        if i == 0
+                            && self.slot_counts == target_counts::SlotCounts::Delayed
+                            && self.counted == Some(r.0) =>
+                    {
                         "TargetSpec::COUNTED".to_string()
                     }
                     Expr::AnnouncedX => {
@@ -1359,21 +1655,48 @@ impl Compiler {
                     }
                     _ => return Err(gap("target with a divided amount").at(at)),
                 };
-                self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
+                let of_x = of_x.map_or_else(|| "None".to_string(), |f| format!("Some({f})"));
+                self.dividing = Some(format!("Divide {{ total: {total}, of_x: {of_x} }}"));
             }
             self.choosing = Some(i);
             let chosen_by = match &spec.chooser {
                 Some(chooser) => self.chosen_by_another(chooser, &mut rule),
                 None => Ok(()),
             };
-            let count = self.slot_count(&spec.count, &format!("{label}_{i}"));
+            // "X damage divided as you choose among any number of targets": each target
+            // is given at least one of the total (CR 601.2d), so the total holds the
+            // slot to it, and the slot itself is of any number (`ask_divided`).
+            // A triggered ability's `counted_by` reads such a number itself, where it can.
+            let divided_any = matches!(
+                (&spec.distribute, &spec.count),
+                (Some(total), Count::UpTo(n))
+                    if !matches!(n, Expr::Constant(_) | Expr::AnnouncedX)
+                        && format!("{total:?}") == format!("{n:?}")
+            );
+            const ANY: &str = ".between(0, cantrip_api::TargetSpec::ANY_NUMBER)";
+            let read = match divided_any {
+                true if self.slot_counts == Default::default() => Some(ANY.to_string()),
+                true => Some(match self.counted_read(&spec.count, &format!("{label}_{i}")) {
+                    Some(count) => count,
+                    None => match self.target_count(&spec.count) {
+                        Ok(count) if !count.contains("planned_value!") => count,
+                        _ => ANY.to_string(),
+                    },
+                }),
+                false => self.slot_up_to_read(spec, i, label).filter(|_| together.is_empty()),
+            };
+            let count = match read {
+                Some(count) => Ok(count),
+                None => self.slot_count(&spec.count, &format!("{label}_{i}")),
+            };
             self.choosing = None;
             chosen_by.map_err(|e| e.at(&at))?;
             let count = count.map_err(|e| e.at(&at))?;
             let count = lane_k::divided_among_some(
                 count,
                 spec.distribute.is_some()
-                    && lane_k::printed_otherwise(self.line_text(), "any number of target"),
+                    && lane_k::printed_otherwise(self.line_text(), "any number of target")
+                    && !faces::distributed_among_any(self.line_text()),
             );
             self.slots.insert(spec.slot.0, (i, spec.clone()));
             if spec.kind == TargetKind::DamageRecipient
@@ -1389,8 +1712,20 @@ impl Compiler {
             }
             self.choosing = Some(i);
             let test = self.slot_test(spec, &rule).map_err(|e| e.at(&at));
+            let test = match Self::limit_shared(a) {
+                Some(other) => test.and_then(|test| {
+                    let more = lane_l::SlotRule::default();
+                    let other = self.slot_test(&a.targets[other], &more)?;
+                    Ok(format!("({test}) || ({other})"))
+                }),
+                None => test,
+            };
             self.choosing = None;
-            let test = lane_i::per_player_target(&spec.count, test?);
+            let test = test?;
+            if let Some(own) = lane_i::own_slot(&spec.count, &test) {
+                own_tests.push((i, own));
+            }
+            let test = lane_i::per_player_target(&spec.count, test);
             let function = format!("{label}_target_{i}");
             writeln!(
                 self.functions,
@@ -1399,6 +1734,16 @@ impl Compiler {
             .unwrap();
             targets.push(rule.finish(format!("target({function}){count}{together}")));
             self.announced_filters.push(function);
+        }
+        for (i, test) in own_tests {
+            let function = format!("{label}_own_target_{i}");
+            writeln!(
+                self.functions,
+                "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}"
+            )
+            .unwrap();
+            self.own_slots.insert(i, targets.len());
+            targets.push(format!("target({function}).between(0, 1)"));
         }
         if targets.is_empty() {
             return Ok("&[]".into());
@@ -1485,10 +1830,20 @@ impl Compiler {
         chosen: Option<&str>,
         out: &mut String,
     ) -> Result<()> {
+        if matches!(players, PlayerSet::One(PlayerRef::AbilityController))
+            && self
+                .line_text()
+                .is_some_and(|line| line.contains("that player adds"))
+        {
+            return Err(gap("mana for that player the source gives to you"));
+        }
         let id = self.next;
         self.next += 1;
         let (lasting, restriction) = lane_g::mana_lasting(restriction);
-        let restriction = restriction.map(|r| self.mana_use(r)).transpose()?;
+        let restriction = restriction
+            .map(|r| self.mana_use(r))
+            .transpose()?
+            .map(|rule| lane_h::rule_through_words(&rule));
         let add = |player: &str, color: &str, amount: &str| -> String {
             match (&restriction, lasting) {
                 (Some(r), _) => format!("g.add_restricted_mana({player}, {color}, {amount}, {r});"),
@@ -1579,6 +1934,12 @@ impl Compiler {
         Ok(())
     }
     fn mana_ability(&mut self, body: &Program, label: &str) -> Result<String> {
+        if let Some(adds) = self.mana_of_a_color_among(body, label)? {
+            return Ok(adds);
+        }
+        if let Some(adds) = self.counted_mana_of_one_color(body, label)? {
+            return Ok(adds);
+        }
         let [Instruction::Effect {
             operation:
                 Operation::AddMana {
@@ -1786,87 +2147,52 @@ fn ability_text(body: &Program) -> String {
         .join(" ")
 }
 
-/// What `card_files` found for one record.
-#[derive(serde::Serialize)]
-pub struct CardFileRow {
-    pub line: usize,
-    pub name: String,
-    /// The file, when the card has one; `None` with no gap needs only content.
-    pub rust: Option<String>,
-    pub gap: Option<String>,
-}
-
 /// Each face's printed text, by name.
+///
+/// A face of a card of several faces is kept by its card's faces too (`face_key`):
+/// its name can be another card's, and the text another's. Eiganjo Dynastorian's
+/// prepare spell is Replenish, without the reminder text Replenish the card has. A
+/// name alone is the card of one face's, when one has it.
 fn oracle_texts(oracle: &Path) -> corpus::Result<BTreeMap<String, String>> {
-    let printed: serde_json::Value =
-        serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(oracle)?))?;
-    Ok(printed
+    // Read whole first: through a reader serde_json takes a byte at a time, most of a second here.
+    let printed: serde_json::Value = serde_json::from_slice(&std::fs::read(oracle)?)?;
+    let cards: Vec<Vec<(&str, &str)>> = printed
         .as_array()
         .ok_or("oracle data is not a list")?
         .iter()
-        .flat_map(|card| card["cards"].as_array().into_iter().flatten())
-        .filter_map(|face| {
-            let text = face["text"].as_str().unwrap_or_default();
-            Some((face["name"].as_str()?.to_string(), text.to_string()))
+        .map(|card| {
+            let faces = card["cards"].as_array().into_iter().flatten();
+            faces
+                .filter_map(|face| Some((face["name"].as_str()?, face["text"].as_str().unwrap_or_default())))
+                .collect()
         })
-        .collect())
+        .collect();
+    let mut texts = BTreeMap::new();
+    for faces in cards.iter().filter(|faces| faces.len() > 1).chain(cards.iter().filter(|faces| faces.len() == 1)) {
+        for &(name, text) in faces {
+            if faces.len() > 1 {
+                texts.insert(face_key(faces.iter().map(|face| face.0), name), text.to_string());
+            }
+            texts.insert(name.to_string(), text.to_string());
+        }
+    }
+    Ok(texts)
 }
 
-/// Every single-faced, complete, primitive-free record the recipes of
-/// `card_file` cover, or the gap that stops it, as one JSON object a line.
-pub fn card_files(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
-    let oracle = oracle_texts(oracle)?;
-    let mut artifact = corpus::Artifact::create(output)?;
-    let mut count = 0;
-    corpus::map_cards(
-        input,
-        |line, source| -> corpus::Result<Option<CardFileRow>> {
-            let identity = corpus::Identity::of(&source)?;
-            let lowered = crate::unified::lower(&source);
-            let forms = crate::unified::forms(&lowered.card);
-            if !(lowered.diagnostics.is_empty() && forms.named.is_empty())
-                || !forms.primitives.is_empty()
-                || lowered.card.layout != "Card"
-                || lowered.card.faces.len() != 1
-            {
-                return Ok(None);
-            }
-            let name = identity.names.join(" // ");
-            let face = &lowered.card.faces[0];
-            if !gaps(face).is_empty() {
-                return Ok(None);
-            }
-            let Some(text) = oracle.get(&name) else {
-                return Ok(None);
-            };
-            let (rust, gap) = match card_file::card_file(face, text) {
-                Ok(rust) => (rust, None),
-                Err(recipe) => match lane_f::whole_printed(&source, &lowered.card, Some(&oracle)) {
-                    Ok(whole) if whole.faces.iter().all(|f| f.gaps.is_empty()) => {
-                        let module: String = whole.faces.iter().map(|f| f.rust.as_str()).collect();
-                        let characteristics = pr_form::Characteristics::Oracle;
-                        (pr_form::render(&module, &name, text, characteristics), None)
-                    }
-                    _ => (None, Some(recipe.feature)),
-                },
-            };
-            Ok(Some(CardFileRow {
-                line,
-                name,
-                rust,
-                gap,
-            }))
-        },
-        |_, row| {
-            if let Some(row) = row {
-                writeln!(artifact, "{}", serde_json::to_string(&row)?)?;
-                count += 1;
-            }
-            Ok(())
-        },
-    )?;
-    artifact.commit()?;
-    Ok(count)
+/// The key `oracle_texts` keeps a face of a card of several faces under, whatever
+/// order the faces come in.
+fn face_key<'a>(faces: impl IntoIterator<Item = &'a str>, face: &str) -> String {
+    let mut names: Vec<&str> = faces.into_iter().collect();
+    names.sort_unstable();
+    format!("{}\u{0}{face}", names.join("\u{0}"))
+}
+
+/// The printed text of `face`, one of the card's `faces`, from `oracle_texts`.
+pub(crate) fn printed_face<'a>(oracle: &'a BTreeMap<String, String>, faces: &[&str], face: &str) -> Option<&'a String> {
+    match faces.len() > 1 {
+        true => oracle.get(&face_key(faces.iter().copied(), face)).or_else(|| oracle.get(face)),
+        false => oracle.get(face),
+    }
 }
 
 /// The module of each named card in a source corpus, for reading what the
@@ -1968,6 +2294,8 @@ pub fn gaps(card: &Card) -> Vec<Diagnostic> {
 /// Every target of one slot, in the order chosen: all of them, for reading what
 /// was announced, or the ones still legal, for acting on them (CR 608.2b).
 const ANNOUNCED: &str = "fn announced(g: &dyn Game, item: &StackItem, spec: u8, legal: bool) -> Vec<Target> { (0..g.state().targets(item).len()).filter(|&i| g.state().spec(item, i) == spec && (!legal || g.target_legal(item, i))).map(|i| g.state().target(item, i)).collect() }\n";
+/// Spliced on, its slots follow the spell's own and the cards spliced before it (702.47c).
+const ANNOUNCED_SPLICED: &str = "fn announced(g: &dyn Game, item: &StackItem, spec: u8, legal: bool) -> Vec<Target> { let me = g.card_id(&CARD); let spell = g.obj(item.object).card; let mut before = 0; if spell != me { before += g.card(spell).spell.map_or(0, |s| s.targets.len()); let members = g.state().members(item.members); for &o in &members[..(item.data[0] as usize).min(members.len())] { let card = g.obj(o).card; if card == me { break; } before += g.card(card).spell.map_or(0, |s| s.targets.len()); } } let spec = spec + before as u8; (0..g.state().targets(item).len()).filter(|&i| g.state().spec(item, i) == spec && (!legal || g.target_legal(item, i))).map(|i| g.state().target(item, i)).collect() }\n";
 
 /// "You may pay": the engine shows the cost, and bots read the verb.
 const PAY_QUESTION: &str = "static PAY_QUESTION: Question = Question::new(\"Pay\", \"pay {cost}?\", \"\", \"Pay {cost}\", \"Decline\");\n";
@@ -2103,6 +2431,8 @@ const MODIFIED: &str = "fn modified(q: &dyn Query, id: ObjectId) -> bool { q.sta
 const COMMON_BY: &str = "fn common_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Verdict { let first = choice.selected.first().map(|&c| key(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(key(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| key(q, choice.candidates[i]) == k)) } }\nfn largest_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| key(q, b) == key(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 const COMMON_OWNER: &str = "fn owner_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.state().obj(id).owner }\nfn common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, owner_of) }\nfn largest_common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, owner_of) }\n";
 const COMMON_CONTROLLER: &str = "fn controller_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.controller(id) }\nfn common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, controller_of) }\nfn largest_common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, controller_of) }\n";
+const COMMON_TOUGHNESS: &str = "fn toughness_of(q: &dyn Query, id: ObjectId) -> i16 { q.chars(id).toughness.unwrap_or(0) }\nfn common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let first = choice.selected.first().map(|&c| toughness_of(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(toughness_of(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| toughness_of(q, choice.candidates[i]) == k)) } }\nfn largest_common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| toughness_of(q, b) == toughness_of(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
+const NO_COMMON_CREATURE_TYPE: &str = "fn creature_types_of(q: &dyn Query, id: ObjectId) -> SubtypeSet { SubtypeSet::CREATURE_TYPES.minus(SubtypeSet::CREATURE_TYPES.minus(q.chars(id).subtypes)) }\nfn apart_in_type(q: &dyn Query, a: ObjectId, b: ObjectId) -> bool { !creature_types_of(q, a).intersects(creature_types_of(q, b)) }\nfn no_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let selected = choice.selected; Verdict { complete: selected.iter().enumerate().all(|(i, &a)| selected[..i].iter().all(|&b| apart_in_type(q, a, b))), addable: Bits::of(choice.candidates.len(), |i| selected.iter().all(|&b| apart_in_type(q, choice.candidates[i], b))) } }\nfn grow_apart_in_type(q: &dyn Query, left: &[ObjectId], have: &mut Vec<ObjectId>, best: &mut Vec<ObjectId>) { if have.len() > best.len() { *best = have.clone(); } if have.len() + left.len() <= best.len() { return; } for (i, &c) in left.iter().enumerate() { if have.iter().all(|&o| apart_in_type(q, o, c)) { have.push(c); grow_apart_in_type(q, &left[i + 1..], have, best); have.pop(); } } }\nfn largest_no_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { let mut best = Vec::new(); grow_apart_in_type(q, choice.candidates, &mut Vec::new(), &mut best); best }\n";
 const COMMON_CREATURE_TYPE: &str = "fn common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let common = choice.selected.iter().fold(SubtypeSet::CREATURE_TYPES, |common, &c| common.minus(common.minus(q.chars(c).subtypes))); Verdict { complete: choice.selected.is_empty() || !common.is_empty(), addable: Bits::of(choice.candidates.len(), |i| common.intersects(q.chars(choice.candidates[i]).subtypes)) } }\nfn largest_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { SubtypeSet::CREATURE_TYPES.iter().map(|t| choice.candidates.iter().copied().filter(|&c| q.chars(c).subtypes.has(t)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 
 fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedModule> {
@@ -2132,14 +2462,25 @@ fn emit_face(
     {
         parts.field("reads_graveyard_order", "true".into());
     }
-    c.links_exile =
-        place.links_exile || format!("{:?}", card.abilities).contains("ExiledWith(Source)");
+    let abilities = format!("{:?}", card.abilities);
+    // "Exiled with this" (CR 607.2a), and "they exiled with this" (Uba Mask).
+    c.links_exile = place.links_exile
+        || abilities.contains("ExiledWith(Source)")
+        || abilities.contains("with: Some(Source)");
+    c.one_graveyard = abilities.contains("InZone(Players { zone: Graveyard, players: One(");
     c.own_face = place.own_face;
     c.door = place.door;
     c.printed_mana = card.characteristics.mana_cost.clone();
     c.sorcery = (card.characteristics.card_types.iter())
         .any(|t| matches!(t, crate::mtg_types::CardType::Sorcery));
+    c.printed_types = card.characteristics.card_types.clone();
     c.enters_choosing = chosen::enters_choosing(card);
+    c.enters_choosing.extend(place.keeps.iter().copied());
+    c.enters_two = chosen::enters_two(card);
+    c.entering_card_type = lane_p::entering_card_type(card);
+    c.cast_pays = lane_p::cast_pays(card);
+    c.enters_sacrifices = lane_p::enters_sacrifices(card);
+    c.damages_once = lane_p::damages_once(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
             c.casting_costs.insert(i as u32, cost.clone());
@@ -2158,6 +2499,10 @@ fn emit_face(
             .earthbend
             .then(|| keywords::EARTHBEND_RETURN.to_string()),
     );
+    // "Myriad, myriad" (Scurry of Squirrels): each trigger makes its own delayed trigger with its own tokens, both from
+    // the one first `delayed` ability, so a mechanic printed twice asks for that slot once.
+    firsts.sort();
+    firsts.dedup();
     c.attempt("abilities".into(), |c| match firsts.as_slice() {
         [] => Ok(()),
         [first] => {
@@ -2167,6 +2512,9 @@ fn emit_face(
         _ => Err(gap("two mechanics that need the first delayed ability")),
     });
     for (i, a) in card.abilities.iter().enumerate() {
+        // A list of what each player chose is a local of the ability that asked (Null Chamber's names).
+        let earlier: Vec<ValueKind> = std::mem::take(&mut c.chosen_lists).into_iter().map(|(kind, _)| kind).collect();
+        c.earlier_chosen_lists.extend(earlier);
         c.on_ability(i);
         let failure = c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
@@ -2181,7 +2529,9 @@ fn emit_face(
                 c.plan_entry(
                     "target with a divided amount",
                     "abilities",
-                    &format!("{def}.divide({divide})"),
+                    // Not `divide`, which Cantrip has for a triggered ability
+                    // alone and rejects any other as the table is built.
+                    &format!("{def}.divide_activated({divide})"),
                     &mut parts,
                 );
             }
@@ -2196,12 +2546,19 @@ fn emit_face(
         writeln!(c.functions, "#[allow(unused_variables)] fn kept_as_cast(q: &dyn Query, asker: &Asker) -> u32 {{ ({fact}).max(0) as u32 }}").unwrap();
         parts.field("cast_fact", "Some(kept_as_cast)".into());
     }
+    if let Some(body) = c.granted_once.borrow_mut().take() {
+        writeln!(c.functions, "#[allow(unused_variables)] fn granted_once(q: &dyn Query, source: ObjectId, ability: AbilityRef) -> usize {{ {body} }}").unwrap();
+        parts.field("granted_once_each_turn", "Some(granted_once)".into());
+    }
     // A cast announces one number, a kicker's when there is one: {X} stays unannounced.
     if let (Some(kicker), Some(cost)) = (parts.fields.get("kicker"), &c.printed_mana) {
         if cost.iter().any(|symbol| matches!(symbol, ManaSymbol::X)) {
             let feature = gap("engine: X in a mana cost beside a kicker");
             c.plan_trait("kicker", feature, kicker.clone());
         }
+    }
+    for (table, entry) in std::mem::take(&mut c.late_tables) {
+        parts.table(table, entry);
     }
     parts
         .tables
@@ -2307,6 +2664,10 @@ fn emit_face(
             }
         }
     };
+    if let Some((rule, function)) = faces::mana_told_apart(&c.functions) {
+        c.functions.push_str(function);
+        parts.table("mana_told_apart", rule.to_string());
+    }
     // Filters are compiled through `&self`, so this one is found in their text.
     if c.functions.contains("cast_of(q, ") || c.functions.contains("cast_at(q, ") {
         c.helpers.insert("cast_of");
@@ -2316,6 +2677,9 @@ fn emit_face(
     }
     if c.functions.contains("about(q, ") {
         c.helpers.insert("about");
+    }
+    if c.functions.contains("granted_by(q, asker)") {
+        c.helpers.insert("granted_by");
     }
     if c.functions.contains("granter(q, item)") {
         c.helpers.insert("granter");
@@ -2334,11 +2698,17 @@ fn emit_face(
             "common_owner" => COMMON_OWNER,
             "common_controller" => COMMON_CONTROLLER,
             "common_creature_type" => COMMON_CREATURE_TYPE,
+            "common_toughness" => COMMON_TOUGHNESS,
+            "no_common_creature_type" => NO_COMMON_CREATURE_TYPE,
+            "announced" if parts.fields.contains_key("splice") => ANNOUNCED_SPLICED,
             "announced" => ANNOUNCED,
+            "slot_held" => target_counts::SLOT_HELD,
             "pay_question" => PAY_QUESTION,
+            "most_assigned" => lane_l::MOST_ASSIGNED,
             "about" => delayed::ABOUT,
             "clauses" => lane_l::CLAUSES,
             "granter" => lane_j::GRANTER,
+            "granted_by" => lane_j::GRANTED_BY,
             "could_enchant" => lane_j::COULD_ENCHANT,
             "time_travel" => lane_j::TIME_TRAVEL,
             other => unreachable!("no helper {other}"),
@@ -2356,6 +2726,62 @@ fn emit_face(
     for made in std::mem::take(&mut c.made_block_rules) {
         parts.table("lasting_block_rules", made);
     }
+    // Each is a hole of the value that names it, whose gap is already the card's.
+    for (feature, made) in std::mem::take(&mut c.made_object_rules) {
+        match planned::landed(&feature) {
+            true => parts.table("lasting_object_rules", made),
+            false => writeln!(
+                c.holes,
+                "planned_item!({:?} => lasting_object_rules: {made});",
+                planned::requirement(&feature)
+            )
+            .unwrap(),
+        }
+    }
+    let lasting_about = std::mem::take(&mut c.made_lasting_about).into_iter().map(|made| ("lasting_about", made));
+    let lasting_until = std::mem::take(&mut c.made_lasting_until).into_iter().map(|made| ("lasting_until", made));
+    for (table, (feature, made)) in lasting_about.chain(lasting_until).collect::<Vec<_>>() {
+        match planned::landed(&feature) {
+            true => parts.table(table, made),
+            false => writeln!(
+                c.holes,
+                "planned_item!({:?} => {table}: {made});",
+                planned::requirement(&feature)
+            )
+            .unwrap(),
+        }
+    }
+    // A field can't be a hole, so the table is an item of its own in both forms.
+    // A rule beyond #897's keeps the whole table a hole of its own: one entry of
+    // a static can't be.
+    let lasting_rules = std::mem::take(&mut c.made_lasting_rules);
+    if let Some((feature, _, _)) = lasting_rules.first() {
+        let entries: Vec<&str> = lasting_rules.iter().map(|(_, rule, _)| rule.as_str()).collect();
+        let table = format!("static LASTING_RULES: &[LastingRule] = &[{}];", entries.join(","));
+        match lasting_rules.iter().find(|(_, _, beyond)| *beyond) {
+            Some((beyond, _, _)) => writeln!(
+                c.functions,
+                "planned_item!({:?} => {table});",
+                planned::requirement(beyond)
+            )
+            .unwrap(),
+            None => {
+                writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
+                if planned::switched_on(planned::LASTING_RULES) {
+                    parts.field("lasting_rules", "LASTING_RULES".to_string());
+                }
+            }
+        }
+    }
+    // Only a hole writes a play grant on terms (`play_grant`): a whole card
+    // has none, and one a failed part left behind is no card's.
+    let play_terms = std::mem::take(&mut c.made_play_terms);
+    if let Some(first) = c.gaps.first().map(|g| g.feature.clone()) {
+        for (feature, entry) in play_terms {
+            let id = planned::requirement(feature.as_deref().unwrap_or(&first));
+            writeln!(c.functions, "planned_item!({id:?} => play_terms: {entry});").unwrap();
+        }
+    }
     for made in std::mem::take(&mut c.made_cost_changes) {
         parts.table("lasting_cost_changes", made);
     }
@@ -2366,6 +2792,15 @@ fn emit_face(
             false => Ok(()),
         });
         parts.field("labels", labels);
+    }
+    // "Loyalty X" (Nissa, Steward of Elements): it enters with the X its spell was cast
+    // with in loyalty counters, and with none put onto the battlefield uncast (CR
+    // 306.5b, 107.3m), as an artifact enters with X charge counters (Chalice of the Void).
+    let loyalty_x = matches!(ch.loyalty, Some(Expr::AnnouncedX))
+        && ch.mana_cost.iter().flatten().any(|s| matches!(s, ManaSymbol::X));
+    if loyalty_x {
+        writeln!(c.functions, "fn enters_with_x_loyalty(_: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ entering.counters[CounterKind::Loyalty as usize] += entering.x as i16; Ok(()) }}").unwrap();
+        parts.enters.push("enters_with_x_loyalty".into());
     }
     let door_refused = parts.door_refused();
     let rest = parts.rest() + &place.fields;
@@ -2390,6 +2825,7 @@ fn emit_face(
     let pt = ch.power_toughness;
     let loyalty = match &ch.loyalty {
         Some(Expr::Constant(n)) => Some(*n),
+        Some(_) if loyalty_x => None,
         Some(other) => {
             c.plan_loyalty(other);
             None
@@ -2436,6 +2872,10 @@ fn emit_face(
     let mut listed = BTreeSet::new();
     c.extras.retain(|path| listed.insert(path.clone()));
     let bestow = c.bestow.take();
+    let bestowed = match c.bestow_extra.take() {
+        Some(extra) => format!("CardDef {{ additional_cost: Some({extra}), ..FACE }}"),
+        None => "FACE".to_string(),
+    };
     if bestow.is_some() {
         c.extras.push("BESTOWED".into());
     }
@@ -2482,7 +2922,7 @@ fn emit_face(
             let own = "pub static CARD: CardDef = CardDef {";
             let at = rust.rfind(own).expect("a module defines its card");
             format!("{}const FACE: CardDef = CardDef {{{}", &rust[..at], &rust[at + own.len()..])
-                + &format!("\npub static BESTOWED: CardDef = cantrip_mechanics::bestow::bestowed(FACE);\npub static CARD: CardDef = CardDef {{ bestow: Some(&BESTOWED), bestow_cost: {cost}, ..FACE }};\n")
+                + &format!("\npub static BESTOWED: CardDef = cantrip_mechanics::bestow::bestowed({bestowed});\npub static CARD: CardDef = CardDef {{ bestow: Some(&BESTOWED), bestow_cost: {cost}, ..FACE }};\n")
         }
         None => rust,
     };
@@ -2490,7 +2930,9 @@ fn emit_face(
     let mut gaps = c.gaps;
     gaps.extend(planned::value_gaps(&rust));
     // A stand-in leans on some other hole's report: with none, the card isn't whole.
-    if gaps.is_empty() && rust.contains(FOLLOWS_GAP) {
+    if gaps.is_empty()
+        && (rust.contains(FOLLOWS_GAP) || rust.contains(&planned::requirement(FOLLOWS_GAP)))
+    {
         gaps.push(gap("result this instruction does not report"));
     }
     Ok(EmittedModule {

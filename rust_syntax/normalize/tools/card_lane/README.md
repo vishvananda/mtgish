@@ -12,6 +12,18 @@ Oracle text, and write the scenarios. To widen the lane, teach the generator, no
 `backend_capable` in `ast check-cantrip` is a different question: that scan inlines whatever a card needs, so it says the
 card compiles, not that it needs nothing new.
 
+A row's file is `ast cantrip-tracked`'s, byte for byte, for every layout, and the row says the generator's `layout` and its
+`faces`, front first. The queue takes the Scryfall layouts in `LAYOUTS`: `normal`, the single-faced `saga`, `class`,
+`leveler`, `prototype`, `case` and `mutate`, and the cards of several faces, `transform`, `modal_dfc`, `adventure` (an Omen
+too), `split` (a Room too), `prepare` and `meld`. Each was checked by swapping the generated cards for all Cantrip has of
+that layout and playing its scenarios. Not tokens, flip cards, planes or art cards. A card is queued by Cantrip's name for
+it, both halves for a split card or a Room (`Claim // Fame`) and the front face otherwise (`Rona, Herald of Invasion`), and
+a format's list finds it by that, by the generator's name or by any face. Each face's Oracle text is compared with
+Scryfall's. `new-card.py` writes the content of most layouts; for `split`, `prepare` and `meld`, which it leaves to a
+person, `card_lane.py draft NAME` writes it with `new-card.py`'s own writer of a face, as Cantrip's own cards of those
+layouts have it. Every face's lines are in the report, the placeholders and the survivors, and a card's section says how
+a scenario reaches its other face, with a scenario of Cantrip's that does.
+
 The way of working is the `card-lane` skill, `.claude/skills/card-lane/SKILL.md` in this repository: plain commands and one
 set of instructions, so any model, or a person, can do a card. This file covers setting the lane up and running it as an
 unattended loop.
@@ -58,7 +70,7 @@ card", with `model: sonnet` or whichever you want. Another tool can be pointed a
 `next`, `check` and `commit` steps.
 
 ```sh
-python3 $L run --backend codex --model gpt-6-luna --effort max --limit 10
+python3 $L run --backend codex --model gpt-6.1-terra --effort medium --limit 10
 python3 $L status
 ```
 
@@ -102,9 +114,20 @@ then plays everything at once and sends back what failed, for every card togethe
 and leaves the batch.
 
 ```sh
-python3 $L batch-run --size 10 --limit 20 --way draft --backend codex --model gpt-6-luna --effort max
+python3 $L batch-run --size 10 --limit 20 --way work --backend codex --model gpt-6.1-terra --effort medium
 python3 $L batch-check --fast
 ```
+
+Which worker: the same 20 cards, two batches of ten, `--way work`, on 2 November 2026.
+
+| Worker | Landed | Minutes | API-equivalent $ | $ a card landed |
+| --- | --- | --- | --- | --- |
+| `gpt-6.1-terra`, medium | 19 | 42 | 1.88 | 0.10 |
+| `gpt-6-luna`, max | 15 | 139 | 1.27 | 0.08 |
+
+Terra lands more and takes a third of the time for about the same price a card, so it is the default. Luna finished each batch
+in one round and set aside what it could not settle; Terra used its repair rounds. The card Terra left (Goblin Shrine) is a
+closing brace no game runs, a generator matter.
 
 | Option | Default | Meaning |
 | --- | --- | --- |

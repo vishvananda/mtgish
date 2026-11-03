@@ -155,6 +155,25 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#122](https://github.com/i5jb/mtgish/issues/122): Alaundo the Seer casts the card with the ability.
 - [#123](https://github.com/i5jb/mtgish/issues/123): Deification keeps "you control". Its cancelled damage stays open.
 
+The Cantrip generator held these cards back on wrong source data. They were filed upstream and are repaired locally:
+
+- [#2](https://github.com/i5jb/mtgish/issues/2): Quicksilver Dragon changes the spell's target to another creature, not to any other permanent.
+- [#146](https://github.com/i5jb/mtgish/issues/146): Nissa, Who Shakes the World and Tendril of the Mycotyrant target a noncreature land you control.
+- [#156](https://github.com/i5jb/mtgish/issues/156): Arcbond deals damage to each other creature, not to each other permanent.
+- [#161](https://github.com/i5jb/mtgish/issues/161): Redeem prevents damage dealt to its targets, not damage they deal.
+- [#162](https://github.com/i5jb/mtgish/issues/162): Fire Giant's Fury triggers on combat damage to a player.
+- [#163](https://github.com/i5jb/mtgish/issues/163): Acidic Dagger's leaves-the-battlefield trigger is made by the activation itself.
+- [#165](https://github.com/i5jb/mtgish/issues/165): Fable of the Mirror-Breaker discards up to two cards.
+- [#166](https://github.com/i5jb/mtgish/issues/166): Karona, False God pumps the chosen creature type.
+- [#167](https://github.com/i5jb/mtgish/issues/167), [#168](https://github.com/i5jb/mtgish/issues/168): Trait Doctoring, Whim of Volrath and Crystal Spray end the color word change at end of turn; Crystal Spray draws after any choice.
+- [#169](https://github.com/i5jb/mtgish/issues/169): Bison Whistle offers the graveyard only for a card that is neither a Bison nor a creature card.
+- [#173](https://github.com/i5jb/mtgish/issues/173): All Hallow's Eve has each player return their own creature cards.
+- [#174](https://github.com/i5jb/mtgish/issues/174): Thought Dissector's controller sacrifices it.
+- [#175](https://github.com/i5jb/mtgish/issues/175): Korvold, Gleeful Glutton counts only permanents you sacrificed. The count takes a player now: `TheNumberOfCardTypesAmongThePermanentsSacrificedByPlayerThisTurn(You)`.
+- [#176](https://github.com/i5jb/mtgish/issues/176): Ravenous Vampire taps when you don't sacrifice.
+- [#177](https://github.com/i5jb/mtgish/issues/177): Ajani, Nacatl Pariah, Great Fierce Bee, Vengeful Townsfolk and Soul Shredder trigger once for a batch of deaths.
+- [#178](https://github.com/i5jb/mtgish/issues/178): Sink into Stupor and Press the Enemy return only a nonland permanent an opponent controls.
+
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 
 The issue payloads and comment text are saved here. No commits, pushes, issue closures, or upstream code changes were made. Disputed continuous-effect instruction grouping remains a rules-review question and was not filed as a confirmed bug. Changes that merely replace an equivalent scalar expression are not reported as new card mistakes.

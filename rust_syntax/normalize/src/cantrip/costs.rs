@@ -3,6 +3,9 @@
 //! then publishes nothing, so no card loses an ability silently.
 use super::*;
 
+/// A cost that picks what it pays by the X announced.
+pub(super) const COST_FILTER_X: &str = "a cost's filter reading the X announced";
+
 /// What the land gains of "{N}, Exile this card from your hand: Target land gains
 /// "..." until this card is cast from exile. You may cast this card for as long as
 /// it remains exiled": Cantrip's `land_until_cast`, which all six that print it take.
@@ -244,6 +247,13 @@ fn alternative_prices(
 impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
     pub(super) fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
+        // "Discard a card with mana value X", "sacrifice an artifact with mana value
+        // X", a Shoal's "exile a red card with mana value X": Cantrip asks a cost's
+        // filter with no X (`Query::announced_x` is a target filter's alone), and
+        // announces none for a cost without {X}.
+        if format!("{filter:?}").contains("AnnouncedX") {
+            return Err(gap(COST_FILTER_X));
+        }
         // A cost's filter is a plain function, with no event or stack item to read.
         // What is entering is its asker's source.
         let saved = (self.reader, self.event_at);
@@ -253,7 +263,15 @@ impl Compiler {
         };
         let test = self.filter(filter, &Candidate::of("id"));
         (self.reader, self.event_at) = saved;
-        let test = test?;
+        let mut test = test?;
+        // A payer only ever pays with their own: "they control" says no more than that.
+        const THEIRS: &str = ") == Some(q.controller(id))";
+        if let Some(at) = test.find("Some(bound_") {
+            if let Some(end) = test[at..].find(THEIRS) {
+                let says = test[at..at + end + THEIRS.len()].to_string();
+                test = test.replace(&says, "true");
+            }
+        }
         if self.reads_a_local(&test) {
             return Err(gap(
                 "a cost at resolution filtered by who is asked to pay it",
@@ -311,6 +329,20 @@ impl Compiler {
                         "engine: a cost that taps what its payer may not control",
                         "Cost::NONE",
                         "Cost { variable: Some(VariableCost::TapAttached), ..Cost::NONE }",
+                    ));
+                }
+                // "Tap Fishing Pole" in the ability the Equipment gives: Cantrip
+                // has `sacrifice_granter` for "Sacrifice [granter]" and nothing
+                // that taps the granter.
+                if let [CostObjectSelection {
+                    objects: ObjectSet::One(ObjectRef::Granter),
+                    choose: None,
+                }] = selections.as_slice()
+                {
+                    return Ok(planned::planned_value(
+                        "engine: a cost that taps the permanent that granted the ability",
+                        "Cost::NONE",
+                        "Cost { tap_granter: true, ..Cost::NONE }",
                     ));
                 }
                 let [CostObjectSelection {
@@ -394,7 +426,25 @@ impl Compiler {
                 face_down: false,
             } if entry.counters.is_empty() && entry.states.is_empty() && !entry.tapped => {
                 if self.links_exile && matches!(destination, Destination::Exile) {
-                    return Err(gap("exile cost an ability reads as exiled with its source"));
+                    // A permanent spell's own cost, which CR 607.2q links to the
+                    // permanent: Cantrip links only behold's exile so.
+                    let printed = format!("{part:?}");
+                    if self.spell_cost
+                        || self.casting_costs.values().any(|cost| format!("{cost:?}").contains(&printed))
+                    {
+                        return Err(gap("a card exiled to pay a permanent spell's cost, read as exiled with the permanent"));
+                    }
+                    // An activated ability's cost that exiles permanents exiles them
+                    // with its source (Cantrip's `pay_permanents` links them to the
+                    // ability, CR 607.2a): "Exile this Vehicle and four other artifact
+                    // creatures you control ... cards exiled with this Vehicle". What
+                    // it exiles from a graveyard or a hand is not linked.
+                    let permanents = selections.iter().all(|s| {
+                        matches!(s.objects, ObjectSet::Battlefield(_) | ObjectSet::One(ObjectRef::Source))
+                    });
+                    if !(permanents && self.activation_cost.is_some()) {
+                        return Err(gap("exile cost an ability reads as exiled with its source"));
+                    }
                 }
                 let [CostObjectSelection { objects, choose }] = selections.as_slice() else {
                     return self.move_cost_beyond(selections, destination, label);
@@ -406,7 +456,16 @@ impl Compiler {
                 let objects = yours.as_ref().unwrap_or(objects);
                 match (destination, objects) {
                     (Destination::OwnersHand, ObjectSet::Battlefield(filter)) => {
-                        format!("return_to_hand({n}, {})", self.cost_filter(filter, label)?)
+                        match lane_i::without_tapped(filter) {
+                            Some(rest) => format!(
+                                "return_tapped_to_hand({n}, {})",
+                                self.cost_filter(&rest, label)?
+                            ),
+                            None => format!(
+                                "return_to_hand({n}, {})",
+                                self.cost_filter(filter, label)?
+                            ),
+                        }
                     }
                     (Destination::Exile, ObjectSet::Battlefield(filter)) => {
                         format!(
@@ -576,6 +635,7 @@ impl Compiler {
             most => (most, None),
         };
         let mut defs = Vec::new();
+        let mut opens: Vec<(usize, String)> = Vec::new();
         for (i, mode) in modes.iter().enumerate() {
             // A slot in a mode reads a `max` above 1 as a range.
             if format!("{:?}", mode.announcement.targets).contains("PerPlayer {") {
@@ -617,17 +677,17 @@ impl Compiler {
                 ),
                 None => def,
             };
-            defs.push(match &mode.requires {
-                Some(condition) => {
-                    let test = self.activation_condition(condition, &format!("{label}_open"))?;
-                    planned::planned_value(
-                        "mode with a requirement",
-                        &def,
-                        &format!("{def}.open_if({test})"),
-                    )
-                }
-                None => def,
-            });
+            // "Choose one ... if you discarded a card this turn, you choose one
+            // instead": a mode is open only while its requirement holds as the
+            // modes are chosen (CR 700.2), `ModalDef::allowed`.
+            if let Some(condition) = &mode.requires {
+                let around = self.frame;
+                self.frame = frame.unwrap_or(around);
+                let test = self.activation_condition(condition, &format!("{label}_open"));
+                self.frame = around;
+                opens.push((i, test?));
+            }
+            defs.push(def);
         }
         let listed = format!("modes(&[{}])", defs.join(","));
         // "When this enters, choose up to one \u{2014}": the source reads it as one.
@@ -640,8 +700,19 @@ impl Compiler {
             true => Some(0),
             false => bound(minimum),
         };
+        // "Choose up to X, where X is ...": a triggered ability's own count,
+        // read from the game as it is put on the stack (CR 603.3c, 700.2).
+        let counted = match self.slot_counts {
+            target_counts::SlotCounts::Trigger { enters_itself, .. }
+                if fewest == Some(0) && bound(most).is_none() && !label.contains("_mode_") =>
+            {
+                self.count_of_trigger(most, enters_itself, label).is_some()
+            }
+            _ => false,
+        };
         let mut modal = match (fewest, bound(most)) {
             (Some(min), Some(max)) => format!("{listed}.choose({min}, {max})"),
+            _ if counted => format!("{listed}.up_to_that_many()"),
             _ => self.mode_count_to_come(&listed, minimum, most)?,
         };
         if *may_decline {
@@ -663,6 +734,18 @@ impl Compiler {
             modal.push_str(".repeat()");
         }
         modal.push_str(&lane_l::mode_history(unchosen));
+        if !opens.is_empty() {
+            if unchosen.is_some() {
+                return Err(gap("mode with a requirement"));
+            }
+            let function = format!("{label}_allowed");
+            let arms: String = opens
+                .iter()
+                .map(|(i, test)| format!("{i} => {test}(q, asker), "))
+                .collect();
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, mode: u8) -> bool {{ match mode {{ {arms}_ => true }} }}").unwrap();
+            modal.push_str(&format!(".allowed({function})"));
+        }
         if let Some(surcharge) = surcharge {
             let cost = self.cost(surcharge, label)?;
             modal.push_str(&format!(".escalate({cost})"));
@@ -757,7 +840,12 @@ impl Compiler {
                     quoted(&text)
                 )
             } else {
-                let adds = self.mana_ability(body, &format!("{label}_mana"))?;
+                self.mana_body = true;
+                self.activated_mana = Some(index);
+                let adds = self.mana_ability(body, &format!("{label}_mana"));
+                self.mana_body = false;
+                self.activated_mana = None;
+                let adds = adds?;
                 let colors = self.mana_colors.take();
                 self.paid_for = PaidFor::Mana;
                 let cost = self.cost(price, label);
@@ -865,7 +953,7 @@ impl Compiler {
         if matches!(limits.keyword, Some(ActivatedKeyword::Forecast)) {
             def = lane_g::forecast(def);
         }
-        self.activators(def, limits.activators.as_ref())
+        self.activators(def, limits.activators.as_ref(), label)
     }
     /// Backup N (702.165a). The listed abilities also stand on the card itself,
     /// so here they are only what the target gains: keywords, and the one other
@@ -907,14 +995,17 @@ impl Compiler {
             "cantrip_mechanics::backup::resolve(g, item, {n}, &[{}], {ability})",
             keywords.join(",")
         );
+        // What it grants is named as the ability's source and controller read
+        // it, before the call takes `g`.
         if !stated.is_empty() {
             call = planned::planned_value(
                 &feature,
                 &call,
                 &format!(
-                    "cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &[{}])",
+                    "{{ let granted: [AbilityRef; {}] = {{ let asker = &Asker::new(item.object, item.controller); let q: &dyn Query = g; [{}] }}; cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &granted) }}",
+                    stated.len(),
+                    stated.join(", "),
                     keywords.join(","),
-                    stated.join(", ")
                 ),
             );
         }
@@ -1007,7 +1098,7 @@ impl Compiler {
             };
             self.on_stage(stage.minimum.into());
             let staged = self.ability(&staged, &format!("{label}_stage_{i}"), parts, None);
-            self.stage_lines.clear();
+            self.stage_lines = None;
             staged?;
         }
         Ok(())
@@ -1022,6 +1113,17 @@ impl Compiler {
     ) -> Result<()> {
         match ability {
             Ability::Keyword(k) => match k {
+                // "Snow swampwalk", "desertwalk": no word of Cantrip's says it, and it
+                // is a rule of the block all the same (CR 702.14c).
+                Keyword::Landwalk(land) if lane_p::landwalk_rule(land) => {
+                    let test = self.filter(land, &Candidate::of("land"))?;
+                    // The filter names the land type by the text of `asker.source`, and
+                    // a rule of the block is told its source outright (CR 612.2).
+                    let test = test.replace("asker.source", "source");
+                    let rule = format!("{label}_walk");
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {rule}(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ attacker != source || !q.defending_player(attacker).is_some_and(|defending| q.state().battlefield().iter().any(|&land| q.controller(land) == defending && q.chars(land).is(CardType::Land) && {test})) }}").unwrap();
+                    parts.block_rules.push(rule);
+                }
                 Keyword::Prowess => parts
                     .abilities
                     .push("cantrip_mechanics::triggers::PROWESS".into()),
@@ -1040,18 +1142,34 @@ impl Compiler {
                             _ => self.ward_beyond(cost, label)?,
                         },
                         [CostPart::Life(Expr::Constant(n))] if u8::try_from(*n).is_ok() => {
-                            format!("cantrip_mechanics::triggers::ward_life::<{n}>(\"Ward--Pay {n} life\")")
+                            format!("cantrip_mechanics::triggers::ward_life::<{n}>(\"Ward\u{2014}Pay {n} life.\")")
                         }
                         [CostPart::Discard {
                             count: Expr::Constant(1),
                             filter: ObjectFilter::Any,
                             random: false,
-                        }] => "cantrip_mechanics::triggers::ward_discard(\"Ward--Discard a card\")".into(),
+                        }] => "cantrip_mechanics::triggers::ward_discard(\"Ward\u{2014}Discard a card.\")".into(),
+                        // "Ward—Discard a card or pay {2}" (Titania, Rugged Rumbler).
+                        [CostPart::Choice(costs)] if lane_k::discard_or_pay(costs).is_some() => {
+                            let n = lane_k::discard_or_pay(costs).unwrap_or_default();
+                            format!("cantrip_mechanics::triggers::ward_discard_or_pay::<{n}>(\"Ward\u{2014}Discard a card or pay {{{n}}}.\")")
+                        }
                         [CostPart::Life(Expr::ObjectProperty {
                             object: ObjectRef::KeywordHost,
                             property: Property::Power,
                             ..
-                        })] => "cantrip_mechanics::triggers::ward_life_equal_to_power(\"Ward--Pay life equal to this creature's power\")".into(),
+                        })] => "cantrip_mechanics::triggers::ward_life_equal_to_power(\"Ward\u{2014}Pay life equal to this creature's power.\")".into(),
+                        // "Ward—Get N poison counters" (The Serpent Society).
+                        [CostPart::PutCounters(placements)] if poison_ward(placements).is_some() => {
+                            let n = poison_ward(placements).unwrap_or(1);
+                            const WORDS: [&str; 10] = ["a", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+                            let counters = match WORDS.get(usize::from(n) - 1) {
+                                Some(&"a") => "a poison counter".to_string(),
+                                Some(word) => format!("{word} poison counters"),
+                                None => format!("{n} poison counters"),
+                            };
+                            format!("cantrip_mechanics::triggers::ward_poison::<{n}>(\"Ward\u{2014}Get {counters}.\")")
+                        }
                         _ => self.ward_beyond(cost, label)?,
                     };
                     parts.abilities.push(ward);
@@ -1130,9 +1248,16 @@ impl Compiler {
                     true => self.implied_slots(announcement, label, None)?,
                     false => None,
                 };
+                let told = match implied.is_none() && body.instructions.is_empty() {
+                    true => self.spell_told_as_cast(announcement, label)?,
+                    false => None,
+                };
                 if let Some(targets) = implied {
                     let effect = self.implied_effect(announcement, label)?;
                     parts.spell = format!("spell({targets}, {effect})");
+                } else if let Some(spell) = told {
+                    parts.spell = spell;
+                    self.spell_keywords(parts);
                 } else if announcement.modes.is_some() {
                     if !body.instructions.is_empty() {
                         return Err(gap("modal spell with instructions besides its modes"));
@@ -1202,7 +1327,9 @@ impl Compiler {
                     if let [other] = others {
                         let printed = before.clone().said(lane_k::Said::Activated, ability_text(body));
                         let first = before.clone().cost(cost, label)?;
-                        let unlike = gap("engine: no choice between the costs of an ability");
+                        // An activated ability has one cost (`ActivatedDef::cost`); only a
+                        // spell offers a choice of costs (`additional_choice`).
+                        let unlike = gap(ACTIVATED_COST_CHOICE);
                         let Some((one, two)) = worded_apart(&printed) else {
                             return Err(unlike);
                         };
@@ -1219,7 +1346,7 @@ impl Compiler {
                     } else if others.is_empty() {
                         parts.abilities.push(def);
                     } else {
-                        return Err(gap("engine: no choice between the costs of an ability"));
+                        return Err(gap(ACTIVATED_COST_CHOICE));
                     }
                 }
             }
@@ -1231,6 +1358,7 @@ impl Compiler {
                 body,
             } => {
                 self.event_object = lane_j::event_object(event);
+                self.source_entered = matches!(event, EventSpec::ZoneChange { objects: ObjectFilter::SameObject(ObjectRef::Source), to: EventZone::Battlefield, .. });
                 let def = self.triggered(
                     label,
                     event,
@@ -1240,10 +1368,25 @@ impl Compiler {
                     body,
                 );
                 self.event_object = None;
+                self.source_entered = false;
                 let def = match scope {
                     Some(scope) if scope.condition.is_some() => {
                         Err(gap("conditional scope on a triggered ability"))
                     }
+                    // "From any zone" does not expand a self-discard trigger beyond where a discarded card can end
+                    // (CR 113.6k, 702.29c). Its matcher already declares WHERE_A_DISCARD_ENDS; keep a narrower explicit
+                    // scope, but do not replace that declaration with every zone, including the stack.
+                    Some(scope)
+                        if matches!(event, EventSpec::Discard { source_only: true, .. })
+                            && [
+                                EventZone::Battlefield,
+                                EventZone::Graveyard,
+                                EventZone::Hand,
+                                EventZone::Library,
+                                EventZone::Exile,
+                            ]
+                            .iter()
+                            .all(|zone| scope.zones.contains(zone)) => def,
                     Some(scope) => {
                         let zones = zone_list(scope.zones);
                         def.and_then(|def| Ok(format!("{def}.functions_in({})", zones?)))
@@ -1314,6 +1457,7 @@ impl Compiler {
                         return Err(gap("saga chapter shape"));
                     };
                     let label = format!("{label}_{i}");
+                    self.on_chapter(i64::from(*n));
                     let modal = self.reflexive_modes(announcement, &format!("{label}_modes"))?;
                     let targets =
                         self.announcement(&lane_p::without_modes(announcement), &label)?;
@@ -1391,4 +1535,24 @@ impl Compiler {
         }
         Ok(())
     }
+}
+
+/// "{3}, {T}, Sacrifice an artifact or discard a nonland card: ..." (CR 602.2b, 601.2f-h):
+/// one activated ability with a choice of costs.
+pub(super) const ACTIVATED_COST_CHOICE: &str = "a choice between the costs of an activated ability";
+
+/// "Ward—Get N poison counters": the N, where the ward cost puts that many
+/// poison counters on the player who targeted (CR 702.21a, 122.1f).
+fn poison_ward(placements: &[CounterPlacement]) -> Option<u8> {
+    let [CounterPlacement {
+        recipients: Recipients::Players(PlayerSet::One(PlayerRef::AbilityController)),
+        kind,
+        amount: Expr::Constant(n),
+        selection: None,
+    }] = placements
+    else {
+        return None;
+    };
+    let poison = matches!(kind, crate::counter::CounterKind::Named(name) if format!("{name:?}").contains("Poison"));
+    u8::try_from(*n).ok().filter(|&n| poison && n > 0)
 }

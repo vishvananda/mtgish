@@ -146,9 +146,21 @@ impl Compiler {
             }
             K::Fight => {
                 let pair = self.pair_action(&action, id, out)?;
+                // "Is dealt excess damage this way" (CR 120.10, 701.14): read from
+                // the fight's own damage events, a redirection included.
+                let (mark, read) = if super::lane_n::reads_excess(&self.after, result) {
+                    let aimed = action.other.as_ref().map(|other| format!("{other:?}"));
+                    self.excess.insert(result.0, (format!("excess_{id}"), format!("recipients_{id}"), aimed));
+                    (
+                        format!("let mut excess_{id}: Vec<(Target, u32)> = Vec::new(); let recipients_{id}: Vec<Target> = second_{id}.map(Target::Object).into_iter().collect(); let since_{id} = g.history().head() as usize; "),
+                        format!(" excess_{id}.extend(g.history().all()[since_{id}..].iter().filter_map(|r| match r.event {{ Event::Damage {{ source: s, target, recipient_excess, .. }} if s == first || s == second => Some((target, recipient_excess)), _ => None }}));"),
+                    )
+                } else {
+                    (String::new(), String::new())
+                };
                 writeln!(
                     out,
-                    "if let (Some(first), Some(second)) = {pair} {{ g.fight(first, second); }}"
+                    "{mark}if let (Some(first), Some(second)) = {pair} {{ g.fight(first, second);{read} }}"
                 )
                 .unwrap();
             }
@@ -248,8 +260,9 @@ impl Compiler {
                 writeln!(out, "g.add_combat_phase();").unwrap()
             }
             K::Skip(SkippedPart::Turn) => {
-                let call = "g.skip_next_turns(asker.source, player, 1)";
-                self.actor_action(&action, call, out)?;
+                let times = self.times(&action)?;
+                let call = format!("let times = {times}; g.skip_next_turns(asker.source, player, times)");
+                self.actor_action(&action, &call, out)?;
             }
             K::RemoveFromCombat => {
                 let mut code = String::new();
@@ -462,16 +475,19 @@ impl Compiler {
             }
             K::Saddle => self.object_action(action, "g.become_saddled(object)", out)?,
             K::RemoveAllDamage => self.object_action(action, "g.heal(object)", out)?,
-            K::Harness => self.plan_for_object(
-                "engine: no Harness",
+            // A designation that stays with the permanent; harnessing one that
+            // already is does nothing (CR 701.64a), as `harness::ability` does.
+            K::Harness => self.object_action(
                 action,
-                &format!("{M}::harness::harness(g, object)"),
+                "if g.is_on_battlefield(object) && !g.state().effects.iter().any(|e| e.affected == object && e.kind == EffectKind::Harnessed) { g.add_effect(object, object, EffectKind::Harnessed, Duration::Indefinite); }",
                 out,
             )?,
             K::Assimilate => self.plan_for_object(
                 "engine: no Assimilate",
                 action,
-                &format!("{M}::assimilate::assimilate(g, asker.source, object)"),
+                // Cantrip's assimilates as the resolving item puts the card
+                // onto the battlefield (CR 701.67a).
+                &format!("{M}::assimilate::assimilate(g, item, object)?"),
                 out,
             )?,
             K::UnlockDoor => self.plan_for_object(
@@ -665,8 +681,13 @@ impl Compiler {
                 self.plan_for_actor("engine: no skipped step or phase", action, &call, out)?;
             }
             K::AdditionalPhase(phases) => {
-                let code = format!("g.add_phases(AddedPhases::{phases:?});");
-                self.plan_code("engine: no additional phase but combat", &code, out);
+                // One of each, as `Operation::AddPhases` asks for them.
+                let call = format!("g.add_phases(player, AddedPhases::{phases:?}, 1, None)");
+                let mut code = String::new();
+                if self.actor_action(action, &call, &mut code).is_err() {
+                    code = format!("{{ let player = asker.controller; {call}; }}");
+                }
+                self.plan_code("engine: no additional phase but combat", code.trim(), out);
             }
             K::Planeswalk => self.plan_for_actor(
                 "engine: no planar deck",

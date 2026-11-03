@@ -1,64 +1,1952 @@
-0|Artifact,Creature|Some(1)|Some(1)|Flying|Thopter	THOPTER
-0|Artifact,Creature|Some(1)|Some(1)||Borg	BORG
-0|Artifact,Creature|Some(1)|Some(1)||Gnome	GNOME
-0|Artifact,Creature|Some(1)|Some(1)||Myr	MYR
-0|Artifact,Creature|Some(1)|Some(1)||Robot	ROBOT_1_1
-0|Artifact,Creature|Some(1)|Some(1)||Servo	SERVO
-0|Artifact,Creature|Some(2)|Some(2)||Robot	ROBOT_2_2
-0|Artifact,Creature|Some(3)|Some(3)||Golem	GOLEM
-0|Artifact,Creature|Some(3)|Some(3)||Illusion	ILLUSION_3_3_ARTIFACT
-0|Creature|Some(0)|Some(4)|Defender|Wall	WALL_0_4_DEFENDER
-0|Creature|Some(1)|Some(1)|Changeling|Shapeshifter	SHAPESHIFTER
-0|Creature|Some(1)|Some(1)|CrewsAsThoughPowerTwoGreater,SaddlesAsThoughPowerTwoGreater|Pilot	PILOT_SADDLES_AND_CREWS
-0|Creature|Some(1)|Some(1)|CrewsAsThoughPowerTwoGreater|Pilot	PILOT
-0|Creature|Some(1)|Some(1)||Human Citizen	HUMAN_CITIZEN
-0|Creature|Some(1)|Some(1)||Kithkin	KITHKIN
-0|Creature|Some(2)|Some(2)|CantBlock|Worm	RED_AND_GREEN_WORM
-0|Creature|Some(2)|Some(2)||Elf	ELF_BLACK_GREEN
-10|Creature|Some(3)|Some(3)|Flying|Elemental	ELEMENTAL_3_3_BLUE_RED
-16|Creature|Some(1)|Some(1)||Elf	ELF
-16|Creature|Some(1)|Some(1)||Insect	INSECT
-16|Creature|Some(1)|Some(1)||Squirrel	SQUIRREL
-16|Creature|Some(1)|Some(2)|Reach|Spider	SPIDER_1_2
-16|Creature|Some(2)|Some(1)|Reach|Spider	SPIDER
-16|Creature|Some(2)|Some(2)||Bear	BEAR
-16|Creature|Some(2)|Some(2)||Wolf	WOLF
-16|Creature|Some(3)|Some(3)||Beast	BEAST_3_3
-16|Creature|Some(3)|Some(4)|Reach|Treefolk	TREEFOLK
-16|Creature|Some(4)|Some(4)|Trample|Beast	BEAST_4_4_TRAMPLE
-16|Creature|Some(4)|Some(4)||Rhino Warrior	RHINO_WARRIOR
-18|Creature|Some(0)|Some(0)||Fractal	FRACTAL
-1|Creature|Some(1)|Some(1)|Flying|Spirit	WHITE_FLYING_SPIRIT
-1|Creature|Some(1)|Some(1)|Lifelink|Cat	CAT_LIFELINK
-1|Creature|Some(1)|Some(1)||Ally	ALLY
-1|Creature|Some(1)|Some(1)||Cat	CAT
-1|Creature|Some(1)|Some(1)||Human	HUMAN
-1|Creature|Some(1)|Some(1)||Human Soldier	HUMAN_SOLDIER
-1|Creature|Some(1)|Some(1)||Rabbit	RABBIT
-1|Creature|Some(1)|Some(1)||Soldier	SOLDIER
-1|Creature|Some(2)|Some(2)|Vigilance|Knight	KNIGHT
-1|Creature|Some(2)|Some(2)|Vigilance|Samurai	SAMURAI
-1|Creature|Some(3)|Some(2)|Vigilance|Hero	HERO_3_2_WHITE_VIGILANCE
-1|Creature|Some(4)|Some(4)|Flying,Vigilance|Angel	ANGEL
-2|Creature|Some(1)|Some(1)||Fish	FISH
-2|Creature|Some(8)|Some(8)||Octopus	OCTOPUS
-3|Creature|Some(1)|Some(1)||Merfolk	MERFOLK_WHITE_BLUE
-4|Creature|Some(0)|Some(0)||Goblin Army	GOBLIN_ARMY
-4|Creature|Some(0)|Some(0)||Phyrexian Germ	GERM
-4|Creature|Some(1)|Some(1)|CantBlock|Rat	RAT_CANT_BLOCK
-4|Creature|Some(1)|Some(1)|Flying|Bat	BAT
-4|Creature|Some(1)|Some(1)||Ninja	NINJA
-4|Creature|Some(2)|Some(1)|Menace|Villain	VILLAIN_2_1_BLACK_MENACE
-4|Creature|Some(2)|Some(2)||Zombie	ZOMBIE
-5|Creature|Some(1)|Some(1)|Flying|Inkling	INKLING
-6|Creature|Some(1)|Some(1)|Flying|Faerie	FAERIE_BLUE_BLACK
-8|Creature|Some(1)|Some(1)||Elemental	ELEMENTAL_1_1_RED
-8|Creature|Some(1)|Some(1)||Goblin	GOBLIN
-8|Creature|Some(1)|Some(1)||Officer	OFFICER
-8|Creature|Some(1)|Some(1)||Phyrexian Goblin	PHYREXIAN_GOBLIN
-8|Creature|Some(2)|Some(1)|Haste|Klingon Warrior	KLINGON
-8|Creature|Some(2)|Some(2)||Dwarf	DWARF
-8|Creature|Some(2)|Some(2)||Mutant	MUTANT
-8|Creature|Some(2)|Some(2)||Rebel	REBEL
-8|Creature|Some(5)|Some(5)|Flying|Dragon	DRAGON_5_5
-9|Creature|Some(2)|Some(2)||Spirit	SPIRIT_2_2_RED_WHITE
+Aang and Katara	ALLY	ALLY
+Aang, Airbending Master	ALLY	ALLY
+Aatchik, Emerald Radian	INSECT	INSECT
+Abdel Adrian, Gorion's Ward	SOLDIER	SOLDIER
+Abstruse Interference	ELDRAZI_SCION	ELDRAZI_SCION
+Abundant Countryside	SHAPESHIFTER	SHAPESHIFTER
+Abzan Ascendancy	SPIRIT	WHITE_FLYING_SPIRIT
+Abzan Monument	SPIRIT	SPIRIT_0_0_WHITE
+Access Denied	THOPTER	THOPTER
+Acorn Catapult	SQUIRREL	SQUIRREL
+Acorn Harvest	SQUIRREL	SQUIRREL
+Additive Evolution	FRACTAL	FRACTAL
+Adeline, Resplendent Cathar	HUMAN	HUMAN
+Adorned Crocodile	ZOMBIE_DRUID	ZOMBIE_DRUID
+Advent of the Wurm	WURM	WURM_5_5_GREEN
+Adverse Conditions	ELDRAZI_SCION	ELDRAZI_SCION
+Aerith Rescue Mission	HERO	HERO
+Aether Channeler	BIRD	BIRD
+Aether Chaser	SERVO	SERVO
+Aether Herder	SERVO	SERVO
+Aether Inspector	SERVO	SERVO
+Aether Mutation	SAPROLING	SAPROLING
+Aether Poisoner	SERVO	SERVO
+Aether Swooper	SERVO	SERVO
+Aetherwing, Golden-Scale Flagship // Invasion of Kaladesh	THOPTER	THOPTER_1_1_COLORLESS
+Afterlife	SPIRIT	WHITE_FLYING_SPIRIT
+Age of Ultron	ROBOT_VILLAIN	ROBOT_VILLAIN
+Agents of HYDRA	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+Ajani's Chosen	CAT	CAT_2_2_WHITE
+Ajani, Adversary of Tyrants	CAT	CAT_LIFELINK
+Ajani, Caller of the Pride	CAT	CAT_2_2_WHITE
+Ajani, Outland Chaperone	KITHKIN	KITHKIN_1_1_GREEN_WHITE
+Akim, the Soaring Wind	BIRD	BIRD
+Akki Ember-Keeper	SPIRIT	SPIRIT_1_1_COLORLESS
+Akoum Stonewaker	ELEMENTAL	ELEMENTAL_3_1_RED_HASTE_TRAMPLE
+Akroan Crusader	SOLDIER	SOLDIER_1_1_RED
+Akroan Horse	SOLDIER	SOLDIER
+Alandra, Sky Dreamer	DRAKE	DRAKE
+Alela, Artful Provocateur	FAERIE	FAERIE
+Alela, Cunning Conqueror	FAERIE_ROGUE	FAERIE_ROGUE
+Alharu, Solemn Ritualist	SPIRIT	WHITE_FLYING_SPIRIT
+Aligned Heart	MONK	MONK
+Alistair, the Brigadier	SOLDIER	SOLDIER
+Alliance of Arms	SOLDIER	SOLDIER
+Allied Reinforcements	KNIGHT_ALLY	KNIGHT_ALLY
+Allied Teamwork	ALLY	ALLY
+Along the Crooked Way	GOBLIN_ARMY	GOBLIN_ARMY
+Alora, Cheerful Mastermind	SOLDIER	SOLDIER
+Alrund's Epiphany	BIRD	BIRD_1_1_BLUE
+Ambassador Oak	ELF_WARRIOR	ELF_WARRIOR
+Ambitious Augmenter	FRACTAL	FRACTAL
+Amzu, Swarm's Hunger	INSECT	INSECT_1_1_BLACK_GREEN
+Ancestral Blade	SOLDIER	SOLDIER
+Ancient Gold Dragon	FAERIE_DRAGON	FAERIE_DRAGON
+Ancient Stone Idol	CONSTRUCT	CONSTRUCT_6_12_COLORLESS
+Andúril, Flame of the West	SPIRIT	WHITE_FLYING_SPIRIT
+Andúril, Flame of the West	SPIRIT_2	WHITE_FLYING_SPIRIT
+Angelic Accord	ANGEL	ANGEL_4_4_WHITE
+Angelic Ascension	ANGEL	ANGEL_4_4_WHITE
+Angelic Favor	ANGEL	ANGEL_4_4_WHITE
+Angelic Sell-Sword	MERCENARY	MERCENARY
+Angrath, Captain of Chaos	ZOMBIE_ARMY	ZOMBIE_ARMY
+Anim Pakal, Thousandth Moon	GNOME	GNOME
+Animal Friend	SQUIRREL	SQUIRREL
+Ant Queen	INSECT	INSECT
+Ant-Man, Colony Commander	INSECT	INSECT
+Antiquities on the Loose	SPIRIT	SPIRIT_2_2_RED_WHITE
+Aphelia, Viper Whisperer	SNAKE	SNAKE_1_1_BLACK
+Aphemia, the Cacophony	ZOMBIE	ZOMBIE
+Appa, Steadfast Guardian	ALLY	ALLY
+Aquatic Incursion	MERFOLK	MERFOLK_1_1_BLUE
+Arachnogenesis	SPIDER	SPIDER_1_2
+Aragorn, the Uniter	HUMAN_SOLDIER	HUMAN_SOLDIER
+Arahbo, the First Fang	CAT	CAT
+Arasta of the Endless Web	SPIDER	SPIDER_1_2
+Arboreal Alliance	TREEFOLK	TREEFOLK_0_0_GREEN
+Archangel Elspeth	SOLDIER	SOLDIER_1_1_WHITE
+Archdemon of Unx	ZOMBIE	ZOMBIE
+Archfiend's Vessel	DEMON	DEMON
+Architect of Restoration // The Restoration of Eiganjo	SPIRIT	SPIRIT_1_1_COLORLESS
+Architect of Restoration // The Restoration of Eiganjo	SPIRIT_2	SPIRIT_1_1_COLORLESS
+Ardoz, Cobbler of War	GOBLIN	GOBLIN_1_1_RED
+Argivian Cavalier	SOLDIER	SOLDIER
+Argoth, Sanctum of Nature	BEAR	BEAR
+Arlinn, Embraced by the Moon // Arlinn Kord	WOLF	WOLF_2_2_GREEN
+Arlinn, Voice of the Pack	WOLF	WOLF
+Arlinn, the Moon's Fury // Arlinn, the Pack's Hope	WOLF	WOLF_2_2_GREEN
+Armada Wurm	WURM	WURM_5_5_GREEN
+Army of the Damned	ZOMBIE	ZOMBIE
+Arnim Zola, Bio-Fanatic	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+Artifact Mutation	SAPROLING	SAPROLING
+Artistic Process	ELEMENTAL	ELEMENTAL_3_3_BLUE_RED
+Ashnod, Flesh Mechanist	ZOMBIE	ZOMBIE_3_3_COLORLESS
+Aspiring Aeronaut	THOPTER	THOPTER
+Assault on Osgiliath	ORC_ARMY	ORC_ARMY
+Assemble the Entmoot	TREEFOLK	TREEFOLK_0_0_GREEN
+Assemble the Legion	SOLDIER	SOLDIER_1_1_RED_WHITE
+At Knifepoint	MERCENARY	MERCENARY
+Attended Healer	CAT	CAT
+Attended Knight	SOLDIER	SOLDIER
+Audience with Trostani	PLANT	PLANT
+Aura Mutation	SAPROLING	SAPROLING
+Autarch Mammoth	ELEPHANT	ELEPHANT
+Autumn Willow, Harmony	FOREST_DRYAD	FOREST_DRYAD
+Auxiliary Boosters	ROBOT	ROBOT_2_2
+Avacyn's Collar	SPIRIT	WHITE_FLYING_SPIRIT
+Aven Eternal	ZOMBIE_ARMY	ZOMBIE_ARMY
+Avenger of Zendikar	PLANT	PLANT
+Avengers: Under Siege	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+Aviation Pioneer	THOPTER	THOPTER
+Awaken the Erstwhile	ZOMBIE	ZOMBIE
+Awaken the Sky Tyrant	DRAGON	DRAGON_5_5
+Awaken the Woods	FOREST_DRYAD	FOREST_DRYAD
+Awakening Zone	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Aya of Alexandria	ASSASSIN	ASSASSIN
+Ayula's Influence	BEAR	BEAR
+Azog, Moria's Ruin	GOBLIN_ARMY	GOBLIN_ARMY
+Azog, Moria's Ruin	GOBLIN_ARMY_2	GOBLIN_ARMY
+Baboon Spirit	SPIRIT	SPIRIT
+Back on Track	PILOT	PILOT_SADDLES_AND_CREWS
+Baffling End	DINOSAUR	DINOSAUR
+Baku Altar	SPIRIT	SPIRIT_1_1_COLORLESS
+Balduvian Dead	GRAVEBORN	GRAVEBORN
+Baloth Cage Trap	BEAST	BEAST
+Baloth Prime	BEAST	BEAST
+Banish into Fable	KNIGHT	KNIGHT
+Banishing Slash	SAMURAI	SAMURAI
+Bant Sojourners	SOLDIER	SOLDIER
+Bant Sojourners	SOLDIER_2	SOLDIER
+Barad-dûr	ORC_ARMY	ORC_ARMY
+Barbed Spike	THOPTER	THOPTER
+Barret, Avalanche Leader	REBEL	REBEL
+Basilica Shepherd	PHYREXIAN_MITE	PHYREXIAN_MITE
+Basking Broodscale	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Basri Ket	SOLDIER	SOLDIER
+Basri Ket	SOLDIER_2	SOLDIER
+Basri, Tomorrow's Champion	CAT	CAT_LIFELINK
+Bastion of Remembrance	HUMAN_SOLDIER	HUMAN_SOLDIER
+Bat Colony	BAT	BAT
+Bat Whisperer	BAT	BAT
+Battle Cry Goblin	GOBLIN	GOBLIN
+Battle Menu	KNIGHT	KNIGHT_2_2_WHITE
+Battle Screech	BIRD	BIRD
+Battle for Bretagard	ELF_WARRIOR	ELF_WARRIOR
+Battle for Bretagard	HUMAN_WARRIOR	HUMAN_WARRIOR
+Baxter Stockman	ROBOT	ROBOT_1_1
+Beacon of Creation	INSECT	INSECT
+Bear's Companion	BEAR	BEAR_4_4_GREEN
+Bearscape	BEAR	BEAR
+Beast Attack	BEAST	BEAST
+Beast Within	BEAST	BEAST_3_3
+Beckon Apparition	SPIRIT	SPIRIT_1_1_WHITE_BLACK
+Beetleback Chief	GOBLIN	GOBLIN
+Beledros Witherbloom	PEST	PEST_1_1_BLACK_GREEN
+Benevolent Offering	SPIRIT	WHITE_FLYING_SPIRIT
+Benthicore	MERFOLK_WIZARD	MERFOLK_WIZARD
+Berta, Wise Extrapolator	FRACTAL	FRACTAL
+Beskir Shieldmate	HUMAN_WARRIOR	HUMAN_WARRIOR
+Bestial Incursion	BEAST	BEAST_4_4_TRAMPLE
+Bestial Menace	ELEPHANT	ELEPHANT
+Bestial Menace	SNAKE	SNAKE
+Bestial Menace	WOLF	WOLF
+Beza, the Bounding Spring	FISH	FISH
+Big Apple, 3 a.m.	RAT	RAT
+Big Mother Mouser	ROBOT	ROBOT_1_1
+Biomathematician	FRACTAL	FRACTAL
+Biomechan Engineer	ROBOT	ROBOT_2_2
+Biotransference	NECRON_WARRIOR	NECRON_WARRIOR
+Birth of the Imperium	ASTARTES_WARRIOR	ASTARTES_WARRIOR
+Birthing Boughs	SHAPESHIFTER	SHAPESHIFTER_2_2_COLORLESS
+Birthing Hulk	ELDRAZI_SCION	ELDRAZI_SCION
+Bishop of Wings	SPIRIT	WHITE_FLYING_SPIRIT
+Bitterbloom Bearer	FAERIE	FAERIE_BLUE_BLACK
+Bitterblossom	FAERIE_ROGUE	FAERIE_ROGUE
+Black Panther, Vanguard	SOLDIER	SOLDIER
+Blade Splicer	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Bladewing, Deathless Tyrant	ZOMBIE_KNIGHT	ZOMBIE_KNIGHT
+Blaring Recruiter	WARRIOR	WARRIOR
+Blaze Commando	SOLDIER	SOLDIER_1_1_RED_WHITE
+Bleeding Edge	ZOMBIE_ARMY	ZOMBIE_ARMY
+Blessed Defiance	SPIRIT	WHITE_FLYING_SPIRIT
+Blight Mound	PEST	PEST_1_1_BLACK_GREEN
+Blisterpod	ELDRAZI_SCION	ELDRAZI_SCION
+Bloodsoaked Altar	DEMON	DEMON
+Blot Out the Sky	INKLING	INKLING_2_1_WHITE_BLACK
+Body of Research	FRACTAL	FRACTAL
+Boggart Mischief	GOBLIN	GOBLIN_1_1_BLACK_RED
+Bolg of the North	GOBLIN_ARMY	GOBLIN_ARMY
+Bone Miser	ZOMBIE	ZOMBIE
+Boneclad Necromancer	ZOMBIE	ZOMBIE
+Bonehoard Dracosaur	DINOSAUR	DINOSAUR_3_1_RED
+Book of Mazarbul	ORC_ARMY_2	ORC_ARMY
+Boomer Scrapper	JUNK	JUNK
+Born to Drive	PILOT	PILOT
+Borough Backup	HERO	HERO_3_2_WHITE_VIGILANCE
+Boss's Chauffeur	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Bothersome Noisemaker	GOBLIN_ARMY	GOBLIN_ARMY
+Bovine Intervention	OX	OX
+Bramble Elemental	SAPROLING	SAPROLING
+Break Down	JUNK	JUNK
+Breya's Apprentice	THOPTER	THOPTER
+Breya, Etherium Shaper	THOPTER	THOPTER_1_1_BLUE
+Bridge from Below	ZOMBIE	ZOMBIE
+Brightcap Badger // Fungus Frolic	SAPROLING	SAPROLING_1_1_GREEN
+Brigid's Command	KITHKIN	KITHKIN_1_1_GREEN_WHITE
+Brimstone Roundup	MERCENARY	MERCENARY
+Bringer of the Green Dawn	BEAST	BEAST_3_3
+Broadcast Rambler	THOPTER	THOPTER
+Brood Birthing	ELDRAZI_SPAWN_2	ELDRAZI_SPAWN
+Brood Butcher	ELDRAZI_SCION	ELDRAZI_SCION
+Brood Monitor	ELDRAZI_SCION	ELDRAZI_SCION
+Brood Sliver	SLIVER	SLIVER
+Brood Weaver	SPIDER	SPIDER_1_2
+Broodhatch Nantuko	INSECT	INSECT
+Broodmate Dragon	DRAGON	DRAGON
+Broodrage Mycoid	FUNGUS	FUNGUS
+Broodspinner	INSECT	INSECT_1_1_BLACK_GREEN_FLYING
+Bruse Tarl, Roving Rancher	OX	OX
+Cabaretti Charm	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Cadira, Caller of the Small	RABBIT	RABBIT
+Caesar, Legion's Emperor	SOLDIER	SOLDIER_1_1_RED_WHITE
+Call of the Conclave	CENTAUR	CENTAUR
+Call of the Herd	ELEPHANT	ELEPHANT
+Call the Bloodline	VAMPIRE_KNIGHT	VAMPIRE_KNIGHT
+Call the Cavalry	KNIGHT	KNIGHT
+Call the Coppercoats	HUMAN_SOLDIER	HUMAN_SOLDIER
+Call the Mountain Chocobo	BIRD	BIRD_2_2_GREEN
+Call the Scions	ELDRAZI_SCION	ELDRAZI_SCION
+Call to the Feast	VAMPIRE	VAMPIRE
+Caller of the Claw	BEAR	BEAR
+Callous Dismissal	ZOMBIE_ARMY	ZOMBIE_ARMY
+Camera Launcher	THOPTER	THOPTER
+Canonized in Blood	VAMPIRE_DEMON	VAMPIRE_DEMON
+Captain America, Liberator	SOLDIER	SOLDIER
+Captain James T. Kirk	OFFICER	OFFICER
+Captain of the Watch	SOLDIER	SOLDIER
+Captain's Call	SOLDIER	SOLDIER
+Captain's Claws	KOR_ALLY	KOR_ALLY
+Carefree Swinemaster	BOAR	BOAR
+Careful Cultivation	HUMAN_MONK	HUMAN_MONK
+Carrier Thrall	ELDRAZI_SCION	ELDRAZI_SCION
+Carrion Call	PHYREXIAN_INSECT	PHYREXIAN_INSECT
+Carrot Cake	RABBIT	RABBIT
+Cartouche of Solidarity	WARRIOR	WARRIOR_1_1_WHITE
+Castle Ardenvale	HUMAN	HUMAN
+Cat Collector	CAT	CAT
+Catacomb Sifter	ELDRAZI_SCION	ELDRAZI_SCION
+Cathar's Call	HUMAN	HUMAN
+Catharsis	KITHKIN	KITHKIN_1_1_GREEN_WHITE
+Cavalier of Dawn	GOLEM	GOLEM
+Ceaseless Conflict	SPIRIT	SPIRIT_3_2_RED_WHITE
+Cellar Door	ZOMBIE	ZOMBIE
+Cemetery Protector	HUMAN	HUMAN
+Cemetery Protector	HUMAN_2	HUMAN
+Cemetery Reaper	ZOMBIE	ZOMBIE
+Cenn's Enlistment	KITHKIN_SOLDIER	KITHKIN_SOLDIER
+Centaur Glade	CENTAUR	CENTAUR
+Centaur's Herald	CENTAUR	CENTAUR
+Cha'DIch Investigator	KLINGON_WARRIOR	KLINGON
+Chalk Outline	DETECTIVE	DETECTIVE
+Champions from Beyond	HERO	HERO
+Chandra, Acolyte of Flame	ELEMENTAL	ELEMENTAL_1_1_RED
+Chandra, Flamecaller	ELEMENTAL	ELEMENTAL_3_1_RED
+Chandra, Spark Hunter	VEHICLE	VEHICLE
+Charforger	PHYREXIAN_GOBLIN	PHYREXIAN_GOBLIN
+Charge of the Mites	PHYREXIAN_MITE	PHYREXIAN_MITE
+Charisma Bobblehead	SOLDIER	SOLDIER
+Charismatic Conqueror	VAMPIRE	VAMPIRE
+Chasm Skulker	SQUID	SQUID
+Chatter of the Squirrel	SQUIRREL	SQUIRREL
+Chatterstorm	SQUIRREL	SQUIRREL
+Chief Magistrate of Mercadia	GOBLIN	GOBLIN_2_1_RED
+Chief Warg's Company	WOLF	WOLF
+Chimney Rabble	PHYREXIAN_GOBLIN	PHYREXIAN_GOBLIN
+Chishiro, the Shattered Blade	SPIRIT	SPIRIT_2_2_RED
+Chittering Dispatcher	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Chittering Witch	RAT	RAT
+Chivalric Alliance	KNIGHT	KNIGHT_2_2_WHITE_BLUE
+Chocobo Racetrack	BIRD	BIRD_2_2_GREEN
+Chrome Replicator	CONSTRUCT	CONSTRUCT_4_4_COLORLESS
+Circle of Power	WIZARD	WIZARD
+Citizen's Crowbar	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Clachan Festival	KITHKIN_2	KITHKIN_1_1_GREEN_WHITE
+Clackbridge Troll	GOAT	GOAT
+Clarion Cathars	HUMAN	HUMAN
+Clarion Spirit	SPIRIT	WHITE_FLYING_SPIRIT
+Clavileño, First of the Blessed	VAMPIRE_DEMON	VAMPIRE_DEMON
+Cloudgoat Ranger	KITHKIN_SOLDIER	KITHKIN_SOLDIER
+Cloudspire Coordinator	PILOT	PILOT_SADDLES_AND_CREWS
+Cobra Trap	SNAKE	SNAKE
+Cogworker's Puzzleknot	SERVO	SERVO
+Cogworker's Puzzleknot	SERVO_2	SERVO
+Combat Calligrapher	INKLING	INKLING_2_1_WHITE_BLACK
+Combine Chrysalis	BEAST	BEAST
+Commander Sofia Daguerre	JUNK	JUNK
+Commander's Authority	HUMAN	HUMAN
+Commanding Presence	HUMAN_SOLDIER	HUMAN_SOLDIER
+Commence the Endgame	ZOMBIE_ARMY	ZOMBIE_ARMY
+Company Commander	SOLDIER	SOLDIER
+Conclave Cavalier	ELF_KNIGHT	ELF_KNIGHT
+Conclave Guildmage	ELF_KNIGHT	ELF_KNIGHT
+Concord with the Kami	SPIRIT	SPIRIT_1_1_COLORLESS
+Confront the Assault	SPIRIT	WHITE_FLYING_SPIRIT
+Conqueror's Pledge	KOR_SOLDIER_2	KOR_SOLDIER
+Conscripted Infantry	SOLDIER	SOLDIER_1_1_COLORLESS
+Containment Breach	PEST	PEST_1_1_BLACK_GREEN
+Contraband Livestock	BOAR	BOAR
+Contraband Livestock	GOAT	GOAT
+Contraband Livestock	OX	OX_4_4_GREEN
+Conversion Chamber	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Convert to Slime	OOZE	OOZE
+Coral Barrier	SQUID	SQUID
+Cori-Steel Cutter	MONK	MONK
+Corpsehatch	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Corpses of the Lost	SKELETON_PIRATE	SKELETON_PIRATE
+Corsairs of Umbar	ORC_ARMY	ORC_ARMY
+Cosmium Kiln // Clay-Fired Bricks	GNOME	GNOME_1_1_COLORLESS
+Cosmogrand Zenith	HUMAN_SOLDIER	HUMAN_SOLDIER
+Countless Gears Renegade	SERVO	SERVO
+Country Roads	PILOT	PILOT_SADDLES_AND_CREWS
+Courier's Briefcase	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Coursers' Accord	CENTAUR	CENTAUR
+Court of Grace	ANGEL	ANGEL_4_4_WHITE
+Court of Grace	SPIRIT	WHITE_FLYING_SPIRIT
+Cradle of the Accursed	ZOMBIE	ZOMBIE
+Crash the Party	RHINO_WARRIOR	RHINO_WARRIOR
+Crashing Footfalls	RHINO	RHINO
+Crawling Chorus	PHYREXIAN_MITE	PHYREXIAN_MITE
+Crawling Infestation	INSECT	INSECT
+Crawling Sensation	INSECT	INSECT
+Creakwood Liege	WORM	WORM
+Crested Herdcaller	DINOSAUR	DINOSAUR
+Crib Swap	SHAPESHIFTER	SHAPESHIFTER
+Criminal Enterprise	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+Crimson Caravaneer	JUNK	JUNK
+Crimson Cowl, Master of Evil	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+Crowded Crypt	ZOMBIE	ZOMBIE_2_2_BLACK
+Cruel Administrator	SOLDIER	SOLDIER_2_2_RED
+Crush Dissent	ZOMBIE_ARMY	ZOMBIE_ARMY
+Crush of Tentacles	OCTOPUS	OCTOPUS
+Crush of Wurms	WURM	WURM
+Cryptbreaker	ZOMBIE	ZOMBIE
+Cryptcaller Chariot	ZOMBIE	ZOMBIE
+Cubwarden	CAT	CAT_LIFELINK
+Cult of the Waxing Moon	WOLF	WOLF
+Curious Herd	BEAST	BEAST_3_3
+Currency Converter	ROGUE	ROGUE
+Curse of Clinging Webs	SPIDER	SPIDER_1_2
+Curse of Disturbance	ZOMBIE	ZOMBIE
+Curse of Disturbance	ZOMBIE_2	ZOMBIE
+Curse of Shallow Graves	ZOMBIE	ZOMBIE
+Curse of the Restless Dead	ZOMBIE	ZOMBIE_2_2_BLACK
+Curse of the Swine	BOAR	BOAR
+Custodi Soulbinders	SPIRIT	WHITE_FLYING_SPIRIT
+Dalkovan Encampment	WARRIOR	WARRIOR_1_1_RED
+Dance of the Tumbleweeds	ELEMENTAL	ELEMENTAL_0_0_GREEN
+Dance with Devils	DEVIL	DEVIL
+Dancing from Dark to Dawn	BEAR	BEAR
+Daretti, Ingenious Iconoclast	CONSTRUCT	CONSTRUCT_1_1_COLORLESS_DEFENDER
+Darien, King of Kjeldor	SOLDIER	SOLDIER
+Dark Leo & Shredder	NINJA	NINJA
+Dark Salvation	ZOMBIE	ZOMBIE
+Darksteel Splicer	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Darling of the Masses	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Daughter of the Deep	MERFOLK	MERFOLK
+Dauntless Cathar	SPIRIT	WHITE_FLYING_SPIRIT
+Dawn of Hope	SOLDIER	SOLDIER_1_1_WHITE
+Dawnhart Mentor	HUMAN	HUMAN
+Day of the Dragons	DRAGON	DRAGON_5_5
+Daysquad Marshal	HUMAN_SOLDIER	HUMAN_SOLDIER
+Death Mutation	SAPROLING	SAPROLING
+Death Tyrant	ZOMBIE	ZOMBIE
+Death Tyrant	ZOMBIE_2	ZOMBIE
+Death by Dragons	DRAGON	DRAGON_5_5
+Death-Priest of Myrkul	SKELETON	SKELETON
+Deathbloom Thallid	SAPROLING	SAPROLING
+Deathknell Berserker	ZOMBIE_BERSERKER	ZOMBIE_BERSERKER
+Deathspore Thallid	SAPROLING	SAPROLING
+Deceive the Messenger	ORC_ARMY	ORC_ARMY
+Decree of Justice	ANGEL	ANGEL_4_4_WHITE
+Decree of Justice	SOLDIER	SOLDIER
+Deekah, Fractal Theorist	FRACTAL	FRACTAL
+Deeproot Pilgrimage	MERFOLK	MERFOLK_1_1_BLUE
+Deeproot Waters	MERFOLK	MERFOLK_1_1_BLUE
+Defenders of Humanity	ASTARTES_WARRIOR_2	ASTARTES_WARRIOR
+Deluge of the Dead // Invasion of Innistrad	ZOMBIE_2	ZOMBIE_2_2_BLACK_2
+Demonic Rising	DEMON	DEMON
+Den of the Bugbear	GOBLIN	GOBLIN
+Denethor, Ruling Steward	HUMAN_SOLDIER	HUMAN_SOLDIER
+Deploy to the Front	SOLDIER	SOLDIER
+Depose // Deploy	THOPTER	THOPTER_1_1_COLORLESS
+Deranged Hermit	SQUIRREL	SQUIRREL
+Descend upon the Sinful	ANGEL	ANGEL_4_4_WHITE
+Descent of the Dragons	DRAGON	DRAGON
+Desculpting Blast	DRONE	DRONE
+Desecrated Tomb	BAT	BAT
+Desert Warfare	SAND_WARRIOR	SAND_WARRIOR
+Desolation Twin	ELDRAZI	ELDRAZI
+Desperate Sentry	ELDRAZI_HORROR	ELDRAZI_HORROR
+Detective of the Month	DETECTIVE	DETECTIVE
+Detective's Satchel	THOPTER	THOPTER
+Deviant Skytech	THOPTER	THOPTER
+Deviant Skytech	THOPTER_2	THOPTER
+Devils' Playground	DEVIL	DEVIL
+Devouring Sugarmaw // Have for Dinner	HUMAN	HUMAN_1_1_WHITE
+Devout Invocation	ANGEL	ANGEL_4_4_WHITE
+Digsite Engineer	CONSTRUCT	CONSTRUCT
+Diregraf Colossus	ZOMBIE	ZOMBIE
+Diregraf Horde	ZOMBIE	ZOMBIE_2_2_BLACK
+Discordant Piper	GOAT	GOAT
+Doctor Spectrum	WALL	WALL_0_4_DEFENDER
+Dog Walker	DOG	DOG
+Dogmeat, Ever Loyal	JUNK	JUNK
+Doom Foretold	KNIGHT	KNIGHT
+Doomed Dissenter	ZOMBIE	ZOMBIE
+Doomed Traveler	SPIRIT	WHITE_FLYING_SPIRIT
+Dora Milaje Elite	VIBRANIUM	VIBRANIUM
+Dovin, Grand Arbiter	THOPTER	THOPTER
+Down in the Valley	ELF	ELF
+Down, Down to Goblin-town	GOBLIN_ARMY	GOBLIN_ARMY
+Draconic Disciple	DRAGON	DRAGON_5_5
+Drag the Canal	DETECTIVE	DETECTIVE
+Dragon Fodder	GOBLIN	GOBLIN
+Dragon Roost	DRAGON	DRAGON_5_5
+Dragon Trainer	DRAGON	DRAGON
+Dragon Whisperer	DRAGON	DRAGON
+Dragonback Assault	DRAGON	DRAGON
+Dragonlair Spider	INSECT	INSECT
+Dragonmaster Outcast	DRAGON	DRAGON_5_5
+Dragoon's Wyvern	HERO	HERO
+Drake Hatcher	DRAKE	DRAKE
+Drake Haven	DRAKE	DRAKE
+Dramatic Finale	INKLING	INKLING_2_1_WHITE_BLACK
+Drana's Chosen	ZOMBIE	ZOMBIE
+Draugr's Helm	ZOMBIE_BERSERKER	ZOMBIE_BERSERKER
+Dread Drone	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Dread Summons	ZOMBIE	ZOMBIE
+Dreadhorde Invasion	ZOMBIE_ARMY	ZOMBIE_ARMY
+Dreadhorde Twins	ZOMBIE_ARMY	ZOMBIE_ARMY
+Dreampod Druid	SAPROLING	SAPROLING
+Drey Keeper	SQUIRREL	SQUIRREL
+Drider	SPIDER	SPIDER_2_1_BLACK
+Dripping-Tongue Zubera	SPIRIT	SPIRIT_1_1_COLORLESS
+Drogskol Cavalry	SPIRIT	WHITE_FLYING_SPIRIT
+Drowner of Hope	ELDRAZI_SCION	ELDRAZI_SCION
+Drownyard Lurker	ELDRAZI_SPAWN_2	ELDRAZI_SPAWN
+Drudge Spell	SKELETON	SKELETON_1_1_BLACK
+Druid of Horns	BEAST	BEAST_3_3
+Druid's Call	SQUIRREL	SQUIRREL
+Druidic Satchel	SAPROLING	SAPROLING
+Drunau Corpse Trawler	ZOMBIE	ZOMBIE
+Duchess, Wayward Tavernkeep	JUNK	JUNK
+Dunes of the Dead	ZOMBIE	ZOMBIE
+Dunland Crebain	ORC_ARMY	ORC_ARMY
+Dwarven Castle Guard	HERO	HERO
+Dwarven Hammer	DWARF_BERSERKER	DWARF_BERSERKER
+Dwarven Reinforcements	DWARF_BERSERKER	DWARF_BERSERKER
+Dwarven Shortsword	DWARF	DWARF
+Dwynen's Elite	ELF_WARRIOR	ELF_WARRIOR
+Dying to Serve	ZOMBIE	ZOMBIE
+Eager Glyphmage	INKLING	INKLING
+Easterling Vanguard	ORC_ARMY	ORC_ARMY
+Eccentric Pestfinder // Turn Stones	PEST	PEST_1_1_BLACK_GREEN_THIS_DIES
+Edgewall Pack	RAT	RAT_CANT_BLOCK
+Efficient Construction	THOPTER	THOPTER
+Eiganjo Uprising	SAMURAI	SAMURAI
+Eiganjo Uprising	SAMURAI_2	SAMURAI
+Elder Auntie	GOBLIN	GOBLIN_1_1_BLACK_RED
+Elder Gargaroth	BEAST	BEAST_3_3
+Elder Gargaroth	BEAST_2	BEAST_3_3
+Elderleaf Mentor	ELF_WARRIOR	ELF_WARRIOR
+Eldrazi Repurposer	ELDRAZI_SPAWN_2	ELDRAZI_SPAWN
+Eldrazi Skyspawner	ELDRAZI_SCION	ELDRAZI_SCION
+Elegy Acolyte	ROBOT	ROBOT_2_2
+Elemental Appeal	ELEMENTAL_2	ELEMENTAL_7_1_RED
+Elemental Eruption	DRAGON_ELEMENTAL	DRAGON_ELEMENTAL
+Elemental Masterpiece	ELEMENTAL	ELEMENTAL
+Elemental Mastery	ELEMENTAL	ELEMENTAL_1_1_RED_HASTE
+Elemental Spectacle	ELEMENTAL	ELEMENTAL_5_5_RED_GREEN
+Elemental Summoning	ELEMENTAL	ELEMENTAL
+Elenda and Azor	VAMPIRE_KNIGHT	VAMPIRE_KNIGHT
+Elenda's Hierophant	VAMPIRE	VAMPIRE
+Elenda, the Dusk Rose	VAMPIRE	VAMPIRE
+Elephant Ambush	ELEPHANT	ELEPHANT
+Elephant Guide	ELEPHANT	ELEPHANT
+Elfsworn Giant	ELF_WARRIOR	ELF_WARRIOR
+Elgaud Inquisitor	SPIRIT	WHITE_FLYING_SPIRIT
+Elsha, Threefold Master	MONK	MONK
+Elspeth Resplendent	ANGEL	ANGEL_3_3_WHITE
+Elspeth Tirel	SOLDIER	SOLDIER
+Elspeth's Talent	SOLDIER	SOLDIER
+Elspeth, Knight-Errant	SOLDIER	SOLDIER
+Elspeth, Storm Slayer	SOLDIER	SOLDIER
+Elspeth, Sun's Champion	SOLDIER	SOLDIER
+Elspeth, Sun's Nemesis	HUMAN_SOLDIER	HUMAN_SOLDIER
+Elturgard Ranger	WOLF	WOLF
+Elven Ambush	ELF_WARRIOR	ELF_WARRIOR
+Elven Bow	ELF_WARRIOR	ELF_WARRIOR
+Elvish Farmer	SAPROLING	SAPROLING
+Elvish Promenade	ELF_WARRIOR	ELF_WARRIOR
+Elvish Warmaster	ELF_WARRIOR	ELF_WARRIOR
+Embalmed Ascendant	ZOMBIE	ZOMBIE
+Emergency Weld	SOLDIER	SOLDIER_1_1_COLORLESS
+Emeria Angel	BIRD	BIRD
+Emil, Vastlands Roamer	FRACTAL	FRACTAL
+Emissary of the Sleepless	SPIRIT	WHITE_FLYING_SPIRIT
+Emmara, Soul of the Accord	SOLDIER	SOLDIER_1_1_WHITE
+Emperor Mihail II	MERFOLK	MERFOLK
+Empty the Pits	ZOMBIE	ZOMBIE
+Empty the Warrens	GOBLIN	GOBLIN
+Emrakul's Hatcher	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Emrakul's Messenger	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Enchanted Carriage	MOUSE	MOUSE
+Endless Foot Assault	NINJA	NINJA
+Endless Ranks of the Dead	ZOMBIE	ZOMBIE
+Enlightened Maniac	ELDRAZI_HORROR	ELDRAZI_HORROR
+Enter the God-Eternals	ZOMBIE_ARMY	ZOMBIE_ARMY
+Entrapment Maneuver	SOLDIER	SOLDIER
+Entreat the Angels	ANGEL	ANGEL_4_4_WHITE
+Envoy of Okinec Ahau	GNOME	GNOME
+Eris, Roar of the Storm	DRAGON_ELEMENTAL	DRAGON_ELEMENTAL
+Esika's Chariot	CAT	CAT_2_2_GREEN
+Essence Anchor	ZOMBIE_DRUID	ZOMBIE_DRUID
+Essence Feed	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Essenceknit Scholar	PEST	PEST_1_1_BLACK_GREEN_THIS_ATTACKS
+Eternal Skylord	ZOMBIE_ARMY	ZOMBIE_ARMY
+Eternal Student	INKLING	INKLING
+Ethereal Absolution	SPIRIT	SPIRIT_1_1_WHITE_BLACK
+Ethereal Investigator	SPIRIT	WHITE_FLYING_SPIRIT
+Etherium Spinner	THOPTER	THOPTER
+Eumidian Hatchery	INSECT	INSECT_1_1_BLACK
+Eusocial Engineering	ROBOT	ROBOT_2_2
+Evangel of Heliod	SOLDIER	SOLDIER
+Even the Odds	SOLDIER	SOLDIER
+Exhibition Magician	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Exotic Pets	FISH	FISH_1_1_BLUE
+Expendable Lackey	FISH	FISH_1_1_BLUE
+Experimental Aviator	THOPTER	THOPTER
+Experimental Confectioner	RAT	RAT_CANT_BLOCK
+Experimental Synthesizer	SAMURAI	SAMURAI
+Extricator of Flesh // Extricator of Sin	ELDRAZI_HORROR	ELDRAZI_HORROR_3_2_COLORLESS
+Eyeblight Cullers	ELF_WARRIOR	ELF_WARRIOR
+Eyeless Watcher	ELDRAZI_SCION	ELDRAZI_SCION
+Eyes in the Skies	BIRD	BIRD
+Eyes of the Wisent	ELEMENTAL	ELEMENTAL_4_4_GREEN
+Fable of Wolf and Owl	BIRD	BIRD_1_1_BLUE
+Fable of Wolf and Owl	WOLF	WOLF
+Fade from History	BEAR	BEAR
+Faebloom Trick	FAERIE	FAERIE
+Faerie Formation	FAERIE	FAERIE
+Faerie Slumber Party	FAERIE	FAERIE_1_1_BLUE
+Fain, the Broker	INKLING	INKLING_2_1_WHITE_BLACK
+Fairgrounds Patrol	THOPTER	THOPTER
+Falcon Abomination	ZOMBIE	ZOMBIE_2_2_BLACK
+Falcon and Redwing	BIRD	BIRD
+Falconer Adept	BIRD	BIRD
+Faldorn, Dread Wolf Herald	WOLF	WOLF
+Fall of Cair Andros	ORC_ARMY	ORC_ARMY
+Faramir, Prince of Ithilien	HUMAN_SOLDIER	HUMAN_SOLDIER
+Faramir, Steward of Gondor	HUMAN_SOLDIER	HUMAN_SOLDIER
+Farmer Cotton	HALFLING	HALFLING
+Fathom Fleet Captain	PIRATE	PIRATE
+Fearless Liberator	DWARF_BERSERKER	DWARF_BERSERKER
+Fearsome Goblin Pair	GOBLIN_ARMY	GOBLIN_ARMY
+Feast or Famine	ZOMBIE	ZOMBIE
+Feed the Pack	WOLF	WOLF
+Felisa, Fang of Silverquill	INKLING	INKLING_2_1_WHITE_BLACK
+Felonious Rage	DETECTIVE	DETECTIVE
+Feral Appetite	PEST	PEST_1_1_BLACK_GREEN
+Feral Incarnation	BEAST	BEAST_3_3
+Feral Lightning	ELEMENTAL	ELEMENTAL_3_1_RED
+Ferocious Pup	WOLF	WOLF
+Ferrafor, Young Yew	SAPROLING	SAPROLING
+Fertile Imagination	SAPROLING	SAPROLING
+Feywild Caretaker	FAERIE_DRAGON	FAERIE_DRAGON
+Field of Souls	SPIRIT	WHITE_FLYING_SPIRIT
+Field of the Dead	ZOMBIE	ZOMBIE
+Field-Tested Frying Pan	HALFLING	HALFLING
+Filigree Crawler	THOPTER	THOPTER
+Finale of Glory	ANGEL	ANGEL
+Fire Nation Archers	SOLDIER	SOLDIER_2_2_RED_2
+Fire Nation Attacks	SOLDIER	SOLDIER_2_2_RED
+Fire Nation Occupation	SOLDIER_2	SOLDIER_2_2_RED
+Firja's Retribution	ANGEL_WARRIOR	ANGEL_WARRIOR
+First Response	SOLDIER	SOLDIER
+Fishing Gear	FISH	FISH
+Fishing Gear	FISH_2	FISH
+Fists of Ironwood	SAPROLING	SAPROLING
+Flamewright	CONSTRUCT	CONSTRUCT_1_1_COLORLESS_DEFENDER
+Flesh Carver	HORROR	HORROR
+Flip the Switch	ZOMBIE	ZOMBIE_2_2_BLACK
+Foggy Swamp Spirit Keeper	SPIRIT	SPIRIT
+Foot Chopper	NINJA	NINJA
+Foot Mystic	NINJA	NINJA
+Foray of Orcs	ORC_ARMY	ORC_ARMY
+Forbidden Friendship	HUMAN_SOLDIER	HUMAN_SOLDIER
+Force of Rage	ELEMENTAL	ELEMENTAL_3_1_RED_HASTE_TRAMPLE
+Form a Posse	MERCENARY	MERCENARY
+Forth Eorlingas!	HUMAN_KNIGHT	HUMAN_KNIGHT
+Foul Roads	PILOT	PILOT_SADDLES_AND_CREWS
+Founding of Omashu	ALLY	ALLY
+Foundry of the Consuls	THOPTER	THOPTER
+Fountainport	FISH	FISH
+Fractal Anomaly	FRACTAL	FRACTAL
+Fractal Harness	FRACTAL	FRACTAL
+Fractal Summoning	FRACTAL	FRACTAL
+Fractal Tender	FRACTAL	FRACTAL
+Fresh Meat	BEAST	BEAST_3_3
+Friendly Neighborhood	HUMAN_CITIZEN	HUMAN_CITIZEN_1_1_GREEN_WHITE
+From Beyond	ELDRAZI_SCION	ELDRAZI_SCION
+Frontline Heroism	SOLDIER_2	SOLDIER_1_1_RED
+Frontline Rush	GOBLIN	GOBLIN
+Frost Fair Lure Fish	FISH	FISH
+Fumulus, the Infestation	INSECT	INSECT_1_1_BLACK
+Funeral Pyre	SPIRIT	WHITE_FLYING_SPIRIT
+Fungal Infection	SAPROLING	SAPROLING
+Fungal Plots	SAPROLING	SAPROLING
+Fungal Rebirth	SAPROLING	SAPROLING
+Fungal Sprouting	SAPROLING	SAPROLING
+Furygale Flocking	ELEMENTAL	ELEMENTAL_3_3_BLUE_RED
+Fuss // Bother	THOPTER	THOPTER_1_1_COLORLESS
+Fíli the Pathfinder	DWARF	DWARF
+G'raha Tia, Scion Reborn	HERO	HERO
+Gadget Technician	THOPTER	THOPTER
+Gadget Technician	THOPTER_2	THOPTER
+Galadhrim Ambush	ELF_WARRIOR	ELF_WARRIOR
+Gale, Holy Conduit	PEGASUS	PEGASUS
+Gallant Cavalry	KNIGHT	KNIGHT
+Gallows at Willow Hill	SPIRIT	WHITE_FLYING_SPIRIT
+Gargoyle Flock	TYRANID_GARGOYLE	TYRANID_GARGOYLE
+Garrison Cat	HUMAN_SOLDIER	HUMAN_SOLDIER
+Garrison Excavator	SPIRIT	SPIRIT_2_2_RED_WHITE
+Garruk Wildspeaker	BEAST	BEAST_3_3
+Garruk, Curse Breaker	BEAST	BEAST_4_4_TRAMPLE
+Garruk, Primal Hunter	BEAST	BEAST_3_3
+Garruk, Primal Hunter	WURM	WURM
+Garruk, Unleashed	BEAST	BEAST_3_3
+Garruk, Veiled Butcher	BEAST	BEAST_4_4_TRAMPLE
+Garruk, the Veil-Cursed // Garruk Relentless	WOLF	WOLF_2_2_GREEN
+Gather the Townsfolk	HUMAN	HUMAN
+Gather the Townsfolk	HUMAN_2	HUMAN
+Gather the White Lotus	ALLY	ALLY
+Gathering of Darkness	GOBLIN_ARMY	GOBLIN_ARMY
+Geist Snatch	SPIRIT	SPIRIT_1_1_BLUE
+Geist of Saint Traft	ANGEL	ANGEL_4_4_WHITE
+Geist-Honored Monk	SPIRIT	WHITE_FLYING_SPIRIT
+Gelatinous Genesis	OOZE	OOZE
+General Kreat, the Boltbringer	GOBLIN	GOBLIN
+General's Enforcer	HUMAN_SOLDIER	HUMAN_SOLDIER
+Generous Gift	ELEPHANT	ELEPHANT
+Genesis Chamber	MYR	MYR
+Geralf, Visionary Stitcher	ZOMBIE	ZOMBIE_0_0_BLUE
+Geralf, the Fleshwright	ZOMBIE_ROGUE	ZOMBIE_ROGUE
+Ghalta and Mavren	VAMPIRE	VAMPIRE
+Ghave, Guru of Spores	SAPROLING	SAPROLING
+Ghirapur Gearcrafter	THOPTER	THOPTER
+Ghoulcaller Gisa	ZOMBIE	ZOMBIE
+Ghoulcaller's Accomplice	ZOMBIE	ZOMBIE
+Ghoulcaller's Harvest	ZOMBIE	ZOMBIE_2_2_BLACK
+Ghoulish Procession	ZOMBIE	ZOMBIE_2_2_BLACK
+Gideon's Phalanx	KNIGHT	KNIGHT
+Gideon, Ally of Zendikar	KNIGHT_ALLY	KNIGHT_ALLY
+Gift of Wrath	SPIRIT	SPIRIT_2_2_RED
+Gisa's Bidding	ZOMBIE	ZOMBIE
+Gisa, the Hellraiser	ZOMBIE_ROGUE	ZOMBIE_ROGUE
+Glaring Fleshraker	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Gleaming Overseer	ZOMBIE_ARMY	ZOMBIE_ARMY
+Gleeful Demolition	PHYREXIAN_GOBLIN	PHYREXIAN_GOBLIN
+Glen Elendra's Answer	FAERIE	FAERIE_BLUE_BLACK
+Glimmer Seeker	GLIMMER	GLIMMER
+Glimmerburst	GLIMMER	GLIMMER
+Glimmerlight	GLIMMER	GLIMMER
+Glimpse the Impossible	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Gloomwidow's Feast	SPIDER	SPIDER_1_2
+Gnawing Crescendo	RAT	RAT_CANT_BLOCK
+Gnottvold Slumbermound	TROLL_WARRIOR	TROLL_WARRIOR
+Go-Shintai of Shared Purpose	SPIRIT	SPIRIT_1_1_COLORLESS
+Goblin Assault	GOBLIN	GOBLIN_1_1_RED
+Goblin Gang Leader	GOBLIN	GOBLIN
+Goblin Gathering	GOBLIN	GOBLIN
+Goblin Goliath	GOBLIN	GOBLIN
+Goblin Instigator	GOBLIN	GOBLIN
+Goblin Marshal	GOBLIN	GOBLIN
+Goblin Marshal	GOBLIN_2	GOBLIN
+Goblin Morningstar	GOBLIN	GOBLIN
+Goblin Morningstar	GOBLIN_2	GOBLIN
+Goblin Negotiation	GOBLIN	GOBLIN
+Goblin Offensive	GOBLIN	GOBLIN
+Goblin Plate Mail	GOBLIN_ARMY	GOBLIN_ARMY
+Goblin Rabblemaster	GOBLIN	GOBLIN_1_1_RED
+Goblin Rally	GOBLIN	GOBLIN
+Goblin Surprise	GOBLIN	GOBLIN
+Goblin Traprunner	GOBLIN	GOBLIN
+Goblin Trenches	GOBLIN_SOLDIER	GOBLIN_SOLDIER
+Goblin War Party	GOBLIN	GOBLIN
+Goblin Warrens	GOBLIN	GOBLIN
+Goblin-town Flunkies	GOBLIN_ARMY	GOBLIN_ARMY
+Goblinslide	GOBLIN	GOBLIN_1_1_RED
+Gods' Eye, Gate to the Reikai	SPIRIT	SPIRIT_1_1_COLORLESS
+Goldmeadow Nomad	KITHKIN	KITHKIN_1_1_GREEN_WHITE
+Goldwardens' Gambit	REBEL	REBEL
+Golem Foundry	GOLEM	GOLEM
+Golgari Germination	SAPROLING	SAPROLING
+Goliath Hatchery	PHYREXIAN_BEAST	PHYREXIAN_BEAST
+Goro-Goro and Satoru	DRAGON_SPIRIT	DRAGON_SPIRIT
+Goro-Goro, Disciple of Ryusei	DRAGON_SPIRIT	DRAGON_SPIRIT
+Gothmog, Morgul Lieutenant	ORC_ARMY	ORC_ARMY
+Gourmand's Talent	RACCOON	RACCOON
+Graf Harvest	ZOMBIE	ZOMBIE
+Grand Crescendo	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Grandmother Goby	MERFOLK	MERFOLK
+Grave Titan	ZOMBIE	ZOMBIE
+Gravedig	ZOMBIE	ZOMBIE
+Graveyard Marshal	ZOMBIE	ZOMBIE
+Gravpack Monoist	ROBOT	ROBOT_2_2
+Great Arashin City	SPIRIT	SPIRIT_1_1_WHITE
+Great Goblin, Foul-Hearted	GOBLIN_ARMY	GOBLIN_ARMY
+Great Hall of Starnheim	ANGEL_WARRIOR	ANGEL_WARRIOR
+Greener Pastures	SAPROLING	SAPROLING
+Gremlin Infestation	GREMLIN	GREMLIN_2_2_RED
+Gremlin Tamer	GREMLIN	GREMLIN
+Griffin Aerie	GRIFFIN	GRIFFIN
+Griffin Guide	GRIFFIN	GRIFFIN
+Grim Initiate	ZOMBIE_ARMY	ZOMBIE_ARMY
+Grim Reaper's Scythe	ZOMBIE	ZOMBIE
+Grip of Phyresis	PHYREXIAN_GERM	GERM
+Grishnákh, Brash Instigator	ORC_ARMY	ORC_ARMY
+Grismold, the Dreadsower	PLANT	PLANT_1_1_GREEN
+Grixis Slavedriver	ZOMBIE	ZOMBIE
+Grizzly Fate	BEAR	BEAR
+Grizzly Fate	BEAR_2	BEAR
+Group Project	SPIRIT	SPIRIT_2_2_RED_WHITE
+Grovetender Druids	PLANT	PLANT_1_1_GREEN
+Growth Spasm	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Gríma Wormtongue	ORC_ARMY	ORC_ARMY
+Guardian of Cloverdell	KITHKIN_SOLDIER	KITHKIN_SOLDIER
+Gut, True Soul Zealot	SKELETON	SKELETON_4_1_BLACK
+Gwyllion Hedge-Mage	KITHKIN_SOLDIER	KITHKIN_SOLDIER
+Gysahl Greens	BIRD	BIRD_2_2_GREEN
+HYDRA Disintegrator	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+HYDRA Troopers	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+Haazda Marshal	SOLDIER	SOLDIER_1_1_WHITE
+Hag of Death's Legion	SKELETON	SKELETON
+Hallowed Spiritkeeper	SPIRIT	WHITE_FLYING_SPIRIT
+Hangarback Walker	THOPTER	THOPTER
+Hanged Executioner	SPIRIT	WHITE_FLYING_SPIRIT
+Hanweir Garrison	HUMAN	HUMAN_1_1_RED
+Hard Evidence	CRAB	CRAB
+Hare Apparent	RABBIT	RABBIT
+Harmonious Archon	HUMAN	HUMAN
+Harried Dronesmith	THOPTER	THOPTER
+Harried Spearguard	RAT	RAT_CANT_BLOCK
+Harsh Annotation	INKLING	INKLING
+Haunt the Network	THOPTER	THOPTER
+Haunted Dead	SPIRIT	WHITE_FLYING_SPIRIT
+Haunted Library	SPIRIT	WHITE_FLYING_SPIRIT
+Havengul Runebinder	ZOMBIE	ZOMBIE
+Hazezon Tamar	SAND_WARRIOR	SAND_WARRIOR
+Hazezon, Shaper of Sand	SAND_WARRIOR	SAND_WARRIOR
+Head of the Homestead	RABBIT	RABBIT
+Head of the Hunt	WOLF	WOLF
+Headless Rider	ZOMBIE	ZOMBIE
+Headsplitter	ASSASSIN	ASSASSIN
+Hei Bai, Forest Guardian	SPIRIT	SPIRIT
+Heidegger, Shinra Executive	SOLDIER	SOLDIER
+Hellspur Posse Boss	MERCENARY	MERCENARY
+Herald of Anafenza	WARRIOR	WARRIOR
+Herald of the Dreadhorde	ZOMBIE_ARMY	ZOMBIE_ARMY
+Herd Baloth	BEAST	BEAST
+Herd Migration	BEAST	BEAST_3_3
+Hero of Bladehold	SOLDIER	SOLDIER
+Hero of Precinct One	HUMAN	HUMAN
+Hero of the Nyxborn	HUMAN_SOLDIER	HUMAN_SOLDIER
+Heroes of the Revel	SATYR	SATYR_1_1_RED
+Heroic Reinforcements	SOLDIER	SOLDIER
+Heron-Blessed Geist	SPIRIT	WHITE_FLYING_SPIRIT
+Hidden Stockpile	SERVO	SERVO
+Hildibrand Manderville // Gentleman's Rise	ZOMBIE	ZOMBIE_2_2_BLACK_2
+Hire a Crew	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+History of Benalia	KNIGHT	KNIGHT
+History of Benalia	KNIGHT_2	KNIGHT
+Hive Stirrings	SLIVER	SLIVER
+Hiveheart Shaman	INSECT	INSECT
+Hobbling Zombie	ZOMBIE	ZOMBIE_2_2_BLACK
+Hollowhenge Overlord	WOLF	WOLF
+Honden of Life's Web	SPIRIT	SPIRIT_1_1_COLORLESS
+Honor the God-Pharaoh	ZOMBIE_ARMY	ZOMBIE_ARMY
+Honored Knight-Captain	HUMAN_SOLDIER	HUMAN_SOLDIER
+Hook Swords	ALLY	ALLY
+Hop to It	RABBIT	RABBIT
+Hopeful Vigil	KNIGHT	KNIGHT
+Hordeling Outburst	GOBLIN	GOBLIN
+Horn of Gondor	HUMAN_SOLDIER	HUMAN_SOLDIER
+Horn of Gondor	HUMAN_SOLDIER_2	HUMAN_SOLDIER
+Horncaller's Chant	RHINO	RHINO
+Hornet Nest	INSECT	INSECT_1_1_GREEN
+Hornet Queen	INSECT	INSECT_1_1_GREEN
+Hour of Promise	ZOMBIE	ZOMBIE
+Hour of Victory	ZOMBIE	ZOMBIE
+Howl of the Night Pack	WOLF	WOLF
+Howling Chorus // Shrill Howler	ELDRAZI_HORROR	ELDRAZI_HORROR_3_2_COLORLESS
+Howling Giant	WOLF	WOLF
+Howling Moon	WOLF	WOLF
+Howlpack Alpha // Mayor of Avabruck	WOLF	WOLF_2_2_GREEN
+Howlsquad Heavy	GOBLIN	GOBLIN
+Hunt for Specimens	PEST	PEST_1_1_BLACK_GREEN
+Hunted Bonebrute	DOG	DOG
+Hunted Phantasm	GOBLIN	GOBLIN
+Hunted Troll	FAERIE	FAERIE
+Hunted Witness	SOLDIER	SOLDIER_1_1_WHITE
+Hunting Pack	BEAST	BEAST
+Hydra Broodmaster	HYDRA	HYDRA
+Ib Halfheart, Goblin Tactician	GOBLIN	GOBLIN
+Icatian Crier	CITIZEN	CITIZEN_1_1_WHITE
+Icatian Town	CITIZEN	CITIZEN_1_1_WHITE
+Ich-Tekik, Salvage Splicer	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Idol of False Gods	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Idol of Oblivion	ELDRAZI	ELDRAZI
+Illuminate History	SPIRIT	SPIRIT_3_2_RED_WHITE
+Illustrious Historian	SPIRIT	SPIRIT_3_2_RED_WHITE
+Illustrious Wanderglyph	GNOME	GNOME
+Imbraham, Dean of Theory // Kianne, Dean of Substance	FRACTAL	FRACTAL_0_0_GREEN_BLUE
+Imodane's Recruiter // Train Troops	KNIGHT	KNIGHT_2_2_WHITE_VIGILANCE
+Imoen, Occult Trickster	ZOMBIE	ZOMBIE
+Imotekh the Stormlord	NECRON_WARRIOR	NECRON_WARRIOR
+Imperial Oath	SAMURAI	SAMURAI
+Imperious Perfect	ELF_WARRIOR	ELF_WARRIOR
+Improbable Alliance	FAERIE	FAERIE
+Increasing Devotion	HUMAN	HUMAN
+Increasing Devotion	HUMAN_2	HUMAN
+Incubation Sac	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Incubator Drone	ELDRAZI_SCION	ELDRAZI_SCION
+Indoctrination Attendant	PHYREXIAN_MITE	PHYREXIAN_MITE
+Infestation Sage	INSECT	INSECT_1_1_BLACK_GREEN_FLYING
+Infested Fleshcutter	PHYREXIAN_MITE	PHYREXIAN_MITE
+Infested Roothold	INSECT	INSECT
+Infested Thrinax	SAPROLING	SAPROLING
+Infinite Guideline Station	ROBOT	ROBOT_2_2
+Informed Inkwright	INKLING	INKLING
+Inkling Summoning	INKLING	INKLING_2_1_WHITE_BLACK
+Inkshield	INKLING	INKLING_2_1_WHITE_BLACK
+Inquisitive Puppet	HUMAN	HUMAN
+Inquisitorial Rosette	ASTARTES_WARRIOR	ASTARTES_WARRIOR
+Inscription of Insight	ILLUSION	ILLUSION
+Inside Source	DETECTIVE	DETECTIVE
+Insidious Roots	PLANT	PLANT
+Inspired Inventor	SERVO	SERVO
+Inspired Sphinx	THOPTER	THOPTER
+Intermediate Chirography	INKLING_2	INKLING_2_1_WHITE_BLACK
+Into the Fae Court	FAERIE	FAERIE_1_1_BLUE
+Invade the City	ZOMBIE_ARMY	ZOMBIE_ARMY
+Invading Manticore	ZOMBIE_ARMY	ZOMBIE_ARMY
+Invasion Reinforcements	ALLY	ALLY
+Invisible Woman, Sue Storm	WALL	WALL_0_4_DEFENDER
+Invocation of Saint Traft	ANGEL	ANGEL_4_4_WHITE
+Iridescent Hornbeetle	INSECT	INSECT
+Ironroot Warlord	SOLDIER	SOLDIER
+Irregular Cohort	SHAPESHIFTER	SHAPESHIFTER_2_2_COLORLESS
+Ishkanah, Grafwidow	SPIDER	SPIDER_1_2
+It of the Horrid Swarm	INSECT	INSECT
+Izoni, Thousand-Eyed	INSECT	INSECT_1_1_BLACK_GREEN
+Jacked Rabbit	RABBIT	RABBIT
+Jadar, Ghoulcaller of Nephalia	ZOMBIE	ZOMBIE_2_2_BLACK
+Jade Mage	SAPROLING	SAPROLING
+Jadzi, Steward of Fate // Oracle's Gift	FRACTAL	FRACTAL_0_0_GREEN_BLUE
+Jan Jansen, Chaos Crafter	CONSTRUCT	CONSTRUCT_1_1_COLORLESS
+Jasmine Dragon Tea Shop	ALLY	ALLY
+Jedit Ojanen of Efrava	CAT_WARRIOR_2	CAT_WARRIOR
+Jedit Ojanen, Mercenary	CAT_WARRIOR	CAT_WARRIOR
+Jennika, Bad Apple Big Sister	MUTANT	MUTANT
+Jenson Carthalion, Druid Exile	ANGEL	ANGEL
+Jeskai Monument	BIRD	BIRD
+Join the Dance	HUMAN	HUMAN
+Jolrael, Mwonvuli Recluse	CAT	CAT_2_2_GREEN
+Josu Vess, Lich Knight	ZOMBIE_KNIGHT	ZOMBIE_KNIGHT
+Journey to the Lost City	WOLF	WOLF
+Joyful Stormsculptor	ELEMENTAL	ELEMENTAL_1_1_BLUE_RED
+Jugan Defends the Temple // Remnant of the Rising Star	HUMAN_MONK	HUMAN_MONK
+Jund Battlemage	SAPROLING	SAPROLING
+Jungleborn Pioneer	MERFOLK	MERFOLK_1_1_BLUE
+Junk Jet	JUNK	JUNK
+Junktown	JUNK	JUNK
+Kalitas, Traitor of Ghet	ZOMBIE	ZOMBIE
+Kamahl's Summons	BEAR	BEAR
+Karn, Scion of Urza	CONSTRUCT	CONSTRUCT
+Katara, Water Tribe's Hope	ALLY	ALLY
+Kate Stewart	SOLDIER	SOLDIER
+Kathari Bomber	GOBLIN	GOBLIN
+Kavaron Harrier	ROBOT	ROBOT_2_2
+Kavaron, Memorial World	ROBOT	ROBOT_2_2
+Kaya the Inexorable	SPIRIT	WHITE_FLYING_SPIRIT
+Kaya the Inexorable	SPIRIT_2	WHITE_FLYING_SPIRIT
+Kaya's Guile	SPIRIT	SPIRIT_1_1_WHITE_BLACK
+Kaya, Geist Hunter	SPIRIT	WHITE_FLYING_SPIRIT
+Kaya, Spirits' Justice	SPIRIT	SPIRIT_1_1_WHITE_BLACK
+Kazandu Tuskcaller	ELEPHANT_2	ELEPHANT
+Keeper of the Accord	SOLDIER	SOLDIER
+Keldon Strike Team	SOLDIER	SOLDIER
+Kemba, Kha Enduring	CAT	CAT_2_2_WHITE
+Kemba, Kha Regent	CAT	CAT_2_2_WHITE
+Kessig Cagebreakers	WOLF	WOLF
+Khalni Garden	PLANT	PLANT
+Killer Service	RHINO_WARRIOR	RHINO_WARRIOR
+Kimoyo Beads	SOLDIER	SOLDIER
+Kinbinding	KITHKIN	KITHKIN_1_1_GREEN_WHITE
+King Darien XLVIII	SOLDIER	SOLDIER
+Kinsbaile Borderguard	KITHKIN_SOLDIER	KITHKIN_SOLDIER
+Kiora of Fire and Ashes	DRAGON	DRAGON_5_5
+Kiora of Fire and Ashes	DRAGON_2	DRAGON_5_5
+Kiora, Master of the Depths	OCTOPUS	OCTOPUS
+Kiora, the Crashing Wave	KRAKEN	KRAKEN
+Kirin-Touched Orochi // Teachings of the Kirin	SPIRIT	SPIRIT_1_1_COLORLESS
+Kirtar's Wrath	SPIRIT	WHITE_FLYING_SPIRIT
+Kithkeeper	KITHKIN	KITHKIN_1_1_GREEN_WHITE
+Kitt Kanto, Mayhem Diva	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Kjeldoran Outpost	SOLDIER	SOLDIER
+Klement, Nature Acolyte	OX	OX_4_4_GREEN
+Knight Luminary	HUMAN_SOLDIER	HUMAN_SOLDIER
+Knight Watch	KNIGHT	KNIGHT
+Knight of Doves	BIRD	BIRD
+Knight of the New Coalition	KNIGHT	KNIGHT_2_2_WHITE_BLUE
+Knight-Captain of Eos	SOLDIER	SOLDIER
+Knightfisher	FISH	FISH
+Knightly Valor	KNIGHT	KNIGHT
+Korozda Guildmage	SAPROLING	SAPROLING
+Kozilek's Predator	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Kozilek's Unsealing	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Krenko's Command	GOBLIN	GOBLIN
+Krenko, Baron of Tin Street	GOBLIN	GOBLIN
+Krenko, Mob Boss	GOBLIN	GOBLIN
+Krenko, Tin Street Kingpin	GOBLIN	GOBLIN
+Krovod Haunch	DOG	DOG
+Kuldotha Rebirth	GOBLIN	GOBLIN
+Kykar, Wind's Fury	SPIRIT	WHITE_FLYING_SPIRIT
+Kykar, Zephyr Awakener	SPIRIT	WHITE_FLYING_SPIRIT
+Kyoshi Battle Fan	ALLY	ALLY
+Kyoshi Warriors	ALLY	ALLY
+Lab Rats	RAT	RAT
+Lassoed by the Law	MERCENARY	MERCENARY
+Last Stand	SAPROLING	SAPROLING
+Lathliss, Dragon Queen	DRAGON	DRAGON_5_5
+Lathril, Blade of the Elves	ELF_WARRIOR	ELF_WARRIOR
+Lattice Library	FRACTAL	FRACTAL
+Launch Mishap	THOPTER	THOPTER
+Launch the Fleet	SOLDIER	SOLDIER
+Lazotep Chancellor	ZOMBIE_ARMY	ZOMBIE_ARMY
+Lazotep Plating	ZOMBIE_ARMY	ZOMBIE_ARMY
+Lazotep Reaver	ZOMBIE_ARMY	ZOMBIE_ARMY
+Ledev Champion	SOLDIER	SOLDIER_1_1_WHITE
+Leering Onlooker	BAT	BAT
+Legion Extruder	GOLEM	GOLEM
+Legion Warboss	GOBLIN	GOBLIN
+Lena, Selfless Champion	SOLDIER	SOLDIER
+Leonin Warleader	CAT	CAT_LIFELINK
+Leyline Invocation	FRACTAL	FRACTAL
+Lictor	TYRANID_WARRIOR	TYRANID_WARRIOR
+Liege of the Hollows	SQUIRREL	SQUIRREL
+Lightning Coils	ELEMENTAL	ELEMENTAL_3_1_RED
+Liliana's Devotee	ZOMBIE	ZOMBIE
+Liliana's Mastery	ZOMBIE	ZOMBIE
+Liliana's Reaver	ZOMBIE	ZOMBIE
+Liliana, Defiant Necromancer // Liliana, Heretical Healer	ZOMBIE	ZOMBIE_2_2_BLACK_2
+Liliana, Dreadhorde General	ZOMBIE	ZOMBIE
+Liliana, the Last Hope	ZOMBIE	ZOMBIE
+Lindblum, Industrial Regency // Mage Siege	WIZARD	WIZARD_0_1_BLACK
+Lingering Souls	SPIRIT	WHITE_FLYING_SPIRIT
+Linvala, the Preserver	ANGEL	ANGEL_3_3_WHITE
+Lisette, Dean of the Root // Valentin, Dean of the Vein	PEST	PEST_1_1_BLACK_GREEN_THIS_DIES
+Living History	SPIRIT	SPIRIT_2_2_RED_WHITE
+Living Hive	INSECT	INSECT
+Lluwen, Imperfect Naturalist	WORM	WORM
+Lolth, Spider Queen	SPIDER	SPIDER_2_1_BLACK
+Lonesome Unicorn // Rider in Need	KNIGHT	KNIGHT_2_2_WHITE_VIGILANCE
+Lord Skitter's Butcher	RAT	RAT_CANT_BLOCK
+Lord Skitter, Sewer King	RAT	RAT_CANT_BLOCK
+Lord Windgrace	CAT_WARRIOR	CAT_WARRIOR
+Lorehold Command	SPIRIT	SPIRIT_3_2_RED_WHITE
+Lorehold Excavation	SPIRIT	SPIRIT_3_2_RED_WHITE
+Lossarnach Captain	HUMAN_SOLDIER	HUMAN_SOLDIER
+Lost in the Spirit World	SPIRIT	SPIRIT
+Love Song of Night and Day	BIRD	BIRD
+Lovestruck Beast // Heart's Desire	HUMAN	HUMAN_1_1_WHITE
+Loyal Fire Sage	ALLY	ALLY
+Lulu, Inspiring Hollyphant	SOLDIER	SOLDIER
+Luminarch Ascension	ANGEL	ANGEL_4_4_WHITE
+Luminous Angel	SPIRIT	WHITE_FLYING_SPIRIT
+Lunar Convocation	BAT	BAT
+Luxurious Libation	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Lys Alana Huntmaster	ELF_WARRIOR	ELF_WARRIOR
+Maalfeld Twins	ZOMBIE	ZOMBIE
+Mad Ratter	RAT	RAT
+Madame Hydra	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+Madame Masque	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+Maestros Diabolist	DEVIL	DEVIL
+Magitek Armor	HERO	HERO
+Magma Opus	ELEMENTAL	ELEMENTAL
+Magnus the Red	SPAWN	SPAWN
+Magus of the Bridge	ZOMBIE	ZOMBIE
+Maja, Bretagard Protector	HUMAN_WARRIOR	HUMAN_WARRIOR
+Make Mischief	DEVIL	DEVIL
+Make Your Mark	SPIRIT	SPIRIT_3_2_RED_WHITE
+Malcator, Purity Overseer	PHYREXIAN_GOLEM_2	PHYREXIAN_GOLEM
+Malevolent Rumble	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Mammoth Bellow	ELEPHANT	ELEPHANT_5_5_GREEN
+Manifestation Sage	FRACTAL	FRACTAL
+Mantle of the Wolf	WOLF	WOLF
+Marath, Will of the Wild	ELEMENTAL	ELEMENTAL_0_0_GREEN
+March from the Black Gate	ORC_ARMY	ORC_ARMY
+March of Souls	SPIRIT	WHITE_FLYING_SPIRIT
+March of the Canonized	VAMPIRE	VAMPIRE
+March of the Canonized	VAMPIRE_DEMON	VAMPIRE_DEMON
+March of the Multitudes	SOLDIER	SOLDIER_1_1_WHITE
+March of the World Ooze	ELEPHANT	ELEPHANT
+Mardu Ascendancy	GOBLIN	GOBLIN
+Mardu Charm	WARRIOR	WARRIOR
+Mardu Hordechief	WARRIOR	WARRIOR
+Mardu Monument	WARRIOR	WARRIOR_1_1_RED
+Marneus Calgar	ASTARTES_WARRIOR	ASTARTES_WARRIOR
+Marrow-Gnawer	RAT	RAT
+Marsh Flitter	GOBLIN_ROGUE	GOBLIN_ROGUE
+Martial Coup	SOLDIER	SOLDIER
+Martyr of Dusk	VAMPIRE	VAMPIRE
+Mascot Exhibition	ELEMENTAL	ELEMENTAL
+Mascot Exhibition	INKLING	INKLING_2_1_WHITE_BLACK
+Mascot Exhibition	SPIRIT	SPIRIT_3_2_RED_WHITE
+Mask of Immolation	ELEMENTAL	ELEMENTAL_1_1_RED
+Mask of the Jadecrafter	GOLEM	GOLEM_0_0_COLORLESS
+Maskwood Nexus	SHAPESHIFTER	SHAPESHIFTER_2_2_BLUE
+Mass Production	SOLDIER	SOLDIER_1_1_COLORLESS
+Master Splicer	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Master Trinketeer	SERVO	SERVO
+Master's Call	MYR	MYR
+Masterful Replication	GOLEM	GOLEM
+Match the Odds	ALLY	ALLY
+Maul Splicer	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Mausoleum Guard	SPIRIT	WHITE_FLYING_SPIRIT
+Maverick Thopterist	THOPTER	THOPTER
+Mavren Fein, Dusk Apostle	VAMPIRE	VAMPIRE
+Mechan Assembler	ROBOT	ROBOT_2_2
+Mechanized Ninja Cavalry	ROBOT	ROBOT_1_1
+Mega Flare	DRAGON	DRAGON_6_6_RED
+Melded Moxite	ROBOT	ROBOT_2_2
+Meloku the Clouded Mirror	ILLUSION	ILLUSION_1_1_BLUE
+Memnarch, the Warden	MYR	MYR
+Memorial to Glory	SOLDIER	SOLDIER
+Mercy Killing	ELF_WARRIOR	ELF_WARRIOR_1_1_GREEN_WHITE
+Merrow Skyswimmer	MERFOLK	MERFOLK_WHITE_BLUE
+Merry, Warden of Isengard	SOLDIER	SOLDIER_1_1_WHITE
+Metallurgic Summonings	CONSTRUCT	CONSTRUCT_0_0_COLORLESS
+Midnight Angel Armor	SOLDIER	SOLDIER
+Midnight Haunting	SPIRIT	WHITE_FLYING_SPIRIT
+Midnight Mayhem	GREMLIN	GREMLIN
+Midnight Ritual	ZOMBIE	ZOMBIE
+Midsummer Revel	BEAST	BEAST_3_3
+Mighty Mutanimals	MUTANT	MUTANT
+Migratory Route	BIRD	BIRD
+Militant Angel	KNIGHT	KNIGHT
+Militia's Pride	KITHKIN_SOLDIER	KITHKIN_SOLDIER
+Millicent, Restless Revenant	SPIRIT	WHITE_FLYING_SPIRIT
+Miming Slime	OOZE	OOZE
+Mindless Conscription	ZOMBIE_ARMY	ZOMBIE_ARMY
+Minotaur, Roxxon CEO	VILLAIN	VILLAIN_2_1_BLACK_MENACE
+Mirrex	PHYREXIAN_MITE	PHYREXIAN_MITE
+Mirrodin Besieged	MYR	MYR
+Mischievous Mystic	FAERIE	FAERIE
+Misfortune Teller	ROGUE	ROGUE
+Mishra's Onslaught	SOLDIER	SOLDIER_1_1_COLORLESS
+Mister Gutsy	JUNK	JUNK
+Misty Mountains Raider	GOBLIN_ARMY	GOBLIN_ARMY
+Mite Overseer	PHYREXIAN_MITE	PHYREXIAN_MITE
+Moan of the Unhallowed	ZOMBIE	ZOMBIE
+Mobilization	SOLDIER	SOLDIER
+Mog, Moogle Warrior	MOOGLE	MOOGLE
+Mogg Alarm	GOBLIN	GOBLIN
+Mogg Infestation	GOBLIN	GOBLIN
+Mogg War Marshal	GOBLIN	GOBLIN
+Mogg War Marshal	GOBLIN_2	GOBLIN
+Molten Birth	ELEMENTAL	ELEMENTAL_1_1_RED
+Molten Lavamancer	ELEMENTAL	ELEMENTAL_1_1_RED
+Monastery Mentor	MONK	MONK
+Moogles' Valor	MOOGLE	MOOGLE
+Moonblade Shinobi	ILLUSION	ILLUSION_1_1_BLUE
+Moonsilver Spear	ANGEL	ANGEL_4_4_WHITE
+Moorland Haunt	SPIRIT	WHITE_FLYING_SPIRIT
+Morbid Bloom	SAPROLING	SAPROLING
+Morcant's Eyes	ELF	ELF_2_2_BLACK_GREEN
+Mordor Muster	ORC_ARMY	ORC_ARMY
+Mother Bear	BEAR	BEAR
+Mourner's Surprise	MERCENARY	MERCENARY
+Mouser Attack!	ROBOT	ROBOT_1_1
+Mouser Foundry	ROBOT	ROBOT_1_1
+Mouser Foundry	ROBOT_2	ROBOT_1_1
+Mu Yanling, Wind Rider	VEHICLE	VEHICLE
+Multiple Choice	ELEMENTAL_2	ELEMENTAL
+Murder Investigation	SOLDIER	SOLDIER
+Muse's Encouragement	ELEMENTAL	ELEMENTAL_3_3_BLUE_RED
+Museum Nightwatch	DETECTIVE	DETECTIVE
+Muster the Departed	SPIRIT	WHITE_FLYING_SPIRIT
+Mycologist	SAPROLING	SAPROLING
+Myojin of Blooming Dawn	SPIRIT	SPIRIT_1_1_COLORLESS
+Myr Battlesphere	MYR	MYR
+Myr Incubator	MYR	MYR
+Myr Matrix	MYR	MYR
+Myr Sire	PHYREXIAN_MYR	PHYREXIAN_MYR
+Myr Turbine	MYR	MYR
+Myrel, Shield of Argive	SOLDIER	SOLDIER_1_1_COLORLESS
+Myriad Construct	CONSTRUCT	CONSTRUCT_1_1_COLORLESS
+Myrsmith	MYR	MYR
+Mysidian Elder	WIZARD	WIZARD
+Mystic Genesis	OOZE	OOZE
+Nadier, Agent of the Duskenel	ELF_WARRIOR	ELF_WARRIOR
+Nadir Kraken	TENTACLE	TENTACLE
+Nahiri, Heir of the Ancients	KOR_WARRIOR	KOR_WARRIOR
+Nahiri, the Lithomancer	KOR_SOLDIER	KOR_SOLDIER
+Najeela, the Blade-Blossom	WARRIOR	WARRIOR
+Namor, Atlantean King	MERFOLK	MERFOLK
+Namora, the Sea Queen	MERFOLK	MERFOLK
+Nantuko Shrine	SQUIRREL	SQUIRREL
+Naomi, Pillar of Order	SAMURAI	SAMURAI
+Nath of the Gilt-Leaf	ELF_WARRIOR	ELF_WARRIOR
+Nearheath Chaplain	SPIRIT	WHITE_FLYING_SPIRIT
+Necrogenesis	SAPROLING	SAPROLING
+Necromancer's Covenant	ZOMBIE	ZOMBIE
+Necromaster Dragon	ZOMBIE	ZOMBIE
+Necromentia	ZOMBIE	ZOMBIE
+Necron Monolith	NECRON_WARRIOR	NECRON_WARRIOR
+Necrotic Hex	ZOMBIE	ZOMBIE
+Nemata, Grove Guardian	SAPROLING	SAPROLING
+Nemata, Primeval Warden	SAPROLING	SAPROLING
+Nest Invader	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Nested Shambler	SQUIRREL	SQUIRREL
+Nesting Bot	SERVO	SERVO
+Never // Return	ZOMBIE	ZOMBIE_2_2_BLACK_2
+Nevinyrral, Urborg Tyrant	ZOMBIE	ZOMBIE
+News Helicopter	HUMAN_CITIZEN	HUMAN_CITIZEN_1_1_GREEN_WHITE
+Nezumi Linkbreaker	MERCENARY	MERCENARY
+Night Scythe	NECRON_WARRIOR	NECRON_WARRIOR
+Nightpack Ambusher	WOLF	WOLF
+Nightsquad Commando	HUMAN_SOLDIER	HUMAN_SOLDIER
+Nimble Thopterist	THOPTER	THOPTER
+Nimblewright Schematic	CONSTRUCT_2	CONSTRUCT_1_1_COLORLESS
+Nissa, Voice of Zendikar	PLANT	PLANT
+No Way Out	ZOMBIE	ZOMBIE_2_2_BLACK
+Nomads' Assembly	KOR_SOLDIER	KOR_SOLDIER
+Noosegraf Mob	ZOMBIE	ZOMBIE
+Not Forgotten	SPIRIT	WHITE_FLYING_SPIRIT
+Null Caller	ZOMBIE	ZOMBIE
+Nurturing Bristleback	DINOSAUR	DINOSAUR_3_3_GREEN
+Nurturing Presence	SPIRIT	WHITE_FLYING_SPIRIT
+Nut Collector	SQUIRREL	SQUIRREL
+Oakhame Ranger // Bring Back	HUMAN	HUMAN_1_1_WHITE
+Oath of Eorl	HUMAN_KNIGHT	HUMAN_KNIGHT
+Oath of Eorl	HUMAN_SOLDIER	HUMAN_SOLDIER
+Oath of Gideon	KOR_ALLY	KOR_ALLY
+Oath of Liliana	ZOMBIE	ZOMBIE
+Oath of the Grey Host	SPIRIT	WHITE_FLYING_SPIRIT
+Ob Nixilis of the Black Oath	DEMON	DEMON
+Ob Nixilis, the Ascended	ANGEL	ANGEL_4_4_WHITE
+Obscura Ascendancy	SPIRIT	SPIRIT_2_2_WHITE
+Occult Epiphany	SPIRIT	WHITE_FLYING_SPIRIT
+Ocelot Pride	CAT	CAT
+Of Herbs and Stewed Rabbit	HALFLING	HALFLING
+Ogre Chitterlord	RAT	RAT_CANT_BLOCK
+Ogre Slumlord	RAT	RAT
+Ojutai's Summons	DJINN_MONK	DJINN_MONK
+Oketra the True	WARRIOR	WARRIOR_1_1_WHITE
+Oketra's Monument	WARRIOR	WARRIOR_1_1_WHITE
+Okoye, Dora Milaje Leader	SOLDIER	SOLDIER
+Old Hob, Alleycat Blues	MUTANT	MUTANT
+Old Rutstein	INSECT	INSECT
+Oltec Cloud Guard	GNOME	GNOME
+Oltec Matterweaver	GNOME	GNOME
+Omen of the Sun	HUMAN_SOLDIER	HUMAN_SOLDIER
+Omnath, Locus of Rage	ELEMENTAL	ELEMENTAL_5_5_RED_GREEN
+On Wings of Gold	ZOMBIE	ZOMBIE_1_1_WHITE
+One Dozen Eyes	INSECT	INSECT
+One with the Kami	SPIRIT	SPIRIT_1_1_COLORLESS
+Oni-Cult Anvil	CONSTRUCT	CONSTRUCT_1_1_COLORLESS
+Ooze Garden	OOZE	OOZE
+Open the Graves	ZOMBIE	ZOMBIE
+Ophiomancer	SNAKE	SNAKE_1_1_BLACK
+Orcish Bowmasters	ORC_ARMY	ORC_ARMY
+Orcish Medicine	ORC_ARMY	ORC_ARMY
+Ordered Migration	BIRD	BIRD_1_1_BLUE
+Origin Spellbomb	MYR	MYR
+Origin of the Hidden Ones	ASSASSIN_2	ASSASSIN
+Origin of the Hulk	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Ormendahl, Profane Prince // Westvale Abbey	HUMAN_CLERIC	HUMAN_CLERIC
+Ormendahl, the Corrupter // Jerren, Corrupted Bishop	HUMAN_2	HUMAN_1_1_WHITE
+Orochi Hatchery	SNAKE	SNAKE
+Otharri, Suns' Glory	REBEL	REBEL
+Otherworldly Outburst	ELDRAZI_HORROR	ELDRAZI_HORROR
+Otterball Antics	OTTER	OTTER
+Outlaw Stitcher	ZOMBIE_ROGUE	ZOMBIE_ROGUE
+Overgrown Armasaur	SAPROLING	SAPROLING
+Overseer of the Damned	ZOMBIE	ZOMBIE
+Oversimplify	FRACTAL	FRACTAL
+Ovika, Enigma Goliath	PHYREXIAN_GOBLIN	PHYREXIAN_GOBLIN
+Oviya Pashiri, Sage Lifecrafter	CONSTRUCT	CONSTRUCT_0_0_COLORLESS
+Oviya Pashiri, Sage Lifecrafter	SERVO	SERVO
+Ox Drover	OX	OX_2_4_WHITE
+Pack Guardian	WOLF	WOLF
+Paladin of the Bloodstained	VAMPIRE	VAMPIRE
+Palani's Hatcher	DINOSAUR	DINOSAUR_3_3_GREEN
+Pallid Mycoderm	SAPROLING	SAPROLING
+Paradox Zone	FRACTAL	FRACTAL
+Parasitic Implant	PHYREXIAN_MYR	PHYREXIAN_MYR
+Parhelion II	ANGEL	ANGEL
+Pashalik Mons	GOBLIN	GOBLIN
+Path of Annihilation	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Path to Redemption	ALLY	ALLY
+Path to the World Tree	BEAR	BEAR
+Pawn of Ulamog	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Pegasus Refuge	PEGASUS	PEGASUS
+Pegasus Stampede	PEGASUS	PEGASUS
+Perch Protection	BIRD_2	BIRD_2_2_BLUE
+Person of Interest	DETECTIVE	DETECTIVE
+Personify	SHAPESHIFTER	SHAPESHIFTER
+Pest Infestation	PEST	PEST_1_1_BLACK_GREEN
+Pest Rescuer	PEST	PEST_1_1_BLACK_GREEN
+Pest Summoning	PEST	PEST_1_1_BLACK_GREEN
+Pestbrood Sloth	PEST	PEST_1_1_BLACK_GREEN_THIS_ATTACKS
+Pestered Wellguard	FAERIE	FAERIE_BLUE_BLACK
+Pet Avengers	HERO	HERO_3_2_WHITE_VIGILANCE
+Phabine, Boss's Confidant	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Phantom Interference	SPIRIT	SPIRIT_2_2_WHITE
+Phelddagrif	HIPPO	HIPPO
+Phylath, World Sculptor	PLANT	PLANT
+Phyrexian Ironworks	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Phyrexian Swarmlord	PHYREXIAN_INSECT	PHYREXIAN_INSECT
+Phyrexian Warhorse	SOLDIER	SOLDIER
+Pia Nalaar	THOPTER	THOPTER
+Pia Nalaar, Consul of Revival	THOPTER	THOPTER
+Pia and Kiran Nalaar	THOPTER	THOPTER
+Pia, Determined Rebuilder	THOPTER	THOPTER
+Pinnacle Emissary	DRONE	DRONE
+Pinnacle Starcage	ROBOT	ROBOT_2_2
+Piper of the Swarm	RAT	RAT
+Plague of Vermin	RAT	RAT
+Platoon Dispenser	SOLDIER	SOLDIER_1_1_COLORLESS
+Poetic Ingenuity	DINOSAUR	DINOSAUR_3_1_RED
+Pollenbright Wings	SAPROLING	SAPROLING
+Ponyback Brigade	GOBLIN	GOBLIN
+Ponyback Brigade	GOBLIN_2	GOBLIN
+Prava of the Steel Legion	SOLDIER	SOLDIER
+Preacher of the Schism	VAMPIRE	VAMPIRE
+Precinct Captain	SOLDIER	SOLDIER
+Predator's Howl	WOLF	WOLF
+Predator's Howl	WOLF_2	WOLF
+Preening Champion	ELEMENTAL	ELEMENTAL_1_1_BLUE_RED
+Presence of Gond	ELF_WARRIOR	ELF_WARRIOR
+Pretending Poxbearers	ALLY	ALLY
+Prickly Pair	MERCENARY	MERCENARY
+Pride Sovereign	CAT	CAT_LIFELINK
+Prideful Parent	CAT	CAT
+Priest of the Blessed Graf	SPIRIT	WHITE_FLYING_SPIRIT
+Priest of the Blood Rite	DEMON	DEMON
+Primeval Bounty	BEAST	BEAST_3_3
+Prince Imrahil the Fair	HUMAN_SOLDIER	HUMAN_SOLDIER
+Printlifter Ooze	OOZE	OOZE_0_0_GREEN
+Prismari Pianist	ELEMENTAL_2	ELEMENTAL_1_1_BLUE_RED
+Prodigy's Prototype	PILOT	PILOT
+Professor of Zoomancy	PEST	PEST_1_1_BLACK_GREEN
+Promise of Bunrei	SPIRIT	SPIRIT_1_1_COLORLESS
+Promise of Power	DEMON	DEMON_0_0_BLACK
+Propagator Drone	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Prosperity Tycoon	MERCENARY	MERCENARY
+Prosperous Partnership	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Protect the Negotiators	SOLDIER	SOLDIER
+Protector of Gondor	HUMAN_SOLDIER	HUMAN_SOLDIER
+Prowess of the Fair	ELF_WARRIOR	ELF_WARRIOR
+Psychotrope Thallid	SAPROLING	SAPROLING
+Pulse of the Tangle	BEAST	BEAST_3_3
+Quarrel's End	HUMAN_SOLDIER	HUMAN_SOLDIER
+Queen Brahne	WIZARD	WIZARD
+Queen's Commission	VAMPIRE	VAMPIRE
+Questing Phelddagrif	HIPPO	HIPPO
+Quintorius Kand	SPIRIT	SPIRIT_3_2_RED_WHITE
+Quintorius, Field Historian	SPIRIT	SPIRIT_3_2_RED_WHITE
+Quintorius, History Chaser	SPIRIT	SPIRIT_3_2_RED_WHITE
+Rabble Rousing	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Radagast, Wizard of Wilds	BEAST	BEAST_3_3
+Radagast, Wizard of Wilds	BIRD	BIRD_2_2_BLUE
+Rage into the Valley	GOBLIN_ARMY	GOBLIN_ARMY
+Raise the Alarm	SOLDIER	SOLDIER
+Raised by Wolves	WOLF	WOLF
+Rakdos Guildmage	GOBLIN	GOBLIN_2_1_RED
+Rakish Crew	MERCENARY	MERCENARY
+Rakish Revelers	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Rakka Mar	ELEMENTAL	ELEMENTAL_3_1_RED
+Ral's Reinforcements	ELEMENTAL	ELEMENTAL_1_1_BLUE_RED
+Ral, Crackling Wit	OTTER	OTTER
+Rally at the Hornburg	HUMAN_SOLDIER	HUMAN_SOLDIER
+Rally for the Throne	HUMAN	HUMAN
+Rally the Horde	WARRIOR	WARRIOR_1_1_RED
+Rally the Monastery	MONK	MONK
+Rammas Echor, Ancient Shield	WALL	WALL
+Rampage of the Clans	CENTAUR	CENTAUR
+Rampage of the Valkyries	ANGEL	ANGEL
+Rampaging Baloths	BEAST	BEAST
+Ranger Class	WOLF	WOLF
+Rangers' Aetherhive	THOPTER	THOPTER
+Rank Officer	ZOMBIE	ZOMBIE
+Rapacious One	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Raphael, Fiendish Savior	DEVIL	DEVIL
+Raptor Hatchling	DINOSAUR	DINOSAUR
+Rasaad, Dragon Monk	FAERIE_DRAGON	FAERIE_DRAGON
+Rasaad, Shadow Monk	SKELETON	SKELETON_4_1_BLACK
+Rasaad, Sylvan Monk	BOAR	BOAR
+Rasaad, Warrior Monk	SOLDIER	SOLDIER
+Rat King, Pale Piper	RAT_2	RAT
+Rat King, Verminister	RAT	RAT
+Rat Out	RAT	RAT_CANT_BLOCK
+Ravager of the Fells // Huntmaster of the Fells	WOLF	WOLF_2_2_GREEN
+Ravenform	BIRD	BIRD_1_1_BLUE
+Ravenous Robots	ROBOT	ROBOT_1_1
+Rayblade Trooper	HUMAN_SOLDIER	HUMAN_SOLDIER
+Razorkin Hordecaller	GREMLIN	GREMLIN
+Realm of Koh	SPIRIT	SPIRIT
+Reap the Seagraf	ZOMBIE	ZOMBIE
+Reckless Crew	DWARF_BERSERKER	DWARF_BERSERKER
+Reckoner Bankbuster	PILOT	PILOT
+Recruit the Worthy	SOLDIER	SOLDIER
+Recruitment Drive	KNIGHT_2	KNIGHT_2_2_WHITE
+Recruitment Drive	SOLDIER	SOLDIER
+Redcap Gutter-Dweller	RAT	RAT_CANT_BLOCK
+Reduce to Memory	SPIRIT	SPIRIT_3_2_RED_WHITE
+Reef Roads	PILOT	PILOT_SADDLES_AND_CREWS
+Reef Worm	KRAKEN	KRAKEN
+Regal Bloodlord	BAT	BAT
+Regal Caracal	CAT	CAT_LIFELINK
+Regisaur Alpha	DINOSAUR	DINOSAUR
+Regna, the Redeemer	WARRIOR	WARRIOR
+Reign of the Pit	DEMON	DEMON_0_0_BLACK
+Release the Dogs	DOG	DOG
+Release the Gremlins	GREMLIN	GREMLIN_2_2_RED
+Release to Memory	SPIRIT	SPIRIT_1_1_COLORLESS
+Relentless Advance	ZOMBIE_ARMY	ZOMBIE_ARMY
+Renegade's Getaway	SERVO	SERVO
+Repel Intruders	KITHKIN_SOLDIER	KITHKIN_SOLDIER
+Requiem Angel	SPIRIT	WHITE_FLYING_SPIRIT
+Resculpt	ELEMENTAL	ELEMENTAL
+Reservoir Kraken	FISH	FISH_1_1_BLUE
+Resolute Reinforcements	SOLDIER	SOLDIER
+Resplendent Angel	ANGEL	ANGEL
+Retreat to Emeria	KOR_ALLY	KOR_ALLY
+Retrofitter Foundry	CONSTRUCT	CONSTRUCT_4_4_COLORLESS
+Retrofitter Foundry	SERVO	SERVO
+Retrofitter Foundry	THOPTER	THOPTER
+Return Upon the Tide	ELF_WARRIOR	ELF_WARRIOR
+Return from the Wilds	HUMAN	HUMAN
+Revel of the Fallen God	SATYR	SATYR
+Revenge of the Drowned	ZOMBIE	ZOMBIE_2_2_BLACK
+Revenge of the Rats	RAT	RAT
+Reverent Hoplite	HUMAN_SOLDIER	HUMAN_SOLDIER
+Revival of the Ancestors	SPIRIT	SPIRIT_1_1_WHITE
+Rhovanion Rampager	GOBLIN_ARMY	GOBLIN_ARMY
+Rhys the Redeemed	ELF_WARRIOR	ELF_WARRIOR_1_1_GREEN_WHITE
+Ria Ivor, Bane of Bladehold	PHYREXIAN_MITE	PHYREXIAN_MITE
+Rictus Robber	ZOMBIE_ROGUE	ZOMBIE_ROGUE
+Riders of Rohan	HUMAN_KNIGHT	HUMAN_KNIGHT
+Riders of the Mark	HUMAN_SOLDIER	HUMAN_SOLDIER
+Righteous Confluence	KNIGHT	KNIGHT
+Rin and Seri, Inseparable	CAT	CAT_1_1_GREEN
+Rin and Seri, Inseparable	DOG	DOG
+Rise from the Tides	ZOMBIE	ZOMBIE
+Rise of the Dread Marn	ZOMBIE_BERSERKER	ZOMBIE_BERSERKER
+Rise of the Hobgoblins	GOBLIN_SOLDIER	GOBLIN_SOLDIER
+Risen Necroregent	ZOMBIE	ZOMBIE
+Rite of the Dragoncaller	DRAGON	DRAGON_5_5
+Rite of the Serpent	SNAKE	SNAKE
+Rith's Charm	SAPROLING	SAPROLING
+Rith, Liberated Primeval	DRAGON	DRAGON
+Rith, the Awakener	SAPROLING	SAPROLING
+Ritual of the Returned	ZOMBIE	ZOMBIE_0_0_BLACK
+Roadside Assistance	PILOT	PILOT_SADDLES_AND_CREWS
+Roar of Endless Song	ELEPHANT_2	ELEPHANT_5_5_GREEN
+Roar of the Wurm	WURM	WURM
+Robot Domination	ROBOT_VILLAIN	ROBOT_VILLAIN
+Robotics Mastery	ROBOT	ROBOT
+Rocky Roads	PILOT	PILOT_SADDLES_AND_CREWS
+Rohgahh, Kher Keep Overlord	DRAGON	DRAGON
+Rooftop Bypass	ASSASSIN	ASSASSIN
+Roost of Drakes	DRAKE_2	DRAKE
+Rootcast Apprenticeship	SQUIRREL	SQUIRREL
+Rootwire Amalgam	GOLEM	GOLEM_0_0_COLORLESS
+Rose, Cutthroat Raider	JUNK	JUNK
+Rotlung Reanimator	ZOMBIE	ZOMBIE
+Rotten Reunion	ZOMBIE	ZOMBIE_2_2_BLACK
+Rotwidow Pack	SPIDER	SPIDER_1_2
+Rousing of Souls	SPIRIT	WHITE_FLYING_SPIRIT
+Royal Talon Fighter Jet	SOLDIER	SOLDIER
+Royal Warden	NECRON_WARRIOR	NECRON_WARRIOR
+Rukarumel, Biologist	SLIVER	SLIVER
+Rulik Mons, Warren Chief	GOBLIN	GOBLIN
+S.H.I.E.L.D. Deployment Drone	SOLDIER	SOLDIER
+S.H.I.E.L.D. Helicarrier	SOLDIER	SOLDIER
+Saber Ants	INSECT	INSECT
+Sacred Mesa	PEGASUS	PEGASUS
+Saheeli, Consul of Oversight	THOPTER	THOPTER
+Saheeli, Filigree Master	THOPTER	THOPTER
+Saheeli, Jewel of Avishkar	THOPTER	THOPTER
+Saheeli, Sublime Artificer	SERVO	SERVO
+Sai, Master Thopterist	THOPTER	THOPTER
+Saint Traft and Rem Karolus	ANGEL	ANGEL_4_4_WHITE
+Saint Traft and Rem Karolus	HUMAN	HUMAN_1_1_RED
+Saint Traft and Rem Karolus	SPIRIT	SPIRIT_1_1_BLUE
+Sally Pride, Lioness Leader	MUTANT	MUTANT
+Salt Road Skirmish	WARRIOR	WARRIOR_1_1_RED
+Sami, Ship's Engineer	ROBOT	ROBOT_2_2
+Sanctifier of Souls	SPIRIT	WHITE_FLYING_SPIRIT
+Sanctuary Warden	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Sand Scout	SAND_WARRIOR	SAND_WARRIOR
+Sandsteppe Outcast	SPIRIT	WHITE_FLYING_SPIRIT
+Sandstorm Salvager	GOLEM	GOLEM
+Sanguine Evangelist	BAT	BAT
+Sanguine Evangelist	BAT_2	BAT
+Sapling Nursery	TREEFOLK	TREEFOLK
+Saproling Infestation	SAPROLING	SAPROLING
+Saproling Migration	SAPROLING_2	SAPROLING
+Saproling Symbiosis	SAPROLING	SAPROLING
+Saradoc, Master of Buckland	HALFLING	HALFLING
+Sarcomancy	ZOMBIE	ZOMBIE
+Sarkhan Unbroken	DRAGON	DRAGON
+Sarkhan Vol	DRAGON	DRAGON
+Sarkhan the Mad	DRAGON	DRAGON_5_5
+Sarkhan the Masterless	DRAGON	DRAGON
+Sarkhan, Fireblood	DRAGON	DRAGON_5_5
+Saruman the White	ORC_ARMY	ORC_ARMY
+Saruman's Trickery	ORC_ARMY	ORC_ARMY
+Saruman, the White Hand	ORC_ARMY	ORC_ARMY
+Satyr's Cunning	SATYR	SATYR_1_1_RED
+Saurian Symbiote	SAPROLING	SAPROLING
+Savage Conception	BEAST	BEAST_3_3
+Savage Packmate // Child of the Pack	WOLF	WOLF_2_2_GREEN
+Savage Thallid	SAPROLING	SAPROLING
+Sawtusk Demolisher	BEAST	BEAST_3_3
+Scalestorm Summoner	DINOSAUR	DINOSAUR_3_1_RED
+Scampering Scorcher	ELEMENTAL	ELEMENTAL_1_1_RED
+Scarblade's Malice	ELF	ELF_2_2_BLACK_GREEN
+Scatter the Seeds	SAPROLING	SAPROLING
+Scepter of Celebration	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Scion Summoner	ELDRAZI_SCION	ELDRAZI_SCION
+Scion of Vitu-Ghazi	BIRD	BIRD
+Scour the Desert	BIRD	BIRD
+Scouring Swarm	INSECT	INSECT_1_1_BLACK
+Scout the Wilderness	SOLDIER	SOLDIER
+Scrapwork Cohort	SOLDIER	SOLDIER_1_1_COLORLESS
+Scurry Oak	SQUIRREL	SQUIRREL
+Scurry of Gremlins	GREMLIN	GREMLIN
+Scute Swarm	INSECT	INSECT
+Scuttletide	CRAB	CRAB
+Searchlight Companion	SPIRIT	SPIRIT_1_1_COLORLESS
+Searslicer Goblin	GOBLIN	GOBLIN
+Seasoned Pyromancer	ELEMENTAL	ELEMENTAL_1_1_RED
+Seasoned Pyromancer	ELEMENTAL_2	ELEMENTAL_1_1_RED
+Secure Detention	SOLDIER	SOLDIER
+Secure the Scene	SOLDIER	SOLDIER
+Secure the Wastes	WARRIOR	WARRIOR
+Security Blockade	KNIGHT	KNIGHT
+Security Detail	SOLDIER	SOLDIER
+Sedgemoor Witch	PEST	PEST_1_1_BLACK_GREEN
+Seed Guardian	ELEMENTAL	ELEMENTAL_0_0_GREEN
+Seed Spark	SAPROLING	SAPROLING
+Seed the Land	SNAKE	SNAKE
+Sek'Kuar, Deathkeeper	GRAVEBORN	GRAVEBORN
+Selesnya Charm	KNIGHT	KNIGHT
+Selesnya Evangel	SAPROLING	SAPROLING
+Selesnya Guildmage	SAPROLING	SAPROLING
+Seller of Songbirds	BIRD	BIRD
+Selvala's Charge	ELEPHANT	ELEPHANT
+Selvala, Eager Trailblazer	MERCENARY	MERCENARY
+Send in the Pest	PEST	PEST_1_1_BLACK_GREEN_THIS_ATTACKS
+Sensor Splicer	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Sequence Engine	FRACTAL	FRACTAL
+Seraphic Greatsword	ANGEL	ANGEL_4_4_WHITE
+Seraphic Steed	ANGEL	ANGEL_3_3_WHITE
+Sergeant-at-Arms	SOLDIER	SOLDIER
+Serpentine Curve	FRACTAL	FRACTAL
+Servo Exhibition	SERVO	SERVO
+Servo Schematic	SERVO	SERVO
+Servo Schematic	SERVO_2	SERVO
+Severance Priest	SPIRIT	SPIRIT_0_0_WHITE
+Shadow Summoning	SPIRIT	WHITE_FLYING_SPIRIT
+Shadowbeast Sighting	BEAST	BEAST
+Shadowheart, Cleric of Order	KNIGHT	KNIGHT_2_2_WHITE
+Shagrat, Loot Bearer	ORC_ARMY	ORC_ARMY
+Shamble Back	ZOMBIE	ZOMBIE
+Sharding Sphinx	THOPTER	THOPTER_1_1_BLUE
+Shorikai, Genesis Engine	PILOT	PILOT
+Shrine of Loyal Legions	PHYREXIAN_MYR	PHYREXIAN_MYR
+Shroofus Sproutsire	SAPROLING	SAPROLING
+Shuri's Fabricator	VIBRANIUM	VIBRANIUM
+Shuri, Vibranium Technologist	ROBOT_HERO	ROBOT_HERO
+Sidisi, Brood Tyrant	ZOMBIE	ZOMBIE
+Siege Veteran	SOLDIER	SOLDIER_1_1_COLORLESS
+Siege-Gang Commander	GOBLIN	GOBLIN
+Sifter of Skulls	ELDRAZI_SCION	ELDRAZI_SCION
+Sigarda, Heron's Grace	HUMAN_SOLDIER	HUMAN_SOLDIER
+Sigil of the Empty Throne	ANGEL	ANGEL_4_4_WHITE
+Sigiled Sword of Valeron	KNIGHT	KNIGHT
+Silk, Web Weaver	HUMAN_CITIZEN	HUMAN_CITIZEN_1_1_GREEN_WHITE
+Silverfur Partisan	WOLF	WOLF
+Silvergill Mentor	MERFOLK	MERFOLK_WHITE_BLUE
+Silverwing Squadron	KNIGHT	KNIGHT
+Simulacrum Synthesizer	CONSTRUCT	CONSTRUCT
+Siona, Captain of the Pyleas	HUMAN_SOLDIER	HUMAN_SOLDIER
+Skeletal Swarming	SKELETON_2	SKELETON
+Skeletal Vampire	BAT	BAT
+Skeletal Vampire	BAT_2	BAT
+Skeleton Crew	SKELETON_PIRATE	SKELETON_PIRATE
+Skeletonize	SKELETON	SKELETON_1_1_BLACK
+Skemfar Elderhall	ELF_WARRIOR	ELF_WARRIOR
+Skirsdag High Priest	DEMON	DEMON
+Skittering Invasion	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Skittering Precursor	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Skrelv's Hive	PHYREXIAN_MITE	PHYREXIAN_MITE
+Skyclave Apparition	ILLUSION	ILLUSION
+Skyknight Vanguard	SOLDIER	SOLDIER
+Skyline Despot	DRAGON	DRAGON_5_5
+Skystrike Officer	SOLDIER	SOLDIER_1_1_COLORLESS
+Skywise Teachings	DJINN_MONK	DJINN_MONK
+Slash, Reptile Rampager	MUTANT	MUTANT
+Slaughter Specialist	HUMAN	HUMAN
+Slayer's Plate	SPIRIT	WHITE_FLYING_SPIRIT
+Sleep with the Fishes	FISH	FISH_1_1_BLUE
+Slime Against Humanity	OOZE	OOZE_0_0_GREEN
+Slime Molding	OOZE	OOZE
+Slimefoot and Squee	SAPROLING	SAPROLING
+Slimefoot, the Stowaway	SAPROLING	SAPROLING
+Sling-Gang Lieutenant	GOBLIN	GOBLIN
+Sliver Hive	SLIVER	SLIVER
+Sliver Queen	SLIVER	SLIVER
+Sly Requisitioner	SERVO	SERVO
+Snake Basket	SNAKE	SNAKE
+Snake Pit	SNAKE	SNAKE
+Snarl Song	FRACTAL	FRACTAL
+Soaring Lightbringer	GLIMMER	GLIMMER
+Sokenzan, Crucible of Defiance	SPIRIT	SPIRIT_1_1_COLORLESS
+Sokka and Suki	ALLY	ALLY
+Sokka, Tenacious Tactician	ALLY	ALLY
+Somberwald Beastmaster	BEAST	BEAST_3_3
+Somberwald Beastmaster	BEAST_2	BEAST
+Somberwald Beastmaster	WOLF	WOLF
+Song of Eärendil	BIRD	BIRD_2_2_BLUE
+Song of Totentanz	RAT	RAT_CANT_BLOCK
+Sorin, Grim Nemesis	VAMPIRE_KNIGHT	VAMPIRE_KNIGHT
+Sosuke's Summons	SNAKE	SNAKE
+Soul Search	SPIRIT	SPIRIT_1_1_WHITE_BLACK
+Soul Separator	ZOMBIE	ZOMBIE_0_0_BLACK
+Soul of Emancipation	ANGEL	ANGEL_3_3_WHITE
+Soul of Migration	BIRD	BIRD
+Soul of Zendikar	BEAST	BEAST_3_3
+Soul of Zendikar	BEAST_2	BEAST_3_3
+Sourbread Auntie	GOBLIN	GOBLIN_1_1_BLACK_RED
+Spawn-Gang Commander	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Spawnbed Protector	ELDRAZI_SCION	ELDRAZI_SCION
+Spawning Bed	ELDRAZI_SCION	ELDRAZI_SCION
+Spawning Breath	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Spawnsire of Ulamog	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Speaker of the Heavens	ANGEL	ANGEL_4_4_WHITE
+Specimen Collector	CRAB	CRAB
+Specimen Collector	SQUIRREL	SQUIRREL
+Spectral Procession	SPIRIT	WHITE_FLYING_SPIRIT
+Spectral Reserves	SPIRIT	WHITE_FLYING_SPIRIT
+Spider Spawning	SPIDER	SPIDER_1_2
+Spider-Girl, Legacy Hero	HUMAN_CITIZEN	HUMAN_CITIZEN_1_1_GREEN_WHITE
+Spider-Slayer, Hatred Honed	ROBOT	ROBOT
+Spiders-Man, Heroic Horde	SPIDER	SPIDER
+Spirit Bonds	SPIRIT	WHITE_FLYING_SPIRIT
+Spirit Cairn	SPIRIT	WHITE_FLYING_SPIRIT
+Spirit Summoning	SPIRIT	SPIRIT_3_2_RED_WHITE
+Spiritual Visit	SPIRIT	SPIRIT_1_1_COLORLESS
+Spoils of Blood	HORROR	HORROR
+Spontaneous Generation	SAPROLING	SAPROLING
+Spore Burst	SAPROLING	SAPROLING
+Spore Swarm	SAPROLING	SAPROLING
+Sporemound	SAPROLING	SAPROLING
+Sporesower Thallid	SAPROLING	SAPROLING
+Sporeweb Weaver	SAPROLING	SAPROLING
+Sporogenesis	SAPROLING	SAPROLING
+Sporoloth Ancient	SAPROLING	SAPROLING
+Springheart Nantuko	INSECT	INSECT
+Springheart Nantuko	INSECT_2	INSECT
+Springjack Shepherd	GOAT	GOAT
+Springleaf Parade	SHAPESHIFTER	SHAPESHIFTER
+Sprout	SAPROLING	SAPROLING
+Sprout Swarm	SAPROLING	SAPROLING
+Sprouting Renewal	ELF_KNIGHT	ELF_KNIGHT
+Sprouting Thrinax	SAPROLING	SAPROLING
+Squad Commander	KOR_WARRIOR	KOR_WARRIOR
+Squee, Dubious Monarch	GOBLIN	GOBLIN
+Squire's Devotion	VAMPIRE	VAMPIRE
+Squirrel Nest	SQUIRREL	SQUIRREL
+Squirrel Sanctuary	SQUIRREL	SQUIRREL
+Squirrel Wrangler	SQUIRREL	SQUIRREL
+Sram's Expertise	SERVO	SERVO
+Staff of Titania	FOREST_DRYAD	FOREST_DRYAD
+Staff of the Storyteller	SPIRIT	WHITE_FLYING_SPIRIT
+Stalactite Dagger	SHAPESHIFTER	SHAPESHIFTER
+Stampede Surfer	BOAR	BOAR
+Stampeding Scurryfoot	ELEPHANT	ELEPHANT
+Starnheim Unleashed	ANGEL_WARRIOR_2	ANGEL_WARRIOR
+Startle	ZOMBIE	ZOMBIE_2_2_BLACK
+Station Monitor	DRONE	DRONE
+Stensia Uprising	HUMAN	HUMAN_1_1_RED
+Steward of Solidarity	WARRIOR	WARRIOR_1_1_WHITE
+Stimulus Package	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Stinging Hivemaster	PHYREXIAN_MITE	PHYREXIAN_MITE
+Stir the Sands	ZOMBIE	ZOMBIE
+Stir the Sands	ZOMBIE_2	ZOMBIE
+Stitcher Geralf	ZOMBIE	ZOMBIE_0_0_BLUE
+Stoic Grove-Guide	ELF	ELF_2_2_BLACK_GREEN
+Stolen by the Fae	FAERIE	FAERIE
+Stone Idol Generator	CONSTRUCT	CONSTRUCT_6_12_COLORLESS
+Stone Idol Trap	CONSTRUCT	CONSTRUCT_6_12_COLORLESS
+Stonybrook Schoolmaster	MERFOLK_WIZARD	MERFOLK_WIZARD
+Storm Herd	PEGASUS	PEGASUS
+Stormchaser's Talent	OTTER	OTTER
+Stormchaser's Talent	OTTER_2	OTTER
+Stormfront Riders	SOLDIER	SOLDIER
+Strength of Arms	HUMAN_SOLDIER	HUMAN_SOLDIER
+Strix Serenade	BIRD	BIRD_2_2_BLUE
+Stroke of Midnight	HUMAN	HUMAN
+Suki, Courageous Rescuer	ALLY	ALLY
+Suki, Kyoshi Warrior	ALLY	ALLY
+Sultai Monument	ZOMBIE_DRUID	ZOMBIE_DRUID
+Summon the School	MERFOLK_WIZARD	MERFOLK_WIZARD
+Summon: Fat Chocobo	BIRD	BIRD_2_2_GREEN
+Summon: Good King Mog XII	MOOGLE	MOOGLE
+Summon: Knights of Round	KNIGHT_4	KNIGHT_2_2_WHITE
+Summoner's Sending	SPIRIT	WHITE_FLYING_SPIRIT
+Sune's Intervention	KNIGHT	KNIGHT_2_2_WHITE
+Sunhome Guildmage	SOLDIER	SOLDIER_1_1_RED_WHITE
+Sunset Revelry	HUMAN	HUMAN
+Sunspire Gatekeepers	KNIGHT	KNIGHT
+Super-Skrull	WALL	WALL_0_4_DEFENDER
+Supply // Demand	SAPROLING	SAPROLING_1_1_GREEN
+Supply Caravan	WARRIOR	WARRIOR_1_1_WHITE
+Surrounded by Orcs	ORC_ARMY	ORC_ARMY
+Survey the Wreckage	GOBLIN	GOBLIN
+Suspicious Shambler	ZOMBIE	ZOMBIE
+Swan Song	BIRD	BIRD_2_2_BLUE
+Swarm Shambler	INSECT	INSECT
+Swarming Goblins	GOBLIN	GOBLIN
+Swarming Goblins	GOBLIN_2	GOBLIN
+Swarming Goblins	GOBLIN_3	GOBLIN
+Swarming of Moria	ORC_ARMY	ORC_ARMY
+Swarmyard Massacre	SQUIRREL	SQUIRREL
+Sweep the Skies	THOPTER	THOPTER
+Sword of Body and Mind	WOLF	WOLF
+Sworn Companions	SOLDIER	SOLDIER_1_1_WHITE
+Sylvan Offering	ELF_WARRIOR	ELF_WARRIOR
+Sylvan Offering	TREEFOLK	TREEFOLK_0_0_GREEN
+Sylvan Scavenging	RACCOON	RACCOON
+Symbiotic Beast	INSECT	INSECT
+Symbiotic Elf	INSECT	INSECT
+Symbiotic Wurm	INSECT	INSECT
+Synapse Necromage	FUNGUS	FUNGUS
+Syphon Flesh	ZOMBIE	ZOMBIE
+T'Challa, the Black Panther	VIBRANIUM	VIBRANIUM
+Tainted Adversary	ZOMBIE	ZOMBIE_2_2_BLACK
+Take Up Arms	WARRIOR	WARRIOR
+Talrand's Invocation	DRAKE	DRAKE
+Talrand, Sky Summoner	DRAKE	DRAKE
+Tana, the Bloodsower	SAPROLING	SAPROLING
+Tangled Colony	RAT	RAT_CANT_BLOCK
+Tegwyll's Scouring	FAERIE_ROGUE	FAERIE_ROGUE
+Tellah, Great Sage	HERO	HERO
+Tempt with Vengeance	ELEMENTAL_3	ELEMENTAL_1_1_RED_HASTE
+Temur Monument	ELEPHANT	ELEPHANT_5_5_GREEN
+Tend the Sprigs	TREEFOLK	TREEFOLK
+Tendershoot Dryad	SAPROLING	SAPROLING
+Terastodon	ELEPHANT	ELEPHANT
+Termagant Swarm	TYRANID	TYRANID
+Tervigon	TYRANID	TYRANID
+Teval's Judgment	ZOMBIE_DRUID	ZOMBIE_DRUID
+Teval, the Balanced Scale	ZOMBIE_DRUID	ZOMBIE_DRUID
+Teyo, the Shieldmage	WALL	WALL
+Teysa, Envoy of Ghosts	SPIRIT	SPIRIT_1_1_WHITE_BLACK
+Teysa, Opulent Oligarch	SPIRIT	SPIRIT_1_1_WHITE_BLACK
+Teysa, Orzhov Scion	SPIRIT	WHITE_FLYING_SPIRIT
+Tezzeret, Artifice Master	THOPTER	THOPTER
+Thalia's Geistcaller	SPIRIT	WHITE_FLYING_SPIRIT
+Thalisse, Reverent Medium	SPIRIT	WHITE_FLYING_SPIRIT
+Thallid	SAPROLING	SAPROLING
+Thallid Devourer	SAPROLING	SAPROLING
+Thallid Germinator	SAPROLING	SAPROLING
+Thallid Shell-Dweller	SAPROLING	SAPROLING
+The Bears of Littjara	SHAPESHIFTER	SHAPESHIFTER_2_2_BLUE
+The Cave of Two Lovers	ALLY	ALLY
+The Circle of Loyalty	KNIGHT	KNIGHT
+The Circle of Loyalty	KNIGHT_2	KNIGHT
+The Council of Four	KNIGHT	KNIGHT_2_2_WHITE
+The Crystal's Chosen	HERO	HERO
+The Earth King	BEAR	BEAR_4_4_GREEN
+The Elder Dragon War	DRAGON	DRAGON
+The Fantastic Four	WALL	WALL_0_4_DEFENDER
+The First Iroan Games	HUMAN_SOLDIER	HUMAN_SOLDIER
+The Golden-Gear Colossus // Tetzin, Gnome Champion	GNOME	GNOME_1_1_COLORLESS
+The Great Mound	VIBRANIUM	VIBRANIUM
+The Hunger Tide Rises	INSECT_3	INSECT_1_1_BLACK_GREEN
+The Huntsman's Redemption	BEAST	BEAST_3_3
+The Lonely Mountain	DWARF	DWARF
+The Lost and the Damned	SPAWN	SPAWN
+The Misty Mountains Cold	DRAGON_4	DRAGON_6_6_RED
+The Mouth of Sauron	ORC_ARMY	ORC_ARMY
+The Mycotyrant	FUNGUS	FUNGUS
+The Raven's Warning	BIRD	BIRD_1_1_BLUE
+The Sibsig Ceremony	ZOMBIE_DRUID	ZOMBIE_DRUID
+The Swarmweaver	INSECT	INSECT_1_1_BLACK_GREEN_FLYING
+The Torment of Gollum	ORC_ARMY	ORC_ARMY
+The Unbeatable Squirrel Girl	SQUIRREL	SQUIRREL
+The Unbeatable Squirrel Girl	SQUIRREL_2	SQUIRREL
+The Wandering Emperor	SAMURAI	SAMURAI
+The War Games	WARRIOR	WARRIOR
+The Watcher in the Water	TENTACLE	TENTACLE
+The Weatherseed Treaty	SAPROLING	SAPROLING
+Their Number Is Legion	NECRON_WARRIOR	NECRON_WARRIOR
+Thelonite Hermit	SAPROLING	SAPROLING
+Third Path Iconoclast	SOLDIER	SOLDIER_1_1_COLORLESS
+Thopter Assembly	THOPTER	THOPTER
+Thopter Engineer	THOPTER	THOPTER
+Thopter Fabricator	THOPTER	THOPTER
+Thopter Foundry	THOPTER	THOPTER_1_1_BLUE
+Thopter Mechanic	THOPTER	THOPTER
+Thopter Shop	THOPTER	THOPTER
+Thopter Spy Network	THOPTER	THOPTER
+Thopter Squadron	THOPTER	THOPTER
+Thorn Lieutenant	ELF_WARRIOR	ELF_WARRIOR
+Thraben Doomsayer	HUMAN	HUMAN
+Thraben Standard Bearer	HUMAN_SOLDIER	HUMAN_SOLDIER
+Thragtusk	BEAST	BEAST_3_3
+Thranduil the Strategist	ELF	ELF
+Three Blind Mice	MOUSE	MOUSE
+Threefold Thunderhulk	GNOME	GNOME
+Throne of Empires	SOLDIER	SOLDIER
+Throne of Empires	SOLDIER_2	SOLDIER
+Thrumming Hivepool	SLIVER	SLIVER
+Thunderhawk Gunship	ASTARTES_WARRIOR	ASTARTES_WARRIOR
+Thundering Spineback	DINOSAUR	DINOSAUR
+Tibalt, Rakish Instigator	DEVIL	DEVIL
+Tidings of War	GOBLIN_ARMY	GOBLIN_ARMY
+Tidings of War	GOBLIN_ARMY_2	GOBLIN_ARMY
+Tilonalli's Summoner	ELEMENTAL	ELEMENTAL_1_1_RED
+Timely Reinforcements	SOLDIER	SOLDIER
+Tin Street Cadet	GOBLIN	GOBLIN
+Tinker's Tote	GNOME	GNOME
+Titan of Industry	RHINO_WARRIOR	RHINO_WARRIOR
+Titania's Command	BEAR	BEAR
+Titania, Nature's Force	ELEMENTAL	ELEMENTAL_5_3_GREEN
+Titania, Protector of Argoth	ELEMENTAL	ELEMENTAL_5_3_GREEN
+Tivash, Gloom Summoner	DEMON	DEMON_0_0_BLACK
+Tobias, Doomed Conqueror	ZOMBIE	ZOMBIE
+Toll of the Invasion	ZOMBIE_ARMY	ZOMBIE_ARMY
+Tolls of War	ALLY	ALLY
+Tormod, the Desecrator	ZOMBIE	ZOMBIE
+Torsten, Founder of Benalia	SOLDIER	SOLDIER
+Totentanz, Swarm Piper	RAT	RAT_CANT_BLOCK
+Tovolar's Packleader // Tovolar's Huntmaster	WOLF	WOLF_2_2_GREEN
+Trading Post	GOAT	GOAT
+Trance Kuja, Fate Defied // Kuja, Genome Sorcerer	WIZARD	WIZARD_0_1_BLACK
+Transluminant	SPIRIT	WHITE_FLYING_SPIRIT
+Transmogrant Altar	ZOMBIE	ZOMBIE_3_3_COLORLESS
+Transmogrifying Wand	OX	OX_2_4_WHITE
+Transpose	WIZARD	WIZARD
+Treason of Isengard	ORC_ARMY	ORC_ARMY
+Treetop Freedom Fighters	ALLY	ALLY
+Tribune of Rot	SAPROLING	SAPROLING
+Trigon of Infestation	PHYREXIAN_INSECT	PHYREXIAN_INSECT
+Triplicate Spirits	SPIRIT	WHITE_FLYING_SPIRIT
+Trostani Discordant	SOLDIER	SOLDIER_1_1_WHITE
+Trostani's Summoner	CENTAUR	CENTAUR
+Trostani's Summoner	KNIGHT	KNIGHT
+Trostani's Summoner	RHINO	RHINO
+Trumpeting Gnarr	BEAST	BEAST_3_3
+Trumpeting Herd	ELEPHANT	ELEPHANT
+Trynn, Champion of Freedom	HUMAN_SOLDIER	HUMAN_SOLDIER
+Tukatongue Thallid	SAPROLING	SAPROLING
+Tumbleweed Rising	ELEMENTAL	ELEMENTAL_0_0_GREEN
+Tunnel Surveyor	GLIMMER	GLIMMER
+Tura Kennerüd, Skyknight	SOLDIER	SOLDIER
+Turntimber Ranger	WOLF	WOLF
+Turntimber Ranger	WOLF_2	WOLF
+Turntimber Sower	PLANT	PLANT
+Turtle Blimp	MUTANT	MUTANT
+Twilight Drover	SPIRIT	WHITE_FLYING_SPIRIT
+Twin-Silk Spider	SPIDER	SPIDER_1_2
+Twisted Sewer-Witch	RAT	RAT_CANT_BLOCK
+Tymaret Calls the Dead	ZOMBIE	ZOMBIE
+Tymaret Calls the Dead	ZOMBIE_2	ZOMBIE
+Tyranid Harridan	TYRANID_GARGOYLE	TYRANID_GARGOYLE
+Tyranid Invasion	TYRANID_WARRIOR	TYRANID_WARRIOR
+Ulamog's Dreadsire	ELDRAZI	ELDRAZI
+Ulasht, the Hate Seed	SAPROLING	SAPROLING
+Ultron Drone	ROBOT_VILLAIN	ROBOT_VILLAIN
+Ultron the Annihilator	ROBOT_VILLAIN	ROBOT_VILLAIN
+Ulvenwald Mysteries	HUMAN_SOLDIER	HUMAN_SOLDIER
+Umbral Juke	INKLING	INKLING_2_1_WHITE_BLACK
+Undead Alchemist	ZOMBIE	ZOMBIE
+Undead Servant	ZOMBIE	ZOMBIE
+Undercellar Myconid	SAPROLING_2	SAPROLING
+Undercellar Sweep	SOLDIER	SOLDIER
+Underfoot Underdogs	GOBLIN	GOBLIN
+Underworld Hermit	SQUIRREL	SQUIRREL
+Uneasy Alliance	NINJA	NINJA
+Unfathomable Truths	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Unforgiving Aim	ELF	ELF_2_2_BLACK_GREEN
+Unified Front	KOR_ALLY	KOR_ALLY
+United Front	ALLY	ALLY
+Unscythe, Killer of Kings	ZOMBIE	ZOMBIE
+Unyielding Gatekeeper	DETECTIVE	DETECTIVE
+Urbis Protector	ANGEL	ANGEL_4_4_WHITE
+Urtet, Remnant of Memnarch	MYR	MYR
+Urza, Chief Artificer	CONSTRUCT	CONSTRUCT
+Urza, Lord High Artificer	CONSTRUCT	CONSTRUCT
+Usher of the Fallen	HUMAN_WARRIOR	HUMAN_WARRIOR
+Utopia Mycon	SAPROLING	SAPROLING
+Utvara Hellkite	DRAGON	DRAGON_6_6_RED
+Valduk, Keeper of the Flame	ELEMENTAL	ELEMENTAL_3_1_RED_HASTE_TRAMPLE
+Valiant Rescuer	HUMAN_SOLDIER	HUMAN_SOLDIER
+Valkyrie Harbinger	ANGEL	ANGEL
+Valkyrie's Sword	ANGEL_WARRIOR	ANGEL_WARRIOR
+Valor of the Worthy	SPIRIT	WHITE_FLYING_SPIRIT
+Valor's Flagship	PILOT	PILOT_SADDLES_AND_CREWS
+Valorous Steed	KNIGHT	KNIGHT
+Varina, Lich Queen	ZOMBIE	ZOMBIE
+Vault 101: Birthday Party	HUMAN_SOLDIER	HUMAN_SOLDIER
+Vengeful Regrowth	PLANT_WARRIOR	PLANT_WARRIOR
+Verdant Command	SQUIRREL	SQUIRREL
+Verdant Embrace	SAPROLING	SAPROLING
+Verdant Force	SAPROLING	SAPROLING
+Verdeloth the Ancient	SAPROLING	SAPROLING
+Vernal Sovereign	ELEMENTAL	ELEMENTAL_0_0_GREEN_WHITE
+Veronica, Dissident Scribe	JUNK	JUNK
+Vessel of Ephemera	SPIRIT	WHITE_FLYING_SPIRIT
+Vibranium Mining Mech	VIBRANIUM	VIBRANIUM
+Vile Rebirth	ZOMBIE	ZOMBIE
+Vile Redeemer	ELDRAZI_SCION	ELDRAZI_SCION
+Vilespawn Spider	INSECT	INSECT
+Violet Pall	FAERIE_ROGUE	FAERIE_ROGUE
+Viral Spawning	PHYREXIAN_BEAST	PHYREXIAN_BEAST
+Virtual Assistant	ROBOT_HERO	ROBOT_HERO
+Virtue of Loyalty // Ardenvale Fealty	KNIGHT	KNIGHT_2_2_WHITE_VIGILANCE
+Vishgraz, the Doomhive	PHYREXIAN_MITE	PHYREXIAN_MITE
+Visionary's Dance	ELEMENTAL	ELEMENTAL_3_3_BLUE_RED
+Vital Splicer	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Vitality Charm	INSECT	INSECT
+Vitaspore Thallid	SAPROLING	SAPROLING
+Vito, Fanatic of Aclazotz	VAMPIRE_DEMON	VAMPIRE_DEMON
+Vitu-Ghazi Guildmage	CENTAUR	CENTAUR
+Vitu-Ghazi, the City-Tree	SAPROLING	SAPROLING
+Vivien on the Hunt	RHINO_WARRIOR	RHINO_WARRIOR
+Vivien, Monsters' Advocate	BEAST	BEAST_3_3
+Vizier of the Scorpion	ZOMBIE_ARMY	ZOMBIE_ARMY
+Voice of Resurgence	ELEMENTAL	ELEMENTAL_0_0_GREEN_WHITE
+Voice of the Provinces	HUMAN	HUMAN
+Voracious Vermin	RAT	RAT_CANT_BLOCK
+Vraska, Relic Seeker	PIRATE	PIRATE
+Waiting in the Weeds	CAT	CAT_1_1_GREEN
+Wakandan Shield Guard	SOLDIER	SOLDIER
+Wakedancer	ZOMBIE	ZOMBIE
+Waking the Trolls	TROLL_WARRIOR	TROLL_WARRIOR
+Walker of the Grove	ELEMENTAL	ELEMENTAL_4_4_GREEN
+Wall Crawl	SPIDER	SPIDER
+Wall Off	WALL	WALL_0_4_DEFENDER
+Wan Shi Tong, All-Knowing	SPIRIT	SPIRIT
+Wand of Orcus	ZOMBIE	ZOMBIE
+Wanderwine Farewell	MERFOLK	MERFOLK_WHITE_BLUE
+Wanted Griffin	MERCENARY	MERCENARY
+War Effort	WARRIOR	WARRIOR_1_1_RED
+Warbeast of Gorgoroth	ORC_ARMY	ORC_ARMY
+Warbreak Trumpeter	GOBLIN	GOBLIN
+Warchanter Skald	DWARF_BERSERKER	DWARF_BERSERKER
+Warehouse Tabby	RAT	RAT_CANT_BLOCK
+Warg Rider	ORC_ARMY	ORC_ARMY
+Warm Welcome	CITIZEN	CITIZEN_1_1_GREEN_WHITE
+Warped Tusker	ELDRAZI_SPAWN_2	ELDRAZI_SPAWN
+Warren Warleader	RABBIT	RABBIT
+Warren Weirding	GOBLIN_ROGUE	GOBLIN_ROGUE
+Waste Management	ROGUE_2	ROGUE
+Waste Not	ZOMBIE	ZOMBIE
+Watchful Giant	HUMAN	HUMAN
+Way of the Deathbringer	BEAST	BEAST_4_4_TRAMPLE
+Way of the Wildspeaker	BEAST	BEAST_4_4_TRAMPLE
+Waylay	KNIGHT	KNIGHT_2_2_WHITE
+Wedding Festivity // Wedding Announcement	HUMAN	HUMAN_1_1_WHITE
+Wedgelight Rammer	ROBOT	ROBOT_2_2
+Weirding Shaman	GOBLIN_ROGUE	GOBLIN_ROGUE
+Welcome the Darkness	DEMON	DEMON_0_0_BLACK
+Welcome the Dead	ZOMBIE_DRUID	ZOMBIE_DRUID
+Welcome to Sweettooth	HUMAN	HUMAN
+Westvale Cult Leader // Hanweir Militia Captain	HUMAN_CLERIC	HUMAN_CLERIC
+Wharf Infiltrator	ELDRAZI_HORROR	ELDRAZI_HORROR
+Whirler Rogue	THOPTER	THOPTER
+Whirler Virtuoso	THOPTER	THOPTER
+Whirlermaker	THOPTER	THOPTER
+Whispering Wizard	SPIRIT	WHITE_FLYING_SPIRIT
+White Glove Gourmand	HUMAN_SOLDIER	HUMAN_SOLDIER
+White Sun's Twilight	PHYREXIAN_MITE	PHYREXIAN_MITE
+White Sun's Zenith	CAT	CAT_2_2_WHITE
+Widespread Brutality	ZOMBIE_ARMY	ZOMBIE_ARMY
+Wight	ZOMBIE	ZOMBIE
+Wild Hypothesis	FRACTAL	FRACTAL
+Wild Roads	PILOT	PILOT_SADDLES_AND_CREWS
+Wilhelt, the Rotcleaver	ZOMBIE	ZOMBIE_2_2_BLACK
+Windcrag Siege	GOBLIN	GOBLIN
+Windswift Slice	ELF_WARRIOR	ELF_WARRIOR
+Wing Splicer	PHYREXIAN_GOLEM	PHYREXIAN_GOLEM
+Wingblade Disciple	BIRD	BIRD
+Wingmantle Chaplain	BIRD_2	BIRD
+Wirewood Hivemaster	INSECT	INSECT
+Wish Good Luck	VEHICLE	VEHICLE
+Within Range	WARRIOR	WARRIOR_1_1_RED
+Wizened Mentor	ZOMBIE	ZOMBIE_1_1_WHITE
+Woe Strider	GOAT	GOAT
+Wolf-Skull Shaman	WOLF	WOLF
+Wolfbriar Elemental	WOLF	WOLF
+Wolfcaller's Howl	WOLF	WOLF
+Wolfkin Bond	WOLF	WOLF
+Wolfrider's Saddle	WOLF	WOLF
+Wolfwillow Haven	WOLF	WOLF
+Wolverine Riders	ELF_WARRIOR	ELF_WARRIOR
+Wooden Cane	MUTANT	MUTANT
+Words of Wilding	BEAR	BEAR
+Worldspine Wurm	WURM	WURM_5_5_GREEN
+Worm Harvest	WORM	WORM
+Worthy Knight	HUMAN	HUMAN
+Wrangler of the Damned	SPIRIT	SPIRIT_2_2_WHITE
+Wriggling Grub	WORM	WORM
+Writhing Chrysalis	ELDRAZI_SPAWN	ELDRAZI_SPAWN
+Wurmweaver Coil	WURM	WURM
+Xathrid Necromancer	ZOMBIE	ZOMBIE
+Xenagos, the Reveler	SATYR	SATYR
+Xerex Strobe-Knight	KNIGHT	KNIGHT_2_2_WHITE_BLUE
+Xira, the Golden Sting	INSECT	INSECT_1_1_BLACK
+Xyris, the Writhing Storm	SNAKE	SNAKE
+Yavimaya Sapherd	SAPROLING	SAPROLING
+You See a Pair of Goblins	GOBLIN	GOBLIN
+You're Confronted by Robbers	SOLDIER	SOLDIER
+Young Pyromancer	ELEMENTAL	ELEMENTAL_1_1_RED
+Yuma, Proud Protector	PLANT_WARRIOR	PLANT_WARRIOR
+Zaffai, Thunder Conductor	ELEMENTAL	ELEMENTAL
+Zahur, Glory's Past	ZOMBIE	ZOMBIE
+Zariel, Archduke of Avernus	DEVIL	DEVIL
+Zaxara, the Exemplary	HYDRA	HYDRA
+Zektar Shrine Expedition	ELEMENTAL	ELEMENTAL_7_1_RED
+Zeriam, Golden Wind	GRIFFIN	GRIFFIN
+Zombie Infestation	ZOMBIE	ZOMBIE
+Zuko, Avatar Hunter	SOLDIER	SOLDIER_2_2_RED_2
+Éomer of the Riddermark	HUMAN_SOLDIER	HUMAN_SOLDIER
+Éowyn, Shieldmaiden	HUMAN_KNIGHT	HUMAN_KNIGHT

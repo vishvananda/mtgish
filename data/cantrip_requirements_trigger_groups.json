@@ -1,0 +1,7 @@
+[
+ {
+  "match": "^a triggered ability carrying separate groups of objects$",
+  "class": "generator",
+  "needs": "Carry distinct delayed or reflexive object bindings without sentinel ObjectIds. Reuse the existing subject and object-list channels where sufficient: Cantrip's hand-written Berserk already does. Audit the remaining cards before requesting a grouped trigger-payload API; the current event_objects list contains only real objects."
+ }
+]

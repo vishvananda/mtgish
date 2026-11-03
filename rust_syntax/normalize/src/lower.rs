@@ -496,6 +496,18 @@ impl Context {
         if crate::semantics::singular_operation(&operation, |r| self.singular.contains(&r.0)) {
             self.singular.insert(self.result);
         }
+        // The top of a library revealed and then moved (Sorin the Mirthless: "reveal that card and put it into your hand.
+        // If you do, you lose life equal to its mana value"): "that card" is what the move took, as it was, not the top
+        // read again, which is another card by then.
+        if let Operation::Move { objects, .. } = &operation {
+            let same = |revealed: &ObjectSet| format!("{revealed:?}") == format!("{objects:?}");
+            if matches!(objects, ObjectSet::Take { .. }) && self.revealed.as_ref().is_some_and(same) {
+                self.revealed = Some(ObjectSet::Transition {
+                    result: ResultId(self.result),
+                    phase: ObjectPhase::Before,
+                });
+            }
+        }
         if let Operation::Search { library, .. } = &operation {
             self.open_searches.push(library.clone());
         }
@@ -2765,6 +2777,17 @@ impl Context {
                 entry: EntrySpec::default(),
                 face_down: false,
             }));
+        }
+        // "Reveal exactly two cards you own with different names from outside the
+        // game": the cards are chosen, then revealed (Extrapolate the Impossible).
+        if let source::Action::RevealNumberGroupCardsFromOutsideGame(..) = value {
+            let choice = self.acted_by(actor, |context| context.acted_action(value, actor))?;
+            if let Instruction::Effect { result, operation: Operation::ChooseObjects { .. } } = &choice {
+                let objects = ObjectSet::Selected(result.clone());
+                let reveal = self.effect(Operation::Reveal { objects });
+                return Ok(Instruction::Group(Program { instructions: vec![choice, reveal] }));
+            }
+            return Ok(choice);
         }
         self.acted_by(actor, |context| context.acted_action(value, actor))
     }

@@ -62,7 +62,8 @@ blockers, decline, first eligible card, find nothing, discard newest. So a line 
 - A `? Key = Value` is checked at the next question after the line above it. Right after a cast the spell is still on the stack.
 - A trigger's target is asked as the trigger goes on the stack: `Bot1.Target(Bot2.Battlefield.Island)`.
 - A cast waits until every named target is legal. A spell with no legal target is not offered.
-- A line that cannot happen within 4 turns fails. `Outstanding: ... asked PayCosts` means the mana came up short.
+- A line that cannot happen within 4 turns fails. `Outstanding: ... asked PayCosts` means the mana came up short. A cast that never
+  becomes possible is often forbidden by the card itself (a second Mox under Cornered Market): set the board up before it enters.
 - A script stops when every line has fired and the stack is empty. It does not reach combat or the next turn unless a trailing
   wait (`[T3 Bot1.Main2]`) says so.
 - Bots with nothing to do draw and discard each turn, which changes `Hand.Count` and `Graveyard`.
@@ -79,6 +80,9 @@ blockers, decline, first eligible card, find nothing, discard newest. So a line 
 | `Bot1.Battlefield.Tundra.Activate(Ability: {U})` | one of several abilities, by part of its text; `Ability: #2` the Nth |
 | `Bot1.Battlefield.Cathar Commando.Activate(Bot2.Battlefield.Sol Ring)` | arguments are targets |
 | `Bot1.Battlefield.Black Lotus.Activate(Color: Blue)` | mana of any one color |
+| `Bot1.Battlefield.Mox Ruby#1.Activate` then `Bot1.Hand.Shock.Cast(Bot2)` | a cost paid from the source you choose: tap it on the line right before the cast, in the same step. Only the Moxen and Black Lotus cost {0}: Sol Ring costs {1}, and a land that enters tapped pays nothing that turn. `paying for X with {1} still owed, and the next line does not pay it` means the sources tapped come short |
+| `? Bot1.Mana =` right after the cast | the pool once the cost is paid, empty if it was paid exactly. Tap exactly the cost, in one color where the cost lets you choose: four `{R}` for `{2}{R/G}{R/G}`, not `{R}{R}{R}{G}`. A pool that can pay it more than one way is asked which mana pays, and the `?` reads the pool before that answer, all of it still there |
+| `Bot1.Battlefield.Smuggler's Copter.Activate(Ability: Crew)` then `Bot1.Choose(Grizzly Bears)` | crew, and the creatures that tap for it |
 | `Bot1.Pass` · `Bot1.Accept` · `Bot1.Decline` · `Bot1.PayCost` | priority, "you may", unless-costs (default: decline) |
 | `Bot1.Target(Sol Ring)` · `Bot1.Target(Island; Mountain)` · `Bot1.Target()` | a trigger's or mode's targets; none for "up to" |
 | `Bot1.Choose(Island; Forest)` | choosing cards as something resolves |
@@ -89,6 +93,7 @@ blockers, decline, first eligible card, find nothing, discard newest. So a line 
 | `Bot1.AssignDamage(Ox > Lurker: 1; Ox > Raider: 3)` | how combat damage divides |
 | `Bot1.Divide(Grizzly Bears: 2; Hill Giant: 1)` | a divided slot's targets and shares |
 | `Bot1.Modes(1; 4)` · `Bot1.Modes(Destroy target artifact)` | a modal spell's modes |
+| `Bot1.Modes(Elf)` · `Bot1.Modes(Mountain)` | a creature type, land type or other subtype chosen as asked (`ChooseSubtype`) |
 | `Bot1.Colors(Red)` · `Bot1.Name(Lightning Bolt)` · `Bot1.Number(7)` · `Bot1.ChoosePlayer(Bot2)` | chosen as asked |
 
 Three players: add a `[Bot3 Deck]`; turns go Bot1, Bot2, Bot3, so a wait for Bot1 after turn 1 is `[T4 Bot1.Main1]`. A search that
@@ -104,6 +109,16 @@ have one, `Island#2` for a second copy, top first. A token is its rules name: th
 one target. `! Bot2.Block(Blocker > Attacker)` and `! Bot1.Attack(Attacker > Bot2)` refuse a pair at the next declaration. `!
 Bot1.Search(Plains)` refuses a find. A bare `! Bot1.Choose` (also `Accept`, `Target`, `Modes`) says the question is not asked; it
 needs something since the line above that could have asked it, so `Bot1.Pass` first.
+
+A limit is shown by refusing an answer past it, at the question:
+- `! Bot1.Modes(Count: 0)`: choosing no mode is refused ("choose one or both" takes at least one).
+- `! Bot1.Choose(A; B)`, several names that may each be chosen: that one answer is refused (too many for "up to one").
+  `! Bot1.Choose()`: choosing nothing is refused.
+- `! Bot1.Target(Count: 2)`: the slot does not take that many. `! Bot1.Target(Count: 0)`: it takes at least one.
+- `! Bot1.Arrange(A | B; C)`: that placement is refused, one group per destination in the prompt's order (one card to the
+  hand where it takes two). `! Bot1.Arrange(Shuffle)`: shuffling instead is refused.
+- `! Bot2.Block(Count: 0)`, `! Bot1.Attack()`: declaring none is refused.
+- `! Bot1.PayCost(Times: 4)`: paying that many times is refused.
 
 A refusal lands on the next question, so put it where the action would otherwise be legal. An action the player can't pay for
 is not offered, and the runner judges a refused cast or activation again with mana to spare, failing it as "proves nothing":
@@ -140,7 +155,10 @@ A few short scenarios that together run every line and take every branch of the 
 - A spell or creature with a mana cost gets `? Bot1.Mana =`, nothing after the `=`, right after its cast, paid exactly, so a cost
   too low fails. A `!` with a positive control proves a limit the card's own code enforces.
 - A keyword gets a scenario that fails without it: the flier that cannot be blocked, the first striker that takes no damage back. The gates take each keyword off the card and play the scenarios, so a card that only checks its power and toughness does not pass.
-- **Rulings are specification.** Each gets an expectation unless the card's own code decides nothing there.
+- **Rulings are specification**: read each before you validate, since the card must be right by all of them. A scenario is
+  owed only to a ruling the card's own code decides, where it could get an interaction wrong (a value read that can change,
+  last-known information, a rule its own code applies). One about the engine or a shared mechanic is tested where that was
+  built: leave it `null`.
 - **Order.** If swapping two of the card's steps leaves the end state the same, add a `?` between them. Where nothing can be asked
   between them, as a search and the shuffle after it, say so in the report instead.
 - **Last-known information.** If the code reads `old`, use something whose answer differs on the battlefield and in the graveyard.

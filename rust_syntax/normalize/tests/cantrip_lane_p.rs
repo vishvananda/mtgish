@@ -30,7 +30,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Alchemist's Retrieval", "cleave that changes its targets"),
     ("Abzan Charm", "target with a divided amount"),
     ("Rhino, Terrible Trampler", "target with a divided amount"),
-    ("Riptide Replicator", "token of the chosen color"),
+    // The chosen color and type on the token's copiable values (lane g2).
+    ("Riptide Replicator", "g.create_token_copies_of(values_"),
     (
         "Davriel, Soul Broker",
         "a choice among options offered at random",
@@ -41,7 +42,6 @@ const CARDS: &[(&str, &str)] = &[
         "a choice of Ability outside its body",
     ),
     ("Typhoid Mary, Fractured", "modal announcement"),
-    ("Diligent Farmhand", "source-zone scope on CountsAsNamed"),
     ("Kari Zev, Crew of Two", "operation Conjure"),
     // A delayed ability's target is carried once for each of its share.
     ("Bounty of the Hunt", "g.delayed_trigger_about"),

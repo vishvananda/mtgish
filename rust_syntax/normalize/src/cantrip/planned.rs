@@ -31,6 +31,95 @@ const LANDED: &[&str] = &[
     "numeric-expression-times-mutated",
 ];
 
+/// Cantrip features some Cantrip has and another may not: (name, the line of
+/// `crates/cantrip-api` that shows a tree has it, the requirements it lands).
+/// The code is always the code the feature takes; where the pinned Cantrip
+/// (`cantrip_vocab::FEATURES`) lacks it, that code is a hole naming the
+/// requirement, so the file compiles there and the two differ only by the
+/// holes. `tools/update_cantrip_vocabulary.py` reads this table to write
+/// `FEATURES`: keep each entry on one line, its name a literal.
+const SWITCHED: &[(&str, &str, &[&str])] = &[
+    // `CardDef::lasting_rules` with `Game::add_lasting_rule` (a rule on an open
+    // set, CR 611.2c), `EffectKind::DoesntUntap`, and the durations
+    // `DuringItsControllersNextUntapStep` and `DuringNextUntapStepOf`: Cantrip
+    // PR #897. Its rules on open sets are `plan_switched` holes, not landed ids:
+    // a rule it has no `LastingRuleKind` for shares their requirement.
+    ("lasting-rules", "fn add_lasting_rule", &["continuous-rule-untap-step", "duration-during-controllers-next-untap-step", "duration-during-next-untap-step"]),
+];
+/// The feature of `SWITCHED` that writes rules on open sets of objects.
+pub(super) const LASTING_RULES: &str = "lasting-rules";
+
+/// A stand-in for the snapshot's `FEATURES`, for a test that writes both forms:
+/// a bit for each `SWITCHED` entry, or `NO_STAND_IN`.
+static STAND_IN: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(NO_STAND_IN);
+const NO_STAND_IN: u32 = u32::MAX;
+
+/// Writes as if the pinned Cantrip had exactly the `SWITCHED` features
+/// `features` while `f` runs, one caller at a time. For tests only: the
+/// generator's own answer is the snapshot's.
+#[doc(hidden)]
+pub fn with_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
+    use std::sync::atomic::Ordering;
+    static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _held = ONE_AT_A_TIME.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut bits = 0;
+    for feature in features {
+        let at = SWITCHED.iter().position(|s| s.0 == *feature);
+        bits |= 1 << at.unwrap_or_else(|| panic!("{feature:?} is no feature of SWITCHED"));
+    }
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            STAND_IN.store(NO_STAND_IN, Ordering::SeqCst);
+        }
+    }
+    let _restore = Restore;
+    STAND_IN.store(bits, Ordering::SeqCst);
+    f()
+}
+/// Whether the Cantrip being written for has the `SWITCHED` feature `name`.
+pub(super) fn switched_on(name: &str) -> bool {
+    match STAND_IN.load(std::sync::atomic::Ordering::SeqCst) {
+        NO_STAND_IN => crate::cantrip_vocab::FEATURES.contains(&name),
+        bits => SWITCHED.iter().position(|s| s.0 == name).is_some_and(|at| bits & (1 << at) != 0),
+    }
+}
+/// Whether the requirement `id` has landed in the Cantrip being written for.
+fn landed_id(id: &str) -> bool {
+    LANDED.contains(&id)
+        || SWITCHED.iter().any(|(name, _, ids)| ids.contains(&id) && switched_on(name))
+}
+
+/// An item the card will have once `feature` exists: `planned_item!` of it
+/// until then.
+pub(super) fn planned_item(feature: &str, item: &str) -> String {
+    match landed(feature) {
+        true => item.to_string(),
+        false => format!("planned_item!({:?} => {item});", requirement(feature)),
+    }
+}
+
+/// An item of the `SWITCHED` feature `switched`, `planned_item!` of
+/// `feature` until the Cantrip being written for has it.
+pub(super) fn switched_item(switched: &str, feature: &str, item: &str) -> String {
+    match switched_on(switched) {
+        true => item.to_string(),
+        false => format!("planned_item!({:?} => {item});", requirement(feature)),
+    }
+}
+
+/// A function the code of a hole of `feature` names: a rule the engine asks
+/// later, which a card's tables hold as a `fn`, never a closure. It is an item
+/// of the card's own, `planned_item!` until the feature lands, so the file
+/// without it compiles and the two forms differ only by the holes.
+pub(super) fn planned_fn(feature: &str, name: &str, params: &str, ret: &str, body: &str) -> String {
+    let item = format!("#[allow(unused_variables)] fn {name}({params}) -> {ret} {{ {body} }}");
+    match landed(feature) {
+        true => item,
+        false => format!("planned_item!({:?} => {item});", requirement(feature)),
+    }
+}
+
 /// Counters that are more than a name, so no line in `counter_kinds!` finishes
 /// them: rad, poison, acorn, point and contract counters sit on players, and an
 /// exalted counter gives its keyword (CR 122.1b).
@@ -47,7 +136,7 @@ fn only_a_counter_name(feature: &str) -> bool {
 
 /// Whether the requirement `feature` has landed in Cantrip.
 pub(super) fn landed(feature: &str) -> bool {
-    LANDED.contains(&requirement(feature).as_str()) || only_a_counter_name(feature)
+    landed_id(&requirement(feature)) || only_a_counter_name(feature)
 }
 
 /// A value inside compiled code that Cantrip has no word for yet: `placeholder`
@@ -78,6 +167,161 @@ pub(super) fn value_gaps(rust: &str) -> Vec<Diagnostic> {
     found.remove(FOLLOWS_GAP);
     found.into_iter().map(gap).collect()
 }
+/// The index past the bracket that closes the one opening at `open`, string
+/// and character literals skipped, and the top-level `;` inside it.
+fn close_of(code: &str, open: usize) -> Option<(usize, bool)> {
+    let bytes = code.as_bytes();
+    let (mut depth, mut i, mut semicolon) = (0usize, open, false);
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+            }
+            // A character literal, not a lifetime.
+            b'\'' if bytes.get(i + 2) == Some(&b'\'') => i += 2,
+            b'\'' if bytes.get(i + 1) == Some(&b'\\') => {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\'' {
+                    i += 1;
+                }
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some((i + 1, semicolon));
+                }
+            }
+            b';' if depth == 1 => semicolon = true,
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+/// The top-level parts of `code` between `sep` bytes, brackets and string
+/// literals skipped.
+fn top_level(code: &str, sep: u8) -> Vec<&str> {
+    let bytes = code.as_bytes();
+    let (mut parts, mut start, mut i) = (Vec::new(), 0, 0);
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+            }
+            b'(' | b'[' | b'{' => match close_of(code, i) {
+                Some((end, _)) => i = end - 1,
+                None => return vec![code],
+            },
+            c if c == sep => {
+                parts.push(&code[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    parts.push(&code[start..]);
+    parts
+}
+/// Whether `code` is an expression of one call, not a statement.
+fn one_call(code: &str) -> bool {
+    let statement = ["for ", "if ", "let ", "{", "match ", "while ", "cantrip_api::instruction("]
+        .iter()
+        .any(|s| code.starts_with(s));
+    !statement && code.ends_with([')', '?']) && top_level(code, b';').len() == 1
+}
+/// `code` as an expression whose value is what its call made, or None: one call;
+/// a block whose last statement is one; `let name = call` (the name's value);
+/// `if cond { call; }` (with nothing made otherwise).
+fn made_by(code: &str) -> Option<String> {
+    let code = code.trim().trim_end_matches(';').trim_end();
+    if one_call(code) {
+        return Some(code.to_string());
+    }
+    // A block gathering what its calls made in a list of its own, its value.
+    if code.starts_with('{') && close_of(code, 0).map(|(end, _)| end) == Some(code.len()) {
+        let inner = code[1..code.len() - 1].trim();
+        let parts = top_level(inner, b';');
+        let last = parts.last().map_or("", |last| last.trim());
+        let simple = !last.is_empty() && last.chars().all(|c| c == '_' || c.is_ascii_alphanumeric());
+        if simple && inner.starts_with(&format!("let mut {last}")) {
+            return Some(code.to_string());
+        }
+    }
+    if let Some(rest) = code.strip_prefix("let ") {
+        let (name, value) = rest.split_once(" = ")?;
+        let name = name.split(':').next()?.trim();
+        let simple = name.chars().all(|c| c == '_' || c.is_ascii_alphanumeric());
+        return (simple && one_call(value.trim())).then(|| format!("{{ {code}; {name} }}"));
+    }
+    if code.starts_with('{') && close_of(code, 0).map(|(end, _)| end) == Some(code.len()) {
+        let inner = code[1..code.len() - 1].trim().trim_end_matches(';');
+        let mut parts = top_level(inner, b';');
+        let last = parts.pop()?.trim();
+        return one_call(last).then(|| format!("{{ {}; {last} }}", parts.join(";")));
+    }
+    if code.starts_with("if ") && code.ends_with('}') {
+        let bytes = code.as_bytes();
+        let (mut i, mut body) = (0, None);
+        while i < bytes.len() {
+            if matches!(bytes[i], b'(' | b'[' | b'{') {
+                let end = close_of(code, i)?.0;
+                if bytes[i] == b'{' {
+                    body = Some((i, end));
+                }
+                i = end;
+                continue;
+            }
+            i += 1;
+        }
+        let (open, end) = body?;
+        if code[..open].trim_end().ends_with("else") {
+            return None;
+        }
+        let call = code[open + 1..end - 1].trim().trim_end_matches(';').trim();
+        return (end == code.len() && one_call(call)).then(|| {
+            format!("{} {{ {call} }} else {{ Default::default() }}", code[..open].trim_end())
+        });
+    }
+    None
+}
+/// Binds what the instruction whose code begins at `from` did, as `result_N`
+/// that the instructions after it read (`unreported`), where its hole's code
+/// comes to one call (`made_by`): the proposal returns what it did, as
+/// Cantrip's own calls do (`exile_all`, `put_onto_battlefield`). A hole of
+/// other statements, or of no code, leaves the readers' own holes waiting.
+pub(super) fn bind_hole_result(out: &mut String, from: usize, result: &ResultId) {
+    const MARK: &str = "planned!(\"";
+    let Some(at) = out[from..].rfind(MARK).map(|at| from + at) else {
+        return;
+    };
+    let open = at + MARK.len() - 2;
+    let Some((close, _)) = close_of(out, open) else {
+        return;
+    };
+    let inner = &out[open + 1..close - 1];
+    let Some(arrow) = inner.find("\" => ").map(|a| a + 5) else {
+        return;
+    };
+    let Some(made) = made_by(&inner[arrow..]) else {
+        return;
+    };
+    // A bracket another instruction's gap left (`begin_simultaneous`) is not it.
+    let bracket = made.starts_with("g.begin_") || made.starts_with("g.end_");
+    if inner[1..arrow - 5] == requirement(FOLLOWS_GAP) && bracket {
+        return;
+    }
+    let bound = format!("let result_{} = {made};", result.0);
+    let start = open + 1 + arrow;
+    out.replace_range(start..close - 1, &bound);
+}
 /// `placeholder`, read where the result of an instruction with a gap would be:
 /// that instruction's own hole already says what the file waits on.
 pub(super) fn unreported(placeholder: &str, result: &ResultId) -> String {
@@ -102,6 +346,22 @@ fn source(value: &impl serde::Serialize) -> String {
 }
 
 impl Compiler {
+    /// A rule the code of a hole of `feature` holds, asked later with `params`:
+    /// a `fn` of the card's own named from `stem` (`planned_fn`), its name.
+    pub(super) fn rule_fn(
+        &mut self,
+        feature: &str,
+        stem: &str,
+        params: &str,
+        ret: &str,
+        body: &str,
+    ) -> String {
+        let at = self.functions.matches(&format!("fn {stem}_")).count();
+        let name = format!("{stem}_{at}");
+        let item = planned_fn(feature, &name, params, ret, body);
+        writeln!(self.functions, "{item}").unwrap();
+        name
+    }
     /// "Loyalty X": what a planeswalker enters with, for a number worked out then.
     pub(super) fn plan_loyalty(&mut self, loyalty: &Expr) {
         let feature = "printed loyalty expression";
@@ -121,6 +381,7 @@ impl Compiler {
         self.pending = Pending::Nothing;
         self.may_choose = false;
         self.do_once = None;
+        self.first_again = None;
         self.chosen_guard = None;
         self.guard_opened = 0;
         self.replacing = Default::default();
@@ -141,6 +402,7 @@ impl Compiler {
         self.history = None;
         self.choosing = None;
         self.costing_targets = false;
+        self.choosing_source = None;
         self.granting = false;
         self.outer = None;
         self.hoisted = None;
@@ -185,12 +447,37 @@ impl Compiler {
     /// `planned!("id" => code)`. Everything after it carries on as if it ran.
     pub(super) fn plan_code(&mut self, feature: &str, code: &str, out: &mut String) {
         let id = requirement(feature);
-        if LANDED.contains(&id.as_str()) {
+        if landed_id(&id) {
             writeln!(out, "{code}").unwrap();
             return;
         }
         self.gaps.push(gap(feature));
         writeln!(out, "planned!({id:?} => {code});").unwrap();
+    }
+    /// `code` of the `SWITCHED` feature `switched`, a hole of `feature` until
+    /// the Cantrip being written for has it.
+    pub(super) fn plan_switched(
+        &mut self,
+        switched: &str,
+        feature: &str,
+        code: &str,
+        out: &mut String,
+    ) {
+        if switched_on(switched) {
+            writeln!(out, "{code}").unwrap();
+            return;
+        }
+        self.gaps.push(gap(feature));
+        writeln!(out, "planned!({:?} => {code});", requirement(feature)).unwrap();
+    }
+    /// An item (a function a proposed table entry names) the card will have
+    /// once `feature` exists: `planned_item!("id" => item)` until then.
+    pub(super) fn plan_item(&mut self, feature: &str, item: &str) {
+        let id = requirement(feature);
+        match landed_id(&id) {
+            true => writeln!(self.functions, "{item}").unwrap(),
+            false => writeln!(self.functions, "planned_item!({id:?} => {item});").unwrap(),
+        }
     }
     /// The entry `list` of the card definition will hold once `feature` exists:
     /// `planned_item!("id" => list: code)` until then.
@@ -202,7 +489,7 @@ impl Compiler {
         parts: &mut Parts,
     ) {
         let id = requirement(feature);
-        if LANDED.contains(&id.as_str()) {
+        if landed_id(&id) {
             parts.entry(list, code.to_string());
             return;
         }
@@ -271,7 +558,10 @@ impl Compiler {
 pub struct TrackedFace {
     pub name: String,
     pub oracle: Option<String>,
-    pub rust: String,
+    /// The face's module, left out where its card's `rust` holds it: a reader
+    /// reads a card of joined faces from that.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rust: Option<String>,
     pub gaps: Vec<Diagnostic>,
 }
 
@@ -290,66 +580,230 @@ pub struct TrackedCard {
 
 /// Every card's code, a JSON object a line. A record that can't be emitted
 /// stops the run: nothing is left for the tracker to miss.
+/// The modules a layout's other faces are written in, each one `CardDef` beside the card's.
+fn face_modules(layout: &str) -> &'static [&'static str] {
+    match layout {
+        "Transforming" | "ModalDFC" => &["back"],
+        "Adventurer" => &["adventure"],
+        "Ominous" => &["omen"],
+        "Preparer" => &["prepared"],
+        "Split" | "Room" => &["left", "right"],
+        _ => &[],
+    }
+}
+
 pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
+    tracked_cached(input, oracle, output, None)
+}
+
+/// One record's tracked card, as `tracked` and `lane_rows` both write it.
+struct Track {
+    card: TrackedCard,
+    /// A gapless single face whose characteristics are the whole card: `card_file`
+    /// wrote no file for it because none is needed.
+    content_only: bool,
+    kept: Option<super::pr_cache::Kept>,
+}
+
+/// The tracked card of one record, its render taken from `renders` where they have it.
+fn track(
+    line: usize,
+    source: &crate::mtg_types::OracleCard,
+    oracle: &BTreeMap<String, String>,
+    renders: &super::pr_cache::Renders,
+) -> corpus::Result<Track> {
+    let identity = corpus::Identity::of(source)?;
+    let lowered = crate::unified::lower(source);
+    let name = identity.names.join(" // ");
+    let whole = lane_f::whole_printed(source, &lowered.card, Some(oracle))
+        .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
+    let names: Vec<String> = whole.faces.iter().map(|face| face.name.clone()).collect();
+    let names: Vec<&str> = names.iter().map(String::as_str).collect();
+    let mut faces: Vec<TrackedFace> = whole
+        .faces
+        .into_iter()
+        .map(|face| TrackedFace {
+            oracle: super::printed_face(oracle, &names, &face.name).cloned(),
+            name: face.name,
+            rust: Some(face.rust),
+            gaps: face.gaps,
+        })
+        .collect();
+    let (mut kept, mut content_only) = (None, false);
+    let file = match faces.as_slice() {
+        [one, two]
+            if one.gaps.is_empty()
+                && two.gaps.is_empty()
+                && !face_modules(&lowered.card.layout).is_empty() =>
+        {
+            match (&whole.rust, one.oracle.as_deref(), two.oracle.as_deref()) {
+                (Some(raw), Some(first), Some(second)) => {
+                    let (file, render) = renders.render_faces(
+                        raw,
+                        face_modules(&lowered.card.layout),
+                        &[(&one.name, first), (&two.name, second)],
+                    );
+                    kept = render;
+                    file
+                }
+                _ => None,
+            }
+        }
+        [one @ TrackedFace { rust: Some(module), .. }]
+            if one.gaps.is_empty() && matches!(lowered.card.layout.as_str(), "Card" | "MeldPiece") =>
+        {
+            let file = one.oracle.as_deref().and_then(|text| {
+                match card_file::card_file(&lowered.card.faces[0], text) {
+                    Ok(file) => file,
+                    Err(_) => {
+                        let (file, render) =
+                            renders.render(module, &one.name, text, super::pr_form::Characteristics::Oracle);
+                        kept = render;
+                        file
+                    }
+                }
+            });
+            // Neither writes a file of `..oracle::NAME` alone: the content is the card.
+            content_only = file.is_none() && one.oracle.is_some();
+            file
+        }
+        _ => None,
+    };
+    // A face's code is not written twice: the card's module holds each face it joins.
+    if let Some(joined) = &whole.rust {
+        for face in &mut faces {
+            if face.rust.as_ref().is_some_and(|rust| joined.contains(rust.as_str())) {
+                face.rust = None;
+            }
+        }
+    }
+    // A sticker sheet has no name of its own: it is its face's.
+    let name = match faces.as_slice() {
+        [face] if name.is_empty() => face.name.clone(),
+        _ => name,
+    };
+    let card = TrackedCard { line, name, layout: lowered.card.layout.clone(), faces, rust: whole.rust, file };
+    Ok(Track { card, content_only, kept })
+}
+
+/// Every record through `track`, each written as `row` makes it, with the
+/// render cache kept as `tracked_cached` keeps it.
+fn each_tracked(
+    input: &Path,
+    oracle: &Path,
+    output: &Path,
+    cache: Option<&Path>,
+    row: impl Fn(Track) -> corpus::Result<(String, Option<super::pr_cache::Kept>)> + Sync,
+) -> corpus::Result<usize> {
+    use super::pr_cache::{Kept, Renders};
     let oracle = oracle_texts(oracle)?;
+    let renders = match cache {
+        Some(dir) => Renders::open(dir),
+        None => Renders::none(),
+    };
+    let mut keeper = renders.keeper();
     let mut artifact = corpus::Artifact::create(output)?;
     let mut count = 0;
     corpus::map_cards(
         input,
-        |line, source| -> corpus::Result<TrackedCard> {
-            let identity = corpus::Identity::of(&source)?;
-            let lowered = crate::unified::lower(&source);
-            let name = identity.names.join(" // ");
-            let whole = lane_f::whole_printed(&source, &lowered.card, Some(&oracle))
-                .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
-            let faces: Vec<TrackedFace> = whole
-                .faces
-                .into_iter()
-                .map(|face| TrackedFace {
-                    oracle: oracle.get(&face.name).cloned(),
-                    name: face.name,
-                    rust: face.rust,
-                    gaps: face.gaps,
-                })
-                .collect();
-            let file = match faces.as_slice() {
-                [one] if one.gaps.is_empty() && lowered.card.layout == "Card" => {
-                    one.oracle.as_deref().and_then(|text| {
-                        match card_file::card_file(&lowered.card.faces[0], text) {
-                            Ok(file) => file,
-                            Err(_) => super::pr_form::render(
-                                &one.rust,
-                                &one.name,
-                                text,
-                                super::pr_form::Characteristics::Oracle,
-                            ),
-                        }
-                    })
-                }
-                _ => None,
-            };
-            Ok(TrackedCard {
-                line,
-                name,
-                layout: lowered.card.layout.clone(),
-                faces,
-                rust: whole.rust,
-                file,
-            })
+        |line, source| -> corpus::Result<(String, Option<(Kept, bool)>)> {
+            let (text, kept) = row(track(line, &source, &oracle, &renders)?)?;
+            let kept = kept.map(|kept| {
+                let found = renders.had(&kept);
+                (kept, found)
+            });
+            // Written out here, on the workers: the tracked rows are 200 MB of JSON.
+            Ok((text, kept))
         },
-        |_, card| {
-            writeln!(artifact, "{}", serde_json::to_string(&card)?)?;
+        |_, (row, kept)| {
+            artifact.write_all(row.as_bytes())?;
+            artifact.write_all(b"\n")?;
+            if let Some((kept, found)) = kept {
+                keeper.keep(kept, found)?;
+            }
             count += 1;
             Ok(())
         },
     )?;
     artifact.commit()?;
+    if let Some(dir) = cache {
+        eprintln!("pr_form: {} renders from {}, {} rendered", keeper.found, dir.display(), keeper.rendered);
+    }
+    keeper.commit()?;
     Ok(count)
+}
+
+/// `tracked`, keeping `pr_form`'s renders in `cache` from one run to the next
+/// (see `pr_cache`): a run after a change to the generator renders again only
+/// the modules that changed.
+pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<&Path>) -> corpus::Result<usize> {
+    each_tracked(input, oracle, output, cache, |track| Ok((serde_json::to_string(&track.card)?, track.kept)))
+}
+
+/// What the card lane reads of a record: `tracked`'s card without its modules,
+/// so a row is its file or its gap.
+#[derive(serde::Serialize, Debug, PartialEq)]
+pub struct LaneRow {
+    pub line: usize,
+    /// Its faces' names joined, the front face first.
+    pub name: String,
+    pub layout: String,
+    pub faces: Vec<String>,
+    /// The card's file; `None` with no gap is a card whose content is all of it.
+    pub rust: Option<String>,
+    pub gap: Option<String>,
+}
+
+impl LaneRow {
+    fn of(track: Track) -> Self {
+        let Track { card, content_only, .. } = track;
+        let gap = match (&card.file, content_only) {
+            (Some(_), _) | (None, true) => None,
+            (None, false) => Some(
+                card.faces
+                    .iter()
+                    .flat_map(|face| face.gaps.first())
+                    .map(|gap| gap.feature.clone())
+                    .next()
+                    .unwrap_or_else(|| format!("no whole file for a {} card", card.layout)),
+            ),
+        };
+        // In the name's order, the front face first: the lowered faces of a transforming card come back first.
+        let printed: Vec<&str> = card.name.split(" // ").collect();
+        let mut faces: Vec<String> = card.faces.into_iter().map(|face| face.name).collect();
+        faces.sort_by_key(|face| printed.iter().position(|name| name == face).unwrap_or(usize::MAX));
+        LaneRow {
+            line: card.line,
+            name: card.name,
+            layout: card.layout,
+            faces,
+            rust: card.file,
+            gap,
+        }
+    }
+}
+
+/// Every record as the card lane reads it (`ast cantrip-files`): a card's file
+/// is `tracked`'s, byte for byte, whatever its layout.
+pub fn lane_rows(input: &Path, oracle: &Path, output: &Path, cache: Option<&Path>) -> corpus::Result<usize> {
+    each_tracked(input, oracle, output, cache, |track| {
+        let kept = track.kept.clone();
+        Ok((serde_json::to_string(&LaneRow::of(track))?, kept))
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::planned_value;
+    use super::{planned_value, LASTING_RULES, SWITCHED};
+
+    /// The snapshot names only features the generator writes for, and the names
+    /// the generator asks for are the table's.
+    #[test]
+    fn features_are_switched_ones() {
+        for feature in crate::cantrip_vocab::FEATURES.iter().chain([&LASTING_RULES]) {
+            assert!(SWITCHED.iter().any(|s| s.0 == *feature), "{feature}");
+        }
+    }
 
     #[test]
     fn a_counter_that_is_only_a_name_is_written_and_any_other_held() {

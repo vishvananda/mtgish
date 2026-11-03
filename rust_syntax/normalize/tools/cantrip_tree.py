@@ -16,8 +16,12 @@ A whole-corpus compile takes twenty minutes. The sample covers every requirement
 every form of hole and every Cantrip name the files use, with the smallest files
 that do, so a change to the generator is checked in about a minute. It is not a
 proof: run `--all` before calling a tree clean.
+
+`write` also lists the cards with holes in planned.txt. The crate's `proposals` feature compiles those with the code
+their holes hold, which tools/proposal_check.py type-checks against stubs of the Cantrip API it proposes.
 """
 import argparse
+import tracker_md
 import json
 import os
 import random
@@ -41,6 +45,8 @@ license.workspace = true
 [features]
 # Compile every card, not the sample: twenty minutes.
 all = []
+# Compile the planned cards (planned.txt) with the code their holes hold, to type-check what they propose.
+proposals = []
 
 [dependencies]
 cantrip-api.workspace = true
@@ -56,20 +62,27 @@ LIB = """//! Every card as mtgish generates it, tracked by data/cantrip_tracker.
 //! `planned_value!("feature", placeholder => code)` compiles as the placeholder and
 //! will say `code`. The rest of the file is the card's own code. A card with a hole
 //! never runs.
+//!
+//! With the `proposals` feature a hole is the code it holds instead, so what the
+//! generator proposes is type-checked: the planned cards only (planned.txt), against
+//! stubs of the Cantrip API they name that mtgish's tools/proposal_check.py writes.
 #![allow(dead_code, unused_imports, unused_mut, unused_variables, unused_macros)]
 #![allow(unused_assignments, unused_must_use, unreachable_code)]
 
+#[cfg(not(feature = "proposals"))]
 macro_rules! planned {
     ($id:literal => $($code:tt)*) => {};
     ($id:literal, $form:ident $(, $field:literal = $value:expr)* $(,)?) => {
         $(let _ = &$value;)*
     };
 }
+#[cfg(not(feature = "proposals"))]
 macro_rules! planned_value {
     ($feature:literal, $placeholder:expr => $($code:tt)*) => {
         $placeholder
     };
 }
+#[cfg(not(feature = "proposals"))]
 macro_rules! planned_item {
     ($id:literal => $($code:tt)*) => {};
     ($id:literal, $source:literal) => {
@@ -77,16 +90,79 @@ macro_rules! planned_item {
     };
 }
 
+#[cfg(feature = "proposals")]
+macro_rules! planned {
+    ($id:literal => $($code:tt)*) => {
+        $($code)*
+    };
+    ($id:literal, $form:ident $(, $field:literal = $value:expr)* $(,)?) => {
+        $(let _ = &$value;)*
+    };
+}
+#[cfg(feature = "proposals")]
+macro_rules! planned_value {
+    ($feature:literal, $placeholder:expr => $($code:tt)*) => {
+        $($code)*
+    };
+}
+/// `planned_item!("id" => list: code)`: `code` is an entry of the `CardDef` list `list`, or an item (a trigger's
+/// matcher). An entry is checked as the card's static will hold it: `@value` marks a field that is not a list and `@new`
+/// a list `CardDef` does not have yet (proposal_check.py marks them; unmarked is a list).
+/// `planned_item!("id" => item)` is the item: a function or static the card's tables will name.
+#[cfg(feature = "proposals")]
+macro_rules! planned_item {
+    ($id:literal => $list:ident : $(#[$meta:meta])* fn $($code:tt)*) => {
+        $(#[$meta])* fn $($code)*
+    };
+    ($id:literal => @value $list:ident : $($code:tt)*) => {
+        const _: () = {
+            static ENTRY: ::cantrip_api::CardDef =
+                ::cantrip_api::CardDef { $list: $($code)*, ..::cantrip_api::CardDef::BLANK };
+        };
+    };
+    ($id:literal => @new $list:ident : $($code:tt)*) => {
+        const _: () = {
+            static ENTRY: &dyn $crate::proposals::NewCardEntry = &$($code)*;
+        };
+    };
+    ($id:literal => $list:ident : $($code:tt)*) => {
+        const _: () = {
+            static ENTRY: ::cantrip_api::CardDef =
+                ::cantrip_api::CardDef { $list: &[$($code)*], ..::cantrip_api::CardDef::BLANK };
+        };
+    };
+    ($id:literal, $source:literal) => {
+        const _: &str = $source;
+    };
+    ($id:literal => $($item:tt)*) => {
+        $($item)*
+    };
+}
+
 include!(concat!(env!("OUT_DIR"), "/modules.rs"));
 """
 
-BUILD = """//! The modules to compile: the sample, or with the `all` feature every card.
+BUILD = """//! The modules to compile: the sample, with the `all` feature every card, or with `proposals` the planned cards.
+//!
+//! With `proposals` the cards are the ones planned.txt lists, from cards/. Set `CANTRIP_PROPOSALS` to a directory, as
+//! mtgish's tools/proposal_check.py writes it, to compile its cards/ instead (from its list.txt if it has one) with its
+//! stubs.rs as the module `proposals`.
 use std::fmt::Write;
+use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-changed=sample.txt");
+    println!("cargo:rerun-if-changed=planned.txt");
     println!("cargo:rerun-if-changed=build.rs");
-    let root = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    println!("cargo:rerun-if-env-changed=CANTRIP_PROPOSALS");
+    let root = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let lines = |path: PathBuf| -> Vec<String> {
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display())).lines().map(String::from).collect()
+    };
+    let proposals = std::env::var_os("CARGO_FEATURE_PROPOSALS").is_some();
+    let check = std::env::var_os("CANTRIP_PROPOSALS").filter(|_| proposals).map(PathBuf::from);
+    let mut cards = root.join("cards");
+    let mut out = String::new();
     let stems: Vec<String> = if std::env::var_os("CARGO_FEATURE_ALL").is_some() {
         let mut all: Vec<String> = std::fs::read_dir(root.join("cards"))
             .unwrap()
@@ -94,12 +170,20 @@ fn main() {
             .collect();
         all.sort();
         all
+    } else if let Some(dir) = &check {
+        cards = dir.join("cards");
+        let stubs = dir.join("stubs.rs");
+        println!("cargo:rerun-if-changed={}", dir.join("list.txt").display());
+        writeln!(out, "#[path = {:?}]\\nmod proposals;", stubs.to_string_lossy()).unwrap();
+        let list = dir.join("list.txt");
+        lines(if list.exists() { list } else { root.join("planned.txt") })
+    } else if proposals {
+        lines(root.join("planned.txt"))
     } else {
-        std::fs::read_to_string(root.join("sample.txt")).unwrap().lines().map(String::from).collect()
+        lines(root.join("sample.txt"))
     };
-    let mut out = String::new();
     for (i, stem) in stems.iter().enumerate() {
-        let path = root.join("cards").join(format!("{stem}.rs"));
+        let path = cards.join(format!("{stem}.rs"));
         writeln!(out, "#[path = {:?}]\\nmod card_{i};", path.to_string_lossy()).unwrap();
     }
     let out_dir = std::env::var_os("OUT_DIR").unwrap();
@@ -121,13 +205,26 @@ def slug(feature):
     return out.rstrip("-")
 
 
+def card_stem(name):
+    """A card's file in the generated crate: named for its front face, as Cantrip names delver_of_secrets.rs."""
+    return stem_of(name.split(" // ")[0])
+
+
 def stem_of(name):
     ascii_name = "".join(c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c))
     stem = re.sub(r"[^a-z0-9]+", "_", ascii_name.replace("'", "").lower()).strip("_")
     return stem or "unnamed"
 
 
-COUNTER_TABLE = "crates/cantrip-state/src/vocab.rs"
+HOLE = re.compile(r"\bplanned(?:_value|_item)?!")
+# The Cantrip names a file uses: `\b[A-Z]\w+::[A-Z]\w+|cantrip_mechanics::\w+::\w+|\bg\.\w+\(|\bq\.\w+\(`, matching just
+# as that does. Written to begin with the set of first letters, so the search skips the positions where none can start,
+# which is most of them: a lookbehind checks the letter, and that no word character precedes it (`\b`).
+API_NAME = re.compile(r"[A-Zcgq](?:(?<=[A-Z])(?<!\w[A-Z])\w+::[A-Z]\w+|(?<=c)antrip_mechanics::\w+::\w+"
+                      r"|(?<=g)(?<!\wg)\.\w+\(|(?<=q)(?<!\wq)\.\w+\()")
+HOLE_FORM = re.compile(r'planned!\("[^"]*", (\w+)')
+HOLE_FIELD = re.compile(r'" = \{ let q')
+COUNTER_TABLE ="crates/cantrip-state/src/vocab.rs"
 HELD_VALUE = re.compile(r'planned_value!\("(?:[^"\\]|\\.)*", [\w:]+ => [\w:]+\)')
 
 
@@ -142,6 +239,15 @@ def counter_kinds(table):
     return re.findall(r'^\s+(\w+) = \d+, "', table[start:end], re.M)
 
 
+KNOWN_COUNTERS = {}  # the last table read and the kinds `counters_wanted` knows from it: every card asks of the same table
+
+
+def known_counters(table):
+    if KNOWN_COUNTERS.get("table") is not table:
+        KNOWN_COUNTERS.update(table=table, known={*counter_kinds(table), "ALL", "COUNT"})
+    return KNOWN_COUNTERS["known"]
+
+
 def counter_name(word):
     """As Oracle text writes it (CR 122.1)."""
     return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", word).lower()
@@ -150,8 +256,10 @@ def counter_name(word):
 def counters_wanted(code, table):
     """The counter kinds `code` uses that `table`, the text of vocab.rs, does not list, first used first. A value still
     held back is not used: the generator holds back a counter that needs more than its name."""
-    known = {*counter_kinds(table), "ALL", "COUNT"}
-    used = re.findall(r"\bCounterKind::([A-Z]\w*)", HELD_VALUE.sub("", code))
+    if "CounterKind::" not in code:
+        return []
+    known = known_counters(table)
+    used = re.findall(r"\bCounterKind::([A-Z]\w*)", HELD_VALUE.sub("", code) if "planned_value!" in code else code)
     return [word for word in dict.fromkeys(used) if word not in known]
 
 
@@ -164,9 +272,37 @@ def with_counters(table, words):
     return table[:end] + lines + table[end:]
 
 
+TOKEN_TABLE = "crates/cantrip-mechanics/src/tokens.rs"
+NEW_TOKENS = {}
+
+
+def new_tokens():
+    """The tokens several cards make that Cantrip has no static for: {static: {title, cards, source}}, from shared_tokens.py."""
+    if not NEW_TOKENS:
+        path = Path(__file__).resolve().parents[3] / "data/cantrip_new_tokens.json"
+        NEW_TOKENS.update(json.loads(path.read_text(encoding="utf-8")))
+    return NEW_TOKENS
+
+
+def tokens_wanted(code, table):
+    """The shared tokens `code` names that `table`, the text of tokens.rs, does not define, first named first."""
+    if "tokens::" not in code:
+        return []
+    used = re.findall(r"\btokens::([A-Z][A-Z0-9_]*)\b", code)
+    for names in re.findall(r"\btokens::\{([^}]*)\}", code):
+        used += [name.strip() for name in names.split(",")]
+    return [name for name in dict.fromkeys(used) if name in new_tokens() and f"pub static {name}:" not in table]
+
+
+def with_tokens(table, names):
+    """`table` with the definitions of `names`, after the last of its own and before its tests."""
+    at = table.rindex("#[cfg(test)]")
+    return table[:at] + "".join(new_tokens()[name]["source"] + "\n" for name in names) + table[at:]
+
+
 def status_of(card):
     if not card["faces"]:
-        return "data"
+        return "excluded"
     return "planned" if card["requirements"] else "ready"
 
 
@@ -189,12 +325,18 @@ def header(card):
     return "\n".join(lines) + "\n"
 
 
+# A line `// Generated by mtgish-ast, schema N, n...` or `// Generator SHA256 ...`, as `^// (...).*\n` with re.M would find it,
+# but beginning with a character, which searches faster than an anchor: the lookbehind puts the first `/` at a line's start.
+GENERATOR_LINE = re.compile(r"/(?<![^\n]/)/ (?:Generated by mtgish-ast, schema \d+, n|Generator SHA256 ).*\n")
+
+
 def body(card):
-    return re.sub(r"^// (Generated by mtgish-ast, schema \d+, n|Generator SHA256 ).*\n", "", whole(card), flags=re.M)
+    return GENERATOR_LINE.sub("", whole(card))
 
 
 def whole(card):
-    """The card's code. What names the generator is left out above: it would rewrite every file on each change."""
+    """The card's code. What names the generator is left out above: it would rewrite every file on each change.
+    A card whose faces are joined has its code in `rust`, and its faces have none of their own in the row."""
     faces = card["faces"]
     if not faces:
         return ""
@@ -251,27 +393,51 @@ def write(args):
         manifest = root.read_text()
         if f'"{CRATE}"' not in manifest:
             root.write_text(manifest.replace('members = [\n', f'members = [\n    "{CRATE}",\n', 1))
-    wanted, sized, taken = set(), [], {}
+    wanted, sized, taken, planned = {}, [], {}, []  # wanted: {stem: its file's text}
     for card in read_rows(args.rows):
-        stem = stem_of(card["name"])
+        stem = card_stem(card["name"])
         taken[stem] = taken.get(stem, 0) + 1
         if taken[stem] > 1:
             stem = f"{stem}_{card['line']}"
-        wanted.add(stem)
         text = header(card) + body(card)
+        wanted[stem] = text
         path = cards / f"{stem}.rs"
-        if not path.exists() or path.read_text(encoding="utf-8") != text:
+        try:
+            same = path.read_text(encoding="utf-8") == text
+        except FileNotFoundError:
+            same = False
+        if not same:
             path.write_text(text, encoding="utf-8")
-        forms = set(re.findall(r'planned!\("[^"]*", (\w+)', text))
-        fields = set(re.findall(r'" = \{ let q', text))
-        api = set(re.findall(r"\b[A-Z]\w+::[A-Z]\w+|cantrip_mechanics::\w+::\w+|\bg\.\w+\(|\bq\.\w+\(", text))
+        hole = "planned" in text and HOLE.search(text)
+        if hole:
+            planned.append(stem)
+        forms = set(HOLE_FORM.findall(text)) if "planned!(" in text else set()
+        fields = set(HOLE_FIELD.findall(text))
+        api = set(API_NAME.findall(text))
         sized.append((stem, len(text), set(card["requirements"]) | forms | fields | api | {card["layout"]}))
     for stale in cards.glob("*.rs"):
         if stale.stem not in wanted:
             stale.unlink()
+    if not args.standalone:
+        # A counter is a name and nothing more (CR 122.1): a card's PR adds its line before the card, so the tree has
+        # every counter its whole cards use, appended as that commit would.
+        counter_path = Path(args.cantrip) / COUNTER_TABLE
+        table = counter_path.read_text(encoding="utf-8")
+        counters = {}
+        # Every file in cards/ is now one of `wanted`, as it was just written: read back as text would read it.
+        for name in sorted(f"{stem}.rs" for stem in wanted):
+            text = wanted[name[:-3]]
+            if "\r" in text:
+                text = text.replace("\r\n", "\n").replace("\r", "\n")
+            counters.update(dict.fromkeys(counters_wanted(text, table)))
+        if counters:
+            counter_path.write_text(with_counters(table, list(counters)), encoding="utf-8", newline="\n")
+        print(f"{len(counters)} counters added to {COUNTER_TABLE}")
     sample = sample_of(sized, args.sample)
     (crate / "sample.txt").write_text("".join(s + "\n" for s in sample))
-    print(f"{len(wanted)} cards, sample {len(sample)}")
+    # What the `proposals` feature compiles: every card with a hole, whose code proposal_check.py type-checks.
+    (crate / "planned.txt").write_text("".join(s + "\n" for s in sorted(planned)))
+    print(f"{len(wanted)} cards, sample {len(sample)}, {len(planned)} with holes")
 
 
 def check(args):
@@ -303,9 +469,15 @@ def rewrites_of(root):
     return [row for row in verdicts if row["find"] in finds], [find for find in finds if find not in known]
 
 
+COMPILED = {}  # a rule's pattern compiled: there are more rules than `re` keeps compiled, so each search compiled again
+
+
 def rule_for(feature, rules):
     for rule in rules:
-        if re.search(rule["match"], feature):
+        pattern = COMPILED.get(rule["match"])
+        if pattern is None:
+            pattern = COMPILED[rule["match"]] = re.compile(rule["match"])
+        if pattern.search(feature):
             return rule
     raise SystemExit(f"no rule for {feature}")
 
@@ -318,7 +490,7 @@ def family(feature):
 # What stands between a card and its file, the hardest last. Each form's verdict is `data/cantrip_audit.json`: the API read
 # against the hand-written cards, not a guess from the form's family. `card-code` of a keyword is a module for Cantrip's
 # mechanics crate, since a keyword is not written out in every card that has it; the core need not change.
-FIXES = ("generator", "mechanics module", "unsure", "unaudited", "Cantrip", "not played")
+FIXES = ("generator", "mechanics module", "unsure", "unaudited", "mtgish data", "Cantrip", "not played")
 NEW_MODULE = re.compile(r"\b(new|a plain function in|function in|module)\b.{0,40}cantrip[-_]mechanics|cantrip[-_]mechanics.{0,30}\b(new|module)\b|in the mechanics crate|new mechanics", re.I)
 NOT_PLAYED = re.compile(r"game mode Cantrip does not play|casual variant Cantrip does not play|Alchemy|^digital:|casual-format", re.I)
 
@@ -332,23 +504,33 @@ def fix_of(row, audit):
     module = verdict == "card-code" and (row["class"] == "mechanic" or NEW_MODULE.search(audit[row["id"]].get("how", "")))
     if verdict == "exists" or (verdict == "card-code" and not module):
         return "generator"
-    return {"card-code": "mechanics module", "unsure": "unsure"}.get(verdict, "Cantrip")
+    return {"card-code": "mechanics module", "unsure": "unsure", "data": "mtgish data"}.get(verdict, "Cantrip")
 
 
 def hardest(fixes):
     return max(fixes, key=FIXES.index) if fixes else "generator"
 
 
+def cards_by_id(cards):
+    """{requirement id: the names of the cards of `cards`, {name: ids}, that have it}."""
+    out = {}
+    for name, ids in cards.items():
+        for i in ids:
+            out.setdefault(i, []).append(name)
+    return out
+
+
 def features_of(rows, blocked, written):
     """Rows by what they need. A row is one form the generator could not write, so one fix can be many rows: a new counter
     kind is a row for each name. {needs, class, forms, cards, written, examples}, the most cards first."""
     features = {}
+    blocked_by, written_by = cards_by_id(blocked), cards_by_id(written)
     for row in rows:
         entry = features.setdefault(row["needs"], {"needs": row["needs"], "class": row["class"], "forms": [], "cards": set(), "written": set(), "fixes": set()})
         entry["forms"].append(row["id"])
         entry["fixes"].add(row["fix"])
-        entry["cards"].update(name for name, ids in blocked.items() if row["id"] in ids)
-        entry["written"].update(name for name, ids in written.items() if row["id"] in ids)
+        entry["cards"].update(blocked_by.get(row["id"], ()))
+        entry["written"].update(written_by.get(row["id"], ()))
     out = [{**e, "fixes": sorted(e["fixes"]), "fix": hardest(e["fixes"]), "examples": sorted(e["cards"])[:3], "cards": len(e["cards"]), "written": len(e["written"])} for e in features.values()]
     return sorted(out, key=lambda e: (-e["cards"], -e["written"], e["needs"]))
 
@@ -358,27 +540,43 @@ def written_by_hand(cantrip):
     return {path.stem.removeprefix("r#") for path in (Path(cantrip) / "crates/cantrip-cards/src/cards").glob("*.rs")}
 
 
+def cantrip_base(cantrip):
+    """The Cantrip main commit a tree is based on."""
+    return subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=cantrip, text=True,
+                          capture_output=True, check=True).stdout.strip()
+
+
 def tracker(args):
     root = Path(__file__).resolve().parents[3]
     rules = load_rules(root)
     needs = {}
-    totals = {"cards": 0, "ready": 0, "planned": 0, "data": 0}
+    totals = {"cards": 0, "ready": 0, "planned": 0, "excluded": 0}
     layouts = {}
     blocked = {}
     written = {}
     hand = written_by_hand(args.cantrip)
-    table = (Path(args.cantrip) / COUNTER_TABLE).read_text(encoding="utf-8")
+    # The tables as Cantrip has them, not as `write` appended to them: what a card still needs added is from Cantrip.
+    at_base = lambda path: subprocess.run(["git", "show", f"{cantrip_base(args.cantrip)}:{path}"], cwd=args.cantrip,
+                                          text=True, capture_output=True, check=True).stdout
+    table = at_base(COUNTER_TABLE)
     counters = {}
+    token_table = at_base(TOKEN_TABLE)
+    tokens = {}
+    stems, ready_written = {}, 0
     for card in read_rows(args.rows):
         status = status_of(card)
+        stems.setdefault(card["name"], card_stem(card["name"]))
+        ready_written += status == "ready" and card_stem(card["name"]) in hand
         for word in counters_wanted(whole(card), table):
             counters.setdefault(word, []).append(card["name"])
+        for token in tokens_wanted(card.get("file") or "", token_table):  # the PR form names shared tokens, the module does not
+            tokens.setdefault(token, []).append(card["name"])
         totals["cards"] += 1
         totals[status] += 1
         layouts.setdefault(card["layout"], [0, 0])
         layouts[card["layout"]][status == "planned"] += 1
         if status == "planned":
-            done = stem_of(card["name"].split(" // ")[0]) in hand
+            done = card_stem(card["name"]) in hand
             (written if done else blocked)[card["name"]] = [slug(f) for f in card["requirements"]]
             for feature in card["requirements"]:
                 row = needs.setdefault(feature, {"cards": 0, "written": 0, "alone": 0, "examples": []})
@@ -390,6 +588,9 @@ def tracker(args):
                 if len(row["examples"]) < 5:
                     row["examples"].append(card["name"])
     totals["written"] = len(written)
+    totals["ready_written"] = ready_written
+    totals["new_tokens"] = len(tokens)
+    totals["cards_with_new_tokens"] = len({name for names in tokens.values() for name in names})
     totals["counter_lines"] = len(counters)
     totals["cards_with_counter_lines"] = len({name for names in counters.values() for name in names})
     audit = json.loads((root / "data/cantrip_audit.json").read_text(encoding="utf-8"))
@@ -400,13 +601,13 @@ def tracker(args):
                      "family": family(feature), **row})
         rows[-1]["fix"] = fix_of(rows[-1], audit)
         rows[-1]["how"] = audit.get(rows[-1]["id"], {}).get("how", "")
-    base = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=args.cantrip, text=True,
-                          capture_output=True, check=True).stdout.strip()[:10]
+    base = cantrip_base(args.cantrip)[:10]
     classes = {}
+    blocked_by = cards_by_id(blocked)
     for row in rows:
         entry = classes.setdefault(row["class"], {"requirements": 0, "cards": set()})
         entry["requirements"] += 1
-        entry["cards"].update(name for name, ids in blocked.items() if row["id"] in ids)
+        entry["cards"].update(blocked_by.get(row["id"], ()))
     summary = {name: {"requirements": e["requirements"], "cards": len(e["cards"])} for name, e in classes.items()}
     features = features_of(rows, blocked, written)
     fix_by_id = {row["id"]: row["fix"] for row in rows}
@@ -415,64 +616,35 @@ def tracker(args):
         fix = hardest([fix_by_id[i] for i in ids])
         by_fix[fix] = by_fix.get(fix, 0) + 1
     tracked = {"cantrip": base, "totals": totals, "layouts": {k: {"ready": v[0], "planned": v[1]} for k, v in sorted(layouts.items())},
-               "classes": summary, "fixes": by_fix, "features": features, "counters": {word: sorted(names) for word, names in sorted(counters.items())},
+               "classes": summary, "fixes": by_fix, "features": features, "new_tokens": {token: sorted(names) for token, names in sorted(tokens.items())}, "counters": {word: sorted(names) for word, names in sorted(counters.items())},
                "requirements": rows, "cards": blocked, "written": written}
     out = Path(args.out) if args.out else root
+    tracked["proposals"] = proposals_of(args.proposals, out / "data/cantrip_tracker.json")
     (out / "data").mkdir(exist_ok=True)
     (out / "data/cantrip_tracker.json").write_text(json.dumps(tracked, indent=1, ensure_ascii=False) + "\n")
-    lines = ["# Cantrip tracker", "",
-             "Generated by `rust_syntax/normalize/tools/cantrip_tree.py tracker`. Do not edit: the classes come from",
-             "`data/cantrip_requirements.json`, the rest from what the generator emits.", "",
-             f"Against Cantrip {base}: {totals['cards']} records, {totals['ready']} whole, "
-             f"{totals['planned']} with holes, {totals['data']} with no card face.",
-             f"Of those with holes Cantrip has written {len(written)} by hand, which leaves {len(blocked)}.", "",
-             "A card with holes has its file all the same. Each `planned!` in it names a requirement below.",
-             "`cards` counts what Cantrip does not have yet. `written` counts the cards Cantrip has written by hand:",
-             "at least some of what that row asks can be done there, so it may be a gap in the generator, not in the engine.", "",
-             "A requirement is one form the generator could not write, not one piece of work, and `class` comes from the form's",
-             "family, not from anyone having tried. `fix` is from `data/cantrip_audit.json`, where each form's verdict cites the API",
-             "or a hand-written card. It comes from reading the code: nothing there has been compiled or played.", "",
-             "What stands between each remaining card and its file, counting the hardest thing a card needs:", "",
-             "| fix | cards | meaning |", "|---|---|---|"]
-    meaning = {"generator": "Cantrip can do it today: the generator has only to write it", "mechanics module": "a keyword's module for the mechanics crate, no change to the core",
-               "unsure": "the audit could not settle it", "unaudited": "a form that appeared after the audit", "Cantrip": "needs a change to Cantrip's engine or API",
-               "not played": "a game mode or a digital-only rule Cantrip does not play"}
-    lines += [f"| {k} | {by_fix.get(k, 0)} | {meaning[k]} |" for k in FIXES]
-    lines += ["", "| class | requirements | cards |", "|---|---|---|"]
-    lines += [f"| {k} | {v['requirements']} | {v['cards']} |" for k, v in sorted(summary.items())]
-    shared = [f for f in features if f["cards"] > 1 or len(f["forms"]) > 1]
-    single = [f for f in features if f["cards"] == 1 and len(f["forms"]) == 1]
-    lines += ["", "## Features", "", f"What the forms below come to: {len(shared)} features more than one card or form shares, most cards first.", "",
-              "| cards | written | forms | fix | needs | examples |", "|---|---|---|---|---|---|"]
-    lines += [f"| {f['cards']} | {f['written']} | {len(f['forms'])} | {f['fix']} | {f['needs']} | {', '.join(f['examples'])} |" for f in shared]
-    lines += ["", "## Asked by one card", "", f"{len(single)} forms that one remaining card has and nothing shares. Most are likely to be code in that card's file.", "",
-              "| card | written | fix | needs |", "|---|---|---|---|"]
-    lines += [f"| {f['examples'][0] if f['examples'] else ''} | {f['written']} | {f['fix']} | {f['needs']} |" for f in single]
-    lines += ["", "## Counters a card brings with it", "",
-              f"{len(counters)} counters are a name and nothing more (CR 122.1), and {totals['cards_with_counter_lines']} cards use them. They are not gaps: "
-              "the card's file uses the kind, and a commit just before the card adds the line to `counter_kinds!`.", "",
-              "| counter | cards | examples |", "|---|---|---|"]
-    lines += [f"| {counter_name(word)} | {len(names)} | {', '.join(sorted(names)[:3])} |" for word, names in sorted(counters.items(), key=lambda kv: (-len(kv[1]), kv[0]))]
     rewrites, unread = rewrites_of(root)
-    lines += ["", "## Text the source rewrites", "",
-              f"The source changes {len(rewrites) + len(unread)} passages of card text on purpose before parsing (`grammars/find_replace.json5`), "
-              "and Cantrip plays Oracle text, so each has a verdict in `data/cantrip_rewrites.json`. "
-              f"{len(unread)} have none yet. Those that change nothing or sit on cards not played are not listed.", ""]
-    lines += [f"- not read yet: `{find}`" for find in unread]
-    lines += ["| cards | verdict | note |", "|---|---|---|"]
-    lines += [f"| {', '.join(row['cards'])} | {row['verdict']} | {row.get('note', '')} |" for row in rewrites if row["verdict"] not in ("same", "not played")]
-    lines += ["", "## Every requirement", "", "| requirement | class | fix | cards | written | alone | needs | examples |", "|---|---|---|---|---|---|---|---|"]
-    for row in rows:
-        if row["cards"]:
-            lines.append(f"| `{row['id']}` | {row['class']} | {row['fix']} | {row['cards']} | {row['written']} | {row['alone']} | {row['needs']} | "
-                         + ", ".join(row["examples"][:3]) + " |")
-    done = [row for row in rows if not row["cards"]]
-    lines += ["", "## Only on cards Cantrip has written", "",
-              f"Cantrip has every card on these {len(done)} rows, so none of them is a missing feature. They remain gaps in the generator.", "",
-              "| requirement | class | written |", "|---|---|---|"]
-    lines += [f"| `{row['id']}` | {row['class']} | {row['written']} |" for row in done]
-    (out / "CANTRIP_TRACKER.md").write_text("\n".join(lines) + "\n")
+    shown = {name: stems[name] for name in (*blocked, *written) if name in stems}
+    for cls in (tracked["proposals"] or {}).get("classes", []):
+        shown.update({name: stem for name, stem in stems.items() if stem in {m["card"] for m in cls["members"]}})
+    (out / "CANTRIP_TRACKER.md").write_text(tracker_md.render({**tracked, "stems": shown}, rewrites, unread, counter_name))
     print(json.dumps({"totals": totals, "classes": summary}))
+
+
+def proposals_of(report, previous):
+    """What tools/proposal_check.py said of the holes' code: its counts and every card whose proposal Cantrip could not
+    take, by class. Without a report, the last tracker's, which the page says is from an earlier run."""
+    if not report:
+        try:
+            kept = json.loads(previous.read_text(encoding="utf-8")).get("proposals")
+        except (OSError, ValueError):
+            return None
+        return kept and {**kept, "earlier": True}
+    rep = json.loads(Path(report).read_text(encoding="utf-8"))
+    classes = [{"class": c["class"], "cards": c["cards"], "errors": c["errors"],
+                "members": [{"card": m["card"], "line": m["line"], "message": m["message"]} for m in c["members"]]}
+               for c in rep["classes"] if not c["stub_fault"]]
+    return {"cards": rep["cards"], "compile": rep["compile"], "compile_but_for_stubs": rep["compile_but_for_stubs"],
+            "fail": rep["fail"], "classes": classes}
 
 
 def todo(args):
@@ -497,17 +669,39 @@ def todo(args):
     print(f"{shown} requirements")
 
 
+def file_stem_of(card):
+    """The file a card is: its name's, or for a card of several faces the one its `CARD` is named for (`..oracle::DELVER_OF_SECRETS`
+    is delver_of_secrets.rs, a front face's name). None for a card of several faces with no PR form."""
+    if card["layout"] == "Card":
+        return stem_of(card["name"])
+    base = re.search(r"pub static CARD: CardDef = CardDef \{.*?\.\.oracle::(\w+)", card.get("file") or "", re.S)
+    return base.group(1).lower() if base else None
+
+
 def swap(args):
-    """Replace each hand-written plain card that has whole generated code, so Cantrip's own scenarios judge it."""
+    """Replace each hand-written plain card that has whole generated code, so Cantrip's own scenarios judge it; with
+    --faces, cards of several faces too."""
     cards = Path(args.cantrip) / "crates/cantrip-cards/src/cards"
-    swapped = []
+    counter_path, token_path = Path(args.cantrip) / COUNTER_TABLE, Path(args.cantrip) / TOKEN_TABLE
+    counter_table, token_table = counter_path.read_text(encoding="utf-8"), token_path.read_text(encoding="utf-8")
+    swapped, counters, tokens = [], {}, {}
     for card in read_rows(args.rows):
-        path = cards / f"{stem_of(card['name'])}.rs"
-        if status_of(card) == "ready" and card["layout"] == "Card" and path.exists():
-            path.write_text(card.get("file") or (header(card) + body(card)), encoding="utf-8")
+        if card["layout"] != "Card" and not args.faces:
+            continue
+        stem = file_stem_of(card)
+        path = cards / f"{stem}.rs"
+        if stem and status_of(card) == "ready" and path.exists():
+            code = card.get("file") or (header(card) + body(card))
+            path.write_text(code, encoding="utf-8")
             swapped.append(card["name"])
+            counters.update(dict.fromkeys(counters_wanted(code, counter_table)))
+            tokens.update(dict.fromkeys(tokens_wanted(code, token_table)))
+    if counters:
+        counter_path.write_text(with_counters(counter_table, list(counters)), encoding="utf-8", newline="\n")
+    if tokens:
+        token_path.write_text(with_tokens(token_table, list(tokens)), encoding="utf-8", newline="\n")
     (Path(args.cantrip) / "swapped.txt").write_text("".join(n + "\n" for n in swapped))
-    print(f"{len(swapped)} hand-written cards replaced")
+    print(f"{len(swapped)} hand-written cards replaced, {len(counters)} counters and {len(tokens)} tokens added")
 
 
 def show(args):
@@ -541,6 +735,7 @@ def main():
     command.add_argument("rows")
     command.add_argument("cantrip")
     command.add_argument("--out", help="where to write, instead of the repository")
+    command.add_argument("--proposals", help="tools/proposal_check.py's --report, for the proposals that do not fit")
     command.set_defaults(run=tracker)
     command = commands.add_parser("todo")
     command.add_argument("rows")
@@ -551,6 +746,7 @@ def main():
     command = commands.add_parser("swap")
     command.add_argument("rows")
     command.add_argument("cantrip")
+    command.add_argument("--faces", action="store_true", help="also cards of several faces that have a PR form")
     command.set_defaults(run=swap)
     command = commands.add_parser("show")
     command.add_argument("rows")

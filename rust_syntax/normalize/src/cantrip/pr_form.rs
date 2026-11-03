@@ -27,26 +27,240 @@ pub enum Characteristics {
 
 /// `raw`, a generated module, as a card file. `printed` is the card's Oracle text.
 pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteristics) -> Option<String> {
-    let Ok(mut file) = syn::parse_str::<File>(raw) else {
+    let Ok(file) = syn::parse_str::<File>(raw) else {
         return Some(raw.to_string());
     };
+    rendered(file, raw, name, printed, characteristics).map(written)
+}
+
+/// A card of two faces as one file, `raw` holding the second in `module`.
+pub fn render_two_faces(raw: &str, module: &str, faces: [(&str, &str); 2]) -> Option<String> {
+    render_faces(raw, &[module], &faces)
+}
+
+/// A card of several faces as one file, `raw` holding each in one of `modules`: its `CARD`
+/// is named as the card reads it (`BACK`, or its own name), and they share one namespace.
+/// `faces` are each face's name and Oracle text. The card itself may be neither face, as
+/// a split card is. None where the module isn't there, or its name is no face's.
+pub fn render_faces(raw: &str, modules: &[&str], faces: &[(&str, &str)]) -> Option<String> {
+    let printed_name = |file: &File| {
+        file.items.iter().find_map(|item| match item {
+            Item::Static(s) if s.ident == "CARD" => match &*s.expr {
+                Expr::Struct(card) => card.fields.iter().find_map(|f| match &f.expr {
+                    Expr::Lit(lit) if text_of(&f.member) == "name" => match &lit.lit {
+                        Lit::Str(name) => Some(name.value()),
+                        _ => None,
+                    },
+                    _ => None,
+                }),
+                _ => None,
+            },
+            _ => None,
+        })
+    };
+    let face_named = |name: &str| faces.iter().find(|face| face.0 == name).copied();
+    let mut file = syn::parse_str::<File>(raw).ok()?;
+    let mut parts: Vec<(&str, File, (&str, &str), String)> = Vec::new();
+    for module in modules {
+        let at = file
+            .items
+            .iter()
+            .position(|item| matches!(item, Item::Mod(m) if m.ident == module))?;
+        let Item::Mod(taken) = file.items.remove(at) else {
+            return None;
+        };
+        let (_, items) = taken.content?;
+        let items = items.into_iter().filter(|item| !matches!(item, Item::Use(_))).collect();
+        let inner = File { shebang: None, attrs: Vec::new(), items };
+        let face = face_named(&printed_name(&inner)?)?;
+        let constant = match *module {
+            "back" => "BACK".to_string(),
+            _ => oracle_constant(face.0),
+        };
+        parts.push((module, inner, face, constant));
+    }
+    let name = printed_name(&file)?;
+    let joined = faces.iter().map(|face| face.1).collect::<Vec<_>>().join("\n");
+    let front = face_named(&name).unwrap_or((&name, &joined));
+    let mut unparsed = prettyplease::unparse(&file);
+    for (module, _, _, constant) in &parts {
+        unparsed = unparsed.replace(&format!("{module}::CARD"), constant);
+    }
+    let oracle = Characteristics::Oracle;
+    let mut merged = rendered(syn::parse_str(&unparsed).ok()?, &unparsed, front.0, front.1, oracle)?;
+    for (module, inner, face, constant) in parts {
+        let raw = format!("use cantrip_api::*;\n{}", prettyplease::unparse(&inner));
+        // A prepare spell is no card and has no content file (722.3c).
+        let characteristics = match module {
+            "prepared" => Characteristics::Inline,
+            _ => oracle,
+        };
+        let second = match rendered(syn::parse_str(&raw).ok()?, &raw, face.0, face.1, characteristics) {
+            Some(file) => file,
+            None => {
+                let base: syn::Path = syn::parse_str(&format!("oracle::{}", oracle_constant(face.0))).ok()?;
+                parse_quote!(pub static CARD: CardDef = CardDef { ..#base };)
+            }
+        };
+        merged = merged_faces(merged, second, &constant)?;
+    }
+    // The token catalog names a multi-face card by its sorted faces, and its
+    // statics by their names after merging. Apply that mapping in this scope.
+    let mut names: Vec<&str> = faces.iter().map(|face| face.0).collect();
+    names.sort();
+    use_shared_tokens(&mut merged, &names.join(" // "));
+    Some(written(merged))
+}
+
+/// The second face's items before the first's, under one set of imports.
+fn merged_faces(front: File, mut second: File, constant: &str) -> Option<File> {
+    let name_of = |item: &Item| match item {
+        Item::Fn(f) => Some(f.sig.ident.to_string()),
+        Item::Static(s) => Some(s.ident.to_string()),
+        Item::Const(c) => Some(c.ident.to_string()),
+        _ => None,
+    };
+    // What a face's documentation says of a shared helper doesn't make it another one.
+    let undocumented = |item: &Item| {
+        let mut item = item.clone();
+        match &mut item {
+            Item::Fn(f) => f.attrs.clear(),
+            Item::Static(s) => s.attrs.clear(),
+            Item::Const(c) => c.attrs.clear(),
+            _ => {}
+        }
+        text_of(&item)
+    };
+    // The same name for something else: the second face's takes a number.
+    let mut renamed: BTreeMap<String, String> = second
+        .items
+        .iter()
+        .filter_map(|item| name_of(item).map(|name| (name, undocumented(item))))
+        .filter(|(name, body)| {
+            !matches!(name.as_str(), "CARD" | "EXTRA")
+                && front
+                    .items
+                    .iter()
+                    .any(|item| name_of(item).as_ref() == Some(name) && undocumented(item) != *body)
+        })
+        .map(|(name, _)| {
+            let new = format!("{name}_2");
+            (name, new)
+        })
+        .collect();
+    renamed.insert("CARD".to_string(), constant.to_string());
+    rename(&mut second, &renamed);
+    let (mut uses, mut mechanics, mut own, mut extra): (Vec<Item>, BTreeSet<String>, Vec<Item>, Vec<Expr>) =
+        (Vec::new(), BTreeSet::new(), Vec::new(), Vec::new());
+    let mut named: BTreeMap<String, String> = BTreeMap::new();
+    let mut rest: Vec<Item> = Vec::new();
+    for (i, face) in [second, front].into_iter().enumerate() {
+        for mut item in face.items {
+            if let Item::Use(_) = item {
+                let line = text_of(&item).replace(' ', "");
+                match line.strip_prefix("usecantrip_mechanics::") {
+                    Some(leaves) => {
+                        let leaves = leaves.trim_end_matches(';');
+                        let leaves = leaves.strip_prefix('{').and_then(|l| l.strip_suffix('}')).unwrap_or(leaves);
+                        mechanics.extend(leaves.split(',').filter(|l| !l.is_empty()).map(str::to_string));
+                    }
+                    None if uses.iter().any(|u| text_of(u).replace(' ', "") == line) => {}
+                    None => uses.push(item),
+                }
+                continue;
+            }
+            if let Item::Static(s) = &mut item {
+                if s.ident == "EXTRA" {
+                    if let Expr::Reference(list) = &*s.expr {
+                        if let Expr::Array(list) = &*list.expr {
+                            for entry in &list.elems {
+                                let through_a_module = text_of(entry).contains("::");
+                                if !through_a_module && !extra.iter().any(|e| text_of(e) == text_of(entry)) {
+                                    extra.push(entry.clone());
+                                }
+                            }
+                        }
+                    }
+                    continue;
+                }
+                if i == 0 && s.ident != constant && text_of(&s.ty) == "CardDef" {
+                    let ident = &s.ident;
+                    let entry: Expr = parse_quote!(&#ident);
+                    if !extra.iter().any(|e| text_of(e) == text_of(&entry)) {
+                        extra.push(entry);
+                    }
+                }
+            }
+            if let Some(name) = name_of(&item) {
+                let body = undocumented(&item);
+                match named.get(&name) {
+                    Some(seen) if *seen == body => continue,
+                    Some(_) => return None,
+                    None => {
+                        named.insert(name, body);
+                    }
+                }
+            }
+            if i == 0 {
+                own.push(item);
+            } else {
+                rest.push(item);
+            }
+        }
+    }
+    let mut items: Vec<Item> = Vec::new();
+    let oracle = uses.iter().position(|u| text_of(u).contains("cantrip_oracle"));
+    let leaves = mechanics.into_iter().collect::<Vec<_>>();
+    let line = match leaves.as_slice() {
+        [] => None,
+        [one] => Some(format!("use cantrip_mechanics::{one};")),
+        many => Some(format!("use cantrip_mechanics::{{{}}};", many.join(", "))),
+    };
+    let mut before = uses;
+    if let Some(line) = line {
+        let item: Item = syn::parse_str(&line).ok()?;
+        before.insert(oracle.unwrap_or(before.len()), item);
+    }
+    items.extend(before);
+    items.extend(own);
+    items.extend(rest);
+    if !extra.is_empty() {
+        let list: syn::punctuated::Punctuated<Expr, syn::Token![,]> = extra.into_iter().collect();
+        items.push(parse_quote!(pub static EXTRA: &[&CardDef] = &[#list];));
+    }
+    Some(File { shebang: None, attrs: Vec::new(), items })
+}
+
+/// A card's module as the file it will be, not yet written out.
+fn rendered(
+    mut file: File,
+    raw: &str,
+    name: &str,
+    printed: &str,
+    characteristics: Characteristics,
+) -> Option<File> {
     let printed = &printed_as_cantrip(printed);
     let reads_data = raw.contains("item.data")
         || raw.contains("batch_by_data")
         || raw.contains("counted_by_amount")
         || raw.contains(".data[");
     let reads_subject = raw.contains("event_subject") || raw.contains("event_objects") || raw.contains("item.subject");
+    let unread = matchers_whose_data_is_unread(&file);
+    let reads_data = |function: &syn::ItemFn| reads_data && !unread.contains(&function.sig.ident.to_string());
     flatten_tokens(&mut file, &mut BTreeSet::new());
-    use_shared_tokens(&mut file);
+    use_shared_tokens(&mut file, name);
     for item in &mut file.items {
         strip_allows(item);
         if let Item::Fn(function) = item {
+            let reads_data = reads_data(function);
             simplify_function(function, reads_data);
         }
     }
     use_shared_targets(&mut file);
+    subject_always_an_object(&mut file);
     for item in &mut file.items {
         if let Item::Fn(function) = item {
+            let reads_data = reads_data(function);
             simplify_function(function, reads_data);
         }
     }
@@ -56,6 +270,7 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
     }
     use_shared_mana(&mut file);
     use_shared_effects(&mut file);
+    one_target_lists(&mut file);
     drop_unreached(&mut file);
     drop_defaults(&mut file, characteristics);
     inline_target_lists(&mut file);
@@ -71,6 +286,7 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
     let imports = shorten_paths(&mut file);
     let names = function_names(&file, printed);
     rename(&mut file, &names.renamed);
+    guards_first(&mut file);
     document(&mut file, &names.quotes);
     document_card(&mut file, printed);
     let mut head = imports;
@@ -83,9 +299,80 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
         head.iter()
             .map(|line| syn::parse_str::<Item>(line).expect("an import")),
     );
+    Some(file)
+}
+
+/// A rendered card as its text.
+fn written(mut file: File) -> String {
     strip_literal_types(&mut file);
     let text = fields_on_their_own_lines(prettyplease::unparse(&file));
-    Some(spaced(let_else_on_one_line(&event_patterns_on_one_line(&text))))
+    spaced(let_else_on_one_line(&event_patterns_on_one_line(&text)))
+}
+
+/// The event functions whose abilities never read what they carry: `Fired::data` belongs to the ability it fires, not to the
+/// file, and one ability reading it says nothing of the others. An event function goes in only if every `triggered` using it
+/// has an effect that doesn't read `item.data`, by itself or through a function of the file, and no batching by data.
+fn matchers_whose_data_is_unread(file: &File) -> BTreeSet<String> {
+    let bodies: BTreeMap<String, String> = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Fn(function) => Some((function.sig.ident.to_string(), text_of(function))),
+            _ => None,
+        })
+        .collect();
+    let says = |text: &str, name: &str| text.split(|c: char| !c.is_alphanumeric() && c != '_').any(|word| word == name);
+    let mut reading: BTreeSet<&String> = bodies.iter().filter(|(_, body)| body.contains(". data [")).map(|(name, _)| name).collect();
+    loop {
+        let more: Vec<&String> = bodies
+            .iter()
+            .filter(|(name, body)| !reading.contains(name) && reading.iter().any(|read| says(body, read)))
+            .map(|(name, _)| name)
+            .collect();
+        if more.is_empty() {
+            break;
+        }
+        reading.extend(more);
+    }
+    struct Uses<'a> {
+        used: BTreeMap<&'a str, bool>,
+        bodies: &'a BTreeMap<String, String>,
+        reading: &'a BTreeSet<&'a String>,
+    }
+    impl<'a> Uses<'a> {
+        fn triggered(&mut self, call: &syn::ExprCall, batched: bool) {
+            let (Some(matcher), Some(effect)) = (call.args.first(), call.args.iter().nth(1)) else { return };
+            let (matcher, effect) = (text_of(matcher), text_of(effect));
+            let words = |text: &str| text.split(|c: char| !c.is_alphanumeric() && c != '_').map(str::to_string).collect::<BTreeSet<_>>();
+            let effect_words = words(&effect);
+            let reads = batched || effect.contains(". data [") || self.reading.iter().any(|name| effect_words.contains(*name));
+            for word in words(&matcher) {
+                if let Some((name, _)) = self.bodies.get_key_value(&word) {
+                    *self.used.entry(name).or_default() |= reads || self.reading.contains(name);
+                }
+            }
+        }
+    }
+    impl<'ast> Visit<'ast> for Uses<'_> {
+        fn visit_expr(&mut self, node: &'ast Expr) {
+            let mut at = node;
+            let mut batched = false;
+            while let Expr::MethodCall(method) = at {
+                let word = method.method.to_string();
+                batched |= word == "batch_by_data" || word == "counted_by_amount";
+                at = &method.receiver;
+            }
+            match at {
+                Expr::Call(call) if text_of(&call.func).ends_with("triggered") => self.triggered(call, batched),
+                _ => {}
+            }
+            visit::visit_expr(self, node);
+        }
+    }
+    let mut uses = Uses { used: BTreeMap::new(), bodies: &bodies, reading: &reading };
+    uses.visit_file(file);
+    let unread = uses.used.iter().filter(|(_, reads)| !**reads).map(|(name, _)| name.to_string()).collect();
+    unread
 }
 
 /// `if let Event::X { .. } = event { .. } None` says what to do with any other event, which a trigger on X's mask is never
@@ -825,6 +1112,11 @@ impl VisitMut for Tidy {
                 let replaced: Option<Expr> = match method.as_str() {
                     // `Some(x).expect("a reference that always names a player")`
                     "expect" => some_of(&call.receiver),
+                    // `Some(item.object).map_or(0, |o: ObjectId| ..)`: a default for an object
+                    // that is always there, which no game reaches.
+                    "map_or" if call.args.len() == 2 => some_of(&call.receiver)
+                        .filter(|x| matches!(x, Expr::Path(_) | Expr::Field(_)))
+                        .and_then(|x| applied(&call.args[1], &x)),
                     // A list collected to be walked at once
                     "into_iter" => match &*call.receiver {
                         Expr::MethodCall(collect) if collect.method == "collect" => {
@@ -865,7 +1157,8 @@ impl VisitMut for Tidy {
                     *node = replaced;
                 }
             }
-            // `x.clamp(0, 65535) as u16`: a cast, not a limit a rule sets.
+            // `x.clamp(0, 65535) as u16`: a cast, not a limit a rule sets. So is
+            // `n.min(i16::MAX.into()) as i16`, which `Number::amount` writes of a value never negative.
             Expr::Cast(cast) => {
                 if let Expr::MethodCall(call) = &*cast.expr {
                     if call.method == "clamp" {
@@ -882,6 +1175,21 @@ impl VisitMut for Tidy {
                             (true, false) => parse_quote!((#value).max(0) as #ty),
                             (false, true) => parse_quote!(#value as #ty),
                             (false, false) => parse_quote!((#value) as #ty),
+                        };
+                    } else if call.method == "min"
+                        && call.args.len() == 1
+                        && text_of(&call.args[0]) == format!("{} :: MAX . into ()", text_of(&cast.ty))
+                    {
+                        let mut value = (*call.receiver).clone();
+                        strip_parens(&mut value);
+                        let ty = cast.ty.clone();
+                        *node = match matches!(
+                            value,
+                            Expr::Lit(_) | Expr::Path(_) | Expr::Field(_) | Expr::MethodCall(_)
+                                | Expr::Call(_) | Expr::Index(_)
+                        ) {
+                            true => parse_quote!(#value as #ty),
+                            false => parse_quote!((#value) as #ty),
                         };
                     }
                 }
@@ -1144,6 +1452,31 @@ fn is_zero_cost(cost: &Expr) -> bool {
         && cost.contains("phyrexian : [0 , 0 , 0 , 0 , 0]")
 }
 
+/// `{ let o: T = x; body }`: the closure `|o: T| body` applied to `x`. None for a closure
+/// whose body could leave it (`return`, `?`), or that takes its argument by a pattern.
+fn applied(closure: &Expr, value: &Expr) -> Option<Expr> {
+    let Expr::Closure(closure) = closure else {
+        return None;
+    };
+    let body = text_of(&closure.body);
+    if closure.inputs.len() != 1 || body.contains("return") || body.contains('?') {
+        return None;
+    }
+    let input = &closure.inputs[0];
+    match input {
+        Pat::Ident(_) => {}
+        Pat::Type(typed) if matches!(&*typed.pat, Pat::Ident(_)) => {}
+        _ => return None,
+    }
+    Some(match &*closure.body {
+        Expr::Block(block) => {
+            let statements = &block.block.stmts;
+            parse_quote!({ let #input = #value; #(#statements)* })
+        }
+        other => parse_quote!({ let #input = #value; #other }),
+    })
+}
+
 /// `x` of `Some(x)`.
 fn some_of(expr: &Expr) -> Option<Expr> {
     match expr {
@@ -1312,10 +1645,20 @@ const READING_METHODS: &[&str] = &[
 /// Whether `name` is assigned, borrowed mutably, or has anything but a reading method
 /// called on it.
 fn is_changed(stmts: &[Stmt], name: &str) -> bool {
+    fn writes_to(left: &Expr, name: &str) -> bool {
+        match left {
+            Expr::Tuple(tuple) => tuple.elems.iter().any(|part| writes_to(part, name)),
+            Expr::Array(array) => array.elems.iter().any(|part| writes_to(part, name)),
+            Expr::Struct(fields) => fields.fields.iter().any(|part| writes_to(&part.expr, name)),
+            Expr::Paren(paren) => writes_to(&paren.expr, name),
+            Expr::Group(group) => writes_to(&group.expr, name),
+            _ => root_of(left).as_deref() == Some(name),
+        }
+    }
     struct Finds<'a>(&'a str, bool);
     impl<'ast> Visit<'ast> for Finds<'_> {
         fn visit_expr_assign(&mut self, node: &'ast syn::ExprAssign) {
-            self.1 |= root_of(&node.left).as_deref() == Some(self.0);
+            self.1 |= writes_to(&node.left, self.0);
             visit::visit_expr_assign(self, node);
         }
         fn visit_expr_binary(&mut self, node: &'ast syn::ExprBinary) {
@@ -1946,6 +2289,381 @@ fn drop_unread_bindings(pat: &mut Pat, reads: impl Fn(&str) -> bool) {
 }
 
 /// A function's last statement `return x;` as `x`.
+/// `if let Some(x) = e { .. } Ok(())` at the end of a function is `let Some(x) = e else { return Ok(()) }; .. Ok(())`: the
+/// same program, but where `e` is always something (a trigger's object subject, a target the spell resolved for) the `if
+/// let`'s closing brace is a line no game runs, and Cantrip's coverage gate asks for every line.
+fn guard_at_the_end(block: &mut Block) {
+    let n = block.stmts.len();
+    if n < 2 || text_of(&block.stmts[n - 1]) != "Ok (())" {
+        return;
+    }
+    let Stmt::Expr(Expr::If(branch), _) = &block.stmts[n - 2] else {
+        return;
+    };
+    let Expr::Let(binding) = &*branch.cond else {
+        return;
+    };
+    let Pat::TupleStruct(pattern) = &*binding.pat else {
+        return;
+    };
+    if text_of(&pattern.path) != "Some" || pattern.elems.len() != 1 {
+        return;
+    }
+    guard_last(block, &Tail::Value(parse_quote!(Ok(()))));
+}
+
+/// `if let (Some(source), Some(values)) = (Some(item.object), values_2) { .. }` tests a value that is always something:
+/// `Some(item.object)` matches whatever the object is, so the part of the test it makes can never fail, and where nothing
+/// else is tested the `if`'s closing brace is a line no game runs. Each such part goes, its name read as the value
+/// (`g.become_copy(item.object, ..)`), and what is left is tested as it was; with nothing left the body is run as it is.
+/// Only a value that is a name or a field of one, read the same wherever it stands.
+struct AlwaysSome;
+
+impl AlwaysSome {
+    /// The `if` with its always-matching parts gone, or its body when nothing is left of the test.
+    fn tested(branch: &syn::ExprIf) -> Option<Result<syn::ExprIf, Block>> {
+        if branch.else_branch.is_some() {
+            return None;
+        }
+        let Expr::Let(binding) = &*branch.cond else { return None };
+        let (pats, values): (Vec<Pat>, Vec<Expr>) = match (&*binding.pat, &*binding.expr) {
+            (Pat::Tuple(pats), Expr::Tuple(values)) if pats.elems.len() == values.elems.len() => {
+                (pats.elems.iter().cloned().collect(), values.elems.iter().cloned().collect())
+            }
+            (pat, value) => (vec![pat.clone()], vec![value.clone()]),
+        };
+        let mut body = branch.then_branch.clone();
+        let (mut kept_pats, mut kept_values) = (Vec::new(), Vec::new());
+        for (pat, value) in pats.into_iter().zip(values) {
+            let named = match (&pat, some_of(&value).or_else(|| only_of_one(&value))) {
+                (Pat::TupleStruct(some), Some(inner))
+                    if text_of(&some.path) == "Some" && some.elems.len() == 1 && is_plain_value(&inner) =>
+                {
+                    match &some.elems[0] {
+                        Pat::Ident(name) if name.by_ref.is_none() && name.mutability.is_none() && name.subpat.is_none() => {
+                            Some((name.ident.to_string(), inner))
+                        }
+                        Pat::Wild(_) => Some((String::new(), inner)),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            };
+            let Some((name, inner)) = named else {
+                kept_pats.push(pat);
+                kept_values.push(value);
+                continue;
+            };
+            if !name.is_empty() {
+                let mut uses = Uses { name: &name, ..Uses::default() };
+                uses.visit_block(&body);
+                if uses.rebound || uses.in_macros > 0 {
+                    kept_pats.push(pat);
+                    kept_values.push(value);
+                    continue;
+                }
+                Replace { name: &name, with: &inner }.visit_block_mut(&mut body);
+            }
+        }
+        match kept_pats.len() {
+            0 => Some(Err(body)),
+            n if n == binding_parts(binding) => None,
+            1 => {
+                let (pat, value) = (&kept_pats[0], &kept_values[0]);
+                Some(Ok(syn::ExprIf { cond: Box::new(parse_quote!(let #pat = #value)), then_branch: body, ..branch.clone() }))
+            }
+            _ => Some(Ok(syn::ExprIf {
+                cond: Box::new(parse_quote!(let (#(#kept_pats),*) = (#(#kept_values),*))),
+                then_branch: body,
+                ..branch.clone()
+            })),
+        }
+    }
+}
+
+/// A value read the same wherever it stands and cheap to read again: a name, a field of one, or a constructor of such,
+/// `Target::Object(asker.source)`.
+fn is_plain_value(expr: &Expr) -> bool {
+    match expr {
+        Expr::Path(_) | Expr::Field(_) => true,
+        Expr::Call(call) => {
+            matches!(&*call.func, Expr::Path(path) if path.path.segments.last().is_some_and(|last| last.ident.to_string().starts_with(char::is_uppercase)))
+                && call.args.iter().all(is_plain_value)
+        }
+        _ => false,
+    }
+}
+
+/// `x` of `Some(x).into_iter().collect::<Vec<_>>().first().copied()`, the first of a list of one, which is always there;
+/// `f(x)` where the list is mapped by a named function, `.map(Target::Object)`.
+fn only_of_one(expr: &Expr) -> Option<Expr> {
+    let method = |expr: &Expr, name: &str| match expr {
+        Expr::MethodCall(call) if call.method == name => Some(call.clone()),
+        _ => None,
+    };
+    let copied = method(expr, "copied").filter(|call| call.args.is_empty())?;
+    let first = method(&copied.receiver, "first").filter(|call| call.args.is_empty())?;
+    let collect = method(&first.receiver, "collect").filter(|call| call.args.is_empty())?;
+    let mut maps = Vec::new();
+    let mut at = &*collect.receiver;
+    while let Some(map) = method(at, "map") {
+        let [Expr::Path(function)] = map.args.iter().collect::<Vec<_>>().as_slice() else { return None };
+        maps.push((*function).clone());
+        at = match at {
+            Expr::MethodCall(call) => &call.receiver,
+            _ => return None,
+        };
+    }
+    let into_iter = method(at, "into_iter").filter(|call| call.args.is_empty())?;
+    let mut value = some_of(&into_iter.receiver)?;
+    for function in maps.into_iter().rev() {
+        value = parse_quote!(#function(#value));
+    }
+    Some(value)
+}
+
+/// How many values a `let` tests: a tuple's each, else one.
+fn binding_parts(binding: &syn::ExprLet) -> usize {
+    match (&*binding.pat, &*binding.expr) {
+        (Pat::Tuple(pats), Expr::Tuple(values)) if pats.elems.len() == values.elems.len() => pats.elems.len(),
+        _ => 1,
+    }
+}
+
+impl VisitMut for AlwaysSome {
+    fn visit_block_mut(&mut self, block: &mut Block) {
+        visit_mut::visit_block_mut(self, block);
+        let mut at = 0;
+        while at < block.stmts.len() {
+            let Stmt::Expr(Expr::If(branch), _) = &block.stmts[at] else {
+                at += 1;
+                continue;
+            };
+            match Self::tested(branch) {
+                None => at += 1,
+                Some(Ok(narrowed)) => {
+                    let semi = matches!(&block.stmts[at], Stmt::Expr(_, Some(_)));
+                    block.stmts[at] = Stmt::Expr(Expr::If(narrowed), semi.then(Default::default));
+                    at += 1;
+                }
+                Some(Err(body)) => {
+                    let after = block.stmts[at + 1..].to_vec();
+                    let mut body = spliced(body, &after);
+                    if !after.is_empty() {
+                        if let Some(Stmt::Expr(last, semi @ None)) = body.last_mut() {
+                            if !matches!(last, Expr::If(_) | Expr::ForLoop(_) | Expr::Block(_) | Expr::Match(_) | Expr::While(_) | Expr::Loop(_)) {
+                                *semi = Some(Default::default());
+                            }
+                        }
+                    }
+                    let n = body.len();
+                    block.stmts.splice(at..at + 1, body);
+                    at += n.max(1);
+                }
+            }
+        }
+    }
+}
+
+/// What a function says when nothing more happens: the expression it ends in (`Ok(())`, `false`, `None`), or nothing, for
+/// a function of no value.
+enum Tail {
+    Value(Expr),
+    Unit,
+}
+
+impl Tail {
+    /// The tail of a function with this output, if it is one a guard can return: a trigger's matcher is not, as an event
+    /// it doesn't match is one a scenario can give it, and the `None` it ends in is a line to cover, not to hide.
+    fn of(output: &syn::ReturnType) -> Option<Tail> {
+        let syn::ReturnType::Type(_, ty) = output else { return Some(Tail::Unit) };
+        let ty = text_of(ty);
+        Some(match ty.as_str() {
+            "bool" => Tail::Value(parse_quote!(false)),
+            _ if ty.starts_with("Result <") => Tail::Value(parse_quote!(Ok(()))),
+            _ if ty.starts_with("Option <") && !ty.contains("Fired") => Tail::Value(parse_quote!(None)),
+            _ => return None,
+        })
+    }
+}
+
+/// `if let P = e { .. } tail` as the last words of `block` is `let P = e else { return tail }; .. tail`: the same program,
+/// where `P` can't fail to match (a replacement is only asked of proposals of its kind, a target the spell resolved for is
+/// there) the `if`'s closing brace is a line no game runs, and Cantrip's coverage gate asks for every line. Only a guard
+/// that is one line once formatted: a `return` on a line of its own is the same line no game runs. Repeated, so a guard in
+/// a guard comes out too. Whether anything changed.
+fn guard_last(block: &mut Block, tail: &Tail) -> bool {
+    let mut changed = false;
+    loop {
+        let n = block.stmts.len();
+        let (at, ends) = match tail {
+            Tail::Value(value) => {
+                if n < 2 || !matches!(&block.stmts[n - 1], Stmt::Expr(last, None) if text_of(last) == text_of(value)) {
+                    return changed;
+                }
+                (n - 2, Some(value))
+            }
+            Tail::Unit if n >= 1 => (n - 1, None),
+            Tail::Unit => return changed,
+        };
+        let Stmt::Expr(Expr::If(branch), semi) = &block.stmts[at] else { return changed };
+        if branch.else_branch.is_some() || (semi.is_none() && at + 1 < n && ends.is_none()) {
+            return changed;
+        }
+        let Expr::Let(binding) = &*branch.cond else { return changed };
+        if matches!(&*binding.pat, Pat::Ident(_) | Pat::Wild(_)) {
+            return changed;
+        }
+        let (pat, value) = (&binding.pat, &binding.expr);
+        // `let .. = { .. } else` is no Rust: an initializer of a `let .. else` can't end in a brace.
+        if text_of(value).ends_with('}') {
+            return changed;
+        }
+        let guard: Stmt = match ends {
+            Some(tail) => parse_quote!(let #pat = #value else { return #tail };),
+            None => parse_quote!(let #pat = #value else { return };),
+        };
+        if !one_line(&guard) {
+            return changed;
+        }
+        let mut body = branch.then_branch.stmts.clone();
+        if ends.is_some() {
+            if let Some(Stmt::Expr(_, semi @ None)) = body.last_mut() {
+                *semi = Some(Default::default());
+            }
+        }
+        let rest: Vec<Stmt> = block.stmts.drain(at..).skip(1).collect();
+        block.stmts.push(guard);
+        block.stmts.extend(body);
+        block.stmts.extend(rest);
+        changed = true;
+    }
+}
+
+/// Whether `guard`, a `let .. else`, is one line of a function's body as the card file prints it.
+fn one_line(guard: &Stmt) -> bool {
+    let function: syn::ItemFn = parse_quote!(fn f() { #guard });
+    let mut file = File { shebang: None, attrs: vec![], items: vec![Item::Fn(function)] };
+    strip_literal_types(&mut file);
+    let text = let_else_on_one_line(&prettyplease::unparse(&file));
+    text.trim_end().lines().count() == 3
+}
+
+/// Every function's guard at its end as a `let .. else` (`guard_last`), once the names it prints with are the file's own.
+fn guards_first(file: &mut File) {
+    for item in &mut file.items {
+        let Item::Fn(function) = item else { continue };
+        if text_of(&function.sig.output).contains("Fired") {
+            while one_event_pattern(&mut function.block) {}
+        }
+        let Some(tail) = Tail::of(&function.sig.output) else { continue };
+        if guard_last(&mut function.block, &tail) {
+            tail_return(&mut function.block);
+        }
+    }
+}
+
+/// A matcher of two events of one kind ("When this artifact enters and when you sacrifice it": two zone changes) as one
+/// `let .. else` binding what both read. Written as `if let Event::ZoneChange { new, to, .. } = event { .. }` and then
+/// `let Event::ZoneChange { old, from, reason: ZoneReason::Sacrifice, .. } = event else { return None };`, the first
+/// pattern fails only on an event of another kind, which the matcher, asked of zone changes alone, is never shown: its
+/// closing brace, the line of that failure, is one no game runs. What the second pattern asks of a field more than to
+/// bind it is asked after the first event's test, by a `let .. else` of its own.
+fn one_event_pattern(block: &mut Block) -> bool {
+    let event_of = |expr: &Expr| matches!(expr, Expr::Path(path) if path.path.is_ident("event"));
+    for i in 0..block.stmts.len().saturating_sub(1) {
+        let Stmt::Expr(Expr::If(first), None) = &block.stmts[i] else { continue };
+        let Expr::Let(head) = &*first.cond else { continue };
+        let (Pat::Struct(a), true, None) = (&*head.pat, event_of(&head.expr), &first.else_branch) else { continue };
+        let Stmt::Local(local) = &block.stmts[i + 1] else { continue };
+        let Pat::Struct(b) = &local.pat else { continue };
+        let Some(init) = &local.init else { continue };
+        let Some((_, otherwise)) = &init.diverge else { continue };
+        if !event_of(&init.expr) || !["{returnNone}", "{returnNone;}"].contains(&text_of(otherwise).split_whitespace().collect::<String>().as_str()) {
+            continue;
+        }
+        if text_of(&a.path) != text_of(&b.path) || a.rest.is_none() || b.rest.is_none() || a.qself.is_some() {
+            continue;
+        }
+        let bound = |field: &syn::FieldPat| match &*field.pat {
+            Pat::Ident(name) if name.subpat.is_none() && name.by_ref.is_none() => Some(name.ident.clone()),
+            Pat::Wild(_) => None,
+            _ => None,
+        };
+        let member = |field: &syn::FieldPat| text_of(&field.member);
+        // The first event's fields only bind; the second's may ask more, asked by a guard of its own.
+        if a.fields.iter().any(|field| bound(field).is_none()) {
+            continue;
+        }
+        let mut merged = a.clone();
+        let mut checks: Vec<Stmt> = Vec::new();
+        let mut clash = false;
+        for field in &b.fields {
+            let name = member(field);
+            let had = merged.fields.iter().find(|f| member(f) == name).cloned();
+            match (bound(field), had) {
+                (Some(ident), Some(had)) => clash |= bound(&had).map(|h| h != ident).unwrap_or(true),
+                (Some(_), None) => merged.fields.push(field.clone()),
+                (None, had) => {
+                    let syn::Member::Named(ident) = &field.member else {
+                        clash = true;
+                        continue;
+                    };
+                    if had.is_some_and(|had| bound(&had).as_ref() != Some(ident)) {
+                        clash = true;
+                        continue;
+                    }
+                    if !merged.fields.iter().any(|f| member(f) == name) {
+                        merged.fields.push(syn::FieldPat {
+                            attrs: Vec::new(),
+                            member: syn::Member::Named(ident.clone()),
+                            colon_token: None,
+                            pat: Box::new(parse_quote!(#ident)),
+                        });
+                    }
+                    let pattern = &field.pat;
+                    checks.push(parse_quote!(let #pattern = #ident else { return None; };));
+                }
+            }
+        }
+        if clash {
+            continue;
+        }
+        // The first event's own names stay in a block of their own where one would hide a field the second binds.
+        struct Bound(BTreeSet<String>);
+        impl<'ast> Visit<'ast> for Bound {
+            fn visit_pat_ident(&mut self, node: &'ast syn::PatIdent) {
+                self.0.insert(node.ident.to_string());
+                visit::visit_pat_ident(self, node);
+            }
+        }
+        let mut second = Bound(BTreeSet::new());
+        second.visit_pat(&Pat::Struct(b.clone()));
+        let hides = first.then_branch.stmts.iter().any(|stmt| {
+            let Stmt::Local(local) = stmt else { return false };
+            let mut own = Bound(BTreeSet::new());
+            own.visit_pat(&local.pat);
+            own.0.iter().any(|name| second.0.contains(name) || b.fields.iter().any(|f| member(f) == *name))
+        });
+        let body: Vec<Stmt> = match hides {
+            true => {
+                let then = &first.then_branch;
+                vec![parse_quote!(#then)]
+            }
+            false => first.then_branch.stmts.clone(),
+        };
+        let merged = Pat::Struct(merged);
+        let mut stmts: Vec<Stmt> = block.stmts[..i].to_vec();
+        stmts.push(parse_quote!(let #merged = event else { return None; };));
+        stmts.extend(body);
+        stmts.extend(checks);
+        stmts.extend(block.stmts[i + 2..].iter().cloned());
+        block.stmts = stmts;
+        return true;
+    }
+    false
+}
+
 fn tail_return(block: &mut Block) {
     if let Some(Stmt::Expr(Expr::Return(value), _)) = block.stmts.last() {
         if let Some(value) = value.expr.clone() {
@@ -2038,6 +2756,10 @@ fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
         }
     }
     LifeLostTogether.visit_block_mut(&mut function.block);
+    AlwaysSome.visit_block_mut(&mut function.block);
+    if text_of(&function.sig.output).contains("Result") {
+        guard_at_the_end(&mut function.block);
+    }
     tail_return(&mut function.block);
     for input in &mut function.sig.inputs {
         if let syn::FnArg::Typed(typed) = input {
@@ -2056,9 +2778,143 @@ fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
     }
 }
 
-/// `static ..._TARGETS` by the function that reads them, and whether each is one exact target.
+/// The resolving function of each triggered ability, by its matcher: `triggered(when_asked(.., matcher), resolve, ..)`.
+fn triggered_pairs(file: &File) -> Vec<(String, String)> {
+    struct Pairs(Vec<(String, String)>);
+    impl<'ast> Visit<'ast> for Pairs {
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            let last = |expr: &Expr| match expr {
+                Expr::Path(path) => path.path.segments.last().map(|s| s.ident.to_string()),
+                _ => None,
+            };
+            if last(&call.func).as_deref() == Some("triggered") {
+                let args: Vec<&Expr> = call.args.iter().collect();
+                if let [Expr::Call(when), resolve, ..] = args.as_slice() {
+                    let when_args: Vec<&Expr> = when.args.iter().collect();
+                    if last(&when.func).as_deref() == Some("when_asked") {
+                        if let ([_, matcher], Some(resolve)) = (when_args.as_slice(), ident_of(resolve)) {
+                            if let Some(matcher) = ident_of(matcher) {
+                                self.0.push((matcher, resolve));
+                            }
+                        }
+                    }
+                }
+            }
+            visit::visit_expr_call(self, call);
+        }
+    }
+    let mut pairs = Pairs(Vec::new());
+    pairs.visit_file(file);
+    pairs.0
+}
+
+/// "Whenever this creature mutates, it deals 4 damage" (Snapdax): a matcher that fires only about an object, as
+/// `Fired::about(Target::Object(..))`, leaves its ability's subject an object, so `item.subject.object()` is always
+/// something and the `else` of `if let Some(source) = item.subject.object()` is a line no game runs. The test is a
+/// guard on one line instead, and what it guarded runs on with the rest.
+fn subject_always_an_object(file: &mut File) {
+    let only_objects: BTreeSet<String> = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Fn(function) => {
+                let text = text_of(&function.block);
+                let fired = text.matches("Fired :: about (").count();
+                let subjects = text.matches("let subject =").count();
+                let only = fired > 0
+                    && fired == text.matches("Fired :: about (subject)").count()
+                    && subjects > 0
+                    && subjects == text.matches("let subject = Target :: Object (").count()
+                    && !text.contains("Fired {")
+                    && !text.contains("Fired :: PLAIN");
+                only.then(|| function.sig.ident.to_string())
+            }
+            _ => None,
+        })
+        .collect();
+    let resolvers: BTreeSet<String> = triggered_pairs(file)
+        .into_iter()
+        .filter(|(matcher, _)| only_objects.contains(matcher))
+        .map(|(_, resolve)| resolve)
+        .collect();
+    // A resolving function two abilities share is guarded only if both fire about objects.
+    let shared: BTreeSet<String> = triggered_pairs(file)
+        .into_iter()
+        .filter(|(matcher, _)| !only_objects.contains(matcher))
+        .map(|(_, resolve)| resolve)
+        .collect();
+    for item in &mut file.items {
+        let Item::Fn(function) = item else { continue };
+        let name = function.sig.ident.to_string();
+        if !resolvers.contains(&name) || shared.contains(&name) || !text_of(&function.sig.output).contains("Result") {
+            continue;
+        }
+        let block = &mut function.block;
+        let mut subject_names: Vec<String> = Vec::new();
+        let mut at = 0;
+        while at < block.stmts.len() {
+            if let Stmt::Local(local) = &block.stmts[at] {
+                if let (Some(name), Some(init)) = (plain_binding(local), &local.init) {
+                    if text_of(&init.expr) == "item . subject . object ()" {
+                        subject_names.push(name);
+                    }
+                }
+            }
+            let Stmt::Expr(Expr::If(branch), _) = &block.stmts[at] else {
+                at += 1;
+                continue;
+            };
+            let Expr::Let(binding) = &*branch.cond else {
+                at += 1;
+                continue;
+            };
+            let value = text_of(&binding.expr);
+            let is_subject = value == "item . subject . object ()" || subject_names.iter().any(|n| *n == value);
+            let some = matches!(&*binding.pat, Pat::TupleStruct(p) if text_of(&p.path) == "Some" && p.elems.len() == 1);
+            if branch.else_branch.is_some() || !is_subject || !some {
+                at += 1;
+                continue;
+            }
+            let (pat, expr) = (&binding.pat, &binding.expr);
+            let guard: Stmt = parse_quote!(let #pat = #expr else { return Ok(()); };);
+            let after = block.stmts[at + 1..].to_vec();
+            let mut body = spliced(branch.then_branch.clone(), &after);
+            if !after.is_empty() {
+                if let Some(Stmt::Expr(last, semi @ None)) = body.last_mut() {
+                    if !matches!(last, Expr::If(_) | Expr::ForLoop(_) | Expr::Block(_) | Expr::Match(_) | Expr::While(_) | Expr::Loop(_)) {
+                        *semi = Some(Default::default());
+                    }
+                }
+            }
+            let n = body.len();
+            body.insert(0, guard);
+            block.stmts.splice(at..at + 1, body);
+            at += n + 1;
+        }
+    }
+}
+
+/// `static ..._TARGETS` by the function that reads them, and whether each is one exact target; and the targets a
+/// `spell(&[..], resolve)` or a `triggered(.., resolve, ..).targets(&[..])` lists where it stands.
 fn single_targets(file: &File) -> BTreeMap<String, Vec<bool>> {
-    let mut found = BTreeMap::new();
+    struct Inline(BTreeMap<String, Vec<bool>>);
+    impl<'ast> Visit<'ast> for Inline {
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            let args: Vec<&Expr> = call.args.iter().collect();
+            if matches!(&*call.func, Expr::Path(path) if path.path.is_ident("spell")) {
+                if let [Expr::Reference(list), resolve] = args.as_slice() {
+                    if let (Expr::Array(specs), Some(resolve)) = (&*list.expr, ident_of(resolve)) {
+                        let single = specs.elems.iter().map(|spec| !matches!(spec, Expr::MethodCall(_))).collect();
+                        self.0.insert(resolve, single);
+                    }
+                }
+            }
+            visit::visit_expr_call(self, call);
+        }
+    }
+    let mut inline = Inline(BTreeMap::new());
+    inline.visit_file(file);
+    let mut found = inline.0;
     for item in &file.items {
         if let Item::Static(item) = item {
             let name = item.ident.to_string();
@@ -2089,6 +2945,90 @@ fn use_shared_targets(file: &mut File) {
         let lone = singles.len() == 1 && singles[0];
         one_target_reads(&mut function.block, singles, lone);
     }
+}
+
+/// What `use_shared_targets` and the shared effects left of the reads of an item's one target, as one list
+/// (`one_target_list`).
+fn one_target_lists(file: &mut File) {
+    if chooses_many_modes(file) {
+        return;
+    }
+    let specs = single_targets(file);
+    for item in &mut file.items {
+        let Item::Fn(function) = item else { continue };
+        if specs.get(&function.sig.ident.to_string()).is_some_and(|singles| singles.len() == 1 && singles[0]) {
+            one_target_list(&mut function.block);
+        }
+    }
+}
+
+/// Whether a choice of modes in the file may take more than one: then one mode's target can be illegal while the item
+/// still resolves for another's (CR 608.2b), and its legality is the mode's to ask.
+fn chooses_many_modes(file: &File) -> bool {
+    struct Many(bool);
+    impl<'ast> Visit<'ast> for Many {
+        fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            if call.method == "choose" && text_of(&call.args) != "1 , 1" {
+                self.0 = true;
+            }
+            visit::visit_expr_method_call(self, call);
+        }
+    }
+    let mut many = Many(false);
+    many.visit_file(file);
+    many.0
+}
+
+/// The announced and the still-legal lists of the one target of an item that has exactly one (`announced(g, item, 0,
+/// false)` and `.., true)`), as one list, `vec![g.state().target(item, 0)]`. An item whose only target is illegal does not
+/// resolve (CR 608.2b), so both lists are that target as it starts to: a flag no game can tell, and a filter of each read
+/// by the other, are lines a reviewer would ask about.
+fn one_target_list(block: &mut Block) {
+    struct InMacros(bool);
+    impl<'ast> Visit<'ast> for InMacros {
+        fn visit_macro(&mut self, node: &'ast syn::Macro) {
+            self.0 |= node.tokens.to_string().split(|c: char| !(c.is_alphanumeric() || c == '_')).any(|w| w == "t_0" || w == "t_0_raw");
+        }
+    }
+    let at = |want: &str| {
+        block.stmts.iter().position(|stmt| match stmt {
+            Stmt::Local(local) => plain_binding(local).as_deref() == Some(want.split(' ').next().unwrap())
+                && local.init.as_ref().is_some_and(|init| text_of(&init.expr) == want.split_once(' ').unwrap().1),
+            _ => false,
+        })
+    };
+    let raw = at("t_0_raw announced (g , item , 0 , false)");
+    let legal = at("t_0 announced (g , item , 0 , true)");
+    if raw.is_none() && legal.is_none() {
+        return;
+    }
+    let mut in_macros = InMacros(false);
+    in_macros.visit_block(block);
+    if in_macros.0 {
+        return;
+    }
+    let first = raw.into_iter().chain(legal).min().unwrap();
+    block.stmts[first] = parse_quote!(let t_0 = vec![g.state().target(item, 0)];);
+    if let (Some(raw), Some(legal)) = (raw, legal) {
+        block.stmts.remove(raw.max(legal));
+    }
+    let named: Expr = parse_quote!(t_0);
+    let mut rename = Replace { name: "t_0_raw", with: &named };
+    for stmt in &mut block.stmts {
+        rename.visit_stmt_mut(stmt);
+    }
+    struct SelfFilter;
+    impl VisitMut for SelfFilter {
+        fn visit_expr_mut(&mut self, node: &mut Expr) {
+            visit_mut::visit_expr_mut(self, node);
+            if let Expr::MethodCall(call) = node {
+                if call.method == "filter" && text_of(&call.args) == "| t | t_0 . contains (t)" {
+                    *node = (*call.receiver).clone();
+                }
+            }
+        }
+    }
+    SelfFilter.visit_block_mut(block);
 }
 
 /// Which of the shared readers says exactly what `read` does, if one does. Anything
@@ -2128,6 +3068,9 @@ fn one_target_reads(block: &mut Block, singles: &[bool], lone: bool) {
             };
             let Some(init) = &local.init else { continue };
             let read = text_of(&init.expr);
+            if lone && one_target_matched(block, i, &name, &read, &announced, spec) {
+                continue;
+            }
             let Some(kind) = one_target_kind(&read, &announced) else {
                 continue;
             };
@@ -2198,6 +3141,76 @@ fn one_target_reads(block: &mut Block, singles: &[bool], lone: bool) {
             }
         }
     }
+}
+
+/// "Create a token that's a copy of target creature you control" (Replicate): the one target of an item with one target
+/// slot, read as an `Option` and matched, `match original { Some(original) => .., None => Vec::new() }`. An item whose
+/// only target is illegal doesn't resolve (CR 608.2b), so the `None` arm is a line no game runs: the target is a guard,
+/// `let Some(original) = targets::object(g, item, 0) else { return Ok(()); };`, and the `Some` arm is what happens.
+fn one_target_matched(block: &mut Block, i: usize, name: &str, read: &str, announced: &str, spec: usize) -> bool {
+    let read = read
+        .strip_prefix("{ let q : & dyn Query = g ; ")
+        .and_then(|read| read.strip_suffix(" }"))
+        .unwrap_or(read);
+    if read.strip_prefix(announced) != Some(" . and_then (| t : Target | t . object ())") {
+        return false;
+    }
+    let undisturbed = block.stmts[..i].iter().all(|stmt| match stmt {
+        Stmt::Local(local) => local.init.as_ref().is_some_and(|init| is_pure(&init.expr)),
+        _ => false,
+    });
+    if !undisturbed {
+        return false;
+    }
+    // The one statement after it that reads it, matching it, and only pure bindings between.
+    let later: Vec<usize> = (i + 1..block.stmts.len()).filter(|&at| mentions(&block.stmts[at], name)).collect();
+    let [at] = later.as_slice() else { return false };
+    let at = *at;
+    if !block.stmts[i + 1..at].iter().all(|stmt| match stmt {
+        Stmt::Local(local) => local.init.as_ref().is_some_and(|init| is_pure(&init.expr)),
+        _ => false,
+    }) {
+        return false;
+    }
+    let scrutinee = |expr: &Expr| -> Option<(syn::Ident, Expr)> {
+        let Expr::Match(matched) = expr else { return None };
+        if ident_of(&matched.expr).as_deref() != Some(name) || matched.arms.len() != 2 {
+            return None;
+        }
+        let (some, none) = (&matched.arms[0], &matched.arms[1]);
+        if some.guard.is_some() || none.guard.is_some() || text_of(&none.pat) != "None" {
+            return None;
+        }
+        let Pat::TupleStruct(pat) = &some.pat else { return None };
+        let [Pat::Ident(bound)] = pat.elems.iter().collect::<Vec<_>>().as_slice() else { return None };
+        (text_of(&pat.path) == "Some" && bound.subpat.is_none() && bound.by_ref.is_none())
+            .then(|| (bound.ident.clone(), (*some.body).clone()))
+    };
+    let (bound, rebuilt): (syn::Ident, Stmt) = match &block.stmts[at] {
+        Stmt::Expr(expr, semi) => {
+            let Some((bound, body)) = scrutinee(expr) else { return false };
+            (bound, Stmt::Expr(body, Some(semi.unwrap_or_default())))
+        }
+        Stmt::Local(local) => {
+            let Some(init) = &local.init else { return false };
+            if init.diverge.is_some() {
+                return false;
+            }
+            let Some((bound, body)) = scrutinee(&init.expr) else { return false };
+            let mut local = local.clone();
+            local.init.as_mut().expect("an init").expr = Box::new(body);
+            (bound, Stmt::Local(local))
+        }
+        _ => return false,
+    };
+    // The bound name must not be another binding's in what follows.
+    if block.stmts[..i].iter().chain(&block.stmts[i + 1..at]).any(|stmt| mentions(stmt, &bound.to_string())) {
+        return false;
+    }
+    let slot = proc_macro2::Literal::usize_unsuffixed(spec);
+    block.stmts[i] = parse_quote!(let Some(#bound) = cantrip_mechanics::targets::object(g, item, #slot) else { return Ok(()); };);
+    block.stmts[at] = rebuilt;
+    true
 }
 
 /// `&name` as an argument, the list a verb takes.
@@ -2472,13 +3485,16 @@ fn set_oracle_base(file: &mut File, constant: &str) {
     }
 }
 
-/// A list of target specs named once, where it is read.
+/// A list of target specs named once, where it is read, and the card's lasting
+/// rules, a table of their own only so they can be a hole.
 fn inline_target_lists(file: &mut File) {
     let lists: Vec<(String, Expr)> = file
         .items
         .iter()
         .filter_map(|item| match item {
-            Item::Static(item) if item.ident.to_string().ends_with("_TARGETS") => {
+            Item::Static(item)
+                if item.ident.to_string().ends_with("_TARGETS") || item.ident == "LASTING_RULES" =>
+            {
                 Some((item.ident.to_string(), (*item.expr).clone()))
             }
             _ => None,
@@ -2563,7 +3579,7 @@ fn printed_of(call: &syn::ExprCall) -> Option<String> {
     if !matches!(
         name.as_str(),
         "triggered" | "ability" | "mana_ability" | "static_ability" | "activated" | "loyalty_ability"
-            | "replacement" | "prevention"
+            | "replacement" | "prevention" | "chapter"
     ) {
         return None;
     }
@@ -2669,10 +3685,25 @@ fn without_reminder(text: &str) -> String {
     out
 }
 
+/// A counter stage's line past its stage, "12+ | " or "LEVEL 2-6: ", which
+/// Cantrip quotes with it and names nothing by.
+fn past_stage(line: &str) -> &str {
+    let (marker, rest) = match (line.split_once(" | "), line.split_once(": ")) {
+        (Some(inline), _) => inline,
+        (None, Some(own)) if own.0.starts_with("LEVEL ") => own,
+        _ => return line,
+    };
+    let bare = marker.strip_prefix("LEVEL ").unwrap_or(marker);
+    let digits = bare.trim_start_matches(|c: char| c.is_ascii_digit());
+    let staged = digits.len() < bare.len()
+        && (digits == "+" || digits.strip_prefix('-').is_some_and(|d| !d.is_empty() && d.chars().all(|c| c.is_ascii_digit())));
+    if staged { rest } else { line }
+}
+
 /// What an ability does: the words after its cost or trigger condition.
 fn effect_clause(printed: &str) -> String {
     let plain = without_reminder(printed);
-    let first = plain.lines().next().unwrap_or_default().trim();
+    let first = past_stage(plain.lines().next().unwrap_or_default().trim());
     if let Some((_, after)) = first.split_once(": ") {
         return after.to_string();
     }
@@ -2692,7 +3723,7 @@ fn trigger_quote(printed: &str) -> String {
 /// A trigger's condition, as printed.
 fn trigger_clause(printed: &str) -> String {
     let plain = without_reminder(printed);
-    let first = plain.lines().next().unwrap_or_default().trim();
+    let first = past_stage(plain.lines().next().unwrap_or_default().trim());
     first.split(", ").next().unwrap_or(first).to_string()
 }
 
@@ -2732,6 +3763,10 @@ enum Role {
     Trigger,
     Target,
     Static,
+    /// The set a rule on an open set is asked of (CR 611.2c).
+    Lasting,
+    /// The damage a prevention effect applies to (CR 615.1).
+    Prevention,
     Mana,
 }
 
@@ -2787,6 +3822,10 @@ fn function_names(file: &File, printed: &str) -> Names {
             Role::Trigger
         } else if old.contains("target") {
             Role::Target
+        } else if old.starts_with("lasting_rule") {
+            Role::Lasting
+        } else if old.ends_with("_applies") && text_of(&function.sig).contains("DamageEvent") {
+            Role::Prevention
         } else if ["affects", "applies", "apply", "rule"].iter().any(|w| old.contains(w)) {
             Role::Static
         } else {
@@ -2862,13 +3901,14 @@ fn rename(file: &mut File, names: &BTreeMap<String, String>) {
 fn rules_of(function: &syn::ItemFn, role: Role) -> String {
     const CALLS: &[(&str, &str)] = &[
         ("add_effect", "611.2a"),
+        ("add_lasting_rule", "611.2c"),
         ("damage", "120.3"),
         ("destroy", "701.8a"),
         ("draw", "121.1"),
         ("exile", "406.3"),
         ("sacrifice", "701.21a"),
         ("discard", "701.9a"),
-        ("gain_life", "119.1"),
+        ("gain_life", "119.3"),
         ("lose_life", "119.3"),
         ("create_token", "111.1"),
         ("add_counters", "122.1"),
@@ -2888,6 +3928,8 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Trigger => "603.2",
         Role::Target => "115.1",
         Role::Static => "604.1",
+        Role::Lasting => "611.2c",
+        Role::Prevention => "615.1",
         Role::Mana => "605.3a",
         Role::Effect => "608.2",
     }];
@@ -3097,9 +4139,16 @@ fn body_text(block: &Block) -> String {
 
 fn use_shared_triggers(file: &mut File) {
     let mut named: BTreeMap<String, Expr> = BTreeMap::new();
+    // A shared trigger fires about nothing, so an effect that reads what its own
+    // trigger was about keeps that trigger (Jadeheart Attendant's "the exiled card
+    // used to craft it", of the permanent that entered).
+    let mut reads_subject: BTreeSet<String> = BTreeSet::new();
     for item in &file.items {
         let Item::Fn(function) = item else { continue };
         let body = body_text(&function.block);
+        if body.contains("item . subject") {
+            reads_subject.insert(function.sig.ident.to_string());
+        }
         if let Some((mask, _, shared)) = SHARED_TRIGGERS.iter().find(|(_, known, _)| *known == body) {
             let path: syn::Path = syn::parse_str(&format!("cantrip_mechanics::triggers::{shared}")).expect("a path");
             named.insert(
@@ -3108,16 +4157,24 @@ fn use_shared_triggers(file: &mut File) {
             );
         }
     }
-    struct Replace<'a>(&'a BTreeMap<String, Expr>);
+    struct Replace<'a>(&'a BTreeMap<String, Expr>, &'a BTreeSet<String>);
     impl VisitMut for Replace<'_> {
         fn visit_expr_mut(&mut self, node: &mut Expr) {
+            if let Expr::Call(call) = &*node {
+                let effect = call.args.iter().nth(1).and_then(ident_of);
+                if ident_of(&call.func).as_deref() == Some("triggered")
+                    && effect.is_some_and(|effect| self.1.contains(&effect))
+                {
+                    return;
+                }
+            }
             visit_mut::visit_expr_mut(self, node);
             if let Some(shared) = self.0.get(&text_of(node)) {
                 *node = shared.clone();
             }
         }
     }
-    let mut replace = Replace(&named);
+    let mut replace = Replace(&named, &reads_subject);
     for expr in definitions(file) {
         replace.visit_expr_mut(expr);
     }
@@ -3144,7 +4201,8 @@ fn use_shared_mana(file: &mut File) {
                 }
             }
             expected.push_str("Ok (())");
-            *body == expected
+            // `1u32` is the `1` the file prints: the literal's type is dropped only as it is written out.
+            *body == expected || without_int_suffixes(body) == expected
         }
     }
     impl VisitMut for Shared<'_> {
@@ -3225,6 +4283,32 @@ fn use_shared_mana(file: &mut File) {
     }
 }
 
+/// `text` with the type of each integer literal dropped, `1u32` as `1`.
+fn without_int_suffixes(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(c) = rest.chars().next() {
+        let starts_number = c.is_ascii_digit() && !out.ends_with(|p: char| p.is_alphanumeric() || p == '_');
+        if starts_number {
+            let digits = rest.find(|d: char| !d.is_ascii_digit()).unwrap_or(rest.len());
+            out.push_str(&rest[..digits]);
+            rest = &rest[digits..];
+            for suffix in ["u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize"] {
+                if let Some(after) = rest.strip_prefix(suffix) {
+                    if !after.starts_with(|n: char| n.is_alphanumeric() || n == '_') {
+                        rest = after;
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        out.push(c);
+        rest = &rest[c.len_utf8()..];
+    }
+    out
+}
+
 /// The predefined tokens with a definition of their own in `cantrip_mechanics::tokens`.
 const SHARED_TOKENS: &[(&str, &str)] = &[
     ("Treasure", "TREASURE"),
@@ -3233,6 +4317,10 @@ const SHARED_TOKENS: &[(&str, &str)] = &[
     ("Blood", "BLOOD"),
     ("Powerstone", "POWERSTONE"),
     ("Map", "MAP"),
+    ("Gold", "GOLD"),
+    ("Mutagen", "MUTAGEN"),
+    ("Lander", "LANDER"),
+    ("Heartwood", "HEARTWOOD"),
 ];
 
 /// The words of `token!(Elf Warrior)` a token's definition is named by.
@@ -3246,50 +4334,27 @@ fn token_words(card: &syn::ExprStruct) -> Option<String> {
 /// Each `pub mod token_N` and `pub mod emblem_N` as items of the file: a token is a
 /// static beside the card (`..token!(Words)`), an emblem a static `EMBLEM`, their
 /// functions beside the card's. What each module became is returned by its name.
-/// `colors|types|power|toughness|keywords|name` of a token of plain characteristics, as `tools/shared_tokens.py` keys them.
-fn token_key(definition: &Expr) -> Option<String> {
-    let Expr::Struct(token) = definition else { return None };
-    let Expr::Macro(rest) = token.rest.as_deref()? else { return None };
-    if !rest.mac.path.is_ident("token") {
-        return None;
-    }
-    let mut fields: BTreeMap<String, String> = BTreeMap::new();
-    for field in &token.fields {
-        let syn::Member::Named(name) = &field.member else { return None };
-        fields.insert(name.to_string(), text_of(&field.expr));
-    }
-    if fields.keys().any(|field| !["colors", "types", "power", "toughness", "keywords", "text"].contains(&field.as_str())) {
-        return None;
-    }
-    let plain = |field: &str| fields.get(field).map_or(String::new(), |text| text.split_whitespace().collect());
-    let names = |field: &str, kind: &str| {
-        let text = plain(field);
-        let mut found: Vec<&str> = text.split(kind).skip(1).map(|rest| rest.split(|c: char| !c.is_alphanumeric()).next().unwrap_or("")).collect();
-        found.sort_unstable();
-        found.join(",")
-    };
-    let colors = plain("colors");
-    let bits = colors
-        .strip_prefix("Some(ColorSet(")
-        .and_then(|rest| rest.strip_suffix("))"))
-        .and_then(|number| number.parse::<u8>().ok())
-        .or(colors.is_empty().then_some(0))?;
-    let name = rest.mac.tokens.to_string();
-    Some(format!("{bits}|{}|{}|{}|{}|{name}", names("types", "CardType::"), plain("power"), plain("toughness"), names("keywords", "Keyword::")))
-}
-
-/// A token Cantrip already shares is named, not defined again: a hand-written card says `tokens::INSECT`.
-fn use_shared_tokens(file: &mut File) {
-    static SHARED: std::sync::OnceLock<BTreeMap<&str, &str>> = std::sync::OnceLock::new();
-    let shared = SHARED.get_or_init(|| include_str!("shared_tokens.tsv").lines().filter_map(|row| row.split_once('\t')).collect());
+/// A token Cantrip shares, or that the commit before the card will share, is named, not defined again. Which is read from
+/// `shared_tokens.tsv`, `card<TAB>the token's static here<TAB>its static in Cantrip`, which `tools/shared_tokens.py` writes
+/// by comparing every card's own definitions: run with `MTGISH_LOCAL_TOKENS` set for that, so that each card has them.
+fn use_shared_tokens(file: &mut File, card: &str) {
+    static SHARED: std::sync::OnceLock<BTreeMap<(&str, &str), &str>> = std::sync::OnceLock::new();
+    let shared = SHARED.get_or_init(|| {
+        if std::env::var_os("MTGISH_LOCAL_TOKENS").is_some() {
+            return BTreeMap::new();
+        }
+        let rows = include_str!("shared_tokens.tsv").lines();
+        rows.filter_map(|row| {
+            let mut fields = row.split('\t');
+            Some(((fields.next()?, fields.next()?), fields.next()?))
+        })
+        .collect()
+    });
     let mut named: BTreeMap<String, Expr> = BTreeMap::new();
     file.items.retain(|item| {
         let Item::Static(token) = item else { return true };
         let name = token.ident.to_string();
-        if name == "CARD" || text_of(&token.ty) != "CardDef" {
-            return true;
-        }
-        let Some(path) = token_key(&token.expr).and_then(|key| shared.get(key.as_str())) else {
+        let Some(path) = shared.get(&(card, name.as_str())).map(|path| path.to_string()) else {
             return true;
         };
         named.insert(name, syn::parse_str(&format!("cantrip_mechanics::tokens::{path}")).expect("a path"));
@@ -3319,7 +4384,10 @@ fn let_else_on_one_line(text: &str) -> String {
     while i < lines.len() {
         let guards = i + 2 < lines.len()
             && lines[i].trim_end().ends_with(" else {")
-            && matches!(lines[i + 1].trim(), "return Ok(());" | "return None;")
+            && (["break;", "continue;"].contains(&lines[i + 1].trim())
+                || lines[i + 1].trim().strip_prefix("return").map(|rest| rest.strip_suffix(';').unwrap_or(rest)).is_some_and(|value| {
+                    value.is_empty() || (value.starts_with(' ') && !value[1..].contains([' ', '{']))
+                }))
             && lines[i + 2].trim() == "};";
         let leave = if guards { lines[i + 1].trim().trim_end_matches(';') } else { "" };
         if guards && lines[i].len() + leave.len() + " };".len() + 1 <= 120 {
@@ -3330,7 +4398,26 @@ fn let_else_on_one_line(text: &str) -> String {
             i += 1;
         }
     }
-    out.join("\n")
+    // `let .. = e` whose `else { return None };` the formatter's narrower margin put on the next line: a line of its own,
+    // which counts as run only when the guard fails.
+    let mut joined: Vec<String> = Vec::with_capacity(out.len());
+    let mut i = 0;
+    while i < out.len() {
+        let broken = i + 1 < out.len()
+            && out[i].trim_start().starts_with("let ")
+            && !out[i].trim_end().ends_with(['{', ',', '(', '='])
+            && ["else { return", "else { break", "else { continue"].iter().any(|leave| out[i + 1].trim().starts_with(leave))
+            && out[i + 1].trim().ends_with("};")
+            && out[i].trim_end().len() + 1 + out[i + 1].trim().len() <= 120;
+        if broken {
+            joined.push(format!("{} {}", out[i].trim_end(), out[i + 1].trim()));
+            i += 2;
+        } else {
+            joined.push(std::mem::take(&mut out[i]));
+            i += 1;
+        }
+    }
+    joined.join("\n")
 }
 
 /// An event's pattern on one line where it fits: split by the formatter's narrower margin, each binding is a line that only
@@ -3403,9 +4490,9 @@ fn flatten_tokens(file: &mut File, taken: &mut BTreeSet<String>) -> BTreeMap<Str
             syn::parse_str(&format!("cantrip_mechanics::tokens::{shared}")).expect("a path")
         } else {
             let wanted = match words.as_deref() {
-                Some(words) => words.to_uppercase().replace(' ', "_"),
-                None if emblem => "EMBLEM".to_string(),
-                None => card.as_ref().and_then(constant_of_name).unwrap_or_else(|| prefix.to_uppercase()),
+                Some(words) if !words.is_empty() => words.to_uppercase().replace(' ', "_"),
+                _ if emblem => "EMBLEM".to_string(),
+                _ => card.as_ref().and_then(constant_of_name).unwrap_or_else(|| prefix.to_uppercase()),
             };
             let mut unique = wanted.clone();
             let mut n = 2;
@@ -3548,6 +4635,15 @@ fn constant_of_name(card: &syn::ExprStruct) -> Option<String> {
     constant.starts_with(|c: char| c.is_ascii_uppercase()).then_some(constant)
 }
 
+/// `Supertypes { basic: false, legendary: false, snow: false }`, however it is spelled: what `token!` says already, so two
+/// cards' same token reads the same and is shared (Careful Cultivation's Human Monk and Jugan Defends the Temple's).
+fn no_supertypes(expr: &Expr) -> bool {
+    let Expr::Struct(set) = expr else { return false };
+    set.path.segments.last().is_some_and(|s| s.ident == "Supertypes")
+        && set.rest.is_none()
+        && set.fields.iter().all(|field| matches!(&field.expr, Expr::Lit(syn::ExprLit { lit: Lit::Bool(b), .. }) if !b.value))
+}
+
 /// A token's definition, leaving to `token!` what it says.
 fn spread_token(card: &mut syn::ExprStruct, emblem: bool) {
     let Some(words) = token_words(card) else {
@@ -3561,7 +4657,7 @@ fn spread_token(card: &mut syn::ExprStruct, emblem: bool) {
                 let value = text_of(&field.expr);
                 let blank = is_default_field(&field.expr)
                     || plain.contains(&value.as_str())
-                    || value == "Supertypes { basic : false , legendary : false , snow : false }";
+                    || no_supertypes(&field.expr);
                 name == "name" || name == "has_cost" || (!blank && !(emblem && name == "oracle"))
             })
             .cloned()
@@ -3576,7 +4672,7 @@ fn spread_token(card: &mut syn::ExprStruct, emblem: bool) {
         .iter()
         .filter(|field| {
             let name = text_of(&field.member);
-            let plain_supertypes = text_of(&field.expr) == "Supertypes { basic : false , legendary : false , snow : false }";
+            let plain_supertypes = no_supertypes(&field.expr);
             !is_default_field(&field.expr)
                 && (!spoken.contains(&name.as_str())
                     || (name == "supertypes" && !plain_supertypes))
@@ -3613,6 +4709,13 @@ fn say_printed_text(file: &mut File, printed: &str) {
     }
     impl Say<'_> {
         fn is_printed(&self, text: &str) -> bool {
+            // "LEVEL 1-4: 2/2", a stage's line said with its stage, which prints
+            // on a line of its own (Hexdrinker).
+            let line = past_stage(text);
+            if line.len() < text.len() {
+                let stage = text[..text.len() - line.len()].trim_end_matches([':', '|', ' ']);
+                return self.oracle.contains(&loose(stage)) && self.is_printed(line);
+            }
             let text = loose(text);
             let text = text.trim_end_matches(['.', ',', ';']);
             // "Equip {2} or {B}" is two abilities, each with its own price.

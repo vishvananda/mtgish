@@ -6066,18 +6066,6 @@
     ]
   },
   {
-    "name": "Tom, Bert, and William",
-    "issues": [
-      25
-    ],
-    "contains": [
-      "d(Trigger_ThatGraveyardCard, [EntersUnderOwnersControl, EntersWithLaye"
-    ],
-    "excludes": [
-      "d(Trigger_ThatGraveyardCard, [EntersUnderPlayersControl(You), EntersWithLaye"
-    ]
-  },
-  {
     "name": "Towering Titan",
     "issues": [
       23
@@ -12562,6 +12550,258 @@
     ],
     "contains": [
       "EachPermanentLayerEffect(And([IsCardtype(Planeswalker), ControlledByAPlayer(SinglePlayer(You)), IsPlaneswalkerTypeVariable(TheChosenPlaneswalkerType)])"
+    ]
+  },
+  {
+    "name": "All Hallow's Eve",
+    "issues": [
+      173
+    ],
+    "contains": [
+      "EachPlayerAction(AnyPlayer, ReturnEachCardFromPlayersGraveyardToBattlefield(IsCardtype(Creature), ActionPlayer, [EntersNormally]))"
+    ],
+    "excludes": [
+      "PutEachCardFromEachPlayersGraveyardOntoTheBattlefield"
+    ]
+  },
+  {
+    "name": "Thought Dissector",
+    "issues": [
+      174
+    ],
+    "contains": [
+      "PutTheCardFoundThisWayOntoTheBattlefield([EntersUnderPlayersControl(You)]), PlayerAction(You, SacrificePermanent(ThisPermanent))"
+    ]
+  },
+  {
+    "name": "Korvold, Gleeful Glutton",
+    "issues": [
+      175
+    ],
+    "contains": [
+      "ReduceCastingCostForEach([CostReduceGeneric(1)], TheNumberOfCardTypesAmongThePermanentsSacrificedByPlayerThisTurn(You))"
+    ]
+  },
+  {
+    "name": "Ravenous Vampire",
+    "issues": [
+      176
+    ],
+    "contains": [
+      "IfElse(CostWasPaid, [PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1, +1), ThisPermanent)])], [TapPermanent(ThisPermanent)])"
+    ],
+    "excludes": [
+      "MustCost(PutCounters"
+    ]
+  },
+  {
+    "name": "Ajani, Nacatl Pariah // Ajani, Nacatl Avenger",
+    "issues": [
+      177
+    ],
+    "contains": [
+      "TriggerA(WhenAnyNumberOfCreaturesOrPlaneswalkersDie(And([Other(ThisPermanent), And([IsCreatureType(Cat), ControlledByAPlayer(SinglePlayer(You))])]))"
+    ]
+  },
+  {
+    "name": "Great Fierce Bee",
+    "issues": [
+      177
+    ],
+    "contains": [
+      "TriggerA(WhenAnyNumberOfCreaturesOrPlaneswalkersDie(And([Other(ThisPermanent), IsCardtype(Creature)]))"
+    ],
+    "excludes": [
+      "WhenAPermanentDies"
+    ]
+  },
+  {
+    "name": "Vengeful Townsfolk",
+    "issues": [
+      177
+    ],
+    "contains": [
+      "TriggerA(WhenAnyNumberOfCreaturesOrPlaneswalkersDie(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])]))"
+    ],
+    "excludes": [
+      "WhenAPermanentDies"
+    ]
+  },
+  {
+    "name": "Soul Shredder",
+    "issues": [
+      177
+    ],
+    "contains": [
+      "FromGraveyardOrBattlefield(TriggerA(WhenAnyNumberOfCreaturesOrPlaneswalkersDie(And([Other(ThisPermanent), IsCardtype(Creature)]))"
+    ],
+    "excludes": [
+      "WhenAPermanentDies"
+    ]
+  },
+  {
+    "name": "Sink into Stupor // Soporific Springs",
+    "issues": [
+      178
+    ],
+    "contains": [
+      "TargetPermanent(And([IsNonCardtype(Land), IsPermanent, ControlledByAPlayer(Opponent)]))"
+    ]
+  },
+  {
+    "name": "Press the Enemy",
+    "issues": [
+      178
+    ],
+    "contains": [
+      "TargetPermanent(And([IsNonCardtype(Land), IsPermanent, ControlledByAPlayer(Opponent)]))"
+    ]
+  },
+  {
+    "name": "Fire Giant's Fury",
+    "issues": [
+      162
+    ],
+    "contains": [
+      "CreateTriggerUntil(WhenACreatureDealsCombatDamageToAPlayer(SinglePermanent(Ref_TargetPermanent), AnyPlayer)"
+    ],
+    "excludes": [
+      "WhenACreatureDealsCombatDamage(SinglePermanent"
+    ]
+  },
+  {
+    "name": "Acidic Dagger",
+    "issues": [
+      163
+    ],
+    "contains": [
+      "ActionList([DestroyPermanent(Trigger_ThatOtherCreature)]), UntilEndOfTurn), CreateTriggerUntil(WhenAPermanentLeavesTheBattlefield(SinglePermanent(Ref_TargetPermanent)), ActionList([SacrificePermanent(ThisPermanent)]), UntilEndOfTurn)]))"
+    ]
+  },
+  {
+    "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+    "issues": [
+      165
+    ],
+    "contains": [
+      "MayAction(DiscardUptoNumberCards(Integer(2))), DrawNumberCards(NumCardsDiscardedThisWay)"
+    ],
+    "excludes": [
+      "DiscardNumberCards(Integer(2))"
+    ]
+  },
+  {
+    "name": "Karona, False God",
+    "issues": [
+      166
+    ],
+    "contains": [
+      "IsCreatureTypeVariable(TheChosenCreatureType)"
+    ],
+    "excludes": [
+      "IsCardtypeVariable(TheChosenCardtype)"
+    ]
+  },
+  {
+    "name": "Trait Doctoring",
+    "issues": [
+      167
+    ],
+    "contains": [
+      "CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [ReplaceColorWordVariableWithNewColorWordVariable(TheFirstChosenColorWord, TheSecondChosenColorWord)], UntilEndOfTurn)"
+    ],
+    "excludes": [
+      "CreatePermanentLayerEffect(Ref_TargetPermanent"
+    ]
+  },
+  {
+    "name": "Whim of Volrath",
+    "issues": [
+      167
+    ],
+    "contains": [
+      "CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [ReplaceColorWordVariableWithNewColorWordVariable(TheFirstChosenColorWord, TheSecondChosenColorWord)], UntilEndOfTurn)"
+    ],
+    "excludes": [
+      "CreatePermanentLayerEffect(Ref_TargetPermanent"
+    ]
+  },
+  {
+    "name": "Crystal Spray",
+    "issues": [
+      167,
+      168
+    ],
+    "contains": [
+      "CreatePermanentSpellLayerEffect(UntilEndOfTurn, Ref_TargetSpell, [ReplaceLandTypeVariableWithNewLandTypeVariable(TheFirstChosenLandType, TheSecondChosenLandType)])]]), DrawACard])",
+      "CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [ReplaceColorWordVariableWithNewColorWordVariable(TheFirstChosenColorWord, TheSecondChosenColorWord)], UntilEndOfTurn)], [ChooseTwoBasicLandTypes, CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [ReplaceLandTypeVariableWithNewLandTypeVariable(TheFirstChosenLandType, TheSecondChosenLandType)], UntilEndOfTurn)]]), DrawACard]"
+    ],
+    "excludes": [
+      "CreateSpellEffect(",
+      "CreatePermanentLayerEffect(Ref_TargetPermanent",
+      "DrawACard], [",
+      "DrawACard]]"
+    ]
+  },
+  {
+    "name": "Bison Whistle",
+    "issues": [
+      169
+    ],
+    "contains": [
+      "IfElse(TopCardOfPlayersLibraryPassesFilter(You, Or([IsCreatureType(Bison), IsCardtype(Creature)])), [ChooseAnAction(",
+      "[MayAction(PutTopOfLibraryInGraveyard)]"
+    ],
+    "excludes": [
+      "[PutTopOfLibraryInGraveyard]"
+    ]
+  },
+  {
+    "name": "Tendril of the Mycotyrant",
+    "issues": [
+      146
+    ],
+    "contains": [
+      "TargetPermanent(And([IsNonCardtype(Creature), IsCardtype(Land), ControlledByAPlayer(SinglePlayer(You))]))"
+    ]
+  },
+  {
+    "name": "Nissa, Who Shakes the World",
+    "issues": [
+      146
+    ],
+    "contains": [
+      "UptoOneTargetPermanent(And([IsNonCardtype(Creature), IsCardtype(Land), ControlledByAPlayer(SinglePlayer(You))]))"
+    ]
+  },
+  {
+    "name": "Quicksilver Dragon",
+    "issues": [
+      2
+    ],
+    "contains": [
+      "ChangeTheTargetOfSpellToAPermanent(Ref_TargetSpell, And([Other(ThisPermanent), IsCardtype(Creature)]))"
+    ]
+  },
+  {
+    "name": "Redeem",
+    "issues": [
+      161
+    ],
+    "contains": [
+      "CreatePreventDamageUntil(DamageWouldBeDealtToARecipient(APermanent(Ref_TargetPermanents)), [PreventThatDamage], UntilEndOfTurn)"
+    ],
+    "excludes": [
+      "DamageWouldBeDealtByAPermanent"
+    ]
+  },
+  {
+    "name": "Arcbond",
+    "issues": [
+      156
+    ],
+    "contains": [
+      "MultipleRecipients([EachPermanent(And([IsCardtype(Creature), Other(Ref_TargetPermanent)])), EachPlayer(AnyPlayer)])"
     ]
   }
 ]

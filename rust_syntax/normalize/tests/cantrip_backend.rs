@@ -42,7 +42,33 @@ fn verify_cantrip_snapshot(checkout: &std::path::Path) {
 }
 #[test]
 fn a_made_redirect_cannot_read_the_target_of_the_ability_that_made_it() {
+    // As printed, the next time is all of one event to two recipients, which a
+    // once-only replacement can't be (CR 120.2): that hole comes first.
     let error = cantrip::module(&card("Glarecaster")).unwrap_err();
+    assert_eq!(
+        error.feature,
+        "engine: no once-only replacement of a whole damage event"
+    );
+    // Damage from itself to itself is one source and one recipient: what is left
+    // is the target, which the made redirect can't read.
+    let mut alone = card("Glarecaster");
+    let Ability::Activated { body, .. } = &mut alone.abilities[1] else {
+        panic!()
+    };
+    let Instruction::Effect {
+        operation:
+            Operation::CreateReplacement {
+                event: ReplacementEvent::Damage(damage),
+                ..
+            },
+        ..
+    } = &mut body.instructions[0]
+    else {
+        panic!("{:?}", body.instructions[0])
+    };
+    damage.sources = ObjectFilter::SameObject(ObjectRef::Source);
+    damage.recipients = DamageRecipients::Objects(ObjectFilter::SameObject(ObjectRef::Source));
+    let error = cantrip::module(&alone).unwrap_err();
     assert!(
         format!("{error:?}").contains("target reference outside a resolving ability"),
         "{error:?}"
@@ -110,7 +136,8 @@ fn unsupported_limits_are_not_omitted_and_one_group_is_one_sentence() {
     let Ability::Triggered { limits, .. } = &mut drake.abilities[1] else {
         panic!()
     };
-    limits.total = Some(1);
+    // "Triggers only once" is written now; twice still has no form.
+    limits.total = Some(2);
     assert_eq!(
         cantrip::module(&drake).unwrap_err().feature,
         "trigger total limit"

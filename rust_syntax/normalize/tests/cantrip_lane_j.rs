@@ -41,7 +41,7 @@ const CARDS: &[(&str, &str)] = &[
     ),
     (
         "Semester's End",
-        "what enters having counters by what it is",
+        "EffectKind::Replacement { card: item.ability.card, index: 1 }",
     ),
     (
         "Psychic Vortex",

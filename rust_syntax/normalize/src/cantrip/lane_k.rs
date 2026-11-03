@@ -25,10 +25,18 @@ pub(super) struct Line {
     kind: Said,
     /// The line, reminder text removed, modes joined on as Cantrip's cards have them.
     text: String,
+    /// The line as printed above its modes, reminder text removed.
+    head: String,
     /// The bulleted lines under it, without their bullets.
     modes: Vec<String>,
     /// What it quotes: the text of an ability it grants or a token has.
     quotes: Vec<(Said, String)>,
+    /// A counter stage's power and toughness, "LEVEL 1-4: 2/2".
+    stats: bool,
+    /// Where a counter stage's line starts past its stage, "LEVEL 1-4: ".
+    staged: usize,
+    /// A counter stage's line some ability of the stage has said.
+    said: bool,
 }
 
 /// A face's printed text, in the order it reads.
@@ -207,15 +215,59 @@ fn line_of(kind: Said, text: String, raw: &str) -> Line {
     Line {
         kind,
         quotes: quotes(raw),
+        head: text.clone(),
         text,
         modes: Vec::new(),
+        stats: false,
+        staged: 0,
+        said: false,
     }
+}
+
+/// The sentences of a printed line, each with its period.
+fn sentences(text: &str) -> Vec<String> {
+    let sentences = text.split_inclusive(". ").map(|s| s.trim().to_string());
+    let sentences: Vec<String> = sentences.filter(|s| !s.is_empty()).collect();
+    match sentences.is_empty() {
+        true => vec![text.to_string()],
+        false => sentences,
+    }
+}
+
+/// The sentences of a line of `kind` past its cost: an activated ability's
+/// cost isn't what it does.
+fn effect_sentences(kind: Said, text: &str) -> Vec<String> {
+    sentences(past_cost(kind, text))
+}
+
+/// A line past its activation cost, which is no word of the effect: "Sacrifice
+/// this creature: ...". A triggered ability's "When ...:" is no cost.
+fn past_cost(kind: Said, text: &str) -> &str {
+    match text.split_once(": ") {
+        Some((cost, words)) if kind != Said::Triggered && !cost.contains(['"', '.']) => words,
+        _ => text,
+    }
+}
+
+/// Oracle words as Cantrip's `waiting_texts_match_oracle` compares them:
+/// lowercase, straight quotes, single spaces, no parentheses.
+fn oracle_words(text: &str) -> String {
+    let text = text
+        .to_lowercase()
+        .replace(['\u{2018}', '\u{2019}'], "'")
+        .replace(['\u{201c}', '\u{201d}'], "\"")
+        .replace(['(', ')'], " ")
+        .replace('\u{2212}', "-");
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 impl Printed {
     pub(super) fn read(oracle: &str) -> Self {
         let mut printed = Printed::default();
         let mut stage = None;
+        // Cantrip quotes a stage's line with its stage, as Hexdrinker's "LEVEL
+        // 3-7: 4/4" and Adagia's "12+ | {3}{W}, {T}: ...".
+        let mut stage_said = String::new();
         for raw in oracle.lines() {
             let line = loyalty_printed(&without_reminder(raw));
             // "12+ | {1}{R}, {T}: ..." prints the stage and its line as one.
@@ -228,14 +280,19 @@ impl Printed {
             let opened = stage_marker(&marker);
             if marker == line && opened.is_some() {
                 stage = opened;
+                stage_said = format!("{marker}: ");
             } else if let Some(minimum) = opened.or(stage) {
+                if opened.is_some() {
+                    stage_said = format!("{marker} | ");
+                }
                 stage = Some(minimum);
                 // Beside what it says, a stage prints a power and toughness.
-                let numbers = line.chars().all(|c| c.is_ascii_digit() || "/*".contains(c));
-                if !numbers {
-                    let line = line_of(kind_of(&line), line, raw);
-                    printed.stages.entry(minimum).or_default().push(line);
-                }
+                let stats = line.chars().all(|c| c.is_ascii_digit() || "/*".contains(c));
+                let mut said = line_of(kind_of(&line), format!("{stage_said}{line}"), raw);
+                said.head = said.text.clone();
+                said.stats = stats;
+                said.staged = stage_said.len();
+                printed.stages.entry(minimum).or_default().push(said);
             } else if line.is_empty() {
                 // A basic land type's ability is printed as a reminder (CR 305.6).
                 let inner = raw.trim().trim_matches(['(', ')']);
@@ -464,6 +521,26 @@ pub(super) fn asks_how_it_was_cast(condition: &Condition) -> bool {
         }
     )
 }
+/// An intervening "if" of how an object was cast, independent of who controls the ability: the recorded cast cannot
+/// change. A condition such as "if you cast it" must still be checked at resolution (CR 603.4): an opponent can copy
+/// Zacama's trigger, and "you" then names the copy's controller (CR 707.10).
+pub(super) fn cast_history_is_fixed(condition: &Condition) -> bool {
+    matches!(
+        condition,
+        Condition::ObjectMatches {
+            filter: ObjectFilter::Cast {
+                by: None,
+                from: None
+                    | Some(ZoneScope::Shared(_))
+                    | Some(ZoneScope::Players {
+                        players: PlayerSet::All,
+                        ..
+                    }),
+            },
+            ..
+        }
+    )
+}
 /// A trigger keeps the new object's number only if something reads it: the game
 /// compares what a trigger carries to find a loop (732.4), and a number that grows
 /// round the loop would keep it from ever coming back to the same position.
@@ -497,6 +574,42 @@ pub(super) fn shuffled_in_though_gone<'a>(
     }
     objects
 }
+/// "A permanent", "three permanents": a number as a card prints it.
+fn printed_many(n: i64, noun: &str) -> String {
+    const WORDS: [&str; 9] = ["two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+    match usize::try_from(n - 2).ok().and_then(|at| WORDS.get(at)) {
+        Some(word) => format!("{word} {noun}s"),
+        None if n == 1 => {
+            let article = if noun.starts_with(|c| "aeiou".contains(c)) { "an" } else { "a" };
+            format!("{article} {noun}")
+        }
+        None => format!("{n} {noun}s"),
+    }
+}
+
+/// "Discard a card or pay {N}", either way round: N.
+pub(super) fn discard_or_pay(costs: &[Cost]) -> Option<u8> {
+    let [a, b] = costs else { return None };
+    let discard = |c: &Cost| {
+        matches!(
+            c.parts.as_slice(),
+            [CostPart::Discard { count: Expr::Constant(1), filter: ObjectFilter::Any, random: false }]
+        )
+    };
+    let generic = |c: &Cost| match c.parts.as_slice() {
+        [CostPart::Mana(symbols)] => match symbols.as_slice() {
+            [ManaSymbol::Generic(n)] => u8::try_from(*n).ok(),
+            _ => None,
+        },
+        _ => None,
+    };
+    match (discard(a), discard(b)) {
+        (true, false) => generic(b),
+        (false, true) => generic(a),
+        _ => None,
+    }
+}
+
 /// "Ward--Sacrifice a Food" and its like, where Cantrip has the ability.
 pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
     let [CostPart::Sacrifice {
@@ -508,7 +621,7 @@ pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
     };
     let call = |function: String, what: &str| {
         Some(format!(
-            "cantrip_mechanics::triggers::{function}(\"Ward--Sacrifice {what}\")"
+            "cantrip_mechanics::triggers::{function}(\"Ward\u{2014}Sacrifice {what}.\")"
         ))
     };
     match (filter, *n) {
@@ -516,7 +629,7 @@ pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
             call("ward_sacrifice_a_food".into(), "a Food")
         }
         (ObjectFilter::Any, n) => {
-            call(format!("ward_sacrifice::<{n}>"), &format!("{n} permanents"))
+            call(format!("ward_sacrifice::<{n}>"), &printed_many(n, "permanent"))
         }
         (ObjectFilter::Not(inner), n)
             if matches!(
@@ -526,7 +639,7 @@ pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
         {
             call(
                 format!("ward_sacrifice_nonland::<{n}>"),
-                &format!("{n} nonland permanents"),
+                &printed_many(n, "nonland permanent"),
             )
         }
         _ => None,
@@ -563,13 +676,21 @@ pub(super) fn paid_by_a_choice(cost: &Cost) -> bool {
 
 /// Whether what `decider` may do starts with their choosing one object.
 pub(super) fn chooses_first(decider: &PlayerRef, body: &Program) -> bool {
+    chooses_first_after(decider, body, false)
+}
+
+/// `chooses_first`, `looked` if the cards were looked at first.
+fn chooses_first_after(decider: &PlayerRef, body: &Program, mut looked: bool) -> bool {
     for instruction in &body.instructions {
         match instruction {
-            Instruction::Group(group) => return chooses_first(decider, group),
+            Instruction::Group(group) => return chooses_first_after(decider, group, looked),
             Instruction::Effect {
                 operation: Operation::LookAt { .. },
                 ..
-            } => continue,
+            } => {
+                looked = true;
+                continue;
+            }
             Instruction::Effect {
                 operation:
                     Operation::Discard {
@@ -623,14 +744,19 @@ pub(super) fn chooses_first(decider: &PlayerRef, body: &Program) -> bool {
                     Operation::ChooseObjects {
                         player,
                         objects,
-                        count:
-                            Count::Exactly(Expr::Constant(1))
-                            | Count::AsManyAsCan(Expr::Constant(1))
-                            | Count::AnyNumber,
+                        count,
                         constraints,
                     },
                 ..
-            } => {
+            } if matches!(
+                count,
+                Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1)) | Count::AnyNumber
+            ) || (!looked && matches!(count, Count::UpTo(_))) =>
+            {
+                // "You may discard up to two cards": the choice is the may, none is
+                // declining it (Fable of the Mirror-Breaker). Not after a look: "you may
+                // look at ..., put up to one ... and the rest on the bottom" still puts the
+                // rest there when none is chosen (Call to the Kindred).
                 return format!("{player:?}") == format!("{decider:?}")
                     && !matches!(objects, ObjectSet::Created(_))
                     && !constraints
@@ -889,16 +1015,46 @@ pub(super) fn tap_or_untap_only(body: &Program) -> bool {
     )
 }
 
+/// "Look at the top card. You may cast that card. Do this only once each turn": the
+/// source has the whole ability offered, but the look isn't, and "this" is the cast
+/// (the ruling on Planetarium of Wan Shi Tong). What's asked, looked at unasked.
+pub(super) fn looks_then_may(body: &Program) -> Option<Program> {
+    let [Instruction::Optional {
+        decider,
+        body: offered,
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let [looks @ .., Instruction::Optional { decider: inner, .. }] = offered.instructions.as_slice()
+    else {
+        return None;
+    };
+    let only_looks = !looks.is_empty()
+        && looks.iter().all(|step| {
+            matches!(
+                step,
+                Instruction::Effect {
+                    operation: Operation::LookAt { .. },
+                    ..
+                }
+            )
+        });
+    (only_looks && format!("{decider:?}") == format!("{inner:?}")).then(|| offered.clone())
+}
+
 /// The key of a thing done once each turn, among a card's own: past its abilities,
 /// so `Query::history` holds it apart from them.
 fn done_key(key: u8, reader: &str) -> String {
     format!("AbilityRef {{ card: {reader}.chars(asker.source).card, index: {key} }}")
 }
 
-/// The test on an event that what's done once each turn has yet to be.
+/// The test on an event that what's done once each turn has yet to be: the action
+/// is its controller's (603.2h), so one taken with this ability before its source
+/// left and came back counts as well.
 pub(super) fn not_yet_done(key: u8) -> String {
     format!(
-        "!q.history().done(asker.source, {}, asker.controller)",
+        "!q.history().this_turn().iter().any(|r| matches!(r.event, Event::Done {{ ability, player, .. }} if ability == {} && player == asker.controller))",
         done_key(key, "q")
     )
 }
@@ -912,6 +1068,14 @@ pub(super) fn once_a_turn(key: Option<u8>, id: usize) -> (String, String) {
     (
         format!("!g.history().done(asker.source, {done}, decider_{id}) && "),
         format!(" g.note_done(asker.source, {done}, decider_{id});"),
+    )
+}
+
+/// What spends the turn's once when it is done, not asked (603.2h).
+pub(super) fn spends_once(key: u8) -> String {
+    format!(
+        "g.note_done(asker.source, {}, asker.controller);",
+        done_key(key, "g")
     )
 }
 
@@ -946,6 +1110,14 @@ pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String
                 _ => 1,
             };
             format!("!cant_draw(g, decider_{id}, {n}) && ")
+        }
+        // A search that can't be caused isn't offered (Ashiok, Dream Render's ruling).
+        // A search of other zones too still searches them (Agency Outfitter).
+        Some(Instruction::Effect {
+            operation: Operation::Search { player, library, also, .. },
+            ..
+        }) if same(player) && same(library) && also.is_empty() => {
+            format!("g.may_search(decider_{id}, decider_{id}) && ")
         }
         // Moving the source: it's a new object once it has moved (400.7).
         Some(Instruction::Effect {
@@ -1421,6 +1593,24 @@ impl Compiler {
             .is_some_and(|line| line.text.contains("two target"));
         (same && printed).then_some(1)
     }
+    /// "Up to three other target creatures from the battlefield and/or creature
+    /// cards from graveyards": one count over two kinds of target is one slot, and
+    /// the second is what's read of it.
+    pub(super) fn limit_shared(announcement: &Announcement) -> Option<usize> {
+        let [first, second] = announcement.targets.as_slice() else {
+            return None;
+        };
+        let shared = matches!(second.constraints.as_slice(),
+            [SelectionConstraint::SharesLimitWith(slot)] if slot.0 == first.slot.0);
+        (shared
+            && first.constraints.is_empty()
+            && format!("{:?}", first.count) == format!("{:?}", second.count)
+            && first.distribute.is_none()
+            && second.distribute.is_none()
+            && first.chooser.is_none()
+            && second.chooser.is_none())
+        .then_some(1)
+    }
     /// What a block rule that lasts says, from the line that makes it: "can't be
     /// blocked except by creatures with haste", as the object has it for the turn.
     pub(super) fn block_rule_words(&self) -> Option<String> {
@@ -1761,8 +1951,8 @@ impl Compiler {
         self.moved.insert(put.0, format!("taken_{id}"));
         self.left_behind(put, format!("taken_{id}.clone()"));
     }
-    /// What deals damage: a target only if it is still legal, since one that isn't
-    /// does nothing (CR 608.2b).
+    /// What deals damage or is copied: a target only if it is still legal, since one
+    /// that isn't does nothing and nothing is done to it (CR 608.2b).
     pub(super) fn damage_source(&self, source: &ObjectRef) -> Result<String> {
         let read = self.object(source)?;
         match source {
@@ -1812,6 +2002,11 @@ impl Compiler {
             .line
             .as_ref()
             .is_some_and(|line| line.text.contains("Do this only once each turn"));
+        if said && limits.per_turn == Some(1) && looks_then_may(body).is_some() {
+            let key = self.once_key();
+            self.do_once = Some(key);
+            return Some(key);
+        }
         let [Instruction::Optional {
             decider,
             body: offered,
@@ -1822,22 +2017,208 @@ impl Compiler {
         if !said
             || limits.per_turn != Some(1)
             || tap_or_untap_only(offered)
-            || chooses_first(decider, offered)
             || !matches!(decider, PlayerRef::AbilityController)
         {
             return None;
         }
-        let key = 200 + (self.fresh() % 50) as u8;
+        let key = self.once_key();
         self.do_once = Some(key);
         Some(key)
     }
+    /// A new key for a thing done once each turn, or the one its sentence's other
+    /// abilities spend: "whenever you cast ... or activate ..., you may ... Do
+    /// this only once each turn" is done once for both (Glava, Five-Advents Mage).
+    fn once_key(&mut self) -> u8 {
+        if let Some(Some(key)) = self.once_shared {
+            return key;
+        }
+        let key = 200 + (self.fresh() % 50) as u8;
+        if self.once_shared.is_some() {
+            self.once_shared = Some(Some(key));
+        }
+        key
+    }
     /// Reads the printed lines of the counter stage starting at `minimum`.
     pub(super) fn on_stage(&mut self, minimum: i64) {
-        self.stage_lines = self.stages.get(&minimum).cloned().unwrap_or_default();
+        self.stage_lines = Some(self.stages.get(&minimum).cloned().unwrap_or_default());
+    }
+    /// The words of an effect that waits to apply, as `GrantedReplacementDef::text`
+    /// and `GrantedPreventionDef::text` want them: from the sentence of its line that
+    /// makes it to the end of the line, since what it does besides is its words too
+    /// (CR 609.7a, 615.5). Cantrip holds them to Oracle text, so they are never reworded.
+    pub(super) fn waiting_words(&self) -> String {
+        let Some(line) = &self.line else {
+            return String::new();
+        };
+        let makes = |sentence: &str| {
+            let sentence = sentence.to_lowercase();
+            ["prevent", "would", "instead", "the next time", "enters with", "enter with"]
+                .iter()
+                .any(|word| sentence.contains(word))
+        };
+        // A mode prints on a line of its own, which is what Oracle text holds.
+        if let Some(mode) = line.modes.iter().find(|mode| makes(mode)) {
+            let sentences = sentences(mode);
+            return self.printed_run(&sentences, 0, sentences.len());
+        }
+        let sentences = effect_sentences(line.kind, &line.head);
+        match sentences.iter().position(|sentence| makes(sentence)) {
+            Some(at) => self.printed_run(&sentences, at, sentences.len()),
+            None => past_cost(line.kind, &line.text).to_string(),
+        }
+    }
+    /// Whether the face prints `passage`, as Cantrip holds a waiting text to its
+    /// card's Oracle text: by its words, its own reminder text aside, whatever its
+    /// case or final period.
+    fn prints_passage(&self, passage: &str) -> bool {
+        let words = oracle_words(&without_reminder(passage));
+        let words = words.trim_end_matches('.').trim_end();
+        !words.is_empty() && oracle_words(&self.face_text).contains(words)
+    }
+    /// `sentences[from..to]`, or as many of them from `from` as the face prints
+    /// together: a passage can't reach past reminder text the line has lost.
+    fn printed_run(&self, sentences: &[String], from: usize, to: usize) -> String {
+        let run = |to: usize| sentences[from..to].join(" ");
+        (from + 1..=to)
+            .rev()
+            .map(run)
+            .find(|passage| self.prints_passage(passage))
+            .unwrap_or_else(|| run(from + 1))
+    }
+    /// The words of a delayed triggered ability (CR 603.7), or of a reflexive one
+    /// if `reflexive` (CR 603.12), as `TriggeredDef::text` wants them: the sentence
+    /// of its line that makes it, as Oracle text prints it. A delayed ability is
+    /// its sentence; a reflexive one, "When you do, ...", runs to the end of its
+    /// line. A granted ability's line is what the granting line quotes.
+    pub(super) fn delayed_words(&mut self, reflexive: bool, fallback: String) -> String {
+        let Some(line) = self.line.clone() else {
+            return self.said(Said::Triggered, fallback);
+        };
+        let blocks: Vec<(Said, String)> = match self.granting {
+            true => line.quotes.clone(),
+            false => {
+                let modes = line.modes.iter().map(|mode| (Said::Sentence, mode.clone()));
+                modes.chain([(line.kind, line.head.clone())]).collect()
+            }
+        };
+        let makes = |sentence: &str| {
+            let sentence = sentence.to_lowercase();
+            match reflexive {
+                true => sentence.starts_with("when "),
+                false => {
+                    sentence.starts_with("when")
+                        || [
+                            "at the beginning of",
+                            "at end of combat",
+                            "at the end of",
+                            ", when",
+                            "the next time",
+                        ]
+                        .iter()
+                        .any(|words| sentence.contains(words))
+                }
+            }
+        };
+        let mut first = None;
+        for (kind, block) in &blocks {
+            let sentences = effect_sentences(*kind, block);
+            for at in 0..sentences.len() {
+                if !makes(&sentences[at]) {
+                    continue;
+                }
+                let to = if reflexive { sentences.len() } else { at + 1 };
+                let words = self.printed_run(&sentences, at, to);
+                // A triggered ability's first sentence is its own trigger.
+                if at == 0 && *kind == Said::Triggered {
+                    first.get_or_insert(words);
+                    continue;
+                }
+                return words;
+            }
+        }
+        first.unwrap_or_else(|| self.said(Said::Triggered, fallback))
+    }
+    /// A flip whose line speaks of heads or tails has no winner (CR 705.2), and
+    /// the rest are won or lost. The AST says the same words either way.
+    pub(super) fn flip_call(&self) -> Result<&'static str> {
+        let line = self
+            .line_text()
+            .ok_or_else(|| gap("a coin flip with no printed line"))?;
+        let called = line
+            .split(|c: char| !c.is_alphabetic())
+            .any(|word| word.eq_ignore_ascii_case("heads") || word.eq_ignore_ascii_case("tails"));
+        Ok(if called { "flip_coin_for_heads" } else { "flip_coin" })
     }
     /// The printed line being compiled.
     pub(super) fn line_text(&self) -> Option<&str> {
         self.line.as_ref().map(|line| line.text.as_str())
+    }
+    /// "Look at the top three cards of your library, then put them back in any
+    /// order. You may shuffle": one question, an order or a shuffle, so nobody
+    /// orders cards they're about to shuffle away.
+    fn order_or_shuffle(&mut self, rest: &[Instruction], out: &mut String) -> bool {
+        let [Instruction::Group(group), Instruction::Optional {
+            decider: PlayerRef::AbilityController,
+            body,
+        }, ..] = rest
+        else {
+            return false;
+        };
+        let [Instruction::Effect {
+            operation:
+                Operation::LookAt {
+                    player: PlayerRef::AbilityController,
+                    objects: ObjectSet::Take { objects: looked, count, from },
+                },
+            ..
+        }, Instruction::Effect {
+            operation:
+                Operation::ReorderLibrary {
+                    objects: ObjectSet::InZone { .. },
+                    end: SequenceEnd::Top,
+                    order: CardOrder::Chosen,
+                    ..
+                },
+            ..
+        }] = group.instructions.as_slice()
+        else {
+            return false;
+        };
+        let [Instruction::Effect {
+            operation:
+                Operation::Shuffle {
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                    excluding: None,
+                },
+            ..
+        }] = body.instructions.as_slice()
+        else {
+            return false;
+        };
+        let library = matches!(
+            &**looked,
+            ObjectSet::Zone {
+                scope: ZoneScope::Players {
+                    zone: EventZone::Library,
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                },
+                filter: ObjectFilter::Any,
+                ..
+            }
+        );
+        let Expr::Constant(depth) = count else {
+            return false;
+        };
+        if format!("{from:?}") != "Top" || !library || !self.stack_item {
+            return false;
+        }
+        let id = self.fresh();
+        writeln!(out, "let looked_{id} = cantrip_mechanics::top_of_library(g, item.controller, {depth}); if !looked_{id}.is_empty() {{ let ask = RequestKind::DistributeCards {{ source: item.object, cards: looked_{id}.clone(), destinations: vec![Destination {{ kind: DestinationKind::LibraryTop, min: 0, max: u8::MAX, eligible: looked_{id} }}], may_shuffle: true }}; if let Answer::Placements {{ placements, shuffle }} = g.ask(item.controller, ask)? {{ if shuffle {{ g.shuffle(item.controller); }} else {{ g.arrange_library(item.controller, &placements[0], &[]); }} }} }}").unwrap();
+        true
+    }
+    /// Some line of the face prints these words.
+    pub(super) fn card_prints(&self, words: &str) -> bool {
+        self.face_text.contains(words)
     }
     /// "You may exile that card from your graveyard" isn't asked of a card that's
     /// left it.
@@ -1856,6 +2237,33 @@ impl Compiler {
                 ..
             }) if matches!(&**objects, ObjectSet::InZone { .. }) => match self.object(object) {
                 Ok(read) => format!("({}).is_some() && ", self.fetch(read)),
+                Err(_) => String::new(),
+            },
+            // "You may put the top card into your graveyard": not asked of no card.
+            Some(Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        objects: objects @ ObjectSet::Take { .. },
+                        ..
+                    },
+                ..
+            }) => match self.objects(objects) {
+                Ok(read) => format!("!({}).is_empty() && ", self.fetch(read)),
+                Err(_) => String::new(),
+            },
+            // "You may attach this Equipment to it": not asked if it can't be (701.3b).
+            Some(Instruction::Effect {
+                operation:
+                    Operation::Attach {
+                        attachments: ObjectSet::One(ObjectRef::Source),
+                        host,
+                    },
+                ..
+            }) => match self.object(host) {
+                Ok(read) => format!(
+                    "cantrip_mechanics::targets::permanent(g, asker.source) && ({}).is_some_and(|o| cantrip_mechanics::targets::permanent(g, o) && g.chars(o).is(CardType::Creature)) && ",
+                    self.fetch(read)
+                ),
                 Err(_) => String::new(),
             },
             // "You may remove a counter from it": not asked of what has none to remove.
@@ -1984,6 +2392,9 @@ impl Compiler {
     /// A payment and what hangs on it, where they're one question of the card's
     /// `labels`: whether these instructions were that.
     pub(super) fn one_question(&mut self, rest: &[Instruction], out: &mut String) -> bool {
+        if self.order_or_shuffle(rest, out) {
+            return true;
+        }
         let [Instruction::Effect {
             result,
             operation:
@@ -2102,6 +2513,7 @@ impl Compiler {
     /// Read a face's Oracle text, once, before its abilities are compiled.
     pub(super) fn read_printed(&mut self, abilities: &[Ability], oracle: Option<&str>) {
         self.kickers = mechanics::kickers(abilities);
+        self.face_text = oracle.unwrap_or_default().to_string();
         let Some(oracle) = oracle else {
             return;
         };
@@ -2127,8 +2539,45 @@ impl Compiler {
     /// The printed line of what's being compiled, as `kind`; a granted ability
     /// reads what the line quotes.
     pub(super) fn said(&mut self, kind: Said, fallback: String) -> String {
-        if let Some(at) = self.stage_lines.iter().position(|line| line.kind == kind) {
-            return self.stage_lines.remove(at).text;
+        self.said_of(kind, false, fallback)
+    }
+    /// As `said`, a counter stage's power and toughness when `stats`: on a stage,
+    /// its own lines, never the line that holds the stages (Caravan Escort's
+    /// "Level up {2}").
+    pub(super) fn said_of(&mut self, kind: Said, stats: bool, fallback: String) -> String {
+        if let Some(lines) = &mut self.stage_lines {
+            // The next line of the kind; once each is said, the last again, as
+            // "LEVEL 4+: Flying, vigilance" is the words of both its keywords; with
+            // none of the kind, the stage's first, as Class F Shuttlecraft's "6+ |
+            // Flying, vigilance" is also the words of its becoming a creature.
+            let fits = |line: &Line| line.stats == stats && (stats || line.kind == kind);
+            let next = lines.iter().position(|line| fits(line) && !line.said);
+            // What a stage's line quotes, for what it grants: Joraga Treespeaker's
+            // "LEVEL 5+: Elves you control have "{T}: Add {G}{G}."".
+            if next.is_none() && self.granting {
+                let quoted = lines.iter().flat_map(|line| &line.quotes).find(|(said, _)| *said == kind);
+                if let Some((_, quote)) = quoted {
+                    return quote.clone();
+                }
+            }
+            let Some(at) = next
+                .or_else(|| lines.iter().rposition(fits))
+                .or_else(|| lines.iter().position(|line| !line.stats))
+                .or((!lines.is_empty()).then_some(0))
+            else {
+                return fallback;
+            };
+            let line = &mut lines[at];
+            // A stage has its activated and triggered abilities by a static that
+            // grants them (CR 711.2a, 721.2a). The ability is said without its
+            // stage, and the static that grants it with it (Adagia's "12+ | {3}{W},
+            // {T}: ..."), whichever is compiled first.
+            if matches!(line.kind, Said::Activated | Said::Triggered) && !line.said {
+                line.kind = Said::Sentence;
+                return line.text[line.staged..].to_string();
+            }
+            line.said = true;
+            return line.text.clone();
         }
         let Some(line) = &self.line else {
             return fallback;
@@ -2158,7 +2607,7 @@ impl Compiler {
             }
             return vec![line.text.clone()];
         }
-        let staged = self.stage_lines.iter().map(|line| line.text.clone());
+        let staged = self.stage_lines.iter().flatten().filter(|line| !line.said).map(|line| line.text.clone());
         let chapters = self.chapters.values().cloned();
         staged.chain(chapters).collect()
     }
@@ -2168,6 +2617,15 @@ impl Compiler {
             Some(line) if line.modes.len() == count => line.modes[at].clone(),
             _ => fallback,
         }
+    }
+    /// The chapter `number` is the next thing compiled: its words are what it does,
+    /// past its numerals.
+    pub(super) fn on_chapter(&mut self, number: i64) {
+        self.line = self.chapters.get(&number).map(|line| {
+            let words = chapter_numbers(line).map_or(line.as_str(), |(_, words)| words);
+            line_of(Said::Sentence, words.to_string(), words)
+        });
+        self.quoted_used.clear();
     }
     /// The printed line of a Saga's chapter.
     pub(super) fn said_chapter(&self, number: i64, fallback: String) -> String {

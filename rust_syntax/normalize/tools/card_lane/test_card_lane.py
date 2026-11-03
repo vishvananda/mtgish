@@ -2,6 +2,7 @@
 
     python3 rust_syntax/normalize/tools/card_lane/test_card_lane.py
 """
+import io
 import json
 import os
 import subprocess
@@ -147,6 +148,15 @@ class Keywords(unittest.TestCase):
     def test_a_keyword_already_there_is_not_added_twice(self):
         self.assertEqual(self.repaired({"oracleText": "First strike; banding", "keywords": ["FirstStrike"]}), ["FirstStrike", "Banding"])
 
+    def test_a_level_s_keyword_is_not_the_card_s(self):
+        escort = "Level up {2} ({2}: Put a level counter on this. Level up only as a sorcery.)\nLEVEL 1-4\n2/2\nLEVEL 5+\n5/5\nFirst strike"
+        self.assertIsNone(self.repaired({"oracleText": escort, "keywords": ["FirstStrike"]}))
+        self.assertIsNone(self.repaired({"oracleText": "Station\n8+ | Trample", "keywords": ["Trample"]}))
+
+    def test_a_keyword_printed_outside_every_stage_stays(self):
+        self.assertEqual(self.repaired({"oracleText": "Trample\nLEVEL 2+\n3/3\nTrample, first strike", "keywords": ["Trample", "FirstStrike"]}),
+                         ["Trample"])
+
     def test_a_sentence_with_a_semicolon_is_no_keyword_line(self):
         self.assertIsNone(self.repaired({"oracleText": "Choose one; trample."}))
 
@@ -269,7 +279,7 @@ class RememberedMutants(unittest.TestCase):
     def test_a_kept_survivor_is_still_reported_and_nothing_is_built(self):
         known = {lane.digest(k): {"change": lane.digest(k), "verdict": "SURVIVED", "by": None, "said": None, "together": "now"} for k in ("one", "two")}
         survivors, builds, _, _ = self.run_gate(known)
-        self.assertEqual(survivors, {"A": [("one", "one detail"), ("two", "two detail")]})
+        self.assertEqual(survivors, {"A": [{"key": "one", "detail": "one detail"}, {"key": "two", "detail": "two detail"}]})
         self.assertEqual(builds, [])
 
 
@@ -360,6 +370,20 @@ class ShadowTree(unittest.TestCase):
                 "None": (0, "14108 scenarios: 0 pass, 0 fail, 0 known bugs, 0 need cards the engine does not have.")}
         with mock.patch.object(lane.Shadow, "build", return_value=(0, "")), mock.patch.object(lane, "shell", side_effect=lambda *a, **k: said[a[2]]):
             self.assertEqual(bench.ready(list(said)), ["Good"])
+
+    def test_a_broken_card_may_take_ten_times_its_own_scenarios(self):
+        bench = lane.Shadow.__new__(lane.Shadow)
+        bench.target, bench.tree = Path("/t"), Path("/t")
+        clock = iter([0.0, 12.0, 100.0, 101.0])
+        passed = (0, "3 scenarios: 3 pass, 0 fail, 0 known bugs, 0 need cards the engine does not have.")
+        with mock.patch.object(lane.Shadow, "build", return_value=(0, "")), mock.patch.object(lane, "shell", return_value=passed), \
+                mock.patch.object(lane.time, "time", side_effect=lambda: next(clock)), \
+                mock.patch.object(lane.multiprocessing.pool, "ThreadPool", lambda n: mock.MagicMock(__enter__=lambda s: mock.Mock(map=map))):
+            bench.ready(["Slow", "Quick"])
+        self.assertEqual(bench.limits, {"Slow": 120.0, "Quick": 30})
+        with mock.patch.object(lane, "corpus_verdict") as verdict:
+            bench.play("Slow")
+        self.assertEqual(verdict.call_args.args[3], 120.0)
 
 
 class DeckNames(unittest.TestCase):
@@ -452,6 +476,75 @@ class Ways(unittest.TestCase):
     def test_no_way_rations_a_workers_actions(self):
         for way in lane.WAYS.values():
             self.assertNotIn("one action", way)
+
+
+class Streams(unittest.TestCase):
+    """`submit` closes the open card on a pass or a stop, and hands over the next; a card that keeps failing is set aside."""
+
+    def submit(self, state, report=None, ok=True):
+        card = mock.Mock(ok=ok)
+        card.failures.return_value = [] if ok else [{"gate": "corpus", "detail": "line 3 failed"}]
+        with tempfile.TemporaryDirectory() as scratch:
+            for name in state["order"]:
+                (Path(scratch) / name).mkdir()
+                (Path(scratch) / name / "section.md").write_text(f"## Card: {name}", encoding="utf-8")
+            stream = Path(scratch) / "stream.json"
+            stream.write_text(json.dumps(state), encoding="utf-8")
+            with mock.patch.multiple(lane, STREAM=stream, reopen_batch=mock.Mock(), expand_reports=mock.Mock(), report_of=mock.Mock(return_value=report),
+                                     batch_gates=mock.Mock(return_value={state["current"]: card}), owned_digest=mock.Mock(return_value="d"),
+                                     card_dir=lambda name: Path(scratch) / name), \
+                 mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                code = lane.cmd_submit(None)
+                return code, json.loads(stream.read_text(encoding="utf-8")), out.getvalue()
+
+    def state(self, **extra):
+        return dict({"order": ["A", "B"], "current": "A", "opened": 0, "closed": {}, "tries": {}, "max_tries": 2}, **extra)
+
+    def test_a_pass_closes_the_card_and_prints_the_next(self):
+        code, state, out = self.submit(self.state())
+        self.assertEqual((code, state["current"], state["closed"]["A"]["outcome"], state["closed"]["A"]["digest"]), (0, "B", "passed", "d"))
+        self.assertIn("## Card: B", out)
+
+    def test_a_stop_closes_the_card_without_the_gates(self):
+        code, state, out = self.submit(self.state(), {"decision": "engine_gap", "reason": "no such rule"})
+        self.assertEqual((state["current"], state["closed"]["A"]["outcome"], state["closed"]["A"]["detail"]), ("B", "engine_gap", "no such rule"))
+
+    def test_a_failure_is_counted_and_the_card_stays_open(self):
+        code, state, out = self.submit(self.state(), ok=False)
+        self.assertEqual((code, state["current"], state["tries"]), (1, "A", {"A": 1}))
+        self.assertIn("line 3 failed", out)
+
+    def test_the_last_failure_sets_the_card_aside(self):
+        code, state, out = self.submit(self.state(tries={"A": 1}), ok=False)
+        self.assertEqual((state["current"], state["closed"]["A"]["outcome"]), ("B", "failed_gates"))
+        self.assertIn("## Card: B", out)
+
+    def test_after_the_last_card_the_worker_is_told_its_turn_is_over(self):
+        code, state, out = self.submit(self.state(order=["A"]))
+        self.assertIsNone(state["current"])
+        self.assertIn("Every card is done", out)
+
+    def test_the_prompt_says_to_go_on_without_stopping(self):
+        text = lane.WAYS["stream"].replace("\n", " ")
+        for words in ("submit", "Your turn ends only when `submit` says that every card is done", "Do not stop between cards"):
+            self.assertIn(words, text)
+
+
+class Rulings(unittest.TestCase):
+    """As Cantrip's add-cards skill: a scenario is owed only to a ruling the card's own code decides."""
+
+    def problems(self, ruling):
+        report = {"validation": [], "test_points": [], "rulings": [dict(ruling, ruling="Exiling a card with suspend isn't casting it.")],
+                  "look_answers": [], "equivalent_mutants": []}
+        with mock.patch.multiple(lane, report_of=mock.Mock(return_value=report), content_file=mock.Mock(return_value=mock.Mock(read_text=mock.Mock(return_value='{"oracleText": ""}'))),
+                                 expectation_problem=mock.Mock(return_value="ruling: no such line")):
+            return lane.report_problems("A", [], [], [])
+
+    def test_a_ruling_left_empty_is_owed_nothing(self):
+        self.assertEqual(self.problems({"scenario": "", "line": 0, "no_decision": ""}), [])
+
+    def test_a_ruling_paired_must_name_an_expectation(self):
+        self.assertEqual(len(self.problems({"scenario": "a-suspend", "line": 3, "no_decision": ""})), 1)
 
 
 class PointsNoGameCanShow(unittest.TestCase):
@@ -583,6 +676,262 @@ class Usage(unittest.TestCase):
         self.assertEqual((usage.input, usage.cached, usage.turns, usage.reported_cost), (12, 7, 3, 0.5))
 
 
+HARLEQUIN = '''use cantrip_api::*;
+use cantrip_mechanics::{freerunning, triggers};
+use cantrip_oracle as oracle;
+
+/// "When this creature enters, you draw a card and you lose 1 life." (CR 608.2, 121.1, 119.3).
+fn draw_card_lose_1_life(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    g.draw(item.controller, 1);
+    g.end_sentence();
+    g.lose_life(item.controller, 1);
+    Ok(())
+}
+
+pub static CARD: CardDef = CardDef {
+    abilities: &[
+        triggered(
+            triggers::THIS_ENTERS,
+            draw_card_lose_1_life,
+            "When this creature enters, you draw a card and you lose 1 life.",
+        ),
+    ],
+    ways: &[freerunning::way(mana("{1}{B}"), "Freerunning {1}{B}")],
+    ..oracle::MERCILESS_HARLEQUIN
+};
+'''
+HARLEQUIN_TEXT = "Freerunning {1}{B} (You may cast this spell for its freerunning cost.)\nWhen this creature enters, you draw a card and you lose 1 life."
+HARLEQUIN_POINTS = ["[1] Freerunning {1}{B}: shown at least once", "[1] the cost '{1}{B}': paid exactly", "[2] the amount 1: an expectation that a value one off would fail"]
+
+
+def survived(source, number, what, now):
+    lines = source.split("\n")
+    return lane.survivor({"key": f"line {number}: {what}", "line": number, "what": what, "was": lines[number - 1], "now": now,
+                          "detail": f"card.rs:{number}: {what}, was: {lines[number - 1].strip()} now: {now.strip()}", "text": "x", "path": None})
+
+
+class NoiseMutants(unittest.TestCase):
+    """What no scenario can catch costs a worker nothing: an empty range is no change, a sentence's end left out is named by the lane."""
+
+    def test_a_range_made_empty_is_no_change(self):
+        self.assertTrue(lane.invalid_range("    .choose(2, 2);", "    .choose(2, 1);"))
+        self.assertTrue(lane.invalid_range(".targets(&[t.between(1, 1)])", ".targets(&[t.between(1, 0)])"))
+        self.assertTrue(lane.invalid_range("TargetSpec { min: 1, max: 1, filter: f }", "TargetSpec { min: 2, max: 1, filter: f }"))
+        for now in ("    .choose(1, 2);", "    .choose(2, 3);"):
+            self.assertFalse(lane.invalid_range("    .choose(2, 2);", now))
+        self.assertFalse(lane.invalid_range("g.draw(p, 2);", "g.draw(p, 1);"))
+
+    def test_the_empty_range_is_never_played_and_the_other_change_of_its_key_is(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            source, content = Path(scratch) / "card.rs", Path(scratch) / "card.json"
+            source.write_text("static MODES: ModalDef = modes(&[])\n    .choose(2, 2);\n", encoding="utf-8")
+            content.write_text("{}", encoding="utf-8")
+            mutate = mock.Mock()
+            mutate.mutants.return_value = [(2, "2 to 1", "    .choose(1, 2);"), (2, "2 to 3", "    .choose(2, 3);"), (2, "2 to 1", "    .choose(2, 1);")]
+            with mock.patch.multiple(lane, card_file=lambda name: source, content_file=lambda name: content, core_keywords=lambda: {}):
+                changes, total = lane.changes_of("Card", mutate)
+        self.assertEqual(total, 2)
+        self.assertEqual([c["now"].strip() for c in changes], [".choose(1, 2);", ".choose(2, 3);"])
+        self.assertEqual((changes[0]["line"], changes[0]["what"], changes[0]["was"]), (2, "2 to 1", "    .choose(2, 2);"))
+
+    def test_a_sentence_end_left_out_is_named_by_the_lane_with_the_rule(self):
+        why = lane.known_equivalent(survived(HARLEQUIN, 8, "statement left out", "    // (left out by card-mutate)"))
+        self.assertIn("CR 603.8", why)
+        self.assertIn("Means the same", why)
+        self.assertIsNone(lane.known_equivalent(survived(HARLEQUIN, 9, "statement left out", "    // (left out by card-mutate)")))
+        self.assertIsNone(lane.known_equivalent(survived(HARLEQUIN, 7, "1 to 2", "    g.draw(item.controller, 2);")))
+        self.assertIsNone(lane.known_equivalent({"key": "keyword Trample", "detail": "d"}))
+
+
+class SurvivorReport(unittest.TestCase):
+    def setUp(self):
+        self.scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(self.scratch.cleanup)
+        root = Path(self.scratch.name)
+        (root / "card.rs").write_text(HARLEQUIN, encoding="utf-8")
+        (root / "card.json").write_text(json.dumps({"oracleText": HARLEQUIN_TEXT}), encoding="utf-8")
+        self.report = root / "report.json"
+        self.validation = [{"line": line, "code": "it", "agrees": True} for line in lane.printed_lines(HARLEQUIN_TEXT)]
+        self.report.write_text(json.dumps({"decision": "done", "validation": self.validation, "test_points": [], "rulings": [], "look_answers": [], "equivalent_mutants": []}), encoding="utf-8")
+        patcher = mock.patch.multiple(lane, card_file=lambda name: root / "card.rs", content_file=lambda name: root / "card.json", card_dir=lambda name: root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.noise = survived(HARLEQUIN, 8, "statement left out", "    // (left out by card-mutate)")
+        self.real = survived(HARLEQUIN, 9, "1 to 2", "    g.lose_life(item.controller, 2);")
+
+    def gate(self, survivors):
+        gates = lane.Gates("Merciless Harlequin", False)
+        lane.report_gate(gates, "Merciless Harlequin", {"points": [], "looks": [], "source": HARLEQUIN, "overlaps": [],
+                                                      "ran": {"harlequin-enters.cantrip": {7, 8, 9}, "harlequin-freerunning.cantrip": {7}}}, survivors)
+        return gates.results[-1], json.loads(self.report.read_text(encoding="utf-8"))
+
+    def test_a_sentence_end_left_out_costs_no_submit_and_stays_in_the_report(self):
+        result, report = self.gate([self.noise])
+        self.assertTrue(result["ok"], result["detail"])
+        self.assertEqual([(e["mutant"], e["by"]) for e in report["equivalent_mutants"]], [("line 8: statement left out", "lane")])
+        self.assertIn("CR 603.8", report["equivalent_mutants"][0]["why"])
+        self.gate([self.noise])
+        self.assertEqual(len(json.loads(self.report.read_text(encoding="utf-8"))["equivalent_mutants"]), 1, "named once, however many submits")
+
+    def test_a_key_the_worker_named_is_left_to_it(self):
+        self.report.write_text(json.dumps({"decision": "done", "validation": self.validation, "equivalent_mutants": [{"mutant": "line 8: statement left out", "why": "mine"}]}), encoding="utf-8")
+        result, report = self.gate([self.noise])
+        self.assertTrue(result["ok"])
+        self.assertEqual(report["equivalent_mutants"], [{"mutant": "line 8: statement left out", "why": "mine"}])
+
+    def test_a_real_survivor_still_fails_and_says_where_it_is(self):
+        result, _ = self.gate([self.noise, self.real])
+        self.assertFalse(result["ok"])
+        detail = result["detail"]
+        self.assertNotIn("line 8", detail)
+        self.assertIn("line 9: g.lose_life(item.controller, 1);", detail)
+        self.assertIn("printed line 2: When this creature enters, you draw a card and you lose 1 life.", detail)
+        self.assertIn("ran in: harlequin-enters\n", detail)
+        self.assertIn("`line 9: 1 to 2`, now: g.lose_life(item.controller, 2);", detail)
+        self.assertTrue(detail.startswith("Each change below leaves every scenario passing."), "the code comes first, not the escape hatch")
+        self.assertTrue(detail.rstrip().endswith("to build the game that tells)."))
+        self.assertEqual(detail.count("equivalent"), 1)
+
+    def test_changes_of_one_line_are_one_entry(self):
+        other = survived(HARLEQUIN, 9, "1 to 0", "    g.lose_life(item.controller, 0);")
+        text = lane.survivor_text(HARLEQUIN, [self.real, other], lane.printed_lines(HARLEQUIN_TEXT), HARLEQUIN_POINTS)
+        self.assertEqual(text.count("line 9: g.lose_life"), 1)
+        self.assertIn("printed line 2: When this creature enters, you draw a card and you lose 1 life. (test points 3)", text)
+        self.assertIn("`line 9: 1 to 0`", text)
+        self.assertNotIn("ran in", text)
+        draw = survived(HARLEQUIN, 7, "1 to 2", "    g.draw(item.controller, 2);")
+        text = lane.survivor_text(HARLEQUIN, [draw, self.real], lane.printed_lines(HARLEQUIN_TEXT), HARLEQUIN_POINTS)
+        self.assertEqual(text.count("you lose 1 life. (test points 3)"), 1)
+        self.assertIn("line 9: g.lose_life(item.controller, 1);\n  printed line 2, as above", text)
+
+    def test_a_keyword_taken_off_says_so(self):
+        text = lane.survivor_text("", [{"key": "keyword Trample", "detail": "Trample taken off the card"}], ["Trample"], [])
+        self.assertIn("`keyword Trample`: Trample taken off the card", text)
+
+
+class PrintedLineOfCode(unittest.TestCase):
+    PRINTED = ["Freerunning {1}{B}", "When this creature enters, you draw a card and you lose 1 life."]
+
+    def test_a_function_is_the_line_its_doc_comment_quotes(self):
+        self.assertEqual(lane.printed_line_of(HARLEQUIN.split("\n"), 9, self.PRINTED), 2)
+
+    def test_a_line_of_the_card_is_the_text_of_the_call_it_is_in(self):
+        lines = HARLEQUIN.split("\n")
+        self.assertEqual(lane.printed_line_of(lines, lines.index("    ways: &[freerunning::way(mana(\"{1}{B}\"), \"Freerunning {1}{B}\")],") + 1, self.PRINTED), 1)
+
+    def test_a_quote_of_the_whole_card_names_no_line(self):
+        source = '/// "Choose two — • Draw a card. • Gain 3 life." (CR 700.2).\nfn mode_0(g: G) {\n    g.draw(p, 1);\n}\n'
+        self.assertIsNone(lane.printed_line_of(source.split("\n"), 3, ["Choose two —", "• Draw a card.", "• Gain 3 life."]))
+
+    def test_code_before_any_item_names_none(self):
+        self.assertIsNone(lane.printed_line_of(HARLEQUIN.split("\n"), 1, self.PRINTED))
+
+
+WEAVERS = '''fn kinship(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    if effects::ask_may(g, item.controller, item.object, Purpose::Optional)? {
+        let paid_2 = {
+            let mut revealed = false;
+            if let Some(card) = {
+                let q: &dyn Query = g;
+                q.state().zone(Zone::library(item.controller)).first().copied()
+            } {
+                if {
+                    let q: &dyn Query = g;
+                    Some(item.object).is_some_and(|o| shares(q, card, o))
+                }
+                    && effects::ask_may(
+                        g,
+                        item.controller,
+                        "a } in a string",
+                    )?
+                {
+                    g.reveal(item.controller, &[card]);
+                    revealed = true;
+                }
+            }
+            revealed
+        };
+        if paid_2 {
+            g.draw(item.controller, 1);
+        } else {
+            g.mill(item.controller, 1);
+        }
+    }
+    Ok(())
+}'''
+
+
+class CoverageLines(unittest.TestCase):
+    def test_a_closing_brace_names_the_block_it_closes(self):
+        lines = WEAVERS.split("\n")
+        self.assertEqual(lane.never_ran(lines, 22), "line 22 never ran: } (the block of line 5: if let Some(card) = {)")
+
+    def test_a_block_opened_after_a_long_condition_names_the_condition(self):
+        lines = WEAVERS.split("\n")
+        self.assertEqual(lines[20].strip(), "}")
+        self.assertEqual(lane.block_opener(lines, 21), 9)
+
+    def test_an_else_names_its_if(self):
+        lines = WEAVERS.split("\n")
+        number = lines.index("        } else {") + 1
+        self.assertEqual(lane.never_ran(lines, number), f"line {number} never ran: }} else {{ (the block of line {number - 2}: if paid_2 {{)")
+
+    def test_a_line_of_code_says_only_itself(self):
+        lines = WEAVERS.split("\n")
+        self.assertEqual(lane.never_ran(lines, 19), "line 19 never ran: g.reveal(item.controller, &[card]);")
+
+    def test_braces_that_do_not_match_name_nothing(self):
+        self.assertEqual(lane.never_ran(["    }"], 1), "line 1 never ran: }")
+
+
+class FindingCards(unittest.TestCase):
+    CARDS = [{"name": "Hulk, Bruce Banner", "type": "Legendary Creature — Gamma Berserker Hero", "power": 7, "toughness": 4, "keywords": ["Trample"], "oracleText": "Trample"},
+             {"name": "Red Hulk", "type": "Legendary Creature — Gamma Berserker Villain", "power": 6, "toughness": 7, "keywords": ["Reach", "Trample"],
+              "oracleText": "Reach, trample\nWhenever Red Hulk is dealt damage, put a +1/+1 counter on him."},
+             {"name": "Serra Angel", "type": "Creature — Angel", "power": 4, "toughness": 4, "keywords": ["Flying", "Vigilance"], "oracleText": "Flying, vigilance"},
+             {"name": "Keeneye Aven", "type": "Creature — Bird Soldier", "keywords": ["Flying", "Cycling"], "oracleText": "Flying\nCycling {2} ({2}, Discard this card: Draw a card.)"},
+             {"name": "Gamma Ray", "type": "Instant", "oracleText": "Gamma Ray deals 3 damage to any target."}]
+
+    def names(self, **wanted):
+        return [c["name"] for c in self.CARDS if lane.finds(c, **wanted)]
+
+    def test_a_subtype_is_a_word_after_the_dash(self):
+        self.assertEqual(self.names(subtypes=["gamma"]), ["Hulk, Bruce Banner", "Red Hulk"])
+        self.assertEqual(self.names(subtypes=["Gamma"], without=["Villain"]), ["Hulk, Bruce Banner"])
+
+    def test_a_type_is_any_word_of_the_type_line(self):
+        self.assertEqual(self.names(types=["legendary", "creature"]), ["Hulk, Bruce Banner", "Red Hulk"])
+
+    def test_keywords_and_text(self):
+        self.assertEqual(self.names(keywords=["flying"]), ["Serra Angel", "Keeneye Aven"])
+        self.assertEqual(self.names(keywords=["first strike"]), [])
+        self.assertEqual(self.names(texts=["+1/+1 counter"]), ["Red Hulk"])
+        self.assertEqual(self.names(texts=["draw a card"]), [], "reminder text is no rule")
+
+    def test_the_command_lists_the_plainest_first_and_leaves_out_the_batch(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            (root / "content" / "mtg" / "cards").mkdir(parents=True)
+            for i, card in enumerate(self.CARDS):
+                (root / "content" / "mtg" / "cards" / f"{i}.json").write_text(json.dumps(card), encoding="utf-8")
+            (root / "batch").mkdir()
+            (root / "batch" / "open.json").write_text(json.dumps(["Serra Angel"]), encoding="utf-8")
+            args = mock.Mock(cantrip=str(root), type=["creature"], subtype=[], keyword=[], text=[], without=[], n=2)
+            with mock.patch.object(lane, "BATCH_DIR", root / "batch"), mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                lane.cmd_find(args)
+        lines = out.getvalue().splitlines()
+        self.assertTrue(lines[0].startswith("Hulk, Bruce Banner  "), lines)
+        self.assertIn("7/4", lines[0])
+        self.assertEqual(lines[-1], "3 found, 1 more (-n)")
+        self.assertNotIn("Serra Angel", out.getvalue())
+
+    def test_the_stream_and_the_skill_say_to_look_before_calling_a_change_unreachable(self):
+        self.assertIn("find --subtype", lane.WAYS["stream"])
+        skill = (lane.SKILL / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("card_lane.py find", skill)
+        self.assertIn("`find`", skill)
+
+
 TABLE = '''macro_rules! counter_kinds {
     ($($kind:ident = $n:literal, $name:literal, $token:literal;)*) => {};
 }
@@ -610,6 +959,14 @@ class Rewrites(unittest.TestCase):
             rewrites, unread = tree.rewrites_of(root)
         self.assertEqual([row["find"] for row in rewrites], ['a "b" c'])
         self.assertEqual(unread, ["new"])
+
+
+class WorkerStream(unittest.TestCase):
+    def test_a_quoted_line_of_a_file_in_the_error_log_is_no_event(self):
+        usage = lane.Usage()
+        self.assertIsNone(lane.Codex("m", "e").read('      "Your upkeep trigger adds a muster counter."\n', usage))
+        self.assertIsNone(lane.Claude("m", "e").read('[1, 2]\n', usage))
+        self.assertEqual(usage.turns, 0)
 
 
 class Counters(unittest.TestCase):
@@ -649,15 +1006,51 @@ class Counters(unittest.TestCase):
                 lane.add_counters("CounterKind::Spore CounterKind::Verse")
                 worktree = (root / lane.COUNTER_TABLE).read_text(encoding="utf-8")
                 self.assertTrue(lane.only_counter_lines())
-                lane.commit_counters("Some Card")
+                lane.commit_brought("Some Card")
                 self.assertEqual((root / lane.COUNTER_TABLE).read_text(encoding="utf-8"), worktree)
                 committed = lane.git("show", f"HEAD:{lane.COUNTER_TABLE}")
                 self.assertIn('    Verse = 2, "verse", "Verse";', committed)
                 self.assertNotIn("Spore", committed)
                 self.assertEqual(lane.git("log", "-1", "--format=%s").strip(), "Engine: the verse counter (CR 122.1), for Some Card")
                 self.assertTrue(lane.only_counter_lines())
-                lane.commit_counters("Some Card")
+                lane.commit_brought("Some Card")
                 self.assertEqual(lane.git("rev-list", "--count", "HEAD").strip(), "2")
+
+    def test_a_card_of_keywords_alone_has_no_file_and_brings_no_counter(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            shell = self.repository(root)
+            with mock.patch.object(lane, "CANTRIP", root), mock.patch.object(lane, "shell", shell), \
+                    mock.patch.object(lane, "card_file", lambda _: root / "noble_elephant.rs"):
+                before = lane.git("rev-parse", "HEAD")
+                lane.commit_brought("Noble Elephant")
+                self.assertEqual(lane.git("rev-parse", "HEAD"), before)
+
+    def test_a_new_token_is_a_commit_of_its_own_before_the_card(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            shell = self.repository(root)
+            table = root / lane.TOKEN_TABLE
+            table.parent.mkdir(parents=True)
+            table.write_text("pub static OLD: CardDef = x;\n\n#[cfg(test)]\nmod tests {}\n", encoding="utf-8")
+            shell("git", "-C", root, "add", "-A")
+            shell("git", "-C", root, "commit", "-q", "-m", "tokens")
+            (root / "card.rs").write_text("use cantrip_mechanics::tokens::{NEW, OLD};\n", encoding="utf-8")
+            token = {"title": "the 1/1 Thing token", "cards": 2, "source": "/// A thing.\npub static NEW: CardDef = y;\n"}
+            with mock.patch.object(lane, "CANTRIP", root), mock.patch.object(lane, "shell", shell), \
+                    mock.patch.object(lane, "card_file", lambda _: root / "card.rs"), \
+                    mock.patch.dict(tree.NEW_TOKENS, {"NEW": token}, clear=True):
+                lane.add_tokens((root / "card.rs").read_text(encoding="utf-8"))
+                self.assertTrue(lane.only_new_tokens())
+                worktree = table.read_text(encoding="utf-8")
+                self.assertLess(worktree.index("pub static NEW"), worktree.index("#[cfg(test)]"))
+                lane.commit_brought("Some Card")
+                self.assertEqual(lane.git("show", f"HEAD:{lane.TOKEN_TABLE}"), worktree)
+                self.assertEqual(lane.git("log", "-1", "--format=%s").strip(), "Mechanics: the 1/1 Thing token, for Some Card")
+                lane.commit_brought("Some Card")
+                self.assertEqual(lane.git("log", "-1", "--format=%s").strip(), "Mechanics: the 1/1 Thing token, for Some Card")
+                table.write_text(worktree.replace("OLD", "OLDER"), encoding="utf-8")
+                self.assertFalse(lane.only_new_tokens())
 
     def test_anything_else_in_the_table_is_out_of_scope(self):
         with tempfile.TemporaryDirectory() as scratch:
@@ -666,6 +1059,160 @@ class Counters(unittest.TestCase):
             with mock.patch.object(lane, "CANTRIP", root), mock.patch.object(lane, "shell", shell):
                 (root / lane.COUNTER_TABLE).write_text(TABLE.replace("pub struct After;", "pub struct Before;"), encoding="utf-8")
                 self.assertFalse(lane.only_counter_lines())
+
+
+SPLIT = {"name": "Claim // Fame", "oracleText": "", "halves": [
+    {"name": "Claim", "manaCost": "{B}", "type": "Sorcery", "oracleText": "Return target creature card with mana value 2 or less from your graveyard to the battlefield."},
+    {"name": "Fame", "manaCost": "{1}{R}", "type": "Sorcery", "oracleText": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nTarget creature gets +2/+0 and gains haste until end of turn.", "aftermath": True}]}
+DFC = {"name": "Delver of Secrets", "manaCost": "{U}", "type": "Creature — Human Wizard", "oracleText": "At the beginning of your upkeep, look at the top card of your library.",
+       "backFace": {"name": "Insectile Aberration", "colorIndicator": ["Blue"], "type": "Creature — Human Insect", "oracleText": "Flying", "keywords": ["Flying"]}}
+
+
+class SeveralFaces(unittest.TestCase):
+    """A card of several faces as the lane names, queues, reads and drafts it."""
+
+    def test_cantrip_names_a_split_card_by_both_halves_and_another_by_its_front(self):
+        self.assertEqual(lane.lane_name({"name": "Claim // Fame", "layout": "Split", "faces": ["Claim", "Fame"]}), "Claim // Fame")
+        self.assertEqual(lane.lane_name({"name": "A // B", "layout": "Room", "faces": ["A", "B"]}), "A // B")
+        self.assertEqual(lane.lane_name({"name": "Rona, Herald of Invasion // Rona, Tolarian Obliterator", "layout": "Transforming",
+                                         "faces": ["Rona, Herald of Invasion", "Rona, Tolarian Obliterator"]}), "Rona, Herald of Invasion")
+        self.assertEqual(lane.lane_name({"name": "The Gold Saucer", "layout": "Card", "faces": ["The Gold Saucer"]}), "The Gold Saucer")
+        self.assertEqual(lane.lane_name({"name": "Old Row"}), "Old Row")  # a row of before `faces`
+
+    def test_a_list_finds_a_card_by_its_name_the_generators_or_a_face(self):
+        stomp = {"name": "Stomp", "layout": "Card", "faces": ["Stomp"]}
+        giant = {"name": "Bonecrusher Giant // Stomp", "layout": "Adventurer", "faces": ["Bonecrusher Giant", "Stomp"]}
+        claim = {"name": "Claim // Fame", "layout": "Split", "faces": ["Claim", "Fame"]}
+        index = lane.name_index([giant, stomp, claim])
+        self.assertIs(index["Bonecrusher Giant"], giant)
+        self.assertIs(index["Bonecrusher Giant // Stomp"], giant)
+        self.assertIs(index["Stomp"], stomp)  # a card's own name before another's face
+        self.assertIs(index["Claim // Fame"], claim)
+        self.assertIs(index["Fame"], claim)
+
+    def test_each_face_is_compared_with_scryfall(self):
+        found = {"layout": "split", "faces": {"Claim": "Return it.", "Fame": "Target creature gets +2/+0."}}
+        oracle = {"Claim": {"text": "Return it."}, "Fame": {"text": "Target creature gets +3/+0."}}
+        reason, differs = lane.scryfall_problem(found, ["Claim", "Fame"], oracle, lane.LAYOUTS)
+        self.assertEqual(reason, "Oracle text differs from mtgish's oracle.json")
+        self.assertEqual([d["name"] for d in differs], ["Fame"])
+        oracle["Fame"]["text"] = "Target creature gets +2/+0."
+        self.assertEqual(lane.scryfall_problem(found, ["Claim", "Fame"], oracle, lane.LAYOUTS), (None, []))
+        self.assertEqual(lane.scryfall_problem(found, ["Claim"], oracle, lane.LAYOUTS)[0], "faces differ from Scryfall's")
+        self.assertEqual(lane.scryfall_problem(dict(found, layout="flip"), ["Claim", "Fame"], oracle, lane.LAYOUTS)[0], "layout flip")
+        self.assertEqual(lane.scryfall_problem(None, ["Claim"], oracle, lane.LAYOUTS)[0], "not on Scryfall")
+
+    def test_every_face_s_text_is_the_card_s(self):
+        self.assertEqual(lane.content_faces(SPLIT), [("Claim", SPLIT["halves"][0]["oracleText"]), ("Fame", SPLIT["halves"][1]["oracleText"])])
+        self.assertEqual([f for f, _ in lane.content_faces(DFC)], ["Delver of Secrets", "Insectile Aberration"])
+        self.assertEqual(lane.content_faces({"name": "Bear", "oracleText": ""}), [("Bear", "")])
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "card.json"
+            path.write_text(json.dumps(SPLIT), encoding="utf-8")
+            with mock.patch.object(lane, "content_file", lambda name: path):
+                self.assertEqual(lane.printed_lines(lane.card_text("Claim // Fame")),
+                                 [SPLIT["halves"][0]["oracleText"], "Aftermath", "Target creature gets +2/+0 and gains haste until end of turn."])
+                self.assertTrue(lane.costs_mana("Claim // Fame"))  # its halves' costs, the whole card having none
+
+    def test_a_back_face_s_keywords_are_repaired_too(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "card.json"
+            path.write_text(json.dumps(dict(DFC, backFace=dict(DFC["backFace"], oracleText="Trample; banding", keywords=[]))), encoding="utf-8")
+            with mock.patch.multiple(lane, content_file=lambda name: path, core_keywords=lambda: {"trample": "Trample", "banding": "Banding"}):
+                lane.repair_keywords("Delver of Secrets")
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["backFace"]["keywords"], ["Trample", "Banding"])
+
+    def test_facts_leave_out_every_face_s_text(self):
+        facts = lane.facts_of(SPLIT)
+        self.assertEqual([sorted(h) for h in facts["halves"]], [["manaCost", "name", "type"], ["aftermath", "manaCost", "name", "type"]])
+        self.assertNotIn("oracleText", lane.facts_of(DFC)["backFace"])
+        single = {"name": "Bear", "manaCost": "{1}{G}", "oracleText": "x", "power": 2}
+        self.assertEqual(lane.facts_of(single), {"manaCost": "{1}{G}", "power": 2})
+
+    def test_how_each_layout_s_other_face_is_reached(self):
+        with mock.patch.dict(lane.FACE_ART, {kind: "" for kind in lane.FACE_PLAY}):
+            self.assertIn("`Bot1.Graveyard.Claim // Fame.Cast(Ability: Fame)`", lane.faces_section({"layout": "split"}, SPLIT))
+            self.assertIn("`? Bot1.Battlefield.Insectile Aberration.Transformed = true`", lane.faces_section({"layout": "transform"}, DFC))
+            self.assertIn("`Bot1.Hand.Delver of Secrets.Cast(Ability: back face)`", lane.faces_section({"layout": "modal_dfc"}, DFC))
+            room = {"name": "A // B", "halves": [{"name": "A", "type": "Enchantment — Room", "oracleText": "x"}, {"name": "B", "type": "Enchantment — Room", "oracleText": "y"}]}
+            self.assertIn("`Bot1.Battlefield.A.Activate(Ability: right door)`", lane.faces_section({}, room))
+            for key, words in (("adventure", "Cast(Ability: Adventure)"), ("omen", "Cast(Ability: Omen)"), ("prepare", "`Bot1.Exile.Spell.Cast`")):
+                card = {"name": "Card", "oracleText": "x", key: {"name": "Spell", "oracleText": "y"}}
+                self.assertIn(words, lane.faces_section({}, card))
+            self.assertIn("no scenario melds it", lane.faces_section({"layout": "meld"}, {"name": "Garrison", "oracleText": "x"}))
+            self.assertEqual(lane.faces_section({"layout": "normal"}, {"name": "Bear", "oracleText": "x"}), "")
+
+    def test_a_split_prepare_or_meld_card_is_drafted_as_cantrip_has_one(self):
+        def face(f):
+            return {"name": f["name"], "manaCost": f["mana_cost"], "type": f["type_line"], "oracleText": f["oracle_text"], "keywords": ["Haste"]}
+        claim = {"name": "Claim // Fame", "layout": "split", "faces": [
+            {"name": "Claim", "mana_cost": "{B}", "type_line": "Sorcery", "oracle_text": "Return it."},
+            {"name": "Fame", "mana_cost": "{1}{R}", "type_line": "Sorcery", "oracle_text": "Aftermath (Cast this spell only from your graveyard.)\nHaste."}]}
+        drafted = lane.drafted_content(claim, face)
+        self.assertEqual(drafted["name"], "Claim // Fame")
+        self.assertEqual(drafted["oracleText"], "")
+        self.assertEqual([sorted(h) for h in drafted["halves"]], [["manaCost", "name", "oracleText", "type"], ["aftermath", "manaCost", "name", "oracleText", "type"]])
+        prepare = {"name": "Abigale // Heroic Stanza", "layout": "prepare", "faces": [
+            {"name": "Abigale", "mana_cost": "{1}{W}{B}", "type_line": "Creature", "oracle_text": "Flying"},
+            {"name": "Heroic Stanza", "mana_cost": "{1}{W/B}", "type_line": "Sorcery", "oracle_text": "Put a counter."}]}
+        drafted = lane.drafted_content(prepare, face)
+        self.assertEqual((drafted["name"], sorted(drafted["prepare"])), ("Abigale", ["manaCost", "name", "oracleText", "type"]))
+        meld = {"name": "Garrison", "layout": "meld", "faces": [{"name": "Garrison", "mana_cost": "{2}{R}", "type_line": "Creature", "oracle_text": "x"}]}
+        self.assertEqual(lane.drafted_content(meld, face)["name"], "Garrison")
+        self.assertIsNone(lane.drafted_content(dict(claim, layout="transform"), face))  # new-card.py writes those
+
+
+class Levels(unittest.TestCase):
+    ESCORT = "Level up {2} ({2}: Put a level counter on this. Level up only as a sorcery.)\nLEVEL 1-4\n2/2\nLEVEL 5+\n5/5\nFirst strike"
+
+    def problems(self, said):
+        source = f'/// "{said}" (CR 711.2a).\nstatic_ability(Layer::PtSet, itself, base_pt::<2, 2>, "{said}")\n'
+        with mock.patch.object(lane, "card_text", lambda name: self.ESCORT):
+            return [p for p in lane.style_problems("Caravan Escort", source) if "ability text" in p]
+
+    def test_a_level_s_line_is_said_with_its_level(self):
+        self.assertEqual(self.problems("LEVEL 1-4: 2/2"), [])
+        self.assertEqual(self.problems("LEVEL 5+: First strike"), [])
+
+    def test_a_level_is_not_said_with_words_it_does_not_print(self):
+        self.assertTrue(self.problems("LEVEL 6+: First strike"))
+        self.assertTrue(self.problems("LEVEL 1-4: Flying"))
+
+
+class RandomNote(unittest.TestCase):
+    """A card that flips, rolls or chooses at random is told how a scenario forces the result (The Gold Saucer's stop)."""
+
+    def test_random_words(self):
+        for text in ("Flip a coin. If you win the flip, create a Treasure token.", "Roll a d20.", "Roll two dice.",
+                     "Target player discards a card at random."):
+            self.assertTrue(lane.RANDOM.search(text), text)
+
+    def test_other_words(self):
+        for text in ("Draw a card.", "Transform this creature.", "Turn it face up.", "Each player chooses a creature."):
+            self.assertFalse(lane.RANDOM.search(text), text)
+
+
+class SyntaxNotes(unittest.TestCase):
+    """A card is told the scenario syntax its words need: no modes refused (Deafening Clarion), a companion (Keruga)."""
+
+    def test_modes(self):
+        for text in ("Choose one or both —\n• Deafening Clarion deals 3 damage", "Choose one —\n• Destroy X target artifacts",
+                     "Choose two. You may choose the same mode more than once. —"):
+            self.assertTrue(lane.MODES.search(text), text)
+        for text in ("Choose a creature type.", "Each player chooses a creature they control."):
+            self.assertFalse(lane.MODES.search(text), text)
+
+    def test_a_stream_card_is_told(self):
+        """A stream worker reads only the handbook and each card's section, never `brief()`."""
+        import inspect
+        self.assertIn("NOTES", inspect.getsource(lane.card_section))
+        handbook = (Path(lane.__file__).parent / "handbook.md").read_text(encoding="utf-8")
+        for form in ("Modes(Count: 0)", "Arrange(A | B; C)", "Choose(A; B)"):
+            self.assertIn(form, handbook)
+
+    def test_companion(self):
+        self.assertTrue(lane.COMPANION.search("Companion — Each nonland card in your starting deck has mana value 3 or greater."))
+        self.assertFalse(lane.COMPANION.search("Each creature you control is a companion of yours."))
 
 
 if __name__ == "__main__":

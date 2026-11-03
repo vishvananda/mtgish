@@ -183,6 +183,7 @@ impl Compiler {
             object: Some(if controller { Carried::Data(0) } else { Carried::Subject }),
             player: controller.then_some(Carried::Subject),
             destination: Some(Carried::Data(0)),
+            battlefield_entry: entering,
             ..Frame::default()
         };
         // CR 603.10: a departure is judged as the object last was, an arrival
@@ -204,7 +205,20 @@ impl Compiler {
         if let Some(from) = from {
             tests.push(format!("from.is({})", zone_kind(from)?));
         }
-        tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
+        tests.push(self.matching(frame, |c| c.filter(objects, &Candidate {
+            entry_from: entering,
+            ..Candidate::of("id")
+        }))?);
+        // "Cards were put into exile": a token is no card (108.2).
+        if !entering
+            && self.line_text().is_some_and(|line| {
+                ["cards were put into", "card was put into", "cards are put into", "card is put into"]
+                    .iter()
+                    .any(|words| line.contains(words))
+            })
+        {
+            tests.push("!q.state().obj(id).token".into());
+        }
         let functions = if functions_there {
             Some(format!("ZoneKinds::of(&[{}])", zone_kind(to)?))
         } else {
@@ -782,6 +796,35 @@ impl Compiler {
                     ("ControlledByAPlayer", [Operand::Players(players)]) => {
                         tests.push(self.matching(frame, |c| c.player_in(players, "controller"))?)
                     }
+                    // "An ability of a land you control named ...": its source, as `by`.
+                    ("AbilityOfAPermanent", [Operand::Objects(sources)])
+                        if matches!(kind, TargetingKind::Ability) =>
+                    {
+                        tests.push(self.matching(frame, |c| {
+                            Ok(format!("{}.contains(&by)", c.objects(sources)?))
+                        })?)
+                    }
+                    // "An ability that targets only it" (Agrus Kos): the ability just put
+                    // on the stack, the item at the top as it became the target (CR 601.2c
+                    // by way of 602.2b, 603.3d), has targets and each is this object
+                    // (CR 115.9c: the same object chosen more than once still is only it).
+                    ("TargetsOnlySinglePermanent", [Operand::Object(it)])
+                        if matches!(kind, TargetingKind::Ability) =>
+                    {
+                        let it = self.matching(frame, |c| c.object(it))?;
+                        tests.push(format!(
+                            "{it}.is_some_and(|it: ObjectId| q.state().stack.last().is_some_and(|i| {{ let n = q.state().targets(i).len(); n > 0 && (0..n).all(|k| q.state().target(i, k) == Target::Object(it)) }}))"
+                        ));
+                    }
+                    // "The target of an activated ability" (Professor Hojo): the
+                    // event names only the source and that it was an ability, so
+                    // which is the newest item of that source targeting it, as one
+                    // that has just been activated, copied or retargeted is.
+                    ("ActivatedAbility", []) if !matches!(kind, TargetingKind::Spell) => {
+                        tests.push(self.matching(frame, |_| {
+                            Ok("q.state().stack.iter().rev().find(|i| i.object == by && q.state().targets(i).contains(&Target::Object(id))).is_some_and(|i| i.kind == StackKind::Activated)".into())
+                        })?)
+                    }
                     (other, operands) => {
                         let feature = format!("targeted by {other}");
                         let operands = self.stated_operands(operands);
@@ -890,8 +933,58 @@ impl Compiler {
                 let of = self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?;
                 format!("(def.is_some_and(|d| d.from == ZoneKind::Battlefield) && {of})")
             }
+            // The ability as it was put on the stack, its targets chosen and its
+            // costs paid (CR 602.2b, 601.2c-h) before it counts as activated: the
+            // item `serial` names (`activated_event`). A mana ability has none.
+            other if frame.activated == Some(Carried::Data(1)) && self.activation_item_test(other)?.is_some() => {
+                self.activation_item_test(other)?.expect("just seen")
+            }
             other => return self.activated_stated(other),
         })
+    }
+    /// What an activation trigger reads of the activated ability's stack item:
+    /// its targets (Ertha Jo, Bill Potts), the mana spent to activate it, as
+    /// each payment recorded it after the item was put on the stack (Dynaheir,
+    /// Vazi: CR 106.3, 601.2h, 602.2b).
+    fn activation_item_test(&self, filter: &ObjectFilter) -> Result<Option<String>> {
+        const ITEM: &str = "q.state().stack.iter().find(|i| serial != 0 && i.serial == serial && i.kind == StackKind::Activated)";
+        const SPENT: &str = "i.since as usize..).unwrap_or(&[]).iter().filter_map(|r| match r.event { Event::ManaSpent { on, cast: false, source, mana, .. } if on == id => Some((source, mana)), _ => None })";
+        Ok(Some(match filter {
+            ObjectFilter::TargetsAny(targets) => format!(
+                "{ITEM}.is_some_and(|i| q.state().targets(i).iter().any(|t: &Target| {}))",
+                self.targeted(targets)?
+            ),
+            // "Targets only [it]": however many times it was chosen (CR 115.9c).
+            ObjectFilter::OnStack(StackTrait::SingleTarget)
+                if self.line_text().is_some_and(|line| line.contains("targets only")) =>
+            {
+                format!("{ITEM}.is_some_and(|i| {{ let chosen = q.state().targets(i); !chosen.is_empty() && chosen.iter().all(|t| *t == chosen[0]) }})")
+            }
+            ObjectFilter::OnStack(StackTrait::SingleTarget) => {
+                format!("{ITEM}.is_some_and(|i| q.state().targets(i).len() == 1)")
+            }
+            ObjectFilter::ManaSpent {
+                color: None,
+                sources: None,
+                payers: None,
+                comparison,
+                value,
+            } => format!(
+                "{ITEM}.is_some_and(|i| {})",
+                read::compare(
+                    &format!("q.history().all().get({SPENT}.map(|(_, mana)| i64::from(mana.total())).sum::<i64>()"),
+                    comparison,
+                    &self.number(value)?.code,
+                )
+            ),
+            // A Treasure sacrificed for its mana is gone: what it was then
+            // (CR 608.2h), as `spent::mana_from_a_treasure_spent_to_cast` reads it.
+            ObjectFilter::ManaSpentFrom(sources) => format!(
+                "{ITEM}.is_some_and(|i| q.history().all().get({SPENT}.any(|(source, _)| source != ObjectId::NONE && {}))",
+                self.filter(sources, &Candidate::of("source"))?
+            ),
+            _ => return Ok(None),
+        }))
     }
     /// `EventSpec::Attack`. `data` is the attacker's controller, then its
     /// defending player, which is what a batch of them is split by.
@@ -1020,7 +1113,15 @@ impl Compiler {
             player: by.map(|_| Carried::Data(1)),
             ..frame
         };
-        let test = self.matching(putting, |c| c.filter(objects, &Candidate::of("id")))?;
+        let as_put = match objects {
+            ObjectFilter::CardType(t) if !removed => Some(card_type(t)?),
+            _ => None,
+        };
+        let test = match &as_put {
+            // What it was as they were put, wherever it is now (122.6, 205.2).
+            Some(t) => format!("types.has(CardType::{t})"),
+            None => self.matching(putting, |c| c.filter(objects, &Candidate::of("id")))?,
+        };
         let mut tests = vec![match test.contains("data[1]") {
             true => format!("{{ let data = [0u32, u32::from(by.0)]; {test} }}"),
             false => test,
@@ -1039,6 +1140,9 @@ impl Compiler {
             Arm {
                 pattern: match removed {
                     true => "Event::CountersRemoved { object, kind, amount, by, .. }".into(),
+                    false if as_put.is_some() => {
+                        "Event::CountersPut { object, kind, amount, by, types, .. }".into()
+                    }
                     false => "Event::CountersPut { object, kind, amount, by, .. }".into(),
                 },
                 locals: "let id = *object; let subject = Target::Object(id); let data = [*amount as u32, id.0];".into(),
@@ -1053,6 +1157,16 @@ impl Compiler {
         if removed {
             let feature = "engine: no event for a counter being removed";
             self.plan_event(&mut matched, feature, false)?;
+        }
+        // "Whenever one or more counters are put on permanents you control, put that
+        // many": one happening for the player, of its total (CR 603.2c).
+        if self.counters_total && *per == BatchPer::Whole && !removed {
+            for arm in &mut matched.arms {
+                arm.locals = "let id = *object; let subject = Target::Player(asker.controller); let data = [*amount as u32, u32::MAX];".into();
+            }
+            matched.frame.object = None;
+            matched.sums = true;
+            return Ok(matched);
         }
         matched.batch = Some(match per {
             BatchPer::Whole => false,
@@ -1140,13 +1254,19 @@ impl Compiler {
                 matched
             }
         };
+        // "Whenever a player attacks you with one or more creatures, ... that
+        // many": a batch kept apart by its defender (`batch_by_data`) holds the
+        // creatures attacking that one, and how many is its members' count.
+        if *per == BatchPer::Defender && matches!(event, EventSpec::Attack { .. }) {
+            matched.frame.members = matched.frame.object == Some(Carried::Subject);
+        }
         // No one of a whole batch is the event's, however the form binds it.
         if *per == BatchPer::Whole {
             matched.frame.members = matched.frame.object == Some(Carried::Subject)
                 && !matches!(event, EventSpec::Counters { .. });
             matched.frame.object = None;
         }
-        matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject);
+        matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject || matched.sums);
         Ok(matched)
     }
     /// An event by how many came before it this turn, of its own player's when
@@ -1193,7 +1313,13 @@ impl Compiler {
             frame: Frame::default(),
         });
         let past = asked.event(event)?;
-        let value = self.matching(matched.frame, |c| Ok(c.number(value)?.code))?;
+        let values = match value {
+            Expr::AnyOf(values) => values.clone(),
+            other => vec![other.clone()],
+        };
+        let values = self.matching(matched.frame, |c| {
+            values.iter().map(|value| Ok(c.number(value)?.code)).collect::<Result<Vec<_>>>()
+        })?;
         // Summed events are one happening: the rest of it is no earlier one.
         let others = if summed {
             ".filter(|r| !r.in_batch_of(event))"
@@ -1204,7 +1330,12 @@ impl Compiler {
             "q.history().this_turn().iter(){others}.filter_map({}){same}.count() as i64 + 1",
             past.history_test()
         );
-        let test = read::compare(&count, comparison, &value);
+        let tests: Vec<String> =
+            values.iter().map(|value| read::compare(&count, comparison, value)).collect();
+        let test = match tests.as_slice() {
+            [one] => one.clone(),
+            many => format!("({})", many.join(" || ")),
+        };
         let test = match summed {
             true => planned::planned_value("an ordinal of grouped events", "false", &test),
             false => test,
@@ -1296,17 +1427,15 @@ impl Compiler {
         }
         tests.push(match source_kind {
             ObjectKind::Any => "true".to_string(),
-            ObjectKind::Permanent => "!q.state().obj(source).zone.is(ZoneKind::Stack)".to_string(),
-            // A spell deals its damage as it resolves, still on the stack.
-            ObjectKind::Spell if self.history.is_none() => {
-                "q.state().obj(source).zone.is(ZoneKind::Stack)".to_string()
+            // Asked afterwards: not a spell, and not a card in another zone either.
+            ObjectKind::Permanent if self.history.is_some() => {
+                "q.state().obj(source).zone.is(ZoneKind::Battlefield)".to_string()
             }
-            // Asked afterwards, when a spell has left the stack.
-            ObjectKind::Spell => planned::planned_value(
-                "damage source kind Spell",
-                "false",
-                "q.history().dealt_by_spell(source)",
-            ),
+            ObjectKind::Permanent => "!q.state().obj(source).zone.is(ZoneKind::Stack)".to_string(),
+            // A spell deals its damage as it resolves, still on the stack. Asked
+            // afterwards, the object it was keeps the zone it left from, and what it
+            // became on leaving is another object (CR 400.7).
+            ObjectKind::Spell => "q.state().obj(source).zone.is(ZoneKind::Stack)".to_string(),
             ObjectKind::Card => "!q.state().obj(source).token".to_string(),
             other => return Err(gap(format!("damage source kind {}", form(other)))),
         });
@@ -1383,7 +1512,9 @@ impl Compiler {
                 tests.push(planned::planned_value(
                     "engine: no discard cause in events",
                     "false",
-                    &format!("cause.is_some_and(|cause| {cause})"),
+                    // What made the card be discarded, which `Event::Discarded`
+                    // will carry (CR 701.9a: "causes you to discard").
+                    &format!("{{ if let Event::Discarded {{ cause: Some(cause), .. }} = event {{ let cause = *cause; {cause} }} else {{ false }} }}"),
                 ));
                 (
                     "DISCARDED",
@@ -1590,6 +1721,19 @@ impl Compiler {
                 comparison,
                 value,
             } => self.ordinal_event(event, comparison, value, true),
+            // "If it's the first time that creature has": each its own first time.
+            EventSpec::FirstEachTurn(event)
+                if self
+                    .line_text()
+                    .is_some_and(|line| line.contains("first time that creature")) =>
+            {
+                self.event(&EventSpec::FirstForObjectEachTurn(event.clone()))
+            }
+            // The total power is the declaration's own: the earlier ones are read
+            // from their `Attacks` records.
+            EventSpec::FirstEachTurn(event) if matches!(&**event, EventSpec::AttacksAsGroup { .. }) => {
+                self.first_of(event, "q.history().this_turn().iter()", false)
+            }
             EventSpec::FirstEachTurn(event) => {
                 self.ordinal_event(event, &Comparison::Equal, &Expr::Constant(1), false)
             }
@@ -1659,7 +1803,7 @@ impl Compiler {
         }
     }
     /// A callback the engine asks with no event in reach.
-    fn condition_function(&mut self, condition: &Condition, label: &str) -> Result<String> {
+    pub(super) fn condition_function(&mut self, condition: &Condition, label: &str) -> Result<String> {
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let compiled = self.condition(condition);
@@ -1688,6 +1832,13 @@ impl Compiler {
         announcement: &Announcement,
         body: &Program,
     ) -> Result<String> {
+        // Expedited Inheritance: "its controller may exile that many cards", which
+        // its data has them do with no choice.
+        if lane_k::printed_otherwise(self.line_text(), "its controller may exile that many")
+            && !format!("{body:?}").contains("Optional")
+        {
+            return Err(gap("a may the card prints read as a must, in the data"));
+        }
         let counts = match self.slot_counts {
             target_counts::SlotCounts::Delayed => target_counts::SlotCounts::Delayed,
             _ => Compiler::counts_of_trigger(event),
@@ -1700,7 +1851,9 @@ impl Compiler {
             && announcement.targets.iter().all(|slot| format!("{:?}", slot.chooser) == format!("{:?}", announcement.targets[0].chooser))
             && announcement.targets[0].chooser.is_some();
         self.subject_chooses = false;
+        let planned = std::mem::replace(&mut self.event_planned, false);
         let def = self.triggered_def(label, event, intervening_if, limits, announcement, body);
+        self.event_planned = planned;
         let read = self.count_read.take().map(|(_, call)| call);
         let by_subject = self.subject_chooses;
         (self.slot_counts, self.count_read) = outer;
@@ -1721,11 +1874,32 @@ impl Compiler {
         body: &Program,
     ) -> Result<String> {
         if let Some(total) = limits.total {
+            // "This ability triggers only once": the engine records a triggering
+            // only of an ability limited each turn, and its text tells it from any
+            // other such ability of the object. Its matcher is asked alone: an
+            // intervening "if" is asked again as it resolves (CR 603.4).
             let free = TriggerLimits {
-                per_turn: limits.per_turn,
+                per_turn: limits.per_turn.or((total == 1).then_some(1)),
                 total: None,
             };
             let def = self.triggered(label, event, intervening_if, &free, announcement, body)?;
+            let text = def.split_once(", \"").and_then(|(_, text)| {
+                let mut escaped = false;
+                let end = text.find(|c| {
+                    let closes = c == '"' && !escaped;
+                    escaped = c == '\\' && !escaped;
+                    closes
+                })?;
+                Some(format!("\"{}\"", &text[..end]))
+            });
+            let matcher = format!("{label}_event");
+            if let (1, None, Some(text), true) =
+                (total, limits.per_turn, text, def.contains(&format!("{matcher})")))
+            {
+                let once = format!("{label}_once");
+                writeln!(self.functions, "#[allow(unused_variables)] fn {once}(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{ if q.history().all().iter().any(|r| matches!(r.event, Event::Triggered {{ source, ability }} if source == asker.source && matches!(q.card(ability.card).abilities.get(usize::from(ability.index)), Some(AbilityDef::Triggered(t)) if t.text == {text}))) {{ return None; }} {matcher}(q, asker, event) }}").unwrap();
+                return Ok(def.replacen(&format!("{matcher})"), &format!("{once})"), 1));
+            }
             return Ok(planned::planned_value(
                 "trigger total limit",
                 &def,
@@ -1781,7 +1955,13 @@ impl Compiler {
             && !read.contains("EventDestination");
         let summed = summed_at_recipient(event, body);
         let event = summed.as_ref().unwrap_or(event);
+        let says = format!("{read} {body:?}");
+        self.counters_total = says.contains("EventAmount")
+            && !["EventGroup", "EventSubject", "EventSource"]
+                .iter()
+                .any(|word| says.contains(word));
         let matched = self.event(event);
+        self.counters_total = false;
         self.recipient_subject = false;
         let controller_subject = std::mem::take(&mut self.controller_subject);
         if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {
@@ -1820,6 +2000,7 @@ impl Compiler {
                 false,
             )?;
         }
+        self.event_planned = !matched.planned.iter().all(|f| planned::landed(f));
         let implied = match body.instructions.is_empty() {
             true => self.implied_slots(announcement, label, Some(matched.frame))?,
             false => None,
@@ -1858,6 +2039,9 @@ impl Compiler {
         }
         let done_once = self.done_once(limits, body);
         extra.extend(done_once.map(lane_k::not_yet_done));
+        // The look isn't offered, only what follows it.
+        let looked = done_once.and_then(|_| lane_k::looks_then_may(body));
+        let body = looked.as_ref().unwrap_or(body);
         if let Some(intervening) = intervening_if {
             // The AST has "if it isn't a mana ability" without its "isn't".
             if lane_n::lost_its_negation(intervening, matched.frame) {
@@ -1884,7 +2068,9 @@ impl Compiler {
                     Ok(function) => condition = Some(function),
                     Err(gap) if gap.feature.contains("event") => {
                         extra.push(self.matching(matched.frame, |c| c.condition(intervening))?);
-                        guard = Some(intervening);
+                        if !lane_k::cast_history_is_fixed(intervening) {
+                            guard = Some(intervening);
+                        }
                     }
                     Err(gap) => {
                         self.frame = Frame::default();
@@ -1896,17 +2082,31 @@ impl Compiler {
         let trigger = self.trigger(&matched, &format!("{label}_event"), &extra);
         let members = self.members_targeted(event, label, matched.frame, body)?;
         self.grouped = matched.batch.is_some() || members.is_some();
+        // "That many" of what it targeted is how many members it keeps.
+        if members.is_some() && matched.frame.amount.is_none() {
+            self.frame.members = true;
+        }
         let effect = match guard {
             Some(_) if implied_by_target => Err(gap("a condition on modes a target implies")),
             Some(condition) => self.guarded_effect(condition, body, label),
             None if implied_by_target => self.implied_effect(announcement, label),
-            None => self.effect(body, label),
+            None => match self.first_again.take() {
+                Some(test) => {
+                    let test = self.fetch(test);
+                    self.tested_effect(test, body, label)
+                }
+                None => self.effect(body, label),
+            },
         };
+        self.first_again = None;
         self.grouped = false;
         self.frame = Frame::default();
         let effect = effect?;
         let text = format!("{}, {}", matched.phrase, ability_text(body));
-        let text = self.said(lane_k::Said::Triggered, text);
+        let text = match self.waiting_trigger {
+            true => self.delayed_words(false, text),
+            false => self.said(lane_k::Said::Triggered, text),
+        };
         let mut def = format!(
             "triggered({trigger}, {effect}, {}).targets({targets})",
             quoted(&text)
@@ -1922,6 +2122,10 @@ impl Compiler {
         if matched.sums {
             def.push_str(".sums_per_subject()");
         }
+        // The event is the sacrifice, not the dying it causes (701.21a).
+        if matched.arms.iter().any(|a| a.pattern.contains("ZoneReason::Sacrifice,")) {
+            def.push_str(".on_sacrifice()");
+        }
         if let Some(members) = members {
             def.push_str(&format!(".members_of({members})"));
         }
@@ -1929,6 +2133,10 @@ impl Compiler {
             def.push_str(lane_k::triggered_mana(body));
         }
         if let Some(per_turn) = limits.per_turn.filter(|_| done_once.is_none()) {
+            // Declining doesn't spend it, so the ability still triggers (603.2h).
+            if self.line_text().is_some_and(|line| line.contains("Do this only once each turn")) {
+                return Err(gap("a once each turn that isn't a limit on triggering"));
+            }
             def.push_str(&format!(".triggers_each_turn({per_turn})"));
         }
         if let Some(divide) = self.dividing.take() {
@@ -1947,20 +2155,35 @@ impl Compiler {
     ) -> Result<Option<String>> {
         let EventSpec::SpellTargeting {
             targets: Some(targets),
+            players,
             ..
         } = event
         else {
             return Ok(None);
         };
-        if !format!("{body:?}").contains("EventGroup") {
+        // "Those creatures", or "that many" of them (Arcee, Acrobatic Coupe).
+        let body = format!("{body:?}");
+        if !body.contains("EventGroup") && !body.contains("EventAmount") {
             return Ok(None);
         }
         let wanted = self.matching(frame, |c| c.objects(targets))?;
+        // "Whenever you cast a spell that targets one or more creatures you
+        // control": the ability's controller is the spell's.
+        let yours = matches!(players, PlayerSet::One(PlayerRef::AbilityController));
+        let wanted = match yours {
+            true => wanted.replace("asker.controller", "q.controller(spell)"),
+            false => wanted,
+        };
+        // `TriggerMembers` is told the event's subject alone, so a filter that
+        // reads its source (the words a text change gives it) can't be one.
+        if wanted.contains("asker") && !body.contains("EventGroup") {
+            return Err(gap("the members a trigger keeps, read through its source"));
+        }
         if wanted.contains("asker") || wanted.contains("event") {
             return Ok(None);
         }
         let function = format!("{label}_members");
-        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, subject: Target) -> Vec<ObjectId> {{ let wanted: Vec<ObjectId> = {wanted}; subject.object().map(|spell| cantrip_mechanics::targets::permanents_targeted_as_cast(q, spell).into_iter().filter(|o| wanted.contains(o)).collect()).unwrap_or_default() }}").unwrap();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, subject: Target) -> Vec<ObjectId> {{ subject.object().map(|spell| {{ let wanted: Vec<ObjectId> = {wanted}; cantrip_mechanics::targets::permanents_targeted_as_cast(q, spell).into_iter().filter(|o| wanted.contains(o)).collect() }}).unwrap_or_default() }}").unwrap();
         Ok(Some(function))
     }
     fn modal_triggered(

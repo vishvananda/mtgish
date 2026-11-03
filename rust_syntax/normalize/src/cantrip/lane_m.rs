@@ -81,6 +81,10 @@ impl Compiler {
                 "false",
                 &self.cast_by_way(id, "w.kind == WayKind::Prowl"),
             ),
+            // Cast by madness's own ability, its record says (CR 702.35a).
+            S::CostPaid(CastCost::Madness) if !layer => format!(
+                "{{ let records = q.history().all(); let spell = records.iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ old, new, reason: ZoneReason::Resolve, .. }} if new == {id} => Some(old), _ => None }}).unwrap_or({id}); records.iter().rev().any(|r| matches!(r.event, Event::Cast(cast) if cast.spell == spell) && matches!(r.cause, Cause::Ability {{ ability, .. }} if ability.is_madness())) }}"
+            ),
             S::CostPaid(CastCost::Madness) => planned::planned_value(
                 "object state CostPaid Madness",
                 "false",
@@ -162,10 +166,19 @@ impl Compiler {
                 "TributeNotPaid",
                 format!("q.state().obj({id}).marks.tribute_not_paid"),
             ),
-            S::Foretold => unrecorded(
-                "Foretold",
-                format!("cantrip_mechanics::foretell::foretold(q.state(), {id})"),
-            ),
+            // Foretelling is a player's own action, so what lets the card be cast
+            // names no spell or ability: the permission is the card's own, and a
+            // spell's cast keeps it (CR 702.143a).
+            S::Foretold => {
+                let row = self.card_row("o.card");
+                let cast = match layer {
+                    true => String::new(),
+                    false => " || q.history().cast_of(id).is_some_and(|cast| cast.granted_by().is_some_and(|by| by.ability == own))".to_string(),
+                };
+                format!(
+                    "{{ let id = {id}; let o = q.state().obj(id); let own = AbilityRef::spell(o.card); {row}.foretell.is_some() && (q.state().permissions.iter().any(|p| p.by.object == id && p.by.ability == own){cast}) }}"
+                )
+            }
             S::HasSticker => unrecorded(
                 "HasSticker",
                 format!("cantrip_mechanics::stickers::has_sticker(q.state(), {id})"),
@@ -176,8 +189,14 @@ impl Compiler {
                     "cantrip_mechanics::stickers::has(q.state(), {id}, StickerKind::{kind:?})"
                 ),
             ),
-            S::MostVotes => unrecorded("MostVotes", format!("votes.most({id})")),
-            S::ReceivedAVote => unrecorded("ReceivedAVote", format!("votes.of({id}) > 0")),
+            S::MostVotes => unrecorded(
+                "MostVotes",
+                format!("q.votes().most(cantrip_mechanics::vote::Vote::Object({id}), true)"),
+            ),
+            S::ReceivedAVote => unrecorded(
+                "ReceivedAVote",
+                format!("q.votes().count(cantrip_mechanics::vote::Vote::Object({id})) > 0"),
+            ),
             S::PowerAboveBase => unrecorded(
                 "PowerAboveBase",
                 format!("{chars}.power.map(i64::from) > Some(q.base_power({id}))"),
@@ -211,13 +230,16 @@ impl Compiler {
             S::CouldntAttack => {
                 unrecorded("CouldntAttack", format!("!q.could_have_attacked({id})"))
             }
-            S::SnowManaOfOwnColorSpent => unrecorded(
-                "SnowManaOfOwnColorSpent",
-                format!("q.state().obj({id}).snow_spent.any_of({chars}.colors)"),
+            // "If {S} of any of that spell's colors was spent to cast it": mana from
+            // a snow source of one of its colors, by the source that made it (CR
+            // 106.3, 107.4h). The card tells snow mana apart (`faces::mana_told_apart`),
+            // so its payer chooses which mana is spent (CR 601.2h).
+            S::SnowManaOfOwnColorSpent => format!(
+                "q.history().mana_spent_to_cast({id}).any(|(source, mana)| source != ObjectId::NONE && q.chars(source).supertypes.snow && {chars}.colors.iter().any(|c: Color| mana.get(c.mana()) > 0))"
             ),
-            S::NonBasicLandType => unrecorded(
-                "NonBasicLandType",
-                format!("{chars}.has_nonbasic_land_type()"),
+            // CR 305.8: the five basic land types, and no other.
+            S::NonBasicLandType => format!(
+                "{chars}.subtypes.iter().any(|kind| kind.card_types().has(CardType::Land) && !matches!(kind, Subtype::Plains | Subtype::Island | Subtype::Swamp | Subtype::Mountain | Subtype::Forest))"
             ),
             other => return Err(gap(format!("object state {}", form(other)))),
         })
@@ -227,12 +249,43 @@ impl Compiler {
 /// What later reads ask of the instructions before them.
 #[derive(Clone, Debug, Default)]
 pub(super) struct Notes {
+    /// The players this body chose, in order: "the second player".
+    pub named_players: Vec<String>,
+    /// Who each of these results ended up with: "the player who did", "that opponent".
+    pub performers: std::collections::HashMap<u32, String>,
+    /// The player last asked to pay: "if they don't, they ...".
+    pub acting: Option<String>,
+    /// Whose cards an offer to play is of, past what its pool reads.
+    pub play_owner: Option<String>,
+    /// Counters go on this per-player batch, by this player, and only on what that
+    /// player controls if so, rather than on at once.
+    pub gathering_counters: Option<(usize, String, bool)>,
+    /// Reveals whose cards each went to exile as they were reached, so that the
+    /// instruction that moves them has nothing left to do.
+    pub exiled_going: BTreeSet<u32>,
+    /// The X just paid as this resolves, where "X" is that number and not the
+    /// stack item's: "you may pay {X}. X can't be greater than ...".
+    pub paid_x: Option<String>,
+    /// The instruction before this copied each spell twice over.
+    pub copied_twice: bool,
+    /// What a cost paid as this resolved exiled: "return this card" after "you may
+    /// exile it", where the source has since left the object it was.
+    pub exiled_source: Option<String>,
+    /// What a cost paid as this resolved exiled, for an ability given later in
+    /// it to read as "the exiled card" (Timothar, Baron of Bats).
+    pub exiled_for_grant: Option<String>,
     /// What each instruction acted on, by the word `EarlierObjects` has for it:
     /// the last of these is what "that card" or "those" was.
     pub earlier: Vec<(&'static str, ResultId)>,
     /// For a step of a `ForEachPlayer`: the list of its players, and the test
     /// over `at`, an index into it, of whether that player's run did the step.
     pub took: BTreeMap<u32, (String, String)>,
+    /// A step of a walk: its players, and the list of what each of them did.
+    pub each: BTreeMap<u32, (String, String)>,
+    /// A step of a walk that counted: its players, and each one's number.
+    pub each_done: BTreeMap<u32, (String, String)>,
+    /// A step on what an earlier choice chose: that choice.
+    pub acted_of: BTreeMap<u32, u32>,
     /// What a choice offered, and if it was one player's, whom it was bound to
     /// and the list of players it went round.
     pub offered: BTreeMap<u32, (ObjectSet, Option<(u32, String)>)>,
@@ -262,16 +315,46 @@ pub(super) struct Notes {
 fn acted_on(op: &Operation) -> &'static [&'static str] {
     match op {
         Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
-        Operation::Sacrifice { .. } => &["Sacrificed"],
+        // "Chooses a card in your graveyard", "secretly chooses a creature": objects
+        // chosen on terms, which "each creature chosen this way" reads back.
+        Operation::ChooseValueWith {
+            kind: ValueKind::Object,
+            ..
+        } => &["Selected"],
+        Operation::Sacrifice { .. } => &["Sacrificed", "PutInGraveyard"],
+        Operation::PayCost { cost, optional: true, .. }
+            if matches!(cost.parts.as_slice(), [CostPart::Sacrifice { .. }]) =>
+        {
+            &["Sacrificed"]
+        }
+        Operation::PayCost { cost, optional: true, .. }
+            if matches!(cost.parts.as_slice(), [CostPart::UnattachFrom { .. }]) =>
+        {
+            &["Unattached"]
+        }
+        Operation::Destroy { .. } => &["PutInGraveyard"],
+        Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
-        Operation::Reveal { .. }
-        | Operation::RevealUntil { .. }
-        | Operation::RevealFromHand { .. } => &["Revealed"],
+        Operation::Manifest { .. } => &["Manifested"],
+        // "Until they reveal a historic permanent card ... that card" (Jhoira):
+        // what a reveal until finds is the card found this way.
+        Operation::RevealUntil { .. } => &["Revealed", "Found"],
+        Operation::Reveal { .. } => &["Revealed"],
+        // "Reveals a nonland card at random from their hand. It perpetually gains":
+        // the card revealed is the card chosen in the hand.
+        Operation::RevealFromHand { .. } => &["Revealed", "Selected"],
         Operation::Search { .. } => &["Found"],
         Operation::Tap { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
-        Operation::CopyCards { .. } => &["CopiedSpell"],
+        Operation::CopyCards { .. } | Operation::CopyOnStack { .. } => &["CopiedSpell"],
+        // "If you gain control of a creature this way, tap it" (Midnight Crusader
+        // Shuttle).
+        Operation::CreateContinuousEffect { changes, .. }
+            if changes.iter().any(|change| matches!(change, Change::SetController(_))) =>
+        {
+            &["GainedControl"]
+        }
         Operation::Move { destination, .. } => match destination {
             Destination::Exile => &["Exiled", "LastExiled"],
             Destination::OwnersGraveyard => &["PutInGraveyard"],
@@ -279,10 +362,97 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
                 &["Returned", "Entered"]
             }
             Destination::OwnersHand | Destination::Hand(_) => &["Returned"],
+            Destination::OwnersLibraryShuffled => &["Shuffled"],
             _ => &[],
         },
         _ => &[],
     }
+}
+
+/// A walk of players who each just discard, as the one discard it is.
+pub(super) fn each_discards(
+    players: &PlayerSet,
+    binding: &Binding,
+    body: &Program,
+) -> Option<Instruction> {
+    let [Instruction::Effect {
+        result,
+        operation:
+            Operation::PayCost {
+                player: PlayerRef::Bound(payer),
+                cost,
+                optional: false,
+            },
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let [CostPart::Discard {
+        count,
+        filter: ObjectFilter::Any,
+        random: false,
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    (payer.0 == binding.0).then(|| Instruction::Effect {
+        result: result.clone(),
+        operation: Operation::Discard {
+            players: players.clone(),
+            amount: count.clone(),
+            random: false,
+        },
+    })
+}
+
+/// A player's move of what they choose among several zones, as the choice and the
+/// move of what was chosen: `fresh` numbers the choice.
+pub(super) fn chosen_then_moved(body: &Program, fresh: u32) -> Option<Program> {
+    let [Instruction::Effect {
+        result,
+        operation:
+            Operation::Move {
+                objects:
+                    ObjectSet::Chosen {
+                        chooser: PlayerSet::One(chooser @ PlayerRef::Bound(_)),
+                        objects,
+                        count,
+                    },
+                destination,
+                entry,
+                face_down,
+            },
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let count = match count {
+        Count::Exactly(n) => Count::AsManyAsCan(n.clone()),
+        other => other.clone(),
+    };
+    let chosen = ResultId(fresh);
+    Some(Program {
+        instructions: vec![
+            Instruction::Effect {
+                result: chosen.clone(),
+                operation: Operation::ChooseObjects {
+                    player: chooser.clone(),
+                    objects: (**objects).clone(),
+                    count,
+                    constraints: Vec::new(),
+                },
+            },
+            Instruction::Effect {
+                result: result.clone(),
+                operation: Operation::Move {
+                    objects: ObjectSet::Selected(chosen),
+                    destination: destination.clone(),
+                    entry: entry.clone(),
+                    face_down: *face_down,
+                },
+            },
+        ],
+    })
 }
 
 impl Compiler {
@@ -308,6 +478,18 @@ impl Compiler {
         };
         for &what in acted_on(operation) {
             self.notes.earlier.push((what, result.clone()));
+        }
+        let chosen = match operation {
+            Operation::Move { objects, .. }
+            | Operation::Reveal { objects }
+            | Operation::Tap { objects, .. } => match objects {
+                ObjectSet::Selected(chosen) => Some(chosen.0),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(chosen) = chosen {
+            self.notes.acted_of.insert(result.0, chosen);
         }
         if format!("{operation:?}").contains("RollDie") {
             self.notes.earlier.push(("Rolled", result.clone()));
@@ -390,8 +572,28 @@ impl Compiler {
     /// leave it to be found. A step that couldn't be written reads as nothing, and
     /// its own hole says why.
     pub(super) fn earlier_objects(&self, what: &EarlierObjects) -> Result<String> {
+        if let (EarlierObjects::It, Some(one)) = (what, &self.moving_one) {
+            return Ok(format!("vec![{one}]"));
+        }
         let word = form(what);
+        // "The permanents this spell targets", read as its total cost is worked
+        // out (CR 601.2f): each permanent once, however many slots chose it.
+        if matches!(what, EarlierObjects::Targeted) && self.costing_targets {
+            return Ok("{ let mut chosen: Vec<ObjectId> = targets.iter().filter_map(|t| t.object()).collect(); chosen.sort_unstable(); chosen.dedup(); chosen }".into());
+        }
         let step = self.notes.earlier.iter().rev().find(|(w, _)| *w == word);
+        // "When you do, tap the copied creature": what the ability that made this
+        // one chose, carried to it as its other objects are.
+        if step.is_none() && matches!(what, EarlierObjects::Selected) {
+            let outer = self.carrying().and_then(|outer| {
+                outer.compiler.notes.earlier.iter().rev().find(|(w, _)| *w == word)
+            });
+            if let Some((_, result)) = outer {
+                if let Some(code) = self.outside_objects(&ObjectSet::Selected(result.clone()))? {
+                    return Ok(code);
+                }
+            }
+        }
         let Some((_, result)) = step.filter(|_| self.reader == Reader::Resolution) else {
             return self.earlier_paid(what);
         };
@@ -399,11 +601,103 @@ impl Compiler {
         {
             return Ok(format!("{found}.clone()"));
         }
-        // What was sacrificed is read as it last existed.
-        if matches!(what, EarlierObjects::Sacrificed) && self.before.contains_key(&result.0) {
+        // The card a reveal until found, and the permanent it became if it was put
+        // onto the battlefield: "that permanent's mana value" (Jhoira, CR 400.7).
+        if let (EarlierObjects::Found, Some(found)) = (what, self.reveal_matches.get(&result.0)) {
+            // Jhoira: "You put that card onto the battlefield under your control and
+            // lose life" is in the data the revealing opponent's own action.
+            if self.line_text().is_some_and(|line| line.contains("under your control and lose life")) {
+                return Err(gap("the life you lose read as the revealing player's, in the data"));
+            }
+            return Ok(format!("{found}.iter().map(|&id| q.state().obj(id).became.filter(|&now| q.state().obj(now).zone.is(ZoneKind::Battlefield)).unwrap_or(id)).collect::<Vec<ObjectId>>()"));
+        }
+        // What was sacrificed or countered is read as it last existed.
+        if matches!(what, EarlierObjects::Sacrificed | EarlierObjects::Countered)
+            && self.before.contains_key(&result.0)
+        {
             return self.transition(result, &ObjectPhase::Before);
         }
         self.named(result)
+    }
+    /// What a mechanic of this object's own spell paid with, from the records just
+    /// before it became cast: the whole is paid after any mana is made (CR
+    /// 601.2g-h), so what a mana ability cost comes before it. A copy's is the
+    /// original's (CR 707.10).
+    fn paid_as_cast(&self, what: &EarlierObjects) -> Option<String> {
+        let event = match what {
+            EarlierObjects::Sacrificed if self.cast_pays.contains(&"Sacrificed") => {
+                "Event::ZoneChange { old, from, reason: ZoneReason::Sacrifice, .. } if from.is(ZoneKind::Battlefield) => Some(old)"
+            }
+            EarlierObjects::Discarded if self.cast_pays.contains(&"Discarded") => {
+                "Event::Discarded { card, .. } => Some(card)"
+            }
+            // Web-slinging's return is the spell's only cost that returns a
+            // permanent, read as it last existed (CR 702.188a).
+            EarlierObjects::Webslung => {
+                "Event::ZoneChange { old, from, to, .. } if from.is(ZoneKind::Battlefield) && to.is(ZoneKind::Hand) => Some(old)"
+            }
+            _ => return None,
+        };
+        let me = if self.stack_item { "item.object" } else { "asker.source" };
+        Some(format!(
+            "{{ let records = q.history().all(); let spell = q.history().original_spell(records.iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ old, new, reason: ZoneReason::Resolve, .. }} if new == {me} => Some(old), _ => None }}).unwrap_or({me})); records.iter().rposition(|r| matches!(r.event, Event::Cast(c) if c.spell == spell)).map_or_else(Vec::new, |cast| records[..cast].iter().rev().filter_map(|r| match r.event {{ {event}, _ => None }}).take(1).collect::<Vec<ObjectId>>()) }}"
+        ))
+    }
+    /// The sacrifice of several players that put what's last read in a graveyard.
+    pub(super) fn earlier_sacrifice(&self) -> Option<ResultId> {
+        let word = "PutInGraveyard";
+        let (_, result) = self.notes.earlier.iter().rev().find(|(w, _)| *w == word)?;
+        self.shares
+            .get(&result.0)
+            .is_some_and(|(_, share)| matches!(share, Share::Picks(_)))
+            .then(|| result.clone())
+    }
+    /// A walk's count of what each player moved: its players, the counts, and whom.
+    pub(super) fn each_done<'a>(
+        &'a self,
+        objects: &'a ObjectSet,
+    ) -> Option<(&'a String, &'a String, &'a PlayerRef)> {
+        let ObjectSet::MovedBy {
+            result,
+            phase: ObjectPhase::After,
+            player,
+        } = objects
+        else {
+            return None;
+        };
+        let (players, each) = self.notes.each_done.get(&result.0)?;
+        Some((players, each, player))
+    }
+    /// What one player of an earlier walk acted on, as chosen, so what has left
+    /// reads as it last was (CR 608.2h). Cards revealed outside a walk came from a
+    /// hand or a library, which hold only their owner's cards (CR 400.3).
+    pub(super) fn earlier_by(&self, what: &EarlierObjects, binding: u32) -> Option<String> {
+        if self.reader != Reader::Resolution {
+            return None;
+        }
+        let word = form(what);
+        let (_, result) = self.notes.earlier.iter().rev().find(|(w, _)| *w == word)?;
+        let chosen = self.notes.acted_of.get(&result.0).unwrap_or(&result.0);
+        let walked = self.notes.each.get(chosen).or(self.notes.each.get(&result.0));
+        // "Choose a different opponent": each pick shuts out the rest, which a walk
+        // of independent picks doesn't.
+        if lane_k::printed_otherwise(self.line_text(), "a different") {
+            return None;
+        }
+        let Some((players, each)) = walked else {
+            // What a player shuffled into their library is what they own of it
+            // (CR 400.3), when the players' cards went together.
+            return matches!(what, EarlierObjects::Revealed | EarlierObjects::Shuffled).then(|| {
+                let list = self.earlier_objects(what).ok()?;
+                Some(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{binding}).collect::<Vec<ObjectId>>()"))
+            })?;
+        };
+        let list = format!("{players}.iter().position(|&p| p == bound_{binding}).map_or_else(Vec::new, |at| {each}[at].clone())");
+        Some(match what {
+            // A commander that went elsewhere instead wasn't exiled (CR 903.9b).
+            EarlierObjects::Exiled => format!("({list}).into_iter().filter(|&o| q.state().obj(o).became.is_some_and(|now| q.state().obj(now).zone.is(ZoneKind::Exile))).collect::<Vec<ObjectId>>()"),
+            _ => list,
+        })
     }
     /// What paid a cost of the ability or spell being resolved, or, read outside
     /// a resolution, what the ability that exiled it linked to it (CR 607.2a).
@@ -417,6 +711,13 @@ impl Compiler {
             (EarlierObjects::Sacrificed, CostPart::Sacrifice { .. }) => true,
             (EarlierObjects::Revealed, CostPart::Reveal { .. }) => true,
             (EarlierObjects::Discarded, CostPart::Discard { .. }) => true,
+            (
+                EarlierObjects::Returned,
+                CostPart::Move {
+                    destination: Destination::OwnersHand,
+                    ..
+                },
+            ) => true,
             (EarlierObjects::Unattached, CostPart::UnattachFrom { .. }) => true,
             (
                 EarlierObjects::Exiled,
@@ -435,9 +736,108 @@ impl Compiler {
             let at = cost.parts.iter().position(pays)?;
             Some((PaymentRef::Casting { ability: *ability }, at))
         });
+        if let Some(paid) = self.paid_as_cast(what) {
+            return Ok(paid);
+        }
+        // "{T}, Unattach Shuriken": an ability Shuriken gave the creature it
+        // equips, so what Shuriken was unattached from is that ability's source
+        // (Shuriken, "unless it was unattached from a Ninja").
+        let unattaches_granter = self.activation_cost.as_ref().is_some_and(|cost| {
+            cost.parts
+                .iter()
+                .any(|part| matches!(part, CostPart::Unattach(ObjectRef::Granter)))
+        });
+        if matches!(what, EarlierObjects::Unattached) && unattaches_granter {
+            return Ok("vec![asker.source]".into());
+        }
+        // "As an additional cost to cast this spell, choose a creature you control":
+        // what was chosen is what that cost part chose, and the part's own hole
+        // (cost part PlayerAction) already says what the file waits on.
+        let chooses = |cost: &Cost| {
+            let cost = format!("{cost:?}");
+            cost.contains("PlayerAction") && cost.contains("ChooseObjects")
+        };
+        let chose_as_cost = self.activation_cost.as_ref().is_some_and(chooses)
+            || self.casting_costs.values().any(chooses)
+            || self.option_cost.as_ref().is_some_and(chooses);
+        if matches!(what, EarlierObjects::Selected) && chose_as_cost {
+            return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+        }
         let Some((payment, at)) = by_activation.or(by_casting) else {
             if exiled {
                 return Ok(format!("q.exiled_with({})", self.linked()));
+            }
+            // The turn's own record of it.
+            let last = |event: &str, card: &str| {
+                format!("q.history().this_turn().iter().rev().find_map(|r| match r.event {{ {event} => Some({card}), _ => None }}).into_iter().collect::<Vec<ObjectId>>()")
+            };
+            match what {
+                EarlierObjects::LastDrawn => {
+                    return Ok(last(
+                        "Event::Drew { player, card } if player == asker.controller",
+                        "card",
+                    ))
+                }
+                EarlierObjects::LastCast => return Ok(last("Event::Cast(cast)", "cast.spell")),
+                // What a "one or more" ability triggered on (CR 603.2c).
+                EarlierObjects::LeftGraveyard if self.stack_item => {
+                    return Ok("q.event_objects(item).to_vec()".into())
+                }
+                // No step of its own: what the ability is about went there.
+                EarlierObjects::PutInGraveyard if self.stack_item => {
+                    if let Ok(card) = self.objects(&ObjectSet::One(ObjectRef::EventDestination)) {
+                        return Ok(card);
+                    }
+                }
+                _ => {}
+            }
+            // "The last chosen card", read by a static ability: an ability that
+            // resolved chose it, and a resolving ability can keep only a name on
+            // its permanent (`Game::remember_chosen_name`), never an object.
+            // "As this Aura enters, choose a creature. Enchanted creature is a copy
+            // of the chosen creature": what it chose as it entered, which it keeps.
+            if matches!(what, EarlierObjects::Selected)
+                && self.chose_object_as_enters
+                && self.reader != Reader::Resolution
+            {
+                return Ok(format!(
+                    "q.state().chosen_object({}).into_iter().collect::<Vec<ObjectId>>()",
+                    self.linked()
+                ));
+            }
+            // "Choose an exiled creature card used to craft this Equipment" as it
+            // becomes attached: the choice is that ability's, whose own hole says
+            // what the file waits on.
+            if matches!(what, EarlierObjects::Selected)
+                && self.functions.contains("AttachAction::ChooseAnExiledCardToCopy")
+            {
+                return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+            }
+            // Read by a static or a trigger's event: an ability that resolved chose
+            // it ("When Zenos enters, choose a creature ... When the chosen creature
+            // leaves the battlefield"), and a resolving ability can keep only a name
+            // on its permanent (`Game::remember_chosen_name`), never an object.
+            if matches!(what, EarlierObjects::Selected) && self.reader != Reader::Resolution {
+                return Err(gap("a chosen object outside its body"));
+            }
+            // "Each player turns face up all cards they own exiled with this, then
+            // puts all permanent cards among them onto the battlefield" (Pyxis of
+            // Pandemonium): each player's own cards of an earlier walk, which no
+            // walk keeps for one that turns cards face up.
+            if let (EarlierObjects::It, Some((walked, turned))) = (what, &self.turned_up) {
+                if self.bound_players.contains(walked) {
+                    return self.objects(&turned.clone());
+                }
+            }
+            // "Pay {X} rather than its mana cost, where X is its mana value": the
+            // card the cost is paid for, which a fixed cost can't read (a play
+            // grant's `instead` and a spell alternative's `InsteadOfManaCost`).
+            if matches!(what, EarlierObjects::It) && self.card_costed {
+                return Ok(planned::planned_value(
+                    lane_o::CARD_IT_IS_PAID_FOR,
+                    "Vec::<ObjectId>::new()",
+                    "vec![card]",
+                ));
             }
             // Cantrip keeps no record of this for a read to find.
             return Ok(planned::planned_value(
@@ -560,8 +960,19 @@ impl Compiler {
                 self.selections.insert(picked.0, format!("random_{id}"));
             }
             Pick::Chosen(chooser, objects, count) => {
-                let PlayerSet::One(player) = chooser else {
-                    return Err(gap("object collection Chosen"));
+                let player = match chooser {
+                    PlayerSet::One(player) => player,
+                    // "Of an opponent's choice": the effect names no opponent, so the
+                    // controller says which one chooses (CR 608.2d), asked only when
+                    // there is more than one (`choose::opponent_chooses`).
+                    PlayerSet::OpponentsOf(_) => {
+                        let binding = ACTING + 100 + id as u32;
+                        let players = self.fetch(self.players(&chooser)?);
+                        writeln!(out, "let choosers_{id}: Vec<PlayerId> = {players}; let bound_{binding}: PlayerId = match choosers_{id}.len() {{ 0 => asker.controller, 1 => choosers_{id}[0], _ => cantrip_mechanics::choose::player(g, asker.controller, asker.source, choosers_{id}.clone(), \"Choose\", 0)?.unwrap_or(choosers_{id}[0]) }};").unwrap();
+                        self.bound_players.insert(binding);
+                        PlayerRef::Bound(Binding(binding))
+                    }
+                    _ => return Err(gap("object collection Chosen")),
                 };
                 let choice = Instruction::Effect {
                     result: picked,
@@ -638,6 +1049,81 @@ impl Compiler {
         .unwrap();
         Ok(true)
     }
+    /// "Each legendary card in your graveyard gains 'You may play this card from
+    /// your graveyard' until end of turn": the cards there as this resolves (CR
+    /// 611.2c), each playable from there by its owner, the "you" of an ability of
+    /// a card in a graveyard (CR 109.5), for its own cost and at its usual time
+    /// (CR 601.3, 305.1). A card that leaves is a new object without it (CR 400.7).
+    /// Case of the Uneaten Feast is written so. Whether the effect was that.
+    pub(super) fn play_this_until(
+        &mut self,
+        id: usize,
+        affected: &EffectSubjects,
+        changes: &[Change],
+        duration: &Duration,
+        out: &mut String,
+    ) -> Result<bool> {
+        let (EffectSubjects::Objects(cards), Duration::EndOfTurn, [Change::GrantAbility(ability)]) =
+            (affected, duration, changes)
+        else {
+            return Ok(false);
+        };
+        let Ability::Scoped { zones, condition: None, ability } = &**ability else {
+            return Ok(false);
+        };
+        let Ability::Static {
+            kind: StaticKind::Ordinary,
+            affected: EffectSubjects::Players(PlayerSet::One(PlayerRef::AbilityController)),
+            changes,
+        } = &**ability
+        else {
+            return Ok(false);
+        };
+        let [Change::PlayerRule(rule)] = changes.as_slice() else {
+            return Ok(false);
+        };
+        let (permission, plain) = match rule {
+            PlayerRule::PlayPermissionWith { permission, terms } => {
+                let plain = terms.limit.is_none()
+                    && terms.during.is_none()
+                    && matches!(terms.cost, PlayCost::Normal)
+                    && terms.spend_as.is_none()
+                    && !terms.into_exile
+                    && terms.condition.is_none()
+                    && terms.effects.is_empty()
+                    && !terms.flash
+                    && !terms.may_look
+                    && terms.then.is_none()
+                    && terms.face_down.is_none();
+                (&**permission, plain)
+            }
+            other => (other, true),
+        };
+        let PlayerRule::PlayPermission {
+            cards: ObjectSet::One(ObjectRef::Source),
+            from,
+            action,
+            filter: ObjectFilter::Any,
+        } = permission
+        else {
+            return Ok(false);
+        };
+        if !plain || zones.as_slice() != [from.clone()] || !matches!(from, EventZone::Graveyard) {
+            return Ok(false);
+        }
+        let lands = match action {
+            CardPlayAction::CastSpell => "",
+            CardPlayAction::Either => "lands: true, ",
+            CardPlayAction::PlayLand => return Ok(false),
+        };
+        let cards = self.fetch(self.objects(cards)?);
+        writeln!(
+            out,
+            "let cards_{id}: Vec<ObjectId> = {cards}; for card in cards_{id} {{ let owner = g.obj(card).owner; g.allow_play(card, owner, PlayGrant {{ {lands}expiry: Expiry::EndOfTurn, ..PlayGrant::CAST }}); }}"
+        )
+        .unwrap();
+        Ok(true)
+    }
     /// "Each instant and sorcery card in your graveyard has flashback" (CR 702.34a):
     /// a way of casting them, for as long as this is here. A card with no mana cost
     /// has one that can't be paid (CR 118.6). Whether the ability was that.
@@ -648,7 +1134,10 @@ impl Compiler {
         changes: &[Change],
         parts: &mut Parts,
     ) -> Result<bool> {
-        if !gives_flashback(changes) {
+        // "Flashback {1}": a price of its own (CR 118.9; Iroh, Grand Lotus).
+        let price = flashback_price(changes);
+        let escape = granted_escape(changes);
+        if !gives_flashback(changes) && price.is_none() && escape.is_none() {
             return Ok(false);
         }
         let EffectSubjects::Objects(ObjectSet::Zone {
@@ -664,13 +1153,46 @@ impl Compiler {
             return Err(gap("granted Casting"));
         };
         let reader = std::mem::replace(&mut self.reader, Reader::Query);
+        self.card_in_graveyard = Some("card");
         let tests = self.permission_tests(players, &ObjectFilter::Any, filter, "card");
+        self.card_in_graveyard = None;
         self.reader = reader;
         let printed = "q.card(q.chars(card).card)";
-        let body = format!(
-            "({} && {printed}.has_cost).then(|| Cost::mana({printed}.cost))",
-            tests?.join(" && ")
-        );
+        // "Each nonland card in your graveyard has escape. The escape cost is
+        // equal to the card's mana cost plus exile three other cards from your
+        // graveyard" (Underworld Breach; CR 702.138a, 113.6): the cost of the
+        // face cast, for a card that has a mana cost.
+        if let Some(exiled) = escape {
+            let body = format!(
+                "({} && {printed}.has_cost).then(|| cantrip_mechanics::escape::cost({printed}.cost, {exiled}))",
+                tests?.join(" && ")
+            );
+            self.permission_entry(
+                None,
+                "granted_ways",
+                &format!("{label}_escape_cost"),
+                (
+                    "q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId",
+                    "q, asker, card, player",
+                    "Option<Cost>",
+                ),
+                &body,
+                |cost| format!("cantrip_mechanics::escape::granted({cost})"),
+                parts,
+            );
+            return Ok(true);
+        }
+        let body = match price {
+            Some(symbols) => format!(
+                "({}).then(|| Cost::mana({}))",
+                tests?.join(" && "),
+                mana(symbols)?
+            ),
+            None => format!(
+                "({} && {printed}.has_cost).then(|| Cost::mana({printed}.cost))",
+                tests?.join(" && ")
+            ),
+        };
         self.permission_entry(
             None,
             "granted_ways",
@@ -698,9 +1220,20 @@ impl Compiler {
             {
                 self.carried_player(self.frame.player)?
             }
+            PlayerRef::Named { index, .. }
+                if self.notes.named_players.get(*index as usize).is_some() =>
+            {
+                self.notes.named_players[*index as usize].clone()
+            }
+            PlayerRef::Performer(result) if self.notes.performers.contains_key(&result.0) => {
+                self.notes.performers[&result.0].clone()
+            }
             PlayerRef::Acting | PlayerRef::Prior(PriorPlayer::That) => match self.row_player() {
                 Ok(row) => row,
                 Err(_) if matches!(player, PlayerRef::Acting) => {
+                    if let Some(payer) = &self.notes.acting {
+                        return Ok(payer.clone());
+                    }
                     return self.player_stated(player);
                 }
                 Err(_) => return Err(gap(feature)),
@@ -711,6 +1244,11 @@ impl Compiler {
                 "None::<PlayerId>",
                 "q.remembered_player(asker)",
             ),
+            // "The player who cast Hellish Rebuke": the effect that gave the ability
+            // has that player for its controller, and is named by the ability's stamp.
+            PlayerRef::Prior(PriorPlayer::GrantedBy) if !self.rule_player => {
+                "granted_by(q, asker)".to_string()
+            }
             PlayerRef::Prior(PriorPlayer::GrantedBy) => planned::planned_value(
                 "player reference Prior",
                 "None::<PlayerId>",
@@ -808,6 +1346,17 @@ impl Compiler {
                 measure: ObjectMeasure::Count,
                 ..
             } => counted("i64::from(q.state().obj(asker.source).paid)".into()),
+            // "The number of Forests sacrificed as it entered": all it sacrificed.
+            Expr::Earlier {
+                what: EarlierObjects::Sacrificed,
+                measure: ObjectMeasure::Count,
+                result: None,
+                by: None,
+                ..
+            } if self.enters_sacrifices && self.reader != Reader::Resolution => counted(format!(
+                "q.state().chosen_number({}).map_or(0i64, i64::from)",
+                self.linked()
+            )),
             Expr::Earlier {
                 what,
                 measure,
@@ -867,9 +1416,11 @@ impl Compiler {
             Expr::Dice(DiceMeasure::Result | DiceMeasure::Total) => {
                 match self.notes.earlier.iter().rev().find(|(w, _)| *w == "Rolled") {
                     Some((_, result)) => self.number(&Expr::DieResult(result.clone()))?,
+                    // The roll that triggered this.
+                    None if self.frame.amount.is_some() => self.number(&Expr::EventAmount)?,
                     None => held_number(
                         "numeric expression Dice".into(),
-                        "g.last_roll(asker.controller).result",
+                        "q.last_roll(asker.controller).result",
                     ),
                 }
             }
@@ -945,12 +1496,15 @@ impl Compiler {
             ),
             Expr::DieResultAt { index, .. } => held_number(
                 "numeric expression DieResultAt".into(),
-                &format!("g.last_roll(asker.controller).dice[{index}]"),
+                &format!("q.last_roll(asker.controller).dice[{index}]"),
             ),
             Expr::DraftNoted { .. } => held_number(
                 "numeric expression DraftNoted".into(),
-                &format!("q.draft_notes(asker.controller, {})", one_line(n)),
+                &format!("q.draft_note_count(asker.controller, {})", one_line(n)),
             ),
+            Expr::HeadsFlipped(result) if self.performed.contains_key(&result.0) => {
+                counted(self.performed[&result.0].clone())
+            }
             Expr::CoinFlipsWon(won) if self.coins.is_some() => {
                 let (wins, losses) = self.coins.as_ref().expect("flipped");
                 counted(if *won { wins.clone() } else { losses.clone() })
@@ -968,7 +1522,7 @@ impl Compiler {
             ),
             Expr::Votes(option) => held_number(
                 "numeric expression Votes".into(),
-                &format!("g.votes().count({})", form(option)),
+                &format!("q.votes().count({})", self.vote_option(option)?),
             ),
             Expr::ManaSpentFrom { object, sources } if self.reader != Reader::Layer => counted(format!(
                 "{}.and_then(|o: ObjectId| cast_of(q, o)).map_or(0i64, |cast| q.history().mana_spent_to_cast(cast.spell).filter(|&(source, _)| {}).map(|(_, spent)| i64::from(spent.total())).sum::<i64>())",
@@ -1025,7 +1579,7 @@ impl Compiler {
             ObjectFilter::DraftNoted { .. } => planned::planned_value(
                 "object filter DraftNoted",
                 "false",
-                &format!("q.draft_notes({id}, {})", one_line(f)),
+                &format!("q.draft_noted_card({id}, {})", one_line(f)),
             ),
             other => return self.predicate_p(other, c),
         })
@@ -1044,6 +1598,47 @@ impl Compiler {
                 "condition Outcome",
                 "false",
                 &format!("q.outcome(asker, Outcome::{outcome:?})"),
+            ),
+            // "If you ... controlled a Dragon as you cast this spell" (CR 601.2i):
+            // the board as the spell became cast, kept in its cast record
+            // (`CardDef::cast_fact`, as Faerie Fencing keeps it), so a copy, which
+            // was not cast (CR 707.10), never did.
+            // The permanent the spell became reads its spell's cast record: the
+            // record names the spell, whose row says what it became (CR 400.7).
+            Condition::AsCast {
+                player,
+                action: AsCastAction::Controlled(set),
+            } if matches!(
+                format!("{player:?}").as_str(),
+                "AbilityController" | "ControllerOf(EventSubject)" | "ControllerOf(Source)"
+            ) =>
+            {
+                // Asked as the spell becomes cast: "you" is its caster.
+                let mut asked = self.clone();
+                asked.reader = Reader::Query;
+                asked.stack_item = false;
+                let objects = asked.objects(set)?;
+                let code = format!(
+                    "i64::from(({objects}).into_iter().any(|o: ObjectId| q.controller(o) == asker.controller))"
+                );
+                let mut fact = self.cast_fact.borrow_mut();
+                if fact.as_ref().is_some_and(|other| *other != code) {
+                    return Err(gap("two facts kept as a spell is cast"));
+                }
+                *fact = Some(code);
+                // The spell itself, or the permanent it became; a copy, which was
+                // not cast (CR 707.10), has no record.
+                "q.history().casts().any(|c| (c.spell == asker.source || q.state().obj(c.spell).became == Some(asker.source)) && c.fact != 0)".into()
+            }
+            // "If you revealed a Dragon card as you cast this spell": what the
+            // optional reveal cost showed, which waits on that cost.
+            Condition::AsCast {
+                action: AsCastAction::Revealed(_) | AsCastAction::Chose(_),
+                ..
+            } => planned::planned_value(
+                "engine: no reveal cost",
+                "false",
+                &format!("q.as_cast(asker, {})", one_line(condition)),
             ),
             Condition::AsCast { .. } => planned::planned_value(
                 "condition AsCast",
@@ -1137,6 +1732,19 @@ pub(super) fn turn_window(window: &TurnWindow, step: &str) -> Result<String> {
         TurnWindow::AfterCombat => format!("{step} > (Step::EndOfCombat as u8)"),
         TurnWindow::EndOfCombatStep => "q.state().turn.step() == Step::EndOfCombat".into(),
         TurnWindow::BeforeEndOfCombatStep => format!("{step} < (Step::EndOfCombat as u8)"),
+        TurnWindow::AfterUpkeep => format!("{step} > (Step::Upkeep as u8)"),
+        TurnWindow::BeforeEndStep => format!("{step} < (Step::End as u8)"),
+        TurnWindow::UntapStep => "q.state().turn.step() == Step::Untap".into(),
+        TurnWindow::ExtraTurn => {
+            "q.history().this_turn().iter().any(|r| matches!(r.event, Event::TurnBegan { extra: true, .. }))".into()
+        }
+        TurnWindow::BeforeFirstCombat => {
+            "!q.history().this_turn().iter().any(|r| matches!(r.event, Event::StepBegan { step: Step::BeginCombat }))".into()
+        }
+        // Read as the ability that asks triggers, this step's beginning isn't history yet.
+        TurnWindow::FirstEndStep => {
+            "q.state().turn.step() == Step::End && q.history().this_turn().iter().filter(|r| matches!(r.event, Event::StepBegan { step: Step::End })).count() <= 1".into()
+        }
         other => planned::planned_value(
             &format!("turn window {other:?}"),
             "false",
@@ -1247,6 +1855,41 @@ pub(super) fn spells_joined(card: &Card) -> Option<Card> {
 
 /// Whether all these do is give flashback for the card's own mana cost.
 /// The mana a grant of flashback names as its cost, when it names one.
+/// "Has escape. The escape cost is equal to the card's mana cost plus exile N
+/// other cards from your graveyard": N.
+fn granted_escape(changes: &[Change]) -> Option<u8> {
+    let [Change::GrantAbility(ability)] = changes else {
+        return None;
+    };
+    let Ability::Mechanic {
+        mechanic: Mechanic::Escape,
+        cost: Some(cost),
+        amount: None,
+        filter: None,
+    } = &**ability
+    else {
+        return None;
+    };
+    let [CostPart::ManaCostOf(ObjectRef::Source), CostPart::Move {
+        selections,
+        destination: Destination::Exile,
+        ..
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    let [selection] = selections.as_slice() else {
+        return None;
+    };
+    let Some(Count::Exactly(Expr::Constant(exiled))) = &selection.choose else {
+        return None;
+    };
+    let shape = format!("{:?}", selection.objects);
+    let others = shape.contains("Graveyard")
+        && shape.contains("Not(SameObject(Source))")
+        && shape.contains("AbilityController");
+    others.then_some(u8::try_from(*exiled).ok()?)
+}
 fn flashback_price(changes: &[Change]) -> Option<&[ManaSymbol]> {
     let [Change::GrantAbility(ability)] = changes else {
         return None;
@@ -1299,11 +1942,15 @@ pub(super) fn flat_groups(instructions: &[Instruction], flat: &mut Vec<Instructi
 const PARITY: [&str; 2] = ["odd", "even"];
 
 /// A form of the AST on one line, to name it in a planned call.
+/// A value the generator can't write yet, as its words: a string, as
+/// `planned::source` says one, not the IR's names standing as code.
 fn one_line(value: &impl std::fmt::Debug) -> String {
-    format!("{value:?}")
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    quoted(
+        &format!("{value:?}")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" "),
+    )
 }
 
 /// What an instruction leaves to be picked.

@@ -127,8 +127,10 @@ fn run() -> Result<()> {
         [command, input, oracle, output] if command == "cantrip-files" => {
             #[cfg(feature="cantrip")]
             {
-            let count = mtgish_ast::cantrip::card_files(Path::new(input), Path::new(oracle), Path::new(output))?;
-            eprintln!("{count} generator-capable single-faced records written");
+            // Every record, its file as `cantrip-tracked` writes it or its gap, with the same render cache.
+            let cache = mtgish_ast::cantrip::pr_cache::default_dir();
+            let count = mtgish_ast::cantrip::planned::lane_rows(Path::new(input), Path::new(oracle), Path::new(output), cache.as_deref())?;
+            eprintln!("{count} records written");
             }
             #[cfg(not(feature="cantrip"))]
             {let _=(input,oracle,output);return Err("Cantrip generation requires --features cantrip".into());}
@@ -136,7 +138,9 @@ fn run() -> Result<()> {
         [command, input, oracle, output] if command == "cantrip-tracked" => {
             #[cfg(feature="cantrip")]
             {
-            let count = mtgish_ast::cantrip::planned::tracked(Path::new(input), Path::new(oracle), Path::new(output))?;
+            // pr_form's renders are kept in the target directory, or MTGISH_PR_FORM_CACHE (`off` for none).
+            let cache = mtgish_ast::cantrip::pr_cache::default_dir();
+            let count = mtgish_ast::cantrip::planned::tracked_cached(Path::new(input), Path::new(oracle), Path::new(output), cache.as_deref())?;
             println!("{count} tracked cards");
             }
             #[cfg(not(feature="cantrip"))]

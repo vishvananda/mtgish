@@ -4,6 +4,8 @@
 use super::*;
 
 const M: &str = "cantrip_mechanics";
+/// How a value kept past its block is read where something asks for the value.
+pub(super) const KEPT: &str = ".expect(\"it chose one\")";
 
 /// The words of `operands`, as `words` is to a copy's exceptions.
 fn vocabulary<'a>(operands: &'a [Operand], family: &str) -> Result<Vec<&'a str>> {
@@ -33,6 +35,15 @@ fn color_choices(options: &[Operand]) -> Result<u8> {
                     .position(|c| c == word)
                     .ok_or_else(|| gap(format!("color choice other than {word}")))?;
                 Ok(mask & !(1 << index))
+            }),
+        "ColorList" => vocabulary(operands, "Color")?
+            .iter()
+            .try_fold(0u8, |mask, word| {
+                let index = lane_p::COLORS
+                    .iter()
+                    .position(|c| c == word)
+                    .ok_or_else(|| gap(format!("color choice of {word}")))?;
+                Ok(mask | (1 << index))
             }),
         other => Err(gap(format!("color choice {other}"))),
     }
@@ -66,19 +77,50 @@ fn name_kind(options: &[Operand]) -> Result<String> {
 
 /// Whether a mana ability's body adds mana of the chosen color.
 pub(super) fn makes_chosen_color(body: &Program) -> bool {
+    let Some(Instruction::Effect {
+        operation: Operation::AddMana { mana, .. },
+        ..
+    }) = body.instructions.first()
+    else {
+        return false;
+    };
+    let one = match mana {
+        ManaProduction::Repeat { production, .. } => production.as_ref(),
+        other => other,
+    };
     matches!(
-        body.instructions.first(),
-        Some(Instruction::Effect {
-            operation: Operation::AddMana {
-                mana: ManaProduction::Amount {
-                    color: ManaColor::Chosen,
-                    ..
-                },
-                ..
-            },
+        one,
+        ManaProduction::Amount {
+            color: ManaColor::Chosen,
             ..
-        })
+        }
     )
+}
+
+/// The kind `card` chooses two of as it enters, if the engine can keep them.
+pub(super) fn enters_two(card: &Card) -> Option<ValueKind> {
+    card.abilities.iter().find_map(|ability| {
+        let Ability::Replacement {
+            active: ReplacementActive::SourceEntering,
+            body,
+            ..
+        } = ability
+        else {
+            return None;
+        };
+        body.instructions.iter().find_map(|instruction| match instruction {
+            Instruction::Effect {
+                operation:
+                    Operation::ChooseValue {
+                        kind: kind @ (ValueKind::Color | ValueKind::Player),
+                        count: 2,
+                        ..
+                    },
+                ..
+            } => Some(*kind),
+            _ => None,
+        })
+    })
 }
 
 /// The values `card` chooses as it enters.
@@ -100,6 +142,24 @@ pub(super) fn enters_choosing(card: &Card) -> Vec<ValueKind> {
             } = instruction
             {
                 kinds.push(*kind);
+                // One of printed pairs: both are chosen.
+                if *kind == ValueKind::ColorAndCreatureType {
+                    kinds.extend([ValueKind::Color, ValueKind::CreatureType]);
+                }
+            }
+            if let Instruction::Effect {
+                operation:
+                    Operation::ChooseValueWith {
+                        kind: ValueKind::CardType,
+                        terms,
+                        ..
+                    },
+                ..
+            } = instruction
+            {
+                if lane_p::entering_card_types_but(terms).is_some() {
+                    kinds.push(ValueKind::CardType);
+                }
             }
         }
     }
@@ -131,6 +191,9 @@ impl Compiler {
                 return Ok(());
             }
         }
+        if count == 2 && self.pending == Pending::Entering && self.enters_two == Some(kind) {
+            return self.choose_two_entering(id, kind, options, out);
+        }
         if count != 1 {
             let players = self.fetch(self.players(actor)?);
             let code = format!(
@@ -138,6 +201,15 @@ impl Compiler {
             );
             self.value_to_come("a choice of several values", id, kind, &code, out);
             return Ok(());
+        }
+        // "For each player, choose friend or foe": one player's choice of many
+        // words, whatever the data says of who makes it.
+        if kind == ValueKind::Word
+            && matches!(actor, PlayerSet::All)
+            && self.stack_item
+            && self.line_text().is_some_and(|t| t.contains("For each player, choose"))
+        {
+            return self.word_for_each_player(id, actor, options, out);
         }
         let PlayerSet::One(player) = actor else {
             let players = self.fetch(self.players(actor)?);
@@ -197,6 +269,7 @@ impl Compiler {
                     return Err(gap("a choice of Player"));
                 };
                 let candidates = self.fetch(self.players(candidates)?);
+                self.notes.named_players.push(format!("Some({local})"));
                 writeln!(out, "let player_{id} = {player}; let candidates_{id} = {candidates}; let Some({local}) = {M}::choose::player(g, player_{id}, {source}, candidates_{id}, \"Choose\", 0)? else {{ return Ok(()) }};").unwrap();
                 if entering {
                     writeln!(out, "entering.chosen_player = Some({local});").unwrap();
@@ -216,6 +289,66 @@ impl Compiler {
         self.chosen.insert(0, (kind, local));
         Ok(())
     }
+    /// "As this enters, choose two colors" or "two players": two different values,
+    /// the first where one is kept and the second in its chosen number.
+    fn choose_two_entering(
+        &mut self,
+        id: usize,
+        kind: ValueKind,
+        options: &[Operand],
+        out: &mut String,
+    ) -> Result<()> {
+        let ask = "entering.controller";
+        let source = "entering.object";
+        match kind {
+            ValueKind::Color => {
+                let choices = match options.is_empty() {
+                    true => 0b11111,
+                    false => color_choices(options)?,
+                };
+                writeln!(out, "let Answer::Colors(first_{id}) = g.ask({ask}, RequestKind::ChooseColors {{ source: {source}, choices: ColorSet({choices}), count: 1, purpose: ColorUse::Any }})? else {{ return Ok(()) }}; let left_{id} = {choices} & !(1 << (first_{id}[0] as u8)); let Answer::Colors(second_{id}) = g.ask({ask}, RequestKind::ChooseColors {{ source: {source}, choices: ColorSet(left_{id}), count: 1, purpose: ColorUse::Any }})? else {{ return Ok(()) }}; entering.chosen_color = Some(first_{id}[0]); entering.chosen_number = Some(second_{id}[0] as u32);").unwrap();
+            }
+            ValueKind::Player => {
+                let [Operand::Players(candidates)] = options else {
+                    return Err(gap("a choice of Player"));
+                };
+                let candidates = self.fetch(self.players(candidates)?);
+                writeln!(out, "let candidates_{id}: Vec<PlayerId> = {candidates}; let Some(first_{id}) = {M}::choose::player(g, {ask}, {source}, candidates_{id}.clone(), \"Choose\", 0)? else {{ return Ok(()) }}; let left_{id}: Vec<PlayerId> = candidates_{id}.into_iter().filter(|&p| p != first_{id}).collect(); let Some(second_{id}) = {M}::choose::player(g, {ask}, {source}, left_{id}, \"Choose\", 0)? else {{ return Ok(()) }}; entering.chosen_player = Some(first_{id}); entering.chosen_number = Some(u32::from(second_{id}.0));").unwrap();
+            }
+            other => return Err(gap(format!("a choice of two {other:?}"))),
+        }
+        Ok(())
+    }
+    /// The two values this source chose as it entered.
+    pub(super) fn chosen_two(&self) -> String {
+        let linked = self.linked();
+        format!("[q.state().chosen_color({linked}), q.state().chosen_number({linked}).map(|n| Color::ALL[n as usize])]")
+    }
+    /// The `index`th choice this body made, in the order it made them (each local
+    /// is numbered as it is written), and its `Option` read.
+    pub(super) fn nth_chosen_local(&self, index: u32) -> Option<(ValueKind, String)> {
+        let number = |local: &str| -> Option<usize> {
+            let name = local.strip_suffix(KEPT).unwrap_or(local);
+            name.rsplit('_').next()?.parse().ok()
+        };
+        let mut made: Vec<(usize, ValueKind, &String)> = self
+            .chosen
+            .iter()
+            .filter_map(|(kind, local)| Some((number(local)?, *kind, local)))
+            .collect();
+        made.sort_by_key(|(n, ..)| *n);
+        made.dedup_by_key(|(n, ..)| *n);
+        let (_, kind, local) = made.get(index as usize)?;
+        // Only a lone value (a list is no one choice).
+        if local.starts_with("colors_") || local.contains(['(', ' ', '[']) && !local.ends_with(KEPT) {
+            return None;
+        }
+        let read = match local.strip_suffix(KEPT) {
+            Some(kept) => kept.to_string(),
+            None => format!("Some({local})"),
+        };
+        Some((*kind, read))
+    }
     /// The local that holds this choice, in the body that made it.
     pub(super) fn chosen_local(&self, kind: ValueKind) -> Result<String> {
         // A land type is what "a basic land type" chose too.
@@ -223,6 +356,7 @@ impl Compiler {
             k == kind
                 || (kind == ValueKind::LandType
                     && matches!(k, ValueKind::BasicLandType | ValueKind::NonbasicLandType))
+                || (kind == ValueKind::CardType && k == ValueKind::PermanentType)
         };
         self.chosen
             .iter()
@@ -230,16 +364,64 @@ impl Compiler {
             .map(|(_, local)| local.clone())
             .ok_or_else(|| gap(format!("a choice of {kind:?} outside its body")))
     }
+    /// A choice read outside the body that made it, where what makes it is
+    /// itself a hole of this card: a commander's color chosen before the game
+    /// begins ("a deck rule a commander sets"), a color chosen as protection is
+    /// given ("keyword action ChooseProtection"), or a color chosen as an
+    /// Equipment becomes attached (`AttachAction::ChooseAColor`, "ability
+    /// AsEvent"). That hole already says what the file waits on, so the read
+    /// follows it instead of naming a hole of its own.
+    pub(super) fn follows_choice(&self, kind: ValueKind, read: String) -> String {
+        let made_by_a_hole = kind == ValueKind::Color
+            && (self.gaps.iter().any(|g| {
+                g.feature == "a deck rule a commander sets"
+                    || g.feature == "keyword action ChooseProtection"
+            }) || self.functions.contains("AttachAction::ChooseAColor")
+                || self.gaps.iter().any(|g| g.feature == "ability AsEvent"));
+        if !made_by_a_hole {
+            return read;
+        }
+        let feature = format!("planned_value!({:?}", format!("a choice of {kind:?} outside its body"));
+        read.replace(&feature, &format!("planned_value!({FOLLOWS_GAP:?}"))
+    }
     /// `Option` of the choice: this body's, or what was chosen as the source
     /// entered, to the ability reading it.
     pub(super) fn chosen_value(&self, kind: ValueKind) -> Result<String> {
+        if let (ValueKind::Color, Some(color)) = (kind, &self.each_color) {
+            return Ok(format!("Some({color})"));
+        }
         if let Ok(local) = self.chosen_local(kind) {
-            return Ok(format!("Some({local})"));
+            return Ok(match local.strip_suffix(KEPT) {
+                Some(kept) => kept.to_string(),
+                None => format!("Some({local})"),
+            });
+        }
+        // The choice itself is a hole, so this read follows it.
+        if self.as_event_chooses && kind == ValueKind::CardType {
+            return lane_p::chosen_elsewhere(self.linked(), kind).map(|read| read.replacen("a choice of CardType outside its body", FOLLOWS_GAP, 1));
         }
         // The engine keeps a permanent's choices as it entered, and no other.
         if !self.enters_choosing.contains(&kind) {
-            return lane_p::chosen_elsewhere(self.linked(), kind)
-                .or_else(|_| self.chosen_elsewhere(kind));
+            // "Choose a color. Whenever this becomes blocked by a creature of that
+            // color this turn" (Zombie Boa): the ability that chose it creates the
+            // one that reads it, and Cantrip keeps no resolution's choice for it.
+            // "{2}, {T}, Choose flying, first strike, trample, or shadow: target
+            // creature with the chosen ability" (Phyrexian Splicer): chosen as
+            // its cost, before its targets, and Cantrip announces no such choice.
+            let cost = format!("{:?}", self.activation_cost);
+            if cost.contains("ChooseValue") && cost.contains(&format!("kind: {kind:?},")) {
+                return Err(gap("a value chosen as an activation cost, read by its targets"));
+            }
+            if self.stack_item
+                && self.line_text().is_some_and(|line| {
+                    line.contains("hoose a ") && line.contains("henever")
+                })
+            {
+                return Err(gap("a resolution's choice read by the trigger it creates"));
+            }
+            let read = lane_p::chosen_elsewhere(self.linked(), kind)
+                .or_else(|_| self.chosen_elsewhere(kind))?;
+            return Ok(self.follows_choice(kind, read));
         }
         let read = match kind {
             ValueKind::Color => "chosen_color",
@@ -248,6 +430,8 @@ impl Compiler {
             }
             ValueKind::CardName => "chosen_card",
             ValueKind::Player => "chosen_player",
+            ValueKind::PlaneswalkerType => "chosen_subtype",
+            ValueKind::CardType if self.entering_card_type.is_some() => "chosen_option",
             other => return lane_p::chosen_kept(self.linked(), other),
         };
         let linked = match self.reader {
@@ -255,11 +439,28 @@ impl Compiler {
             Reader::Resolution if self.stack_item => "q.linked(item)",
             _ => "q.linked_to(asker)",
         };
+        if let (ValueKind::CardType, Some(words)) = (kind, &self.entering_card_type) {
+            let card = match self.reader {
+                Reader::Layer => "q.cards().get(c.card)",
+                _ => "q.card(c.card)",
+            };
+            return Ok(format!(
+                "q.state().chosen_option({linked}).filter(|c| std::ptr::eq({card}, &CARD)).map(|c| [{}][usize::from(c.index)])",
+                words.join(", ")
+            ));
+        }
         Ok(format!("q.state().{read}({linked})"))
     }
     /// `ObjectFilter::Chosen`, of an object known by `chars` and `id`.
     pub(super) fn chosen_filter(&self, kind: ValueKind, chars: &str, id: &str) -> Result<String> {
-        let value = self.chosen_value(kind)?;
+        let list = self.chosen_lists.iter().find(|(k, _)| *k == kind);
+        if list.is_none() && self.earlier_chosen_lists.contains(&kind) {
+            return Err(gap(format!("a {kind:?} each player chose as it entered, read by another ability")));
+        }
+        let value = match list {
+            Some(_) => String::new(),
+            None => self.chosen_value(kind)?,
+        };
         let test = match kind {
             ValueKind::Color => format!("{chars}.colors.has(chosen)"),
             ValueKind::CreatureType | ValueKind::BasicLandType | ValueKind::LandType => {
@@ -278,6 +479,16 @@ impl Compiler {
             }
             other => return Err(gap(format!("object filter Chosen {other:?}"))),
         };
+        if let Some((_, list)) = list {
+            if let Some(player) = self.own_choice.borrow().as_ref() {
+                return Ok(format!("{list}.iter().zip(&{list}_who).any(|(&chosen, &who)| Some(who) == {player} && {test})"));
+            }
+            return Ok(format!("{list}.iter().any(|&chosen| {test})"));
+        }
+        if kind == ValueKind::Color && self.enters_two == Some(kind) {
+            let two = self.chosen_two();
+            return Ok(format!("{two}.iter().flatten().any(|&chosen| {test})"));
+        }
         Ok(format!("{value}.is_some_and(|chosen| {test})"))
     }
     /// The `EffectKind`s of a change by a value this body chose.
@@ -423,6 +634,10 @@ impl Compiler {
             ValueKind::Color => Ok(Some((
                 format!("EffectKind::Protection(ColorSet::of({chosen}))"),
                 format!("chars.protection = chars.protection.with({chosen});"),
+            ))),
+            ValueKind::CardType => Ok(Some((
+                format!("EffectKind::ProtectionFromTypes(TypeSet::of(&[{chosen}]))"),
+                format!("chars.protection_types = TypeSet(chars.protection_types.0 | TypeSet::of(&[{chosen}]).0);"),
             ))),
             other => Err(gap(format!("protection from a chosen {other:?}"))),
         }

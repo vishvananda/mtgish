@@ -7,7 +7,7 @@ use super::*;
 /// What a delayed ability's body takes along from the instruction making it.
 pub(super) struct Outer {
     /// The making instruction's view, to read references as they stand then.
-    compiler: Compiler,
+    pub(super) compiler: Compiler,
     /// `Vec<ObjectId>` code for each list carried.
     pub(super) objects: RefCell<Vec<String>>,
     /// `Option<PlayerId>` code for the player carried.
@@ -24,13 +24,19 @@ pub(super) struct Outer {
     /// Asked of what it watches, so what made it is not its source: the object
     /// `Source` says is carried.
     source_moved: bool,
+    /// What it watches, which is its source and so needs no carrying.
+    watches: Option<ObjectRef>,
     /// A reflexive ability, which is told one number as well as its subject.
-    reflexive: bool,
+    pub(super) reflexive: bool,
     /// `i64` code of the number it is told, worked out as it triggers.
     count: RefCell<Option<String>>,
 }
 
 impl Outer {
+    /// Whether a spell made this, not an activation or an effect at resolution.
+    pub(super) fn made_by_a_spell(&self) -> bool {
+        self.made.is_none() && self.compiler.activation_cost.is_none()
+    }
     pub(super) fn knows(&self, result: &ResultId) -> bool {
         let c = &self.compiler;
         c.selections.contains_key(&result.0)
@@ -43,13 +49,56 @@ impl Outer {
     }
 }
 
-/// The lists a delayed ability carries are one list to the engine, so each ends
-/// with an object nothing can be.
+/// `delayed_trigger_about` keeps its list to the moment of a step: what an event
+/// triggers is put on the stack with none, so `about` would read nothing.
+const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list";
+
+/// The object a triggered ability's source became as it moved, carried in its data:
+/// "this card" of "when this creature dies".
+const DIED_AS: &str = "Some(ObjectId(item.data[0])).filter(|o| *o != ObjectId::NONE).into_iter().collect::<Vec<ObjectId>>()";
+
+/// A reflexive ability about a list of objects: Cantrip's carries one target.
+const REFLEXIVE_LIST: &str = "reflexive ability about a list of objects";
 pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
 
 impl Compiler {
+    /// The engine carries actual objects, not sentinel separators. One list needs no encoding; distinct groups need
+    /// an API that preserves their boundaries without placing non-objects in `event_objects`.
+    fn carried_objects(&self, lists: &[String]) -> Result<String> {
+        let [list] = lists else {
+            return Err(gap("a triggered ability carrying separate groups of objects"));
+        };
+        Ok(format!("let about: Vec<ObjectId> = {}; ", self.fetch(list)))
+    }
+    /// Whether `object` of the maker is the object this ability is asked of.
+    fn watched_by(outer: &Outer, object: &ObjectRef) -> bool {
+        outer
+            .watches
+            .as_ref()
+            .is_some_and(|w| format!("{w:?}") == format!("{object:?}"))
+    }
+    /// Whether the list `objects` of the maker is only that object.
+    fn watched_list(outer: &Outer, objects: &ObjectSet) -> bool {
+        match objects {
+            ObjectSet::One(object) => Self::watched_by(outer, object),
+            ObjectSet::Targets(slot) => {
+                let single = outer.compiler.slots.get(&slot.0).is_some_and(|(_, spec)| {
+                    matches!(spec.count, Count::Exactly(Expr::Constant(1)))
+                });
+                single
+                    && Self::watched_by(
+                        outer,
+                        &ObjectRef::Target {
+                            slot: slot.clone(),
+                            index: 0,
+                        },
+                    )
+            }
+            _ => false,
+        }
+    }
     /// Whether this body's stack item can read carried values.
-    fn carrying(&self) -> Option<&Outer> {
+    pub(super) fn carrying(&self) -> Option<&Outer> {
         let readable = self.reader == Reader::Resolution && self.stack_item;
         self.outer.as_deref().filter(|outer| {
             readable
@@ -139,7 +188,19 @@ impl Compiler {
             objects.push(code);
             objects.len() - 1
         });
+        // Choosing the targets of the ability, no item is there yet: the list
+        // is the triggering's, as `Query::event_subject` is its subject.
+        if self.event_at == EventAt::TargetFilter {
+            return format!("q.event_about().split(|&id| id == ObjectId::NONE).nth({part}).map_or_else(Vec::new, <[ObjectId]>::to_vec)");
+        }
         format!("about(q, item, {part})")
+    }
+    /// Whether `result` is what the ability making this body did: known to it, or
+    /// its instruction's hole there, whose result it carries in as it would a known one.
+    fn outside_result(&self, result: &ResultId) -> bool {
+        self.bound_outside(result)
+            || (!self.failed.contains(&result.0)
+                && self.outer.as_ref().is_some_and(|outer| outer.compiler.failed.contains(&result.0)))
     }
     fn reads_itself(&self, object: &ObjectRef) -> bool {
         match object {
@@ -147,7 +208,7 @@ impl Compiler {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
-                    || !self.bound_outside(result)
+                    || !self.outside_result(result)
             }
             ObjectRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
             // A body watching for an event of its own reads that event.
@@ -195,7 +256,7 @@ impl Compiler {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
-                    || !self.bound_outside(result)
+                    || !self.outside_result(result)
             }
             ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
             ObjectSet::CostObjects {
@@ -228,6 +289,20 @@ impl Compiler {
         *carried = Some(code);
         Ok(Some("i64::from(item.x)".into()))
     }
+    /// The number of the event around a reflexive ability, told to it.
+    pub(super) fn told_event_amount(&self, n: &Expr) -> Result<String> {
+        let outer = self
+            .carrying()
+            .ok_or_else(|| gap("amount of an event its trigger does not carry"))?;
+        let inner = &outer.compiler;
+        let code = format!("({} as i64)", inner.fetch(inner.number(n)?.code));
+        let mut carried = outer.count.borrow_mut();
+        if carried.as_ref().is_some_and(|c| *c != code) {
+            return Err(gap("reflexive ability told two numbers"));
+        }
+        *carried = Some(code);
+        Ok("i64::from(item.x)".into())
+    }
     /// An `Option<ObjectId>` this body cannot read for itself, if `object` is.
     pub(super) fn outside_object(&self, object: &ObjectRef) -> Result<Option<String>> {
         let Some(outer) = self.carrying() else {
@@ -235,6 +310,9 @@ impl Compiler {
         };
         if self.reads_itself(object) {
             return Ok(None);
+        }
+        if Self::watched_by(outer, object) {
+            return Ok(Some("Some(asker.source)".into()));
         }
         if let Some(subject) = &outer.subject {
             let code = outer.compiler.object(object)?;
@@ -328,7 +406,7 @@ impl Compiler {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
-                    || !self.bound_outside(result)
+                    || !self.outside_result(result)
             }
             ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
             ObjectSet::CostObjects {
@@ -341,6 +419,11 @@ impl Compiler {
         };
         if local {
             return Ok(None);
+        }
+        if Self::watched_list(outer, objects) {
+            return Ok(Some(
+                "Some(asker.source).into_iter().collect::<Vec<ObjectId>>()".into(),
+            ));
         }
         if let Some(read) = self.read_by_matcher(outer, || outer.compiler.objects(objects))? {
             return Ok(Some(planned::planned_value(
@@ -387,12 +470,16 @@ impl Compiler {
                         false => "item.subject.object().into_iter().collect::<Vec<ObjectId>>()",
                     }.to_string()))
                 }
+                // A list the reflexive ability is about goes with it as a part
+                // of its own (`reflexive_trigger_about`), as a delayed one's.
                 _ => {
                     let code = outer.compiler.objects(objects)?;
+                    // A delayed ability carries it so too (`make_watching`).
+                    let read = self.carried_list(outer, code);
                     Ok(Some(planned::planned_value(
-                        "reflexive ability about a list of objects",
+                        REFLEXIVE_LIST,
                         "Vec::<ObjectId>::new()",
-                        &format!("about(q, item, {code})"),
+                        &read,
                     )))
                 }
             };
@@ -415,6 +502,11 @@ impl Compiler {
             },
             PlayerRef::EventSubject => self.frame.player.is_some(),
             PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
+            // A player chosen in the body around this ability goes with it.
+            PlayerRef::Chosen => {
+                self.chosen_local(ValueKind::Player).is_ok()
+                    || outer.compiler.chosen_local(ValueKind::Player).is_err()
+            }
             _ => true,
         };
         if local {
@@ -481,6 +573,16 @@ impl Compiler {
                 other => return Err(gap(format!("delayed trigger on turns of {}", form(other)))),
             })
         };
+        // "At the beginning of your next main phase" (Mana Drain): from that
+        // player's own precombat main phase or combat it is that turn's
+        // postcombat main phase, from anywhere else their next precombat main
+        // phase (CR 505.1), as `delayed::at_your_next_main_phase` reads it.
+        if let (TurnPoint::MainPhaseBegins, PlayerSet::One(player), DelayedStart::Immediately, None) =
+            (point, players, start, expires)
+        {
+            let me = self.fetch(self.certain_player(player)?);
+            return Ok(format!("DelayedWhen::Step {{ step: {{ let q: &dyn Query = g; let turn = q.state().turn; if turn.active == {me} && (Step::PrecombatMain as u8..Step::PostcombatMain as u8).contains(&(turn.step() as u8)) {{ Step::PostcombatMain }} else {{ Step::PrecombatMain }} }}, on_turn_of: Some({me}) }}"));
+        }
         if let TurnPoint::MainPhaseBegins = point {
             let turn = turn_of(self)?;
             return Ok(planned::planned_value(
@@ -610,6 +712,7 @@ impl Compiler {
             matcher: self.watching,
             parts: RefCell::new(Vec::new()),
             source_moved: std::mem::take(&mut self.source_moved),
+            watches: self.watching_object.take(),
             reflexive: std::mem::take(&mut self.reflexing),
             count: RefCell::new(None),
         });
@@ -664,6 +767,17 @@ impl Compiler {
         if self.reader != Reader::Resolution {
             return Err(gap("event trigger outside a resolving ability"));
         }
+        // "For as long as any of those cards remain exiled, at the beginning of each
+        // player's upkeep" (Dimensional Breach), "at the beginning of each of that
+        // player's upkeeps, if that card is exiled" (Ertai's Meddling): Cantrip's
+        // ability at each step (`DelayedWhen::EachStep`) is never used up and is put
+        // on the stack with no check, so it would go on triggering once the cards
+        // have left exile.
+        if let (EventSpec::Turn { .. }, D::WhileExiled(_) | D::WhileAnyExiled(_), false) =
+            (event, duration, once)
+        {
+            return Err(gap("a delayed ability at each step for as long as cards remain exiled"));
+        }
         let when = match (duration, once) {
             (D::EndOfTurn, false) => "DelayedWhen::ThisTurn".to_string(),
             (D::EndOfTurn, true) => "DelayedWhen::NextThisTurn".to_string(),
@@ -686,22 +800,15 @@ impl Compiler {
                 )
             }
         };
-        let (event, source) = self.watching_source(event, body)?;
+        let (event, source, each) = self.watching_source(event, body)?;
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();
-        let (maker, _, _) = self.maker();
-        let says = format!("{body:?}");
-        if source != format!("Some({maker})") && says.contains("Source") {
-            // What is linked to the maker can't be read through a list (CR 607).
-            if says.contains("ExiledWith") {
-                return Err(gap("event trigger carrying values"));
-            }
-            self.source_moved = true;
-        }
+        self.watching_for_another(&source, body)?;
         let (outer, def) = self.closing_for_matcher(false, |c| {
             // Its matcher is a function of its own: no local reaches it.
             c.reset_results();
             let counts = std::mem::replace(&mut c.slot_counts, target_counts::SlotCounts::Delayed);
+            c.waiting_trigger = true;
             let def = c.triggered(
                 &label,
                 &event,
@@ -710,20 +817,44 @@ impl Compiler {
                 announcement,
                 body,
             );
+            c.waiting_trigger = false;
             c.slot_counts = counts;
             def
         })?;
         self.delayed.push(def);
         let index = self.delayed.len() - 1;
-        self.make_watching(&outer, &when, &source, index, out)
+        let Some(each) = each else {
+            return self.make_watching(&outer, &when, &source, index, out);
+        };
+        // One ability on each of them: "whenever either of those creatures ...".
+        writeln!(out, "for each in {each} {{").unwrap();
+        self.make_watching(&outer, &when, &source, index, out)?;
+        writeln!(out, "}}").unwrap();
+        Ok(())
+    }
+    /// A delayed ability whose source is what it watches still acts as its maker
+    /// did: `body` reads the maker through the list the ability carries. Only an
+    /// effect's own source reads it no differently: Okoye's "it gains" is the
+    /// creature's, as the card is written by hand.
+    pub(super) fn watching_for_another(&mut self, source: &str, body: &Program) -> Result<()> {
+        let (maker, _, _) = self.maker();
+        let says = format!("{body:?}").replace("CreateContinuousEffect { source: Source,", "");
+        if source != format!("Some({maker})") && says.contains("Source") {
+            // What is linked to the maker can't be read through a list (CR 607).
+            if says.contains("ExiledWith") {
+                return Err(gap("event trigger carrying values"));
+            }
+            self.source_moved = true;
+        }
+        Ok(())
     }
     /// What a delayed ability on an event is asked of, and the event as that
     /// object watches it.
     pub(super) fn watching_source(
-        &self,
+        &mut self,
         event: &EventSpec,
         body: &Program,
-    ) -> Result<(EventSpec, String)> {
+    ) -> Result<(EventSpec, String, Option<String>)> {
         let mut event = event.clone();
         let (maker, _, _) = self.maker();
         let mut source = format!("Some({maker})");
@@ -733,16 +864,19 @@ impl Compiler {
             if let ObjectFilter::SameObject(object) = objects {
                 if !matches!(object, ObjectRef::Source) {
                     source = self.fetch(self.object(object)?);
+                    self.watching_object = Some(object.clone());
                     *objects = ObjectFilter::SameObject(ObjectRef::Source);
                 }
             }
         }
-        if !format!("{body:?}").contains("Source") {
-            if let Some(object) = lane_i::watched(&mut event) {
-                source = self.fetch(self.object(&object)?);
-            }
+        if let Some(object) = lane_i::watched(&mut event) {
+            source = self.fetch(self.object(&object)?);
+            self.watching_object = Some(object);
+        } else if let Some(list) = lane_i::watched_each(&mut event) {
+            source = "Some(each)".to_string();
+            return Ok((event, source, Some(self.fetch(self.objects(&list)?))));
         }
-        Ok((event, source))
+        Ok((event, source, None))
     }
     /// Make a delayed ability on an event. Cantrip keeps one subject for what
     /// waits for one event, and no list: what carries a list waits on that.
@@ -782,18 +916,14 @@ impl Compiler {
             }
         }
         self.helpers.insert("about");
-        let mut about = String::from("let mut about: Vec<ObjectId> = Vec::new(); ");
-        for list in objects.iter() {
-            write!(
-                about,
-                "about.extend({}); about.push(ObjectId::NONE); ",
-                self.fetch(list)
-            )
-            .unwrap();
-        }
+        let about = self.carried_objects(&objects)?;
         match player.as_ref() {
             // Its body reads the list; what its matcher reads is held where it is read.
-            None => writeln!(out, "if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}").unwrap(),
+            None => self.plan_code(
+                KEEPS_NO_LIST,
+                &format!("if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}"),
+                out,
+            ),
             Some(player) => {
                 let code = format!("if let Some(source) = {source} {{ {about} let player = {}.map_or(Target::None, Target::Player); g.delayed_trigger_with({when}, source, {controller}, {ability}, player, &about); }}", self.fetch(player));
                 self.plan_code("event trigger carrying values", &code, out);
@@ -847,6 +977,9 @@ impl Compiler {
                 "reflexive trigger on what an instruction does not report",
             ));
         };
+        // Asked again as the reflexive resolves only when it reads the game, not what
+        // the instruction did, which is gone by then.
+        let intervening = condition.as_ref().filter(|c| !format!("{c:?}").contains("ResultId("));
         let condition = condition
             .as_ref()
             .map(|c| Ok::<_, Diagnostic>(self.fetch(self.condition(c)?)))
@@ -871,11 +1004,31 @@ impl Compiler {
         let closed = self.closing(true, |c| {
             c.reset_results();
             let counts = std::mem::replace(&mut c.slot_counts, target_counts::SlotCounts::Delayed);
+            // "Another target permanent or opponent": one slot, and the mode is
+            // what the target turns out to be.
+            let implied = match body.instructions.is_empty() {
+                true => c.implied_slots(announcement, &label, Some(Frame::default())),
+                false => Ok(None),
+            };
+            if let Ok(Some(targets)) = implied {
+                c.slot_counts = counts;
+                let effect = c.implied_effect(announcement, &label)?;
+                writeln!(c.functions, "fn {label}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {effect}(g, item) }}").unwrap();
+                return Ok((Some(targets), Ok(None)));
+            }
+            implied?;
             let targets = c.targets_for(&announced, &label, Frame::default());
             c.slot_counts = counts;
             let targets = targets?;
             let modal = c.reflexive_modes(announcement, &label);
-            c.effect(body, &label)?;
+            // An intervening "if" is asked again as it resolves (CR 603.4; Ajani, Nacatl Avenger).
+            match intervening {
+                Some(condition) => {
+                    let test = c.fetch(c.condition(condition)?);
+                    c.tested_effect(test, body, &label)?
+                }
+                None => c.effect(body, &label)?,
+            };
             Ok((Some(targets), modal))
         });
         self.counted = counted;
@@ -887,7 +1040,7 @@ impl Compiler {
             return Err(gap("reflexive ability told two numbers"));
         }
         let amount = amount.or(told);
-        let text = self.said(lane_k::Said::Triggered, ability_text(body));
+        let text = self.delayed_words(true, ability_text(body));
         let mut def = format!("delayed_trigger({label}, {})", quoted(&text));
         if let Some(targets) = targets {
             write!(def, ".targets({targets})").unwrap();
@@ -923,11 +1076,31 @@ impl Compiler {
             ),
             _ => return Err(gap("reflexive ability about an object and a player")),
         };
-        match amount {
-            Some(amount) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger_counted({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, ({amount}).clamp(0, i64::from(u16::MAX)) as u16); }}").unwrap(),
-            None => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}); }}").unwrap(),
+        let lists = outer.objects.borrow();
+        match (amount, lists.as_slice()) {
+            (Some(amount), _) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger_counted({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, ({amount}).clamp(0, i64::from(u16::MAX)) as u16); }}").unwrap(),
+            (None, []) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}); }}").unwrap(),
+            (None, lists) => {
+                self.helpers.insert("about");
+                let about = self.carried_objects(lists)?;
+                let make = format!("if {happened} && {condition} {{ {about}g.reflexive_trigger_about({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, &about); }}");
+                self.plan_code(REFLEXIVE_LIST, &make, out);
+            }
         }
         Ok(())
+    }
+    /// `body` as one of the card's `delayed` abilities, for the engine to put on
+    /// the stack when something it keeps says (the start of an added phase): its
+    /// `AbilityRef`, data the game state can hold where a closure can't be.
+    pub(super) fn delayed_program(&mut self, body: &Program) -> Result<String> {
+        let label = format!("delayed_{}", self.fresh());
+        self.closure(&label, false, None, &None, body)?;
+        let text = self.delayed_words(false, ability_text(body));
+        self.delayed
+            .push(format!("delayed_trigger({label}, {})", quoted(&text)));
+        let index = self.delayed.len() - 1;
+        let (_, _, card) = self.maker();
+        Ok(format!("AbilityRef::delayed({card}, {index})"))
     }
     /// `Operation::CreateDelayedTrigger`.
     pub(super) fn create_delayed(
@@ -948,7 +1121,7 @@ impl Compiler {
         let when = self.delayed_when(event, start, expires)?;
         let label = format!("delayed_{}", self.fresh());
         let (outer, _) = self.closure(&label, false, None, intervening_if, body)?;
-        let text = self.said(lane_k::Said::Triggered, ability_text(body));
+        let text = self.delayed_words(false, ability_text(body));
         self.delayed
             .push(format!("delayed_trigger({label}, {})", quoted(&text)));
         let index = self.delayed.len() - 1;
@@ -974,10 +1147,7 @@ impl Compiler {
             .unwrap(),
             (lists, player) => {
                 self.helpers.insert("about");
-                let mut about = String::from("let mut about: Vec<ObjectId> = Vec::new(); ");
-                for list in lists {
-                    write!(about, "about.extend({}); about.push(ObjectId::NONE); ", self.fetch(list)).unwrap();
-                }
+                let about = self.carried_objects(lists)?;
                 let only_about_them = lists.len() == 1
                     && matches!(
                         body.instructions.as_slice(),
@@ -994,7 +1164,45 @@ impl Compiler {
                     false => "",
                 };
                 match player {
-                    None => writeln!(out, "{open}{{ {about} {any}{{ g.delayed_trigger_about({when}, {source}, {controller}, {ability}, &about); }} }}{close}").unwrap(),
+                    None => {
+                        let make = format!("{open}{{ {about} {any}{{ g.delayed_trigger_about({when}, {source}, {controller}, {ability}, &about); }} }}{close}");
+                        match ["DelayedWhen::Step", "DelayedWhen::EachStep", "DelayedWhen::ExtraTurnStep"]
+                            .iter()
+                            .any(|at| when.starts_with(at))
+                        {
+                            true => writeln!(out, "{make}").unwrap(),
+                            false => self.plan_code(KEEPS_NO_LIST, &make, out),
+                        }
+                    }
+                    // "When this creature dies, choose target opponent. That player
+                    // puts this card ... onto the battlefield ... at the beginning of
+                    // the next end step" (Endless Whispers): the card is what the
+                    // ability's source became as it died, which the delayed ability
+                    // finds from its own source, so its subject can be the player.
+                    Some(player)
+                        if source == "item.object"
+                            && lists.len() == 1
+                            && lists[0].trim() == DIED_AS
+                            && lane_k::printed_otherwise(self.line_text(), "When this creature dies")
+                            && self.functions.contains(&format!("fn {label}(")) =>
+                    {
+                        let start = self.functions.find(&format!("fn {label}(")).unwrap_or(0);
+                        let end = self.functions[start..].find("\nfn ").map_or(self.functions.len(), |n| start + n);
+                        let function = self.functions[start..end].replace(
+                            "about(q, item, 0)",
+                            "q.state().obj(item.object).became.into_iter().collect::<Vec<ObjectId>>()",
+                        );
+                        self.functions.replace_range(start..end, &function);
+                        if !self.functions.contains("about(q, item,") {
+                            self.helpers.remove("about");
+                        }
+                        writeln!(
+                            out,
+                            "{open}if let Some(player) = {} {{ g.delayed_trigger({when}, {source}, {controller}, {ability}, Target::Player(player)); }}{close}",
+                            self.fetch(player)
+                        )
+                        .unwrap();
+                    }
                     Some(player) => self.plan_code(
                         "delayed ability about objects and a player",
                         &format!("{open}{{ {about} let player = {}.map_or(Target::None, Target::Player); g.delayed_trigger_with({when}, {source}, {controller}, {ability}, player, &about); }}{close}", self.fetch(player)),

@@ -22,6 +22,24 @@ pub(super) fn target_range(count: &Count) -> Result<(u32, u32)> {
 }
 
 impl Compiler {
+    /// A test of the card's own types, "an instant or sorcery card" of a flashback card's permission, keeps only the types the
+    /// card prints: its own types don't change in the graveyard, so a type it doesn't print is a test no game can make true,
+    /// and the half of `a || b` naming it is a line that never runs. A card that prints none of them keeps the whole test.
+    pub(super) fn printed_types_of_source(&self, require: &ObjectFilter) -> ObjectFilter {
+        let ObjectFilter::Either(parts) = require else { return require.clone() };
+        let printed: Vec<&ObjectFilter> = parts
+            .iter()
+            .filter(|part| matches!(part, ObjectFilter::CardType(t) if self.printed_types.iter().any(|printed| std::mem::discriminant(printed) == std::mem::discriminant(t))))
+            .collect();
+        if printed.is_empty() || !parts.iter().all(|part| matches!(part, ObjectFilter::CardType(_))) {
+            return require.clone();
+        }
+        match printed.as_slice() {
+            [one] => (*one).clone(),
+            many => ObjectFilter::Either(many.iter().map(|part| (*part).clone()).collect()),
+        }
+    }
+
     /// `Ability::CostBranch`.
     pub(super) fn cost_branch(
         &mut self,
@@ -109,6 +127,10 @@ impl Compiler {
                 let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
                     return Err(gap("overload cost other than mana"));
                 };
+                // Each searches once, for as many as they lost (701.23), and not per creature.
+                if self.card_prints("exiled this way, its controller searches") {
+                    return Err(gap("an overloaded search once for each player"));
+                }
                 parts.field("overload", format!("Some({})", mana(symbols)?));
                 let targets = self.announcement(unpaid_announced, &format!("{label}_unpaid"))?;
                 let effect = self.branch_effect(
@@ -125,7 +147,14 @@ impl Compiler {
                 if !same_targets {
                     return Err(gap("cleave that changes its targets"));
                 }
-                let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
+                // "Cleave {X}{R}{W}": an {X} in the alternative cost is announced as
+                // the spell is cast (CR 107.3a, 601.2b), as any way's is.
+                let ([CostPart::Mana(symbols)]
+                | [CostPart::ManaWithX {
+                    mana: symbols,
+                    x: None,
+                }]) = cost.parts.as_slice()
+                else {
                     return Err(gap("cleave cost other than mana"));
                 };
                 let text = quoted(&self.said_word("Cleave".into()));
@@ -194,6 +223,9 @@ impl Compiler {
         unpaid_announced: &Announcement,
         label: &str,
     ) -> Result<String> {
+        if self.card_prints("was kicked, instead choose any number") {
+            return Err(gap("an unkicked target count the source reads as any number"));
+        }
         let (paid_label, unpaid_label) = (format!("{label}_paid"), format!("{label}_unpaid"));
         self.resolving_slots(paid_announced)?;
         self.effect(paid, &paid_label)?;
@@ -223,8 +255,11 @@ impl Compiler {
         }
         // Kicked or not, the same targets: nothing waits for the kicker.
         if format!("{:?}", paid.targets) == format!("{:?}", unpaid.targets) {
+            // A slot for each player is the announcement's own, either way.
             for spec in &paid.targets {
-                target_range(&spec.count)?;
+                if !matches!(spec.count, Count::PerPlayer { .. }) {
+                    target_range(&spec.count)?;
+                }
             }
             let targets = self.announcement(unpaid, &format!("{label}_unpaid"))?;
             self.announced_filters.clear();
@@ -323,6 +358,11 @@ impl Compiler {
             CastingRule::Flash {
                 additional_cost: None,
             } => match condition {
+                // "As though it had flash if X is 3 or less" (Silver Scrutiny):
+                // `flash_if` is judged before X is announced (CR 601.2b).
+                Some(condition) if format!("{condition:?}").contains("AnnouncedX") => {
+                    return Err(gap("a limit on the X announced"));
+                }
                 Some(condition) => {
                     let test = self.activation_condition(condition, &format!("{label}_if"))?;
                     one_field(parts, "flash_if", format!("Some({test})"))?;
@@ -380,15 +420,25 @@ impl Compiler {
                     def.push_str(".exile_after()");
                 }
                 if !matches!(require, ObjectFilter::Any) {
-                    if condition.is_some() {
-                        return Err(gap("permission with a requirement and a condition"));
-                    }
+                    let require = &self.printed_types_of_source(require);
                     let saved = std::mem::replace(&mut self.reader, Reader::Query);
                     let test = self.filter(require, &Candidate::of("asker.source"));
                     self.reader = saved;
+                    let test = test?;
+                    // A way has one condition: "as long as" and the requirement are both of it.
+                    let stated = match condition {
+                        Some(condition) => {
+                            let stated =
+                                self.activation_condition(condition, &format!("{label}_if"))?;
+                            format!(" && {stated}(q, asker)")
+                        }
+                        None => String::new(),
+                    };
                     let function = format!("{label}_require");
-                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ {} }}", test?).unwrap();
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ ({test}){stated} }}").unwrap();
                     def.push_str(&format!(".condition({function})"));
+                    parts.table("ways", def);
+                    return Ok(());
                 }
                 let def = way(self, def, label)?;
                 parts.table("ways", def);
@@ -417,11 +467,43 @@ impl Compiler {
                     if beholds && self.spell_targets {
                         parts.field("late_targets", "true".into());
                     }
+                } else if let [CostPart::Keyword {
+                    action: CostKeyword::CollectEvidence,
+                    amount: Some(amount),
+                }] = cost.parts.as_slice()
+                {
+                    // "Collect evidence X, where X is the total mana value of the
+                    // permanents this spell targets" (Urgent Necropsy): worked out
+                    // once the targets are announced (CR 601.2f, 701.59a).
+                    if parts.fields.contains_key("cost_of_targets") { return Err(gap("two rules for cost_of_targets")); }
+                    let saved = (self.reader, self.event_at);
+                    (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+                    self.costing_targets = true;
+                    let amount = self.number(amount).map(|n| n.code);
+                    self.costing_targets = false;
+                    (self.reader, self.event_at) = saved;
+                    let amount = amount?;
+                    let function = format!("{label}_of_targets");
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, targets: &[Target]) -> Cost {{ Cost {{ collect_evidence: ({amount}).clamp(0, 255) as u8, ..Cost::NONE }} }}").unwrap();
+                    parts.field("cost_of_targets", format!("Some({function})"));
                 } else {
                     self.paid_for = PaidFor::Spell;
+                    self.cost_reads_board = false;
                     let cost = self.cost(cost, label);
                     self.paid_for = PaidFor::Ability;
-                    one_field(parts, "additional_cost", format!("Some({})", cost?))?;
+                    let cost = cost?;
+                    // A cost whose size reads the game ("sacrifice half the lands you
+                    // control") is worked out as the total cost is (CR 601.2f).
+                    if std::mem::take(&mut self.cost_reads_board) {
+                        if parts.fields.contains_key("cost_of_targets") {
+                            return Err(gap("two rules for cost_of_targets"));
+                        }
+                        let function = format!("{label}_of_board");
+                        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, targets: &[Target]) -> Cost {{ {cost} }}").unwrap();
+                        parts.field("cost_of_targets", format!("Some({function})"));
+                    } else {
+                        one_field(parts, "additional_cost", format!("Some({cost})"))?;
+                    }
                 }
             }
             CastingRule::ReduceCost(reductions) => {
@@ -445,6 +527,18 @@ impl Compiler {
                 comparison: Comparison::NotEqual,
                 right: Expr::Constant(0),
             }) if condition.is_none() => parts.field("x_cant_be_zero", "true".into()),
+            // Blight X's own limit: `VariableCost::BlightX` announces X up to it.
+            CastingRule::Require(Condition::Compare {
+                left: Expr::AnnouncedX,
+                comparison: Comparison::LessOrEqual,
+                right,
+            }) if condition.is_none()
+                && parts
+                    .fields
+                    .get("additional_cost")
+                    .is_some_and(|cost| cost.contains("VariableCost::BlightX"))
+                && format!("{right:?}").contains("Toughness")
+                && format!("{right:?}").contains("Maximum") => {}
             // A test of what may be cast has no X to read: none is announced yet.
             CastingRule::Require(required)
                 if condition.is_none() && format!("{required:?}").contains("AnnouncedX") =>
@@ -452,8 +546,10 @@ impl Compiler {
                 return Err(gap("a limit on the X announced"));
             }
             CastingRule::Require(required) if condition.is_none() => {
-                let test = self.activation_condition(required, &format!("{label}_if"))?;
-                one_field(parts, "cast_only_if", format!("Some({test})"))?;
+                self.cast_test = true;
+                let test = self.activation_condition(required, &format!("{label}_if"));
+                self.cast_test = false;
+                one_field(parts, "cast_only_if", format!("Some({})", test?))?;
             }
             other => self.casting_beyond(other, label, parts, condition)?,
         }

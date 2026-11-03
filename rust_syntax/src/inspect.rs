@@ -39,8 +39,14 @@ pub fn count(value: &Value, forms: &mut BTreeMap<String, BTreeMap<String, usize>
 
 struct Inspector;
 
+/// `{"enum": ty, "variant": name, "args": args}`. Built by hand: `json!` would
+/// serialize `args` into a copy, every subtree again at each enum above it.
 fn variant(ty: &str, name: &str, args: Value) -> Value {
-    serde_json::json!({ "enum": ty, "variant": name, "args": args })
+    let mut fields = Map::new();
+    fields.insert("enum".into(), Value::String(ty.into()));
+    fields.insert("variant".into(), Value::String(name.into()));
+    fields.insert("args".into(), args);
+    Value::Object(fields)
 }
 
 pub struct Compound {
