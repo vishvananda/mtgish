@@ -135,6 +135,15 @@ recorded attempts. In-flight usage is added when its result arrives. These are s
 estimates, not subscription charges, and exclude tier, long-context, cache-write and regional adjustments.
 The dashboard shows the average and per-card costs; `~/card-lane/status.sh --costs` lists every recorded card
 with its stage breakdown, and `--json` includes the underlying accounting. Pricing lives in `usage_costs.py`.
+`status.phase_rates` measures implementation, first review, repeat fix, verification and the combined
+review/fix pool over the same rolling 30-minute wall-clock window. Throughput counts unique cards that
+advanced successfully in that phase; blocked outcomes count toward attempts and time, not throughput.
+The combined pool deduplicates cards that appear in both review and fix. Historical branch names preserve
+the original phase after a job moves on. Replayed deterministic-gate results count once. Mean elapsed
+time, queued cards and occupied worker time are included in JSON; occupied time includes in-progress
+work and unions overlapping intervals per slot. These rates use the new one-card implementation ledger,
+so the old batch of imported implementations does not inflate current throughput. The top `READY RATE`
+retains the lifetime completed-card rate; `PHASE RATES (30m)` shows recent throughput for staffing decisions.
 First-card cache warmup is part of elapsed time;
 worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
 time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.
