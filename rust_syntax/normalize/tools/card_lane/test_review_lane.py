@@ -55,6 +55,20 @@ class QueueTests(unittest.TestCase):
         with lane.connect(self.root) as db:
             self.assertEqual({r[0] for r in db.execute("SELECT source_commit FROM jobs")}, {"one", "two"})
 
+    def test_status_names_outcomes_and_counts_cards_once_across_stages(self):
+        with lane.connect(self.root) as db:
+            lane.enqueue(db, {"name":"Review card", "commit":"one"})
+            job=lane.claim(db,"r1")
+            job['worker']='r1'
+            lane.finish(db,job,'queued',{'branch':'review/example/review','seconds':3},stage='confirm')
+            job=lane.claim(db,'r1')
+            job['worker']='r1'
+            lane.finish(db,job,'passed',{'branch':'review/example/confirm','seconds':2})
+        snapshot=lane.status(self.root)
+        self.assertEqual(snapshot['worker_progress'],[{'worker':'r1','handled':1}])
+        outcomes=[e for e in snapshot['recent'] if e['kind'] in ('passed','queued')]
+        self.assertEqual([(e['name'],e['detail']['stage']) for e in outcomes],[('Review card','confirm'),('Review card','review')])
+
     def test_missing_checks_cannot_pass(self):
         tree = self.root / "tree"
         tree.mkdir()

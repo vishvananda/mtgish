@@ -570,7 +570,10 @@ def status(root):
         counts = [dict(r) for r in db.execute("SELECT stage,status,count(*) AS cards FROM jobs GROUP BY stage,status")]
         active = [dict(r) for r in db.execute("SELECT id,name,stage,worker,started FROM jobs WHERE status='running'")]
         results = [json.loads(r[0]) for r in db.execute("SELECT detail FROM events WHERE kind IN ('passed','queued','blocked','infrastructure')")]
-        events = [dict(r) for r in db.execute("SELECT * FROM events ORDER BY id DESC LIMIT 15")]
+        events = [dict(r) for r in db.execute("SELECT events.*,jobs.name FROM events LEFT JOIN jobs ON jobs.id=events.job ORDER BY events.id DESC LIMIT 40")]
+        worker_progress = [dict(r) for r in db.execute("SELECT worker,count(DISTINCT job) AS handled FROM events WHERE kind IN ('passed','queued','blocked','infrastructure') GROUP BY worker")]
+        first_claim = db.execute("SELECT min(at) FROM events WHERE kind='claimed'").fetchone()[0]
+        last_finish = db.execute("SELECT max(finished) FROM jobs").fetchone()[0]
         producers = []
         implemented_names = []
         if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='implementation_jobs'").fetchone():
@@ -580,10 +583,17 @@ def status(root):
     for entry in events:
         detail = json.loads(entry.pop("detail"))
         entry["detail"] = {k: detail[k] for k in ("stage", "seconds", "worker_seconds", "validation_seconds", "rotations", "context", "error") if k in detail}
+        if "stage" not in entry["detail"] and detail.get("branch"):
+            entry["detail"]["stage"] = detail["branch"].rsplit("/", 1)[-1]
         recent.append(entry)
     secs = sorted(r["seconds"] for r in results if "seconds" in r)
+    end = now() if any(c["status"] in ("queued", "running") for c in counts) else last_finish
+    elapsed = max(0, (dt.datetime.fromisoformat(end) - dt.datetime.fromisoformat(first_claim)).total_seconds()) if end and first_claim else 0
+    ready = sum(c["cards"] for c in counts if c["status"] == "passed")
     return dict(at=now(), counts=counts, active=active, implementation=producers,
                 implementation_committed_names=implemented_names, completed_attempts=len(secs),
+                worker_progress=worker_progress, review_elapsed_seconds=elapsed,
+                review_rate_per_hour=3600*ready/elapsed if elapsed else None,
                 mean_seconds=round(sum(secs)/len(secs), 1) if secs else None,
                 median_seconds=secs[len(secs)//2] if secs else None, recent=recent)
 
