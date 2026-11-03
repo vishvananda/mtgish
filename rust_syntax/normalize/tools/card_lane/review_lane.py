@@ -509,6 +509,7 @@ def allowed_changes(tree, name):
                 path == 'Cargo.lock' and bool(manifests) or
                 path in {f'crates/{p}/Cargo.toml' for p in manifests} or
                 path.startswith("crates/cantrip-cards/src/cards/") and path.endswith(".rs") or
+                path.startswith("crates/cantrip-cards/tests/") and path.endswith(".rs") or
                 path.startswith("crates/cantrip-mechanics/src/") and path.endswith(".rs") or
                 path.startswith("crates/cantrip-mechanics/tests/") and path.endswith(".rs") or
                 path.startswith("scenarios/") and path.endswith(".cantrip")):
@@ -561,10 +562,13 @@ def checks(root):
         print(label, "PASS" if good else "FAIL", f"{rows[-1]['seconds']}s", flush=True)
         return good
 
-    shared_tests = [Path(p).stem for p in changed if p.startswith('crates/cantrip-mechanics/tests/') and p.endswith('.rs')]
-    for test in sorted(set(shared_tests)):
-        record('mechanics test '+test, lambda t=test: lane.shell('cargo','test','--profile','checked','-p',
-               'cantrip-mechanics','--test',t,env=lane.full_environment()))
+    integration_tests = {(p.split('/')[1], Path(p).stem) for p in changed
+                         if p.startswith(('crates/cantrip-mechanics/tests/', 'crates/cantrip-cards/tests/')) and p.endswith('.rs')}
+    for package, test in sorted(integration_tests):
+        record(package.removeprefix('cantrip-')+' test '+test,
+               lambda p=package,t=test: lane.shell('cargo','test','--profile','checked','-p',
+               p,'--test',t,env=lane.full_environment()),
+               lambda out: bool(re.search(r'[1-9]\d* passed; 0 failed',out)))
     for card_index, card in enumerate(ordered, 1):
         is_edited = card in edited_cards
         if not is_edited and any(not row['ok'] for row in rows):
@@ -651,8 +655,9 @@ def commit_candidate(tree, source, parent, paths):
     owned.update(p for p in original_paths + paths if p.startswith(f"scenarios/{slug}-"))
     # A test executing the new card cannot compile on the helper-only branch.
     owned.update(p for p in original_paths + paths
-                 if p.startswith(f'crates/cantrip-mechanics/tests/{own}_') or
-                    p == f'crates/cantrip-mechanics/tests/{own}.rs')
+                 if any(p.startswith(f'crates/{package}/tests/{own}_') or
+                        p == f'crates/{package}/tests/{own}.rs'
+                        for package in ('cantrip-mechanics', 'cantrip-cards')))
     shared = [p for p in paths if p not in owned]
     if paths:
         git(tree, "add", "--", *paths)

@@ -303,6 +303,15 @@ class GitTests(unittest.TestCase):
         self.assertEqual(self.git('diff-tree','--no-commit-id','--name-only','-r',candidate+'^'),shared)
         self.assertIn(test,self.git('diff-tree','--no-commit-id','--name-only','-r',candidate).splitlines())
 
+    def test_new_card_integration_test_stays_with_card(self):
+        self.git('checkout','-qb','card-test-review')
+        test='crates/cantrip-cards/tests/test_card_boundary.rs'
+        shared='crates/cantrip-mechanics/src/shared.rs'
+        self.write(test,'executes Test Card');self.write(shared,'shared helper')
+        candidate=lane.commit_candidate(self.repo,dict(name='Test Card',commit=self.source),self.base,[test,shared])
+        self.assertEqual(self.git('diff-tree','--no-commit-id','--name-only','-r',candidate+'^'),shared)
+        self.assertIn(test,self.git('diff-tree','--no-commit-id','--name-only','-r',candidate).splitlines())
+
     def test_blocked_edits_are_parked_without_publishing_or_discarding(self):
         self.git("branch", "producer", self.source)
         self.git("checkout", "-qb", "review-blocked")
@@ -449,10 +458,33 @@ class CliTests(unittest.TestCase):
 
     def test_shared_rust_test_file_is_in_scope_but_core_edits_are_not(self):
         tree=Path('/tree')
-        with mock.patch.object(lane,'git',side_effect=['crates/cantrip-mechanics/tests/boundary.rs','']):
-            self.assertEqual(lane.allowed_changes(tree,'A'),['crates/cantrip-mechanics/tests/boundary.rs'])
+        for package in ('cantrip-cards','cantrip-mechanics'):
+            path=f'crates/{package}/tests/boundary.rs'
+            with mock.patch.object(lane,'git',side_effect=[path,'']):
+                self.assertEqual(lane.allowed_changes(tree,'A'),[path])
         with mock.patch.object(lane,'git',side_effect=['crates/cantrip-rules/src/resolve.rs','']):
             with self.assertRaisesRegex(RuntimeError,'out-of-scope'):lane.allowed_changes(tree,'A')
+
+    def test_card_integration_gate_rejects_zero_tests_and_executes_changed_tests(self):
+        for output, expected in [('1 passed; 0 failed', True), ('0 passed; 0 failed', False)]:
+            with self.subTest(output=output), tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp);card=root/'a.rs';card.write_text('pub static CARD: X;')
+                lane.save(root/'review.json', {'affected_cards':['A']})
+                shell=mock.Mock(return_value=(0,output))
+                fake=SimpleNamespace(card_dir=lambda _:root/'state',card_file=lambda _:card,
+                    card_scenarios=lambda _:[],focus_cards=lambda _:None,
+                    run_corpus=lambda _:(0,'1 pass, 0 fail, 0 known bugs, 0 need cards'),
+                    tool=lambda *args:(0,'matches Scryfall'),shell=shell,full_environment=lambda:{},
+                    Gates=lambda *args:SimpleNamespace(failures=lambda:[],results=[]),
+                    mutation_gates=lambda *args:{})
+                with mock.patch.object(lane,'current',return_value={'tree':str(root),'folder':str(root),'name':'A'}), \
+                     mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'git',return_value='head'), \
+                     mock.patch.object(lane,'work_digest',return_value='stable'), \
+                     mock.patch.object(lane,'allowed_changes',return_value=['crates/cantrip-cards/tests/boundary.rs']):
+                    result=lane.checks(root)
+                self.assertEqual(result['ok'],expected)
+                shell.assert_called_once_with('cargo','test','--profile','checked','-p',
+                                             'cantrip-cards','--test','boundary',env={})
 
     def test_shared_callers_keep_scenario_coverage_without_unrelated_mutation_work(self):
         with tempfile.TemporaryDirectory() as tmp:
