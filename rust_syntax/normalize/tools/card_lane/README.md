@@ -28,6 +28,78 @@ The way of working is the `card-lane` skill, `.claude/skills/card-lane/SKILL.md`
 set of instructions, so any model, or a person, can do a card. This file covers setting the lane up and running it as an
 unattended loop.
 
+## Implementation → review/fix pipeline
+
+`review_lane.py` is a separate consumer of implementation queues. Implementation workers still use this lane's
+read-only generated code and scenario gates. Review workers use Terra with the full Oracle/rulings/CR packet,
+current code and shared definitions, author validation, scenarios and validation records. They may fix card code,
+scenarios and shared mechanics. Engine changes stop with a concrete case. Generator improvements are recorded
+in the review report so a manual card correction does not silently become the generator's new contract.
+
+Implementation workers use `implementation_lane.py` and atomically claim **one ready card** at a time from the
+shared `implementation_queue`. Their context can span 20 cards, but each card is committed and handed to review
+immediately. No implementation worker reserves the next 19 cards while another slot is idle. Terminal outcomes
+and held generator gaps are never retried merely because a worker or importer restarts.
+
+Reviewers claim **one committed revision** at a time from a SQLite queue; importing a producer queue twice does
+not duplicate work. Each reviewer owns a prepared CoW worktree and keeps its build cache. Each card starts on
+its own branch from the configured base plus its producer's prerequisite commits. Original producer branches and
+publication stacks stay untouched. The final candidate has shared prerequisites followed by one `Card:` commit,
+with the original card author and issue reference preserved. Nothing pushes, opens PRs or merges automatically.
+Code changes receive confirmation in a fresh Terra context; that confirmation checks the fixes, rather than
+paying for another complete original review. Allowed partial fixes on a blocked card are retained in an explicit
+unpublished `Review WIP:` commit on that card's own branch, freeing the slot for another card. Unexpected edits
+stop the slot for inspection. Leases are never silently expired and reassigned.
+
+The current campaign configuration is `~/card-lane/pipeline-unlimited-20261103/config.json`:
+
+```sh
+R=rust_syntax/normalize/tools/card_lane/review_lane.py
+python3 "$R" --root ~/card-lane/pipeline-unlimited-20261103 sync
+python3 "$R" --root ~/card-lane/pipeline-unlimited-20261103 worker r1
+python3 "$R" --root ~/card-lane/pipeline-unlimited-20261103 watch
+python3 "$R" --root ~/card-lane/pipeline-unlimited-20261103 status
+~/card-lane/status.sh
+python3 rust_syntax/normalize/tools/card_lane/implementation_lane.py --root ~/card-lane/pipeline-unlimited-20261103 worker i1
+```
+
+The watcher continuously imports committed producer cards, including future workers in the manifest. Worker slots
+are independent services. `enabled: false` drains current work and prevents the next claim. `reviewers` maps slot
+names to prepared worktrees; `producer_manifests` lists the existing implementation manifests. `review_model` is
+explicitly `gpt-6.1-terra`; `cards_per_context` defaults to **20**, independently of implementation batch size.
+`implementation_cards_per_context` also defaults to 20. `implementers` maps implementation slot names to
+prepared trees. The previous batch dispatcher is disabled once this consumer owns the shared queue.
+
+### Context and measurements
+
+Both stages measure latest-request context from Codex rollouts, separately from cumulative token usage. They
+restart at a card boundary at 300,000 measured tokens or 20 cards, whichever comes first. Implementation streams
+accept `--context-budget` and `--context-cards`; reviewers use `context_tokens` and `cards_per_context` in config.
+Zero removes the card cap; implementations retain a 20-card fallback when context measurement is unavailable.
+
+A narrowly trusted `PreCompact` hook returns `continue: false` before automatic compaction. A stopped worker
+restarts in fresh context on the **same unfinished card**, keeping its files and packet. Three repeated stops on
+one card become an infrastructure stop, rather than an endless loop or a false card failure. This path was tested
+with a live low-threshold Codex run, not just an assumed configuration setting. See the
+[official hook contract](https://learn.chatgpt.com/docs/hooks#precompact).
+
+Per-card artifacts live in `jobs/<revision-id>/<review-or-confirm>/`: full packet, worker stream, review report,
+gate logs, exact fix diff and result. Queue events retain each stage's elapsed time, token usage, context size and
+rotations; `status` reports review/confirmation counts and timing. First-card cache warmup is part of elapsed time;
+worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
+time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.
+
+Focused checks always build the current source and run affected cards' corpus, Oracle comparison, lint, citations,
+coverage, mutation checks and the layer contract when needed. Unresolved survivors block. Equivalence claims and
+manual meaning breaks stay visible to the reviewer/confirmation context. Confirmation cannot edit source or
+replace missing machine evidence with a self-reported pass.
+
+Both stages enable `CARD_LANE_FOCUSED=1`: builds include all scenario deck dependencies, transitive card-file
+dependencies and providers of shared extra definitions. The selector is refreshed after scenario changes. The
+layer contract uses the full registry, and an incomplete focused baseline cannot count as a caught mutation.
+In the first fresh-tree probe, corpus and coverage fell from 64/68 seconds to 31/30 seconds; subsequent runs
+reuse each worker's cache. Timings are recorded rather than assumed to improve every card by the same amount.
+
 ## Set up
 
 ```sh

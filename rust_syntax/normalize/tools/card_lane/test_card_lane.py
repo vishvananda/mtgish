@@ -19,6 +19,15 @@ import card_lane as lane  # noqa: E402
 import cantrip_tree as tree  # noqa: E402
 
 class Source(unittest.TestCase):
+    def test_isolated_file_import_finds_local_helpers(self):
+        script = ("import importlib.util, sys; "
+                  "spec = importlib.util.spec_from_file_location('isolated_lane', sys.argv[1]); "
+                  "module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module); "
+                  "assert module.context_budget.__file__")
+        result = subprocess.run([sys.executable, '-I', '-c', script, lane.__file__], cwd='/tmp',
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_reminder_text_is_not_a_line_to_validate(self):
         self.assertEqual(lane.printed_lines("Flying (This can't be blocked.)\n({T}: Add {U}.)\nWhen this enters, draw a card."),
                          ["Flying", "When this enters, draw a card."])
@@ -1267,6 +1276,140 @@ class SyntaxNotes(unittest.TestCase):
         self.assertTrue(lane.COMPANION.search("Companion — Each nonland card in your starting deck has mana value 3 or greater."))
         self.assertFalse(lane.COMPANION.search("Each creature you control is a companion of yours."))
 
+
+class ContextBudget(unittest.TestCase):
+    def test_rollout_uses_latest_request_and_counts_compactions(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / 'sessions' / '2026' / 'rollout-abc.jsonl'
+            path.parent.mkdir(parents=True)
+            def event(last, total):
+                return {'type': 'event_msg', 'payload': {'type': 'token_count', 'info': {
+                    'last_token_usage': {'input_tokens': last, 'output_tokens': 10},
+                    'total_token_usage': {'input_tokens': total, 'output_tokens': 500},
+                    'model_context_window': 500000}}}
+            path.write_text('\n'.join(map(json.dumps, [event(400, 1000), {'type': 'compacted', 'payload': {}}, event(90, 9000)])) + '\n{', encoding='utf-8')
+            metrics = lane.context_budget.session_context('abc', scratch)
+            self.assertEqual((metrics['last_tokens'], metrics['peak_tokens'], metrics['compactions'], metrics['context_window']), (100, 410, 1, 500000))
+            self.assertFalse(lane.context_budget.budget_restart(metrics, 200))
+            self.assertTrue(lane.context_budget.budget_restart(metrics, 100))
+
+    def test_precompact_marker_is_bound_to_the_worker_session(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            marker = Path(scratch) / 'marker.json'
+            with mock.patch('sys.stdin', io.StringIO(json.dumps({'session_id': 's1', 'trigger': 'auto'}))), mock.patch('sys.stdout', new_callable=io.StringIO) as output:
+                lane.context_budget.precompact_hook(marker)
+            self.assertFalse(json.loads(output.getvalue())['continue'])
+            self.assertTrue(lane.context_budget.precompact_stopped(marker, 's1'))
+            self.assertFalse(lane.context_budget.precompact_stopped(marker, 's2'))
+            marker.write_text('{', encoding='utf-8')
+            self.assertFalse(lane.context_budget.precompact_stopped(marker, 's1'))
+
+    def test_unavailable_measurement_never_triggers_token_limit(self):
+        metrics = lane.context_budget.session_context('missing', '/nonexistent')
+        self.assertIsNone(metrics['last_tokens'])
+        self.assertFalse(lane.context_budget.budget_restart(metrics, 100))
+
+
+class StreamContextCheckpoint(Streams):
+    def test_card_limit_closes_card_and_preserves_pending_card(self):
+        code, state, out = self.submit(self.state(context_budget=100, context_cards=1))
+        self.assertEqual(state['closed']['A']['outcome'], 'passed')
+        self.assertEqual(state['current'], 'B')
+        self.assertTrue(state['rotate'])
+        self.assertIn('Context checkpoint', out)
+        self.assertNotIn('## Card: B', out)
+
+    def test_unmeasured_unlimited_uses_twenty_card_fallback(self):
+        code, state, out = self.submit(self.state(context_budget=100, context_cards=0, session_cards=19))
+        self.assertTrue(state['rotate'])
+        self.assertEqual(state['current'], 'B')
+
+
+
+class FocusedBuilds(unittest.TestCase):
+    def test_closure_refresh_and_stable_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cards = root / lane.CARDS_DIR
+            scenarios = root / lane.SCENARIOS_DIR
+            cards.mkdir(parents=True)
+            scenarios.mkdir(parents=True)
+            (cards / "a.rs").write_text("use super::dependency::X;")
+            (cards / "b.rs").write_text("pub static CARD: X = X;")
+            (cards / "dependency.rs").write_text("use crate::nested::X;")
+            (cards / "nested.rs").write_text("")
+            (cards / "provider.rs").write_text("pub static EXTRA: &[&X] = &[&tokens::THING];")
+            scenario = scenarios / "a.cantrip"
+            scenario.write_text("[Bot1 Deck]\nA\nB\n[Actions]\n")
+            naming = lambda name: (name.lower(), name.lower(), name.upper())
+            with mock.patch.multiple(lane, CANTRIP=root, STATE=root / "state", names_of=naming), mock.patch.dict(os.environ, CARD_LANE_FOCUSED="1"):
+                lane.focus_cards(["A", "Keyword"])
+                path = lane.STATE / "focused-cards.txt"
+                self.assertEqual(set(path.read_text().splitlines()), {"a", "b", "dependency", "nested", "provider", "keyword"})
+                stamp = path.stat().st_mtime_ns
+                lane.focus_cards(["A", "Keyword"])
+                self.assertEqual(path.stat().st_mtime_ns, stamp)
+                self.assertEqual(lane.environment()["CANTRIP_CARDS_ONLY"], str(path))
+                self.assertEqual(lane.environment()["CARD_LANE_FOCUSED"], "1")
+                self.assertNotIn("CANTRIP_CARDS_ONLY", lane.full_environment())
+                (cards / "c.rs").write_text("")
+                scenario.write_text("[Bot1 Deck]\nA\nC\n[Actions]\n")
+                lane.focus_cards(["A"])
+                self.assertIn("c", path.read_text().splitlines())
+                self.assertNotIn("b", path.read_text().splitlines())
+
+    def test_full_fallback_rejects_missing_cards_before_mutation(self):
+        gates = {"A": mock.Mock()}
+        shadow = mock.Mock()
+        shadow.ready.return_value = []
+        with mock.patch.dict(os.environ, CARD_LANE_FOCUSED="1"), \
+             mock.patch.object(lane, "Shadow", return_value=shadow), \
+             mock.patch.object(lane, "build_corpus", return_value=(0, "")), \
+             mock.patch.object(lane, "shell", return_value=(0, "1 pass, 1 need cards")), \
+             mock.patch.object(lane, "break_cards") as breaking:
+            lane.mutation_gates(["A"], gates)
+            breaking.assert_not_called()
+            self.assertFalse(gates["A"].add.call_args.args[1])
+
+    def test_corpus_refreshes_card_before_build(self):
+        with mock.patch.object(lane, "focus_cards") as focus, \
+             mock.patch.object(lane.subprocess, "run", return_value=mock.Mock(returncode=0)):
+            lane.cmd_corpus(["--card", "A", "--next"])
+            focus.assert_called_once_with(["A"])
+
+    def test_corpus_next_refreshes_open_card(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "stream.json"
+            state.write_text(json.dumps({"current": "A"}))
+            with mock.patch.object(lane, "STREAM", state), mock.patch.object(lane, "focus_cards") as focus, \
+                 mock.patch.object(lane.subprocess, "run", return_value=mock.Mock(returncode=0)):
+                lane.cmd_corpus(["--next"])
+                focus.assert_called_once_with(["A"])
+
+    def test_worker_infrastructure_error_wins_over_turn_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            card = {"name": "A"}
+            backend = mock.Mock(name="backend")
+            backend.name, backend.model, backend.cumulative = "codex", "model", False
+            used = lane.Usage()
+            used.turns = 2
+            used.infrastructure_error = "capacity unavailable"
+            with mock.patch.object(lane, "card_dir", return_value=Path(tmp)), \
+                 mock.patch.object(lane, "begin"), mock.patch.object(lane, "prepare"), \
+                 mock.patch.object(lane, "brief", return_value="prompt"), \
+                 mock.patch.object(lane, "spawn", return_value=(1, None, used)), \
+                 mock.patch.object(lane, "check") as check, mock.patch.object(lane, "save_patch"), \
+                 mock.patch.object(lane, "clean_tree"), mock.patch.object(lane, "conclude"):
+                self.assertEqual(lane.run_card(card, backend, mock.Mock(timeout=60), {}), "infrastructure")
+                self.assertEqual(card["failure"], "capacity unavailable")
+                check.assert_not_called()
+
+    def test_restored_source_still_invokes_cargo(self):
+        with mock.patch.object(lane, "shell", return_value=(0, "")) as shell:
+            lane.build_corpus()
+            lane.build_corpus()
+            lane.build_corpus()
+            self.assertEqual(shell.call_count, 3)
 
 if __name__ == "__main__":
     unittest.main()

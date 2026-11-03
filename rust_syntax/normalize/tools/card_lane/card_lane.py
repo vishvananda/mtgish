@@ -49,7 +49,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 TOOLS = HERE.parent
 sys.path.insert(0, str(TOOLS))
+sys.path.insert(0, str(HERE))
 sys.dont_write_bytecode = True
+import context_budget  # noqa: E402
 from cantrip_tree import COUNTER_TABLE, TOKEN_TABLE, counter_name, counters_wanted, new_tokens, tokens_wanted, with_counters, with_tokens  # noqa: E402
 
 MTGISH = HERE.parents[3]
@@ -95,7 +97,31 @@ def environment():
                CARGO_TARGET_DIR=str(TARGET), CARGO_NET_OFFLINE="true", LLVM_COV=shutil.which("llvm-cov") or "llvm-cov",
                LLVM_PROFDATA=shutil.which("llvm-profdata") or "llvm-profdata", PYTHONDONTWRITEBYTECODE="1", CANTRIP_VERIFY="1",
                CARD_LANE=str(LANE), CARD_LANE_CANTRIP=str(CANTRIP), CARD_LANE_STATE=str(STATE), CARD_LANE_BRANCH=BRANCH, CARD_LANE_TARGET=str(TARGET))
+    if os.environ.get("CARD_LANE_FOCUSED") == "1":
+        env["CARD_LANE_FOCUSED"] = "1"
+        path = STATE / "focused-cards.txt"
+        if path.exists():
+            env["CANTRIP_CARDS_ONLY"] = str(path)
     return env
+
+
+def full_environment():
+    """The complete card registry, for checks that require the whole table."""
+    env = environment()
+    env.pop("CANTRIP_CARDS_ONLY", None)
+    return env
+
+
+def focus_cards(names):
+    """Select every file reachable by these cards' scenarios and keyword mutations."""
+    if os.environ.get("CARD_LANE_FOCUSED") != "1":
+        return
+    stems = files_played(names) | {names_of(name)[0] for name in names}
+    path = STATE / "focused-cards.txt"
+    data = "".join(stem + "\n" for stem in sorted(stems))
+    if not path.exists() or path.read_text(encoding="utf-8") != data:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(data, encoding="utf-8")
 
 
 def shell(*command, cwd=CANTRIP, check=False, timeout=None, env=None):
@@ -674,6 +700,7 @@ def prepare(card, build=True):
     (packet / "report.json").write_text(json.dumps(report_skeleton(points, parse_rulings(out), printed_lines(card_text(name))), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     scenarios = placeholders(name)
     if build:
+        focus_cards([name])
         code, out = run_corpus(name)
         (packet / "first-build.txt").write_text(out, encoding="utf-8")
         if re.search(r"^error", out, re.M) or "could not compile" in out:
@@ -1260,6 +1287,7 @@ def check(name, fast=False):
     """Every gate that can be run on the tree, cheapest first. `fast` leaves out what takes minutes, so a worker can loop
     on it; a commit always takes the whole of it. The report is checked either way, so that a worker sees what would
     otherwise cost it a repair round."""
+    focus_cards([name])
     gates = Gates(name, fast)
     context = early_gates(gates, name)
     if context is None:
@@ -1279,7 +1307,7 @@ def check(name, fast=False):
     survivors = mutation_gates([name], {name: gates}).get(name, []) if not fast else []
     if "statics:" in source and not fast:
         started = time.time()
-        code, out = remembered("layers", source_state(), lambda: shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases"))
+        code, out = remembered("layers-full-registry", source_state(), lambda: shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases", env=full_environment()))
         gates.add("layers", code == 0, out[-1500:] if code else "", started)
     report_gate(gates, name, context, survivors)
     return finish(gates)
@@ -1547,6 +1575,8 @@ class Codex:
                    "--config", f"sandbox_workspace_write.writable_roots={roots}", "--config", "shell_environment_policy.inherit=none",
                    "--config", "shell_environment_policy.set={" + settings + "}", "--config", "features.code_mode.default_exec_yield_time_ms=1800000",
                    "--cd", str(CANTRIP)]
+        if card.get("context_marker"):
+            command += context_budget.hook_config(card["context_marker"])
         return command + (["resume", session, "-"] if session else ["-"])
 
     def read(self, line, usage):
@@ -1728,6 +1758,10 @@ def run_card(card, backend, args, queue):
             phases["worker"] = round(phases.get("worker", 0) + time.time() - t, 1)
             usage.add(used, backend.cumulative)
             rounds += 1
+            if used.infrastructure_error:
+                outcome = "infrastructure"
+                card["failure"] = used.infrastructure_error[:600]
+                break
             if code is None:
                 outcome = "timeout"
                 break
@@ -1883,14 +1917,9 @@ def remembered(kind, key, run):
     return code, out
 
 
-def build_corpus():
-    """The one build every card's gates share. (exit status, what it printed). Skipped while no source it reads changed
-    since the last one that passed: a worker writes scenarios only, and cargo takes seconds to find nothing to do."""
-    binary = TARGET / "cards" / ("corpus.exe" if os.name == "nt" else "corpus")
-    state = source_state()
-    if not binary.exists():
-        state += str(time.time())  # nothing to reuse
-    code, out = remembered("build", state, lambda: shell("cargo", "build", "--profile", "cards", "-p", "cantrip-script", "--bin", "corpus"))
+def build_corpus(env=None):
+    """Ask Cargo to reconcile the binary with the current source, including after mutations."""
+    code, out = shell("cargo", "build", "--profile", "cards", "-p", "cantrip-script", "--bin", "corpus", env=env)
     BUILT["out"] = out
     return code, out
 
@@ -1917,6 +1946,7 @@ def prepare_batch(cards, queue):
             card["failure"] = str(error)[:600]
             discard(card, queue, "generator_bug")
     while standing:
+        focus_cards([card["name"] for card in standing])
         code, out = build_corpus()
         if code == 0:
             break
@@ -2189,7 +2219,7 @@ Tools, from the working directory:
 
 For each card, write what it owes: every printed line, test point, ruling and keyword. Play its scenarios, put its entry in
 the reports file and `submit`. Work only on the open card. A closed card's files are final, and the driver commits each card
-that passed. Your turn ends only when `submit` says that every card is done. Do not stop between cards to sum up: nobody reads
+that passed. Your turn ends only when `submit` says that every card is done or tells you to stop for a context checkpoint. Do not stop between cards to sum up: nobody reads
 it, and the next card is waiting. One command at a time, in the foreground.""",
 }
 
@@ -2226,6 +2256,16 @@ def stream_advance(state, outcome, detail=""):
         state["closed"][name]["digest"] = owned_digest(name)
     state["current"] = next((n for n in state["order"] if n not in state["closed"]), None)
     state["opened"] = time.time()
+    state["session_cards"] = state.get("session_cards", 0) + 1
+    if state["current"] is not None and "context_budget" in state:
+        metrics = context_budget.session_context(os.environ.get("CODEX_THREAD_ID"))
+        state["context_metrics"] = metrics
+        card_limit = state.get("context_cards", 20)
+        if not card_limit and metrics["last_tokens"] is None:
+            card_limit = 20  # Never remove the fallback without a measurement.
+        if ((card_limit and state["session_cards"] >= card_limit) or
+                context_budget.budget_restart(metrics, state["context_budget"])):
+            state["rotate"] = True
     save_stream(state)
 
 
@@ -2233,6 +2273,8 @@ def stream_card_text(state):
     name = state["current"]
     if name is None:
         return "Every card is done. Your turn is over: end it now."
+    if state.get("rotate"):
+        return "Context checkpoint reached. End your turn now; the driver will start a fresh session for the next card."
     return (card_dir(name) / "section.md").read_text(encoding="utf-8")
 
 
@@ -2247,7 +2289,7 @@ def cmd_submit(args):
     reopen_batch()
     state = stream_state()
     name = state["current"]
-    if name is None:
+    if state.get("rotate") or name is None:
         print(stream_card_text(state))
         return 0
     expand_reports([name])
@@ -2516,14 +2558,37 @@ def deck_names(text):
     return names
 
 
+_FOCUS_METADATA = {}
+
+
+def focus_metadata(path, parse):
+    """Reuse parsed file metadata only while the file identity and modification signature match."""
+    stat = path.stat()
+    key = (path, parse)
+    signature = (stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size, stat.st_ino)
+    cached = _FOCUS_METADATA.get(key)
+    if cached is None or cached[0] != signature:
+        cached = (signature, parse(path.read_text(encoding="utf-8")))
+        _FOCUS_METADATA[key] = cached
+    return cached[1]
+
+
+def extra_references(text):
+    found = re.search(r"pub static EXTRA:[^=]*=(.*?);\s*$", text, re.S | re.M)
+    return re.findall(r"&(\w+(?:::\w+)+)", found[1]) if found else ()
+
+
+def rust_dependencies(text):
+    return re.findall(r"\b(?:super|crate)::(?:r#)?(\w+)::", text)
+
+
 def shared_definitions():
     """A card file for each definition the mechanics crate shares, a token or a named emblem, which comes into the card table
     only in some card's `EXTRA`: without one the game stops at it, by a route no deck names, and a mutant that reached it
     would count as caught."""
     providers = {}
     for path in sorted((CANTRIP / CARDS_DIR).glob("*.rs")):
-        found = re.search(r"pub static EXTRA:[^=]*=(.*?);\s*$", path.read_text(encoding="utf-8"), re.S | re.M)
-        for shared in re.findall(r"&(\w+(?:::\w+)+)", found[1]) if found else ():
+        for shared in focus_metadata(path, extra_references):
             providers.setdefault(shared, path.stem)
     return set(providers.values())
 
@@ -2533,14 +2598,14 @@ def files_played(names):
     wanted = {name.lower() for name in names}
     stems = {names_of(name)[0] for name in names}
     for path in (CANTRIP / SCENARIOS_DIR).glob("*.cantrip"):
-        decks = deck_names(path.read_text(encoding="utf-8"))
+        decks = focus_metadata(path, deck_names)
         if wanted & {deck.lower() for deck in decks}:
             stems |= {names_of(deck)[0] for deck in decks}
     folder = CANTRIP / CARDS_DIR
     stems = {stem for stem in stems if (folder / f"{stem}.rs").exists()} | shared_definitions()
     todo = list(stems)
     while todo:
-        for stem in re.findall(r"\b(?:super|crate)::(?:r#)?(\w+)::", (folder / f"{todo.pop()}.rs").read_text(encoding="utf-8")):
+        for stem in focus_metadata(folder / f"{todo.pop()}.rs", rust_dependencies):
             if stem not in stems and (folder / f"{stem}.rs").exists():
                 stems.add(stem)
                 todo.append(stem)
@@ -2555,7 +2620,7 @@ class Bench:
         return path
 
     def build(self):
-        return build_corpus()
+        return build_corpus(env=full_environment()) if os.environ.get("CARD_LANE_FOCUSED") == "1" else build_corpus()
 
     def play(self, name):
         return corpus_verdict(name)
@@ -2608,7 +2673,7 @@ class Shadow(Bench):
 
     def build(self):
         return shell("cargo", "build", "--profile", "cards", "-p", "cantrip-script", "--bin", "corpus", cwd=self.tree,
-                     env=dict(environment(), CARGO_TARGET_DIR=str(self.target)))
+                     env=dict(full_environment(), CARGO_TARGET_DIR=str(self.target)))
 
     def play(self, name):
         return corpus_verdict(name, self.target / "cards" / "corpus", self.tree, getattr(self, "limits", {}).get(name, 300))
@@ -2646,8 +2711,23 @@ def mutation_gates(names, gates):
     if rest:
         print(f"   mutation in the tree, the shadow cannot play: {', '.join(rest)}", flush=True)
     survivors = break_cards(ready, gates, shadow) if ready else {}
-    if rest:
+    if rest and os.environ.get("CARD_LANE_FOCUSED") != "1":
         survivors.update(break_cards(rest, gates, Bench()))
+    elif rest:
+        bench = Bench()
+        code, out = bench.build()
+        safe = []
+        for name in rest:
+            if code:
+                gates[name].add("mutation", False, "full registry build failed: " + out[-1000:])
+                continue
+            result, output = shell(TARGET / "cards" / "corpus", "--card", name, "--brief", timeout=300)
+            if result == 0 and re.search(r"[1-9]\d* pass\b", output) and re.search(r"\b0 need cards", output):
+                safe.append(name)
+            else:
+                gates[name].add("mutation", False, "full registry baseline did not pass with 0 need cards: " + output[-1000:])
+        if safe:
+            survivors.update(break_cards(safe, gates, bench))
     return survivors
 
 
@@ -2737,6 +2817,7 @@ def break_cards(names, gates, bench):
 
 def batch_gates(names, fast=False):
     """`check` over the open cards, in the same order and by the same gates, with the builds shared. {card: Gates}."""
+    focus_cards(names)
     gates = {name: Gates(name, fast) for name in names}
     code, out = build_corpus()
     if code != 0:
@@ -2756,7 +2837,7 @@ def batch_gates(names, fast=False):
         statics = [n for n in ready if "statics:" in contexts[n]["source"]]
         if statics:
             started = time.time()
-            code, out = remembered("layers", source_state(), lambda: shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases"))
+            code, out = remembered("layers-full-registry", source_state(), lambda: shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases", env=full_environment()))
             for name in statics:
                 gates[name].add("layers", code == 0, out[-1500:] if code else "", started)
     for name in names:
@@ -2917,23 +2998,47 @@ def run_stream(cards, backend, args, queue):
             return None
         order = [c["name"] for c in remaining]
         (BATCH_DIR / "open.json").write_text(json.dumps(order, ensure_ascii=False), encoding="utf-8")
-        state = {"order": order, "current": order[0], "opened": time.time(), "closed": {}, "tries": {}, "max_tries": STREAM_TRIES}
+        state = {"order": order, "current": order[0], "opened": time.time(), "closed": {}, "tries": {}, "max_tries": STREAM_TRIES, "context_budget": getattr(args, "context_budget", 300000),
+                 "context_cards": getattr(args, "context_cards", 20), "session_cards": 0}
         save_stream(state)
         prompt = batch_prompt(remaining, "stream", len(order))
         (BATCH_DIR / "prompt.md").write_text(prompt, encoding="utf-8")
         phases["prompt_chars"] = len(prompt)
-        place = {"name": names[0], "dirs": [STATE]}
+        marker = BATCH_DIR / "precompact.json"
+        place = {"name": names[0], "dirs": [STATE], "context_marker": str(marker)}
         deadline = started + args.timeout
+        rotations, session_usage, context_sessions = 0, Usage(), []
+        compact_stops = {}
         while True:
             t = time.time()
+            marker.unlink(missing_ok=True)
             code, session, used = spawn(backend, place, prompt, session, max(1, deadline - time.time()), log)
             infrastructure = used.infrastructure_error
             phases["worker"] = round(phases.get("worker", 0) + time.time() - t, 1)
-            usage.add(used, backend.cumulative)
+            session_usage.add(used, backend.cumulative)
             rounds += 1
             state = stream_state()
+            stopped_for_compaction = backend.name == "codex" and context_budget.precompact_stopped(marker, session)
+            if stopped_for_compaction and state["current"]:
+                name = state["current"]
+                compact_stops[name] = compact_stops.get(name, 0) + 1
+                if compact_stops[name] > 3:
+                    infrastructure = "pre-compaction stop repeated on the same card"
+                    break
+            if (state.get("rotate") or stopped_for_compaction) and code is not None and time.time() < deadline and state["current"]:
+                context_sessions.append(context_budget.session_context(session))
+                usage.add(session_usage)
+                session_usage, session = Usage(), None
+                rotations += 1
+                state.update(rotate=False, session_cards=0)
+                save_stream(state)
+                current = next(c for c in remaining if c["name"] == state["current"])
+                prompt = batch_prompt([current], "stream", len(order) - len(state["closed"]))
+                if stopped_for_compaction:
+                    prompt += "\nThe previous session stopped before compaction while this card was open. Inspect its existing scenarios and report, preserve valid work, and finish it.\n"
+                continue
             print(f"   session {rounds}: {time.time() - t:.0f}s, {len(state['closed'])} of {len(order)} closed, {usage.input} in, {usage.output} out", flush=True)
-            if code is None or (code != 0 and used.turns == 0) or state["current"] is None or rounds > args.repairs or time.time() >= deadline:
+            if code is None or (code != 0 and used.turns == 0) or state["current"] is None or rounds - rotations > args.repairs or time.time() >= deadline:
                 break
             left = len(order) - len(state["closed"])
             prompt = (f"{state['current']} is still open, and {left - 1} more card{'s' if left != 2 else ''} after it. Your turn is not over. Keep going: finish it, "
@@ -2969,9 +3074,11 @@ def run_stream(cards, backend, args, queue):
         close_batch()
         STREAM.unlink(missing_ok=True)
         clean_tree()
+    usage.add(session_usage)
+    context_sessions.append(context_budget.session_context(session))
     tally = collections.Counter(c["status"] for c in cards)
     record = {"cards": names, "way": "stream", "who": who, "effort": args.effort, "rounds": rounds, "seconds": round(time.time() - started, 1), "phases": phases,
-              "usage": usage.record(backend.model), "outcomes": dict(tally), "log": str(log),
+              "usage": usage.record(backend.model), "rotations": rotations, "context_sessions": context_sessions, "outcomes": dict(tally), "log": str(log),
               "by_card": {c["name"]: {k: c.get(k) for k in ("status", "commit", "failure", "stream_seconds")} for c in cards}}
     with (STATE / "batches.jsonl").open("a", encoding="utf-8") as out:
         out.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -2989,6 +3096,8 @@ def stream_outcome(entry, infrastructure):
 
 
 def cmd_batch_run(args):
+    if args.context_budget < 0 or args.context_cards < 0 or (args.context_cards == 0 and args.context_budget == 0):
+        sys.exit("context limits must be nonnegative and at least one must be enabled")
     queue = load_queue()
     recover(queue)
     save_queue(queue)
@@ -3123,10 +3232,27 @@ def cmd_find(args):
 def cmd_corpus(flags):
     """Cantrip's corpus runner on this tree and this target directory, with any of its flags."""
     flags = flags[1:] if flags[:1] == ["--"] else flags
-    built = TARGET / "cards" / "corpus"
-    if built.exists():  # a card's code is the generator's and scenarios are read as they run, so what was built still stands
-        return subprocess.run([built, *flags], cwd=CANTRIP, env=environment()).returncode
-    return subprocess.run(["cargo", "run", "--profile", "cards", "-q", "-p", "cantrip-script", "--bin", "corpus", "--", *flags], cwd=CANTRIP, env=environment()).returncode
+    names = []
+    for i, flag in enumerate(flags):
+        if flag == "--card" and i + 1 < len(flags):
+            names.append(flags[i + 1])
+        elif flag.startswith("--card="):
+            names.append(flag.partition("=")[2])
+        elif flag == "--file" and i + 1 < len(flags):
+            path = Path(flags[i + 1])
+            path = path if path.is_absolute() else CANTRIP / path
+            if path.is_file():
+                names.extend(deck_names(path.read_text(encoding="utf-8")))
+    if not names:
+        if STREAM.exists():
+            current = json.loads(STREAM.read_text(encoding="utf-8")).get("current")
+            names = [current] if current else []
+        if not names and QUEUE.exists():
+            names = [c["name"] for c in json.loads(QUEUE.read_text(encoding="utf-8")).get("cards", []) if c.get("status") == "working"]
+    if names:
+        focus_cards(names)
+    env = environment() if names else full_environment()
+    return subprocess.run(["cargo", "run", "--profile", "cards", "-q", "-p", "cantrip-script", "--bin", "corpus", "--", *flags], cwd=CANTRIP, env=env).returncode
 
 
 def fetch_scryfall():
@@ -3208,6 +3334,8 @@ def main():
     p.add_argument("--timeout", type=int, default=3600, help="seconds a batch may take")
     p.add_argument("--repairs", type=int, default=4, help="rounds a worker is sent back with failed gates, or a stream's worker told to go on")
     p.add_argument("--attempts", type=int, default=2)
+    p.add_argument("--context-budget", type=int, default=300000, help="rotate streams at a card boundary after this many last-request tokens; 0 disables")
+    p.add_argument("--context-cards", type=int, default=20, help="maximum cards per stream session; 0 removes the cap (requires a context budget)")
     p.set_defaults(func=cmd_batch_run)
     p = sub.add_parser("submit", help="a stream's open card, judged in full: if it passes or stops, the next card")
     p.set_defaults(func=cmd_submit)
