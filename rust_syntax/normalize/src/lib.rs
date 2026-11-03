@@ -4,14 +4,12 @@
 extern crate self as mtgish_ast;
 pub use rust_syntax::{corpus, inspect, mtg_types};
 pub mod canonical;
-pub mod ir;
-pub mod ir_schema;
+pub use mtgish_ir::{counter, ir, ir_schema};
 pub mod lower;
 pub mod presentation;
 pub mod report;
 pub mod validate;
 
-pub mod counter;
 
 mod subtype;
 

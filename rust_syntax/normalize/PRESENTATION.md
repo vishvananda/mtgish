@@ -1,6 +1,6 @@
 # Presentation in schema 167
 
-The normalized IR shape is frozen by `schema/167.txt`. The contract records
+The normalized IR shape is frozen by `../ir/schema/167.txt`. The contract records
 types, variant order, field order and field types, as read by `ir_schema`.
 An intentional shape change requires a schema bump, a new reviewed contract,
 and loading the grammar patterns against the new dependency. Source vocabulary

@@ -1,0 +1,10 @@
+[package]
+name = "mtgish-ir"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rust_syntax = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "449b4bcf461fd6476cb2c93b78c2b2ff2c78ce28" }
+serde = { version = "1", features = ["derive"] }
+bincode = "2.0.1"
+syn = { version = "2", features = ["full"] }

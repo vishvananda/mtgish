@@ -9,6 +9,7 @@ default = []
 cantrip = ["dep:prettyplease"]
 
 [dependencies]
+mtgish-ir = { path = "../ir" }
 # Source AST is frozen independently of normalized-IR work. It is byte-identical
 # to the parent source at this split; new IR revisions can reuse this build.
 # Updating source enums also requires updating this explicit published revision.
