@@ -19,6 +19,18 @@ class QueueTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_lane_creates_state_directory_before_constructing_sandbox_roots(self):
+        tree=self.root/'tree';tree.mkdir()
+        state=self.root/'packet/state'
+        lane.save(self.root/'config.json',{'lane_root':str(self.root/'campaign')})
+        with mock.patch.object(lane,'git',return_value='test'),mock.patch.dict(os.environ), \
+             mock.patch.object(tempfile,'tempdir',str(self.root)):
+            loaded=lane.load_lane(self.root,tree,state)
+            self.assertTrue(state.is_dir())
+            command=loaded.Codex('model','medium').command({'dirs':[str(state.parent)]},None)
+            roots=json.loads(next(x.split('=',1)[1] for x in command if x.startswith('sandbox_workspace_write.writable_roots=')))
+            self.assertTrue(all(Path(p).is_dir() for p in roots))
+
     def test_draining_reviewer_stops_before_claiming_another_card(self):
         lane.save(self.root/'config.json',dict(enabled=True,reviewers={'r7':dict(tree=str(self.root/'tree'),draining=True)}))
         with mock.patch.object(lane,'claim') as claim:

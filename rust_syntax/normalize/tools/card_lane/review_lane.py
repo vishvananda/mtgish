@@ -185,6 +185,8 @@ def reload_at_boundary(root, slot, tree, script, stamp):
 
 def load_lane(root, tree, state):
     cfg = config(root)
+    # Writable sandbox roots must exist before Codex constructs its bind mounts.
+    Path(state).mkdir(parents=True, exist_ok=True)
     scratch = tree / 'target' / 'tmp'
     scratch.mkdir(parents=True, exist_ok=True)
     tempfile.tempdir = str(scratch)
