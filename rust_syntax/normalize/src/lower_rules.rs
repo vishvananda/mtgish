@@ -122,7 +122,7 @@ impl Context {
                 let mut child = self.clone();
                 child.defending = Some(PlayerRef::Bound(binding.clone()));
                 child.binding_depth += 1;
-                prohibit(ObjectAction::Attack(AttackDefenders::PlayersAndPlaneswalkers(
+                prohibit(ObjectAction::Attack(AttackDefenders::DefendingPlayers(
                     PlayerSet::Matching {
                         binding,
                         condition: Box::new(Condition::Not(Box::new(child.condition(condition)?))),

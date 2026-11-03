@@ -875,6 +875,10 @@ impl Compiler {
                 self.player_in(players, "p")?,
                 self.player_in(players, "q.controller(o)")?
             ),
+            AttackDefenders::DefendingPlayers(players) => format!(
+                "cantrip_api::defending_player_of(q.state(), *defender).is_some_and(|defending| {})",
+                self.player_in(players, "defending")?
+            ),
         })
     }
     /// `EventSpec::Activated`: a mana ability's activation is one too (605.3).

@@ -1,0 +1,43 @@
+# A Siege's protector is the defending player (CR 310.12a); Pirate Ship cannot attack it when that player controls no Island.
+[Bot1 Deck]
+Island
+Pirate Ship
+Black Lotus
+Mox Sapphire
+Black Lotus
+Invasion of Gobakhan
+Ornithopter
+Plains x15
+
+[Bot2 Deck]
+Mountain x20
+
+[Actions]
+Bot1.Hand.Island.Play
+Bot1.Hand.Ornithopter.Cast
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Battlefield.Island.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Pirate Ship.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Mountain.Play
+[T3 Bot1.Main1]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Hand.Invasion of Gobakhan.Cast
+Bot1.Pass
+Bot1.Pass
+[T3 Bot1.DeclareAttackers]
+! Bot1.Attack(Pirate Ship > Bot1.Battlefield.Invasion of Gobakhan)
+! Bot1.Attack(Pirate Ship > Bot2)
+Bot1.Attack(Ornithopter > Bot1.Battlefield.Invasion of Gobakhan)
+[T3 Bot1.Main2]
+
+[Expect]
+Bot1.Battlefield.Invasion of Gobakhan.Counters.Defense = 3
+Bot2.Life = 20

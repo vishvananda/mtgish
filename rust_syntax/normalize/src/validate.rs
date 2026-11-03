@@ -1717,7 +1717,7 @@ impl<'a> Scope<'a> {
         match defenders {
             AttackDefenders::Any => Ok(()),
             AttackDefenders::Objects(f) => self.filter(f),
-            AttackDefenders::Players(p) | AttackDefenders::PlayersAndPlaneswalkers(p) => {
+            AttackDefenders::Players(p) | AttackDefenders::PlayersAndPlaneswalkers(p) | AttackDefenders::DefendingPlayers(p) => {
                 self.players(p)
             }
         }

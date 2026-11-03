@@ -3953,7 +3953,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         ("reveal", "701.20a"),
         ("mill", "701.17a"),
         ("tap", "701.26a"),
-        ("untap", "502.3"),
+        ("untap", "701.26b"),
         ("attach", "701.3a"),
         ("counter", "701.6a"),
         ("fight", "701.14a"),

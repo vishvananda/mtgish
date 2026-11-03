@@ -132,5 +132,45 @@
         "text": "Destroy X target Mountains. Volcanic Eruption deals damage to each creature and each player equal to the number of Mountains put into a graveyard this way."
       }
     ]
+  },
+  {
+    "name": "Pirate Ship",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Pirate Ship",
+        "manaCost": "{4}{U}",
+        "type": "Creature \u2014 Human Pirate",
+        "text": "This creature can't attack unless defending player controls an Island.\n{T}: This creature deals 1 damage to any target.\nWhen you control no Islands, sacrifice this creature.",
+        "power": "4",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Sea Serpent",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sea Serpent",
+        "manaCost": "{5}{U}",
+        "type": "Creature \u2014 Serpent",
+        "text": "This creature can't attack unless defending player controls an Island.\nWhen you control no Islands, sacrifice this creature.",
+        "power": "5",
+        "toughness": "5"
+      }
+    ]
+  },
+  {
+    "name": "Twiddle",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Twiddle",
+        "manaCost": "{U}",
+        "type": "Instant",
+        "text": "You may tap or untap target artifact, creature, or land."
+      }
+    ]
   }
 ]

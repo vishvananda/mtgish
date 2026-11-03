@@ -1749,7 +1749,7 @@ impl Inventory<'_> {
         match d {
             AttackDefenders::Any => {}
             AttackDefenders::Objects(f) => self.filter(f),
-            AttackDefenders::Players(p) | AttackDefenders::PlayersAndPlaneswalkers(p) => {
+            AttackDefenders::Players(p) | AttackDefenders::PlayersAndPlaneswalkers(p) | AttackDefenders::DefendingPlayers(p) => {
                 self.players(p)
             }
         }

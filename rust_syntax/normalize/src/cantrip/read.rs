@@ -2460,7 +2460,7 @@ impl Compiler {
                 let step = "(q.state().turn.step() as u8)";
                 match window {
                     TurnWindow::BeforeAttackersDeclared => {
-                        format!("{step} < (Step::DeclareAttackers as u8)")
+                        format!("({step} < (Step::DeclareAttackers as u8) && !q.history().this_turn().iter().any(|r| matches!(r.event, Event::StepBegan {{ step: Step::DeclareAttackers }})))")
                     }
                     TurnWindow::Combat => format!(
                         "((Step::BeginCombat as u8)..=(Step::EndOfCombat as u8)).contains(&{step})"

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 166;
+pub const SCHEMA_VERSION: u32 = 167;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -3861,6 +3861,8 @@ pub enum AttackDefenders {
     Players(PlayerSet),
     /// A battle is not included merely because a player controls/protects it.
     PlayersAndPlaneswalkers(PlayerSet),
+    /// The defending player, including the protector of a battle (CR 508.5).
+    DefendingPlayers(PlayerSet),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ActivationFilter {

@@ -1,0 +1,48 @@
+# Siren's Call can be cast before the first declare attackers step, but not before a second combat
+# in the same turn (CR 508.1, Oracle ruling). Aurelia creates the second combat.
+
+[Bot1 Deck]
+Forest
+Llanowar Elves
+Black Lotus
+Mox Pearl
+Plains
+Aurelia, the Warleader
+Forest x14
+
+[Bot2 Deck]
+Island
+Mox Sapphire
+Siren's Call
+Siren's Call
+Island x17
+
+[Actions]
+Bot1.Hand.Forest.Play
+Bot1.Battlefield.Forest.Activate
+Bot1.Hand.Llanowar Elves.Cast
+[T2 Bot2.Main1]
+Bot2.Hand.Island.Play
+Bot2.Hand.Mox Sapphire.Cast
+[T3 Bot1.Main1]
+Bot1.Hand.Plains.Play
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Red)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Plains.Activate
+Bot1.Battlefield.Llanowar Elves.Activate
+Bot1.Hand.Aurelia, the Warleader.Cast
+Bot1.Pass
+Bot2.Battlefield.Island.Activate
+Bot2.Hand.Siren's Call.Cast
+? Bot2.Mana =
+[T3 Bot1.DeclareAttackers]
+Bot1.Attack(Aurelia, the Warleader)
+[T3 Bot1.EndCombat]
+Bot1.Pass
+Bot2.Pass
+! Bot2.Hand.Siren's Call.Cast
+
+[Expect]
+Step = BeginCombat

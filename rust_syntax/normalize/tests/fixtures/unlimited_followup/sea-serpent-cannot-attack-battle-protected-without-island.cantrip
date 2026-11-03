@@ -1,0 +1,43 @@
+# Sea Serpent cannot attack a Siege protected by a player without an Island (CR 508.5).
+[Bot1 Deck]
+Sea Serpent
+Island
+Mox Sapphire
+Mox Pearl
+Mox Jet
+Mox Ruby
+Mox Emerald
+Invasion of Ixalan
+Ornithopter
+Island x20
+[Bot2 Deck]
+Mountain
+Island
+Mountain x20
+[Actions]
+Bot1.Hand.Island.Play
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Jet.Cast
+Bot1.Hand.Mox Ruby.Cast
+Bot1.Hand.Mox Emerald.Cast
+Bot1.Battlefield.Island.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Battlefield.Mox Emerald.Activate
+Bot1.Hand.Sea Serpent.Cast
+? Bot1.Mana =
+Bot2.Hand.Mountain.Play
+[T3 Bot1.Main1]
+Bot1.Battlefield.Mox Emerald.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Hand.Invasion of Ixalan.Cast
+[T5 Bot1.Main1]
+Bot1.Hand.Ornithopter.Cast
+[T7 Bot1.DeclareAttackers]
+! Bot1.Attack(Sea Serpent > Bot1.Battlefield.Invasion of Ixalan)
+Bot1.Attack(Ornithopter > Bot1.Battlefield.Invasion of Ixalan)
+[Expect]
+Bot2.Battlefield = Mountain

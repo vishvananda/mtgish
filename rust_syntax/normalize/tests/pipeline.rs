@@ -1798,7 +1798,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 166);
+    assert_eq!(card.schema_version, 167);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -1945,8 +1945,14 @@ fn a_next_spell_trigger_ends_once_it_has_triggered() {
 #[test]
 fn cant_attack_unless_asks_about_each_defending_player() {
     let text = ability_json("PermanentRuleEffect(ThisPermanent,[CantAttackUnlessDefendingPlayer(PlayerPassesFilter(DefendingPlayer,ControlsA(IsLandType(Island))))])");
-    assert!(text.contains("PlayersAndPlaneswalkers"), "{text}");
+    assert!(text.contains("DefendingPlayers"), "{text}");
     assert!(text.contains("Matching"), "{text}");
+}
+
+#[test]
+fn an_explicit_player_or_planeswalker_restriction_does_not_include_battles() {
+    let text=ability_json("PermanentRuleEffect(ThisPermanent,[CantAttackAnyPlayerOrPlaneswalkerControlledBy(Opponent)])");
+    assert!(text.contains("PlayersAndPlaneswalkers") && !text.contains("DefendingPlayers"),"{text}");
 }
 
 #[test]

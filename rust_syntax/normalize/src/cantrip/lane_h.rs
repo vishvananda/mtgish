@@ -3891,6 +3891,9 @@ impl Compiler {
             AttackDefenders::Any => Ok("true".into()),
             AttackDefenders::Players(set) => players(self, set, false),
             AttackDefenders::PlayersAndPlaneswalkers(set) => players(self, set, true),
+            AttackDefenders::DefendingPlayers(set) => Ok(format!(
+                "cantrip_api::defending_player_of(q.state(), defender).is_some_and(|defending| ({}).contains(&defending))", self.players(set)?
+            )),
             AttackDefenders::Objects(filter) => Ok(format!(
                 "matches!(defender, Target::Object(id) if {})",
                 self.filter(filter, &Candidate::of("id"))?
@@ -4033,6 +4036,7 @@ impl Compiler {
             R::Prohibit(ObjectAction::Attack(
                 defenders @ (AttackDefenders::Players(_)
                 | AttackDefenders::PlayersAndPlaneswalkers(_)
+                | AttackDefenders::DefendingPlayers(_)
                 | AttackDefenders::Objects(_)),
             )) => {
                 let at = self.defended(defenders)?;

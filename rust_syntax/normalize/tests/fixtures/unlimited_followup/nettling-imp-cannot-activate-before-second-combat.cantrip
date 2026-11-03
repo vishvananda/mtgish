@@ -1,0 +1,47 @@
+# Nettling Imp cannot be activated after the first declare attackers step, even before a later combat (2013-09-20 ruling).
+# Aurelia creates a second combat on turn 4; she has been controlled since that turn began.
+
+[Bot1 Deck]
+Nettling Imp
+Mox Jet
+Mox Pearl
+Mox Sapphire
+Swamp x20
+
+[Bot2 Deck]
+Aurelia, the Warleader
+Black Lotus
+Mox Pearl
+Mox Ruby
+Mox Sapphire
+Plains x20
+
+[Actions]
+Bot1.Hand.Mox Jet.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Nettling Imp.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Plains.Play
+Bot2.Hand.Black Lotus.Cast
+Bot2.Hand.Mox Pearl.Cast
+Bot2.Hand.Mox Ruby.Cast
+Bot2.Hand.Mox Sapphire.Cast
+Bot2.Battlefield.Black Lotus.Activate(Color: Red)
+Bot2.Battlefield.Mox Pearl.Activate
+Bot2.Battlefield.Mox Ruby.Activate
+Bot2.Battlefield.Plains.Activate
+Bot2.Hand.Aurelia, the Warleader.Cast
+[T4 Bot2.DeclareAttackers]
+Bot2.Attack(Aurelia, the Warleader)
+[T4 Bot2.EndCombat]
+Bot2.Pass
+Bot1.Pass
+! Bot1.Battlefield.Nettling Imp.Activate(Aurelia, the Warleader)
+
+[Expect]
+Bot1.Battlefield.Nettling Imp.Tapped = false

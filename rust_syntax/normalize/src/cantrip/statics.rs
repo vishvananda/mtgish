@@ -228,20 +228,13 @@ impl Compiler {
             // the defending player. An attack rule is asked per attacked target, so
             // "can't attack you" leaves your planeswalkers open.
             RuleChange::Prohibit(ObjectAction::Attack(
-                AttackDefenders::Players(players @ PlayerSet::Matching { .. })
-                | AttackDefenders::PlayersAndPlaneswalkers(players @ PlayerSet::Matching { .. }),
+                AttackDefenders::Players(PlayerSet::Matching { .. })
+                | AttackDefenders::PlayersAndPlaneswalkers(PlayerSet::Matching { .. })
+                | AttackDefenders::DefendingPlayers(PlayerSet::Matching { .. }),
             )) => {
                 let test = self.rule_subject(affected, "attacker")?;
-                let defenders = self.players(players)?;
-                let walkers = matches!(
-                    rule,
-                    RuleChange::Prohibit(ObjectAction::Attack(
-                        AttackDefenders::PlayersAndPlaneswalkers(_)
-                    ))
-                );
-                let attacked = format!(
-                    "(match defender {{ Target::Player(p) => ({defenders}).contains(&p), Target::Object(id) => {walkers} && q.chars(id).is(CardType::Planeswalker) && ({defenders}).contains(&q.controller(id)), _ => false }})"
-                );
+                let RuleChange::Prohibit(ObjectAction::Attack(defenders)) = rule else { unreachable!() };
+                let attacked = self.defended(defenders)?;
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, attacker: ObjectId, defender: Target) -> bool {{ let source = asker.source; {PRELUDE} !({guard}{test} && {attacked}) }}").unwrap();
                 parts.attack_rules.push(function);
             }

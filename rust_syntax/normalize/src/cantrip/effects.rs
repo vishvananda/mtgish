@@ -3756,6 +3756,7 @@ impl Compiler {
                 // Only "exactly n" (asked as "as many as can") takes what is eligible without asking when there are no
                 // more than n: a count that is "up to" or "any number" always asks, so its test is not written.
                 let can_take_all = matches!(count, Count::Exactly(_) | Count::AsManyAsCan(_) | Count::PerPlayer { .. });
+                let known_as_many = matches!(count, Count::Exactly(_) | Count::AsManyAsCan(_));
                 let count = self.fetch(self.select_count(&count)?);
                 // However many they choose, they go in battlefield order.
                 let order = match count.contains("AnyNumber") {
@@ -3764,6 +3765,7 @@ impl Compiler {
                 };
                 let asked = format!("cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))?");
                 let taken = match can_take_all {
+                    true if known_as_many => format!("match count_{id}.clone() {{ cantrip_mechanics::select::Count::AsManyAsCan(n) if eligible.len() <= n as usize => eligible, _ => {asked} }}"),
                     true => format!("match count_{id}.clone() {{ cantrip_mechanics::select::Count::Exactly(n) | cantrip_mechanics::select::Count::AsManyAsCan(n) if eligible.len() <= n as usize => eligible, _ => {asked} }}"),
                     false => asked,
                 };

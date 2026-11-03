@@ -5,10 +5,41 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 fn modules() -> BTreeMap<String, String> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let names = ["Chaoslace", "Deathlace", "Lifelace", "Purelace", "Thoughtlace", "Siren's Call", "Nettling Imp", "Earthbind", "Kudzu", "Lich", "Volcanic Eruption"]
+    let names = ["Chaoslace", "Deathlace", "Lifelace", "Purelace", "Thoughtlace", "Siren's Call", "Nettling Imp", "Earthbind", "Kudzu", "Lich", "Volcanic Eruption", "Pirate Ship", "Sea Serpent", "Twiddle"]
         .into_iter().map(str::to_string).collect::<Vec<_>>();
     cantrip::modules_printed(&root.join("unlimited_generator.ronl"), &root.join("unlimited_generator.oracle.json"), &names)
         .unwrap().into_iter().collect()
+}
+
+#[test]
+fn before_attackers_checks_the_first_such_step_in_the_turn() {
+    let modules=modules();
+    for name in ["Siren's Call", "Nettling Imp"] {
+        let module=&modules[name];
+        assert!(module.contains("history().this_turn().iter().any"),"{name}: {module}");
+        assert!(module.contains("Event::StepBegan { step: Step::DeclareAttackers }"),"{name}: {module}");
+    }
+}
+
+#[test]
+fn defending_player_restrictions_include_a_battles_protector() {
+    let modules=modules();
+    for name in ["Pirate Ship","Sea Serpent"] {
+        assert!(modules[name].contains("defending_player_of(q.state(), defender)"),"{name}: {}",modules[name]);
+    }
+}
+
+#[test]
+fn untapping_by_a_spell_cites_the_untap_action() {
+    let fixtures=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let output=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("unlimited-untap-citation.jsonl");
+    cantrip::planned::tracked(&fixtures.join("unlimited_generator.ronl"),
+                             &fixtures.join("unlimited_generator.oracle.json"), &output).unwrap();
+    let rows=std::fs::read_to_string(output).unwrap();
+    let row=rows.lines().map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .find(|row| row["faces"].as_array().unwrap().iter().any(|face| face["name"]=="Twiddle")).unwrap();
+    let file=row["file"].as_str().unwrap();
+    assert!(file.contains("701.26b") && !file.contains("502.3"),"{file}");
 }
 
 #[test]
@@ -63,6 +94,7 @@ fn lich_requires_the_full_number_of_sacrifices() {
     let module = &modules()["Lich"];
     assert!(module.contains("picks_2.len() as u32 == owed_2"), "{module}");
     assert!(!module.contains("let paid_2 = !picks_2.is_empty()"), "{module}");
+    assert!(!module.contains("Count::Exactly(n) |"), "{module}");
 }
 
 #[test]
