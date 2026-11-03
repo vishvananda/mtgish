@@ -470,8 +470,22 @@ def checks(root):
         return result
     initial_digest = work_digest(tree)
     rows, started = [], time.monotonic()
+    def edited(card):
+        stem, slug = names(card)
+        return card == name or stem in changed_stems or any(
+            p.startswith(f"scenarios/{slug}-") or p == f"content/mtg/cards/{slug}.json" for p in changed)
+    edited_cards = [card for card in affected if edited(card)]
+    shared_callers = [card for card in affected if not edited(card)]
+    ordered = edited_cards + shared_callers
+    card_index = 0
+
+    def progress(label, state='running'):
+        save(folder/'checks-live.json',dict(state=state,at=now(),started_seconds=started,card=name,
+             gate=label,card_index=card_index,total_cards=len(ordered),edited_cards=len(edited_cards),
+             phase='edited checks' if card_index <= len(edited_cards) else 'caller regressions'))
 
     def record(label, operation, ok=None):
+        progress(label)
         at = time.monotonic()
         code, out = operation()
         good = (code == 0) and (ok(out) if ok else True)
@@ -481,28 +495,38 @@ def checks(root):
         print(label, "PASS" if good else "FAIL", f"{rows[-1]['seconds']}s", flush=True)
         return good
 
-    for card in affected:
+    for card_index, card in enumerate(ordered, 1):
+        is_edited = card in edited_cards
+        if not is_edited and any(not row['ok'] for row in rows):
+            break  # Repair edited cards before the wider regression sweep.
+        first_row = len(rows)
         # run_corpus uses build_corpus/source_state, unlike the generation-only CLI's prebuilt shortcut.
         if not record(card + " corpus", lambda c=card: lane.run_corpus(c),
                       lambda out: bool(re.search(r"[1-9]\d* pass, 0 fail, 0 known bugs?", out)) and bool(re.search(r"0 need cards", out))):
+            if is_edited:
+                continue
             break
-        stem, slug = names(card)
-        edited = card == name or stem in changed_stems or any(
-            p.startswith(f"scenarios/{slug}-") or p == f"content/mtg/cards/{slug}.json" for p in changed)
-        if edited:
+        if is_edited:
             record(card + " oracle", lambda c=card: lane.tool("new-card.py", c, "--no-write"),
                    lambda out: "matches Scryfall" in out and "DIFFERS" not in out)
             record(card + " lint", lambda c=card: lane.tool("card-lint.py", c), lambda out: ": NEVER:" not in out)
             files = [*([lane.card_file(card)] if lane.card_file(card).exists() else []), *lane.card_scenarios(card)]
             record(card + " citations", lambda f=files: lane.tool("cr.py", "check", "--show", *f))
         record(card + " coverage", lambda c=card: lane.tool("card-coverage.py", c))
-        if not edited:
+        if not is_edited:
             # Shared callers still play and measure their scenarios. Their
             # unchanged card decisions do not need another mutation review.
             continue
+        if card != name and names(card)[0] not in changed_stems:
+            # Scenario-only repairs keep their corpus/coverage/citation gates.
+            # They do not require re-reviewing every unchanged card decision.
+            continue
+        if any(not row['ok'] for row in rows[first_row:]):
+            continue  # A failed basic gate needs a repair before mutation work.
         lane.card_dir(card).mkdir(parents=True, exist_ok=True)
         gates = {card: lane.Gates(card, False)}
         at = time.monotonic()
+        progress(card+' mutation')
         survivors = lane.mutation_gates([card], gates).get(card, [])
         declared_equiv = {e.get("mutant"): e.get("why") for e in report.get("equivalent_mutants", []) if isinstance(e, dict)}
         unresolved = [s for s in survivors if not lane.known_equivalent(s) and not declared_equiv.get(s["key"])]
@@ -521,6 +545,7 @@ def checks(root):
                   initial_digest=initial_digest,
                   ok=bool(rows) and all(r["ok"] for r in rows), seconds=round(time.monotonic()-started, 2), gates=rows)
     save(folder / "checks.json", result)
+    progress('complete', 'passed' if result['ok'] else 'failed')
     return result
 
 

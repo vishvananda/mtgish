@@ -144,6 +144,20 @@ time, queued cards and occupied worker time are included in JSON; occupied time 
 work and unions overlapping intervals per slot. These rates use the new one-card implementation ledger,
 so the old batch of imported implementations does not inflate current throughput. The top `READY RATE`
 retains the lifetime completed-card rate; `PHASE RATES (30m)` shows recent throughput for staffing decisions.
+`resource_monitor.py --root ROOT watch` samples systemd worker cgroup CPU counters every two seconds,
+including compiler/test descendants that can disappear between process-list snapshots. It records daily
+`resources/samples-YYYY-MM-DD.jsonl` and a rolling ten-minute `resources/status.json`: time-weighted mean,
+p95 and peak CPU by role, host load, memory, pressure, swap activity and throttling. CPU units are logical
+CPUs occupied, not percentages or requested Cargo jobs. `--unit-prefix` selects the service prefix and
+`report` reads the current summary. The dashboard displays role and host averages. A 5 implementer /
+7 reviewer / 1 verifier projection scales observed per-worker CPU, holding unrelated host work fixed;
+it is an estimate, and the samples after expansion measure actual load separately.
+
+Review validation runs edited cards before unchanged shared callers. A failing edited-card gate returns
+for repair before the wide regression sweep or that card's mutation run. Scenario-only caller repairs
+still receive corpus, coverage and citation checks; full mutations apply to the current card and other
+cards whose Rust code changed. `checks-live.json` exposes the current gate and card count, so the
+dashboard marks a long shared-caller sweep as REGRESSION instead of model review.
 First-card cache warmup is part of elapsed time;
 worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
 time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.
