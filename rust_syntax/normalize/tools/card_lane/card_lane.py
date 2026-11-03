@@ -489,6 +489,10 @@ MODES_NOTE = ("A choice of modes is answered with `Bot1.Modes(<label>; <label>)`
 COMPANION = re.compile(r"\bcompanion\b\s*—", re.I)
 COMPANION_NOTE = ("A companion starts outside the game (CR 702.139): a `[Bot1 Companion]` section names it, one card, and "
                   "`Bot1.Sideboard.<Card>.TakeCompanion` pays {3} and puts it into its owner's hand (CR 116.2g).")
+REFUSALS_NOTE = ("A limit is shown by refusing an answer past it. Before saying a limit can't be tested, read the refusals in "
+                 "`scenarios/README.md`: `! Bot1.Choose(A; B)` (more cards than it takes), `! Bot1.Choose()` (none, when one "
+                 "must be), `! Bot1.Target(Count: 2)`, `! Bot1.Modes(Count: 0)`, `! Bot1.Arrange(A | B; C)` (a placement "
+                 "the question refuses, such as one card to the hand where it takes two).")
 NOTES = ((RANDOM, RANDOM_NOTE), (MODES, MODES_NOTE), (COMPANION, COMPANION_NOTE))
 
 
@@ -507,7 +511,8 @@ def brief(card, driven=False):
              f"- Packet: `{card_dir(name)}`",
              f"- Card file: {code}",
              f"- Content file: `{CONTENT_DIR}/{slug}.json`, from Scryfall, read-only",
-             f"- Placeholder scenarios: `{SCENARIOS_DIR}/{stem.replace('_', '-')}-*.cantrip`"]
+             f"- Placeholder scenarios: `{SCENARIOS_DIR}/{stem.replace('_', '-')}-*.cantrip`", "",
+             REFUSALS_NOTE]
     if content_file(name).exists():
         content = json.loads(content_file(name).read_text(encoding="utf-8-sig"))
         played = faces_section(card, content)
