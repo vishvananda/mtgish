@@ -71,6 +71,28 @@ class Comparing(unittest.TestCase):
 
 
 class Packet(unittest.TestCase):
+    def test_shared_packet_includes_trigger_and_static_definitions(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch); mechanics = root/'crates/cantrip-mechanics/src'; mechanics.mkdir(parents=True)
+            (mechanics/'triggers.rs').write_text('/// Color cast.\npub fn colored<const C: u8>(q: X) -> Y {\n    fired(q)\n}\n')
+            (mechanics/'statics.rs').write_text('/// Layer recipe.\npub fn pump(q: X) -> Y {\n    chars(q)\n}\n')
+            with mock.patch.object(lane, 'CANTRIP', root):
+                result = lane.shared_code('cantrip_mechanics::triggers::colored::<3>; statics::pump;')
+            self.assertIn('Color cast.', result)
+            self.assertIn('Layer recipe.', result)
+            self.assertEqual(result.count('## colored'), 1)
+
+    def test_shared_packet_resolves_same_named_helpers_in_their_own_modules(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch); mechanics = root/'crates/cantrip-mechanics/src'; mechanics.mkdir(parents=True)
+            (mechanics/'effects.rs').write_text('pub fn same() {\n    effect();\n}\n')
+            (mechanics/'triggers.rs').write_text('pub fn same() {\n    trigger();\n}\n')
+            with mock.patch.object(lane, 'CANTRIP', root):
+                result = lane.shared_code('effects::same; triggers::same; effects::same;')
+            self.assertIn('effect();', result)
+            self.assertIn('trigger();', result)
+            self.assertEqual(result.count('## same'), 2)
+
     def test_the_report_starts_with_every_test_point_and_is_not_done(self):
         report = lane.report_skeleton(["[1] the amount 4", "[2] 'you control'"])
         self.assertEqual(report["decision"], "todo")

@@ -46,3 +46,29 @@ the compatibility check merely because Git can merge it.
 Existing PRs still need consolidation and validation against one common foundation. Their original reviewed
 candidates and publication manifests remain retained; adding safeguards does not repair those PRs by itself.
 Publishing is paused for this reconciliation. Intake and card workers continue.
+
+## What the native skills discover
+
+`new-card.py` invokes `ability-index.py`, which rebuilds its index from the current checkout's content and card
+sources. It matches whole Oracle abilities, then costs/triggers/effect sentences, using exact text, normalized
+numbers/mana, then normalized colors/types. Remaining suggestions use word and word-pair TF-IDF similarity.
+It prints card paths, imports/Game verbs and wording differences. It does not scan pending PRs or establish
+semantic equivalence between Rust implementations. Keywords also have module/function discovery by name.
+
+For the colored payment ability, the actual lookup finds Ivory Cup and reports `white -> red`. The result is
+retained in `publication/shared-reconciliation/ability-index-colored-life.txt`.
+
+The native coordinator delegates *reported core gaps* to feature agents and groups waiting cards by gap
+(`add-cards/coordinator.md`, step 3). Ordinary shared extraction is a card author's duty under “Share what is
+the same.” The coordinator serially lands reviewed work on main and tells running agents to rebase, so later
+work sees those shared changes. There is no documented automatic global shared-implementation dispatcher.
+
+The review policy explicitly makes actual overlap a blocking finding (`add-cards/review.md`, lines 41–43,
+61–64). Optional abstractions are nonblocking; scoped tests and avoiding an exhaustive corner-case checklist
+are the stated speed measures. `review-card-pr` says it does not relax the standard, and `pr-watch.py` invokes
+that skill. Our Terra prompt retains the overlap requirement.
+
+The local lane's shared-definition packet had another omission: it recognized effects and targets but omitted
+most other namespaces, including triggers and statics. It now extracts referenced definitions by their actual
+module, including fully qualified references, and keeps same-named functions from different modules distinct.
+This improves the evidence a worker receives; a common view of pending shared work is still required.

@@ -494,11 +494,20 @@ def shared_code(source):
     """What a card's file calls, as the shared code defines it. The file's words say what it means to do; these say what it
     does. Without them a worker searches `cantrip-mechanics` for each. A `const` brings the private function it names."""
     mechanics = CANTRIP / "crates" / "cantrip-mechanics" / "src"
-    names = re.findall(r"\beffects::(\w+)", source) + re.findall(r"\btargets::(\w+)", source)
-    names += re.findall(r"\b(?:damage_target|destroy_target|THIS_ENTERS|THIS_DIES)\b", source)
+    # Overlapping matches also find triggers::f in cantrip_mechanics::triggers::f.
+    # Use the actual module, so identical names in different modules cannot be
+    # resolved to whichever happens to be searched first.
+    references = [(module + '.rs', name) for module, name in
+                  re.findall(r"(?=\b([a-z]\w*)::(\w+))", source)
+                  if (mechanics / (module + '.rs')).is_file()]
+    for name in re.findall(r"\b(?:damage_target|destroy_target|THIS_ENTERS|THIS_DIES)\b", source):
+        for module in ('effects.rs', 'targets.rs', 'triggers.rs', 'lib.rs'):
+            if definition(mechanics / module, name) is not None:
+                references.append((module, name))
+                break
     out = []
-    for name in dict.fromkeys(names):
-        for module in ("effects.rs", "targets.rs", "triggers.rs", "lib.rs"):
+    for module, name in dict.fromkeys(references):
+        if (mechanics / module).is_file():
             text = definition(mechanics / module, name)
             if text is None:
                 continue
@@ -506,7 +515,6 @@ def shared_code(source):
             helpers = re.findall(r"\b([a-z]\w+_filter|this_\w+)\b", text) if re.search(r"\bconst [A-Z]", text) else []
             out += [f"\n{more}" for more in map(lambda helper: definition(mechanics / module, helper), helpers) if more]
             out += ["```", ""]
-            break
     return "\n".join(out)
 
 
