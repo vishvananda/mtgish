@@ -10,7 +10,7 @@ legacy = []
 cantrip = ["legacy", "dep:prettyplease"]
 
 [dependencies]
-mtgish-ir = { path = "../ir" }
+mtgish-ir = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "4cfbe3d703362ad966cf619c93fb30ce1ee0b6f2" }
 # Source AST is frozen independently of normalized-IR work. It is byte-identical
 # to the parent source at this split; new IR revisions can reuse this build.
 # Updating source enums also requires updating this explicit published revision.

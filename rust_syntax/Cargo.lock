@@ -349,7 +349,7 @@ name = "mtgish-ast"
 version = "0.1.0"
 dependencies = [
  "bincode",
- "mtgish-ir",
+ "mtgish-ir 0.1.0 (git+ssh://git@github.com/vishvananda/mtgish.git?rev=4cfbe3d703362ad966cf619c93fb30ce1ee0b6f2)",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -363,6 +363,17 @@ dependencies = [
 [[package]]
 name = "mtgish-ir"
 version = "0.1.0"
+dependencies = [
+ "bincode",
+ "rust_syntax 0.0.1 (git+ssh://git@github.com/vishvananda/mtgish.git?rev=2a7fc07c42002a3365b14a3b7a4135ff7641cb62)",
+ "serde",
+ "syn",
+]
+
+[[package]]
+name = "mtgish-ir"
+version = "0.1.0"
+source = "git+ssh://git@github.com/vishvananda/mtgish.git?rev=4cfbe3d703362ad966cf619c93fb30ce1ee0b6f2#4cfbe3d703362ad966cf619c93fb30ce1ee0b6f2"
 dependencies = [
  "bincode",
  "rust_syntax 0.0.1 (git+ssh://git@github.com/vishvananda/mtgish.git?rev=2a7fc07c42002a3365b14a3b7a4135ff7641cb62)",
