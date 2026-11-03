@@ -8,6 +8,7 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 /// The card, and what its module has to say.
 const CARDS: &[(&str, &str)] = &[
+    ("Thousand-Faced Shadow", "g.create_token_copies_attacking(values_0, player_0, count_0, true, None)"),
     // The flashback permission tests only the type the card has.
     ("Memory Deluge", "fn ability_1_require(q: &dyn Query, asker: &Asker) -> bool { (q.chars(asker.source).is(CardType::Instant)) }"),
     ("Otherworldly Gaze", "fn ability_1_require(q: &dyn Query, asker: &Asker) -> bool { (q.chars(asker.source).is(CardType::Instant)) }"),
@@ -50,6 +51,7 @@ const CARDS: &[(&str, &str)] = &[
 
 /// Forms these cards no longer hold.
 const GONE: &[(&str, &str)] = &[
+    ("Thousand-Faced Shadow", "g.enter_attacking("),
     // Accepting an optional move does not prove that the card entered.
     ("Risen Reef", "(paid_1 as i64)"),
     // The last mode of a choice is the one left: it is not tested.
@@ -127,4 +129,18 @@ fn animation_establishes_creature_before_its_subtypes() {
     let human = code.find("EffectKind::SetCreatureType").unwrap();
     let soldier = code.find("EffectKind::AddSubtype").unwrap();
     assert!(creature < human && human < soldier, "{code}");
+}
+
+#[test]
+fn magma_opus_uses_shared_targets_and_tap_authority() {
+    let Some(modules) = modules(&["Magma Opus"]) else { return };
+    let file = render(&modules["Magma Opus"], "Magma Opus",
+        "Magma Opus deals 4 damage divided as you choose among any number of targets. Tap two target permanents. Create a 4/4 blue and red Elemental creature token. Draw two cards. {U/R}{U/R}, Discard this card: Create a Treasure token.",
+        Characteristics::Oracle).unwrap();
+    assert!(file.contains("targets::ANY.between(0, TargetSpec::ANY_NUMBER)"), "{file}");
+    assert!(file.contains("targets::PERMANENT.between(2, 2)"), "{file}");
+    assert!(file.contains("g.tap_together(&objects_1)"), "{file}");
+    assert!(!file.contains("became.is_none()"), "{file}");
+    assert!(!file.contains(".tapped"), "{file}");
+    assert!(!file.contains("Event::Tapped"), "{file}");
 }

@@ -4155,7 +4155,7 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
-        if entry.tapped {
+        if entry.tapped || !entry.states.is_empty() {
             return Err(gap("token copies for several players"));
         }
         let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;

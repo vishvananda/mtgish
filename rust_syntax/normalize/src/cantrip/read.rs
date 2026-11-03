@@ -2011,6 +2011,7 @@ impl Compiler {
             ObjectFilter::Attacking => {
                 // Combat forgets a creature the moment it leaves (506.4).
                 match self.reader {
+                    _ if c.entry_from => format!("q.state().attackers.iter().any(|a| a.id == {id})"),
                     Reader::Layer => format!("q.state().attackers.iter().any(|a| a.id == {id})"),
                     _ => format!("(q.state().attackers.iter().any(|a| a.id == {id}) || q.was_attacking({id}))"),
                 }

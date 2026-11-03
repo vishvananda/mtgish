@@ -404,7 +404,6 @@ pub(super) fn asks_even_of_one(out: &mut String, mark: usize) {
         "if eligible.len() < n as usize",
     ));
 }
-/// Target counts of a slot something is divided among: at least one.
 /// `object` is what a moved object became: "that card", in its new zone.
 pub(super) fn what_the_event_moved(object: &ObjectRef) -> bool {
     match object {
@@ -416,12 +415,6 @@ pub(super) fn what_the_event_moved(object: &ObjectRef) -> bool {
             _ => false,
         },
         _ => false,
-    }
-}
-pub(super) fn divided_among_some(count: String, divided: bool) -> String {
-    match divided {
-        true => count.replace(".between(0,", ".between(1,"),
-        false => count,
     }
 }
 /// Whether what becomes a target is a permanent, for a filter that names no

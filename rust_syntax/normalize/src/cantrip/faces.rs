@@ -50,12 +50,6 @@ pub(super) fn prevention_hint(hint: String) -> String {
     }
 }
 
-/// "Distribute ... among any number of target ...": none is a choice of any
-/// number (CR 115.1, 601.2d; Grove's Bounty), as it is not for damage divided.
-pub(super) fn distributed_among_any(line: Option<&str>) -> bool {
-    line.is_some_and(|line| line.contains("istribute ") && line.contains("any number of target"))
-}
-
 /// Whether a filter reads the exiled cards used to craft an object (CR 702.167c):
 /// those its craft cost exiled, linked to the card it was in exile, which
 /// `cantrip_mechanics::craft` follows to the permanent it became.

@@ -256,6 +256,7 @@ fn rendered(
             simplify_function(function, reads_data);
         }
     }
+    use_shared_target_specs(&mut file);
     use_shared_targets(&mut file);
     subject_always_an_object(&mut file);
     for item in &mut file.items {
@@ -1031,6 +1032,21 @@ fn truth(expr: &Expr) -> Option<bool> {
 /// What a condition that is settled leaves of its expression, and an iterator's filter
 /// that keeps everything.
 fn constant_condition(node: &Expr) -> Option<Expr> {
+    if let Expr::Binary(binary) = node {
+        let neutral = match binary.op {
+            syn::BinOp::And(_) => Some(true),
+            syn::BinOp::Or(_) => Some(false),
+            _ => None,
+        };
+        if let Some(neutral) = neutral {
+            if truth(&binary.left) == Some(neutral) {
+                return Some((*binary.right).clone());
+            }
+            if truth(&binary.right) == Some(neutral) {
+                return Some((*binary.left).clone());
+            }
+        }
+    }
     match node {
         Expr::Binary(binary) if truth(node).is_some() && !matches!(binary.op, syn::BinOp::And(_) | syn::BinOp::Or(_)) => {
             let value = truth(node)?;
@@ -2935,6 +2951,32 @@ fn single_targets(file: &File) -> BTreeMap<String, Vec<bool>> {
 
 /// The announced-target reads of a function with `targets::object`, wherever its
 /// target slot is certain: each earlier spec is one exact target.
+fn use_shared_target_specs(file: &mut File) {
+    // Share after the compiler's mode/slot analysis, which still needs its
+    // local predicates to tell implied modes apart.
+    let permanent: Expr = syn::parse_str("matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id))").unwrap();
+    let known = text_of(&permanent);
+    let names: BTreeSet<String> = file.items.iter().filter_map(|item| {
+        let Item::Fn(function) = item else { return None };
+        (body_text(&function.block) == known).then(|| function.sig.ident.to_string())
+    }).collect();
+    struct Shared<'a>(&'a BTreeSet<String>);
+    impl VisitMut for Shared<'_> {
+        fn visit_expr_mut(&mut self, node: &mut Expr) {
+            visit_mut::visit_expr_mut(self, node);
+            let Expr::Call(call) = node else { return };
+            if ident_of(&call.func).as_deref() == Some("target") && call.args.len() == 1
+                && ident_of(&call.args[0]).is_some_and(|name| self.0.contains(&name))
+            {
+                *node = parse_quote!(cantrip_mechanics::targets::PERMANENT);
+            }
+        }
+    }
+    for expr in definitions(file) {
+        Shared(&names).visit_expr_mut(expr);
+    }
+}
+
 fn use_shared_targets(file: &mut File) {
     let specs = single_targets(file);
     for item in &mut file.items {
@@ -3627,6 +3669,17 @@ fn abilities_of(file: &File) -> Abilities {
             _ => None,
         })
         .collect();
+    // A created token or emblem's callbacks belong to the instruction that
+    // creates its definition. Rule tables such as loss_rules have no printed
+    // constructor argument of their own (Gideon of the Trials).
+    let definitions: BTreeSet<String> = file.items.iter().filter_map(|item| {
+        let Item::Static(item) = item else { return None };
+        let Expr::Struct(card) = &*item.expr else { return None };
+        let emblem = card.fields.iter().any(|field| text_of(&field.member) == "name"
+            && matches!(&field.expr, Expr::Lit(syn::ExprLit { lit: Lit::Str(name), .. }) if name.value().ends_with(" emblem")));
+        (emblem || text_of(&item.expr).contains("token ! (")).then(|| item.ident.to_string())
+    }).collect();
+    let nodes: BTreeSet<String> = functions.union(&definitions).cloned().collect();
     let mut constructors = Constructors {
         found: vec![],
         functions: functions.clone(),
@@ -3648,12 +3701,16 @@ fn abilities_of(file: &File) -> Abilities {
     loop {
         let mut grew = false;
         for item in &file.items {
-            let Item::Fn(item) = item else { continue };
-            let Some(printed) = of_function.get(&item.sig.ident.to_string()).cloned() else {
+            let (name, body): (String, &dyn ToTokens) = match item {
+                Item::Fn(item) => (item.sig.ident.to_string(), &item.block),
+                Item::Static(item) if definitions.contains(&item.ident.to_string()) => (item.ident.to_string(), &item.expr),
+                _ => continue,
+            };
+            let Some(printed) = of_function.get(&name).cloned() else {
                 continue;
             };
-            for function in &functions {
-                if !of_function.contains_key(function) && mentions(&item.block, function) {
+            for function in &nodes {
+                if !of_function.contains_key(function) && mentions(&body.to_token_stream(), function) {
                     of_function.insert(function.clone(), printed.clone());
                     grew = true;
                 }

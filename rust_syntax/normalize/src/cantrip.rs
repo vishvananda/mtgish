@@ -1692,12 +1692,8 @@ impl Compiler {
             self.choosing = None;
             chosen_by.map_err(|e| e.at(&at))?;
             let count = count.map_err(|e| e.at(&at))?;
-            let count = lane_k::divided_among_some(
-                count,
-                spec.distribute.is_some()
-                    && lane_k::printed_otherwise(self.line_text(), "any number of target")
-                    && !faces::distributed_among_any(self.line_text()),
-            );
+            // Dividing constrains each chosen target's share (CR 601.2d), not
+            // the number chosen: "any number" still includes zero (107.1c).
             self.slots.insert(spec.slot.0, (i, spec.clone()));
             if spec.kind == TargetKind::DamageRecipient
                 && spec.players.is_none()

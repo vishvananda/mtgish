@@ -3079,17 +3079,17 @@ impl Compiler {
             TokenWords::Rules => "Words::NONE",
             TokenWords::CreatingEffect => "g.words(asker.source)",
         };
+        let creation = self.copy_token_creation(&format!("values_{id}"), "player", &format!("count_{id}"), entry)?;
         writeln!(
             out,
-            "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend(g.create_token_copies_tapped(values_{id}, player, count_{id}, {})?); }}",
+            "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend({creation}?); }}",
             self.fetch(count),
             self.fetch(power),
             self.fetch(toughness),
             self.fetch(self.players(players)?),
-            entry.tapped,
         )
         .unwrap();
-        self.token_state(id, entry, out)?;
+        self.copy_token_state(id, entry, out)?;
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(true)
     }
@@ -5043,6 +5043,26 @@ impl Compiler {
         )
         .unwrap();
         Ok(())
+    }
+    /// Establish a copy's attacking state in its entry operation, before ETB matching (CR 508.4, 603.6a).
+    pub(super) fn copy_token_creation(&self, values: &str, player: &str, count: &str, entry: &EntrySpec) -> Result<String> {
+        let tapped = entry.tapped;
+        Ok(match entry.states.as_slice() {
+            [EntryState::Attacking { player: defender, or_planeswalker: false }] => {
+                let defender = match defender {
+                    Some(defender) => format!("Some(Target::Player({}))", self.fetch(self.certain_player(defender)?)),
+                    None => "None".to_string(),
+                };
+                format!("g.create_token_copies_attacking({values}, {player}, {count}, {tapped}, {defender})")
+            }
+            _ => format!("g.create_token_copies_tapped({values}, {player}, {count}, {tapped})"),
+        })
+    }
+    pub(super) fn copy_token_state(&mut self, id: usize, entry: &EntrySpec, out: &mut String) -> Result<()> {
+        if matches!(entry.states.as_slice(), [EntryState::Attacking { or_planeswalker: false, .. }]) {
+            return Ok(());
+        }
+        self.token_state(id, entry, out)
     }
     /// What tokens already made do to take the state they enter in (CR 508.4).
     pub(super) fn token_state(

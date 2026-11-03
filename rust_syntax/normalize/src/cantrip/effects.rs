@@ -1868,16 +1868,20 @@ impl Compiler {
                 face_down: false,
             } => self.move_objects_p(id, objects, destination, entry, false, result, out)?,
             Operation::Tap { objects, tapped } => {
-                let turn = match tapped {
-                    true => format!("g.tap_together(&turned_{id});"),
-                    false => format!("cantrip_api::instruction(g, |g| {{ for &object in &turned_{id} {{ g.untap(object); }} }});"),
-                };
-                writeln!(
-                    out,
-                    "let objects_{id} = {}; let turned_{id}: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.state().obj(o).tapped != {tapped}).collect(); {turn}",
-                    self.acted_on(objects)?,
-                )
-                .unwrap();
+                if *tapped {
+                    // The core decides whether each object can tap. Record
+                    // what actually tapped only when a later instruction uses
+                    // the result; PR form removes unused history reads.
+                    writeln!(out,
+                        "let objects_{id} = {}; let before_{id} = g.history().head() as usize; g.tap_together(&objects_{id}); let turned_{id}: Vec<ObjectId> = g.history().all()[before_{id}..].iter().filter_map(|r| match r.event {{ Event::Tapped {{ permanent }} if objects_{id}.contains(&permanent) => Some(permanent), _ => None }}).collect();",
+                        self.fetch(self.objects(objects)?),
+                    ).unwrap();
+                } else {
+                    writeln!(out,
+                        "let objects_{id} = {}; let turned_{id}: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.state().obj(o).tapped).collect(); cantrip_api::instruction(g, |g| {{ for &object in &turned_{id} {{ g.untap(object); }} }});",
+                        self.acted_on(objects)?,
+                    ).unwrap();
+                }
                 self.moved.insert(result.0, format!("turned_{id}"));
                 // "Those creatures": all of them, whatever state each was in.
                 self.selections.insert(result.0, format!("objects_{id}"));
@@ -3118,8 +3122,9 @@ impl Compiler {
             let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
             writeln!(out, "let player_{id} = {}; let among_{id} = {}; let chosen_{id} = cantrip_mechanics::choose::select(g, player_{id}, asker.source, Purpose::CopyWhich, among_{id}, cantrip_mechanics::select::cards(cantrip_mechanics::select::exactly(1)))?.first().copied();", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?)).unwrap();
             let values = self.copy_values(&format!("chosen_{id}"), adjustments)?;
-            writeln!(out, "let values_{id} = {values}; let count_{id} = {}; let created_{id} = match values_{id} {{ Some(values) => g.create_token_copies_tapped(values, player_{id}, count_{id}, {})?, None => Vec::new() }};", self.fetch(amount), entry.tapped).unwrap();
-            self.token_state(id, entry, out)?;
+            let creation = self.copy_token_creation("values", &format!("player_{id}"), &format!("count_{id}"), entry)?;
+            writeln!(out, "let values_{id} = {values}; let count_{id} = {}; let created_{id} = match values_{id} {{ Some(values) => {creation}?, None => Vec::new() }};", self.fetch(amount)).unwrap();
+            self.copy_token_state(id, entry, out)?;
             self.creations.insert(result.0, format!("created_{id}"));
             return Ok(());
         }
@@ -3149,10 +3154,25 @@ impl Compiler {
                 );
             };
             let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
-            if adjustments.iter().any(adjusts) || entry.tapped {
-                let values = self.copy_values(&format!("original_{id}"), adjustments)?;
-                writeln!(out, "let original_{id} = {}; let values_{id} = {values}; let count_{id} = {}; let player_{id} = {}; let created_{id} = match values_{id} {{ Some(values) => g.create_token_copies_tapped(values, player_{id}, count_{id}, {})?, None => Vec::new() }};", self.fetch(self.damage_source(object)?), self.fetch(amount), self.fetch(self.certain_player(player)?), entry.tapped).unwrap();
-                self.token_state(id, entry, out)?;
+            if adjustments.iter().any(adjusts) || entry.tapped || !entry.states.is_empty() {
+                let single = self.slots.len() == 1 && matches!(object, ObjectRef::Target { slot, index: 0 }
+                    if self.slots.get(&slot.0).is_some_and(|(_, spec)| matches!(spec.kind, TargetKind::Object(_))
+                        && matches!(spec.count, Count::Exactly(Expr::Constant(1)))));
+                writeln!(out, "let original_{id} = {}; let count_{id} = {}; let player_{id} = {};", self.fetch(self.damage_source(object)?), self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+                if single {
+                    // The item's only target is compulsory: with no legal one
+                    // it never resolves (CR 608.2b), rather than making no copy
+                    // and proceeding through an unreachable match arm.
+                    let values = self.excepted("q.copiable_values(original)".into(), adjustments)?;
+                    let values = self.fetch(format!("{{ let original = original_{id}; {values} }}"));
+                    let creation = self.copy_token_creation(&format!("values_{id}"), &format!("player_{id}"), &format!("count_{id}"), entry)?;
+                    writeln!(out, "let Some(original_{id}) = original_{id} else {{ return Ok(()); }}; let values_{id} = {values}; let created_{id} = {creation}?;").unwrap();
+                } else {
+                    let values = self.copy_values(&format!("original_{id}"), adjustments)?;
+                    let creation = self.copy_token_creation("values", &format!("player_{id}"), &format!("count_{id}"), entry)?;
+                    writeln!(out, "let values_{id} = {values}; let created_{id} = match values_{id} {{ Some(values) => {creation}?, None => Vec::new() }};").unwrap();
+                }
+                self.copy_token_state(id, entry, out)?;
                 self.creations.insert(result.0, format!("created_{id}"));
                 return Ok(());
             }

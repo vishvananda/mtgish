@@ -29,11 +29,31 @@ fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
     g.exile_all(&cards);
     Ok(())
 }
+
 pub static CARD: CardDef = CardDef { spell: spell(&[], ability_0), ..CardDef::BLANK };
 "#;
     let file = render(raw, "Sample", "Return it to its owner's hand, then exile it.", Characteristics::Oracle).unwrap();
     assert!(file.contains("let mut cards"), "{file}");
     assert!(file.contains("(cards,) ="), "{file}");
+}
+
+#[test]
+fn an_emblems_rule_callbacks_quote_the_ability_that_creates_it() {
+    let raw = r#"
+use cantrip_api::*;
+fn emblem_0_ability_0_rule(_: &dyn Query, asker: &Asker, player: PlayerId, _: LossReason) -> bool { player == asker.controller }
+pub static EMBLEM: CardDef = CardDef { name: "Sample emblem", has_cost: false, loss_rules: &[emblem_0_ability_0_rule], ..CardDef::BLANK };
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    cantrip_mechanics::tokens::create_emblem(g, item.controller, &EMBLEM);
+    Ok(())
+}
+pub static CARD: CardDef = CardDef { abilities: &[ability(loyalty(0), ability_0, "0: You get an emblem with 'You can't lose the game.'")], ..CardDef::BLANK };
+"#;
+    let printed = "+1: Draw a card.\n0: You get an emblem with 'You can't lose the game.'";
+    let file = render(raw, "Sample", printed, Characteristics::Oracle).unwrap();
+    let rule = file.split("_: LossReason,").next().unwrap();
+    assert!(rule.contains("You get an emblem with"), "{file}");
+    assert!(!rule.contains("Draw a card"), "{file}");
 }
 
 #[test]
