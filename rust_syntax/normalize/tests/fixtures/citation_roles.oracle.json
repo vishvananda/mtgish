@@ -1,0 +1,361 @@
+[
+  {
+    "name": "Angus Mackenzie",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Angus Mackenzie",
+        "manaCost": "{G}{W}{U}",
+        "type": "Legendary Creature — Human Cleric",
+        "text": "{G}{W}{U}, {T}: Prevent all combat damage that would be dealt this turn. Activate only before the combat damage step.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Apprentice Wizard",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Apprentice Wizard",
+        "manaCost": "{1}{U}{U}",
+        "type": "Creature — Human Wizard",
+        "text": "{U}, {T}: Add {C}{C}{C}.",
+        "power": "0",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Boomerang",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Boomerang",
+        "manaCost": "{U}{U}",
+        "type": "Instant",
+        "text": "Return target permanent to its owner's hand."
+      }
+    ]
+  },
+  {
+    "name": "Colossus of Sardia",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Colossus of Sardia",
+        "manaCost": "{9}",
+        "type": "Artifact Creature — Golem",
+        "text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nThis creature doesn't untap during your untap step.\n{9}: Untap this creature. Activate only during your upkeep.",
+        "power": "9",
+        "toughness": "9"
+      }
+    ]
+  },
+  {
+    "name": "Desert",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Desert",
+        "type": "Land — Desert",
+        "text": "{T}: Add {C}.\n{T}: This land deals 1 damage to target attacking creature. Activate only during the end of combat step."
+      }
+    ]
+  },
+  {
+    "name": "Desert Twister",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Desert Twister",
+        "manaCost": "{4}{G}{G}",
+        "type": "Sorcery",
+        "text": "Destroy target permanent."
+      }
+    ]
+  },
+  {
+    "name": "Divine Transformation",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Divine Transformation",
+        "manaCost": "{2}{W}{W}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature gets +3/+3."
+      }
+    ]
+  },
+  {
+    "name": "Dwarven Weaponsmith",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dwarven Weaponsmith",
+        "manaCost": "{1}{R}",
+        "type": "Creature — Dwarf Artificer",
+        "text": "{T}, Sacrifice an artifact: Put a +1/+1 counter on target creature. Activate only during your upkeep.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Ebony Horse",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ebony Horse",
+        "manaCost": "{3}",
+        "type": "Artifact",
+        "text": "{2}, {T}: Untap target attacking creature you control. Prevent all combat damage that would be dealt to and dealt by that creature this turn."
+      }
+    ]
+  },
+  {
+    "name": "Fishliver Oil",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Fishliver Oil",
+        "manaCost": "{1}{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature (Target a creature as you cast this. This card enters attached to that creature.)\nEnchanted creature has islandwalk. (It can't be blocked as long as defending player controls an Island.)"
+      }
+    ]
+  },
+  {
+    "name": "Gaseous Form",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gaseous Form",
+        "manaCost": "{2}{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nPrevent all combat damage that would be dealt to and dealt by enchanted creature."
+      }
+    ]
+  },
+  {
+    "name": "Gate to Phyrexia",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gate to Phyrexia",
+        "manaCost": "{B}{B}",
+        "type": "Enchantment",
+        "text": "Sacrifice a creature: Destroy target artifact. Activate only during your upkeep and only once each turn."
+      }
+    ]
+  },
+  {
+    "name": "Giant Strength",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Giant Strength",
+        "manaCost": "{R}{R}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature gets +2/+2."
+      }
+    ]
+  },
+  {
+    "name": "Hell's Caretaker",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Hell's Caretaker",
+        "manaCost": "{3}{B}",
+        "type": "Creature — Horror",
+        "text": "{T}, Sacrifice a creature: Return target creature card from your graveyard to the battlefield. Activate only during your upkeep.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Hyperion Blacksmith",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Hyperion Blacksmith",
+        "manaCost": "{1}{R}{R}",
+        "type": "Creature — Human Artificer",
+        "text": "{T}: You may tap or untap target artifact an opponent controls.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Immolation",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Immolation",
+        "manaCost": "{R}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature gets +2/-2."
+      }
+    ]
+  },
+  {
+    "name": "Jandor's Saddlebags",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Jandor's Saddlebags",
+        "manaCost": "{2}",
+        "type": "Artifact",
+        "text": "{3}, {T}: Untap target creature."
+      }
+    ]
+  },
+  {
+    "name": "Nebuchadnezzar",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Nebuchadnezzar",
+        "manaCost": "{3}{U}{B}",
+        "type": "Legendary Creature — Human Wizard",
+        "text": "{X}, {T}: Choose a card name. Target opponent reveals X cards at random from their hand. Then that player discards all cards with that name revealed this way. Activate only during your turn.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Princess Lucrezia",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Princess Lucrezia",
+        "manaCost": "{3}{U}{U}{B}",
+        "type": "Legendary Creature — Human Wizard",
+        "text": "{T}: Add {U}.",
+        "power": "5",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Quarum Trench Gnomes",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Quarum Trench Gnomes",
+        "manaCost": "{3}{R}",
+        "type": "Creature — Gnome",
+        "text": "{T}: If target Plains is tapped for mana, it produces colorless mana instead of white mana. (This effect lasts indefinitely.)",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Recall",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Recall",
+        "manaCost": "{X}{X}{U}",
+        "type": "Sorcery",
+        "text": "Discard X cards, then return a card from your graveyard to your hand for each card discarded this way. Exile Recall."
+      }
+    ]
+  },
+  {
+    "name": "Reset",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Reset",
+        "manaCost": "{U}{U}",
+        "type": "Instant",
+        "text": "Cast this spell only during an opponent's turn after their upkeep step.\nUntap all lands you control."
+      }
+    ]
+  },
+  {
+    "name": "Reverberation",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Reverberation",
+        "manaCost": "{2}{U}{U}",
+        "type": "Instant",
+        "text": "All damage that would be dealt this turn by target sorcery spell is dealt to that spell's controller instead."
+      }
+    ]
+  },
+  {
+    "name": "Riven Turnbull",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Riven Turnbull",
+        "manaCost": "{5}{U}{B}",
+        "type": "Legendary Creature — Human Advisor",
+        "text": "{T}: Add {B}.",
+        "power": "5",
+        "toughness": "7"
+      }
+    ]
+  },
+  {
+    "name": "Seeker",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Seeker",
+        "manaCost": "{2}{W}{W}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature can't be blocked except by artifact creatures and/or white creatures."
+      }
+    ]
+  },
+  {
+    "name": "Shimian Night Stalker",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Shimian Night Stalker",
+        "manaCost": "{3}{B}{B}",
+        "type": "Creature — Nightstalker",
+        "text": "{B}, {T}: All damage that would be dealt to you this turn by target attacking creature is dealt to this creature instead.",
+        "power": "4",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Sunastian Falconer",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sunastian Falconer",
+        "manaCost": "{3}{R}{G}",
+        "type": "Legendary Creature — Human Shaman",
+        "text": "{T}: Add {C}{C}.",
+        "power": "4",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Teleport",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Teleport",
+        "manaCost": "{U}{U}{U}",
+        "type": "Instant",
+        "text": "Cast this spell only during the declare attackers step.\nTarget creature can't be blocked this turn."
+      }
+    ]
+  }
+]

@@ -3804,6 +3804,84 @@ enum Role {
     /// The damage a prevention effect applies to (CR 615.1).
     Prevention,
     Mana,
+    Cost,
+    CastCondition,
+    ActivationCondition,
+    TriggerCondition,
+    Replacement,
+}
+
+/// A callback's API position determines its rule, even when it shares the same Rust signature with another role.
+/// An ability's activation condition is not a resolving effect or a trigger's intervening condition.
+fn callback_roles(file: &File) -> BTreeMap<String, Role> {
+    struct Roles {
+        functions: BTreeSet<String>,
+        found: BTreeMap<String, Role>,
+    }
+    impl Roles {
+        fn mark(&mut self, node: &Expr, role: Role) {
+            for name in &self.functions {
+                if mentions(node, name) {
+                    self.found.insert(name.clone(), role);
+                }
+            }
+        }
+    }
+    fn constructor(expr: &Expr) -> Option<String> {
+        match expr {
+            Expr::MethodCall(call) => constructor(&call.receiver),
+            Expr::Call(call) => match &*call.func {
+                Expr::Path(path) => path.path.segments.last().map(|s| s.ident.to_string()),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+    impl<'ast> Visit<'ast> for Roles {
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            if let Expr::Path(path) = &*call.func {
+                match path.path.segments.last().map(|s| s.ident.to_string()).as_deref() {
+                    Some("target") => {
+                        if let Some(callback) = call.args.first() { self.mark(callback, Role::Target); }
+                    }
+                    Some("sacrifice" | "tap_objects" | "discard_cards" | "exile_from_graveyard") => {
+                        if let Some(callback) = call.args.iter().nth(1) { self.mark(callback, Role::Cost); }
+                    }
+                    _ => {}
+                }
+            }
+            visit::visit_expr_call(self, call);
+        }
+        fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            if call.method == "condition" {
+                let role = match constructor(&call.receiver).as_deref() {
+                    Some("triggered" | "chapter") => Some(Role::TriggerCondition),
+                    Some("ability" | "activated" | "mana_ability" | "loyalty_ability") => Some(Role::ActivationCondition),
+                    _ => None,
+                };
+                if let (Some(role), Some(callback)) = (role, call.args.first()) { self.mark(callback, role); }
+            }
+            visit::visit_expr_method_call(self, call);
+        }
+        fn visit_expr_struct(&mut self, expr: &'ast syn::ExprStruct) {
+            for field in &expr.fields {
+                match text_of(&field.member).as_str() {
+                    "cast_only_if" => self.mark(&field.expr, Role::CastCondition),
+                    "enchant" => self.mark(&field.expr, Role::Target),
+                    _ => {}
+                }
+            }
+            visit::visit_expr_struct(self, expr);
+        }
+    }
+    let mut roles = Roles {
+        functions: file.items.iter().filter_map(|item| match item {
+            Item::Fn(f) => Some(f.sig.ident.to_string()), _ => None,
+        }).collect(),
+        found: BTreeMap::new(),
+    };
+    roles.visit_file(file);
+    roles.found
 }
 
 /// `token_1_ability_0`, lifted out of its module, as `ability_0`.
@@ -3842,6 +3920,7 @@ fn spell_text(printed: &str) -> String {
 
 fn function_names(file: &File, printed: &str) -> Names {
     let abilities = abilities_of(file);
+    let roles = callback_roles(file);
     let spell_text = spell_text(printed);
     let mut renamed = BTreeMap::new();
     let mut quotes = BTreeMap::new();
@@ -3852,7 +3931,12 @@ fn function_names(file: &File, printed: &str) -> Names {
         let text = abilities.of_function.get(&old).filter(|text| !text.trim().is_empty()).cloned();
         let source = text.clone().unwrap_or_else(|| spell_text.clone());
         let parts: Vec<&str> = own_name(&old).split('_').collect();
-        let role = if old.ends_with("_mana") {
+        let signature = text_of(&function.sig.inputs);
+        let role = if let Some(role) = roles.get(&old) {
+            *role
+        } else if signature.contains("Proposal") {
+            Role::Replacement
+        } else if old.ends_with("_mana") {
             Role::Mana
         } else if old.contains("event") {
             Role::Trigger
@@ -3941,7 +4025,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         ("damage", "120.3"),
         ("destroy", "701.8a"),
         ("draw", "121.1"),
-        ("exile", "406.3"),
+        ("exile", "701.13a"),
         ("sacrifice", "701.21a"),
         ("discard", "701.9a"),
         ("gain_life", "119.3"),
@@ -3968,7 +4052,12 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Static => "604.1",
         Role::Lasting => "611.2c",
         Role::Prevention => "615.1",
-        Role::Mana => "605.3a",
+        Role::Mana => "605.1a",
+        Role::Cost => "118.1",
+        Role::CastCondition => "601.3",
+        Role::ActivationCondition => "602.5",
+        Role::TriggerCondition => "603.4",
+        Role::Replacement => "614.1a",
         Role::Effect => "608.2",
     }];
     let body = text_of(&function.block);
@@ -4015,7 +4104,22 @@ fn document_card(file: &mut File, printed: &str) {
     };
     if !has_function {
         let first = printed.lines().next().unwrap_or_default().trim();
-        let line = format!(" \"{first}\" (CR 604.1).");
+        if first.is_empty() { return; }
+        let body = text_of(&card.expr);
+        let rule = if is_keyword_line(first) {
+            "702.1"
+        } else if matches!(&*card.expr, Expr::Struct(def) if def.fields.iter().any(|f| text_of(&f.member) == "spell" && text_of(&f.expr) != "None")) {
+            "608.2"
+        } else if first.starts_with("Whenever ") || first.starts_with("When ") || first.starts_with("At ") {
+            "603.1"
+        } else if body.contains("mana_ability") {
+            "605.1a"
+        } else if first.contains(':') {
+            "602.1"
+        } else {
+            "604.1"
+        };
+        let line = format!(" \"{first}\" (CR {rule}).");
         card.attrs.insert(0, parse_quote!(#[doc = #line]));
     }
 }
