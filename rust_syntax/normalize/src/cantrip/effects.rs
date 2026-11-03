@@ -2974,8 +2974,20 @@ impl Compiler {
                 self.fetch(self.certain_player(player)?)
             )
             .unwrap();
-            let offered = self.top_card_offered(id, body, out)? + &faces::reveal_offered(self, body);
-            format!("{offered}cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?")
+            let offered = self.asked_if_there(body) + &self.top_card_offered(id, body, out)? + &faces::reveal_offered(self, body);
+            let purpose = match body.instructions.as_slice() {
+                [Instruction::Effect { operation: Operation::Draw {
+                    players: PlayerSet::One(PlayerRef::Target { .. }), amount: Expr::Constant(n),
+                }, .. }] => {
+                    let amount = if *n == 1 { "a card".to_string() } else { format!("{n} cards") };
+                    let question = quoted(&format!("have the targeted player draw {amount}?"));
+                    let context = quoted(self.line_text().unwrap_or(""));
+                    writeln!(self.functions, "static PLAYER_DRAW_QUESTION_{id}: Question = Question::new(\"HavePlayerDraw\", {question}, {context}, \"Have them draw\", \"Decline\");").unwrap();
+                    format!("Purpose::Ask(&PLAYER_DRAW_QUESTION_{id})")
+                }
+                _ => "Purpose::Optional".into(),
+            };
+            format!("{offered}cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, {purpose})?")
         } else {
             "true".to_string()
         };

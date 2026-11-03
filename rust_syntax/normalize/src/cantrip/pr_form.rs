@@ -269,6 +269,7 @@ fn rendered(
     if !reads_subject {
         use_shared_triggers(&mut file);
     }
+    use_shared_subject_triggers(&mut file);
     use_shared_mana(&mut file);
     use_shared_effects(&mut file);
     one_target_lists(&mut file);
@@ -4209,6 +4210,52 @@ fn use_shared_effects(file: &mut File) {
 
 fn body_text(block: &Block) -> String {
     block.stmts.iter().map(text_of).collect::<Vec<_>>().join(" ")
+}
+
+fn use_shared_subject_triggers(file: &mut File) {
+    // This helper carries the same attacking object as the generated matcher.
+    // A matcher whose defender/data are read keeps those extra bindings and
+    // therefore does not match this form.
+    let known: Block = parse_quote!({
+        let Event::Attacks { attacker, .. } = event else { return None; };
+        let id = *attacker;
+        let subject = Target::Object(id);
+        if q.state().attackers.len() == 1
+            && (q.chars(id).is(CardType::Creature) && asker.controller == q.controller(id))
+        {
+            return Fired::about(subject);
+        }
+        None
+    });
+    let known = body_text(&known);
+    let named: BTreeSet<String> = file.items.iter().filter_map(|item| {
+        let Item::Fn(function) = item else { return None };
+        if !body_text(&function.block).contains("attackers . len") {
+            return None;
+        }
+        // The final formatting pass has not yet changed `if let Event ...`
+        // into an early guard. Compare that canonical form without changing
+        // the event shapes used by the other shared-trigger recognizers.
+        let mut canonical = File { shebang: None, attrs: vec![], items: vec![item.clone()] };
+        events_first(&mut canonical);
+        let Item::Fn(canonical) = &canonical.items[0] else { unreachable!() };
+        (body_text(&canonical.block) == known).then(|| function.sig.ident.to_string())
+    }).collect();
+    struct Replace<'a>(&'a BTreeSet<String>);
+    impl VisitMut for Replace<'_> {
+        fn visit_expr_mut(&mut self, node: &mut Expr) {
+            visit_mut::visit_expr_mut(self, node);
+            let Expr::Call(call) = node else { return };
+            if ident_of(&call.func).as_deref() == Some("when_asked") && call.args.len() == 2
+                && ident_of(&call.args[1]).is_some_and(|name| self.0.contains(&name))
+            {
+                *node = parse_quote!(cantrip_mechanics::triggers::CREATURE_YOU_CONTROL_ATTACKS_ALONE);
+            }
+        }
+    }
+    for expr in definitions(file) {
+        Replace(&named).visit_expr_mut(expr);
+    }
 }
 
 fn use_shared_triggers(file: &mut File) {

@@ -1,0 +1,217 @@
+[
+  {
+    "name": "Kyoshi Warriors",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Kyoshi Warriors",
+        "manaCost": "{3}{W}",
+        "type": "Creature — Human Warrior Ally",
+        "text": "When this creature enters, create a 1/1 white Ally creature token.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Master Piandao",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Master Piandao",
+        "manaCost": "{4}{W}",
+        "type": "Legendary Creature — Human Warrior Ally",
+        "text": "First strike\nWhenever Master Piandao attacks, look at the top four cards of your library. You may reveal an Ally, Equipment, or Lesson card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+        "power": "4",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Momo, Playful Pet",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Momo, Playful Pet",
+        "manaCost": "{W}",
+        "type": "Legendary Creature — Lemur Bat Ally",
+        "text": "Flying, vigilance\nWhen Momo leaves the battlefield, choose one —\n• Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\n• Put a +1/+1 counter on target creature you control.\n• Scry 2.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Path to Redemption",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Path to Redemption",
+        "manaCost": "{1}{W}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature can't attack or block.\n{5}, Sacrifice this Aura: Exile enchanted creature. Create a 1/1 white Ally creature token. Activate only during your turn."
+      }
+    ]
+  },
+  {
+    "name": "Rabaroo Troop",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Rabaroo Troop",
+        "manaCost": "{3}{W}{W}",
+        "type": "Creature — Rabbit Kangaroo",
+        "text": "Landfall — Whenever a land you control enters, this creature gains flying until end of turn and you gain 1 life.\nPlainscycling {2} ({2}, Discard this card: Search your library for a Plains card, reveal it, put it into your hand, then shuffle.)",
+        "power": "3",
+        "toughness": "5"
+      }
+    ]
+  },
+  {
+    "name": "Razor Rings",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Razor Rings",
+        "manaCost": "{1}{W}",
+        "type": "Instant",
+        "text": "Razor Rings deals 4 damage to target attacking or blocking creature. You gain life equal to the excess damage dealt this way."
+      }
+    ]
+  },
+  {
+    "name": "Sandbenders' Storm",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sandbenders' Storm",
+        "manaCost": "{3}{W}",
+        "type": "Instant",
+        "text": "Choose one —\n• Destroy target creature with power 4 or greater.\n• Earthbend 3. (Target land you control becomes a 0/0 creature with haste that's still a land. Put three +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)"
+      }
+    ]
+  },
+  {
+    "name": "South Pole Voyager",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "South Pole Voyager",
+        "manaCost": "{1}{W}",
+        "type": "Creature — Human Scout Ally",
+        "text": "Whenever this creature or another Ally you control enters, you gain 1 life. If this is the second time this ability has resolved this turn, draw a card.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Southern Air Temple",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Southern Air Temple",
+        "manaCost": "{3}{W}",
+        "type": "Legendary Enchantment — Shrine",
+        "text": "When Southern Air Temple enters, put X +1/+1 counters on each creature you control, where X is the number of Shrines you control.\nWhenever another Shrine you control enters, put a +1/+1 counter on each creature you control."
+      }
+    ]
+  },
+  {
+    "name": "Team Avatar",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Team Avatar",
+        "manaCost": "{2}{W}",
+        "type": "Enchantment",
+        "text": "Whenever a creature you control attacks alone, it gets +X/+X until end of turn, where X is the number of creatures you control.\n{2}{W}, Discard this card: It deals damage equal to the number of creatures you control to target creature."
+      }
+    ]
+  },
+  {
+    "name": "The Legend of Yangchen // Avatar Yangchen",
+    "layout": "transform",
+    "cards": [
+      {
+        "name": "The Legend of Yangchen",
+        "manaCost": "{3}{W}{W}",
+        "type": "Enchantment — Saga",
+        "text": "(As this Saga enters and after your draw step, add a lore counter.)\nI — Starting with you, each player chooses up to one permanent with mana value 3 or greater from among permanents your opponents control. Exile those permanents.\nII — You may have target opponent draw three cards. If you do, draw three cards.\nIII — Exile this Saga, then return it to the battlefield transformed under your control."
+      },
+      {
+        "name": "Avatar Yangchen",
+        "type": "Legendary Creature — Avatar",
+        "text": "Flying\nWhenever you cast your second spell each turn, airbend up to one other target nonland permanent. (Exile it. While it's exiled, its owner may cast it for {2} rather than its mana cost.)",
+        "power": "4",
+        "toughness": "5"
+      }
+    ]
+  },
+  {
+    "name": "United Front",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "United Front",
+        "manaCost": "{X}{W}{W}",
+        "type": "Sorcery",
+        "text": "Create X 1/1 white Ally creature tokens, then put a +1/+1 counter on each creature you control."
+      }
+    ]
+  },
+  {
+    "name": "Vengeful Villagers",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Vengeful Villagers",
+        "manaCost": "{3}{W}",
+        "type": "Creature — Human Citizen",
+        "text": "Whenever this creature attacks, choose target creature an opponent controls. Tap it, then you may sacrifice an artifact or creature. If you do, put a stun counter on the chosen creature. (If a permanent with a stun counter would become untapped, remove one from it instead.)",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Water Tribe Captain",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Water Tribe Captain",
+        "manaCost": "{2}{W}",
+        "type": "Creature — Human Soldier Ally",
+        "text": "{5}: Creatures you control get +1/+1 until end of turn.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Water Tribe Rallier",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Water Tribe Rallier",
+        "manaCost": "{1}{W}",
+        "type": "Creature — Human Soldier Ally",
+        "text": "Waterbend {5}: Look at the top four cards of your library. You may reveal a creature card with power 3 or less from among them and put it into your hand. Put the rest on the bottom of your library in a random order. (While paying a waterbend cost, you can tap your artifacts and creatures to help. Each one pays for {1}.)",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Yip Yip!",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Yip Yip!",
+        "manaCost": "{W}",
+        "type": "Instant — Lesson",
+        "text": "Target creature you control gets +2/+2 until end of turn. If that creature is an Ally, it also gains flying until end of turn."
+      }
+    ]
+  }
+]

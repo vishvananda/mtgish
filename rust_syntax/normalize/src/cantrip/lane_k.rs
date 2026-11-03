@@ -771,6 +771,7 @@ struct Taking<'a> {
     most: u8,
     lets: Vec<String>,
     wanted: String,
+    test: String,
     rest: &'static str,
 }
 
@@ -865,6 +866,7 @@ fn taking_from<'a>(looker: &PlayerRef, body: &'a [Instruction], id: usize) -> Op
         most,
         lets,
         wanted,
+        test,
         rest,
     })
 }
@@ -1934,9 +1936,18 @@ impl Compiler {
             most,
             lets,
             wanted,
+            test,
             rest,
         } = taking;
-        writeln!(out, "let player_{id} = {looker}; let depth_{id} = {depth}; {} let taken_{id} = cantrip_mechanics::library::look_at_top(g, player_{id}, asker.source, depth_{id}, ({least}, {most}), {reveal}, {wanted}, cantrip_mechanics::library::Rest::{rest})?;", lets.join(" ")).unwrap();
+        writeln!(out, "let player_{id} = {looker}; let depth_{id} = {depth}; {}", lets.join(" ")).unwrap();
+        if most == 1 {
+            // A single pick uses the existing selection interaction. Keep the
+            // looked-at cards visible and restrict which one may be revealed.
+            let count = if least == 0 { "UpTo" } else { "AsManyAsCan" };
+            writeln!(out, "let looked_{id} = cantrip_mechanics::top_of_library(g, player_{id}, depth_{id}); let eligible_{id} = looked_{id}.iter().copied().filter(|&object| {{ let c = g.chars(object); {test} }}).collect::<Vec<ObjectId>>(); let rule_{id} = cantrip_mechanics::select::Selection::listed(cantrip_mechanics::select::Count::{count}(1), &looked_{id}, eligible_{id}); let taken_{id} = cantrip_mechanics::library::look_at_top_select(g, player_{id}, asker.source, depth_{id}, rule_{id}, {reveal}, cantrip_mechanics::library::Rest::{rest})?;").unwrap();
+        } else {
+            writeln!(out, "let taken_{id} = cantrip_mechanics::library::look_at_top(g, player_{id}, asker.source, depth_{id}, ({least}, {most}), {reveal}, {wanted}, cantrip_mechanics::library::Rest::{rest})?;").unwrap();
+        }
         if most == 1 {
             self.single.insert(chosen.0);
         }
@@ -2221,6 +2232,13 @@ impl Compiler {
             first = group;
         }
         match first.instructions.first() {
+            Some(Instruction::Effect {
+                operation: Operation::Draw { players: PlayerSet::One(player @ PlayerRef::Target { .. }), .. },
+                ..
+            }) => match self.player(player) {
+                Ok(read) => format!("({}).is_some() && ", self.fetch(read)),
+                Err(_) => String::new(),
+            },
             Some(Instruction::Effect {
                 operation:
                     Operation::Move {

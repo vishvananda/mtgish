@@ -936,6 +936,9 @@ impl Compiler {
         match (conditions.as_slice(), allowed) {
             ([], None) => {}
             ([], Some(function)) => def.push_str(&format!(".condition({function})")),
+            ([Condition::PlayerIsActive(PlayerRef::AbilityController)], None) => {
+                def.push_str(".timing(Timing::OwnTurn)");
+            }
             ([condition], None) => {
                 let function = self.activation_condition(condition, &format!("{label}_if"))?;
                 def.push_str(&format!(".condition({function})"));
