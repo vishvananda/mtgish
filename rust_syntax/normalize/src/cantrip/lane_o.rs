@@ -543,7 +543,7 @@ impl Compiler {
     /// since the function can't read the resolution. False, and nothing written,
     /// where a change is no rule Cantrip keeps of a set. For a Cantrip without
     /// `lasting-rules` the same code is written as holes.
-    fn lasting_rules(
+    pub(super) fn lasting_rules(
         &mut self,
         affected: &ObjectSet,
         changes: &[Change],
@@ -2074,6 +2074,26 @@ impl Compiler {
         self.tabled = tabled;
         let entries = std::mem::replace(&mut self.holding, held).unwrap_or_default();
         let mut grown = grown?;
+        // Cantrip's delayed table can also hold a granted static in layers
+        // 6-7. Keep the layer, reach, callback and text of the compiled static.
+        let statics = std::mem::take(&mut grown.statics);
+        let simple_statics = entries.is_empty()
+            && grown.only_abilities() && grown.abilities.is_empty()
+            && grown.spell == "None" && grown.enchant == "None" && grown.protection == 0
+            && !statics.is_empty()
+            && statics.iter().all(|definition| ["Ability", "PtDefine", "PtSet", "PtModify", "PtSwitch"].iter()
+                .any(|layer| definition.starts_with(&format!("static_ability(Layer::{layer}, ")) && definition.ends_with(')')));
+        if simple_statics {
+            let mut refs = Vec::new();
+            for definition in statics {
+                self.delayed.push(definition.replacen("static_ability(", "granted_static_ability(", 1));
+                let index = self.delayed.len() - 1;
+                refs.push(if tabled { format!("GrantedAbility::Delayed({index})") }
+                    else { format!("AbilityRef::delayed({card}, {index})") });
+            }
+            return Ok(refs);
+        }
+        grown.statics = statics;
         let plain = entries.is_empty()
             && grown.only_abilities()
             && !grown.abilities.is_empty()

@@ -1,0 +1,136 @@
+[
+  {
+    "name": "Chaoslace",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Chaoslace",
+        "manaCost": "{R}",
+        "type": "Instant",
+        "text": "Target spell or permanent becomes red. (Its mana symbols remain unchanged.)"
+      }
+    ]
+  },
+  {
+    "name": "Deathlace",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Deathlace",
+        "manaCost": "{B}",
+        "type": "Instant",
+        "text": "Target spell or permanent becomes black. (Mana symbols on that permanent remain unchanged.)"
+      }
+    ]
+  },
+  {
+    "name": "Lifelace",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Lifelace",
+        "manaCost": "{G}",
+        "type": "Instant",
+        "text": "Target spell or permanent becomes green. (Mana symbols on that permanent remain unchanged.)"
+      }
+    ]
+  },
+  {
+    "name": "Nettling Imp",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Nettling Imp",
+        "manaCost": "{2}{B}",
+        "type": "Creature \u2014 Imp",
+        "text": "{T}: Choose target non-Wall creature the active player has controlled continuously since the beginning of the turn. That creature attacks this turn if able. Destroy it at the beginning of the next end step if it didn't attack this turn. Activate only during an opponent's turn, before attackers are declared.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Purelace",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Purelace",
+        "manaCost": "{W}",
+        "type": "Instant",
+        "text": "Target spell or permanent becomes white. (Mana symbols on that permanent remain unchanged.)"
+      }
+    ]
+  },
+  {
+    "name": "Siren's Call",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Siren's Call",
+        "manaCost": "{U}",
+        "type": "Instant",
+        "text": "Cast this spell only during an opponent's turn, before attackers are declared.\nCreatures the active player controls attack this turn if able.\nAt the beginning of the next end step, destroy all non-Wall creatures that player controls that didn't attack this turn. Ignore this effect for each creature the player didn't control continuously since the beginning of the turn."
+      }
+    ]
+  },
+  {
+    "name": "Thoughtlace",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Thoughtlace",
+        "manaCost": "{U}",
+        "type": "Instant",
+        "text": "Target spell or permanent becomes blue. (Mana symbols on that permanent remain unchanged.)"
+      }
+    ]
+  },
+  {
+    "name": "Earthbind",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Earthbind",
+        "manaCost": "{R}",
+        "type": "Enchantment \u2014 Aura",
+        "text": "Enchant creature\nWhen this Aura enters, if enchanted creature has flying, this Aura deals 2 damage to that creature and this Aura gains \"Enchanted creature loses flying.\""
+      }
+    ]
+  },
+  {
+    "name": "Kudzu",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Kudzu",
+        "manaCost": "{1}{G}{G}",
+        "type": "Enchantment \u2014 Aura",
+        "text": "Enchant land\nWhen enchanted land becomes tapped, destroy it. That land's controller may attach this Aura to a land of their choice."
+      }
+    ]
+  },
+  {
+    "name": "Lich",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Lich",
+        "manaCost": "{B}{B}{B}{B}",
+        "type": "Enchantment",
+        "text": "As this enchantment enters, you lose life equal to your life total.\nYou don't lose the game for having 0 or less life.\nIf you would gain life, draw that many cards instead.\nWhenever you're dealt damage, sacrifice that many nontoken permanents. If you can't, you lose the game.\nWhen this enchantment is put into a graveyard from the battlefield, you lose the game."
+      }
+    ]
+  },
+  {
+    "name": "Volcanic Eruption",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Volcanic Eruption",
+        "manaCost": "{X}{U}{U}{U}",
+        "type": "Sorcery",
+        "text": "Destroy X target Mountains. Volcanic Eruption deals damage to each creature and each player equal to the number of Mountains put into a graveyard this way."
+      }
+    ]
+  }
+]

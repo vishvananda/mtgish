@@ -252,6 +252,7 @@ impl Compiler {
     fn object_event(&mut self, event: &ObjectEvent, objects: &ObjectFilter) -> Result<Matched> {
         let plain = Frame {
             object: Some(Carried::Subject),
+            subject_is_attachment: matches!(objects, ObjectFilter::SameObject(ObjectRef::AttachedTo(host)) if matches!(**host, ObjectRef::Source)),
             subject_is_source: match objects {
                 ObjectFilter::All(all) => all.iter().any(|f| matches!(f, ObjectFilter::SameObject(ObjectRef::Source))),
                 f => matches!(f, ObjectFilter::SameObject(ObjectRef::Source)),

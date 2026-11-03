@@ -1405,6 +1405,22 @@ impl Compiler {
                 );
             }
             Operation::ChangeSpell { subject, changes } => {
+                // A characteristic change on a spell is an ordinary layered
+                // effect. Cantrip carries it onto the permanent (CR 400.7a).
+                // Cost, entry and casting changes still need their own API.
+                if let SpellSubject::One(spell) = subject {
+                    if changes.iter().all(|change| matches!(change, Change::Colors { mode: ChangeMode::Set, .. })) {
+                        let spell = self.fetch(self.object(spell)?);
+                        let mut effects = Vec::new();
+                        for change in changes {
+                            for kind in self.effect_kinds(change)? {
+                                effects.push(format!("let kind = {{ let q: &dyn Query = g; {kind} }}; g.add_effect(asker.source, spell, kind, Duration::Indefinite);"));
+                            }
+                        }
+                        writeln!(out, "if let Some(spell) = {spell} {{ cantrip_api::instruction(g, |g| {{ {} }}); }}", effects.join(" ")).unwrap();
+                        return Ok(());
+                    }
+                }
                 let changes = changes
                     .iter()
                     .map(|change| self.spell_change(change))

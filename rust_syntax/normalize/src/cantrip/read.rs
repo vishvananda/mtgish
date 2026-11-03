@@ -124,6 +124,8 @@ pub(super) struct Frame {
     /// A self-event's carried object is the ability source, including when its
     /// target predicate is asked after the matcher has returned.
     pub subject_is_source: bool,
+    /// The event names the object this Aura was attached to when it triggered.
+    pub subject_is_attachment: bool,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -151,6 +153,7 @@ impl Frame {
             subject_controller: same(self.subject_controller, other.subject_controller),
             battlefield_entry: self.battlefield_entry && other.battlefield_entry,
             subject_is_source: self.subject_is_source && other.subject_is_source,
+            subject_is_attachment: self.subject_is_attachment && other.subject_is_attachment,
         }
     }
 }
@@ -477,6 +480,17 @@ impl Compiler {
                 format!("Some({})", candidate.id)
             }
             ObjectRef::Affected if self.affected_in_scope => "Some(affected)".into(),
+            // Some source records use HostPermanent for the anaphoric "it"
+            // and "that land". Those words refer to the triggering land,
+            // even after this Aura has become attached to another one.
+            ObjectRef::AttachedTo(host)
+                if matches!(**host, ObjectRef::Source)
+                    && self.event_at == EventAt::Item
+                    && self.frame.subject_is_attachment
+                    && self.line_text().is_some_and(|line| line.contains("destroy it") && line.contains("That land's controller")) =>
+            {
+                self.carried_object(self.frame.object)?
+            }
             ObjectRef::AttachedTo(host) => format!(
                 "{}.and_then(|o: ObjectId| q.state().obj(o).attached_to)",
                 self.object(host)?
@@ -1389,8 +1403,11 @@ impl Compiler {
                     return Ok(count(entered));
                 }
                 let mut asked = self.clone();
+                let outer_candidate = self.candidates.borrow().last().map(|c| c.id.clone());
                 asked.history = Some(History {
-                    outer: self.candidates.borrow().last().map(|c| c.id.clone()),
+                    // The event matcher binds names such as `id` and `source`.
+                    // Capture the enclosing candidate before those bindings.
+                    outer: outer_candidate.as_ref().map(|_| "history_candidate".to_string()),
                     event_at: self.event_at,
                     frame: self.frame,
                 });
@@ -1450,6 +1467,10 @@ impl Compiler {
                 // The event is one the engine will have: the question is stated.
                 let answer = match matched.planned.first() {
                     Some(feature) => planned::planned_value(feature, "0i64", &answer),
+                    None => answer,
+                };
+                let answer = match outer_candidate {
+                    Some(candidate) => format!("{{ let history_candidate = {candidate}; {answer} }}"),
                     None => answer,
                 };
                 count(if self.event_at == EventAt::Matcher {

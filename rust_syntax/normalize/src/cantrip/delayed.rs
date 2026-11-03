@@ -484,7 +484,13 @@ impl Compiler {
                 }
             };
         }
-        let code = outer.compiler.objects(objects)?;
+        // Reading a single object both as a condition and as the object to
+        // move must use one capture. The general collection reader adds
+        // different wrappers for the same Option<ObjectId>.
+        let code = match objects {
+            ObjectSet::One(object) => format!("{}.into_iter().collect::<Vec<ObjectId>>()", outer.compiler.object(object)?),
+            _ => outer.compiler.objects(objects)?,
+        };
         Ok(Some(self.carried_list(outer, code)))
     }
     /// An `Option<PlayerId>` this body cannot read for itself, if `player` is.
@@ -493,6 +499,7 @@ impl Compiler {
             return Ok(None);
         };
         let local = match player {
+            PlayerRef::Active if outer.made.is_none() && outer.compiler.active_player_named_later() => false,
             PlayerRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
             PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
                 Recipients::Target { slot, .. } | Recipients::Targets(slot) => {

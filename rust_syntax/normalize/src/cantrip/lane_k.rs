@@ -2157,6 +2157,12 @@ impl Compiler {
     pub(super) fn line_text(&self) -> Option<&str> {
         self.line.as_ref().map(|line| line.text.as_str())
     }
+    /// An instruction named the active player, and a later printed sentence
+    /// refers back to "that player". A delayed ability keeps that identity.
+    pub(super) fn active_player_named_later(&self) -> bool {
+        self.face_text.find("active player").zip(self.face_text.find("that player"))
+            .is_some_and(|(active, later)| active < later)
+    }
     /// "Look at the top three cards of your library, then put them back in any
     /// order. You may shuffle": one question, an order or a shuffle, so nobody
     /// orders cards they're about to shuffle away.

@@ -1883,6 +1883,7 @@ impl Compiler {
                 // "If it dies this way": destroyed and sent elsewhere it didn't die (700.4).
                 let died = self.line_text().is_some_and(|line| {
                     line.contains("dies this way") || line.contains("die this way")
+                        || (line.contains("put into a graveyard") && line.contains("this way"))
                 });
                 self.left_behind(result, match died {
                     true => format!("objects_{id}.iter().copied().filter(|&o| q.history().all().iter().any(|r| matches!(r.event, Event::ZoneChange {{ old, to, .. }} if old == o && to.is(ZoneKind::Graveyard)))).collect::<Vec<ObjectId>>()"),
@@ -2317,6 +2318,20 @@ impl Compiler {
                         self.continuous_on_players(id, source, players, changes, duration, out);
                     self.notes.until_own_turn = None;
                     return made;
+                }
+                // "That creature attacks this turn if able" is a rule, not
+                // an ability it gains and could lose in layer 6. A lasting
+                // rule can name the original target as its fixed set.
+                if matches!(changes.as_slice(), [Change::Rule(RuleChange::RequireCombat {
+                    action: ObjectAction::Attack(AttackDefenders::Any),
+                    amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+                })]) {
+                    if let EffectSubjects::Objects(ObjectSet::One(object)) = affected {
+                        let set = ObjectSet::Battlefield(ObjectFilter::SameObject(object.clone()));
+                        if self.lasting_rules(&set, changes, duration, out)? {
+                            return Ok(());
+                        }
+                    }
                 }
                 // "Live" subjects differ from read ones only where the set
                 // could gain a member, which names of objects never do, nor
@@ -2788,10 +2803,20 @@ impl Compiler {
                 let payer = PlayerSet::One(player.clone());
                 match part {
                     CostPart::Sacrifice { objects, choose } => {
+                        let owed = match choose {
+                            Some(Count::Exactly(n) | Count::AsManyAsCan(n)) => Some(self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?)),
+                            _ => None,
+                        };
+                        if let Some(owed) = &owed {
+                            writeln!(out, "let owed_{id} = {owed};").unwrap();
+                        }
                         let mark = out.len();
                         self.sacrifice(id, &payer, objects, choose.as_ref(), result, out)?;
                         lane_k::asks_even_of_one(out, mark);
-                        writeln!(out, "let paid_{id} = !picks_{id}.is_empty();").unwrap();
+                        match owed {
+                            Some(_) => writeln!(out, "let paid_{id} = picks_{id}.len() as u32 == owed_{id};").unwrap(),
+                            None => writeln!(out, "let paid_{id} = !picks_{id}.is_empty();").unwrap(),
+                        }
                     }
                     // Paid only with the cards to pay it (CR 118.3).
                     CostPart::Discard {
