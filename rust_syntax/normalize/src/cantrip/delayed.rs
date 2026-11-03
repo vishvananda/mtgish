@@ -53,8 +53,6 @@ impl Outer {
 /// triggers is put on the stack with none, so `about` would read nothing.
 const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list";
 
-/// The lists a delayed ability carries are one list to the engine, so each ends
-/// with an object nothing can be.
 /// The object a triggered ability's source became as it moved, carried in its data:
 /// "this card" of "when this creature dies".
 const DIED_AS: &str = "Some(ObjectId(item.data[0])).filter(|o| *o != ObjectId::NONE).into_iter().collect::<Vec<ObjectId>>()";
@@ -64,6 +62,14 @@ const REFLEXIVE_LIST: &str = "reflexive ability about a list of objects";
 pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
 
 impl Compiler {
+    /// The engine carries actual objects, not sentinel separators. One list needs no encoding; distinct groups need
+    /// an API that preserves their boundaries without placing non-objects in `event_objects`.
+    fn carried_objects(&self, lists: &[String]) -> Result<String> {
+        let [list] = lists else {
+            return Err(gap("a triggered ability carrying separate groups of objects"));
+        };
+        Ok(format!("let about: Vec<ObjectId> = {}; ", self.fetch(list)))
+    }
     /// Whether `object` of the maker is the object this ability is asked of.
     fn watched_by(outer: &Outer, object: &ObjectRef) -> bool {
         outer
@@ -910,15 +916,7 @@ impl Compiler {
             }
         }
         self.helpers.insert("about");
-        let mut about = String::from("let mut about: Vec<ObjectId> = Vec::new(); ");
-        for list in objects.iter() {
-            write!(
-                about,
-                "about.extend({}); about.push(ObjectId::NONE); ",
-                self.fetch(list)
-            )
-            .unwrap();
-        }
+        let about = self.carried_objects(&objects)?;
         match player.as_ref() {
             // Its body reads the list; what its matcher reads is held where it is read.
             None => self.plan_code(
@@ -1084,10 +1082,7 @@ impl Compiler {
             (None, []) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}); }}").unwrap(),
             (None, lists) => {
                 self.helpers.insert("about");
-                let mut about = String::from("let mut about: Vec<ObjectId> = Vec::new(); ");
-                for list in lists {
-                    write!(about, "about.extend({}); about.push(ObjectId::NONE); ", self.fetch(list)).unwrap();
-                }
+                let about = self.carried_objects(lists)?;
                 let make = format!("if {happened} && {condition} {{ {about}g.reflexive_trigger_about({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, &about); }}");
                 self.plan_code(REFLEXIVE_LIST, &make, out);
             }
@@ -1152,10 +1147,7 @@ impl Compiler {
             .unwrap(),
             (lists, player) => {
                 self.helpers.insert("about");
-                let mut about = String::from("let mut about: Vec<ObjectId> = Vec::new(); ");
-                for list in lists {
-                    write!(about, "about.extend({}); about.push(ObjectId::NONE); ", self.fetch(list)).unwrap();
-                }
+                let about = self.carried_objects(lists)?;
                 let only_about_them = lists.len() == 1
                     && matches!(
                         body.instructions.as_slice(),

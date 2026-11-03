@@ -56,6 +56,8 @@ const GONE: &[(&str, &str)] = &[
     ("Memory Deluge", "CardType::Sorcery"),
     ("Turn the Earth", "CardType::Sorcery"),
     ("Vizier of Tumbling Sands", "ZoneKind::Stack"),
+    // Event members are real objects: the visibility observer reads every one.
+    ("Urabrask's Forge", "about.push(ObjectId::NONE)"),
     // Only cards with a way to cast are offered; no land is played.
     ("Torrential Gearhulk", "play_land_during_resolution"),
     ("Torrential Gearhulk", "open_0.len() > 1"),
