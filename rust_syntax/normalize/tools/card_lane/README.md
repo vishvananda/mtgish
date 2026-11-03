@@ -230,12 +230,17 @@ for repair before the wide regression sweep or that card's mutation run. Scenari
 still receive corpus, coverage and citation checks; full mutations apply to the current card and other
 cards whose Rust code changed. `checks-live.json` exposes the current gate and card count, so the
 dashboard marks a long shared-caller sweep as REGRESSION instead of model review.
-Reviewers may add Rust card or mechanics integration tests and existing local workspace dev-dependencies;
+Reviewers may add Rust card, mechanics or script integration tests and existing local workspace dev-dependencies;
 runtime dependencies and external dependency changes remain outside card review scope. The driver runs
 new integration tests (requiring a nonzero pass count) and edited cards' inline Rust tests. Integration
 tests do not automatically satisfy the scenario mutation gate; unresolved mutants still block the card.
 An infrastructure stop retains completed
 review evidence and usage so an explicit resume can reuse an unchanged report and source.
+Script harness implementation edits remain outside review scope. Tests named for their new card stay with that
+card's commit; coordinator-declared `source.card_test_paths` can assign an existing integration fixture file to
+the card too, keeping tests that require an unpublished card out of the shared prerequisite commit.
+An independent review can use a validated snapshot that already includes its source revision; preparation
+recognizes the ancestor and reviews the present code without replaying an empty cherry-pick.
 Drivers reload changed pipeline code at a clean card boundary, after finishing their lease, so later jobs
 receive scope and helper-pin updates without interrupting active cards or reusing an old resume argument.
 An explicit `retry JOB --reason ...` can also restart a stopped confirmation that produced no report.

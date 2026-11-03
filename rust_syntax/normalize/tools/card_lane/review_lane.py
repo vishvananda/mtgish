@@ -371,7 +371,11 @@ def prepare(root, tree, job):
             continue  # Already supplied by the validated helper pin or upstream.
         git(tree, "cherry-pick", commit)
     parent = git(tree, "rev-parse", "HEAD")
-    git(tree, "cherry-pick", source["commit"])
+    # A validated local snapshot can already include the revision being independently reviewed.
+    # Review its present code without attempting an empty cherry-pick of an ancestor.
+    if subprocess.run(['git','merge-base','--is-ancestor',source['commit'],'HEAD'],cwd=tree,
+                      stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode != 0:
+        git(tree, "cherry-pick", source["commit"])
     return branch, parent, source
 
 
@@ -492,7 +496,10 @@ Use `checkpoint` ONLY for unfinished work that needs another context, never mere
 "client":"existing interactions / concrete gap", "notes":""}}
 No pass with unresolved blockers or insufficient evidence. If context grows large, write checkpoint notes and
 return; fresh context resumes these same files. Finish the current card and return, never pick the next yourself.
-Optional rust_mutation_tests maps an affected card to changed card/mechanics integration test targets. The driver
+Optional rust_mutation_tests maps an affected card to changed card/mechanics/script integration test targets. Only
+Rust integration tests in the script crate are allowed; its harness implementation remains out of scope. A new
+card's tests should use its filename prefix; coordinator-declared card_test_paths can retain an existing fixture file.
+The driver
 can credit a surviving scenario mutant only if an actual Rust assertion fails under that exact source mutation
 and the test passes after restoration. A compiler failure never counts. Tests must already pass their baseline.
 """
@@ -549,6 +556,7 @@ def allowed_changes(tree, name):
                 path.startswith("crates/cantrip-cards/tests/") and path.endswith(".rs") or
                 path.startswith("crates/cantrip-mechanics/src/") and path.endswith(".rs") or
                 path.startswith("crates/cantrip-mechanics/tests/") and path.endswith(".rs") or
+                path.startswith("crates/cantrip-script/tests/") and path.endswith(".rs") or
                 path.startswith("scenarios/") and path.endswith(".cantrip")):
             raise RuntimeError(f"out-of-scope edit {path}; preserved for inspection")
     return sorted(set(paths))
@@ -640,7 +648,7 @@ def checks(root):
         return good
 
     integration_tests = {(p.split('/')[1], Path(p).stem) for p in changed
-                         if p.startswith(('crates/cantrip-mechanics/tests/', 'crates/cantrip-cards/tests/')) and p.endswith('.rs')}
+                         if p.startswith(('crates/cantrip-mechanics/tests/', 'crates/cantrip-cards/tests/', 'crates/cantrip-script/tests/')) and p.endswith('.rs')}
     for package, test in sorted(integration_tests):
         record(package.removeprefix('cantrip-')+' test '+test,
                lambda p=package,t=test: lane.shell('cargo','test','--profile','checked','-p',
@@ -746,7 +754,12 @@ def commit_candidate(tree, source, parent, paths):
     owned.update(p for p in original_paths + paths
                  if any(p.startswith(f'crates/{package}/tests/{own}_') or
                         p == f'crates/{package}/tests/{own}.rs'
-                        for package in ('cantrip-mechanics', 'cantrip-cards')))
+                        for package in ('cantrip-mechanics', 'cantrip-cards', 'cantrip-script')))
+    for path in source.get('card_test_paths', []):
+        parts = Path(path).parts
+        if len(parts) != 4 or parts[0] != 'crates' or parts[1] not in ('cantrip-cards','cantrip-mechanics','cantrip-script') or parts[2] != 'tests' or not path.endswith('.rs'):
+            raise RuntimeError('card_test_paths may name only Rust integration test files')
+        owned.add(path)
     shared = [p for p in paths if p not in owned]
     if paths:
         git(tree, "add", "--", *paths)

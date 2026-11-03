@@ -406,6 +406,18 @@ class GitTests(unittest.TestCase):
             self.assertEqual(json.loads(db.execute('SELECT source FROM jobs').fetchone()[0]),actual)
         self.assertEqual(self.git('show','HEAD:crates/cantrip-mechanics/src/shared.rs'),'validated helper')
 
+    def test_reviewing_a_revision_already_in_the_validated_snapshot_needs_no_replay(self):
+        lane.save(self.root/'config.json',dict(base=self.base))
+        source=dict(name='Test Card',commit=self.source,source_base=self.base,publication_base=self.source)
+        with lane.connect(self.root) as db:
+            lane.enqueue(db,source)
+            job=dict(db.execute('SELECT * FROM jobs').fetchone())
+        branch,parent,actual=lane.prepare(self.root,self.repo,job)
+        self.assertEqual(parent,self.source)
+        self.assertEqual(self.git('rev-parse','HEAD'),self.source)
+        self.assertEqual(self.git('status','--porcelain'),'')
+        self.assertEqual(actual,source)
+
     def test_new_card_boundary_test_stays_with_card_not_helper_prerequisite(self):
         self.git('checkout','-qb','boundary-review')
         test='crates/cantrip-mechanics/tests/test_card_boundary.rs'
@@ -414,6 +426,23 @@ class GitTests(unittest.TestCase):
         candidate=lane.commit_candidate(self.repo,dict(name='Test Card',commit=self.source),self.base,[test,shared])
         self.assertEqual(self.git('diff-tree','--no-commit-id','--name-only','-r',candidate+'^'),shared)
         self.assertIn(test,self.git('diff-tree','--no-commit-id','--name-only','-r',candidate).splitlines())
+
+    def test_existing_script_fixture_can_remain_with_its_new_card(self):
+        self.git('checkout','-qb','script-review')
+        test='crates/cantrip-script/tests/discard_into_library.rs'
+        self.write(test,'executes Test Card against the existing shared fixtures')
+        candidate=lane.commit_candidate(self.repo,dict(name='Test Card',commit=self.source,
+            card_test_paths=[test]),self.base,[test])
+        self.assertEqual(self.git('rev-parse',candidate+'^'),self.base)
+        self.assertIn(test,self.git('diff-tree','--no-commit-id','--name-only','-r',candidate).splitlines())
+
+    def test_script_test_permission_does_not_allow_harness_implementation_edits(self):
+        test='crates/cantrip-script/tests/test_card.rs'
+        self.write(test,'regression')
+        self.assertEqual(lane.allowed_changes(self.repo,'Test Card'),[test])
+        self.write('crates/cantrip-script/src/runner.rs','harness change')
+        with self.assertRaisesRegex(RuntimeError,'out-of-scope'):
+            lane.allowed_changes(self.repo,'Test Card')
 
     def test_new_card_integration_test_stays_with_card(self):
         self.git('checkout','-qb','card-test-review')
