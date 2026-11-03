@@ -158,6 +158,10 @@ for repair before the wide regression sweep or that card's mutation run. Scenari
 still receive corpus, coverage and citation checks; full mutations apply to the current card and other
 cards whose Rust code changed. `checks-live.json` exposes the current gate and card count, so the
 dashboard marks a long shared-caller sweep as REGRESSION instead of model review.
+Reviewers may add Rust mechanics integration tests and existing local workspace dev-dependencies;
+runtime dependencies and external dependency changes remain outside card review scope. The driver runs
+new integration tests and edited cards' inline Rust tests. An infrastructure stop retains completed
+review evidence and usage so an explicit resume can reuse an unchanged report and source.
 First-card cache warmup is part of elapsed time;
 worker wall time includes its tool waits and must not be described as pure inference time. Machine validation
 time is recorded separately and can overlap that wall time. No pricing estimate is treated as an actual bill.

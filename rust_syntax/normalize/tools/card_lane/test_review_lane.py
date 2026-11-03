@@ -368,6 +368,38 @@ class GitTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def test_only_additive_local_test_dependencies_and_matching_lockfile_are_allowed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);package=root/'crates/cantrip-cards';package.mkdir(parents=True)
+            (root/'Cargo.toml').write_text('[workspace.dependencies]\ncantrip-rules = { path="crates/cantrip-rules" }\n')
+            before='[package]\nname="cantrip-cards"\n[dependencies]\ncantrip-api = { workspace=true }\n[dev-dependencies]\n'
+            after=before+'cantrip-rules = { workspace=true }\n'
+            (package/'Cargo.toml').write_text(after)
+            old_lock='version=4\n[[package]]\nname="cantrip-cards"\nversion="0.1.0"\ndependencies=["cantrip-api"]\n'
+            new_lock=old_lock.replace('["cantrip-api"]','["cantrip-api","cantrip-rules"]')
+            (root/'Cargo.lock').write_text(new_lock)
+            paths=['Cargo.lock','crates/cantrip-cards/Cargo.toml']
+            def git(_, *args):
+                if args[0]=='diff':return '\n'.join(paths)
+                if args[0]=='ls-files':return ''
+                return old_lock if args[-1]=='HEAD:Cargo.lock' else before
+            with mock.patch.object(lane,'git',side_effect=git):
+                self.assertEqual(lane.allowed_changes(root,'A'),paths)
+                (package/'Cargo.toml').write_text(after.replace('cantrip-api = { workspace=true }','cantrip-api="1"'))
+                with self.assertRaisesRegex(RuntimeError,'only additive local'):lane.allowed_changes(root,'A')
+                (package/'Cargo.toml').write_text(after+'remote-crate="1"\n')
+                with self.assertRaisesRegex(RuntimeError,'existing local workspace'):lane.allowed_changes(root,'A')
+                (package/'Cargo.toml').write_text(after)
+                (root/'Cargo.lock').write_text(new_lock.replace('"cantrip-rules"','"remote-crate"'))
+                with self.assertRaisesRegex(RuntimeError,'lockfile changes'):lane.allowed_changes(root,'A')
+
+    def test_shared_rust_test_file_is_in_scope_but_core_edits_are_not(self):
+        tree=Path('/tree')
+        with mock.patch.object(lane,'git',side_effect=['crates/cantrip-mechanics/tests/boundary.rs','']):
+            self.assertEqual(lane.allowed_changes(tree,'A'),['crates/cantrip-mechanics/tests/boundary.rs'])
+        with mock.patch.object(lane,'git',side_effect=['crates/cantrip-rules/src/resolve.rs','']):
+            with self.assertRaisesRegex(RuntimeError,'out-of-scope'):lane.allowed_changes(tree,'A')
+
     def test_shared_callers_keep_scenario_coverage_without_unrelated_mutation_work(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);card=root/'a.rs';card.write_text('pub static CARD: X;')
@@ -382,7 +414,9 @@ class CliTests(unittest.TestCase):
             with mock.patch.object(lane,'current',return_value={'tree':str(root),'folder':str(root),'name':'A'}), \
                  mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'git',return_value='head'), \
                  mock.patch.object(lane,'work_digest',return_value='stable'), \
-                 mock.patch.object(lane,'allowed_changes',return_value=['crates/cantrip-mechanics/src/targets.rs',
+                 mock.patch.object(lane,'allowed_changes',return_value=['Cargo.lock',
+                                                                       'crates/cantrip-cards/Cargo.toml',
+                                                                       'crates/cantrip-mechanics/src/targets.rs',
                                                                        'crates/cantrip-cards/src/cards/c.rs',
                                                                        'scenarios/d-caller-fix.cantrip']):
                 result=lane.checks(root)

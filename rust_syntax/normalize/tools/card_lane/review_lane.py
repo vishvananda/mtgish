@@ -20,6 +20,7 @@ import sys
 import tempfile
 import time
 import traceback
+import tomllib
 import unicodedata
 
 HERE = Path(__file__).resolve().parent
@@ -442,10 +443,45 @@ def allowed_changes(tree, name):
     paths = git(tree, "diff", "HEAD", "--name-only").splitlines()
     paths += git(tree, "ls-files", "--others", "--exclude-standard").splitlines()
     own, slug = names(name)
+    manifests = {}
+    workspace = None
+    for package in ('cantrip-cards','cantrip-mechanics'):
+        path=f'crates/{package}/Cargo.toml'
+        if path not in paths:
+            continue
+        before=tomllib.loads(git(tree,'show','HEAD:'+path))
+        after=tomllib.loads((tree/path).read_text())
+        old=before.pop('dev-dependencies',{})
+        new=after.pop('dev-dependencies',{})
+        if before != after or any(new.get(k) != v for k,v in old.items()):
+            raise RuntimeError(f'only additive local test dependencies are allowed in {path}')
+        if workspace is None:
+            workspace=tomllib.loads((tree/'Cargo.toml').read_text())['workspace']['dependencies']
+        added=set(new)-set(old)
+        for dependency in added:
+            definition=workspace.get(dependency,{})
+            if new[dependency] != {'workspace':True} or not isinstance(definition,dict) or 'path' not in definition or not (tree/definition['path']).resolve().is_relative_to(tree.resolve()):
+                raise RuntimeError(f'only existing local workspace test dependencies are allowed: {dependency}')
+        manifests[package]=added
+    if 'Cargo.lock' in paths:
+        old=tomllib.loads(git(tree,'show','HEAD:Cargo.lock'))
+        new=tomllib.loads((tree/'Cargo.lock').read_text())
+        a=old.pop('package',[]);b=new.pop('package',[])
+        if old!=new or len(a)!=len(b):
+            raise RuntimeError('lockfile changes must only add the declared local test dependencies')
+        for prior,current in zip(a,b):
+            if prior==current:
+                continue
+            p=dict(prior);c=dict(current);left=p.pop('dependencies',[]);right=c.pop('dependencies',[])
+            if p!=c or p.get('name') not in manifests or set(right)!=set(left)|manifests[p['name']]:
+                raise RuntimeError('lockfile changes must only add the declared local test dependencies')
     for path in paths:
         if not (path == f"content/mtg/cards/{slug}.json" or
+                path == 'Cargo.lock' and bool(manifests) or
+                path in {f'crates/{p}/Cargo.toml' for p in manifests} or
                 path.startswith("crates/cantrip-cards/src/cards/") and path.endswith(".rs") or
                 path.startswith("crates/cantrip-mechanics/src/") and path.endswith(".rs") or
+                path.startswith("crates/cantrip-mechanics/tests/") and path.endswith(".rs") or
                 path.startswith("scenarios/") and path.endswith(".cantrip")):
             raise RuntimeError(f"out-of-scope edit {path}; preserved for inspection")
     return sorted(set(paths))
@@ -459,7 +495,8 @@ def checks(root):
     lane.card_dir(name).mkdir(parents=True, exist_ok=True)
     report = read(folder / "review.json") if (folder / "review.json").exists() else {}
     changed = allowed_changes(tree, name)
-    changed_stems = {Path(p).stem for p in changed if p.startswith("crates/cantrip-cards/")}
+    changed_stems = {Path(p).stem for p in changed
+                     if p.startswith("crates/cantrip-cards/src/cards/") and p.endswith(".rs")}
     affected = list(dict.fromkeys(canonical_typography(n) for n in [name, *report.get("affected_cards", [])]))
     lane.focus_cards(affected)
     declared = {names(n)[0] for n in affected}
@@ -495,6 +532,10 @@ def checks(root):
         print(label, "PASS" if good else "FAIL", f"{rows[-1]['seconds']}s", flush=True)
         return good
 
+    shared_tests = [Path(p).stem for p in changed if p.startswith('crates/cantrip-mechanics/tests/') and p.endswith('.rs')]
+    for test in sorted(set(shared_tests)):
+        record('mechanics test '+test, lambda t=test: lane.shell('cargo','test','--profile','checked','-p',
+               'cantrip-mechanics','--test',t,env=lane.full_environment()))
     for card_index, card in enumerate(ordered, 1):
         is_edited = card in edited_cards
         if not is_edited and any(not row['ok'] for row in rows):
@@ -523,6 +564,12 @@ def checks(root):
             continue
         if any(not row['ok'] for row in rows[first_row:]):
             continue  # A failed basic gate needs a repair before mutation work.
+        if lane.card_file(card).is_file() and '#[cfg(test)]' in lane.card_file(card).read_text():
+            record(card+' Rust tests', lambda s=names(card)[0]: lane.shell('cargo','test','--profile','checked',
+                   '-p','cantrip-cards','--lib',s+'::tests',env=lane.full_environment()),
+                   lambda out: bool(re.search(r'[1-9]\d* passed; 0 failed',out)))
+            if not rows[-1]['ok']:
+                continue
         lane.card_dir(card).mkdir(parents=True, exist_ok=True)
         gates = {card: lane.Gates(card, False)}
         at = time.monotonic()
@@ -655,6 +702,7 @@ def worker(root, slot, once=False, resume=None):
             started = time.monotonic()
             with connect(root) as db:
                 branch=parent=None
+                report, attempts = {}, []
                 try:
                     resume_ready=False
                     if resume:
@@ -783,6 +831,13 @@ def worker(root, slot, once=False, resume=None):
                     branch=git(tree,'branch','--show-current')
                     detail=dict(error=str(error),traceback=traceback.format_exc(),tree=str(tree),branch=branch)
                     if parent is not None:detail['prepared_parent']=parent
+                    if attempts:
+                        detail.update(model=cfg['review_model'], attempts=attempts, report=report,
+                                      seconds=round(time.monotonic()-started,2),
+                                      usage={k:sum(a['usage'].get(k,0) for a in attempts) for k in ('input','cached','output','turns')})
+                        report_path=job_folder(root,job,job['stage'])/'review.json'
+                        if report_valid(report,job['name']) and report_path.exists():
+                            detail['completed_review']=dict(report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),source_digest=work_digest(tree))
                     save(folder/'live.json',dict(state='infrastructure',worker=slot,card=job['name'],at=now(),error=str(error)))
                     finish(db, job, "infrastructure", detail,branch=branch)
                     raise
