@@ -88,6 +88,20 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual((self.repo/'Alpha.rs').read_text(),'upstream canonical')
         self.assertEqual(lane.snapshot(self.root)['counts'],dict(upstream=1))
 
+    def test_empty_independent_review_attestation_can_be_collected(self):
+        parent=self.candidate('Alpha',1)
+        self.git('commit','--allow-empty','-qm','Card: Alpha\n\nCloses #1')
+        candidate=self.git('rev-parse','HEAD')
+        with lane.connect(self.root) as db:
+            db.execute('UPDATE jobs SET candidate=?,source=? WHERE name=?',
+                       (candidate,json.dumps(dict(name='Alpha',issue=1,publication_base=parent)), 'Alpha'))
+            db.commit()
+        self.git('checkout','-q','-b','integration/local',parent)
+        lane.sync(self.root);lane.integrate_one(self.root,defer_prerequisites=True)
+        self.assertEqual(lane.snapshot(self.root)['counts'],dict(assembled=1))
+        self.assertEqual(self.git('rev-parse','HEAD^{tree}'),self.git('rev-parse',parent+'^{tree}'))
+        self.assertEqual(self.git('status','--porcelain'),'')
+
     def test_snapshot_accepts_local_card_history_but_freezes_validated_head(self):
         self.candidate('Alpha',1);self.start();lane.sync(self.root);lane.integrate_one(self.root)
         head=self.git('rev-parse','HEAD');path=lane.promote_snapshot(self.root,head,dict(ok=True,head=head))

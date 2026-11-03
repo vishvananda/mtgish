@@ -147,7 +147,10 @@ def integrate_one(root, defer_prerequisites=False):
                         if index < len(steps)-1:
                             publication.pick_prerequisite(tree, sha)
                         else:
-                            publication.git(tree, 'cherry-pick', '--empty=drop', sha)
+                            # A fresh independent review of an integrated card can produce an
+                            # initially empty Card attestation. Retain it; redundant nonempty
+                            # revisions still drop normally.
+                            publication.git(tree, 'cherry-pick', '--allow-empty', '--empty=drop', sha)
                     head = publication.git(tree, 'rev-parse', 'HEAD')
                     review.save(proof/f'step-{index:03d}.json', dict(source=sha,before=before,head=head,equivalent=skipped))
                     db.execute('UPDATE integration_jobs SET next_step=?,last_head=? WHERE id=?', (index+1,head,job['id'])); db.commit()
