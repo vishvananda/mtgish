@@ -76,6 +76,14 @@ workers and one verifier. Verification findings return the card to fix work with
 automatic cycle. Cards without code changes skip confirmation. Full machine gates run after the review worker
 returns its report; only failures resume the model. Source must remain unchanged throughout those checks.
 
+After a specific blocker has changed, the coordinator can explicitly return preserved review work to the pool:
+`review_lane.py --root ROOT retry JOB_ID --reason "What changed"`. This keeps the WIP commit and original report,
+uses a new artifact round, and records the retry reason. It cannot take an active lease, retry confirmation work,
+or bypass the verifier rejection cap. Artifact rounds and actual verifier rejection counts are independent.
+Existing client prompts, actions and state follow `add-cards/SKILL.md` step 8: caption corrections using supported
+choice kinds need engine metadata and presenter inspection, not a new browser test solely because wording changed.
+Actual new client capabilities still require browser evidence.
+
 ### Deterministic intake and publication
 
 `intake_lane.py` selects and reserves canonical cards before enqueueing them. It accepts repeated `--card`,

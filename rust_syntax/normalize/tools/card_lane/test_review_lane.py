@@ -19,6 +19,77 @@ class QueueTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_explicit_retry_preserves_work_and_round_evidence(self):
+        lane.save(self.root / "config.json", {"max_verifier_rejections": 3})
+        with lane.connect(self.root) as db:
+            lane.enqueue(db, {"name": "A", "commit": "author", "review_round": 2,
+                              "verifier_rejections": 1})
+            job = dict(db.execute("SELECT * FROM jobs").fetchone())
+            previous = {"prepared_parent": "parent", "wip_commit": "saved-fixes",
+                        "report": {"decision": "blocked", "reason": "SDK unavailable"}}
+            db.execute("UPDATE jobs SET status='blocked',branch='preserved',result=?,candidate='old'",
+                       (json.dumps(previous),))
+            db.commit()
+        old = lane.job_folder(self.root, job, "review") / "review.json"
+        lane.save(old, previous["report"])
+        lane.retry_stopped(self.root, job["id"], "Existing prompt needs no new client capability")
+        with lane.connect(self.root) as db:
+            retried = dict(db.execute("SELECT * FROM jobs").fetchone())
+        source, result = json.loads(retried["source"]), json.loads(retried["result"])
+        self.assertEqual((retried["status"], retried["stage"], retried["candidate"]), ("queued", "review", None))
+        self.assertEqual((source["review_round"], source["verifier_rejections"]), (3, 1))
+        self.assertEqual(result, {"retry_requested": True, "prepared_parent": "parent", "wip_commit": "saved-fixes"})
+        self.assertEqual(lane.read(old), previous["report"])
+        self.assertNotEqual(old.parent, lane.job_folder(self.root, retried, "review"))
+        archive = lane.read(self.root / "jobs" / job["id"] / "retry-3.json")
+        self.assertEqual(json.loads(archive["job"]["result"]), previous)
+        with self.assertRaisesRegex(ValueError, "only stopped"):
+            lane.retry_stopped(self.root, job["id"], "Cannot enqueue it twice")
+
+    def test_explicit_retry_does_not_bypass_rejection_cap_or_active_lease(self):
+        lane.save(self.root / "config.json", {"max_verifier_rejections": 3})
+        with lane.connect(self.root) as db:
+            for name, status, stage, rejects in [("cap", "blocked", "review", 3),
+                                                 ("active", "running", "review", 0),
+                                                 ("confirm", "blocked", "confirm", 0)]:
+                lane.enqueue(db, {"name": name, "commit": name, "verifier_rejections": rejects})
+                db.execute("UPDATE jobs SET status=?,stage=?,branch='preserved',result=? WHERE name=?",
+                           (status, stage, json.dumps({"prepared_parent": "parent"}), name))
+            db.commit()
+            jobs = [dict(r) for r in db.execute("SELECT * FROM jobs")]
+        for job in jobs:
+            with self.subTest(job=job["name"]), self.assertRaises(ValueError):
+                lane.retry_stopped(self.root, job["id"], "Changed blocker")
+        with lane.connect(self.root) as db:
+            self.assertEqual([dict(r) for r in db.execute("SELECT * FROM jobs")], jobs)
+
+    def test_verifier_limit_counts_rejections_instead_of_artifact_rounds(self):
+        lane.save(self.root / "config.json", {"max_verifier_rejections": 3})
+        with lane.connect(self.root) as db:
+            lane.enqueue(db, {"name": "A", "commit": "author", "review_round": 5,
+                              "verifier_rejections": 1})
+            db.execute("UPDATE jobs SET stage='confirm',status='blocked',candidate='candidate'")
+            db.commit()
+        for rejected in (2, 3):
+            with lane.connect(self.root) as db:
+                job = dict(db.execute("SELECT * FROM jobs").fetchone())
+            review = lane.job_folder(self.root, job, "review")
+            lane.save(review / "checks.json", {"head": "base"})
+            lane.save(review / "result.json", {"prepared_parent": "parent"})
+            lane.save(lane.job_folder(self.root, job, "confirm") / "review.json",
+                      {"decision": "blocked", "findings": [{"what": "Concrete defect"}]})
+            self.assertEqual(lane.handoff_verifier_findings(self.root), int(rejected < 3))
+            with lane.connect(self.root) as db:
+                row = db.execute("SELECT * FROM jobs").fetchone()
+                self.assertEqual(json.loads(row["source"])["verifier_rejections"], rejected)
+                if rejected == 2:
+                    db.execute("UPDATE jobs SET stage='confirm',status='blocked'")
+                    db.commit()
+        self.assertEqual(lane.handoff_verifier_findings(self.root), 0)
+        with lane.connect(self.root) as db:
+            row = db.execute("SELECT * FROM jobs").fetchone()
+            self.assertEqual((row["status"], json.loads(row["source"])["verifier_rejections"]), ("blocked", 3))
+
     def test_concurrent_claims_are_exactly_once(self):
         with lane.connect(self.root) as db:
             for i in range(60):

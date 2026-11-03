@@ -231,8 +231,13 @@ def handoff_verifier_findings(root):
             recorded = db.execute("SELECT 1 FROM events WHERE job=? AND kind='verification_blocked' AND json_extract(detail, '$.round')=?", (job["id"], round_number)).fetchone()
             if not recorded:
                 event(db, job["id"], job["worker"], "verification_blocked", detail)
-            source["verifier_rejections"] = round_number + 1
-            if round_number + 1 >= limit:
+            # Coordinator retries advance artifact rounds too. Only actual new
+            # verifier rejections consume this independent limit.
+            rejections = source.get("verifier_rejections", round_number + int(bool(recorded)))
+            if not recorded:
+                rejections += 1
+            source["verifier_rejections"] = rejections
+            if rejections >= limit:
                 db.execute("UPDATE jobs SET source=? WHERE id=?", (json.dumps(source), job["id"]))
                 continue
             source["review_round"] = round_number + 1
@@ -247,6 +252,44 @@ def handoff_verifier_findings(root):
             count += 1
         db.commit()
     return count
+
+
+def retry_stopped(root, job_id, reason):
+    """Explicitly return preserved review work after its blocker changes."""
+    if not reason.strip():
+        raise ValueError("retry requires the concrete reason the blocker has changed")
+    cfg = config(root)
+    with connect(root) as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+        if not row or row["stage"] != "review" or row["status"] not in ("blocked", "infrastructure"):
+            raise ValueError("only stopped review jobs can be explicitly retried")
+        job = dict(row)
+        source = json.loads(job["source"])
+        previous = json.loads(job["result"] or "{}")
+        limit = cfg.get("max_verifier_rejections", cfg.get("max_verifier_rounds", 3))
+        source.setdefault("verifier_rejections", source.get("review_round", 0))
+        if source.get("verifier_rejections", 0) >= limit:
+            raise ValueError("verifier rejection limit reached; retry cannot bypass it")
+        if not job["branch"] or not previous.get("prepared_parent"):
+            raise ValueError("stopped job lacks its preserved branch or prepared parent")
+        round_number = source.get("review_round", 0) + 1
+        prior_folder = job_folder(root, job, "review")
+        source["review_round"] = round_number
+        source["retry_note"] = (f"Coordinator returned this SAME card after its blocker changed:\n{reason}\n"
+                                f"Prior immutable report and evidence: {prior_folder}\n"
+                                f"Previous report:\n{json.dumps(previous.get('report', {}), ensure_ascii=False)}")
+        retry = dict(retry_requested=True, prepared_parent=previous["prepared_parent"])
+        if previous.get("wip_commit"):
+            retry["wip_commit"] = previous["wip_commit"]
+        save(Path(root) / "jobs" / job_id / f"retry-{round_number}.json",
+             dict(at=now(), reason=reason, job=job))
+        db.execute("UPDATE jobs SET stage='review',status='queued',source=?,result=?,priority=?,"
+                   "candidate=NULL,worker=NULL,started=NULL,finished=NULL WHERE id=?",
+                   (json.dumps(source), json.dumps(retry), max(job["priority"], 1), job_id))
+        event(db, job_id, None, "retry_requested", dict(reason=reason, round=round_number, prior=str(prior_folder)))
+        db.commit()
+    return job_id
 
 
 def prepare(root, tree, job):
@@ -345,6 +388,12 @@ corpus or workspace suite. No --release. The driver owns commits. Local cache/bu
 Use existing target/selection/keyword/effect helpers and the never list. New shared mechanics require a real
 second printed card, checked existing callers, and declaration of all affected cards. An engine gap needs a
 concrete reachable case, not a hypothetical concern. Never weaken an expectation to pass.
+
+Client scope follows add-cards/SKILL.md step 8: existing prompts, actions and state need no browser test.
+Correcting a caption or selecting an already-rendered choice kind does not by itself add a client capability.
+Verify wording and structured choice metadata with focused engine probes and inspect the existing presenter;
+do not block on a missing .NET SDK solely for those edits. A genuinely new client capability still needs its
+client change and browser evidence, and stays blocked here. Do not claim an unrun browser check passed.
 
 Review every printed line, target, trigger, amount, duration, ordering, LKI, ruling and citation; check LOOKs,
 overlap, client implications and sufficiency. Fix what is needed. No new corner-case checklist without a reason.
@@ -788,6 +837,9 @@ def main():
     p.add_argument("slot")
     p.add_argument("--once", action="store_true")
     p.add_argument("--resume", help="explicitly resume this slot's preserved blocked/infrastructure job")
+    p = sub.add_parser("retry")
+    p.add_argument("job")
+    p.add_argument("--reason", required=True, help="concrete change that resolves the previous blocker")
     sub.add_parser("check")
     p = sub.add_parser("tool")
     p.add_argument("tool")
@@ -802,6 +854,8 @@ def main():
         print(json.dumps(status(args.root), indent=2))
     elif args.command == "worker":
         worker(args.root, args.slot, args.once, args.resume)
+    elif args.command == "retry":
+        print("requeued", retry_stopped(args.root, args.job, args.reason))
     elif args.command == "watch":
         while True:
             sync(args.root)
