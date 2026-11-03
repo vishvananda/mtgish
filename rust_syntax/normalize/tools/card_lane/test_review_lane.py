@@ -19,6 +19,24 @@ class QueueTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_consolidation_defers_extraction_but_preserves_review_requirements(self):
+        job = dict(stage='review', source=json.dumps(dict(name='Card')))
+        folder = self.root/'packet'
+        regular = lane.prompt(self.root, self.root/'tree', folder, job)
+        self.assertNotIn('LOCAL CONSOLIDATION OVERRIDE', regular)
+        lane.save(self.root/'config.json', dict(workflow='consolidate_then_publish',
+                  integration=dict(dedup_owner='consolidator')))
+        prompt = lane.prompt(self.root, self.root/'tree', folder, job)
+        self.assertIn('the consolidator owns campaign-wide duplication', prompt)
+        self.assertIn('Reuse a correct helper already available', prompt)
+        self.assertIn('Keywords still belong in shared', prompt)
+        self.assertIn('Correctness, rules, safety and test sufficiency remain blocking', prompt)
+        with mock.patch('review_confirmation.compact_prompt', return_value='Confirm exact fixes'):
+            confirmation = lane.prompt(self.root, self.root/'tree', folder, {**job, 'stage':'confirm'})
+        self.assertTrue(confirmation.startswith('Confirm exact fixes'))
+        self.assertIn('the consolidator owns campaign-wide duplication', confirmation)
+        self.assertIn('never excuses a broken helper or an engine gap', confirmation)
+
     def test_lane_creates_state_directory_before_constructing_sandbox_roots(self):
         tree=self.root/'tree';tree.mkdir()
         state=self.root/'packet/state'

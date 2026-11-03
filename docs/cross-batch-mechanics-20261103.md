@@ -43,9 +43,23 @@ push. A promotion gate also requires new shared prerequisites to belong to the c
 or already be upstream. The latter prevents an independently named shared implementation from bypassing
 the compatibility check merely because Git can merge it.
 
-Existing PRs still need consolidation and validation against one common foundation. Their original reviewed
-candidates and publication manifests remain retained; adding safeguards does not repair those PRs by itself.
-Publishing is paused for this reconciliation. Intake and card workers continue.
+The campaign now uses local consolidation rather than immediate batch publication. All eleven open card PRs
+and the two prerequisite PRs are drafts. Their original reviewed candidates and publication manifests remain
+retained. The collector imports approved card commits into `integration/early-sets-20261103` and retains helper
+proposals for one semantic refactor with every caller available. Its assembled tip is distinct from the fully
+validated snapshot used by workers; collecting sources does not establish that the combined branch builds.
+
+The consolidator owns new shared extraction and broad caller migrations. Reviewers still reuse correct helpers
+already available and block correctness, rules, safety and test defects. They report new sharing proposals for
+consolidation rather than independently producing competing campaign-wide refactors. Keywords remain shared
+from their first use. This is an explicit local workflow override to the native per-card sharing policy below.
+
+Final publication exports finished files: one shared-only foundation containing engine/mechanics changes,
+token/type/counter prerequisites and existing-caller refactors, followed by independent sibling groups of about
+twenty cards. Every group uses the same foundation and must build and pass focused tests without other groups.
+Cross-card dependencies must move into the foundation or be removed from group-specific fixtures. The full
+integration suite retains campaign-wide interactions. No new PRs or pushes occur during local consolidation;
+the old batch publisher remains disabled even after a successful local checkpoint.
 
 ## What the native skills discover
 
@@ -66,7 +80,8 @@ work sees those shared changes. There is no documented automatic global shared-i
 The review policy explicitly makes actual overlap a blocking finding (`add-cards/review.md`, lines 41–43,
 61–64). Optional abstractions are nonblocking; scoped tests and avoiding an exhaustive corner-case checklist
 are the stated speed measures. `review-card-pr` says it does not relax the standard, and `pr-watch.py` invokes
-that skill. Our Terra prompt retains the overlap requirement.
+that skill. Outside local consolidation, our Terra prompt retains the overlap requirement; the explicit override
+above transfers new extraction to the consolidator without relaxing correctness.
 
 The local lane's shared-definition packet had another omission: it recognized effects and targets but omitted
 most other namespaces, including triggers and statics. It now extracts referenced definitions by their actual

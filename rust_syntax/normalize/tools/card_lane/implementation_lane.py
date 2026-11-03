@@ -241,7 +241,7 @@ def worker(root, slot, once=False):
             card = json.loads(job['card'])
             queue = json.loads(job['queue_meta'])
             import shared_base
-            pin = shared_base.read_pin(cfg, tree)
+            pin = shared_base.read_work_base(cfg, tree)
             job_base = pin['head'] if pin else base
             if pin:
                 # Each new card has a durable branch; completed candidates keep

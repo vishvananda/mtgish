@@ -360,7 +360,7 @@ def prepare(root, tree, job):
     if not source.get('publication_base'):
         # New producers already supply their frozen publication base. Older
         # candidates retain their reviewed API until an explicit migration.
-        pin = shared_base.read_pin(cfg, tree) if cfg.get('review_use_shared_base') else None
+        pin = shared_base.read_work_base(cfg, tree) if cfg.get('local_base_manifest') or cfg.get('review_use_shared_base') else None
         source.update(shared_base.metadata(pin) if pin else dict(publication_base=cfg['base']))
         with connect(root) as db:
             db.execute('UPDATE jobs SET source=? WHERE id=?', (json.dumps(source), job['id']))
@@ -419,12 +419,25 @@ def packet(root, tree, job, source, lane):
 
 
 def prompt(root, tree, folder, job):
+    cfg = config(root) if (Path(root)/'config.json').exists() else {}
+    consolidation = ""
+    if cfg.get('workflow') == 'consolidate_then_publish' and cfg.get('integration', {}).get('dedup_owner') == 'consolidator':
+        consolidation = """
+LOCAL CONSOLIDATION OVERRIDE: the consolidator owns campaign-wide duplication and shared-recipe extraction.
+Reuse a correct helper already available in this checkout. When sharing would require a new helper or a broad
+existing-caller refactor, keep this card correct and record the concrete sharing proposal in report notes for
+the consolidator. Do not independently refactor unrelated callers solely to satisfy sharing, and do not block
+correct card code solely because that extraction is deferred to consolidation. Keywords still belong in shared
+mechanics from their first use. Correctness, rules, safety and test sufficiency remain blocking requirements;
+deferring sharing never excuses a broken helper or an engine gap. Final publication waits for consolidation.
+"""
     if job["stage"] == "confirm":
         from review_confirmation import compact_prompt
-        return compact_prompt(folder, json.loads(job["source"])["name"])
+        return compact_prompt(folder, json.loads(job["source"])["name"]) + consolidation
     command = f"python3 {HERE / 'review_lane.py'} --root {root}"
     return f"""You are a Terra worker in the card pipeline, reviewing code written by a DIFFERENT author.
 Work on the current card and the existing callers its fixes require; do not pick another new card.
+{consolidation}
 Read {folder / 'packet.md'} first: full Oracle text, rulings,
 current code/content/shared definitions, scenarios and author evidence. Derive expected behavior from Oracle first.
 Once per context read .claude/skills/add-cards/review.md and the non-negotiables, Where code goes and Scenarios

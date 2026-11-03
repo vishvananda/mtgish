@@ -91,6 +91,8 @@ def selection(db, cfg):
 
 
 def reserve(db, cfg):
+    if cfg.get('workflow') == 'consolidate_then_publish':
+        return None
     db.execute('BEGIN IMMEDIATE')
     try:
         cards = selection(db, cfg)
@@ -389,6 +391,8 @@ def pr_body(cards, prereqs, tested, set_name='Unlimited', dependencies=()):
 
 
 def publish(root, cfg, db, number):
+    if cfg.get('workflow') == 'consolidate_then_publish':
+        raise RuntimeError('Publication deferred: export coherent sets from the finished local integration branch')
     p = cfg['publisher']; repo = Path(p['repo']); b, cards = batch(db, number)
     tree = Path(p['worktree_root']) / b['branch'].replace('/', '-')
     try:

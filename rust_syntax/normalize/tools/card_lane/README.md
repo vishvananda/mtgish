@@ -138,6 +138,51 @@ freezes each card's base and helper dependencies, includes the prerequisite comm
 and links the helper PRs. Thus independent card batches can share helpers without depending on earlier card
 batches. Overlapping helper changes still stop for a semantic resolution rather than being deduplicated by name.
 
+### Consolidate locally, publish when finished
+
+`workflow: "consolidate_then_publish"` replaces immediate batch publication for a campaign. The legacy
+publisher cannot reserve or push batches in this mode. Existing PRs remain drafts and keep their audit records.
+
+`integration_lane.py` collects **all approved revisions**, including cards already reserved in old draft PRs,
+on the configured local `integration.branch` in `integration.tree`. It never pushes or opens PRs. Each original
+candidate, author, issue, source base and integration step is retained in SQLite and `integration/jobs/`.
+
+The `assemble` strategy imports card sources first and retains their shared proposals in
+`integration/prerequisite-proposals.json`. This gives the coordinator every caller in one worktree to consolidate
+mechanics and fix generator/engine gaps together. The assembled working branch may need that refactor before
+it builds. Actual card merge conflicts are retained for an explicit coordinator resolution, never guessed away.
+Stale introductions of cards already in the frozen upstream base are recorded without replacing upstream code.
+
+With `integration.dedup_owner: "consolidator"`, reviewers reuse correct helpers already in their checkout but
+report new shared extraction and broad caller migrations to the consolidator. This overrides the per-card
+sharing requirement while assembling locally. Card correctness, rules, safety, sufficient tests and shared
+keyword ownership remain required. Deferred extraction must be completed before export.
+
+Workers take `local_base_manifest`, an immutable **validated checkpoint**, rather than the moving working tip.
+Already-running jobs retain their original base. `checkpoint` runs the complete checked Rust workspace with
+`CANTRIP_VERIFY=1`, verifies the clean committed head and promotes a new local snapshot. Local snapshots can
+contain cards as well as engine/mechanics commits and need no prerequisite PR. The coordinator's edits and
+checkpoints hold `integration/integration.lock`; the collector waits while that worktree is in use.
+
+```
+python3 "$T/integration_lane.py" --root "$P" sync
+python3 "$T/integration_lane.py" --root "$P" watch
+python3 "$T/integration_lane.py" --root "$P" dependencies
+python3 "$T/integration_lane.py" --root "$P" status
+python3 "$T/integration_lane.py" --root "$P" resume JOB --reason "How the retained conflict was resolved"
+python3 "$T/integration_lane.py" --root "$P" checkpoint
+```
+
+`run` also supports sequential prerequisite-then-card integration when desired. Final publication is a separate
+export from the **finished consolidated code**, grouped into coherent engine/mechanics and card sets. It must
+use that final tree and the receipts; replaying the old isolated helper patches would recreate the conflicts.
+Export one shared-only foundation first, including required token/type/counter prerequisites and existing-caller
+refactors. Every roughly twenty-card PR must be a sibling on that same foundation, with no dependency on another
+card group. Validate each exported group independently. Cross-group interactions belong in the complete
+integration suite or use baseline cards in a group's focused scenarios. Reconstruct the final one-commit-per-card
+history from finished files and authorship/issue receipts, rather than repeatedly editing the working commit stack.
+The old twenty-card publisher remains disabled for this campaign, including after a checkpoint.
+
 ### Context and measurements
 
 Both stages measure latest-request context from Codex rollouts, separately from cumulative token usage. They

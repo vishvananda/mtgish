@@ -36,5 +36,22 @@ def read_pin(cfg, repo):
 
 
 def metadata(pin):
+    if pin.get('kind') == 'local_integration':
+        return dict(publication_base=pin['head'], local_integration_base=pin['head'], shared_dependencies=[])
     return dict(publication_base=pin['head'], shared_dependencies=[
         dict(commit=commit, pr_url=pin['pr_url']) for commit in pin['commits']])
+
+
+def read_work_base(cfg, repo):
+    """A worker takes a validated immutable snapshot, never the moving integration tip."""
+    path = cfg.get('local_base_manifest')
+    if not path:
+        return read_pin(cfg, repo)
+    pin = json.loads(Path(path).read_text())
+    validation = pin.get('validation', {})
+    if pin.get('kind') != 'local_integration' or not re.fullmatch(r'[0-9a-f]{40}', pin.get('head', '')):
+        raise ValueError('local integration base must pin an immutable commit')
+    if validation.get('ok') is not True or validation.get('head') != pin['head']:
+        raise ValueError('local integration base has no matching successful validation')
+    git(repo, 'merge-base', '--is-ancestor', pin['base'], pin['head'])
+    return pin
