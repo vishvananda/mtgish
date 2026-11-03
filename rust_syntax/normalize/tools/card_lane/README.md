@@ -98,6 +98,10 @@ its work as `work.patch` and goes back to pending.
 Outcomes are `committed`, `generator_bug`, `failed_gates`, `engine_gap`, `needs_review`, `timeout`, `infrastructure` and
 `error`. A card that did not commit keeps its work in `work.patch`, and the tree is cleaned for the next card.
 
+A model-capacity error pauses for 30, 60, then 60 seconds and resumes the same session and worktree, with at most three
+retries inside the original timeout. These pauses do not consume repair rounds. If capacity remains unavailable, a stream's
+unfinished cards are recorded as `infrastructure`; existing card verdicts and completed cards keep their own results.
+
 `generator_bug` is the worker's finding that the card is wrong, or the driver's that the generated file cannot stand, which
 it decides before starting a worker: style problems, a function that repeats a shared effect, or a file that does not
 compile. The fix goes in the generator; `status --json` has each card's reason.

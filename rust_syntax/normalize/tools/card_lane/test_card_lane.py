@@ -478,6 +478,59 @@ class Ways(unittest.TestCase):
             self.assertNotIn("one action", way)
 
 
+class CapacityRetries(unittest.TestCase):
+    def attempt(self, path, capacity=True):
+        with path.open('a') as log:
+            event = {'type': 'turn.failed', 'error': {'message': 'Selected model is at capacity. Please try a different model.'}} if capacity else {'type': 'turn.completed'}
+            log.write(json.dumps(event) + '\n')
+        return (1 if capacity else 0), 'same-session', lane.Usage()
+
+    def test_capacity_retries_resume_the_session_and_keep_work(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path=Path(scratch)/'worker.jsonl'
+            work=Path(scratch)/'scenario.cantrip';work.write_text('preserved')
+            backend=mock.Mock(cumulative=True)
+            calls=[]
+            def run(backend, card, prompt, session, timeout, log):
+                calls.append(session)
+                return self.attempt(log,capacity=len(calls)<=3)
+            with mock.patch.object(lane,'spawn_once',side_effect=run), mock.patch.object(lane.time,'sleep') as sleep:
+                code,session,used=lane.spawn(backend,{},'continue',None,1000,path)
+            self.assertEqual((code,session),(0,'same-session'))
+            self.assertEqual(calls,[None,'same-session','same-session','same-session'])
+            self.assertEqual([c.args[0] for c in sleep.call_args_list],[30,60,60])
+            self.assertIsNone(used.infrastructure_error)
+            self.assertEqual(work.read_text(),'preserved')
+
+    def test_capacity_exhaustion_is_infrastructure_and_preserves_real_card_stops(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path=Path(scratch)/'worker.jsonl'
+            with mock.patch.object(lane,'spawn_once',side_effect=lambda *args:self.attempt(path)), mock.patch.object(lane.time,'sleep'):
+                code,_,used=lane.spawn(mock.Mock(cumulative=True),{},'continue',None,1000,path)
+            self.assertEqual(code,1)
+            self.assertIn('after 4 attempt(s)',used.infrastructure_error)
+            self.assertEqual(lane.stream_outcome(None,used.infrastructure_error),'infrastructure')
+            self.assertEqual(lane.stream_outcome({'outcome':'generator_bug'},used.infrastructure_error),'generator_bug')
+            self.assertEqual(lane.stream_outcome({'outcome':'failed_gates'},used.infrastructure_error),'failed_gates')
+
+    def test_old_capacity_error_and_quoted_tool_output_do_not_trigger_retry(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path=Path(scratch)/'worker.jsonl'
+            self.attempt(path)
+            offset=path.stat().st_size
+            with path.open('a') as log:
+                log.write(json.dumps({'type':'item.completed','item':{'text':'model is at capacity'}})+'\n')
+            self.assertIsNone(lane.capacity_error(path,offset))
+
+    def test_capacity_does_not_sleep_past_original_deadline(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path=Path(scratch)/'worker.jsonl'
+            with mock.patch.object(lane,'spawn_once',side_effect=lambda *args:self.attempt(path)), mock.patch.object(lane.time,'sleep') as sleep:
+                _,_,used=lane.spawn(mock.Mock(cumulative=True),{},'continue',None,10,path)
+            sleep.assert_not_called()
+            self.assertIsNotNone(used.infrastructure_error)
+
+
 class Streams(unittest.TestCase):
     """`submit` closes the open card on a pass or a stop, and hands over the next; a card that keeps failing is set aside."""
 

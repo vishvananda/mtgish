@@ -1496,6 +1496,7 @@ class Usage:
     def __init__(self):
         self.input = self.cached = self.output = self.turns = 0
         self.reported_cost = None
+        self.infrastructure_error = None
 
     def add(self, other, cumulative=False):
         """Another run's usage. A `cumulative` backend reports its session's totals so far, so the latest replaces the rest."""
@@ -1611,7 +1612,7 @@ class Command:
 BACKENDS = {"codex": Codex, "claude": Claude, "command": Command}
 
 
-def spawn(backend, card, prompt, session, timeout, log):
+def spawn_once(backend, card, prompt, session, timeout, log):
     """One worker run, killed as a process group at the timeout. (exit status or None, session id, usage)."""
     usage = Usage()
     with open(log, "a", encoding="utf-8") as out:
@@ -1631,6 +1632,49 @@ def spawn(backend, card, prompt, session, timeout, log):
         code = process.wait()
         timer.cancel()
     return (None if timer.fired else code), session, usage
+
+
+CAPACITY_DELAYS = (30, 60, 60)
+
+
+def capacity_error(log, offset):
+    """Read only actual error events from this attempt, not quoted tool output."""
+    with Path(log).open("rb") as source:
+        source.seek(offset)
+        for line in source:
+            try:
+                event = worker_event(line)
+            except (ValueError, UnicodeError):
+                continue
+            if event.get("type") not in ("error", "turn.failed"):
+                continue
+            message = event.get("message") or (event.get("error") or {}).get("message", "")
+            if "model is at capacity" in message.casefold():
+                return message
+    return None
+
+
+def spawn(backend, card, prompt, session, timeout, log):
+    """Capacity interruptions resume in place, within the original deadline.
+
+    These retries do not clean the worktree or consume scenario repair rounds.
+    Exhaustion is infrastructure trouble, never evidence against a card.
+    """
+    deadline, total = time.time() + timeout, Usage()
+    for attempt in range(len(CAPACITY_DELAYS) + 1):
+        offset = Path(log).stat().st_size if Path(log).exists() else 0
+        code, session, used = spawn_once(backend, card, prompt, session, max(1, deadline - time.time()), log)
+        total.add(used, backend.cumulative)
+        error = capacity_error(log, offset) if code not in (0, None) else None
+        if not error:
+            return code, session, total
+        if attempt == len(CAPACITY_DELAYS) or deadline - time.time() <= CAPACITY_DELAYS[attempt]:
+            total.infrastructure_error = f"model capacity unavailable after {attempt + 1} attempt(s): {error}"
+            return code, session, total
+        delay = CAPACITY_DELAYS[attempt]
+        print(f"   model at capacity: pausing {delay}s, then resuming ({attempt + 1}/{len(CAPACITY_DELAYS)})", flush=True)
+        time.sleep(delay)
+    raise AssertionError("capacity retry loop must return")
 
 
 class _Timer:
@@ -2860,7 +2904,7 @@ def run_stream(cards, backend, args, queue):
     for card in cards:
         begin(card, queue, who)
         card_dir(card["name"]).mkdir(parents=True, exist_ok=True)
-    remaining, state = list(cards), None
+    remaining, state, infrastructure = list(cards), None, None
     try:
         t = time.time()
         remaining = prepare_batch(cards, queue)
@@ -2883,6 +2927,7 @@ def run_stream(cards, backend, args, queue):
         while True:
             t = time.time()
             code, session, used = spawn(backend, place, prompt, session, max(1, deadline - time.time()), log)
+            infrastructure = used.infrastructure_error
             phases["worker"] = round(phases.get("worker", 0) + time.time() - t, 1)
             usage.add(used, backend.cumulative)
             rounds += 1
@@ -2909,8 +2954,8 @@ def run_stream(cards, backend, args, queue):
                     closed[card["name"]].update(outcome="failed_gates", detail="changed after it passed, and then failed")
         for card in [c for c in remaining if c not in passed]:
             entry = closed.get(card["name"])
-            card["failure"] = entry["detail"] if entry else ("still open at the end" if (state or {}).get("current") == card["name"] else "not reached")
-            discard(card, queue, entry["outcome"] if entry and entry["outcome"] in STOPS else "failed_gates")
+            card["failure"] = entry["detail"] if entry else infrastructure or ("still open at the end" if (state or {}).get("current") == card["name"] else "not reached")
+            discard(card, queue, stream_outcome(entry, infrastructure))
         for card in passed:
             try:
                 card["commit"] = commit_card(card)
@@ -2935,6 +2980,12 @@ def run_stream(cards, backend, args, queue):
         card.update(usage={k: round(v, 4) if isinstance(v, float) else v for k, v in share.items()}, phases=phases)
     save_queue(queue)
     return record
+
+
+def stream_outcome(entry, infrastructure):
+    if entry:
+        return entry["outcome"] if entry["outcome"] in STOPS else "failed_gates"
+    return "infrastructure" if infrastructure else "failed_gates"
 
 
 def cmd_batch_run(args):
