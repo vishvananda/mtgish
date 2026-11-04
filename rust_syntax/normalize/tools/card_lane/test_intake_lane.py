@@ -120,6 +120,20 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(intake.read(queue)['cards'],[])
         self.assertEqual(intake.read(self.root/'intake-journal.json')['cards']['Crusade']['error'],
                          'unexpected end of JSON input')
+
+    def test_refreshed_intake_is_atomically_pinned_without_changing_existing_jobs(self):
+        queue=self.root/'queue.json';old=dict(name='Old',status='pending',generator_commit='original')
+        intake.save(queue,dict(generator_commit='original',cards=[old]))
+        intake.save(self.root/'config.json',dict(implementation_queue=str(queue),base='base'))
+        item=dict(name='Crusade',status='candidate',readiness='pending',layout='normal',oracle_id='1',oracle_source='oracle',oracle_line=1)
+        claims=unittest.mock.Mock();claims.claim.return_value=dict(issue=42)
+        with patch.object(intake,'load_oracle',return_value={}):
+            intake.add(self.root,[item],lambda *_: claims,generator_revision='refreshed')
+        data=intake.read(queue)
+        self.assertEqual(data['generator_commit'],'original')
+        self.assertEqual(data['cards'][0],old)
+        self.assertEqual(data['cards'][1]['generator_commit'],'refreshed')
+        self.assertEqual(data['cards'][1]['implementation_generator_revision'],'refreshed')
     def test_other_claim_is_not_queued(self):
         q=self.root/'queue.json'; intake.save(q,{'generator_commit':'abc','cards':[]})
         intake.save(self.root/'config.json',{'implementation_queue':str(q),'base':'def'})

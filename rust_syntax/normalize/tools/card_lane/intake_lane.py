@@ -281,7 +281,7 @@ class Claims:
         return {'issue':issue['number'],'holder':held[0], 'expires_at':(held[2]+ci.HOLD).isoformat()}
 
 
-def add(root, candidates, claims_factory=Claims, oracle=ORACLE, reserve_gaps=False):
+def add(root, candidates, claims_factory=Claims, oracle=ORACLE, reserve_gaps=False, generator_revision=None):
     root = Path(root); cfg = read(root/'config.json'); queue_path = Path(cfg['implementation_queue'])
     journal_path = root/'intake-journal.json'
     # Serialize the journal, but do not hold the shared queue lock across slow
@@ -315,10 +315,14 @@ def add(root, candidates, claims_factory=Claims, oracle=ORACLE, reserve_gaps=Fal
                     fcntl.flock(queue_lock, fcntl.LOCK_EX)
                     queue = read(queue_path)
                     if name not in {c['name'] for c in queue['cards']}:
-                        queue['cards'].append({'name':name,'status':item['readiness'],'issue':entry['issue'],
+                        card = {'name':name,'status':item['readiness'],'issue':entry['issue'],
                             'layout':item['layout'],'attempts':0,'listed':True,
                             'oracle_id':item['oracle_id'],'oracle_source':item['oracle_source'],'oracle_line':item['oracle_line'],
-                            'generator_commit':queue['generator_commit'],'source_base':cfg['base']})
+                            'generator_commit':generator_revision or queue['generator_commit'],'source_base':cfg['base']}
+                        if generator_revision:
+                            # Pin before publishing pending work: a live implementer can claim it immediately.
+                            card['implementation_generator_revision'] = generator_revision
+                        queue['cards'].append(card)
                         save(queue_path,queue)
                 entry['phase'] = 'enqueued'; save(journal_path,journal)
             except (Exception, SystemExit) as exc:
@@ -338,12 +342,13 @@ def main():
     parser.add_argument('--oracle', type=Path, default=ORACLE)
     parser.add_argument('--fetch-set', action='store_true', help='fetch and cache missing complete set data')
     parser.add_argument('--reserve-gaps', action='store_true', help='explicitly reserve held cards too; default only reserves generator-ready cards')
+    parser.add_argument('--generator-revision', help='pin newly enqueued cards to the generator revision that produced their refreshed rows')
     parser.add_argument('--set-data', type=Path, default=CATALOG, help='directory with MTGJSON set files or Unlimited catalog')
     args = parser.parse_args()
     names = args.card + files_names(args.file)
     if not names and not args.set: parser.error('provide --card, --file, or --set')
     result = plan(args.root,names,args.set,args.color,oracle=args.oracle,catalog=args.set_data,fetch=args.fetch_set or args.action == 'add')
-    if args.action == 'add': add(args.root,result,oracle=args.oracle,reserve_gaps=args.reserve_gaps)
+    if args.action == 'add': add(args.root,result,oracle=args.oracle,reserve_gaps=args.reserve_gaps,generator_revision=args.generator_revision)
     print(json.dumps(result,ensure_ascii=False,indent=2))
 
 if __name__ == '__main__': main()
