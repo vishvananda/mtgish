@@ -1,0 +1,85 @@
+{
+  "base": "c1d164e",
+  "branch": "refactor/semantic-value-choices",
+  "schema": {
+    "before": 172,
+    "after": 173
+  },
+  "native": {
+    "records": 33529,
+    "affected_records": 595,
+    "choice_nodes": 648,
+    "ordinary_before": 598,
+    "rich_before": 50,
+    "schema_before": 172,
+    "schema_after": 173,
+    "native_exact_after_only_declared_migration": true,
+    "record_metadata_diagnostics_capabilities_exact": true,
+    "inventory_delta_only_choice_variant_fold": true,
+    "changed_input_fingerprints": [
+      "rust_syntax/normalize/src/cantrip/chosen.rs",
+      "rust_syntax/normalize/src/cantrip/effects.rs",
+      "rust_syntax/normalize/src/cantrip/lane_i.rs",
+      "rust_syntax/normalize/src/cantrip/lane_l.rs",
+      "rust_syntax/normalize/src/cantrip/lane_m.rs",
+      "rust_syntax/normalize/src/cantrip/lane_p.rs",
+      "rust_syntax/normalize/src/inventory.rs",
+      "rust_syntax/normalize/src/ir.rs",
+      "rust_syntax/normalize/src/reduce_actions.rs",
+      "rust_syntax/normalize/src/reduce_tail.rs",
+      "rust_syntax/normalize/src/semantics.rs",
+      "rust_syntax/normalize/src/validate.rs"
+    ],
+    "backend_capable": 28511
+  },
+  "generated": {
+    "affected": {
+      "source_records": 595,
+      "requested_names": 605,
+      "whole_record_outputs": 595,
+      "complete_modules": 433,
+      "full_diagnostic_lists": 162,
+      "exact_after_only_two_provenance_comments_removed": true,
+      "before_sha256": "5a3a00b2f402de8e13f0d3594705dd8a980036adb9fb83252551e8796910ead8",
+      "after_sha256": "de84af94ed0a36a80993383154aa3e457f7fd9df4a2488bf90d0f17c07e2dd9c"
+    },
+    "controls": {
+      "source_records": 196,
+      "requested_names": 202,
+      "whole_record_outputs": 196,
+      "complete_modules": 168,
+      "full_diagnostic_lists": 28,
+      "exact_after_only_two_provenance_comments_removed": true,
+      "before_sha256": "cd064c8713527f485e4a215537f8daf2d1eed8a2af9be5b6691a16cedb7d4161",
+      "after_sha256": "292bf26db009a2ff35c1d241c3db76e8307d024e4d4f5ad4051588b16625dbca"
+    }
+  },
+  "tests": {
+    "targets": 88,
+    "passing": 940,
+    "failing": 0,
+    "existing_ignored": 2,
+    "new_integration_tests": 7,
+    "new_library_controls": 4
+  },
+  "intentional_non_corpus_contract_corrections": [
+    "planned default-one is explicit Some(1), unbounded remains None",
+    "numeric choice result bookkeeping uses its own generated scalar local and restores lexical scopes"
+  ],
+  "artifacts_sha256": {
+    "before.unified.ronl": "e1d5b7955a628e21af517580f7bef36fd22c5bb1f58665f194d23d5117dd536c",
+    "after.unified.ronl": "555fe13d4c50d7a99b23d8f1c189e225e92062f44d3d6c43ae768fc8adf22e0e",
+    "before-backend-report.json": "25265c27286652ae708fe2fbaf817c548f4a9994956018f900c1da824bd9c0e1",
+    "after-backend-report.json": "6ce977d16ed4bb19fa7b7d05d5ea9f59b55ecc3244c8ea546ba82ae363cdea56",
+    "before.modules.rs": "5a3a00b2f402de8e13f0d3594705dd8a980036adb9fb83252551e8796910ead8",
+    "after.modules.rs": "de84af94ed0a36a80993383154aa3e457f7fd9df4a2488bf90d0f17c07e2dd9c",
+    "before.controls.rs": "cd064c8713527f485e4a215537f8daf2d1eed8a2af9be5b6691a16cedb7d4161",
+    "after.controls.rs": "292bf26db009a2ff35c1d241c3db76e8307d024e4d4f5ad4051588b16625dbca",
+    "verified-tests.log": "30a05411ecb84129d38fd95af869f3cbf7fcae8fd5e810555321cc1975bbf551"
+  },
+  "captured_fixture_sha256": {
+    "value_choices.ronl": "30823763730228cc2e2caf3f26cd76e68cd0c44914ae540b5cf3bf42bffc4e0f",
+    "value_choices_before.jsonl": "5a2a649faef21094073ad718202b96a75e9e84065b4960e5b71d2c4661f17c6f"
+  },
+  "implementation_commit": "7613a4622303020b7391d12357ddd8788a6870fb"
+}
