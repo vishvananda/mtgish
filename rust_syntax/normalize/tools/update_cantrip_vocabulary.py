@@ -56,7 +56,13 @@ def switched_features():
     if not entries:
         raise ValueError('cannot locate SWITCHED in planned.rs')
     api = '\n'.join(p.read_text() for p in inputs)
-    return [name for name, shown in entries if json.loads(f'"{shown}"') in api]
+    from native_quantity_contract import FEATURE, present, ceiling_present
+    quantity_source = Path(__file__).resolve().parents[1].joinpath('src/cantrip/quantity.rs').read_text()
+    wide = present(checkout, quantity_source)
+    return [name for name, shown in entries
+            if (wide if name == FEATURE else
+                ceiling_present(checkout, wide=wide) if name == 'counter-placement-ceiling' else
+                json.loads(f'"{shown}"') in api)]
 
 features = switched_features()
 text += 'pub const FEATURES: &[&str] = &[' + ', '.join(json.dumps(f) for f in features) + '];\n'

@@ -1,0 +1,1 @@
+Card(Name: "Exquisite Blood", Typeline: (Supertypes: [], Cardtypes: [Enchantment], Subtypes: []), ManaCost: [ManaCostGeneric(4), ManaCostB], Rules: [TriggerA(WhenAPlayerLosesLife(Opponent), ActionList([GainLife(Trigger_AmountOfLifeLost)]))])

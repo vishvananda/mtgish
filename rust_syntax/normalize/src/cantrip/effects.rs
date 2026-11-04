@@ -480,6 +480,8 @@ pub(super) struct Results {
     pub(super) moved: BTreeMap<u32, String>,
     pub(super) before: BTreeMap<u32, String>,
     pub(super) performed: BTreeMap<u32, String>,
+    quantity_results: BTreeMap<u32, Quantity>,
+    excess: BTreeMap<u32, (String, String, Option<String>)>,
     pub(super) values: BTreeMap<u32, String>,
     pub(super) flips: BTreeMap<u32, String>,
     pub(super) chosen: Vec<(ValueKind, String)>,
@@ -918,6 +920,8 @@ impl Compiler {
             moved: self.moved.clone(),
             before: self.before.clone(),
             performed: self.performed.clone(),
+            quantity_results: self.quantity_results.clone(),
+            excess: self.excess.clone(),
             values: self.values.clone(),
             flips: self.flips.clone(),
             chosen: self.chosen.clone(),
@@ -937,6 +941,8 @@ impl Compiler {
             moved,
             before,
             performed,
+            quantity_results,
+            excess,
             values,
             flips,
             chosen,
@@ -953,6 +959,8 @@ impl Compiler {
         self.moved = moved;
         self.before = before;
         self.performed = performed;
+        self.quantity_results = quantity_results;
+        self.excess = excess;
         self.values = values;
         self.flips = flips;
         self.chosen = chosen;
@@ -1833,8 +1841,8 @@ impl Compiler {
                 let number = self.number(amount)?;
                 let (method, max, ty) = match op {
                     Operation::Draw { .. } => ("draw", u32::MAX.into(), "u32"),
-                    Operation::GainLife { .. } => ("gain_life", i32::MAX.into(), "i32"),
-                    _ => ("lose_life", i32::MAX.into(), "i32"),
+                    Operation::GainLife { .. } => ("gain_life", Quantity::LifeEffect.max(), Quantity::LifeEffect.kind()),
+                    _ => ("lose_life", Quantity::LifeEffect.max(), Quantity::LifeEffect.kind()),
                 };
                 let amount = self.fetch(number.amount(max, ty)?);
                 let several = !matches!(players, PlayerSet::One(_));
@@ -1862,7 +1870,7 @@ impl Compiler {
                 } else if self.read_later(result) {
                     let measure = "i64::from(g.state().player(player).life)";
                     writeln!(out, "let mut done_{id}: i64 = 0; for player in players_{id} {{ let before = {measure}; g.{method}(player, amount_{id}); done_{id} += ({measure} - before).abs(); }}").unwrap();
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), if several { Quantity::LifeEffect } else { Quantity::LifeChangeMagnitude });
                 } else {
                     writeln!(
                         out,
@@ -1976,7 +1984,7 @@ impl Compiler {
                 }
             }
             Operation::SetLifeTotal { players, amount } => {
-                let number = self.number(amount)?.amount(i32::MAX.into(), "i32")?;
+                let number = self.number(amount)?.quantity(Quantity::LifeTotal)?;
                 writeln!(out,"let amount_{id} = {}; let players_{id} = {}; for player in players_{id} {{ g.set_life_total(player, amount_{id}); }}",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
             }
             Operation::Destroy {
@@ -2053,21 +2061,21 @@ impl Compiler {
                 amount,
                 preventable: true,
             } => {
-                let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
+                let amount = self.number(amount)?.quantity(Quantity::Damage)?;
                 let (declare, deal) = if lane_n::read_as_damaged(&self.after, result) {
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
                     self.moved.insert(result.0, format!("dealt_{id}"));
                     self.hurt_players.insert(result.0, format!("hurt_{id}"));
                     (
                         format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); let mut hurt_{id}: Vec<PlayerId> = Vec::new(); let before_{id} = g.history().head() as usize; "),
-                        format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(cantrip_mechanics::history::permanents_dealt_damage_by(g.history(), source, before_{id})); for r in &g.history().all()[before_{id}..] {{ if let Event::Damage {{ source: s, target: Target::Player(p), amount, .. }} = r.event {{ if s == source && amount > 0 && !hurt_{id}.contains(&p) {{ hurt_{id}.push(p); }} }} }}"),
+                        format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).{damage_sum}; dealt_{id}.extend(cantrip_mechanics::history::permanents_dealt_damage_by(g.history(), source, before_{id})); for r in &g.history().all()[before_{id}..] {{ if let Event::Damage {{ source: s, target: Target::Player(p), amount, .. }} = r.event {{ if s == source && amount > 0 && !hurt_{id}.contains(&p) {{ hurt_{id}.push(p); }} }} }}", damage_sum = Quantity::Damage.sum_i64()),
                     )
                 } else if lane_n::read_as_objects(&self.after, result) {
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
                     self.moved.insert(result.0, format!("dealt_{id}"));
                     (
                         format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); "),
-                        format!("let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(batch.iter().zip(&dealt).filter(|(_, n)| **n > 0).filter_map(|(d, _)| d.1.object()));"),
+                        format!("let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).{damage_sum}; dealt_{id}.extend(batch.iter().zip(&dealt).filter(|(_, n)| **n > 0).filter_map(|(d, _)| d.1.object()));", damage_sum = Quantity::Damage.sum_i64()),
                     )
                 } else if self.read_later(result)
                     && self.after.iter().any(|i| {
@@ -2078,17 +2086,17 @@ impl Compiler {
                     // damage was dealt, the planeswalker's loyalty before the damage
                     // was dealt, or the creature's toughness" (Drain Life): each
                     // recipient's damage, no more than that.
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
                     let clamped = format!("clamped_damage_{}", result.0);
                     (
                         format!("let mut done_{id}: i64 = 0; let mut {clamped}: i64 = 0; "),
-                        format!("let caps: Vec<i64> = batch.iter().map(|&(_, t, _)| match t {{ Target::Player(p) => i64::from(g.state().player(p).life).max(0), Target::Object(o) if g.chars(o).is(CardType::Planeswalker) => i64::from(g.state().obj(o).counters(CounterKind::Loyalty)).max(0), Target::Object(o) => i64::from(g.chars(o).toughness.unwrap_or(0)).max(0), _ => 0 }}).collect(); let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).sum::<i64>(); {clamped} += dealt.iter().zip(&caps).map(|(&n, &cap)| i64::from(n).min(cap)).sum::<i64>();"),
+                        format!("let caps: Vec<i64> = batch.iter().map(|&(_, t, _)| match t {{ Target::Player(p) => i64::from(g.state().player(p).life).max(0), Target::Object(o) if g.chars(o).is(CardType::Planeswalker) => i64::from(g.state().obj(o).counters(CounterKind::Loyalty)).max(0), Target::Object(o) => i64::from(g.chars(o).toughness.unwrap_or(0)).max(0), _ => 0 }}).collect(); let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).{damage_sum}; {clamped} += dealt.iter().zip(&caps).map(|(&n, &cap)| i64::from(n).min(cap)).{damage_sum};", damage_sum = Quantity::Damage.sum_i64()),
                     )
                 } else if self.read_later(result) {
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
                     (
                         format!("let mut done_{id}: i64 = 0; "),
-                        format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).sum::<i64>();"),
+                        format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).{damage_sum};", damage_sum = Quantity::Damage.sum_i64()),
                     )
                 } else {
                     (String::new(), "g.damage_together(&batch);".to_string())
@@ -2102,22 +2110,22 @@ impl Compiler {
                     };
                     self.excess.insert(result.0, (format!("excess_{id}"), format!("recipients_{id}"), aimed));
                     (
-                        format!("{declare}let mut excess_{id}: Vec<(Target, u32)> = Vec::new(); let since_{id} = g.history().head() as usize; "),
+                        format!("{declare}let mut excess_{id}: Vec<(Target, {excess_ty})> = Vec::new(); let since_{id} = g.history().head() as usize; ", excess_ty = Quantity::DamageExcess.kind()),
                         format!("{deal} excess_{id}.extend(g.history().all()[since_{id}..].iter().filter_map(|r| match r.event {{ Event::Damage {{ source: s, target, recipient_excess, .. }} if s == source => Some((target, recipient_excess)), _ => None }}));"),
                     )
                 } else {
                     (declare, deal)
                 };
-                writeln!(out, "{declare}let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); {deal} }}", self.fetch(self.damage_source(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
+                writeln!(out, "{declare}let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, {damage_ty})> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); {deal} }}", self.fetch(self.damage_source(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?), damage_ty = Quantity::Damage.kind()).unwrap();
             }
             Operation::DealDamageParts {
                 source,
                 parts,
                 preventable: true,
             } => {
-                writeln!(out, "let source_{id} = {}; let mut batch_{id}: Vec<(ObjectId, Target, u16)> = Vec::new();", self.fetch(self.object(source)?)).unwrap();
+                writeln!(out, "let source_{id} = {}; let mut batch_{id}: Vec<(ObjectId, Target, {damage_ty})> = Vec::new();", self.fetch(self.object(source)?), damage_ty = Quantity::Damage.kind()).unwrap();
                 for (i, part) in parts.iter().enumerate() {
-                    let amount = self.number(&part.amount)?.amount(u16::MAX.into(), "u16")?;
+                    let amount = self.number(&part.amount)?.quantity(Quantity::Damage)?;
                     writeln!(out, "let amount_{id}_{i} = {}; if let Some(source) = source_{id} {{ for t in {} {{ batch_{id}.push((source, t, amount_{id}_{i})); }} }}", self.fetch(amount), self.fetch(self.recipients(&part.recipients)?)).unwrap();
                 }
                 if lane_n::read_as_damaged(&self.after, result) {
@@ -2166,8 +2174,7 @@ impl Compiler {
             Operation::PutCounters { placements } => {
                 writeln!(
                     out,
-                    "let mut counters_{id}: Vec<(ObjectId, CounterKind, i16)> = Vec::new();"
-                )
+                    "let mut counters_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = Vec::new();", counter_ty = Quantity::CounterPlacement.kind())
                 .unwrap();
                 for placement in placements {
                     if let Some(selection) = &placement.selection {
@@ -2200,7 +2207,7 @@ impl Compiler {
                                 let kind = counter_kind(other)?;
                                 let amount = self
                                     .number(&placement.amount)?
-                                    .amount(i16::MAX.into(), "i16")?;
+                                    .quantity(Quantity::CounterPlacement)?;
                                 let code = format!(
                                     "let amount = {}; for player in {} {{ g.give_player_counters(player, {kind}, amount); }}",
                                     self.fetch(amount),
@@ -2212,7 +2219,7 @@ impl Compiler {
                         };
                         let amount = self
                             .number(&placement.amount)?
-                            .amount(u32::MAX.into(), "u32")?;
+                            .amount(if method == "give_poison" { Quantity::PoisonEffect.max() } else { u32::MAX.into() }, if method == "give_poison" { Quantity::PoisonEffect.kind() } else { "u32" })?;
                         writeln!(
                             out,
                             "let amount = {}; for player in {} {{ g.{method}(player, amount); }}",
@@ -2224,7 +2231,7 @@ impl Compiler {
                     }
                     let amount = self
                         .number(&placement.amount)?
-                        .amount(i16::MAX.into(), "i16")?;
+                        .quantity(Quantity::CounterPlacement)?;
                     let kind = counter_kind(&placement.kind)?;
                     writeln!(out, "let amount = {}; for t in {} {{ if let Target::Object(object) = t {{ counters_{id}.push((object, {kind}, amount)); }} }}", self.fetch(amount), self.fetch(self.recipients(&placement.recipients)?)).unwrap();
                 }
@@ -2312,7 +2319,7 @@ impl Compiler {
                         counter_kind(kind)?
                     )
                     .unwrap(),
-                    None => writeln!(out, "let puts_{id}: Vec<(ObjectId, CounterKind, i16)> = objects_{id}.iter().flat_map(|&o| {{ let have = g.obj(o).counter_array(); CounterKind::ALL.into_iter().filter(move |&kind| have[kind as usize] > 0).map(move |kind| (o, kind, have[kind as usize])).collect::<Vec<_>>() }}).collect(); g.add_counters_together(&puts_{id});").unwrap(),
+                    None => writeln!(out, "let puts_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = objects_{id}.iter().flat_map(|&o| {{ let have = g.obj(o).counter_array(); CounterKind::ALL.into_iter().filter(move |&kind| have[kind as usize] > 0).map(move |kind| (o, kind, {counter_read})).collect::<Vec<_>>() }}).collect(); g.add_counters_together(&puts_{id});", counter_ty = Quantity::CounterPlacement.kind(), counter_read = Quantity::CounterPlacement.from_stored("have[kind as usize]")).unwrap(),
                 }
             }
             Operation::LookAt { player, objects } => {
@@ -3244,6 +3251,7 @@ impl Compiler {
         self.moved.clear();
         self.before.clear();
         self.performed.clear();
+        self.quantity_results.clear();
         self.excess.clear();
         self.unpaid.clear();
         self.hurt_players.clear();
@@ -3418,7 +3426,7 @@ impl Compiler {
             let definition = self.token_definition(definition)?;
             let mut counters = Vec::new();
             for (kind, n) in &entry.counters {
-                let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+                let n = self.number(n)?.quantity(Quantity::CounterPlacement)?;
                 counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
             }
             writeln!(out, "let count_{id} = {}; let player_{id} = {}; let def_{id} = g.card_id(&{definition}); let words_{id} = {words}; let counters_{id} = [{}]; let created_{id} = g.create_tokens_with_counters(def_{id}, player_{id}, count_{id}, {}, &counters_{id}, words_{id})?;", self.fetch(amount), self.fetch(self.certain_player(player)?), counters.join(", "), entry.tapped).unwrap();
@@ -3597,7 +3605,7 @@ impl Compiler {
                 } else {
                     let mut counters = Vec::new();
                     for (kind, n) in &entry.counters {
-                        let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+                        let n = self.number(n)?.quantity(Quantity::CounterPlacement)?;
                         counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
                     }
                     format!("{{ {rows} let counters = [{}]; g.put_all_onto_battlefield_with_counters(&rows_{id}, &counters)? }}", counters.join(", "))
@@ -3691,7 +3699,7 @@ impl Compiler {
     fn arrival(&mut self, entry: &EntrySpec) -> Result<String> {
         let mut counters = Vec::new();
         for (kind, n) in &entry.counters {
-            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            let n = self.number(n)?.quantity(Quantity::CounterPlacement)?;
             counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
         }
         let counters = counters.join(", ");
@@ -3817,13 +3825,13 @@ impl Compiler {
                         _ if shares.is_some() => "1i16".to_string(),
                         CounterAmount::All => "i16::MAX".to_string(),
                         CounterAmount::Count(Count::Exactly(n)) => {
-                            self.fetch(self.number(n)?.amount(i16::MAX.into(), "i16")?)
+                            self.fetch(self.number(n)?.quantity(Quantity::StoredCounter)?)
                         }
                         other @ CounterAmount::Count(Count::UpTo(n))
                             if !matches!(removal.selection, Some(_)) =>
                         {
                             let _ = other;
-                            let n = self.fetch(self.number(n)?.amount(i16::MAX.into(), "i16")?);
+                            let n = self.fetch(self.number(n)?.quantity(Quantity::StoredCounter)?);
                             let kind = counter_kind(kind)?;
                             let player = self.fetch(self.certain_player(&removal.player)?);
                             writeln!(out, "let player_{id}_{i} = {player}; let most_{id}_{i} = {n}; for object in objects_{id}_{i} {{ let most = g.state().obj(object).counters({kind}).min(most_{id}_{i}); let amount = cantrip_mechanics::choose::number(g, player_{id}_{i}, asker.source, 0, most.max(0) as u32, \"Remove\")?; removed_{id} += i64::from(g.remove_counters(object, {kind}, amount as i16)); }}").unwrap();

@@ -490,7 +490,7 @@ impl Compiler {
         let test = self.filter(filter, &Candidate::of("affected"))?;
         let mut adds = String::new();
         for (kind, n) in counters {
-            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            let n = self.number(n)?.quantity(Quantity::CounterPlacement)?;
             write!(adds, "z.counters[{} as usize] += {n}; ", counter_kind(kind)?).unwrap();
         }
         writeln!(self.functions, "#[allow(unused_variables)] fn arrival_{id}_applies(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &Proposal) -> bool {{ matches!(proposal, Proposal::ZoneChange(z) if z.object == affected && z.to.is(ZoneKind::Battlefield)) && {test} }}").unwrap();
@@ -672,7 +672,7 @@ impl Compiler {
                     EventChange::PreventSomeDamage(n) => {
                         let n = self
                             .matching(frame, |c| c.number(n))?
-                            .amount(u16::MAX.into(), "u16")?;
+                            .quantity(Quantity::Prevention)?;
                         format!("{binding}.prevent(Some({n}));")
                     }
                     other => self.reshape(lane_n::shape_of(variant, variant), other, frame)?,
@@ -710,13 +710,16 @@ impl Compiler {
         let locals = arms[0].locals.clone();
         self.replacing.event = Some(("Damage", "e", frame));
         let prevented = self.replacing.prevented;
-        let out = self.then_steps(frame, rest, prevented.map(|r| (r, "done_prevented")))?;
+        let out = self.then_steps(frame, rest, prevented.map(|r| (r, "done_prevented", Quantity::Prevention)))?;
         let (subject_alone, second_alone) = match frame.damage_source {
             Some(Carried::Subject) => alone,
             _ => (alone.1, alone.0),
         };
         let pass = if about.is_empty() { "" } else { "affected, " };
-        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2], done_prevented: u16) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
+        let (quantity_param, quantity_arg) = if frame.quantity.is_some() {
+            (", event_quantity: i64", ", event_quantity")
+        } else { ("", "") };
+        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2], done_prevented: {prevention_ty}{quantity_param}) -> Result<(), Suspend> {{ {out} Ok(()) }}", prevention_ty = Quantity::Prevention.kind()).unwrap();
         // Words that read "that source" or "that creature" where the parts have
         // several are about each one (Comeuppance: each creature is dealt the
         // damage prevented from it): the rest runs once for each, with its total.
@@ -734,10 +737,10 @@ impl Compiler {
                 keys.push("k.target == p.target");
             }
             let keys = keys.join(" && ");
-            writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}parts: &[Prevented]) {{ let mut each: Vec<Prevented> = Vec::new(); for p in parts {{ match each.iter_mut().find(|k| {keys}) {{ Some(k) => k.amount = k.amount.saturating_add(p.amount), None => each.push(*p) }} }} for e in &each {{ let prevented = e.amount; let q: &dyn Query = g; {locals} if {then}_steps(g, asker, {pass}subject, data, prevented).is_err() {{ return; }} }} }}").unwrap();
+            writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}parts: &[Prevented]) {{ let mut each: Vec<Prevented> = Vec::new(); for p in parts {{ match each.iter_mut().find(|k| {keys}) {{ Some(k) => k.amount = k.amount.saturating_add(p.amount), None => each.push(*p) }} }} for e in &each {{ let prevented = e.amount; let q: &dyn Query = g; {locals} if {then}_steps(g, asker, {pass}subject, data, prevented{quantity_arg}).is_err() {{ return; }} }} }}").unwrap();
             return Ok(Some(then));
         }
-        writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}parts: &[Prevented]) {{ let Some(first) = parts.first() else {{ return }}; let prevented = Prevented::total(parts).min(u16::MAX.into()) as u16; let e = &Prevented {{ amount: prevented, ..*first }}; let q: &dyn Query = g; {locals} let _ = {then}_steps(g, asker, {pass}subject, data, prevented); }}").unwrap();
+        writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}parts: &[Prevented]) {{ let Some(first) = parts.first() else {{ return }}; let prevented = Prevented::total(parts).min({prevention_ty}::MAX.into()) as {prevention_ty}; let e = &Prevented {{ amount: prevented, ..*first }}; let q: &dyn Query = g; {locals} let _ = {then}_steps(g, asker, {pass}subject, data, prevented{quantity_arg}); }}", prevention_ty = Quantity::Prevention.kind()).unwrap();
         Ok(Some(then))
     }
     /// The quality of the choice `object` is, if it is a source of someone's choice.
@@ -777,17 +780,17 @@ impl Compiler {
         let code = match changes {
             [EventChange::PreventSomeDamage(n)] => self
                 .matching(frame, |c| c.number(n))?
-                .amount(u16::MAX.into(), "u16")?,
+                .quantity(Quantity::Prevention)?,
             [EventChange::PreventAllButDamage(n)] => {
                 let kept = self
                     .matching(frame, |c| c.number(n))?
-                    .amount(u16::MAX.into(), "u16")?;
+                    .quantity(Quantity::Prevention)?;
                 format!("amount.saturating_sub({kept})")
             }
             _ => return Ok(None),
         };
         let function = format!("{label}_amount");
-        writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {function}(q: &dyn Query, asker: &Asker, affected: ObjectId, e: &cantrip_api::DamageEvent) -> u16 {{ {} {code} }}", arms[0].locals).unwrap();
+        writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {function}(q: &dyn Query, asker: &Asker, affected: ObjectId, e: &cantrip_api::DamageEvent) -> {prevention_ty} {{ {} {code} }}", arms[0].locals, prevention_ty = Quantity::Prevention.kind()).unwrap();
         Ok(Some(function))
     }
     /// The size of a shield a made effect is used up by, as code of the resolution.
@@ -814,7 +817,7 @@ impl Compiler {
             }
         };
         amount
-            .map(|n| self.number(&n)?.amount(u16::MAX.into(), "u16"))
+            .map(|n| self.number(&n)?.quantity(Quantity::ShieldCapacity))
             .transpose()
     }
     /// What compiling the program of `arms` needs to know of its event.
@@ -905,13 +908,25 @@ impl Compiler {
                 self.token_change(*copies, tokens, frame)?
             }
             ("PlayerCounters", C::SetAmount(n)) => {
-                let n = self
-                    .matching(frame, |c| c.number(n))?
-                    .amount(u16::MAX.into(), "u16")?;
-                match self.replacing.player_counter {
-                    Some(field) => format!("c.{field} = {n};"),
-                    // "Of each of those kinds": the amount of each, its own.
-                    None => format!("for kind in [&mut c.poison, &mut c.energy, &mut c.experience] {{ if *kind > 0 {{ let data = [u32::from(*kind), u32::MAX]; *kind = {n}; }} }}"),
+                if let Some(field) = self.replacing.player_counter {
+                    let n = self.matching(frame, |c| c.number(n))?
+                        .quantity(Quantity::player_counter(field))?;
+                    format!("c.{field} = {n};")
+                } else if planned::switched_on(quantity::FEATURE) {
+                    // The proposal's fields are heterogeneous: poison is i64,
+                    // energy/experience remain u16. Evaluate each kind's amount
+                    // against that kind, never manufacture homogeneous references.
+                    let mut edits = String::new();
+                    for field in ["poison", "energy", "experience"] {
+                        let n = self.matching(frame, |c| c.number(n))?
+                            .quantity(Quantity::player_counter(field))?;
+                        write!(edits, "if c.{field} > 0 {{ let event_quantity = i64::from(c.{field}); c.{field} = {n}; }} ").unwrap();
+                    }
+                    edits
+                } else {
+                    let n = self.matching(frame, |c| c.number(n))?
+                        .quantity(Quantity::SmallPlayerCounter)?;
+                    format!("for kind in [&mut c.poison, &mut c.energy, &mut c.experience] {{ if *kind > 0 {{ let data = [u32::from(*kind), u32::MAX]; *kind = {n}; }} }}")
                 }
             }
             ("PlayerCounters", C::Cancel) => match self.replacing.player_counter {
@@ -923,7 +938,7 @@ impl Compiler {
                     .ok_or_else(|| gap("replacement of counters of more than one kind"))?;
                 let n = self
                     .matching(frame, |c| c.number(amount))?
-                    .amount(u16::MAX.into(), "u16")?;
+                    .quantity(Quantity::player_counter(field))?;
                 format!("c.{field} = c.{field}.saturating_add({n});")
             }
             ("ZoneChange", C::Entry(state)) => self.entry_change(state, frame)?,
@@ -1213,7 +1228,11 @@ impl Compiler {
                         kind: "LifeChange",
                         variant: "LifeChange",
                         binding: "l",
-                        locals: "let amount = q.state().player(l.player).life.saturating_add(l.amount); let subject = Target::Player(l.player); let data = [amount.max(0) as u32, u32::MAX];".into(),
+                        locals: if planned::switched_on(quantity::FEATURE) {
+                            "let amount = i64::from(q.state().player(l.player).life).saturating_add(l.amount); let subject = Target::Player(l.player); let data = [amount.max(0).min(u32::MAX.into()) as u32, u32::MAX];".into()
+                        } else {
+                            "let amount = q.state().player(l.player).life.saturating_add(l.amount); let subject = Target::Player(l.player); let data = [amount.max(0) as u32, u32::MAX];".into()
+                        },
                         tests: vec!["l.amount < 0".into(), test],
                     },
                     amount_frame,
@@ -1417,7 +1436,10 @@ impl Compiler {
         field: Option<&'static str>,
         players: &PlayerSet,
     ) -> Result<Option<(Vec<Watched>, Frame)>> {
+        let wide_amount = planned::switched_on(quantity::FEATURE)
+            && field.is_none_or(|field| field == "poison");
         let frame = Frame {
+            quantity: wide_amount.then_some(Quantity::PoisonProposal),
             player: Some(Carried::Subject),
             amount: Some(Carried::Data(0)),
             ..Frame::default()
@@ -1425,10 +1447,12 @@ impl Compiler {
         let test = self.matching(frame, |c| c.player_in(players, "c.player"))?;
         self.replacing.player_counter = field;
         let (some, amount) = match field {
+            Some(field) if wide_amount => (format!("c.{field} > 0"), format!("c.{field}.max(0)")),
             Some(field) => (format!("c.{field} > 0"), format!("u32::from(c.{field})")),
             None => (
                 "c.poison > 0 || c.energy > 0 || c.experience > 0".to_string(),
-                "u32::from(c.poison) + u32::from(c.energy) + u32::from(c.experience)".to_string(),
+                if wide_amount { "c.poison.max(0).saturating_add(i64::from(c.energy)).saturating_add(i64::from(c.experience))".into() }
+                else { "u32::from(c.poison) + u32::from(c.energy) + u32::from(c.experience)".into() },
             ),
         };
         Ok(Some((
@@ -1436,9 +1460,9 @@ impl Compiler {
                 kind: "Counters",
                 variant: "PlayerCounters",
                 binding: "c",
-                locals: format!(
-                    "let subject = Target::Player(c.player); let data = [{amount}, u32::MAX];"
-                ),
+                locals: if wide_amount {
+                    format!("let event_quantity = {amount}; let subject = Target::Player(c.player); let data = [u32::try_from(event_quantity).unwrap_or(u32::MAX), u32::MAX];")
+                } else { format!("let subject = Target::Player(c.player); let data = [{amount}, u32::MAX];") },
                 tests: vec![some, test],
             }],
             frame,

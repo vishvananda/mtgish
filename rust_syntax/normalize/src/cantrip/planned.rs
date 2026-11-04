@@ -60,14 +60,19 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("resolving-counter-costs", "pub fn may_pay_on_one(", &[]),
     ("aura-graveyard-identity", "fn found_aura_after_enchanted_left(", &[]),
     ("delayed-subject-members", "fn delayed_trigger_with(", &[]),
+    ("counter-placement-ceiling", "fn add_counters_with_limit(", &[]),
+    ("wide-effect-quantities", "fn damage(&mut self, source: ObjectId, target: Target, amount: i64) -> i64;", &[]),
     ("snow-mana", "pub snow: u32,", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";
 
-/// A stand-in for the snapshot's `FEATURES`, for a test that writes both forms:
-/// a bit for each `SWITCHED` entry, or `NO_STAND_IN`.
-static STAND_IN: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(NO_STAND_IN);
+// A stand-in for the snapshot's FEATURES, for tests that write both forms.
+// One bit per SWITCHED entry, or NO_STAND_IN.
+std::thread_local! {
+    // A test's profile must not change concurrent generation using the snapshot.
+    static STAND_IN: std::cell::Cell<u32> = const { std::cell::Cell::new(NO_STAND_IN) };
+}
 const NO_STAND_IN: u32 = u32::MAX;
 
 /// Writes as if the pinned Cantrip had exactly the `SWITCHED` features
@@ -75,7 +80,6 @@ const NO_STAND_IN: u32 = u32::MAX;
 /// generator's own answer is the snapshot's.
 #[doc(hidden)]
 pub fn with_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
-    use std::sync::atomic::Ordering;
     static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _held = ONE_AT_A_TIME.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut bits = 0;
@@ -83,19 +87,33 @@ pub fn with_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
         let at = SWITCHED.iter().position(|s| s.0 == *feature);
         bits |= 1 << at.unwrap_or_else(|| panic!("{feature:?} is no feature of SWITCHED"));
     }
-    struct Restore;
+    in_features(bits, f)
+}
+
+fn in_features<R>(bits: u32, f: impl FnOnce() -> R) -> R {
+    struct Restore(u32);
     impl Drop for Restore {
         fn drop(&mut self) {
-            STAND_IN.store(NO_STAND_IN, Ordering::SeqCst);
+            STAND_IN.with(|stand_in| stand_in.set(self.0));
         }
     }
-    let _restore = Restore;
-    STAND_IN.store(bits, Ordering::SeqCst);
+    let _restore = Restore(STAND_IN.with(|stand_in| stand_in.replace(bits)));
     f()
 }
+/// Corpus generation runs on workers. Carry this caller's profile explicitly;
+/// a plain unrelated thread must continue to see the pinned native metadata.
+pub(super) fn map_cards<T: Send>(
+    path: &Path,
+    map: impl Fn(usize, crate::mtg_types::OracleCard) -> corpus::Result<T> + Sync,
+    visit: impl FnMut(usize, T) -> corpus::Result<()>,
+) -> corpus::Result<()> {
+    let bits = STAND_IN.with(std::cell::Cell::get);
+    corpus::map_cards(path, |line, source| in_features(bits, || map(line, source)), visit)
+}
+
 /// Whether the Cantrip being written for has the `SWITCHED` feature `name`.
 pub(super) fn switched_on(name: &str) -> bool {
-    match STAND_IN.load(std::sync::atomic::Ordering::SeqCst) {
+    match STAND_IN.with(std::cell::Cell::get) {
         NO_STAND_IN => crate::cantrip_vocab::FEATURES.contains(&name),
         bits => SWITCHED.iter().position(|s| s.0 == name).is_some_and(|at| bits & (1 << at) != 0),
     }
@@ -719,7 +737,7 @@ fn each_tracked(
     let mut keeper = renders.keeper();
     let mut artifact = corpus::Artifact::create(output)?;
     let mut count = 0;
-    corpus::map_cards(
+    map_cards(
         input,
         |line, source| -> corpus::Result<(String, Option<(Kept, bool)>)> {
             let (text, kept) = row(track(line, &source, &oracle, &renders)?)?;
@@ -809,7 +827,7 @@ pub fn lane_rows(input: &Path, oracle: &Path, output: &Path, cache: Option<&Path
 
 #[cfg(test)]
 mod tests {
-    use super::{planned_value, LASTING_RULES, SWITCHED};
+    use super::{planned_value, switched_on, with_features, LASTING_RULES, SWITCHED};
 
     /// The snapshot names only features the generator writes for, and the names
     /// the generator asks for are the table's.
@@ -831,4 +849,17 @@ mod tests {
             assert!(value(word).starts_with("planned_value!"), "{word}");
         }
     }
+    #[test]
+    fn a_profile_override_does_not_leak_to_other_generator_threads() {
+        const FEATURE: &str = "wide-effect-quantities";
+        let pinned = crate::cantrip_vocab::FEATURES.contains(&FEATURE);
+        let features: &[&str] = if pinned { &[] } else { &[FEATURE] };
+        with_features(features, || {
+            assert_eq!(switched_on(FEATURE), !pinned);
+            let ordinary = std::thread::spawn(|| switched_on(FEATURE)).join().unwrap();
+            assert_eq!(ordinary, pinned);
+        });
+        assert_eq!(switched_on(FEATURE), pinned);
+    }
+
 }

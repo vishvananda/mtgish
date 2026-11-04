@@ -287,8 +287,10 @@ impl Gathered {
             Gathered::Sacrifice { .. }
             | Gathered::SacrificeEach { .. }
             | Gathered::SacrificeRest { .. } => "(PlayerId, ObjectId)",
+            Gathered::Counters { .. } if planned::switched_on(quantity::FEATURE) => "(PlayerId, ObjectId, CounterKind, i64)",
             Gathered::Counters { .. } => "(PlayerId, ObjectId, CounterKind, i16)",
             Gathered::Mill { .. } => "(PlayerId, u32)",
+            Gathered::Damage { .. } if planned::switched_on(quantity::FEATURE) => "(ObjectId, Target, i64)",
             Gathered::Damage { .. } => "(ObjectId, Target, u16)",
             Gathered::Tokens { .. } => "(CardId, PlayerId)",
             Gathered::TokensAt { .. } => "(CardId, PlayerId, Target)",
@@ -1835,7 +1837,7 @@ impl Compiler {
                 recipients,
                 amount,
             } => {
-                let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
+                let amount = self.number(amount)?.quantity(Quantity::Prevention)?;
                 writeln!(out, "let source_{id} = {}; let amount_{id} = {}; if let Some(source) = source_{id} {{ for t in {} {{ gathered_{local}.push((source, t, amount_{id})); }} }}", self.fetch(self.object(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
             }
             Gathered::Tokens {
@@ -1999,8 +2001,8 @@ impl Compiler {
             }
             Gathered::Damage { .. } => match &program.instructions[at] {
                 Instruction::Effect { result, .. } if self.read_later(result) => {
-                    writeln!(out, "let done_{local}: i64 = g.damage_together(&gathered_{local}).iter().map(|&n| i64::from(n)).sum();").unwrap();
-                    self.performed.insert(result.0, format!("done_{local}"));
+                    writeln!(out, "let done_{local}: i64 = g.damage_together(&gathered_{local}).iter().map(|&n| i64::from(n)).{damage_sum};", damage_sum = if planned::switched_on(quantity::FEATURE) { Quantity::Damage.sum_i64() } else { "sum()" }).unwrap();
+                    self.report_quantity(result.0, format!("done_{local}"), Quantity::Damage);
                 }
                 _ => writeln!(out, "g.damage_together(&gathered_{local});").unwrap(),
             },
@@ -2597,7 +2599,7 @@ impl Compiler {
             Some(kind) => format!(".filter(|put| put.1 == {})", read::counter_kind(kind)?),
             None => String::new(),
         };
-        writeln!(out, "let sources_{id}: Vec<[i16; CounterKind::COUNT]> = ({sources}).iter().map(|&from| g.obj(from).counter_array()).collect(); let recipients_{id}: Vec<ObjectId> = {recipients}; let puts_{id}: Vec<(ObjectId, CounterKind, i16)> = recipients_{id}.iter().flat_map(|&to| sources_{id}.iter().flat_map(move |counts| CounterKind::ALL.into_iter().map(move |kind| (to, kind, counts[kind as usize])))){only}.collect(); g.add_counters_together(&puts_{id});").unwrap();
+        writeln!(out, "let sources_{id}: Vec<[i16; CounterKind::COUNT]> = ({sources}).iter().map(|&from| g.obj(from).counter_array()).collect(); let recipients_{id}: Vec<ObjectId> = {recipients}; let puts_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = recipients_{id}.iter().flat_map(|&to| sources_{id}.iter().flat_map(move |counts| CounterKind::ALL.into_iter().map(move |kind| (to, kind, {copied_counter_read})))){only}.collect(); g.add_counters_together(&puts_{id});", counter_ty = Quantity::CounterPlacement.kind(), copied_counter_read = Quantity::CounterPlacement.from_stored("counts[kind as usize]")).unwrap();
         Ok(())
     }
     /// "Copy it" (CR 707.10), a spell's copy with what it is excepted in
@@ -3265,10 +3267,10 @@ impl Compiler {
         .unwrap();
         let mut counters = Vec::new();
         for (kind, n) in &entry.counters {
-            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            let n = self.number(n)?.quantity(Quantity::CounterPlacement)?;
             counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
         }
-        Ok(format!("{{ let rows: Vec<(ObjectId, PlayerId)> = objects_{id}.iter().map(|&o| (o, {controller})).collect(); let counters: Vec<(CounterKind, i16)> = vec![{}]; g.put_all_onto_battlefield_becoming(&rows, item, &ENTERS_{id}, &counters)? }}", counters.join(", ")))
+        Ok(format!("{{ let rows: Vec<(ObjectId, PlayerId)> = objects_{id}.iter().map(|&o| (o, {controller})).collect(); let counters: Vec<(CounterKind, {counter_ty})> = vec![{}]; g.put_all_onto_battlefield_becoming(&rows, item, &ENTERS_{id}, &counters)? }}", counters.join(", "), counter_ty = Quantity::CounterPlacement.kind()))
     }
     /// A conjured card, in the form it will have once Cantrip conjures: its
     /// `what` and `to` are the operation's own, and what it conjured is real.
@@ -4257,5 +4259,29 @@ mod entry_ability_tests {
             .is_err());
             assert!(compiler.aura.is_none());
         }
+    }
+}
+
+#[cfg(test)]
+mod wide_quantity_receipt_tests {
+    use super::*;
+    #[test]
+    fn gathered_damage_registers_its_semantic_numeric_receipt() {
+        planned::with_features(&[quantity::FEATURE], || {
+            let mut compiler = Compiler::new();
+            compiler.after = vec![Instruction::Effect { result: ResultId(1), operation: Operation::GainLife {
+                players: PlayerSet::One(PlayerRef::AbilityController), amount: Expr::Performed(ResultId(0)) } }];
+            let source = ObjectRef::Source;
+            let recipients = Recipients::Players(PlayerSet::One(PlayerRef::AbilityController));
+            let amount = Expr::Constant(i64::MAX);
+            let mut program = Program { instructions: vec![Instruction::Effect { result: ResultId(0), operation: Operation::DealDamage {
+                source: source.clone(), recipients: recipients.clone(), amount: amount.clone(), preventable: true } }] };
+            let mut body = String::new();
+            compiler.after_gathering(0, Gathered::Damage { source, recipients, amount }, &mut program, 0, &mut body).unwrap();
+            assert!(body.contains("fold(0i64, i64::saturating_add)"), "{body}");
+            assert_eq!(compiler.quantity_results.get(&0), Some(&Quantity::Damage));
+            let doubled = compiler.number(&Expr::multiply(Expr::Performed(ResultId(0)), Expr::Constant(2))).unwrap();
+            assert!(doubled.code.contains("saturating_mul"), "{}", doubled.code);
+        });
     }
 }

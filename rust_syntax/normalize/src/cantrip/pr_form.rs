@@ -853,17 +853,7 @@ fn eval(expr: &Expr) -> Option<i128> {
         Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Neg(_)) => Some(-eval(&unary.expr)?),
         Expr::Cast(cast) => {
             let value = eval(&cast.expr)?;
-            let (low, high) = match text_of(&cast.ty).as_str() {
-                "u8" => (0, u8::MAX as i128),
-                "u16" => (0, u16::MAX as i128),
-                "u32" => (0, u32::MAX as i128),
-                "usize" | "u64" => (0, u64::MAX as i128),
-                "i8" => (i8::MIN as i128, i8::MAX as i128),
-                "i16" => (i16::MIN as i128, i16::MAX as i128),
-                "i32" => (i32::MIN as i128, i32::MAX as i128),
-                "i64" => (i64::MIN as i128, i64::MAX as i128),
-                _ => return None,
-            };
+            let (low, high) = super::quantity::integer_range(&text_of(&cast.ty))?;
             (low <= value && value <= high).then_some(value)
         }
         Expr::MethodCall(call) if call.args.len() == 1 => {
@@ -1176,7 +1166,7 @@ impl VisitMut for Tidy {
                 }
             }
             // Keep numeric bounds before narrowing casts. A cast wraps; the
-            // counter and event amount ranges overlap only up to i16::MAX.
+            // physical counter reads/removals can remain i16 on a wide effect API.
             Expr::Call(call) if text_of(&call.func) == "Keywords :: of" && text_of(&call.args) == "& []" => {
                 *node = parse_quote!(Keywords::NONE);
             }
@@ -1916,9 +1906,13 @@ fn simplify_stmts(block: &mut Block, returns_result: bool) -> bool {
         }
         // `done += g.damage_together(&x).iter().map(..).sum();`, the total no one wanted.
         if let Stmt::Expr(Expr::MethodCall(sum), Some(_)) = &block.stmts[i] {
-            if sum.method == "sum" {
+            let saturating = sum.method == "fold" && sum.args.len() == 2
+                && eval(&sum.args[0]) == Some(0)
+                && text_of(&sum.args[1]) == "i64 :: saturating_add";
+            if sum.method == "sum" || saturating {
                 if let Expr::MethodCall(mapped) = &*sum.receiver {
-                    if let (true, Expr::MethodCall(iter)) = (mapped.method == "map", &*mapped.receiver) {
+                    let pure = !saturating || mapped.args.first().is_some_and(is_pure);
+                    if let (true, Expr::MethodCall(iter)) = (pure && mapped.method == "map", &*mapped.receiver) {
                         if iter.method == "iter" {
                             let value = (*iter.receiver).clone();
                             block.stmts[i] = Stmt::Expr(value, Some(Default::default()));
@@ -4388,10 +4382,11 @@ fn shared_single_target_damage(block: &Block) -> Option<Expr> {
     let mut amount = Amount(None);
     amount.visit_block(block);
     let amount = amount.0?;
+    let damage_type: syn::Type = syn::parse_str(super::quantity::Domain::Damage.kind()).ok()?;
     let known: Block = parse_quote!({
         let t = vec![g.state().target(item, 0)];
         let recipients = t.clone();
-        let batch: Vec<(ObjectId, Target, u16)> = recipients.iter().map(|t| (item.object, *t, #amount)).collect();
+        let batch: Vec<(ObjectId, Target, #damage_type)> = recipients.iter().map(|t| (item.object, *t, #amount)).collect();
         g.damage_together(&batch);
         Ok(())
     });
@@ -5075,5 +5070,38 @@ fn say_printed_text(file: &mut File, printed: &str) {
     };
     for expr in definitions(file) {
         say.visit_expr_mut(expr);
+    }
+}
+
+
+#[cfg(test)]
+mod quantity_reduction_tests {
+    use super as renderer;
+    use syn::parse_quote;
+    #[test]
+    fn unread_saturating_total_preserves_the_damage_call_without_arithmetic() {
+        let mut function: syn::ItemFn = parse_quote! {
+            fn run(g: &mut dyn Game) {
+                let mut done: i64 = 0;
+                done += g.damage_together(&batch).iter().map(|&n| i64::from(n)).fold(0i64, i64::saturating_add);
+            }
+        };
+        renderer::simplify_function(&mut function, false);
+        let code = renderer::text_of(&function.block);
+        assert_eq!(code.matches("damage_together").count(), 1, "{code}");
+        assert!(!code.contains("saturating_add"), "{code}");
+        assert!(!code.contains("done"), "{code}");
+    }
+    #[test]
+    fn an_effectful_mapping_is_not_dropped_as_an_unused_saturating_total() {
+        let mut function: syn::ItemFn = parse_quote! {
+            fn run(g: &mut dyn Game) {
+                g.damage_together(&batch).iter().map(|&n| { g.gain_life(player, n); n }).fold(0i64, i64::saturating_add);
+            }
+        };
+        renderer::simplify_function(&mut function, false);
+        let code = renderer::text_of(&function.block);
+        assert!(code.contains("gain_life"), "{code}");
+        assert!(code.contains("saturating_add"), "{code}");
     }
 }

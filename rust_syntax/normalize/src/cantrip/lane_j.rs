@@ -2239,8 +2239,9 @@ impl Compiler {
                     _ => None,
                 };
                 match only {
-                    Some(only) => counted(format!(
-                        "{list}.iter(){only}.map(|(_, n)| i64::from(*n)).sum::<i64>()"
+                    Some(only) => Quantity::DamageExcess.number(format!(
+                        "{list}.iter(){only}.map(|(_, n)| i64::from(*n)).{sum}",
+                        sum = Quantity::DamageExcess.sum_i64()
                     )),
                     None => held_number(feature, "i64::from(result.excess)"),
                 }
@@ -3554,7 +3555,7 @@ pub(super) const GRANTED_BY: &str = "fn granted_by(q: &dyn Query, asker: &Asker)
 /// Time travel (CR 701.56a): of each suspended card `player` owns (CR 702.62b, read
 /// as the upkeep reads it) and each permanent they control with a time counter on
 /// it, a time counter more, one fewer, or neither.
-pub(super) const TIME_TRAVEL: &str = "fn time_travel_for(g: &mut dyn Game, player: PlayerId, source: ObjectId) -> Result<(), Suspend> { let mut each: Vec<ObjectId> = g.state().zone(Zone::exile(player)).iter().copied().filter(|&id| g.obj(id).counters(CounterKind::Time) > 0 && g.card(g.obj(id).card).suspend.is_some()).collect(); each.extend(g.permanents_of(player).into_iter().filter(|&id| g.obj(id).counters(CounterKind::Time) > 0)); let any = cantrip_mechanics::select::cards(cantrip_mechanics::select::ANY_NUMBER); let adding = cantrip_mechanics::choose::select(g, player, source, Purpose::PutCounters(CounterKind::Time, 1), each.clone(), any.clone())?; let rest: Vec<ObjectId> = each.into_iter().filter(|id| !adding.contains(id)).collect(); let removing = cantrip_mechanics::choose::select(g, player, source, Purpose::Choose, rest, any)?; let more: Vec<(ObjectId, CounterKind, i16)> = adding.iter().map(|&id| (id, CounterKind::Time, 1)).collect(); g.add_counters_together(&more); for id in removing { g.remove_counters(id, CounterKind::Time, 1); } Ok(()) }\n";
+pub(super) const TIME_TRAVEL: &str = "fn time_travel_for(g: &mut dyn Game, player: PlayerId, source: ObjectId) -> Result<(), Suspend> { let mut each: Vec<ObjectId> = g.state().zone(Zone::exile(player)).iter().copied().filter(|&id| g.obj(id).counters(CounterKind::Time) > 0 && g.card(g.obj(id).card).suspend.is_some()).collect(); each.extend(g.permanents_of(player).into_iter().filter(|&id| g.obj(id).counters(CounterKind::Time) > 0)); let any = cantrip_mechanics::select::cards(cantrip_mechanics::select::ANY_NUMBER); let adding = cantrip_mechanics::choose::select(g, player, source, Purpose::PutCounters(CounterKind::Time, 1), each.clone(), any.clone())?; let rest: Vec<ObjectId> = each.into_iter().filter(|id| !adding.contains(id)).collect(); let removing = cantrip_mechanics::choose::select(g, player, source, Purpose::Choose, rest, any)?; let more: Vec<_> = adding.iter().map(|&id| (id, CounterKind::Time, 1)).collect(); g.add_counters_together(&more); for id in removing { g.remove_counters(id, CounterKind::Time, 1); } Ok(()) }\n";
 
 /// Whether an Aura could enchant `host` under `controller` (CR 303.4a, 702.5c):
 /// every enchant ability it has allows it, the one its card prints as well, which
@@ -4687,7 +4688,7 @@ impl Compiler {
         const NOTHING: &str = "Vec::<ObjectId>::new()";
         let mut counters = Vec::new();
         for (kind, n) in &entry.counters {
-            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            let n = self.number(n)?.quantity(Quantity::CounterPlacement)?;
             counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
         }
         let counters = counters.join(", ");
@@ -5083,7 +5084,7 @@ impl Compiler {
         let count = self.fetch(self.select_count(&selection.count)?);
         let amount = self
             .number(&placement.amount)?
-            .amount(i16::MAX.into(), "i16")?;
+            .quantity(Quantity::CounterPlacement)?;
         let amount = self.fetch(amount);
         let kind = counter_kind(&placement.kind)?;
         let player = self.fetch(self.certain_player(&selection.player)?);
