@@ -5,11 +5,13 @@ edition = "2021"
 build = "src/build_tokens.rs"
 
 [features]
-default = []
-cantrip = ["dep:prettyplease"]
+default = ["legacy"]
+legacy = []
+cantrip = ["legacy", "dep:prettyplease"]
 
 [dependencies]
 rust_syntax = { path = ".." }
+mtgish-ir = { path = "../ir" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ron = "0.8.1"
@@ -29,3 +31,4 @@ syn = { version = "2", features = ["full"] }
 [[bin]]
 name = "ast"
 path = "src/bin/ast.rs"
+required-features = ["legacy"]

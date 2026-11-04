@@ -181,7 +181,7 @@ pub fn zone(part: &CostPart, phase: &ObjectPhase) -> Option<EventZone> {
 /// Only unrepeated, directly declared additional costs are currently bound.
 /// Alternative/conditional/linked cost declarations need their own namespaces.
 pub fn casting_cost(ability: &Ability) -> Option<&Cost> {
-    match ability {
+    match crate::presentation::ability(ability) {
         Ability::Casting(CastingRule::AdditionalCost {
             cost,
             repetition: CostRepetition::Once,

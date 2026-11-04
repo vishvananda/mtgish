@@ -1,0 +1,15 @@
+[package]
+name = "mtgish-ir"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rust_syntax = { path = ".." }
+serde = { version = "1", features = ["derive"] }
+bincode = "2.0.1"
+syn = { version = "2", features = ["full"] }
+
+[build-dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"

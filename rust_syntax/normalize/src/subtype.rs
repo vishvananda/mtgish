@@ -396,6 +396,7 @@ pub fn artifact_type(value: &ArtifactType) -> SubType {
     }
 }
 
+#[cfg(feature = "legacy")]
 pub fn enchantment_type(value: &EnchantmentType) -> SubType {
     match value {
         EnchantmentType::Aura => SubType::Aura,
@@ -414,6 +415,7 @@ pub fn enchantment_type(value: &EnchantmentType) -> SubType {
     }
 }
 
+#[cfg(feature = "legacy")]
 pub fn planeswalker_type(value: &PlaneswalkerType) -> SubType {
     match value {
         PlaneswalkerType::Ajani => SubType::Ajani,
@@ -507,6 +509,7 @@ pub fn planeswalker_type(value: &PlaneswalkerType) -> SubType {
     }
 }
 
+#[cfg(feature = "legacy")]
 pub fn spell_type(value: &SpellType) -> SubType {
     match value {
         SpellType::Adventure => SubType::Adventure,

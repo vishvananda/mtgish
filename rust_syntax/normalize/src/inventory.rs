@@ -57,6 +57,7 @@ impl Inventory<'_> {
     fn ability(&mut self, a: &Ability) {
         self.form("Ability", a);
         match a {
+            Ability::WithPresentation { ability, .. } => self.ability(ability),
             Ability::Named(_) => {}
             Ability::Primitive { name, .. } => self.primitive(name),
             Ability::CounterStages {
@@ -1437,6 +1438,7 @@ impl Inventory<'_> {
     fn keyword(&mut self, keyword: &Keyword) {
         self.form("Keyword", keyword);
         match keyword {
+            Keyword::WithReminder { keyword, .. } => self.keyword(keyword),
             Keyword::Protection(quality) | Keyword::HexproofFrom(quality) => {
                 self.protection(quality)
             }

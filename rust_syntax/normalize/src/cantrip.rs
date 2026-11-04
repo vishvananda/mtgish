@@ -183,7 +183,7 @@ fn generator_fingerprint() -> &'static str {
             ),
             ("semantics.rs", include_bytes!("semantics.rs").as_slice()),
             ("validate.rs", include_bytes!("validate.rs").as_slice()),
-            ("ir.rs", include_bytes!("ir.rs").as_slice()),
+            ("ir.rs", include_bytes!("../../ir/src/ir.rs").as_slice()),
             (
                 "cantrip_vocab.rs",
                 include_bytes!("cantrip_vocab.rs").as_slice(),

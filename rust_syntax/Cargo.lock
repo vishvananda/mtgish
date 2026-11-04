@@ -349,6 +349,7 @@ name = "mtgish-ast"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "mtgish-ir",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -356,6 +357,18 @@ dependencies = [
  "rust_syntax",
  "serde",
  "serde_json",
+ "syn",
+]
+
+[[package]]
+name = "mtgish-ir"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "proc-macro2",
+ "quote",
+ "rust_syntax",
+ "serde",
  "syn",
 ]
 
