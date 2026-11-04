@@ -45,7 +45,8 @@
         "Zada's Commando",
         "Zombie Trailblazer",
         "Zulaport Chainmage"
-      ]
+      ],
+      "upstream_issue": "https://github.com/i5jb/mtgish/issues/187"
     },
     {
       "id": "REF-006",
@@ -55,11 +56,13 @@
         "Remnant of the Rising Star",
         "Wildborn Preserver"
       ],
-      "preservation_note": "Electro damage-source reference is independent and is unchanged."
+      "preservation_note": "Electro damage-source reference is independent and is unchanged.",
+      "upstream_issue": "https://github.com/i5jb/mtgish/issues/188"
     },
     {
       "id": "REF-007",
-      "producer_fix": "Wrap Highway Reaver alternate-first-unearth rule in MaxSpeed; preserve other three abilities and first_each_turn."
+      "producer_fix": "Wrap Highway Reaver alternate-first-unearth rule in MaxSpeed; preserve other three abilities and first_each_turn.",
+      "upstream_issue": "https://github.com/i5jb/mtgish/issues/189"
     }
   ],
   "validation": {
@@ -83,5 +86,14 @@
     "audit": "Full33529-card derivation; existing context matched-evidence hashes unchanged, prior MustCost Cauldron Dance template separately re-reviewed, four exact new speed-mining findings explicitly triaged. Preserve parser-source fingerprints.",
     "old_native_capture": "Three affected reflexive cards captured before source edit; current whole-card comparison changes only X amount to BoundValue. Earlier unrelated-action test requires nonzero payment ResultId."
   },
-  "immutable_artifacts": "No oracle-grammar gold, scorer, saved reference pin or comparison semantics modified. NORM001/002 are separate canonicalization work."
+  "immutable_artifacts": "No oracle-grammar gold, scorer, saved reference pin or comparison semantics modified. NORM001/002 are separate canonicalization work.",
+  "producer_fix_commit": "cdb9f330840697d24b2fa9eaa0c2f89a0dbe8b19",
+  "pipeline_recovery": {
+    "card": "Vodalian War Machine",
+    "generator_revision": "cdb9f330840697d24b2fa9eaa0c2f89a0dbe8b19",
+    "status": "queued at corrected revision; original queued job retained as unavailable",
+    "cache_changed_rows": 1,
+    "other_cached_rows": "byte-for-byte unchanged",
+    "evidence": "/mnt/vizier/reference-20261104/vodalian-refresh.json"
+  }
 }
