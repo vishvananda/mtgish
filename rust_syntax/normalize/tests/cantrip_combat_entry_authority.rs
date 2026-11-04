@@ -51,8 +51,8 @@ fn unchanged_ordinary_controller_entry_events_keep_their_meaning() {
         _ => None,
     }).expect("the printed land-put trigger");
     *event = PlayerEvent::EntersUnderControl;
-    let old = cantrip::planned::with_features(&[], || cantrip::module(&c)).unwrap();
-    let new = cantrip::planned::with_features(&["entry-actor"], || cantrip::module(&c)).unwrap();
+    let old = cantrip::planned::with_features(&["resolving-counter-costs"], || cantrip::module(&c)).unwrap();
+    let new = cantrip::planned::with_features(&["entry-actor", "resolving-counter-costs"], || cantrip::module(&c)).unwrap();
     assert_eq!(old, new);
     assert!(new.contains("let player = q.controller(id);"), "{new}");
 }

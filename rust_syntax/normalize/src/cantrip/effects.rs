@@ -2764,6 +2764,24 @@ impl Compiler {
                 player,
                 cost,
                 optional: true,
+            } if self.asking.is_none() && lane_j::chosen_counter_cost(player, cost).is_some() => {
+                let placement = lane_j::chosen_counter_cost(player, cost).expect("one chosen counter recipient");
+                let Recipients::Objects(objects) = &placement.recipients else { unreachable!() };
+                let Expr::Constant(n) = placement.amount else { unreachable!() };
+                let payer = self.fetch(self.certain_player(player)?);
+                let candidates = self.fetch(self.objects(objects)?);
+                let kind = read::counter_kind(&placement.kind)?;
+                self.helpers.insert("pay_question");
+                let code = format!("let payer_{id} = {payer}; let candidates_{id}: Vec<ObjectId> = {candidates}; let counter_paid_{id}: Vec<ObjectId> = cantrip_mechanics::counters::may_pay_on_one(g, payer_{id}, asker.source, {kind}, {n}, candidates_{id}, &PAY_QUESTION)?.into_iter().collect(); let paid_{id} = !counter_paid_{id}.is_empty();");
+                self.plan_switched("resolving-counter-costs", "selected recipient counter cost", &code, out);
+                self.performed.insert(result.0, format!("paid_{id}"));
+                self.moved.insert(result.0, format!("counter_paid_{id}"));
+                self.before.insert(result.0, format!("counter_paid_{id}.clone()"));
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
             } if lane_j::counters_on_a_target(player, cost, result).is_some() => {
                 let action = lane_j::counters_on_a_target(player, cost, result).expect("just seen");
                 return self.player_action(id, player, &action, true, result, out);

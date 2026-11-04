@@ -57,6 +57,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("damage-poison", "pub const fn on_damage_to_player<const N: u32>", &[]),
     ("combat-lki", "fn creatures_blocked_by(&self, source: ObjectId)", &["last-known-combat-relationships"]),
     ("entry-actor", "fn put_onto_battlefield_by(&mut self", &[]),
+    ("resolving-counter-costs", "pub fn may_pay_on_one(", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

@@ -3385,6 +3385,19 @@ pub(super) fn blights(placements: &[CounterPlacement]) -> Option<u8> {
         .then(|| constant_u8(amount))
         .flatten()
 }
+/// A resolving cost that puts counters on one object chosen by its payer.
+/// Similar placement instructions do not perform the blight keyword action.
+pub(super) fn chosen_counter_cost<'a>(player: &PlayerRef, cost: &'a Cost) -> Option<&'a CounterPlacement> {
+    let [CostPart::PutCounters(placements)] = cost.parts.as_slice() else { return None };
+    let [CounterPlacement {
+        recipients: Recipients::Objects(_),
+        amount: Expr::Constant(n),
+        selection: Some(SelectionChoice { player: chooser, count: Count::Exactly(Expr::Constant(1)) }),
+        ..
+    }] = placements.as_slice() else { return None };
+    (format!("{chooser:?}") == format!("{player:?}") && i16::try_from(*n).is_ok_and(|n| n >= 0))
+        .then_some(&placements[0])
+}
 /// "You may put a stun counter on it. If you do, ...": no cost Cantrip can pay, but
 /// the same thing as an optional instruction whose doing the next one reads.
 pub(super) fn counters_on_a_target(
