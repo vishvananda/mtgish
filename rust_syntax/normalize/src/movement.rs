@@ -11,6 +11,11 @@ pub fn normalize_card(mut card: Card) -> Card {
 pub fn normalize_unified(card: &mut UnifiedCard) {
     card.walk_mut(&mut Normalize);
 }
+pub fn normalize_abilities(abilities: &mut [Ability]) {
+    for ability in abilities {
+        ability.walk_mut(&mut Normalize);
+    }
+}
 pub fn normalize_program(program: &mut Program) {
     program.walk_mut(&mut Normalize);
 }

@@ -2195,6 +2195,12 @@ impl<'a> Scope<'a> {
     }
     fn keyword(&self, keyword: &Keyword) -> Result {
         match keyword {
+            Keyword::WithReminder { keyword, .. } => {
+                if matches!(keyword.as_ref(), Keyword::WithReminder { .. }) {
+                    return Err("keyword presentation must not be nested".into());
+                }
+                self.keyword(keyword)
+            }
             Keyword::Protection(quality) | Keyword::HexproofFrom(quality) => {
                 self.protection(quality)
             }
@@ -2640,7 +2646,7 @@ impl<'a> Scope<'a> {
             Operand::Record(fields) => fields.iter().try_for_each(|f| self.operand(&f.value)),
             Operand::Form(named) => self.named(named),
             Operand::Vocabulary { form, .. } | Operand::Term { form, .. }
-                if crate::lower::reads_scope(form) =>
+                if crate::complete::reads_scope(form) =>
             {
                 Err(format!("{form} names something in scope").into())
             }
@@ -3022,7 +3028,10 @@ impl<'a> Scope<'a> {
                 self.players(actor)?;
                 terms.options.iter().try_for_each(|o| self.operand(o))?;
                 terms.except.iter().try_for_each(|o| self.operand(o))?;
-                match &terms.count { ChoiceCount::Exactly(n) | ChoiceCount::UpTo(n) => self.expr(n), ChoiceCount::AnyNumber => Ok(()) }
+                match &terms.count {
+                    ChoiceCount::Exactly(n) | ChoiceCount::UpTo(n) => self.expr(n),
+                    ChoiceCount::AnyNumber => Ok(()),
+                }
             }
             Operation::RevealChoices { .. } => Ok(()),
             Operation::CoinFlips {
@@ -4524,8 +4533,9 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
             }]
         );
     };
-    let [Instruction::Group(body)] = body.instructions.as_slice() else {
-        return false;
+    let instructions = match body.instructions.as_slice() {
+        [Instruction::Group(body)] => body.instructions.as_slice(),
+        instructions => instructions,
     };
     let [Instruction::Effect {
         result,
@@ -4559,7 +4569,7 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
                 excluding: None,
             },
         ..
-    }] = body.instructions.as_slice()
+    }] = instructions
     else {
         return false;
     };
@@ -4580,7 +4590,9 @@ fn has_definition(ability: &Ability) -> bool {
             kind: StaticKind::CharacteristicDefining { .. },
             ..
         } => true,
-        Ability::Scoped { ability, .. } => has_definition(ability),
+        Ability::Scoped { ability, .. } | Ability::WithPresentation { ability, .. } => {
+            has_definition(ability)
+        }
         Ability::Conditional {
             then, otherwise, ..
         } => then.iter().chain(otherwise).any(has_definition),
@@ -4595,6 +4607,32 @@ fn validate_ability_in(
 ) -> Result {
     let mut scope = Scope::default();
     let (announcement, body) = match ability {
+        Ability::WithPresentation {
+            label,
+            reminder,
+            ability,
+        } => {
+            crate::presentation::validate_label(label.as_deref())?;
+            if matches!(ability.as_ref(), Ability::WithPresentation { .. }) {
+                return Err("ability presentation must not be nested".into());
+            }
+            if *reminder
+                && matches!(
+                    ability.as_ref(),
+                    Ability::Keyword(_)
+                        | Ability::Static {
+                            kind: StaticKind::CharacteristicDefining {
+                                keyword: Some(_),
+                                ..
+                            },
+                            ..
+                        }
+                )
+            {
+                return Err("keyword reminder belongs to its keyword instance".into());
+            }
+            return validate_ability_in(ability, zones, casting_costs);
+        }
         Ability::Named(named) => return scope.named(named),
         Ability::Primitive { name, operands } => return scope.primitive(name, operands),
         Ability::CounterStages {
@@ -4911,7 +4949,8 @@ fn validate_ability_in(
                     return Err("characteristic definition may define only color, subtypes, power, or toughness".into());
                 }
                 if let Some(keyword) = keyword {
-                    let valid = match keyword {
+                    scope.keyword(keyword)?;
+                    let valid = match crate::presentation::keyword(keyword) {
                         Keyword::Devoid => {
                             matches!(changes.as_slice(),[Change::Colors {mode:ChangeMode::Set,colors}] if colors.is_empty())
                         }
@@ -5065,8 +5104,11 @@ fn validate_ability_in(
 
 /// Accepts `Named` forms. Complete cards go through `card`, which rejects them.
 pub fn first_invalid(card: &Card) -> Option<(usize, String)> {
-    let casting_costs = card
-        .abilities
+    first_invalid_abilities(&card.abilities)
+}
+
+fn first_invalid_abilities(abilities: &[Ability]) -> Option<(usize, String)> {
+    let casting_costs = abilities
         .iter()
         .enumerate()
         .filter_map(|(i, ability)| {
@@ -5075,11 +5117,24 @@ pub fn first_invalid(card: &Card) -> Option<(usize, String)> {
                 .map(|cost| (i as u32, cost))
         })
         .collect();
-    card.abilities.iter().enumerate().find_map(|(i, ability)| {
+    abilities.iter().enumerate().find_map(|(i, ability)| {
         validate_ability_in(ability, None, &casting_costs)
             .err()
             .map(|e| (i, e))
     })
+}
+
+/// Validate complete abilities without inventing printed card characteristics.
+/// Casting-cost addresses use the list's actual ability indices. Named/opaque
+/// unreduced forms never count as a successful semantic reading.
+pub fn abilities(abilities: &[Ability]) -> Result {
+    if let Some((index, why)) = first_invalid_abilities(abilities) {
+        return Err(format!("abilities[{index}]: {why}"));
+    }
+    match crate::complete::named_forms(&abilities).keys().next() {
+        Some(form) => Err(format!("unreduced form {form}")),
+        None => Ok(()),
+    }
 }
 
 fn face(card: &Card) -> Result {
@@ -5100,7 +5155,7 @@ fn face(card: &Card) -> Result {
 
 pub fn card(card: &Card) -> Result {
     face(card)?;
-    match crate::unified::named_forms(card).keys().next() {
+    match crate::complete::named_forms(card).keys().next() {
         Some(form) => Err(format!("{}: unreduced form {form}", card.name)),
         None => Ok(()),
     }

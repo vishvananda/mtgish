@@ -5,11 +5,13 @@ edition = "2021"
 build = "src/build_tokens.rs"
 
 [features]
-default = []
-cantrip = ["dep:prettyplease"]
+default = ["legacy"]
+legacy = []
+cantrip = ["legacy", "dep:prettyplease"]
 
 [dependencies]
-rust_syntax = { path = ".." }
+rust_syntax = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "34b1856c4916eb87813e75bdcdecd2d94a4ec13e" }
+mtgish-ir = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "106840242b3a5d574c5bb402982a7886d2dced48" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ron = "0.8.1"
@@ -29,3 +31,4 @@ syn = { version = "2", features = ["full"] }
 [[bin]]
 name = "ast"
 path = "src/bin/ast.rs"
+required-features = ["legacy"]

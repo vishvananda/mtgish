@@ -43,14 +43,7 @@ fn named_node(value: &serde_json::Value) -> Named {
 
 include!(concat!(env!("OUT_DIR"), "/vocabularies.rs"));
 
-/// A fieldless form that names something in scope, not a word from a vocabulary.
-pub fn reads_scope(form: &str) -> bool {
-    form.starts_with("Ref_")
-        || form.starts_with("RefOuter_")
-        || form.starts_with("Trigger_")
-        || form.starts_with("Eachable")
-        || form.ends_with("ThisWay") && form != "TheNameStickerPutOnPermanentThisWay"
-}
+pub use crate::complete::reads_scope;
 
 /// The word in a "this way" row's name, and the words of the instruction it
 /// reads. A row whose word no instruction here has reads a cost or an event.

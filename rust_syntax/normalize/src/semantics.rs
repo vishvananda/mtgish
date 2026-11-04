@@ -238,6 +238,14 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
 /// What a reviewed action row leaves for a later "this way" to name.
 pub fn yields(operation: &Operation) -> Option<&'static str> {
     let operation = operation.action();
+    // Every manifest/cloak source supplies the same object-transition result,
+    // including an inline hand choice and multiple cards. Cardinality is a
+    // separate concern; consumers must not infer a singular object from this.
+    if matches!(operation, Operation::Manifest { .. }) {
+        return crate::primitive_spec::lookup("Action::ManifestTheTopCardOfPlayersLibrary")?
+            .yields
+            .as_deref();
+    }
     if matches!(operation, Operation::PutChosenCounters { .. }) {
         return Some("counters");
     }
@@ -4102,7 +4110,6 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         ("HasXInCost", []) => is(T::XInCost),
         ("HasTapSelfInCost", []) => is(T::TapSymbolInCost),
         ("DoesntHaveTapSelfInCost", []) => not(T::TapSymbolInCost),
-        ("HasASingleTarget", []) => is(T::SingleTarget),
         ("TargetsOnlySinglePermanent", [Operand::Object(object)]) => ObjectFilter::All(vec![
             is(T::SingleTarget),
             target(Recipients::Objects(ObjectSet::One(object.clone()))),
@@ -4156,7 +4163,9 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
 }
 
 fn event_filter(objects: &ObjectSet) -> Option<ObjectFilter> {
-    if let Some(filter) = objects.battlefield_filter() { return Some(filter.clone()); }
+    if let Some(filter) = objects.battlefield_filter() {
+        return Some(filter.clone());
+    }
     match objects {
         ObjectSet::One(object) => Some(ObjectFilter::SameObject(object.clone())),
         _ => None,
