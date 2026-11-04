@@ -34,11 +34,10 @@ fn next_turn_steps_carry_objects_and_select_the_printed_players_turn() {
             _ => "End",
         };
         assert!(dense.contains(&format!("step:Step::{step},")), "{name}: {module}");
-        let player = if name == "Suppress" { "of:Some(named_0)" } else { "of:Some(item.controller)" };
-        assert!(dense.contains(player), "{name}: {module}");
         if name == "Suppress" {
-            assert!(dense.contains("letSome(named_0)=t_0.get(0).copied().and_then(|t:Target|t.player())"), "{module}");
-        }
+            let player = dense.split("of:Some(").nth(1).unwrap().split(')').next().unwrap();
+            assert!(dense.contains(&format!("letSome({player})=t_0.get(0).copied().and_then(|t:Target|t.player())")), "the selected player controls the deadline: {module}");
+        } else { assert!(dense.contains("of:Some(item.controller)"), "{name}: {module}"); }
         syn::parse_file(module).unwrap();
     }
 }

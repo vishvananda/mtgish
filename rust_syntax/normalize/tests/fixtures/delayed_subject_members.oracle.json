@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Gift of Immortality",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gift of Immortality",
+        "manaCost": "{2}{W}",
+        "type": "Enchantment \u2014 Aura",
+        "text": "Enchant creature\nWhen enchanted creature dies, return that card to the battlefield under its owner's control. Return this card to the battlefield attached to that creature at the beginning of the next end step.",
+        "colors": [
+          "W"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Next of Kin",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Next of Kin",
+        "manaCost": "{2}{G}",
+        "type": "Enchantment \u2014 Aura",
+        "text": "Enchant creature\nWhen enchanted creature dies, you may put a creature card you own with lesser mana value from your hand or from the command zone onto the battlefield. If you do, return this card to the battlefield attached to that creature at the beginning of the next end step.",
+        "colors": [
+          "G"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Infinite Authority",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Infinite Authority",
+        "manaCost": "{W}{W}{W}",
+        "type": "Enchantment \u2014 Aura",
+        "text": "Enchant creature\nWhenever enchanted creature blocks or becomes blocked by a creature with toughness 3 or less, destroy the other creature at end of combat. At the beginning of the next end step, if that creature was destroyed this way, put a +1/+1 counter on the first creature.",
+        "colors": [
+          "W"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Bounty of the Hunt",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Bounty of the Hunt",
+        "manaCost": "{3}{G}{G}",
+        "type": "Instant",
+        "text": "You may exile a green card from your hand rather than pay this spell's mana cost.\nDistribute three +1/+1 counters among one, two, or three target creatures. For each +1/+1 counter you put on a creature this way, remove a +1/+1 counter from that creature at the beginning of the next cleanup step.",
+        "colors": [
+          "G"
+        ]
+      }
+    ]
+  }
+]

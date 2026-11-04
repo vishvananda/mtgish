@@ -1,11 +1,44 @@
 //! Delayed and reflexive triggered abilities (CR 603.7, 603.12). The body runs on
 //! a later stack item, so what it names of the instruction that made it has to
-//! travel with it: the engine carries one list of objects, or one subject, and
-//! for a reflexive ability only the subject.
+//! travel with it: step delays can retain an independent subject plus one real-object list.
+//! Event delays and reflexive abilities keep their own, separately checked capture contracts.
 use super::*;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Cardinality { OneAtMost, Many }
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum CaptureRole { EventSubject, Value, AuraCard }
+
+/// A creator-scope expression and its proved bound, not a packed group of runtime IDs.
+struct ObjectCapture {
+    code: String,
+    cardinality: Cardinality,
+    // Prefer the lexical event subject; an Aura's graveyard card can use the independent list.
+    priority: CaptureRole,
+}
+struct StepCaptures {
+    label: String,
+    objects: RefCell<Vec<ObjectCapture>>,
+}
+impl StepCaptures {
+    fn read(&self, code: String, cardinality: Cardinality, priority: CaptureRole) -> String {
+        let mut captures = self.objects.borrow_mut();
+        let index = match captures.iter().position(|c| c.code == code) {
+            Some(index) => {
+                if cardinality == Cardinality::OneAtMost { captures[index].cardinality = cardinality; }
+                captures[index].priority = captures[index].priority.min(priority);
+                index
+            }
+            None => { let index = captures.len(); captures.push(ObjectCapture { code, cardinality, priority }); index }
+        };
+        format!("{}_capture_{index}(q, item)", self.label)
+    }
+}
 
 /// What a delayed ability's body takes along from the instruction making it.
 pub(super) struct Outer {
+    /// Only step-delayed closures use the subject plus real-object-list layout.
+    step: Option<StepCaptures>,
     /// The making instruction's view, to read references as they stand then.
     pub(super) compiler: Compiler,
     /// `Vec<ObjectId>` code for each list carried.
@@ -53,13 +86,9 @@ impl Outer {
 /// triggers is put on the stack with none, so `about` would read nothing.
 const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list";
 
-/// The object a triggered ability's source became as it moved, carried in its data:
-/// "this card" of "when this creature dies".
-const DIED_AS: &str = "Some(ObjectId(item.data[0])).filter(|o| *o != ObjectId::NONE).into_iter().collect::<Vec<ObjectId>>()";
-
 /// A reflexive ability about a list of objects: Cantrip's carries one target.
 const REFLEXIVE_LIST: &str = "reflexive ability about a list of objects";
-pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
+pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { assert_eq!(part, 0, \"one real-object list\"); q.event_objects(item).to_vec() }\n";
 
 impl Compiler {
     /// The engine carries actual objects, not sentinel separators. One list needs no encoding; distinct groups need
@@ -105,6 +134,7 @@ impl Compiler {
                 || outer.made.is_some()
                 || outer.matcher
                 || (self.event_at == EventAt::TargetFilter && outer.subject.is_some())
+                || (self.event_at == EventAt::TargetFilter && outer.step.is_some())
         })
     }
     /// What a matcher reads of the list its ability carries, when this is one.
@@ -317,6 +347,15 @@ impl Compiler {
         if Self::watched_by(outer, object) {
             return Ok(Some("Some(asker.source)".into()));
         }
+        if let Some(step) = &outer.step {
+            if self.event_at == EventAt::TargetFilter {
+                return Err(gap("step-delayed target filter reading captured objects"));
+            }
+            let code = format!("{}.into_iter().collect::<Vec<ObjectId>>()", outer.compiler.object(object)?);
+            let priority = match object { ObjectRef::EventSubject => CaptureRole::EventSubject, ObjectRef::AuraAfterEnchantedLeft { .. } => CaptureRole::AuraCard, _ => CaptureRole::Value };
+            // ObjectRef is singular by construction; the helper may read its subject or its sole list member.
+            return Ok(Some(format!("{}.first().copied()", step.read(code, Cardinality::OneAtMost, priority))));
+        }
         if let Some(subject) = &outer.subject {
             let code = outer.compiler.object(object)?;
             let mut carried = subject.borrow_mut();
@@ -391,6 +430,9 @@ impl Compiler {
         let code = format!(
             "q.state().targets(item).iter().enumerate().filter(|(_, t)| t_{at}.contains(t)).flat_map(|(i, t)| {{ let share = q.state().share(item, i) as usize; t.object().into_iter().flat_map(move |o| std::iter::repeat(o).take(share)) }}).collect::<Vec<ObjectId>>()"
         );
+        if let Some(step) = &outer.step {
+            return Ok(Some(step.read(code, Cardinality::Many, CaptureRole::Value)));
+        }
         Ok(Some(self.carried_list(outer, code)))
     }
     /// A `Vec<ObjectId>` this body cannot read for itself, if `objects` is.
@@ -433,6 +475,17 @@ impl Compiler {
             return Ok(Some(
                 "Some(asker.source).into_iter().collect::<Vec<ObjectId>>()".into(),
             ));
+        }
+        if let Some(step) = &outer.step {
+            if let ObjectSet::One(object) = objects {
+                return Ok(Some(format!("{}.into_iter().collect::<Vec<ObjectId>>()", self.outside_object(object)?.expect("nonlocal object"))));
+            }
+            if self.event_at == EventAt::TargetFilter {
+                return Err(gap("step-delayed target filter reading captured objects"));
+            }
+            let one = outer.compiler.one_object(objects) || outer.compiler.single_carried_selection(objects);
+            let cardinality = if one { Cardinality::OneAtMost } else { Cardinality::Many };
+            return Ok(Some(step.read(outer.compiler.objects(objects)?, cardinality, CaptureRole::Value)));
         }
         if let Some(read) = self.read_by_matcher(outer, || outer.compiler.objects(objects))? {
             return Ok(Some(planned::planned_value(
@@ -669,11 +722,12 @@ impl Compiler {
         &mut self,
         label: &str,
         subject_only: bool,
+        step: bool,
         announcement: Option<&Announcement>,
         intervening_if: &Option<Condition>,
         body: &Program,
     ) -> Result<(Rc<Outer>, Option<String>)> {
-        self.closing(subject_only, |c| {
+        self.closing_with_layout(None, subject_only, step.then_some(label), |c| {
             // A target filter is a function of its own: no local reaches it.
             c.reset_results();
             let counts = std::mem::replace(&mut c.slot_counts, target_counts::SlotCounts::Delayed);
@@ -716,7 +770,17 @@ impl Compiler {
         subject_only: bool,
         compile: impl FnOnce(&mut Self) -> Result<T>,
     ) -> Result<(Rc<Outer>, T)> {
+        self.closing_with_layout(made, subject_only, None, compile)
+    }
+    fn closing_with_layout<T>(
+        &mut self,
+        made: Option<String>,
+        subject_only: bool,
+        step: Option<&str>,
+        compile: impl FnOnce(&mut Self) -> Result<T>,
+    ) -> Result<(Rc<Outer>, T)> {
         let outer = Rc::new(Outer {
+            step: step.map(|label| StepCaptures { label: label.into(), objects: RefCell::new(Vec::new()) }),
             compiler: self.clone(),
             objects: RefCell::new(Vec::new()),
             player: RefCell::new(None),
@@ -1107,7 +1171,7 @@ impl Compiler {
     /// `AbilityRef`, data the game state can hold where a closure can't be.
     pub(super) fn delayed_program(&mut self, body: &Program) -> Result<String> {
         let label = format!("delayed_{}", self.fresh());
-        self.closure(&label, false, None, &None, body)?;
+        self.closure(&label, false, false, None, &None, body)?;
         let text = self.delayed_words(false, ability_text(body));
         self.delayed
             .push(format!("delayed_trigger({label}, {})", quoted(&text)));
@@ -1133,14 +1197,13 @@ impl Compiler {
         }
         let when = self.delayed_when(event, start, expires)?;
         let label = format!("delayed_{}", self.fresh());
-        let (outer, _) = self.closure(&label, false, None, intervening_if, body)?;
+        let (outer, _) = self.closure(&label, false, true, None, intervening_if, body)?;
         let text = self.delayed_words(false, ability_text(body));
         self.delayed
             .push(format!("delayed_trigger({label}, {})", quoted(&text)));
         let index = self.delayed.len() - 1;
         let (source, controller, card) = self.maker();
         let ability = format!("AbilityRef::delayed({card}, {index})");
-        let objects = outer.objects.borrow();
         let player = outer.player.borrow();
         // "That turn": the turn the instruction before took, if it could.
         let (open, close) = match start {
@@ -1150,77 +1213,46 @@ impl Compiler {
             },
             _ => (String::new(), ""),
         };
-        match (objects.as_slice(), player.as_ref()) {
-            ([], None) => writeln!(out, "{open}g.delayed_trigger({when}, {source}, {controller}, {ability}, Target::None);{close}").unwrap(),
-            ([], Some(player)) => writeln!(
-                out,
-                "{open}if let Some(player) = {} {{ g.delayed_trigger({when}, {source}, {controller}, {ability}, Target::Player(player)); }}{close}",
-                self.fetch(player)
-            )
-            .unwrap(),
-            (lists, player) => {
+        let step = outer.step.as_ref().expect("step-delayed closure");
+        let captures = step.objects.borrow();
+        // Solve after all reads, including nested closures. Discovery order cannot change the selected role.
+        let subject = if player.is_some() || captures.len() <= 1 { None } else {
+            captures.iter().enumerate().filter(|(_, c)| c.cardinality == Cardinality::OneAtMost)
+                .min_by(|(_, a), (_, b)| (a.priority, &a.code).cmp(&(b.priority, &b.code))).map(|(i, _)| i)
+        };
+        let lists: Vec<_> = captures.iter().enumerate().filter(|(i, _)| Some(*i) != subject).collect();
+        if lists.len() > 1 {
+            return Err(gap("step-delayed ability carrying more than one plural object group or excess independent references"));
+        }
+        for (i, _) in captures.iter().enumerate() {
+            let read = if Some(i) == subject {
+                "item.subject.object().into_iter().collect::<Vec<ObjectId>>()"
+            } else if captures.len() == 1 && player.is_none() {
                 self.helpers.insert("about");
-                let about = self.carried_objects(lists)?;
-                let only_about_them = lists.len() == 1
-                    && matches!(
-                        body.instructions.as_slice(),
-                        [Instruction::Effect {
-                            operation: Operation::Move {
-                                destination: Destination::Exile | Destination::OwnersHand,
-                                ..
-                            },
-                            ..
-                        }]
-                    );
-                let any = match only_about_them {
-                    true => "if about.iter().any(|&o| o != ObjectId::NONE) ",
-                    false => "",
-                };
-                match player {
-                    None => {
-                        let make = format!("{open}{{ {about} {any}{{ g.delayed_trigger_about({when}, {source}, {controller}, {ability}, &about); }} }}{close}");
-                        match ["DelayedWhen::Step", "DelayedWhen::EachStep", "DelayedWhen::ExtraTurnStep"]
-                            .iter()
-                            .any(|at| when.starts_with(at))
-                        {
-                            true => writeln!(out, "{make}").unwrap(),
-                            false => self.plan_code(KEEPS_NO_LIST, &make, out),
-                        }
-                    }
-                    // "When this creature dies, choose target opponent. That player
-                    // puts this card ... onto the battlefield ... at the beginning of
-                    // the next end step" (Endless Whispers): the card is what the
-                    // ability's source became as it died, which the delayed ability
-                    // finds from its own source, so its subject can be the player.
-                    Some(player)
-                        if source == "item.object"
-                            && lists.len() == 1
-                            && lists[0].trim() == DIED_AS
-                            && lane_k::printed_otherwise(self.line_text(), "When this creature dies")
-                            && self.functions.contains(&format!("fn {label}(")) =>
-                    {
-                        let start = self.functions.find(&format!("fn {label}(")).unwrap_or(0);
-                        let end = self.functions[start..].find("\nfn ").map_or(self.functions.len(), |n| start + n);
-                        let function = self.functions[start..end].replace(
-                            "about(q, item, 0)",
-                            "q.state().obj(item.object).became.into_iter().collect::<Vec<ObjectId>>()",
-                        );
-                        self.functions.replace_range(start..end, &function);
-                        if !self.functions.contains("about(q, item,") {
-                            self.helpers.remove("about");
-                        }
-                        writeln!(
-                            out,
-                            "{open}if let Some(player) = {} {{ g.delayed_trigger({when}, {source}, {controller}, {ability}, Target::Player(player)); }}{close}",
-                            self.fetch(player)
-                        )
-                        .unwrap();
-                    }
-                    Some(player) => self.plan_code(
-                        "delayed ability about objects and a player",
-                        &format!("{open}{{ {about} let player = {}.map_or(Target::None, Target::Player); g.delayed_trigger_with({when}, {source}, {controller}, {ability}, player, &about); }}{close}", self.fetch(player)),
-                        out,
-                    ),
+                "about(q, item, 0)"
+            } else { "q.event_objects(item).to_vec()" };
+            writeln!(self.functions, "#[allow(unused_variables)] fn {}_capture_{i}(q: &dyn Query, item: &StackItem) -> Vec<ObjectId> {{ {read} }}", step.label).unwrap();
+        }
+        let subject_code = match (player.as_ref(), subject) {
+            (Some(player), _) => format!("{}.map_or(Target::None, Target::Player)", self.fetch(player)),
+            (None, Some(i)) => {
+                debug_assert!(captures[i].cardinality == Cardinality::OneAtMost);
+                format!("({}).into_iter().next().map_or(Target::None, Target::Object)", self.fetch(&captures[i].code))
+            }
+            _ => "Target::None".into(),
+        };
+        match lists.first() {
+            None => writeln!(out, "{open}g.delayed_trigger({when}, {source}, {controller}, {ability}, {subject_code});{close}").unwrap(),
+            Some((_, capture)) => {
+                let about = self.fetch(&capture.code);
+                if subject.is_some() || player.is_some() {
+                    let code = format!("{open}{{ let about: Vec<ObjectId> = {about}; let subject = {subject_code}; g.delayed_trigger_with({when}, {source}, {controller}, {ability}, subject, &about); }}{close}");
+                    self.plan_switched("delayed-subject-members", "step-delayed ability retaining an independent subject and object list", &code, out);
+                } else {
+                    let guard = if matches!(body.instructions.as_slice(), [Instruction::Effect { operation: Operation::Move { destination: Destination::Exile | Destination::OwnersHand, .. }, .. }]) {
+                        "if !about.is_empty()"
+                    } else { "" };
+                    writeln!(out, "{open}{{ let about: Vec<ObjectId> = {about}; {guard} {{ g.delayed_trigger_about({when}, {source}, {controller}, {ability}, &about); }} }}{close}").unwrap();
                 }
             }
         }

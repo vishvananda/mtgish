@@ -59,6 +59,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("entry-actor", "fn put_onto_battlefield_by(&mut self", &[]),
     ("resolving-counter-costs", "pub fn may_pay_on_one(", &[]),
     ("aura-graveyard-identity", "fn found_aura_after_enchanted_left(", &[]),
+    ("delayed-subject-members", "fn delayed_trigger_with(", &[]),
     ("snow-mana", "pub snow: u32,", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.

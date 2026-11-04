@@ -31,9 +31,9 @@ const CARDS: &[(&str, &str, bool)] = &[
     // "When you play a card exiled with this creature".
     ("Voltaic Visionary", "Event::ZoneChange { old, new, from, to, reason: ZoneReason::PlayLand", true),
     ("Voltaic Visionary", "l.is_by_in(q.state(), q.linked_to(asker))", true),
-    // The delayed ability's subject is the opponent; the card is what its source became.
-    ("Endless Whispers", "Target::Player(player)); }", true),
-    ("Endless Whispers", "q.state().obj(item.object).became.into_iter()", true),
+    // Independent opponent and first graveyard incarnation, without following the source's later moves.
+    ("Endless Whispers", "g.delayed_trigger_with(", true),
+    ("Endless Whispers", "Some(ObjectId(item.data[0]))", true),
     // Cantrip lacks these.
     ("Dimensional Breach", "a-delayed-ability-at-each-step-for-as-long-as-cards-remain-exiled", false),
     ("Ertai's Meddling", "a-delayed-ability-at-each-step-for-as-long-as-cards-remain-exiled", false),
@@ -55,10 +55,14 @@ fn modules_say_what_their_cards_say() {
     }
     let mut names: Vec<String> = CARDS.iter().map(|(name, ..)| name.to_string()).collect();
     names.dedup();
-    let modules: BTreeMap<String, String> = cantrip::modules_printed(&corpus, &oracle, &names)
+    let mut modules: BTreeMap<String, String> = cantrip::modules_printed(&corpus, &oracle, &names)
         .unwrap()
         .into_iter()
         .collect();
+    modules.extend(cantrip::planned::with_features(&["delayed-subject-members"], || {
+        cantrip::modules_printed(&corpus, &oracle, &["Endless Whispers".into()])
+    }).unwrap());
+    assert!(!modules["Endless Whispers"].contains("q.state().obj(item.object).became.into_iter()"));
     for (name, says, whole) in CARDS {
         let module = modules
             .get(*name)
