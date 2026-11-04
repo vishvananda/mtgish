@@ -490,6 +490,65 @@ class GitTests(unittest.TestCase):
         self.assertEqual((self.repo/path).read_text(),'retained fix')
         self.assertEqual(lane.allowed_changes(self.repo,'Test Card'),[path])
 
+    def migration_job(self, *, conflicting=False):
+        self.git('checkout','-qb','parked',self.source)
+        self.write('crates/cantrip-cards/src/cards/test_card.rs','retained fix')
+        self.write('scenarios/test-card.cantrip','original scenario\n')
+        if conflicting:self.write('base','review helper fix')
+        self.git('add','.');self.git('commit','-qm','Review WIP')
+        retained=self.git('rev-parse','HEAD')
+        self.git('checkout','-qb','new-engine',self.base)
+        self.write('engine','new timing capability')
+        if conflicting:self.write('base','new engine helper')
+        self.git('add','.');self.git('commit','-qm','Engine: new timing')
+        head=self.git('rev-parse','HEAD');manifest=self.root/'snapshot.json'
+        lane.save(manifest,dict(kind='local_integration',base=self.base,head=head,validation=dict(ok=True,head=head)))
+        lane.save(self.root/'config.json',dict(max_verifier_rejections=3,local_base_manifest=str(manifest),integration=dict(tree=str(self.repo))))
+        with lane.connect(self.root) as db:
+            lane.enqueue(db,dict(name='Test Card',commit=self.source,publication_base=self.base,verifier_rejections=1))
+            job=dict(db.execute('select * from jobs').fetchone())
+            previous=dict(prepared_parent=self.base,wip_commit=retained,report=dict(decision='blocked',reason='timing unavailable'))
+            db.execute("update jobs set status='blocked',branch='parked',result=?",(json.dumps(previous),));db.commit()
+        return job,head,retained
+
+    def test_migration_retains_all_parked_edits_on_the_validated_new_engine(self):
+        job,head,retained=self.migration_job()
+        lane.retry_stopped(self.root,job['id'],'Timing implemented and validated',new_base=head)
+        with lane.connect(self.root) as db:retried=dict(db.execute('select * from jobs').fetchone())
+        source=json.loads(retried['source']);result=json.loads(retried['result'])
+        self.assertEqual(source['publication_base'],head)
+        self.assertEqual(source['verifier_rejections'],1)
+        self.assertEqual(result['rebase_head'],retained)
+        self.assertEqual(result['rebase_base'],self.base)
+        branch,parent,actual=lane.prepare(self.root,self.repo,retried)
+        self.assertEqual(parent,head);self.assertEqual(self.git('rev-parse','HEAD'),head)
+        self.assertEqual(self.git('rev-parse','parked'),retained)
+        self.assertEqual((self.repo/'engine').read_text(),'new timing capability')
+        self.assertEqual((self.repo/'crates/cantrip-cards/src/cards/test_card.rs').read_text(),'retained fix')
+        self.assertEqual((self.repo/'scenarios/test-card.cantrip').read_text(),'original scenario\n')
+        self.assertEqual(actual['commit'],self.source)
+        archived=lane.read(self.root/'jobs'/job['id']/'retry-1.json')
+        self.assertEqual(json.loads(archived['job']['result'])['wip_commit'],retained)
+
+    def test_migration_rejects_an_unvalidated_base_without_resetting_the_job(self):
+        job,head,retained=self.migration_job()
+        with self.assertRaisesRegex(ValueError,'currently validated'):
+            lane.retry_stopped(self.root,job['id'],'Changed timing',new_base=self.base)
+        with lane.connect(self.root) as db:row=dict(db.execute('select * from jobs').fetchone())
+        self.assertEqual(row['status'],'blocked')
+        self.assertEqual(json.loads(row['result'])['wip_commit'],retained)
+        self.assertEqual(self.git('status','--porcelain'),'')
+
+    def test_conflicting_migration_preserves_parked_work_and_leaves_new_tree_clean(self):
+        job,head,retained=self.migration_job(conflicting=True)
+        lane.retry_stopped(self.root,job['id'],'Changed timing',new_base=head)
+        with lane.connect(self.root) as db:retried=dict(db.execute('select * from jobs').fetchone())
+        with self.assertRaises(subprocess.CalledProcessError):lane.prepare(self.root,self.repo,retried)
+        self.assertEqual(self.git('status','--porcelain'),'')
+        self.assertEqual(self.git('rev-parse','parked'),retained)
+        self.assertEqual(self.git('show',retained+':base'),'review helper fix')
+        self.assertEqual((self.repo/'base').read_text(),'new engine helper')
+
 
     def test_verifier_handoff_materializes_candidate_and_preserves_evidence(self):
         lane.save(self.root / "config.json", {})

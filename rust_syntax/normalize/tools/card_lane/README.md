@@ -475,3 +475,13 @@ python3 rust_syntax/normalize/tools/card_lane/test_card_lane.py
 ```
 
 No Cantrip tree is needed.
+
+A blocked review normally resumes on its preserved engine base. When an engine
+fix has been promoted, explicitly migrate that parked work with
+`review_lane.py --root ROOT retry JOB --reason 'Concrete tested blocker fix' --new-base VALIDATED_HEAD`.
+The head must match the current validated local snapshot and descend from the
+review's original prepared parent. The retry freezes the complete parked diff,
+keeps its original report and rejection count, and applies that diff on the new
+base. A conflicting diff stops before changing the new working tree; the parked
+branch remains available for explicit reconciliation. Driver processes reload at
+clean card boundaries before taking another lease.

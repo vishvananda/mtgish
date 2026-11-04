@@ -279,7 +279,7 @@ def handoff_verifier_findings(root):
     return count
 
 
-def retry_stopped(root, job_id, reason):
+def retry_stopped(root, job_id, reason, *, new_base=None):
     """Explicitly return preserved review work after its blocker changes."""
     if not reason.strip():
         raise ValueError("retry requires the concrete reason the blocker has changed")
@@ -313,6 +313,20 @@ def retry_stopped(root, job_id, reason):
             raise ValueError('only stopped review jobs or reportless confirmations can be explicitly retried')
         if not job["branch"] or not previous.get("prepared_parent"):
             raise ValueError("stopped job lacks its preserved branch or prepared parent")
+        migration = {}
+        pin = None
+        if new_base is not None:
+            import shared_base
+            tree = cfg.get('integration', {}).get('tree')
+            if not tree:
+                raise ValueError('rebasing stopped work requires the local integration repository')
+            pin = shared_base.read_work_base(cfg, Path(tree))
+            if not pin or pin.get('kind') != 'local_integration' or pin['head'] != new_base:
+                raise ValueError('new base must be the currently validated local snapshot')
+            git(tree, 'merge-base', '--is-ancestor', previous['prepared_parent'], new_base)
+            retained = git(tree, 'rev-parse', previous.get('wip_commit') or job['branch'])
+            git(tree, 'merge-base', '--is-ancestor', previous['prepared_parent'], retained)
+            migration = dict(rebase_base=previous['prepared_parent'], rebase_head=retained)
         round_number = source.get("review_round", 0) + 1
         prior_folder = job_folder(root, job, "review")
         source["review_round"] = round_number
@@ -322,6 +336,9 @@ def retry_stopped(root, job_id, reason):
         retry = dict(retry_requested=True, prepared_parent=previous["prepared_parent"])
         if previous.get("wip_commit"):
             retry["wip_commit"] = previous["wip_commit"]
+        if pin:
+            source.update(shared_base.metadata(pin))
+            retry.update(migration, prepared_parent=pin['head'])
         save(Path(root) / "jobs" / job_id / f"retry-{round_number}.json",
              dict(at=now(), reason=reason, job=job))
         db.execute("UPDATE jobs SET stage='review',status='queued',source=?,result=?,priority=?,"
@@ -337,6 +354,15 @@ def prepare(root, tree, job):
     cfg, source = config(root), json.loads(job["source"])
     previous = json.loads(job["result"]) if job.get("result") else {}
     if previous.get("retry_requested") and job["stage"] == "review":
+        if previous.get('rebase_base') and previous.get('rebase_head'):
+            branch = job['branch'] + '-retry-' + str(time.time_ns())
+            git(tree, 'checkout', '-b', branch, previous['prepared_parent'])
+            diff = subprocess.run(['git', 'diff', '--binary', previous['rebase_base'], previous['rebase_head']],
+                                  cwd=tree, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout
+            # A conflicting migration stops before changing the new tree. The complete parked work and report remain.
+            subprocess.run(['git', 'apply', '--index', '--check'], cwd=tree, input=diff, check=True)
+            subprocess.run(['git', 'apply', '--index'], cwd=tree, input=diff, check=True)
+            return branch, previous['prepared_parent'], source
         if previous.get("retry_base") and previous.get("retry_candidate"):
             branch = f"review/{Path(root).name}/{job['id']}/review-round-{source['review_round']}"
             git(tree, "checkout", "-b", branch, previous["retry_base"])
@@ -1102,6 +1128,7 @@ def main():
     p = sub.add_parser("retry")
     p.add_argument("job")
     p.add_argument("--reason", required=True, help="concrete change that resolves the previous blocker")
+    p.add_argument("--new-base", help="explicitly migrate parked work to this currently validated local snapshot")
     sub.add_parser("check")
     p = sub.add_parser("tool")
     p.add_argument("tool")
@@ -1117,7 +1144,7 @@ def main():
     elif args.command == "worker":
         worker(args.root, args.slot, args.once, args.resume)
     elif args.command == "retry":
-        print("requeued", retry_stopped(args.root, args.job, args.reason))
+        print("requeued", retry_stopped(args.root, args.job, args.reason, new_base=args.new_base))
     elif args.command == "watch":
         stamp=driver_stamp()
         while True:
