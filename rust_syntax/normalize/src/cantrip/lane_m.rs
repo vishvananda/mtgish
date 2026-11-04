@@ -127,8 +127,10 @@ impl Compiler {
             S::Nameless => format!("{chars}.name.is_empty()"),
             S::PowerBelowToughness => sides("p < t"),
             S::PowerEqualsToughness => sides("p == t"),
-            S::BlockingAlone => format!(
-                "(q.state().blocks.iter().any(|b| b.blocker == {id}) && q.state().blocks.iter().all(|b| b.blocker == {id}))"
+            S::BlockingAlone => planned::planned_value(
+                "blocking status after attacker leaves combat",
+                &format!("(q.state().blocks.iter().any(|b| b.blocker == {id}) && q.state().blocks.iter().all(|b| b.blocker == {id}))"),
+                &format!("(q.is_blocking({id}) && q.state().blockers.iter().all(|&blocker| blocker == {id}))"),
             ),
             S::BlockedThisTurn => format!(
                 "q.history().this_turn().iter().any(|r| matches!(r.event, Event::Blocks {{ blocker, .. }} if blocker == {id}))"

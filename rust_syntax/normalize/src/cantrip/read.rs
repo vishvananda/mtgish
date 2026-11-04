@@ -2102,7 +2102,11 @@ impl Compiler {
                 }
             }
             ObjectFilter::Blocking => {
-                format!("q.state().blocks.iter().any(|b| b.blocker == {id})")
+                planned::planned_value(
+                    "blocking status after attacker leaves combat",
+                    &format!("q.state().blocks.iter().any(|b| b.blocker == {id})"),
+                    &format!("q.is_blocking({id})"),
+                )
             }
             ObjectFilter::HasKeyword(Keyword::Flanking) if self.reader != Reader::Layer => {
                 format!("{chars}.abilities().any(|a| q.triggered_ability(a).is_some_and(|t| t.flanking))")
