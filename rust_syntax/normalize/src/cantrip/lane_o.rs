@@ -19,10 +19,6 @@ pub(super) fn in_one_effect(changes: &[Change]) -> Vec<Change> {
     let mut split = Vec::new();
     for change in changes {
         match change {
-            Change::OnlyAbility(ability) => {
-                split.push(Change::RemoveAllAbilities);
-                split.push(grant_of(ability));
-            }
             Change::OnlyAbilities(abilities) => {
                 split.push(Change::RemoveAllAbilities);
                 split.extend(abilities.iter().map(grant_of));
@@ -2527,11 +2523,6 @@ impl Compiler {
                 other => return Err(gap(format!("enchantment type {}", super::form(other)))),
             },
             // One effect: it loses the others, then has this (CR 613.1f).
-            Change::OnlyAbility(ability) => {
-                let mut kinds = vec!["EffectKind::LoseAllAbilities".to_string()];
-                kinds.extend(self.effect_kinds(&grant_of(ability))?);
-                kinds
-            }
             Change::OnlyAbilities(abilities) => {
                 let mut kinds = vec!["EffectKind::LoseAllAbilities".to_string()];
                 for ability in abilities {

@@ -1853,7 +1853,7 @@ impl<'a> Scope<'a> {
             }
             Change::ColorOfMana { mana, .. } if self.results.contains_key(&mana.0) => Ok(()),
             Change::ColorOfMana { mana, .. } => Err(format!("result {} is unavailable", mana.0)),
-            Change::GrantAbility(ability) | Change::OnlyAbility(ability) => {
+            Change::GrantAbility(ability) => {
                 if has_definition(ability) {
                     return Err(
                         "a granted ability is not an intrinsic characteristic definition".into(),

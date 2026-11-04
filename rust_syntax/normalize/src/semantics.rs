@@ -2377,7 +2377,7 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
         ("LayerEffect::SetLandType", [land]) => Change::SetLandType(Box::new(land.clone())),
         ("LayerEffect::SetName", [Operand::Text(name)]) => Change::SetName(name.clone()),
         ("LayerEffect::AddAbilityAndLoseAllOtherAbilities", [Operand::Ability(ability)]) => {
-            Change::OnlyAbility(ability.clone())
+            Change::OnlyAbilities(vec![(**ability).clone()])
         }
         ("LayerEffect::IsACopyOfExiledCard", [Operand::Object(object), effects]) => {
             Change::CopyOf {

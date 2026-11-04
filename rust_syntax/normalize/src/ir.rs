@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 168;
+pub const SCHEMA_VERSION: u32 = 169;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2926,8 +2926,6 @@ pub enum Change {
     },
     AddEnchantmentType(Box<Operand>),
     SetName(String),
-    /// Loses all other abilities and has this one (CR 613.1f, in one effect).
-    OnlyAbility(Box<Ability>),
     /// Has these kinds of abilities of each of `objects`.
     GainAbilitiesOf {
         objects: ObjectSet,

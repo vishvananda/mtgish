@@ -1887,7 +1887,7 @@ impl Inventory<'_> {
             Change::CreatureTypesOf { object, .. } => self.object(object),
             Change::OnlyAbilities(abilities) => abilities.iter().for_each(|a| self.ability(a)),
             Change::GrantAbilityIfAbsent(a) => self.ability(a),
-            Change::GrantAbility(a) | Change::OnlyAbility(a) => self.ability(a),
+            Change::GrantAbility(a) => self.ability(a),
             Change::CreatureTypes { mode, types } => {
                 self.form("ChangeMode", mode);
                 self.form("CreatureTypeSet", types);
