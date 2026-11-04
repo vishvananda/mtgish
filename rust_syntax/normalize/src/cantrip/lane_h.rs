@@ -2015,6 +2015,11 @@ impl Compiler {
                         _ => return Err(failure()),
                     },
                     Keyword::Ward(_) => return Err(failure()),
+                    Keyword::Landwalk(land) => {
+                        let code = lane_p::landwalk(land)?;
+                        let word = code.strip_prefix("Keyword::").ok_or_else(failure)?;
+                        camel_words(word)
+                    }
                     other => camel_words(&form(other)),
                 }),
                 other => match self.grants_keyword(other) {
