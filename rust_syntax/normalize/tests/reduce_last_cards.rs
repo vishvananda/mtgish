@@ -275,7 +275,7 @@ fn davriel_offers_eight_typed_programs() {
     }
     let text = |n: usize| serde_json::to_string(&offers[n]).unwrap();
     assert!(text(1).contains("Manor Guardian"));
-    for shape in ["\"AtRandom\"", "\"OwnersHand\"", "\"InResult\""] {
+    for shape in ["\"AtRandom\"", "\"OwnersHand\"", "\"InSet\"", "\"Named\""] {
         assert!(text(2).contains(shape), "{shape}: {}", text(2));
     }
     for shape in [

@@ -249,14 +249,14 @@ fn reduce_object_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter
             | "ThePermanentsChosenThisWay"
             | "TheGraveyardCardsChosenThisWay",
             [Run(result)],
-        ) => ObjectFilter::InResult(result.clone()),
+        ) => ObjectFilter::InSet(Box::new(ObjectSet::Named(result.clone()))),
         ("InTheExiledPileNotChosenThisWay" | "TheGraveyardCardsNotChosenThisWay", [Run(result)]) => {
-            not(ObjectFilter::InResult(result.clone()))
+            not(ObjectFilter::InSet(Box::new(ObjectSet::Named(result.clone()))))
         }
         ("TheCardsOfTypeRevealedThisWay", [Filter(filter), Run(result)]) => {
             ObjectFilter::All(vec![
                 filter.clone(),
-                ObjectFilter::InResult(result.clone()),
+                ObjectFilter::InSet(Box::new(ObjectSet::Named(result.clone()))),
             ])
         }
         // Sharing a characteristic.

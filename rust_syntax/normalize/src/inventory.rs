@@ -2559,7 +2559,6 @@ impl Inventory<'_> {
             | ObjectFilter::ManaCostIs(_)
             | ObjectFilter::ManaSymbolInCost(_)
             | ObjectFilter::NameFirstPrintedIn(_)
-            | ObjectFilter::InResult(_)
             | ObjectFilter::CouldProduce(_) => {}
             ObjectFilter::BlockingAny(filter)
             | ObjectFilter::BlockedByAny(filter)

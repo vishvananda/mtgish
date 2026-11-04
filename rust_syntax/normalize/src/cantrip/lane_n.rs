@@ -2343,8 +2343,8 @@ pub(super) fn spell_or_ability(
 }
 
 /// Whether what comes later reads which cards a surveil put into the graveyard,
-/// which is what `InResult` of it says. "Cards you put on top" has no word of its
-/// own in the AST: `Named` of a surveil does not say which part it means.
+/// identified by membership or a graveyard-specific count. Plain `Named` reads
+/// alone do not identify the graveyard part; kept-on-top reads are separate.
 pub(super) fn reads_graveyard_part(after: &[Instruction], result: &ResultId) -> bool {
     crate::result_reads::ResultReads::instructions(after, result).graveyard()
 }

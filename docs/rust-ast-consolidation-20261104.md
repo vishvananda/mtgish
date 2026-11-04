@@ -68,6 +68,9 @@ modified.
 
 ## Remaining candidates and bounded follow-ups
 
+The subsequent result-membership pass is documented in
+[`rust-ast-result-membership-20261104.md`](rust-ast-result-membership-20261104.md).
+
 | Candidate | Assessment and next implementation boundary |
 | --- | --- |
 | Movement/embedded selection | Worth doing after a shared result allocator and resolution-context normalization exist. Start with deterministic, unconstrained movement; lower an embedded selection to `ChooseObjects` and preserve the move's result separately. Then use one typed entry specification. The existing `chosen_then_moved` transformation only handles one narrow bound-player case and changes `Exactly` to `AsManyAsCan` specifically for resolution. Random library order, group constraints, face-down arrival and simultaneous choices need explicit representations and separate tests. Do not apply that count conversion to costs or target declarations. |

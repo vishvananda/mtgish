@@ -257,3 +257,87 @@ fn surveil_can_report_graveyard_and_kept_cards_independently() {
     let reads = read(after);
     assert!(reads.graveyard() && reads.kept_on_top && reads.objects);
 }
+
+#[test]
+fn whole_membership_records_change_only_the_alias_and_schema_stamps() {
+    fn migrate(value: &mut serde_json::Value) {
+        if value.get("kind").and_then(serde_json::Value::as_str) == Some("InResult") {
+            let result = value["args"].clone();
+            *value = serde_json::json!({"kind":"InSet","args":{"kind":"Named","args":result}});
+            return;
+        }
+        match value {
+            serde_json::Value::Object(fields) => {
+                if let Some(schema) = fields.get_mut("schema_version") {
+                    *schema = serde_json::json!(SCHEMA_VERSION);
+                }
+                fields.values_mut().for_each(migrate);
+            }
+            serde_json::Value::Array(values) => values.iter_mut().for_each(migrate),
+            _ => {}
+        }
+    }
+    let source: Vec<_> = include_str!("fixtures/result_membership.ronl")
+        .lines()
+        .collect();
+    let before: Vec<_> = include_str!("fixtures/result_membership_before.jsonl")
+        .lines()
+        .collect();
+    assert_eq!((source.len(), before.len()), (19, 19));
+    for (line, before) in source.into_iter().zip(before) {
+        let source: OracleCard = ron::from_str(line).unwrap();
+        let mut expected: serde_json::Value = serde_json::from_str(before).unwrap();
+        migrate(&mut expected);
+        let actual = serde_json::to_value(unified::lower(&source).card).unwrap();
+        assert_eq!(actual, expected, "{line}");
+    }
+}
+
+#[cfg(feature = "cantrip")]
+#[test]
+fn surveil_membership_and_per_object_prevention_keep_their_backend_paths() {
+    for line in include_str!("fixtures/result_membership.ronl").lines() {
+        let source: OracleCard = ron::from_str(line).unwrap();
+        let card = unified::lower(&source).card.faces.remove(0);
+        if card.name == "Enlightened Confidant" {
+            let code = mtgish_ast::cantrip::module(&card).unwrap();
+            assert!(code.contains("surveil_into_graveyard"));
+            assert!(code.contains("moved_0.clone()).contains(&id)"));
+        } else if card.name == "Mutational Advantage" {
+            let code = mtgish_ast::cantrip::module(&card).unwrap();
+            assert!(code.contains("for each in"));
+            assert!(code.contains("Shield::All"));
+            assert!(code.contains("objects_0.clone()"));
+        }
+    }
+}
+
+#[test]
+fn named_membership_preserves_availability_and_does_not_become_a_selected_view() {
+    let source:OracleCard=ron::from_str(r#"Card(Name: "Availability", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), Rules: [SpellActions(ActionList([DrawACard]))])"#).unwrap();
+    let mut card = mtgish_ast::lower::card(&source).unwrap();
+    let Ability::Spell { body, .. } = &mut card.abilities[0] else {
+        panic!()
+    };
+    body.instructions
+        .push(consume(ObjectSet::Battlefield(membership(0))));
+    validate::card(&card).unwrap();
+    let mut unavailable = card.clone();
+    let Ability::Spell { body, .. } = &mut unavailable.abilities[0] else {
+        panic!()
+    };
+    body.instructions[1] = consume(ObjectSet::Battlefield(membership(999)));
+    assert!(validate::card(&unavailable)
+        .unwrap_err()
+        .contains("result 999 is unavailable"));
+    let Ability::Spell { body, .. } = &mut card.abilities[0] else {
+        panic!()
+    };
+    body.instructions[1] = consume(ObjectSet::Battlefield(ObjectFilter::InSet(Box::new(
+        ObjectSet::Selected(ResultId(0)),
+    ))));
+    assert!(
+        validate::card(&card).is_err(),
+        "a draw transition is not a selection"
+    );
+}

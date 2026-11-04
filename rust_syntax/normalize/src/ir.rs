@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 170;
+pub const SCHEMA_VERSION: u32 = 171;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -5017,8 +5017,6 @@ pub enum ObjectFilter {
     /// A printed mana cost, symbol for symbol.
     ManaCostIs(Vec<Operand>),
     ManaSymbolInCost(ManaColor),
-    /// An object a preceding instruction named, whatever kind of result it holds.
-    InResult(ResultId),
     BlockingAny(Box<ObjectFilter>),
     BlockedByAny(Box<ObjectFilter>),
     PairedWith(Box<ObjectFilter>),
@@ -6582,7 +6580,6 @@ impl ObjectFilter {
     /// Membership of the objects named by one result, independent of spelling.
     pub fn named_result(&self) -> Option<&ResultId> {
         match self {
-            Self::InResult(result) => Some(result),
             Self::InSet(objects) => match objects.as_ref() {
                 ObjectSet::Named(result) => Some(result),
                 _ => None,

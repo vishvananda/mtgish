@@ -1399,8 +1399,6 @@ impl<'a> Scope<'a> {
                     .try_for_each(|operand| self.operand(operand))
             }
             ObjectFilter::ManaSymbolInCost(_) | ObjectFilter::NameFirstPrintedIn(_) => Ok(()),
-            ObjectFilter::InResult(result) if self.results.contains_key(&result.0) => Ok(()),
-            ObjectFilter::InResult(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectFilter::BlockingAny(filter)
             | ObjectFilter::BlockedByAny(filter)
             | ObjectFilter::PairedWith(filter)

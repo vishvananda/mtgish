@@ -677,7 +677,7 @@ fn reduce_tail_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> 
         ("WasExiledThisWay", []) => among(earlier(EarlierObjects::Exiled)),
         ("WasTurnedFaceUpThisWay", []) => among(earlier(EarlierObjects::It)),
         ("WasExiledByPlayerThisWay", [Player(player), Run(result)]) => ObjectFilter::All(vec![
-            ObjectFilter::InResult(result.clone()),
+            ObjectFilter::InSet(Box::new(ObjectSet::Named(result.clone()))),
             exiled_by(player.clone()),
         ]),
         ("WasExiledWithAnAbility", [Term { operands, .. }]) => {

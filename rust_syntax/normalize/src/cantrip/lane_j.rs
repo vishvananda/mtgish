@@ -2898,10 +2898,6 @@ impl Compiler {
                     self.objects(among)?
                 )
             }
-            ObjectFilter::InResult(result) => {
-                let list = self.objects(&ObjectSet::Named(result.clone()))?;
-                format!("({list}).contains(&{id})")
-            }
             ObjectFilter::KickedWith(cost) => {
                 let words = mechanics::kicker_words(cost);
                 match self.kickers.iter().position(|k| Some(k) == words.as_ref()) {
