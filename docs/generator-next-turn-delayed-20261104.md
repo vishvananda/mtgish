@@ -18,6 +18,10 @@ The host also exposes waiting ordinary-step and next-turn-step delayed abilities
 through its existing pending-effects display. A follow-up client caption repair
 removes the blanket claim that every pending ability expires at end of turn if
 no spell is cast. These waits have different lifetimes.
+The combined local worker checkpoint is now
+`7c93fbf4052aa8074aa00b35c91d327316b2ec87`; its native workspace repeats the
+same 17,158 passing tests. Queued jobs were moved to this checkpoint before
+claim, and caption-blocked jobs retained their fixes on explicit retry.
 
 Validation:
 

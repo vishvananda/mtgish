@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Eternal Scourge",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Eternal Scourge",
+        "manaCost": "{3}",
+        "type": "Creature — Eldrazi Horror",
+        "text": "You may cast this card from exile.\nWhen this creature becomes the target of a spell or ability an opponent controls, exile this creature.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Ian Malcolm, Chaotician",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ian Malcolm, Chaotician",
+        "manaCost": "{1}{U}{R}",
+        "type": "Legendary Creature — Human Scientist",
+        "text": "Whenever a player draws their second card each turn, that player exiles the top card of their library.\nDuring each player's turn, that player may cast a spell from among the cards they don't own exiled with Ian Malcolm, and mana of any type can be spent to cast it.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Misthollow Griffin",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Misthollow Griffin",
+        "manaCost": "{2}{U}{U}",
+        "type": "Creature — Griffin",
+        "text": "Flying\nYou may cast this card from exile.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  }
+]

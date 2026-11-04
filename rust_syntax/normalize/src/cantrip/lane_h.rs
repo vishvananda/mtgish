@@ -3093,7 +3093,7 @@ impl Compiler {
             &format!("{label}_allows"),
             ("q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId", "q, asker, card, player", "bool"),
             &body,
-            |allows| format!("ExileCast {{ text: \"{text}\", allows: {allows}, additional: {additional}, any_type: {any_type}, lands: {lands}, life_for_mana_value: {life}{extra} }}"),
+            |allows| format!("ExileCast {{ text: \"{text}\", allows: {allows}, additional: {additional}, any_type: {any_type}, lands: {lands}, life_for_mana_value: {life}, instead: None{extra} }}"),
             parts,
         );
         Ok(())
@@ -3424,7 +3424,7 @@ impl Compiler {
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId) -> bool {{ card == asker.source && player == asker.controller{test} }}").unwrap();
                 parts.table(
                     "exile_casts",
-                    format!("ExileCast {{ text: \"Cast from exile\", allows: {function}, additional: Cost::NONE, any_type: false, lands: false, life_for_mana_value: false }}"),
+                    format!("ExileCast {{ text: \"Cast from exile\", allows: {function}, additional: Cost::NONE, any_type: false, lands: false, life_for_mana_value: false, instead: None }}"),
                 );
                 Ok(())
             }
