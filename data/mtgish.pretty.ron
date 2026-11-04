@@ -506598,7 +506598,15 @@ Card(
     TriggerA(
       WhenAPermanentDies(SinglePermanent(HostPermanent)),
       ActionList([
-        MayAction(ReturnEnchantingGraveyardCardToHand),
+        If(
+          CardIsInPlayersGraveyard(
+            ThisGraveyardCard,
+            You,
+          ),
+          [
+            MayAction(ReturnEnchantingGraveyardCardToHand),
+          ],
+        ),
       ]),
     ),
   ],
@@ -506648,7 +506656,15 @@ Card(
     TriggerA(
       WhenAPermanentDies(SinglePermanent(HostPermanent)),
       ActionList([
-        MayAction(ReturnEnchantingGraveyardCardToHand),
+        If(
+          CardIsInPlayersGraveyard(
+            ThisGraveyardCard,
+            You,
+          ),
+          [
+            MayAction(ReturnEnchantingGraveyardCardToHand),
+          ],
+        ),
       ]),
     ),
   ],
@@ -506714,7 +506730,15 @@ Card(
     TriggerA(
       WhenAPermanentDies(SinglePermanent(HostPermanent)),
       ActionList([
-        MayAction(ReturnEnchantingGraveyardCardToHand),
+        If(
+          CardIsInPlayersGraveyard(
+            ThisGraveyardCard,
+            You,
+          ),
+          [
+            MayAction(ReturnEnchantingGraveyardCardToHand),
+          ],
+        ),
       ]),
     ),
   ],
@@ -506772,7 +506796,15 @@ Card(
     TriggerA(
       WhenAPermanentDies(SinglePermanent(HostPermanent)),
       ActionList([
-        MayAction(ReturnEnchantingGraveyardCardToHand),
+        If(
+          CardIsInPlayersGraveyard(
+            ThisGraveyardCard,
+            You,
+          ),
+          [
+            MayAction(ReturnEnchantingGraveyardCardToHand),
+          ],
+        ),
       ]),
     ),
   ],
@@ -506826,7 +506858,15 @@ Card(
     TriggerA(
       WhenAPermanentDies(SinglePermanent(HostPermanent)),
       ActionList([
-        MayAction(ReturnEnchantingGraveyardCardToHand),
+        If(
+          CardIsInPlayersGraveyard(
+            ThisGraveyardCard,
+            You,
+          ),
+          [
+            MayAction(ReturnEnchantingGraveyardCardToHand),
+          ],
+        ),
       ]),
     ),
   ],
@@ -506873,7 +506913,15 @@ Card(
     TriggerA(
       WhenAPermanentDies(SinglePermanent(HostPermanent)),
       ActionList([
-        MayAction(ReturnEnchantingGraveyardCardToHand),
+        If(
+          CardIsInPlayersGraveyard(
+            ThisGraveyardCard,
+            You,
+          ),
+          [
+            MayAction(ReturnEnchantingGraveyardCardToHand),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1055649,12 +1055697,20 @@ Card(
     TriggerA(
       WhenAPermanentDies(SinglePermanent(HostPermanent)),
       ActionList([
-        MayAction(ReturnEnchantingGraveyardCardToBattlefield([
-          EntersAttachedToAPermanent(And([
-            IsCardtype(Creature),
-            SharesACreatureTypeWithDeadPermanent,
-          ])),
-        ])),
+        If(
+          CardIsInPlayersGraveyard(
+            ThisGraveyardCard,
+            You,
+          ),
+          [
+            MayAction(ReturnEnchantingGraveyardCardToBattlefield([
+              EntersAttachedToAPermanent(And([
+                IsCardtype(Creature),
+                SharesACreatureTypeWithDeadPermanent,
+              ])),
+            ])),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1136835,9 +1136891,17 @@ Card(
     TriggerA(
       WhenAPermanentDies(SinglePermanent(HostPermanent)),
       ActionList([
-        ReturnEnchantingGraveyardCardToBattlefield([
-          EntersNormally,
-        ]),
+        If(
+          CardIsInPlayersGraveyard(
+            ThisGraveyardCard,
+            You,
+          ),
+          [
+            ReturnEnchantingGraveyardCardToBattlefield([
+              EntersNormally,
+            ]),
+          ],
+        ),
       ]),
     ),
   ],

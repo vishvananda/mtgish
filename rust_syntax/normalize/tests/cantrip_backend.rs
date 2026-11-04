@@ -663,8 +663,16 @@ fn mana_cost_parts_are_combined_before_checking_api_bounds() {
         CostPart::Mana(vec![ManaSymbol::Generic(130)]),
         CostPart::Mana(vec![ManaSymbol::Generic(130)]),
     ];
+    assert!(cantrip::module(&card).unwrap().contains("generic: 260"));
+    let Ability::Activated { cost, .. } = &mut card.abilities[1] else {
+        panic!()
+    };
+    cost.parts = vec![
+        CostPart::Mana(vec![ManaSymbol::Generic(u32::MAX)]),
+        CostPart::Mana(vec![ManaSymbol::Generic(1)]),
+    ];
     assert!(cantrip::module(&card)
         .unwrap_err()
         .feature
-        .contains("mana cost exceeds"));
+        .contains("generic mana overflow"));
 }

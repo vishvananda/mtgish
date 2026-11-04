@@ -321,6 +321,17 @@ impl Done {
 }
 
 impl Context {
+    fn departed_aura(&self) -> Result<ObjectRef> {
+        if !self.event.enchanted_left {
+            return Err(invalid(
+                "Aura graveyard reference has no enchanted-permanent departure in this scope",
+            ));
+        }
+        Ok(ObjectRef::AuraAfterEnchantedLeft {
+            aura: Box::new(ObjectRef::Source),
+            host: Box::new(ObjectRef::EventSubject),
+        })
+    }
     fn fresh(&self) -> Self {
         Self {
             prepared: self.prepared.clone(),
@@ -3662,7 +3673,7 @@ impl Context {
             },
             S::ReturnEnchantingGraveyardCardToHand | S::ReturnDeadGuestGraveyardCardToHand => {
                 Operation::Move {
-                    objects: ObjectSet::One(ObjectRef::Source),
+                    objects: ObjectSet::One(self.departed_aura()?),
                     destination: Destination::OwnersHand,
                     entry: EntrySpec::default(),
                     face_down: false,
@@ -3674,7 +3685,7 @@ impl Context {
             | S::ReturnDeadGuestGraveyardCardToBattlefield(flags) => {
                 let (destination, entry) = self.move_entry(flags, PlayerRef::AbilityController)?;
                 Operation::Move {
-                    objects: ObjectSet::One(ObjectRef::Source),
+                    objects: ObjectSet::One(self.departed_aura()?),
                     destination,
                     entry,
                     face_down: false,

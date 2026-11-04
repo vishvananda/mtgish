@@ -21,7 +21,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "50e39e435fff21f8768d12d6e72df5cb056f48f75c3520faea7baf915376e282"
+    "grammars/english_grammar.json5": "738215329e8c9e2e6b367ad9aa45b0514d6fb4ec942316a501ec49cff6b96571"
   },
   "original_findings": 365,
   "resolved_findings": 170,
@@ -5390,6 +5390,10 @@
         "Vassal's Duty"
       ],
       "after": "Targeted([TargetPermanent({{Creature[0]}})], ActionList([CreateFutureReplaceWouldDealDamage(NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient({{Digits[0]}}, Permanent(Ref_TargetPermanent)), [DealToPlayerInstead(You)])]))"
+    },
+    {
+      "date": "2026-11-04",
+      "scope": "Aura graveyard identity: preserve explicit controller-graveyard restrictions in four English templates. Re-derived all 33,529 records; only eight Genju/Reins/Screams source records change. All 37 guarded matched-evidence hashes remain exact. Only grammar fingerprint and Go CLI help text fingerprint refreshed; no parser algorithm, detector or review disposition changed."
     }
   ],
   "input_root": "..",
@@ -5401,7 +5405,7 @@
     "go_mtg_parser/clean_rules_text.go": "ea8917bf330d361afffa43c56340a8746f6cbe8c994aeb2c9789b6e6d1c6ab40",
     "go_mtg_parser/go.mod": "8e1f33bbe2be97798fd7b5e2df7da71eadd97ef37d7ecf9cbba89df076769993",
     "go_mtg_parser/jsonc.go": "271decc6b1b04aa723450401a66be83ccbc5e6d4b329dc26ca3da03562cd5332",
-    "go_mtg_parser/main.go": "ada21a5a310f5fa7bf952ba5e9eb98f19c4d7f9a594fff933395db6991d8f00d",
+    "go_mtg_parser/main.go": "fed4f2060162d582c7460665be6970b1958528932e32eb8ae65cfe2e532b3919",
     "go_mtg_parser/prefix_tree.go": "d8b6a1b5f8d8c4e602e451cd289bd0143e9877a639845c48c153ff28342e1d2b",
     "go_mtg_parser/serialize.go": "fb654cb71be04c4dff500ae4efe5f976fa3c0a3a948c013fb9fa76a26c848b05",
     "grammars/english_grammar-INPUT.json5": "9bf36603040f3eb3018a65f8520554300a6307cda98bb1df3034f454adafdbe6",
@@ -5412,7 +5416,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "50e39e435fff21f8768d12d6e72df5cb056f48f75c3520faea7baf915376e282",
+    "grammars/english_grammar.json5": "738215329e8c9e2e6b367ad9aa45b0514d6fb4ec942316a501ec49cff6b96571",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",

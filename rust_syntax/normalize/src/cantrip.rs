@@ -364,7 +364,7 @@ fn color_mask(colors: &[ManaColor]) -> Result<u8> {
         .try_fold(0u8, |mask, color| Ok(mask | 1 << color_index(color)?))
 }
 fn mana(symbols: &[ManaSymbol]) -> Result<String> {
-    let (mut generic, mut x) = (0u32, 0u32);
+    let (mut generic, mut x, mut snow) = (0u32, 0u32, 0u32);
     let mut colors = [0u32; 6];
     let mut hybrid = Vec::new();
     let mut twobrid = [0u32; 5];
@@ -392,7 +392,7 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
                 color(&v[0])?;
                 phyrexian[color_index(&v[0])?] += 1;
             }
-            ManaSymbol::Snow => beyond.push_str(".with_snow(1)"),
+            ManaSymbol::Snow => snow += 1,
             ManaSymbol::Phyrexian(v) => {
                 let colors = v.iter().map(color).collect::<Result<Vec<_>>>()?;
                 let colors = colors.iter().map(|c| format!("Color::{c}"));
@@ -401,22 +401,28 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
             }
         }
     }
-    if generic > 255
-        || x > 255
-        || colors
-            .iter()
-            .chain(twobrid.iter())
-            .chain(phyrexian.iter())
-            .any(|n| *n > 255)
-        || hybrid.len() > 6
-    {
+    // Only X is a byte; ordinary symbol counts and generic/snow costs are u32.
+    if x > u32::from(u8::MAX) || hybrid.len() > 6 {
         return Err(gap("mana cost exceeds Cantrip field bounds"));
     }
     hybrid.resize(6, "None".into());
-    let cost = format!(
-        "ManaCost {{ generic: {generic}, x: {x}, symbols: {colors:?}, hybrid: [{}], twobrid: {twobrid:?}, phyrexian: {phyrexian:?} }}",
+    let literal = |snow_field: &str| {
+        format!(
+        "ManaCost {{ generic: {generic}, x: {x}, symbols: {colors:?}, hybrid: [{}], twobrid: {twobrid:?}, phyrexian: {phyrexian:?}{snow_field} }}",
         hybrid.join(",")
-    );
+    )
+    };
+    let cost = if planned::switched_on("snow-mana") {
+        literal(&format!(", snow: {snow}"))
+    } else if snow > 0 {
+        planned::planned_value(
+            "engine: no snow or hybrid Phyrexian mana symbol",
+            &literal(""),
+            &literal(&format!(", snow: {snow}")),
+        )
+    } else {
+        literal("")
+    };
     Ok(match beyond.is_empty() {
         true => cost,
         false => planned::planned_value(
@@ -425,6 +431,56 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
             &format!("{cost}{beyond}"),
         ),
     })
+}
+
+#[cfg(test)]
+mod mana_shape_tests {
+    use super::*;
+
+    #[test]
+    fn ordinary_costs_follow_the_pinned_native_struct_shape() {
+        let symbols = [ManaSymbol::Color(ManaColor::Blue)];
+        let old = planned::with_features(&[], || mana(&symbols)).unwrap();
+        assert!(!old.contains("snow:"), "{old}");
+        let new = planned::with_features(&["snow-mana"], || mana(&symbols)).unwrap();
+        assert!(new.contains("snow: 0"), "{new}");
+        assert!(!new.contains("planned_value"), "{new}");
+    }
+
+    #[test]
+    fn snow_counts_use_the_native_field_without_landing_hybrid_phyrexian() {
+        let symbols = [
+            ManaSymbol::Snow,
+            ManaSymbol::Snow,
+            ManaSymbol::Color(ManaColor::Blue),
+        ];
+        let missing = planned::with_features(&[], || mana(&symbols)).unwrap();
+        assert!(missing.contains("planned_value"), "{missing}");
+        let ready = planned::with_features(&["snow-mana"], || mana(&symbols)).unwrap();
+        assert!(
+            ready.contains("snow: 2") && !ready.contains("planned_value"),
+            "{ready}"
+        );
+        assert!(!ready.contains("with_snow"), "{ready}");
+        let other = planned::with_features(&["snow-mana"], || {
+            mana(&[ManaSymbol::Phyrexian(vec![
+                ManaColor::White,
+                ManaColor::Blue,
+            ])])
+        })
+        .unwrap();
+        assert!(other.contains("planned_value"), "{other}");
+    }
+
+    #[test]
+    fn u32_cost_fields_are_not_limited_to_a_byte() {
+        let generic = mana(&[ManaSymbol::Generic(300)]).unwrap();
+        assert!(generic.contains("generic: 300"), "{generic}");
+        let colored = mana(&vec![ManaSymbol::Color(ManaColor::Blue); 300]).unwrap();
+        assert!(colored.contains("[0, 300, 0, 0, 0, 0]"), "{colored}");
+        assert!(mana(&vec![ManaSymbol::X; 256]).is_err());
+        assert!(mana(&[ManaSymbol::Generic(u32::MAX), ManaSymbol::Generic(1)]).is_err());
+    }
 }
 struct Number {
     code: String,

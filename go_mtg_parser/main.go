@@ -19,7 +19,7 @@ Usage:
     --short-names-file      FILE_NAME    # json5 { 'LONG_NAME': 'SHORT_NAME', ... }
     --find-replace-file     FILE_NAME    # json5 [ 'FIND', 'REPLACE', 'EXPLAIN', ... ]
     --english-grammar-files FILE_LIST    # json5 { '{{NAME}}': ['MATCH', 'OUTPUT', ... ], ... }
-    --mtgjson-grammar-files FILE_LIST    # json5 { '{{NAME}}': ['MATCH', 'OUTPUT', ... ], ... }
+    --mtgish-grammar-files FILE_LIST    # json5 { '{{NAME}}': ['MATCH', 'OUTPUT', ... ], ... }
     --mtgjson-files         FILE_LIST    # json  ; see README
 
     [--limit-to-subset       FILE_NAME]  json5 [ 'CARD_NAME', ... ]

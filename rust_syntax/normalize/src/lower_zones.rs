@@ -95,6 +95,7 @@ impl Context {
             S::Ref_TargetGraveyardCard3 => 2,
             S::Ref_TargetGraveyardCard4 => 3,
             S::Ref_TargetGraveyardCard5 => 4,
+            S::ThisGraveyardCard if self.event.enchanted_left => return self.departed_aura(),
             S::ThisGraveyardCard | S::ThisSacrificedPermanent => return Ok(ObjectRef::Source),
             S::TheCardPutIntoGraveyardThisWay => {
                 return Ok(ObjectRef::Query {

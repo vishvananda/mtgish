@@ -8,7 +8,11 @@ fn generated() -> &'static BTreeMap<String, String> {
     GENERATED.get_or_init(|| {
         let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
         let output = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("mandatory-outcome.jsonl");
-        planned::tracked(&fixtures.join("mandatory_outcome.ronl"), &fixtures.join("mandatory_outcome.oracle.json"), &output).unwrap();
+        // Puppet Master's Aura identity needs the new native query; capability
+        // rejection is covered separately by aura_graveyard_identity.rs.
+        planned::with_features(&["aura-graveyard-identity"], || {
+            planned::tracked(&fixtures.join("mandatory_outcome.ronl"), &fixtures.join("mandatory_outcome.oracle.json"), &output)
+        }).unwrap();
         std::fs::read_to_string(output).unwrap().lines().map(|line| {
             let row: serde_json::Value = serde_json::from_str(line).unwrap();
             (row["name"].as_str().unwrap().to_string(), row["file"].as_str().unwrap().to_string())

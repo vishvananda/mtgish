@@ -593,6 +593,13 @@ impl<'a> Scope<'a> {
                 self.objects(excluding)
             }
             ObjectRef::AtEnd { objects, .. } => self.objects(objects),
+            ObjectRef::AuraAfterEnchantedLeft { aura, host } => {
+                if !self.event.enchanted_left {
+                    return Err("Aura graveyard reference has no enchanted-permanent departure in this scope".into());
+                }
+                self.object(aura)?;
+                self.object(host)
+            }
             ObjectRef::NthChosen { by, .. } => by.iter().try_for_each(|player| self.player(player)),
             ObjectRef::Named { result, by } => {
                 if !self.results.contains_key(&result.0) {

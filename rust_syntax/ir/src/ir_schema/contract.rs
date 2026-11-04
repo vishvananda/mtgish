@@ -13,8 +13,9 @@ fn signature() -> String {
 }
 
 #[test]
-fn schema_177_shape_is_frozen() {
-    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("schema/177.txt");
+fn schema_shape_is_frozen() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("schema/{}.txt", crate::ir::SCHEMA_VERSION));
     assert_eq!(
         signature(),
         std::fs::read_to_string(fixture).unwrap(),

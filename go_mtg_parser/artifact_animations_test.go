@@ -87,3 +87,9 @@ func testSourceReferenceFixtures(t *testing.T, fixtureNames ...string) {
 		})
 	}
 }
+
+// An Aura can find its own first graveyard incarnation after its host dies,
+// but explicit "from your graveyard" still restricts which graveyard it may use.
+func TestAuraReturnGraveyardReferences(t *testing.T) {
+	testSourceReferenceFixtures(t, "aura_graveyard_identity.ronl")
+}

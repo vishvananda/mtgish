@@ -213,6 +213,9 @@ impl Compiler {
             ObjectRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
             // A body watching for an event of its own reads that event.
             ObjectRef::EventSubject => self.frame.object.is_some(),
+            // A step-delayed body must capture the permitted graveyard identity
+            // while its creator's enchanted-permanent departure is in scope.
+            ObjectRef::AuraAfterEnchantedLeft { .. } => self.frame.subject_is_attachment,
             ObjectRef::EventDestination => self.frame.destination.is_some(),
             ObjectRef::EventOther => self.frame.other.is_some(),
             ObjectRef::EventStackObject => {

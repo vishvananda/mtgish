@@ -9524,7 +9524,7 @@
       43
     ],
     "contains": [
-      "(HostPermanent)), ActionList([MayAction(ReturnEnchantingGraveyardCardToBattlefield([EntersAttachedToAPermanent(And([IsCardtype(Creature), SharesACreatureTypeWithDeadPermanent]))]))]))])"
+      "(HostPermanent)), ActionList([If(CardIsInPlayersGraveyard(ThisGraveyardCard, You), [MayAction(ReturnEnchantingGraveyardCardToBattlefield([EntersAttachedToAPermanent(And([IsCardtype(Creature), SharesACreatureTypeWithDeadPermanent]))]))])]))])"
     ],
     "excludes": [
       "(HostPermanent)), ActionList([ReturnEnchantingGraveyardCardToBattlefield([EntersAttachedToAPermanent(And([IsCardtype(Creature), SharesACreatureTypeWithDeadPermanent]))])]))])"

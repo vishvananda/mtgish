@@ -45,6 +45,9 @@ pub struct EventBindings {
     pub other: bool,
     pub other_player: bool,
     pub moved_owner: bool,
+    /// The distinguished event object was this Aura's enchanted permanent as it
+    /// left the battlefield; enables the Aura's separate CR 400.7f reference.
+    pub enchanted_left: bool,
 }
 impl EventBindings {
     /// What every alternative of an either-event still binds.
@@ -62,6 +65,7 @@ impl EventBindings {
             other: a.other && b.other,
             other_player: a.other_player && b.other_player,
             moved_owner: a.moved_owner && b.moved_owner,
+            enchanted_left: a.enchanted_left && b.enchanted_left,
             damage: a.damage && b.damage,
             damage_source: a.damage_source && b.damage_source,
             damage_source_permanent: a.damage_source_permanent && b.damage_source_permanent,
@@ -84,11 +88,14 @@ impl EventBindings {
 pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
     match event {
         ReplacementEvent::ZoneChange { objects, from, to } => {
-            event_bindings(&EventSpec::ZoneChange {
+            let mut bindings = event_bindings(&EventSpec::ZoneChange {
                 objects: objects.clone(),
                 from: from.clone(),
                 to: to.clone(),
-            })
+            });
+            // A proposed departure has not granted the post-departure Aura exception.
+            bindings.enchanted_left = false;
+            bindings
         }
         ReplacementEvent::Primitive { name, operands } => event_bindings(&EventSpec::Primitive {
             name: name.clone(),
@@ -5529,6 +5536,12 @@ fn with_bindings(outer: &EventBindings, row: &EventBindings) -> EventBindings {
         other: outer.other || row.other,
         other_player: outer.other_player || row.other_player,
         moved: outer.moved || row.moved,
+        // A new distinguished object shadows this particular causal reference.
+        enchanted_left: if row.object {
+            row.enchanted_left
+        } else {
+            outer.enchanted_left
+        },
         ..*outer
     }
 }
@@ -5646,11 +5659,13 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             moved: matches!(kind, DiscardKind::CausedBy(_)),
             ..Default::default()
         },
-        EventSpec::ZoneChange { to, .. } => EventBindings {
+        EventSpec::ZoneChange { objects, from, to } => EventBindings {
             object: true,
             permanent: true,
             moved: true,
             moved_owner: matches!(to, EventZone::Graveyard | EventZone::Hand),
+            enchanted_left: matches!(from, Some(EventZone::Battlefield)) && matches!(objects,
+                ObjectFilter::SameObject(ObjectRef::AttachedTo(aura)) if matches!(aura.as_ref(), ObjectRef::Source)),
             ..EventBindings::default()
         },
         EventSpec::Object { event, .. } => {
@@ -5768,6 +5783,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 other: false,
                 other_player: false,
                 moved_owner: false,
+                enchanted_left: false,
                 damage_objects: !players,
                 damage_players: !objects,
                 damage_subject: Some(event.subject),
@@ -6055,6 +6071,9 @@ impl Effects {
     }
     fn object_library(&self, object: &ObjectRef) -> bool {
         match object {
+            ObjectRef::AuraAfterEnchantedLeft { aura, host } => {
+                self.object_library(aura) || self.object_library(host)
+            }
             ObjectRef::Target { slot, .. } => self.targets.get(&slot.0).copied().unwrap_or(false),
             ObjectRef::Query { objects, .. } => self.objects_library(objects),
             ObjectRef::Result { result, phase, .. } => self.result_library(result, phase),

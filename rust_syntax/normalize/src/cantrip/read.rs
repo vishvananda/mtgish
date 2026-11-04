@@ -478,6 +478,21 @@ impl Compiler {
                 return Err(gap(format!("primitive object reference {name}")))
             }
             ObjectRef::Source => "Some(asker.source)".into(),
+            ObjectRef::AuraAfterEnchantedLeft { aura, host } => {
+                let code = format!(
+                    "{}.zip({}).and_then(|(aura, host)| q.found_aura_after_enchanted_left(aura, host))",
+                    self.object(aura)?, self.object(host)?,
+                );
+                if planned::switched_on("aura-graveyard-identity") {
+                    code
+                } else {
+                    planned::planned_value(
+                        "Aura graveyard identity after enchanted permanent leaves",
+                        "None::<ObjectId>",
+                        &code,
+                    )
+                }
+            }
             // Inside a history question the event is what is being tested, and
             // the candidate is still the object the enclosing filter asks about.
             ObjectRef::Affected if self.affected_object.is_some() => {

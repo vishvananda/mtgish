@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 177;
+pub const SCHEMA_VERSION: u32 = 178;
 
 /// Typed pattern for the permanent query of the shared battlefield. Card-only,
 /// player-scoped and other-zone queries deliberately do not match.
@@ -4695,6 +4695,15 @@ pub enum ObjectRef {
     AtEnd {
         objects: Box<ObjectSet>,
         end: SequenceEnd,
+    },
+    /// The Aura's first owner's-graveyard incarnation after its watched enchanted
+    /// permanent left the battlefield (CR 400.7f). Selects nothing after that
+    /// incarnation moves again, or when a replacement sent the Aura elsewhere.
+    /// The Aura and host name their original battlefield objects, independently
+    /// of the source's current attachment or the host's destination incarnation.
+    AuraAfterEnchantedLeft {
+        aura: Box<ObjectRef>,
+        host: Box<ObjectRef>,
     },
 }
 
