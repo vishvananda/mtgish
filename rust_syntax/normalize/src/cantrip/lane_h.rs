@@ -3567,7 +3567,10 @@ impl Compiler {
                 }
             }
         }
-        let mut values = "q.copiable_values(entering.object)".to_string();
+        // An entering copy already has its chosen copiable values, including
+        // exceptions and previous entry choices (CR 707.9a). Modify those rather
+        // than rebuilding from the underlying card in its previous zone.
+        let mut values = "entering.copy.unwrap_or_else(|| q.copiable_values(entering.object))".to_string();
         for change in changes {
             let Change::Copiable(list) = change else {
                 return Err(gap("event change as it enters Copiable mixed"));

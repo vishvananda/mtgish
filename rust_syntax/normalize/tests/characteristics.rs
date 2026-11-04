@@ -21,6 +21,15 @@ fn card(name: &str) -> Card {
     validate::card(&c).unwrap();
     c
 }
+#[cfg(feature = "cantrip")]
+#[test]
+fn copiable_entry_changes_preserve_the_pending_copy() {
+    let generated = mtgish_ast::cantrip::module(&card("Primal Clay")).unwrap();
+    assert!(generated.contains("entering.copy.unwrap_or_else(|| q.copiable_values(entering.object))"), "{generated}");
+    for suffix in [".sized(3, 3)", ".sized(2, 2)", ".sized(1, 6)", ".with_keyword(Keyword::Flying)", ".with_keyword(Keyword::Defender)"] {
+        assert!(generated.contains(suffix), "{generated}");
+    }
+}
 fn custom(rule: &str) -> Result<Card, Vec<lower::Diagnostic>> {
     let mut c = source("Maro");
     let source::OracleCard::Card { rules, .. } = &mut c else {
