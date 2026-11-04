@@ -2,7 +2,7 @@
 
 Priority is completing the reserved cards before expanding intake into the 163 unreserved cards.
 
-The held queue contained 35 entries. A fresh complete report finds 39 distinct gap diagnostics across 34 cards, with 61 emitted occurrences. Clockwork Beast already generates a complete module; its exact committed-generator output compiles against the validated worker API and it has returned to implementation. A queue hold is not itself evidence of a current engine gap.
+The audit started with 35 held entries. The queue now has **34 held cards**, all represented by the **39 distinct gap diagnostics** below, with 61 emitted occurrences. Clockwork Beast was the additional held entry and has returned to implementation. Its subsequent up-to-counter-choice generator defect was fixed in `bd0703b`, together with Clockwork Avian; compilation alone had not established that choice was correct. A queue hold is not itself evidence of a current engine gap.
 
 Diagnostic types overlap: one shared capability can resolve several rows, while one card can require several capabilities. These are generator reports, not 39 independently established engine defects.
 
@@ -50,6 +50,8 @@ Diagnostic types overlap: one shared capability can resolve several rows, while 
 
 The largest shared groups are the Wards, mana-pool operations, land-type changes and untap-step limits. Combat capacity also connects the held Blaze of Glory and Two-Headed Giant of Foriys to the already reserved blocked Spitting Slug. Further work should check existing native support before classifying each report as an engine change.
 
-The earlier blocking-status defect was separately reproduced and fixed on validated native checkpoint `402b7f61accf6d5015ec340d7ca4552bd730e867`. Rally, Righteousness, Elven Fortress, Piety and Spore Cloud have returned for normal review/fix/verification. Ydwen Efreet still needs last-known blocking relationships.
+The earlier blocking-status defect was separately reproduced and fixed on validated native checkpoint `402b7f61accf6d5015ec340d7ca4552bd730e867`, with first-strike step scheduling corrected in `956974eaf722e2021c609df481ed80d6c4bef66d`. Rally, Righteousness, Elven Fortress, Piety and Spore Cloud have all passed independent confirmation. Snow Devil's approved correction also passed and was collected. Ydwen Efreet still needs last-known blocking relationships.
+
+The count of engine changes remains unestablished. For example, the native discard-into-library tests already exercise much of Library of Leng, but the real card also needs the distinction between an effect's discard and a cost; that distinction must be proved rather than inferred from a similarly shaped test card. Manabarbs has an existing `TappedForMana` history record, but the native path records it without collecting ordinary triggers. Power Leak's planned partial-prevention helper is absent from the native API. Jade Monolith's current diagnostic concerns retaining resolution values for a later replacement; it needs an audit of the existing carried-effect support. These checks separate generator work from missing rules authority before implementation.
 
 Frozen source subsets, complete per-face gap reports, summary JSON and Clockwork recovery evidence are retained under `~/card-lane/pipeline-unlimited-20261103/integration/reserved-held-gap-audit-20261104`. No additional reservations were made for this audit.
