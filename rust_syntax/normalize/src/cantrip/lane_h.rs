@@ -1500,7 +1500,7 @@ impl Compiler {
             }
             return Ok(true);
         }
-        if matches!(cards, ObjectSet::Zone { .. }) {
+        if cards.battlefield_filter().is_none() && matches!(cards, ObjectSet::Zone { .. }) {
             // Cards that come there later are named too: no list of them today has it.
             return Err(gap("play permission on an open set of cards"));
         }
@@ -2346,7 +2346,7 @@ impl Compiler {
         // "You may spend mana as though it were mana of any color to activate those
         // abilities" is a spending rule the caller writes (`spend_handled`).
         if let Change::GainAbilitiesOf { objects, kinds, once_each_turn, spend_as } = change {
-            let on_battlefield = matches!(objects, ObjectSet::Battlefield(_));
+            let on_battlefield = matches!(objects, crate::battlefield_query!(_));
             let asked = format!("{kinds:?}");
             let permanents = on_battlefield || asked.contains("AbilityOfPermanent");
             let activated = asked.contains("ActivatedAbility") || asked.contains("AbilityOfPermanent");
@@ -3734,7 +3734,7 @@ impl Compiler {
                 writeln!(out, "if let Some(&original) = {list}.first() {{ for kind in CounterKind::ALL {{ let count = g.obj(original).counters(kind); entering.counters[kind as usize] = entering.counters[kind as usize].saturating_add(count); }} }}").unwrap();
             }
             EntryState::AttachedToChosen(hosts) => {
-                let hosts = self.fetch(self.objects(&ObjectSet::Battlefield(hosts.clone()))?);
+                let hosts = self.fetch(self.objects(&ObjectSet::battlefield(hosts.clone()))?);
                 let could = planned::planned_value(
                     "what a permanent could be attached to",
                     "true",
@@ -4018,7 +4018,7 @@ impl Compiler {
                 let barred = self.barred_activation(filter)?;
                 // A creature card in hand is no creature: it may still cycle.
                 let here = match affected {
-                    ObjectSet::Battlefield(_) => "q.is_on_battlefield(id) && ",
+                    crate::battlefield_query!(_) => "q.is_on_battlefield(id) && ",
                     _ => "",
                 };
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, object: ObjectId, ability: &ActivatedDef) -> bool {{ let id = object; !({here}{guard}{test} && ({barred})) }}").unwrap();
@@ -4577,7 +4577,7 @@ fn hasable_keyword(word: &str, operands: &[Operand]) -> Option<Ability> {
         ("Flying", []) => Keyword::Flying,
         ("FirstStrike", []) => Keyword::FirstStrike,
         ("Trample", []) => Keyword::Trample,
-        ("Landwalk", [Operand::Objects(ObjectSet::Battlefield(land))]) => {
+        ("Landwalk", [Operand::Objects(crate::battlefield_query!(land))]) => {
             Keyword::Landwalk(Box::new(land.clone()))
         }
         _ => return None,

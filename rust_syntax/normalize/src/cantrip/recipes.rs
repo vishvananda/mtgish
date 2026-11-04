@@ -9,7 +9,7 @@ fn terms(filter: &ObjectFilter) -> Vec<&ObjectFilter> {
 }
 
 pub(super) fn creature_anthem(affected: &ObjectSet, changes: &[Change]) -> bool {
-    let ObjectSet::Battlefield(filter) = affected else { return false };
+    let crate::battlefield_query!(filter) = affected else { return false };
     let mut creature = false;
     let mut controller = false;
     let exact = terms(filter).into_iter().all(|f| match f {

@@ -114,7 +114,7 @@ impl Context {
             S::ControlsNum(comparison, objects) => {
                 let (comparison, right) = self.comparison(comparison)?;
                 Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Battlefield(ObjectFilter::All(
+                    left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::All(
                         vec![
                             self.filter(objects)?,
                             ObjectFilter::ControlledBy(PlayerSet::One(player)),

@@ -399,7 +399,7 @@ impl Context {
             },
             S::WhenAPlayerControlsAPermanent(players, objects) => EventSpec::State {
                 condition: Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Battlefield(ObjectFilter::All(
+                    left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::All(
                         vec![
                             self.filter(objects)?,
                             ObjectFilter::ControlledBy(self.players(players)?),

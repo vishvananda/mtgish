@@ -287,7 +287,7 @@ impl Compiler {
                 return Err(gap(format!("primitive cost part {name}")))
             }
             CostPart::Sacrifice {
-                objects: ObjectSet::Battlefield(filter),
+                objects: crate::battlefield_query!(filter),
                 choose,
             } => {
                 let Some(n) = exactly_u8(choose.as_ref()) else {
@@ -346,7 +346,7 @@ impl Compiler {
                     ));
                 }
                 let [CostObjectSelection {
-                    objects: ObjectSet::Battlefield(filter),
+                    objects: crate::battlefield_query!(filter),
                     choose,
                 }] = selections.as_slice()
                 else {
@@ -406,7 +406,7 @@ impl Compiler {
                     (ObjectSet::One(ObjectRef::Source), None) if n == 1 => {
                         "REMOVE_A_COUNTER".to_string()
                     }
-                    (ObjectSet::Battlefield(filter), kind) if yours(filter) => {
+                    (crate::battlefield_query!(filter), kind) if yours(filter) => {
                         let filter = self.cost_filter(filter, label)?;
                         match kind {
                             Some(kind) => format!(
@@ -440,7 +440,7 @@ impl Compiler {
                     // creatures you control ... cards exiled with this Vehicle". What
                     // it exiles from a graveyard or a hand is not linked.
                     let permanents = selections.iter().all(|s| {
-                        matches!(s.objects, ObjectSet::Battlefield(_) | ObjectSet::One(ObjectRef::Source))
+                        matches!(s.objects, crate::battlefield_query!(_) | ObjectSet::One(ObjectRef::Source))
                     });
                     if !(permanents && self.activation_cost.is_some()) {
                         return Err(gap("exile cost an ability reads as exiled with its source"));
@@ -455,7 +455,7 @@ impl Compiler {
                 let yours = own_graveyard(objects);
                 let objects = yours.as_ref().unwrap_or(objects);
                 match (destination, objects) {
-                    (Destination::OwnersHand, ObjectSet::Battlefield(filter)) => {
+                    (Destination::OwnersHand, crate::battlefield_query!(filter)) => {
                         match lane_i::without_tapped(filter) {
                             Some(rest) => format!(
                                 "return_tapped_to_hand({n}, {})",
@@ -467,7 +467,7 @@ impl Compiler {
                             ),
                         }
                     }
-                    (Destination::Exile, ObjectSet::Battlefield(filter)) => {
+                    (Destination::Exile, crate::battlefield_query!(filter)) => {
                         format!(
                             "exile_permanents({n}, {})",
                             self.cost_filter(filter, label)?

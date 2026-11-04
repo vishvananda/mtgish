@@ -3334,7 +3334,7 @@ pub(super) fn granted_keyword(ability: &Ability) -> Option<&'static str> {
 /// "Put N -1/-1 counters on a creature you control": what blight is (CR 701.68a).
 pub(super) fn blights(placements: &[CounterPlacement]) -> Option<u8> {
     let [CounterPlacement {
-        recipients: Recipients::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters))),
+        recipients: Recipients::Objects(crate::battlefield_query!(ObjectFilter::All(filters))),
         kind: crate::counter::CounterKind::PowerToughness(-1, -1),
         amount,
         selection:
@@ -3387,7 +3387,7 @@ pub(super) fn counters_on_a_target(
 /// Cumulative upkeep's "Put a +1/+1 counter on a creature an opponent controls".
 fn on_an_opposing_creature(placements: &[CounterPlacement]) -> bool {
     let [CounterPlacement {
-        recipients: Recipients::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters))),
+        recipients: Recipients::Objects(crate::battlefield_query!(ObjectFilter::All(filters))),
         kind: crate::counter::CounterKind::PowerToughness(1, 1),
         amount: Expr::Constant(1),
         selection:
@@ -3694,7 +3694,7 @@ impl Compiler {
                 let test = match sources {
                     None => "true".to_string(),
                     Some(ObjectSet::One(ObjectRef::Source)) => "source == asker.source".to_string(),
-                    Some(ObjectSet::Battlefield(filter)) => {
+                    Some(crate::battlefield_query!(filter)) => {
                         format!(
                             "q.is_on_battlefield(source) && {}",
                             self.filter(filter, &Candidate::of("source"))?
@@ -4577,7 +4577,7 @@ impl Compiler {
         let cost = cost.ok_or_else(|| gap(FEATURE))?;
         let plain = match cost.parts.as_slice() {
             [CostPart::Sacrifice {
-                objects: ObjectSet::Battlefield(filter),
+                objects: crate::battlefield_query!(filter),
                 choose: Some(Count::Exactly(Expr::Constant(1))),
             }] => Some(format!("Sacrifice({})", self.cost_filter(filter, label)?)),
             [CostPart::PutCounters(placements)] if on_this(placements) => {
@@ -4619,7 +4619,7 @@ impl Compiler {
                 count: Expr::Constant(n),
             }] => format!("Draw({n})"),
             [CostPart::ObjectAction {
-                objects: ObjectSet::Battlefield(filter),
+                objects: crate::battlefield_query!(filter),
                 action: CostObjectAction::GainControl,
             }] => format!("GainControl({})", self.cost_filter(filter, label)?),
             [CostPart::PlayerAction { body, .. }] => {

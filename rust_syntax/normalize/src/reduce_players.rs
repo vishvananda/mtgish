@@ -42,7 +42,7 @@ fn count_of(objects: ObjectSet) -> Expr {
 }
 
 fn controlled_by(player: &PlayerRef, filter: ObjectFilter) -> ObjectSet {
-    ObjectSet::Battlefield(ObjectFilter::All(vec![
+    ObjectSet::battlefield(ObjectFilter::All(vec![
         filter,
         ObjectFilter::ControlledBy(PlayerSet::One(player.clone())),
     ]))

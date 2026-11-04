@@ -284,7 +284,7 @@ pub(super) fn only_their_own(objects: &ObjectSet) -> bool {
         // "Each player exiles the top card of their library" (Rocco, Street Chef).
         ObjectSet::Zone { scope, .. } if theirs(&ObjectFilter::InZone(scope.clone())) => true,
         ObjectSet::Take { objects, .. } => only_their_own(objects),
-        _ => matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter)),
+        _ => matches!(objects, ObjectSet::Zone { filter, .. } | crate::battlefield_query!(filter) if theirs(filter)),
     }
 }
 
@@ -803,7 +803,7 @@ impl Compiler {
             .iter()
             .map(|option| match option {
                 Operand::Filter(filter) => Ok(filter.clone()),
-                Operand::Objects(ObjectSet::Battlefield(filter)) => Ok(filter.clone()),
+                Operand::Objects(crate::battlefield_query!(filter)) => Ok(filter.clone()),
                 _ => Err(failure()),
             })
             .collect::<Result<Vec<ObjectFilter>>>()?;
@@ -826,7 +826,7 @@ impl Compiler {
     }
     /// Devotion to the color chosen (CR 700.5).
     pub(super) fn devotion_to_chosen(&self, objects: &ObjectSet) -> Result<Number> {
-        let ObjectSet::Battlefield(ObjectFilter::ControlledBy(PlayerSet::One(player))) = objects
+        let crate::battlefield_query!(ObjectFilter::ControlledBy(PlayerSet::One(player))) = objects
         else {
             return Err(gap("mana symbols other than a devotion to one color"));
         };
@@ -2513,7 +2513,7 @@ impl Compiler {
                 "ArrivalState::ExiledForWith({}, {}, {})",
                 self.duration(until)?,
                 match objects {
-                    ObjectSet::Battlefield(filter) => self.filter_fn(filter)?,
+                    crate::battlefield_query!(filter) => self.filter_fn(filter)?,
                     other => self.fetch(self.objects(other)?),
                 },
                 self.operand_code(body)

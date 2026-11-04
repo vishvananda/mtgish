@@ -791,10 +791,19 @@ impl Compiler {
                 "t_{}.iter().filter_map(|t| t.object()).collect::<Vec<ObjectId>>()",
                 self.slot(slot)?
             ),
-            ObjectSet::Battlefield(filter) => format!(
-                "q.state().battlefield().iter().copied().filter(|&id| {}).collect::<Vec<ObjectId>>()",
-                self.filter(filter, &Candidate::of("id"))?
-            ),
+            crate::battlefield_query!(filter) => {
+                // The same hygiene as a general zone query: an outer candidate
+                // remains available to ownership/player reads inside this filter.
+                let candidate = if self.candidates.borrow().iter().any(|c| c.id == "id") {
+                    "card_in_zone"
+                } else {
+                    "id"
+                };
+                format!(
+                    "q.state().battlefield().iter().copied().filter(|&{candidate}| {}).collect::<Vec<ObjectId>>()",
+                    self.filter(filter, &Candidate::of(candidate))?
+                )
+            },
             ObjectSet::Selected(result)
             | ObjectSet::Observed(result)
             | ObjectSet::Copies(result)
@@ -971,7 +980,7 @@ impl Compiler {
                 ..
             } => selections
                 .iter()
-                .all(|s| s.choose.is_some() && matches!(s.objects, ObjectSet::Battlefield(_))),
+                .all(|s| s.choose.is_some() && matches!(s.objects, crate::battlefield_query!(_))),
             _ => false,
         };
         match payment {
@@ -1209,7 +1218,7 @@ impl Compiler {
         // (CR 704.5m), so each is judged as it last was there (CR 608.2h).
         if let Expr::CountObjects(set) = n {
             if let ObjectSet::Matching { objects, filter: ObjectFilter::WasAttachedTo(host) } = &**set {
-                if let ObjectSet::Battlefield(attached) = &**objects {
+                if let crate::battlefield_query!(attached) = &**objects {
                     let test = self.filter(attached, &Candidate::of("id"))?;
                     return Ok(count(format!(
                         "{}.map_or(0i64, |host: ObjectId| {{ let records = q.history().all(); records.iter().rposition(|r| matches!(r.event, Event::ZoneChange {{ old, from, .. }} if old == host && from.is(ZoneKind::Battlefield))).map_or(0i64, |left| records[..left].iter().rev().take_while(|r| matches!(r.event, Event::Unattached {{ .. }} | Event::ZoneChange {{ .. }})).filter_map(|r| match r.event {{ Event::Unattached {{ attachment, from }} if from == host => Some(attachment), _ => None }}).filter(|&id| {test}).count() as i64) }})",
@@ -1325,7 +1334,7 @@ impl Compiler {
             }
             Expr::CountManaSymbols { objects, colors } if self.reader != Reader::Layer => {
                 let (
-                    ObjectSet::Battlefield(ObjectFilter::ControlledBy(PlayerSet::One(player))),
+                    crate::battlefield_query!(ObjectFilter::ControlledBy(PlayerSet::One(player))),
                     [c],
                 ) = (&**objects, colors.as_slice())
                 else {
@@ -2380,7 +2389,7 @@ impl Compiler {
                         value: Expr::Aggregate { objects, .. },
                         ..
                     },
-            } if matches!(**objects, ObjectSet::Battlefield(_)) => format!(
+            } if matches!(**objects, crate::battlefield_query!(_)) => format!(
                 "{}.filter(|&o| cantrip_mechanics::targets::permanent(q, o)).is_some_and(|candidate: ObjectId| {})",
                 self.object(object)?,
                 self.filter(filter, &Candidate::of("candidate"))?
@@ -2692,5 +2701,51 @@ mod result_membership_tests {
         assert_eq!(compiler.predicate(&chosen, &Candidate::of("id")).unwrap(), "(chosen_pile.clone()).contains(&id)");
         compiler.pile_not_chosen.clear();
         assert_eq!(compiler.predicate(&other, &Candidate::of("id")).unwrap(), "!((chosen_pile.clone()).contains(&id))");
+    }
+}
+
+#[cfg(test)]
+mod battlefield_query_tests {
+    use super::*;
+
+    fn canonical(filter: ObjectFilter) -> ObjectSet {
+        ObjectSet::Zone { scope: ZoneScope::Shared(EventZone::Battlefield), kind: ObjectKind::Permanent, filter }
+    }
+
+    #[test]
+    fn permanent_battlefield_queries_keep_tokens_while_card_queries_exclude_them() {
+        let compiler = Compiler::new();
+        let permanent = compiler.objects(&ObjectSet::battlefield(ObjectFilter::Any)).unwrap();
+        assert_eq!(permanent, compiler.objects(&canonical(ObjectFilter::Any)).unwrap());
+        assert!(permanent.contains("q.state().battlefield()"));
+        assert!(!permanent.contains(".token") && !permanent.contains(".card_copy"));
+        let cards = compiler.objects(&ObjectSet::Zone { scope: ZoneScope::Shared(EventZone::Battlefield),kind:ObjectKind::Card,filter:ObjectFilter::Any }).unwrap();
+        assert!(cards.contains(".token") && cards.contains(".card_copy"));
+    }
+
+    #[test]
+    fn named_object_zone_guards_keep_stale_object_rejection() {
+        let mut compiler=Compiler::new();compiler.moved.insert(3,"moved".into());
+        let query=ObjectSet::InZone {objects:Box::new(ObjectSet::Named(ResultId(3))),zone:EventZone::Battlefield};
+        let code=compiler.objects(&query).unwrap();
+        assert!(code.contains("moved.clone()"));assert!(code.contains("became.is_none()"));assert!(code.contains("zone.kind() == ZoneKind::Battlefield"));
+    }
+
+    #[test]
+    fn historical_attached_aura_counts_do_not_recount_the_current_battlefield() {
+        let compiler=Compiler::new();
+        let count=|objects|Expr::CountObjects(Box::new(ObjectSet::Matching {objects:Box::new(objects),filter:ObjectFilter::WasAttachedTo(ObjectRef::Source)}));
+        let legacy=compiler.number(&count(ObjectSet::battlefield(ObjectFilter::Any))).unwrap().code;
+        let code=compiler.number(&count(canonical(ObjectFilter::Any))).unwrap().code;
+        assert_eq!(legacy,code);assert!(code.contains("Event::Unattached"));assert!(code.contains("rposition"));assert!(!code.contains("q.state().battlefield()"));
+    }
+
+    #[test]
+    fn nested_battlefield_owner_queries_preserve_the_outer_candidate() {
+        let compiler=Compiler::new();compiler.candidates.borrow_mut().push(Candidate::of("id"));
+        let filter=ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::ControllerOf(Box::new(ObjectRef::Candidate))));
+        let code=compiler.objects(&ObjectSet::battlefield(filter.clone())).unwrap();
+        assert_eq!(code,compiler.objects(&canonical(filter)).unwrap());
+        assert!(code.contains("filter(|&card_in_zone|"));assert!(code.contains("Some(id)"));assert!(code.contains("obj(card_in_zone).owner"));
     }
 }

@@ -1943,7 +1943,7 @@ fn simple_color(operand: &Operand) -> Option<ManaColor> {
 fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
     use Operand::{Comparison as Than, Objects, Player};
     let controlled = |player: &PlayerRef, objects: &ObjectSet| {
-        Some(ObjectSet::Battlefield(ObjectFilter::All(vec![
+        Some(ObjectSet::battlefield(ObjectFilter::All(vec![
             event_filter(objects)?,
             ObjectFilter::ControlledBy(PlayerSet::One(player.clone())),
         ])))
@@ -2009,7 +2009,7 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
                 filter.push(ObjectFilter::ControlledBy(PlayerSet::One(p.clone())));
             }
             compare(
-                count(ObjectSet::Battlefield(ObjectFilter::All(filter))),
+                count(ObjectSet::battlefield(ObjectFilter::All(filter))),
                 &Comparison::GreaterOrEqual,
                 &Expr::Constant(1),
             )
@@ -2064,7 +2064,7 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
         }
         ("Players::DevotionToColorsIs", [Player(p), Operand::List(colors), Than(c, v)]) => compare(
             Expr::CountManaSymbols {
-                objects: Box::new(ObjectSet::Battlefield(ObjectFilter::ControlledBy(
+                objects: Box::new(ObjectSet::battlefield(ObjectFilter::ControlledBy(
                     PlayerSet::One(p.clone()),
                 ))),
                 colors: colors.iter().map(simple_color).collect::<Option<_>>()?,
@@ -3269,7 +3269,7 @@ fn casting_mode(name: &str, operands: &[Operand]) -> Option<Ability> {
             Some(legend(objects.clone()))
         }
         ("TheLegendsRuleDoesntApply", []) => {
-            Some(legend(ObjectSet::Battlefield(ObjectFilter::Any)))
+            Some(legend(ObjectSet::battlefield(ObjectFilter::Any)))
         }
         _ => None,
     }
@@ -4140,8 +4140,8 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
 }
 
 fn event_filter(objects: &ObjectSet) -> Option<ObjectFilter> {
+    if let Some(filter) = objects.battlefield_filter() { return Some(filter.clone()); }
     match objects {
-        ObjectSet::Battlefield(filter) => Some(filter.clone()),
         ObjectSet::One(object) => Some(ObjectFilter::SameObject(object.clone())),
         _ => None,
     }
@@ -5287,7 +5287,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
             if let Some(filter) = event_filter(objects) {
                 return EventSpec::State {
                     condition: Condition::Compare {
-                        left: Expr::CountObjects(Box::new(ObjectSet::Battlefield(filter))),
+                        left: Expr::CountObjects(Box::new(ObjectSet::battlefield(filter))),
                         comparison: Comparison::Equal,
                         right: Expr::Constant(0),
                     },
@@ -5433,7 +5433,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
         ) => match event_filter(objects) {
             Some(filter) => EventSpec::State {
                 condition: Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Battlefield(ObjectFilter::All(
+                    left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::All(
                         vec![filter, ObjectFilter::ControlledBy(players.clone())],
                     )))),
                     comparison: Comparison::Equal,

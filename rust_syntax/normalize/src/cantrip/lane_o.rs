@@ -478,7 +478,7 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        let Recipients::Objects(ObjectSet::Battlefield(filter)) = &**recipients else { return Ok(None) };
+        let Recipients::Objects(crate::battlefield_query!(filter)) = &**recipients else { return Ok(None) };
         let ActivationCostChange::Reduce(amount) = change else { return Ok(None) };
         let Operand::List(symbols) = &**amount else { return Ok(None) };
         let [Operand::Term { form, operands, .. }] = symbols.as_slice() else { return Ok(None) };
@@ -509,7 +509,7 @@ impl Compiler {
             return Ok(());
         }
         let test = match affected {
-            ObjectSet::Battlefield(filter) => self.filter(filter, &Candidate::of("id"))?,
+            crate::battlefield_query!(filter) => self.filter(filter, &Candidate::of("id"))?,
             other => match self.outside_subject(other, &Candidate::of("id"))? {
                 Some(test) => test,
                 None => return Err(gap(format!("open set {}", form(other)))),
@@ -547,7 +547,7 @@ impl Compiler {
         out: &mut String,
     ) -> Result<bool> {
         use crate::ir::Duration as D;
-        let ObjectSet::Battlefield(filter) = affected else {
+        let crate::battlefield_query!(filter) = affected else {
             return Ok(false);
         };
         if !changes.iter().all(|change| matches!(change, Change::Rule(_))) {
@@ -1259,7 +1259,7 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        let open = |set: &ObjectSet| matches!(set, ObjectSet::Zone { .. });
+        let open = |set: &ObjectSet| set.battlefield_filter().is_none() && matches!(set, ObjectSet::Zone { .. });
         if !matches!(self.reader, Reader::Resolution)
             || open(cards)
             || matches!(cards, ObjectSet::Take { objects, .. } if open(objects))
@@ -2327,7 +2327,7 @@ impl Compiler {
         };
         Ok(match operands.as_slice() {
             [] => format!("Lost::{word}"),
-            [Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Subtype(land)))] => {
+            [Operand::Objects(crate::battlefield_query!(ObjectFilter::Subtype(land)))] => {
                 format!("Lost::{word}(Subtype::{})", name(land))
             }
             [Operand::Vocabulary { family, form }] => format!("Lost::{word}({family}::{form})"),
@@ -2749,7 +2749,7 @@ impl Compiler {
                 let mut tests = Vec::new();
                 for each in sets {
                     tests.push(match each {
-                        ObjectSet::Battlefield(filter) => self.filter(filter, c)?,
+                        crate::battlefield_query!(filter) => self.filter(filter, c)?,
                         other => match self.outside_subject(other, c)? {
                             Some(test) => test,
                             None => self.stated_subject(other, c)?,
@@ -3644,7 +3644,7 @@ impl Compiler {
                 // the mana is made, as the lands then are.
                 "Production::CouldProduce({}, {colors_only})",
                 match objects {
-                    ObjectSet::Battlefield(filter) => self.over(filter, "id")?,
+                    crate::battlefield_query!(filter) => self.over(filter, "id")?,
                     other => self.read(self.objects(other)?),
                 }
             ),
@@ -4912,7 +4912,7 @@ fn lost_keyword(lost: &Operand) -> Option<String> {
     };
     match (word.as_str(), operands.as_slice()) {
         ("AnyHexproof", []) => Some("Keyword::Hexproof".to_string()),
-        ("Landwalk", [Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Subtype(land)))]) => {
+        ("Landwalk", [Operand::Objects(crate::battlefield_query!(ObjectFilter::Subtype(land)))]) => {
             match name(land).as_str() {
                 "Plains" => Some("Keyword::Plainswalk".to_string()),
                 "Island" | "Swamp" | "Mountain" | "Forest" => {
@@ -5032,5 +5032,5 @@ pub(super) fn untaps_by_their_controllers(
     duration: &crate::ir::Duration,
 ) -> bool {
     matches!(duration, crate::ir::Duration::DuringControllersNextUntapStep)
-        && matches!(affected, EffectSubjects::Objects(ObjectSet::Battlefield(filter)) if single_controller(filter).is_none())
+        && matches!(affected, EffectSubjects::Objects(crate::battlefield_query!(filter)) if single_controller(filter).is_none())
 }

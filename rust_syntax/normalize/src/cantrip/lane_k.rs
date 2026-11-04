@@ -459,7 +459,7 @@ pub(super) fn triggered_mana(body: &Program) -> &'static str {
 /// What the creatures that convoked it convoked, if that's all this set says.
 pub(super) fn convoked(objects: &ObjectSet) -> Option<&ObjectRef> {
     match objects {
-        ObjectSet::Battlefield(ObjectFilter::History {
+        crate::battlefield_query!(ObjectFilter::History {
             event: ObjectHistory::Convoked(object),
             ..
         }) => Some(object),
@@ -606,7 +606,7 @@ pub(super) fn discard_or_pay(costs: &[Cost]) -> Option<u8> {
 /// "Ward--Sacrifice a Food" and its like, where Cantrip has the ability.
 pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
     let [CostPart::Sacrifice {
-        objects: ObjectSet::Battlefield(filter),
+        objects: crate::battlefield_query!(filter),
         choose: Some(Count::Exactly(Expr::Constant(n))),
     }] = cost.parts.as_slice()
     else {
@@ -1243,7 +1243,7 @@ fn sacrifice_or_discard(options: &[Cost]) -> bool {
     let artifact = matches!(
         sacrifice.parts.as_slice(),
         [CostPart::Sacrifice {
-            objects: ObjectSet::Battlefield(ObjectFilter::CardType(card)),
+            objects: crate::battlefield_query!(ObjectFilter::CardType(card)),
             choose: Some(Count::Exactly(Expr::Constant(1))),
         }] if format!("{card:?}") == "Artifact"
     );

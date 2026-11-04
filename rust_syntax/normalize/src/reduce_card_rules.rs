@@ -502,7 +502,7 @@ fn reduce_card_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
             Some(Ability::Static {
                 kind: StaticKind::Ordinary,
                 affected: EffectSubjects::Objects(ObjectSet::Union(vec![
-                    ObjectSet::Battlefield(ObjectFilter::Any),
+                    ObjectSet::battlefield(ObjectFilter::Any),
                     ObjectSet::Zone {
                         scope: ZoneScope::Shared(EventZone::Stack),
                         kind: ObjectKind::Spell,

@@ -4467,7 +4467,7 @@ fn valid_crew_definition(
         return false;
     };
     let [CostObjectSelection {
-        objects: ObjectSet::Battlefield(ObjectFilter::All(filters)),
+        objects: crate::battlefield_query!(ObjectFilter::All(filters)),
         choose: Some(Count::AnyNumber),
     }] = selections.as_slice()
     else {

@@ -154,7 +154,7 @@ pub(super) fn quality_chosen<'o>(
 ) -> Option<&'o ObjectFilter> {
     match objects {
         ObjectSet::DamageSources(quality) => Some(quality),
-        ObjectSet::Battlefield(quality) if line?.contains("of your choice") => Some(quality),
+        crate::battlefield_query!(quality) if line?.contains("of your choice") => Some(quality),
         _ => None,
     }
 }

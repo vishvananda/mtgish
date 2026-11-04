@@ -1605,7 +1605,7 @@ fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
             Expr::Performed(result.clone())
         }
         ("TheNumberOfCreaturesThatConvokedPermanent", [Object(object)]) => {
-            count_of(ObjectSet::Battlefield(history(
+            count_of(ObjectSet::battlefield(history(
                 ObjectHistory::Convoked(object.clone()),
                 ObjectWindow::ThisGame,
             )))
@@ -1802,7 +1802,7 @@ fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<
         ("NumCardtypesOnBattlefiendAndInGraveyardIs", [Compare(comparison, value)]) => compared(
             Expr::CountDistinct {
                 objects: Box::new(ObjectSet::Union(vec![
-                    ObjectSet::Battlefield(ObjectFilter::ControlledBy(one())),
+                    ObjectSet::battlefield(ObjectFilter::ControlledBy(one())),
                     zone_set(Z::Graveyard, one(), ObjectFilter::Any),
                 ])),
                 property: DistinctProperty::CardTypes,
@@ -2300,12 +2300,12 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         ("ChooseAPermanentPile" | "ChooseAnExiledPile", []) => pile_form(None, vec![], None),
         ("DestroyEachPermanent", [Term { form, .. }]) if form == "InTheChosenPile" => {
             Operation::Destroy {
-                objects: ObjectSet::Battlefield(ObjectFilter::InPile(None)),
+                objects: ObjectSet::battlefield(ObjectFilter::InPile(None)),
                 regeneration: true,
             }
         }
         ("TapEachPermanent", [Term { form, .. }]) if form == "NotInTheChosenPile" => Operation::Tap {
-            objects: ObjectSet::Battlefield(ObjectFilter::Not(Box::new(ObjectFilter::InPile(None)))),
+            objects: ObjectSet::battlefield(ObjectFilter::Not(Box::new(ObjectFilter::InPile(None)))),
             tapped: true,
         },
         ("ChooseActionAtRandom", options) if options.iter().all(|o| matches!(o, List(_))) => {

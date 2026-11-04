@@ -96,7 +96,7 @@ impl Context {
         use source::GameNumber as S;
         Ok(match value {
             S::PlayerDevotionTo(player, color) => Expr::CountManaSymbols {
-                objects: Box::new(ObjectSet::Battlefield(ObjectFilter::ControlledBy(
+                objects: Box::new(ObjectSet::battlefield(ObjectFilter::ControlledBy(
                     PlayerSet::One(self.player(player)?),
                 ))),
                 colors: vec![symbol_color(color)?],

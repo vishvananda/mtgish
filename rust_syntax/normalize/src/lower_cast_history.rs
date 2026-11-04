@@ -178,7 +178,7 @@ impl Context {
                 let (comparison, right) = self.comparison(c)?;
                 ObjectFilter::Condition(Box::new(Condition::Compare {
                     left: Expr::CountObjects(Box::new(ObjectSet::Difference {
-                        objects: Box::new(ObjectSet::Battlefield(self.filter(objects)?)),
+                        objects: Box::new(ObjectSet::battlefield(self.filter(objects)?)),
                         excluding: Box::new(ObjectSet::One(ObjectRef::Candidate)),
                     })),
                     comparison,

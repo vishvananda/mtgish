@@ -137,7 +137,7 @@ impl Compiler {
             ObjectSet::One(ObjectRef::AttachedTo(host)) if matches!(**host, ObjectRef::Source) => {
                 format!("q.state().obj(asker.source).attached_to == Some({id})")
             }
-            ObjectSet::Battlefield(filter) => self.filter(filter, &Candidate::of(id))?,
+            crate::battlefield_query!(filter) => self.filter(filter, &Candidate::of(id))?,
             other => match self.outside_subject(other, &Candidate::of(id))? {
                 Some(test) => test,
                 None => self
@@ -648,7 +648,7 @@ impl Compiler {
                         ),
                     }
                 }
-                ObjectSet::Battlefield(filter) => {
+                crate::battlefield_query!(filter) => {
                     (c.filter(filter, &Candidate::affected())?, false)
                 }
                 other => match c.outside_subject(other, &Candidate::affected())? {
@@ -718,7 +718,7 @@ impl Compiler {
             }
             if let (
                 Change::GrantAbility(granted),
-                ObjectSet::Battlefield(filter),
+                crate::battlefield_query!(filter),
                 None,
             ) = (change, affected, &condition)
             {
@@ -809,7 +809,7 @@ impl Compiler {
                 def
             });
         }
-        if let ObjectSet::Zone { .. } | ObjectSet::AnyZone(_) = affected {
+        if affected.battlefield_filter().is_none() && matches!(affected, ObjectSet::Zone { .. } | ObjectSet::AnyZone(_)) {
             let own = matches!(
                 affected,
                 ObjectSet::AnyZone(ObjectFilter::SameObject(ObjectRef::Source))

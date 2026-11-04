@@ -15,7 +15,7 @@ impl Context {
                     parts: vec![CostPart::Constrained {
                         part: Box::new(CostPart::ChangeTapState {
                             selections: vec![CostObjectSelection {
-                                objects: ObjectSet::Battlefield(ObjectFilter::All(vec![
+                                objects: ObjectSet::battlefield(ObjectFilter::All(vec![
                                     ObjectFilter::CardType(source::CardType::Creature),
                                     ObjectFilter::Not(Box::new(ObjectFilter::Tapped)),
                                     ObjectFilter::ControlledBy(PlayerSet::One(

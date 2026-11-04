@@ -3158,7 +3158,7 @@ impl Compiler {
         let mut parts = Vec::new();
         for o in operands {
             match o {
-                Operand::Objects(ObjectSet::Battlefield(filter)) => {
+                Operand::Objects(crate::battlefield_query!(filter)) => {
                     match self.filter(filter, &Candidate::of("id")) {
                         Ok(test) => parts.push(format!(
                             "|q: &dyn Query, asker: &Asker, id: ObjectId| -> bool {{ {test} }}"

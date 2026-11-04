@@ -329,7 +329,7 @@ fn reduce_value_objects(form: &str, operands: &[Operand]) -> Option<ObjectSet> {
             by: None,
         },
         ("InThePermanentPileChosenThisWay", []) => {
-            ObjectSet::Battlefield(ObjectFilter::InPile(None))
+            ObjectSet::battlefield(ObjectFilter::InPile(None))
         }
         ("CreatureOrPlaneswalkerChosenAtRandom", [Objects(objects)]) => ObjectSet::Random {
             objects: Box::new(objects.clone()),

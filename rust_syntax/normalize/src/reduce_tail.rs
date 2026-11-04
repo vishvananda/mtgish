@@ -325,7 +325,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             actor: actor.clone(),
             cards: ObjectSet::Union(vec![
                 zone_set(Z::Hand, actor.clone(), ObjectFilter::Any),
-                ObjectSet::Battlefield(ObjectFilter::OwnedBy(actor.clone())),
+                ObjectSet::battlefield(ObjectFilter::OwnedBy(actor.clone())),
             ]),
             count: None,
             random: false,

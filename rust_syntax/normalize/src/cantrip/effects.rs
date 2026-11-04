@@ -2344,7 +2344,7 @@ impl Compiler {
                     amount: RequirementAmount::AtLeast(Expr::Constant(1)),
                 })]) {
                     if let EffectSubjects::Objects(ObjectSet::One(object)) = affected {
-                        let set = ObjectSet::Battlefield(ObjectFilter::SameObject(object.clone()));
+                        let set = ObjectSet::battlefield(ObjectFilter::SameObject(object.clone()));
                         if self.lasting_rules(&set, changes, duration, out)? {
                             return Ok(());
                         }
@@ -2366,12 +2366,12 @@ impl Compiler {
                     )
                 ) || matches!(
                     affected,
-                    EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::Either(names)))
+                    EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::Either(names)))
                         if names.iter().all(|name| matches!(name, ObjectFilter::SameObject(_)))
                 ) || matches!(
                     // "Each creature dealt damage this way": done, so it gains no one.
                     affected,
-                    EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
+                    EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::All(filters)))
                         if filters.iter().any(|f| matches!(f, ObjectFilter::DamagedBy(dealt) if self.moved.contains_key(&dealt.0)))
                 );
                 // "Each attacking creature doesn't untap during its controller's
@@ -3834,7 +3834,7 @@ impl Compiler {
             let creature =
                 |f: &ObjectFilter| matches!(f, ObjectFilter::CardType(CardType::Creature));
             match affected {
-                EffectSubjects::Objects(ObjectSet::Battlefield(f)) if creature(f) => {
+                EffectSubjects::Objects(crate::battlefield_query!(f)) if creature(f) => {
                     writeln!(
                         out,
                         "cantrip_api::instruction(g, |g| g.creatures_cant_block());"
@@ -3842,7 +3842,7 @@ impl Compiler {
                     .unwrap();
                     return Ok(());
                 }
-                EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
+                EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::All(filters)))
                     if filters.len() == 2 && filters.iter().any(creature) =>
                 {
                     if let Some(players) = filters.iter().find_map(|f| match f {

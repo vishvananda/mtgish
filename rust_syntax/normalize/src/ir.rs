@@ -8,6 +8,20 @@ use serde::{Deserialize, Serialize};
 
 pub const SCHEMA_VERSION: u32 = 171;
 
+/// Typed pattern for the permanent query of the shared battlefield. Card-only,
+/// player-scoped and other-zone queries deliberately do not match.
+#[macro_export]
+macro_rules! battlefield_query {
+    ($($filter:tt)+) => {
+        $crate::ir::ObjectSet::Battlefield($($filter)+) |
+        $crate::ir::ObjectSet::Zone {
+            scope: $crate::ir::ZoneScope::Shared($crate::ir::EventZone::Battlefield),
+            kind: $crate::ir::ObjectKind::Permanent,
+            filter: $($filter)+
+        }
+    };
+}
+
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
 /// to no face, such as `MeldsInto`.
@@ -6586,5 +6600,14 @@ impl ObjectFilter {
             },
             _ => None,
         }
+    }
+}
+
+impl ObjectSet {
+    /// The shared battlefield contains permanents, including tokens.
+    pub fn battlefield(filter: ObjectFilter) -> Self { Self::Battlefield(filter) }
+
+    pub fn battlefield_filter(&self) -> Option<&ObjectFilter> {
+        match self { crate::battlefield_query!(filter) => Some(filter), _ => None }
     }
 }

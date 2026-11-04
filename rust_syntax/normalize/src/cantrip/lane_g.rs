@@ -44,7 +44,7 @@ fn taps_a_creature_you_control(cost: &Cost) -> bool {
         return false;
     };
     let [CostObjectSelection {
-        objects: ObjectSet::Battlefield(ObjectFilter::All(filters)),
+        objects: crate::battlefield_query!(ObjectFilter::All(filters)),
         choose: Some(Count::Exactly(Expr::Constant(1))),
     }] = selections.as_slice()
     else {
@@ -310,7 +310,7 @@ fn cost_zone(objects: &ObjectSet) -> Option<(String, ObjectFilter)> {
         _ => None,
     };
     Some(match objects {
-        ObjectSet::Battlefield(filter) => ("CostZone::Battlefield".to_string(), filter.clone()),
+        crate::battlefield_query!(filter) => ("CostZone::Battlefield".to_string(), filter.clone()),
         ObjectSet::Zone {
             scope: ZoneScope::Players { zone, players },
             filter,
@@ -413,7 +413,7 @@ pub(super) fn plain_removal(removals: &[CounterRemoval]) -> bool {
             ..
         }] => match objects {
             ObjectSet::One(ObjectRef::Source) => selection.is_none() && (kind.is_some() || *n == 1),
-            ObjectSet::Battlefield(_) => selection.as_ref().is_none_or(|s| {
+            crate::battlefield_query!(_) => selection.as_ref().is_none_or(|s| {
                 *n == 1
                     && matches!(s.count, Count::Exactly(Expr::Constant(1)))
                     && matches!(s.player, PlayerRef::AbilityController)
@@ -612,7 +612,7 @@ fn sacrifices_to_copy(cost: &Cost) -> Option<ObjectFilter> {
     lane_m::flat_groups(&body.instructions, &mut steps);
     let [Instruction::Effect {
         operation: Operation::Sacrifice {
-            objects: ObjectSet::Battlefield(filter),
+            objects: crate::battlefield_query!(filter),
             choose: Some(Count::AnyNumber),
             ..
         },
@@ -1613,7 +1613,7 @@ impl Compiler {
                 format!("Cost {{ remove_counters: Some(({kind}, {n})), ..Cost::NONE }}")
             }
             (
-                ObjectSet::Battlefield(filter),
+                crate::battlefield_query!(filter),
                 CounterAmount::AmongThem(Count::Exactly(Expr::Constant(n))),
             ) if costs::yours(filter) && (0..=255).contains(n) => {
                 let filter = self.cost_filter(filter, label)?;
@@ -1622,7 +1622,7 @@ impl Compiler {
                     None => format!("remove_counters_among({n}, {filter})"),
                 }
             }
-            (ObjectSet::Battlefield(filter), CounterAmount::AmongThem(count)) => {
+            (crate::battlefield_query!(filter), CounterAmount::AmongThem(count)) => {
                 let filter = self.cost_filter(filter, label)?;
                 let size = match count {
                     Count::Exactly(Expr::Constant(n)) => format!("CountersTaken::Exactly({n})"),
@@ -1656,7 +1656,7 @@ impl Compiler {
                     _ => return Err(gap(SHAPE)),
                 }
             }
-            (ObjectSet::Battlefield(filter), CounterAmount::Count(count)) => {
+            (crate::battlefield_query!(filter), CounterAmount::Count(count)) => {
                 let filter = self.cost_filter(filter, label)?;
                 let size = match (exactly(count), count) {
                     (Some(n), _) => format!("CountersTaken::Exactly({n})"),
@@ -1841,7 +1841,7 @@ impl Compiler {
                     choose: None,
                 }] if *symbol => plan("engine: no untap symbol cost", "untap: true"),
                 [CostObjectSelection {
-                    objects: ObjectSet::Battlefield(filter),
+                    objects: crate::battlefield_query!(filter),
                     choose: Some(Count::Exactly(Expr::Constant(n))),
                 }] => {
                     let filter = self.cost_filter(filter, label)?;
@@ -1947,7 +1947,7 @@ impl Compiler {
                 ) = (&**part, constraints.as_slice())
                 {
                     if let [CostObjectSelection {
-                        objects: ObjectSet::Battlefield(filter),
+                        objects: crate::battlefield_query!(filter),
                         choose: Some(Count::AnyNumber),
                     }] = selections.as_slice()
                     {
@@ -2282,7 +2282,7 @@ impl Compiler {
             )));
         }
         if let [CostPart::Sacrifice {
-            objects: ObjectSet::Battlefield(filter),
+            objects: crate::battlefield_query!(filter),
             choose: Some(Count::AnyNumber),
         }] = cost.parts.as_slice()
         {
@@ -2312,7 +2312,7 @@ impl Compiler {
         }
         let part = match cost.parts.as_slice() {
             [CostPart::Sacrifice {
-                objects: ObjectSet::Battlefield(filter),
+                objects: crate::battlefield_query!(filter),
                 choose: Some(Count::Exactly(Expr::Constant(1)) | Count::AnyNumber),
             }] => {
                 let filter = self.cost_filter(filter, label)?;

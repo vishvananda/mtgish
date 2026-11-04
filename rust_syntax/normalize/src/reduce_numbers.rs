@@ -99,7 +99,7 @@ fn commanders(term: &Operand) -> Option<ObjectSet> {
             kind: ObjectKind::Card,
             filter: filter.clone(),
         },
-        ObjectSet::Battlefield(filter),
+        ObjectSet::battlefield(filter),
     ]))
 }
 

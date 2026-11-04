@@ -1210,7 +1210,7 @@ impl Context {
                     phase: ObjectPhase::After,
                 },
                 (None, Some(result)) => ObjectSet::Created(result.clone()),
-                (None, None) => ObjectSet::Battlefield(self.made_here()?),
+                (None, None) => ObjectSet::battlefield(self.made_here()?),
             });
         }
         if let (
@@ -1249,7 +1249,7 @@ impl Context {
                 Some(result) => Ok(ObjectSet::Created(result.clone())),
                 None => self
                     .made_here()
-                    .map(ObjectSet::Battlefield)
+                    .map(ObjectSet::battlefield)
                     .map_err(|_| invalid("tokens-created reference has no creation in this scope")),
             };
         }
@@ -1275,12 +1275,12 @@ impl Context {
                 0,
             )?));
         }
-        Ok(ObjectSet::Battlefield(self.filter(value)?))
+        Ok(ObjectSet::battlefield(self.filter(value)?))
     }
 
     fn battlefield_objects(&self, value: &source::Permanents) -> Result<ObjectSet> {
         let objects = self.objects(value)?;
-        Ok(if matches!(objects, ObjectSet::Battlefield(_)) {
+        Ok(if objects.battlefield_filter().is_some() {
             objects
         } else {
             ObjectSet::InZone {
@@ -3668,7 +3668,7 @@ impl Context {
                 face_down: false,
             },
             S::ShuffleHandGraveyardAndPermanentsIntoLibrary => {
-                let owned = ObjectSet::Battlefield(ObjectFilter::OwnedBy(actor.clone()));
+                let owned = ObjectSet::battlefield(ObjectFilter::OwnedBy(actor.clone()));
                 let movement = self.effect(Operation::Move {
                     objects: ObjectSet::Union(vec![
                         self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
@@ -5904,7 +5904,7 @@ impl Context {
             S::NoMoreThanNumberCreaturesCanAttack(n) | S::NoMoreThanNumberCreaturesCanBlock(n) => {
                 Ok(Ability::Static {
                     kind: StaticKind::Ordinary,
-                    affected: EffectSubjects::Objects(ObjectSet::Battlefield(
+                    affected: EffectSubjects::Objects(ObjectSet::battlefield(
                         ObjectFilter::CardType(source::CardType::Creature),
                     )),
                     changes: vec![Change::Rule(RuleChange::CombatGroup {
@@ -5934,7 +5934,7 @@ impl Context {
                 };
                 Ok(Ability::Static {
                     kind: StaticKind::Ordinary,
-                    affected: EffectSubjects::Objects(ObjectSet::Battlefield(sources)),
+                    affected: EffectSubjects::Objects(ObjectSet::battlefield(sources)),
                     changes: vec![Change::Rule(RuleChange::Prohibit(ObjectAction::Activate(
                         filter,
                     )))],

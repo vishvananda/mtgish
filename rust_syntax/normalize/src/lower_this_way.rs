@@ -144,7 +144,7 @@ impl Context {
     }
 
     fn damaged_this_way(&self, filter: ObjectFilter) -> Result<Expr> {
-        Ok(Expr::CountObjects(Box::new(ObjectSet::Battlefield(
+        Ok(Expr::CountObjects(Box::new(ObjectSet::battlefield(
             ObjectFilter::All(vec![
                 ObjectFilter::DamagedBy(self.done(Done::Damage)?),
                 filter,

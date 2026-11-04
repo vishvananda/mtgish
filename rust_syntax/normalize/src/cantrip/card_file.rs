@@ -189,7 +189,7 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
             };
             let one =
                 matches!(affected, EffectSubjects::Objects(ObjectSet::One(o)) if first_target(o));
-            let yours = matches!(affected, EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
+            let yours = matches!(affected, EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::All(filters)))
                 if filters.len() == 2
                     && filters.iter().any(|f| matches!(f, ObjectFilter::CardType(CardType::Creature)))
                     && filters.iter().any(|f| matches!(f, ObjectFilter::ControlledBy(p) if controller(p))));
