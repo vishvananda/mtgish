@@ -572,7 +572,12 @@ impl Compiler {
     pub(super) fn from_outside(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::OutsideTheGame(_) => true,
-            ObjectSet::Selected(result) | ObjectSet::Named(result) => self.notes.outside.contains(&result.0),
+            ObjectSet::Prepared(binding) => {
+                self.selection_metadata(binding).is_ok_and(|p| p.outside)
+            }
+            ObjectSet::Selected(result) | ObjectSet::Named(result) => {
+                self.notes.outside.contains(&result.0)
+            }
             ObjectSet::Union(sets) => sets.iter().any(|set| self.from_outside(set)),
             ObjectSet::Matching { objects, .. }
             | ObjectSet::Difference { objects, .. }
@@ -587,7 +592,13 @@ impl Compiler {
     /// A choice between a card from outside the game and a card elsewhere: Karn
     /// and Coax reveal the former, which the row does not say.
     pub(super) fn outside_shown(&self, objects: &ObjectSet) -> bool {
-        matches!(objects, ObjectSet::Selected(result) if self.notes.outside_shown.contains(&result.0))
+        match objects {
+            ObjectSet::Prepared(binding) => self
+                .selection_metadata(binding)
+                .is_ok_and(|p| p.outside_shown),
+            ObjectSet::Selected(result) => self.notes.outside_shown.contains(&result.0),
+            _ => false,
+        }
     }
     /// What `choose_value_rest` leaves.
     #[allow(clippy::too_many_arguments)]

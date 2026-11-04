@@ -5221,6 +5221,7 @@ impl Compiler {
             &mut self.performed,
             &mut self.values,
             &mut self.reveal_matches,
+            &mut self.implicit_selections,
         ] {
             if let Some(code) = map.get_mut(&result.0) {
                 let name = format!("carried_{id}_{}", names.len());

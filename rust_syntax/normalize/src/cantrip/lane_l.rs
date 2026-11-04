@@ -2783,7 +2783,9 @@ impl Compiler {
             } => {
                 let player = self.one_actor(actor, &feature)?;
                 if let Recipients::Objects(on) = hosts {
-                    let shape = (count, *each_host, matches!(on, ObjectSet::Selected(_)));
+                    let selected=matches!(on,ObjectSet::Selected(_))
+                        || matches!(on,ObjectSet::Prepared(_)) && self.one_object(on);
+                    let shape = (count, *each_host, selected);
                     let one = |n: &Expr| matches!(n, Expr::Constant(1));
                     let mine = match shape {
                         (None, false, true) => Some(AttachShape::AllToTheChosen),

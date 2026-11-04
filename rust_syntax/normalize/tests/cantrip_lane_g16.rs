@@ -1,6 +1,8 @@
 #![cfg(feature = "cantrip")]
 //! Lane g16: forms the generator now writes for its cards. It reads the corpus and
 //! the printed words for these cards alone, and has nothing to say without them.
+#[path="support/generated_locals.rs"]
+mod generated_locals;
 use mtgish_ast::cantrip;
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -61,7 +63,7 @@ fn modules_say_what_their_cards_say() {
         .collect();
     for (name, says, whole) in CARDS {
         let module = modules.get(*name).unwrap_or_else(|| panic!("no module for {name}"));
-        assert!(module.contains(says), "{name} should have {says}:\n{module}");
+        assert!(generated_locals::contains(&module,says), "{name} should have {says}:\n{module}");
         if *whole {
             assert!(!module.contains("planned"), "{name} should be whole:\n{module}");
         }

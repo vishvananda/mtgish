@@ -45,7 +45,9 @@ struct Walk {
 }
 
 pub fn lower(value: &OracleCard) -> Lowered {
-    crate::corpus::on_large_stack(|| lower_record(value))
+    let mut lowered = crate::corpus::on_large_stack(|| lower_record(value));
+    crate::movement::normalize_unified(&mut lowered.card);
+    lowered
 }
 
 /// Token definitions and sticker sheets have no card face, but hold ordinary

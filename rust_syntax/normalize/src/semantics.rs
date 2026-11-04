@@ -175,6 +175,7 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
 }
 /// Whether an operation affects at most one object, given which earlier results do.
 pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> bool) -> bool {
+    let operation = operation.action();
     let one = |count: &Count| {
         matches!(
             count,
@@ -236,6 +237,7 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
 /// primitive with no ordinary movement to read the permanent from.
 /// What a reviewed action row leaves for a later "this way" to name.
 pub fn yields(operation: &Operation) -> Option<&'static str> {
+    let operation = operation.action();
     if matches!(operation, Operation::PutChosenCounters { .. }) {
         return Some("counters");
     }
@@ -1626,6 +1628,7 @@ fn reduce_stack_copy(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Opt
 
 /// A reviewed row that makes a card a later reference can read.
 pub fn makes_card(operation: &Operation) -> bool {
+    let operation = operation.action();
     matches!(
         operation,
         Operation::Conjure { .. } | Operation::DraftFromSpellbook { .. }
@@ -5791,6 +5794,7 @@ pub enum ActivationKind {
 }
 #[derive(Default)]
 struct Effects {
+    prepared: std::collections::BTreeMap<u32, bool>,
     mana: bool,
     library: bool,
     objects: std::collections::BTreeMap<u32, (bool, bool)>,
@@ -5801,6 +5805,30 @@ impl Effects {
         for instruction in &program.instructions {
             match instruction {
                 Instruction::Effect { result, operation } => match operation {
+                    Operation::InOrder(actions) => {
+                        for operation in actions {
+                            self.program(&Program {
+                                instructions: vec![Instruction::Effect {
+                                    result: result.clone(),
+                                    operation: operation.clone(),
+                                }],
+                            });
+                        }
+                    }
+                    Operation::WithSelections { steps, action } => {
+                        let saved = self.prepared.clone();
+                        for step in steps {
+                            let library = self.objects_library(&step.objects);
+                            self.prepared.insert(step.binding.0, library);
+                        }
+                        self.program(&Program {
+                            instructions: vec![Instruction::Effect {
+                                result: result.clone(),
+                                operation: (**action).clone(),
+                            }],
+                        });
+                        self.prepared = saved;
+                    }
                     Operation::FlipCoin { .. }
                     | Operation::ChoosePowerToughness { .. }
                     | Operation::DuplicateCounters { .. }
@@ -6056,6 +6084,7 @@ impl Effects {
     }
     fn objects_library(&self, objects: &ObjectSet) -> bool {
         match objects {
+            ObjectSet::Prepared(binding) => self.prepared.get(&binding.0).copied().unwrap_or(false),
             ObjectSet::LibraryTops(_) => true,
             ObjectSet::Primitive { .. }
             | ObjectSet::Earlier { .. }

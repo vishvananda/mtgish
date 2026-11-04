@@ -20,6 +20,7 @@ mod effects;
 mod faces;
 mod first_printed;
 mod keywords;
+mod selections;
 mod lane_f;
 mod lane_g;
 mod lane_h;
@@ -126,6 +127,7 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            ("cantrip/selections.rs", include_bytes!("cantrip/selections.rs").as_slice()),
             ("cantrip/recipes.rs", include_bytes!("cantrip/recipes.rs").as_slice()),
             (
                 "cantrip/lane_h.rs",
@@ -604,6 +606,8 @@ struct Compiler {
     mana_x: bool,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
+    implicit_selections: BTreeMap<u32, String>,
+    prepared_selections: Vec<BTreeMap<u32, selections::PreparedSelection>>,
     /// "A source of your choice": each choice's local and the quality it asks.
     damage_sources: BTreeMap<String, ObjectFilter>,
     /// The quality of the source of your choice the made effect at hand is about.
@@ -1139,6 +1143,8 @@ impl Compiler {
             mana_x: false,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
+            implicit_selections: BTreeMap::new(),
+            prepared_selections: Vec::new(),
             damage_sources: BTreeMap::new(),
             choosing_source: None,
             notes: Default::default(),
@@ -2127,7 +2133,7 @@ fn card_type(t: &crate::mtg_types::CardType) -> Result<String> {
 fn ability_text(body: &Program) -> String {
     fn text(instruction: &Instruction) -> String {
         match instruction {
-            Instruction::Effect { operation, .. } => match operation {
+            Instruction::Effect { operation, .. } => match operation.action() {
                 Operation::AddMana { .. } => "Add mana.".into(),
                 Operation::CreateTokens { .. } => "Create tokens.".into(),
                 Operation::Draw {

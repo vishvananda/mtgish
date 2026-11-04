@@ -265,8 +265,14 @@ fn may_tap(decider: &PlayerRef, body: &Program) -> Option<(ObjectSet, Expr, Resu
     let [CostObjectSelection { objects, choose: Some(Count::Exactly(n)) }] = selections.as_slice() else {
         return None;
     };
-    (format!("{player:?}") == format!("{decider:?}"))
-        .then(|| (objects.clone(), n.clone(), result.clone(), Program { instructions: rest }))
+    (format!("{player:?}") == format!("{decider:?}")).then(|| {
+        (
+            objects.clone(),
+            n.clone(),
+            result.clone(),
+            Program { instructions: rest },
+        )
+    })
 }
 
 impl Compiler {
@@ -284,9 +290,10 @@ impl Compiler {
             return false;
         };
         format!("{player:?}") == format!("{decider:?}")
-            && cost.parts.iter().all(|part| {
-                matches!(part, CostPart::Loyalty(_))
-            })
+            && cost
+                .parts
+                .iter()
+                .all(|part| matches!(part, CostPart::Loyalty(_)))
             && self.clone().cost(cost, lane_g::PAID).is_ok()
     }
 }
@@ -421,6 +428,8 @@ pub(super) fn plain_entry(entry: &EntrySpec) -> bool {
 /// The locals earlier instructions bound, keyed by the result that names them.
 pub(super) struct Results {
     pub(super) selections: BTreeMap<u32, String>,
+    pub(super) implicit_selections: BTreeMap<u32, String>,
+    prepared_selections: Vec<BTreeMap<u32, super::selections::PreparedSelection>>,
     pub(super) unchosen: BTreeMap<u32, String>,
     pub(super) reveal_matches: BTreeMap<u32, String>,
     pub(super) creations: BTreeMap<u32, String>,
@@ -440,6 +449,7 @@ pub(super) struct Results {
 enum Hoist {
     Moved,
     Selected,
+    Implicit,
     Created,
     Before,
 }
@@ -705,7 +715,15 @@ impl Compiler {
             .line_text()
             .map(|line| match line.split_once(": ") {
                 // A loyalty ability's cost is not its sentence.
-                Some((cost, rest)) if cost.trim_start_matches(['[', '+', '−', '-']).trim_end_matches(']').chars().all(|c| c.is_ascii_digit() || c == 'X') => rest.to_string(),
+                Some((cost, rest))
+                    if cost
+                        .trim_start_matches(['[', '+', '−', '-'])
+                        .trim_end_matches(']')
+                        .chars()
+                        .all(|c| c.is_ascii_digit() || c == 'X') =>
+                {
+                    rest.to_string()
+                }
                 _ => line.to_string(),
             })
             .and_then(|line| {
@@ -765,7 +783,9 @@ impl Compiler {
         let words = self
             .line_text()
             .and_then(|line| line.split_once(", ").map(|(_, rest)| rest.to_string()))
-            .map(|rest| rest.get(..1).map_or(String::new(), str::to_uppercase) + rest.get(1..).unwrap_or(""))
+            .map(|rest| {
+                rest.get(..1).map_or(String::new(), str::to_uppercase) + rest.get(1..).unwrap_or("")
+            })
             .unwrap_or_else(|| "Exile it until an opponent becomes the monarch.".into());
         writeln!(
             self.functions,
@@ -846,6 +866,8 @@ impl Compiler {
     pub(super) fn results(&self) -> Results {
         Results {
             selections: self.selections.clone(),
+            implicit_selections: self.implicit_selections.clone(),
+            prepared_selections: self.prepared_selections.clone(),
             unchosen: self.unchosen.clone(),
             reveal_matches: self.reveal_matches.clone(),
             creations: self.creations.clone(),
@@ -863,6 +885,8 @@ impl Compiler {
     pub(super) fn restore_results(&mut self, results: Results) {
         let Results {
             selections,
+            implicit_selections,
+            prepared_selections,
             unchosen,
             reveal_matches,
             creations,
@@ -877,6 +901,8 @@ impl Compiler {
             notes,
         } = results;
         self.selections = selections;
+        self.implicit_selections = implicit_selections;
+        self.prepared_selections = prepared_selections;
         self.unchosen = unchosen;
         self.reveal_matches = reveal_matches;
         self.creations = creations;
@@ -905,8 +931,11 @@ impl Compiler {
         self.restore_results(scope);
         self.failed.extend(inner.failed.iter());
         self.notes.earlier = inner.notes.earlier;
+        self.notes.implicit_single = inner.notes.implicit_single.clone();
+        self.notes.implicit_each=inner.notes.implicit_each.clone();
         self.hoist(&inner.moved, Hoist::Moved, out);
         self.hoist(&inner.selections, Hoist::Selected, out);
+        self.hoist(&inner.implicit_selections, Hoist::Implicit, out);
         self.hoist(&inner.creations, Hoist::Created, out);
         self.hoist(&inner.before, Hoist::Before, out);
         self.hoist_choices(&inner.chosen, out);
@@ -944,6 +973,7 @@ impl Compiler {
             let known = match kind {
                 Hoist::Moved => &self.moved,
                 Hoist::Selected => &self.selections,
+                Hoist::Implicit => &self.implicit_selections,
                 Hoist::Created => &self.creations,
                 Hoist::Before => &self.before,
             };
@@ -961,6 +991,7 @@ impl Compiler {
             let (known, local) = match kind {
                 Hoist::Moved => (&mut self.moved, local),
                 Hoist::Selected => (&mut self.selections, local),
+                Hoist::Implicit => (&mut self.implicit_selections, local),
                 Hoist::Created => (&mut self.creations, local),
                 Hoist::Before => (&mut self.before, format!("{local}.clone()")),
             };
@@ -976,9 +1007,6 @@ impl Compiler {
     ) -> Result<()> {
         if let Some(each) = self.one_at_a_time(instruction) {
             return self.instruction(body, i, &each, out);
-        }
-        if let Some(picked) = self.picked_first(instruction, body, i, out)? {
-            return self.instruction(body, i, &picked, out);
         }
         self.keep_countered(body, i, instruction, out);
         match instruction {
@@ -1474,14 +1502,13 @@ impl Compiler {
                         return self.operation(operation, result, out);
                     }
                 }
-                let split = lane_m::chosen_then_moved(steps, 1_000_000 + i as u32);
-                let own = lane_i::own_turns(split.as_ref().unwrap_or(steps), binding);
+                let own = lane_i::own_turns(steps, binding);
                 let each = lane_i::EachPlayer {
                     players,
                     binding,
                     starting_with: starting_with.as_ref(),
                     in_chosen_direction: *in_chosen_direction,
-                    body: own.as_ref().or(split.as_ref()).unwrap_or(steps),
+                    body: own.as_ref().unwrap_or(steps),
                     rest: &body.instructions[i + 1..],
                 };
                 self.each_player(each, out)
@@ -1544,18 +1571,37 @@ impl Compiler {
         purpose: &str,
         out: &mut String,
     ) -> Result<()> {
-        let rule = std::mem::take(&mut self.choice_rule);
-        if let Count::PerPlayer { players, each } = count {
-            if !rule.is_empty() {
-                return Err(gap("operation ChangeZone"));
-            }
-            return self.choose_from_each(player, objects, players, each, result, purpose, out);
-        }
         if self.from_outside(objects) {
             self.notes.outside.insert(result.0);
             if matches!(objects, ObjectSet::Union(_)) {
                 self.notes.outside_shown.insert(result.0);
             }
+        }
+        let chooser = self.fetch(self.certain_player(player)?);
+        let local = self.choose_local(&chooser, objects, count, purpose, out)?;
+        if matches!(player, PlayerRef::OneOf(_)) {
+            self.notes
+                .performers
+                .insert(result.0, format!("Some({local}_player)"));
+        }
+        self.selections.insert(result.0, local);
+        Ok(())
+    }
+    /// Write a choice without inventing an instruction result for its local.
+    pub(super) fn choose_local(
+        &mut self,
+        chooser: &str,
+        objects: &ObjectSet,
+        count: &Count,
+        purpose: &str,
+        out: &mut String,
+    ) -> Result<String> {
+        let rule = std::mem::take(&mut self.choice_rule);
+        if let Count::PerPlayer { players, each } = count {
+            if !rule.is_empty() {
+                return Err(gap("operation ChangeZone"));
+            }
+            return self.choose_from_each(chooser, objects, players, each, purpose, out);
         }
         // "Choose exactly two": fewer can't be chosen, and nothing is.
         let exactly = match count {
@@ -1583,16 +1629,12 @@ impl Compiler {
             Some(n) => format!("if ({local}_candidates.len() as i64) < {n} {{ Vec::new() }} else "),
             None => lone,
         };
-        writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = {lone}{{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]){rule})? }};", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
+        writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = {lone}{{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]){rule})? }};", chooser, self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
         self.open_guard(&local, out);
-        if matches!(player, PlayerRef::OneOf(_)) {
-            self.notes.performers.insert(result.0, format!("Some({local}_player)"));
-        }
         if let Some(quality) = lane_n::quality_chosen(objects, self.line_text()) {
             self.damage_sources.insert(local.clone(), quality.clone());
         }
-        self.selections.insert(result.0, local);
-        Ok(())
+        Ok(local)
     }
     pub(super) fn fresh(&mut self) -> usize {
         self.next += 1;
@@ -1612,6 +1654,15 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        if let Operation::InOrder(actions) = op {
+            for action in actions {
+                self.operation(action, result, out)?;
+            }
+            return Ok(());
+        }
+        if let Operation::WithSelections { steps, action } = op {
+            return self.with_selections(steps, action, result, out);
+        }
         let id = self.fresh();
         if matches!(op, Operation::Move { .. } | Operation::ChangeZone { .. }) {
             let words = format!("{op:?}");
@@ -1970,7 +2021,9 @@ impl Compiler {
                         format!("let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(batch.iter().zip(&dealt).filter(|(_, n)| **n > 0).filter_map(|(d, _)| d.1.object()));"),
                     )
                 } else if self.read_later(result)
-                    && self.after.iter().any(|i| format!("{i:?}").contains(&format!("ClampedDamage(ResultId({}))", result.0)))
+                    && self.after.iter().any(|i| {
+                        format!("{i:?}").contains(&format!("ClampedDamage(ResultId({}))", result.0))
+                    })
                 {
                     // "But not more life than the player's life total before the
                     // damage was dealt, the planeswalker's loyalty before the damage
@@ -2824,7 +2877,9 @@ impl Compiler {
                 match part {
                     CostPart::Sacrifice { objects, choose } => {
                         let owed = match choose {
-                            Some(Count::Exactly(n) | Count::AsManyAsCan(n)) => Some(self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?)),
+                            Some(Count::Exactly(n) | Count::AsManyAsCan(n)) => {
+                                Some(self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?))
+                            }
                             _ => None,
                         };
                         if let Some(owed) = &owed {
@@ -2834,8 +2889,14 @@ impl Compiler {
                         self.sacrifice(id, &payer, objects, choose.as_ref(), result, out)?;
                         lane_k::asks_even_of_one(out, mark);
                         match owed {
-                            Some(_) => writeln!(out, "let paid_{id} = picks_{id}.len() as u32 == owed_{id};").unwrap(),
-                            None => writeln!(out, "let paid_{id} = !picks_{id}.is_empty();").unwrap(),
+                            Some(_) => writeln!(
+                                out,
+                                "let paid_{id} = picks_{id}.len() as u32 == owed_{id};"
+                            )
+                            .unwrap(),
+                            None => {
+                                writeln!(out, "let paid_{id} = !picks_{id}.is_empty();").unwrap()
+                            }
                         }
                     }
                     // Paid only with the cards to pay it (CR 118.3).
@@ -3076,9 +3137,20 @@ impl Compiler {
         fn battlefield_move(body: &Program) -> Option<&ResultId> {
             match body.instructions.as_slice() {
                 [Instruction::Group(body)] => battlefield_move(body),
-                [Instruction::If { then, otherwise, .. }] if otherwise.instructions.is_empty() => battlefield_move(then),
-                [Instruction::Effect { result, operation: Operation::Move { destination, .. } | Operation::MoveTopCard { destination, .. } }]
-                    if matches!(destination, Destination::Battlefield(_) | Destination::OwnersBattlefield) => Some(result),
+                [Instruction::If {
+                    then, otherwise, ..
+                }] if otherwise.instructions.is_empty() => battlefield_move(then),
+                [Instruction::Effect {
+                    result,
+                    operation:
+                        Operation::Move { destination, .. } | Operation::MoveTopCard { destination, .. },
+                }] if matches!(
+                    destination,
+                    Destination::Battlefield(_) | Destination::OwnersBattlefield
+                ) =>
+                {
+                    Some(result)
+                }
                 _ => None,
             }
         }
@@ -3095,6 +3167,8 @@ impl Compiler {
     pub(super) fn reset_results(&mut self) {
         self.countered.clear();
         self.selections.clear();
+        self.implicit_selections.clear();
+        self.prepared_selections.clear();
         self.unchosen.clear();
         self.reveal_matches.clear();
         self.known_one.clear();
@@ -3402,7 +3476,7 @@ impl Compiler {
         let alone = self.one_object(objects);
         let shown = self.outside_shown(objects);
         let revealed = self.revealed;
-        let chosen = matches!(objects, ObjectSet::Selected(_));
+        let chosen = matches!(objects, ObjectSet::Selected(_) | ObjectSet::Prepared(_));
         let targeted = matches!(objects, ObjectSet::Targets(_));
         // Cards of one player's library, which a move to its bottom takes nowhere: "put the rest on the bottom of your
         // library in a random order" of cards revealed from it changes no zone (CR 401.4), and a move would carry them
@@ -3609,6 +3683,7 @@ impl Compiler {
     /// Whether a set is known to hold one object at most when this runs.
     pub(super) fn one_object(&self, objects: &ObjectSet) -> bool {
         match objects {
+            ObjectSet::Prepared(binding) => self.selection_metadata(binding).is_ok_and(|p| p.one),
             ObjectSet::One(_) => true,
             ObjectSet::Take {
                 count: Expr::Constant(1),
@@ -3875,8 +3950,18 @@ impl Compiler {
     /// one set of them where the first was.
     fn becoming_replaces(&self, changes: &[Change]) -> Option<Vec<Change>> {
         if self.line_text().is_some_and(|line| line.contains("still"))
-            && changes.iter().any(|c| matches!(c, Change::AddCardType(_) | Change::SetCardTypes(_)))
-            && changes.iter().any(|c| matches!(c, Change::CreatureTypes { mode: ChangeMode::Set, .. }))
+            && changes
+                .iter()
+                .any(|c| matches!(c, Change::AddCardType(_) | Change::SetCardTypes(_)))
+            && changes.iter().any(|c| {
+                matches!(
+                    c,
+                    Change::CreatureTypes {
+                        mode: ChangeMode::Set,
+                        ..
+                    }
+                )
+            })
         {
             return Some(changes.iter().map(|change| match change {
                 Change::CreatureTypes { mode: ChangeMode::Set, types } => Change::CreatureTypes { mode: ChangeMode::Add, types: types.clone() },

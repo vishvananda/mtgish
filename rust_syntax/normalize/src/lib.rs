@@ -33,3 +33,4 @@ pub mod unified;
 pub mod value_audit;
 
 pub mod cost_history;
+pub mod movement;

@@ -83,7 +83,7 @@ fn each_card_reads_its_value_in_a_typed_shape() {
         (
             "Cinderheart Giant",
             "CreatureOrPlaneswalkerChosenAtRandom",
-            "\"Random\"",
+            "\"WithSelections\"",
         ),
         (
             "Ghyrson Starn, Kelermorph",

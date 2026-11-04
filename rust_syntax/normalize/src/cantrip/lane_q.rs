@@ -230,24 +230,21 @@ impl Compiler {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn choose_from_each(
         &mut self,
-        player: &PlayerRef,
+        chooser: &str,
         objects: &ObjectSet,
         players: &PlayerSet,
         each: &Count,
-        result: &ResultId,
         purpose: &str,
         out: &mut String,
-    ) -> Result<()> {
+    ) -> Result<String> {
         let each = self.offered_count(each);
         let count = self.fetch(self.select_count(&each)?);
-        let chooser = self.fetch(self.certain_player(player)?);
         let pool = self.fetch(self.objects(objects)?);
         let players = self.fetch(self.players(players)?);
         let local = format!("selected_{}", self.fresh());
         writeln!(out, "let {local}_player = {chooser}; let {local}_pool: Vec<ObjectId> = {pool}; let mut {local}: Vec<ObjectId> = Vec::new(); for each_player in {players} {{ let candidates: Vec<ObjectId> = {{ let q: &dyn Query = g; {local}_pool.iter().copied().filter(|&o| (if q.state().obj(o).zone.is(ZoneKind::Battlefield) {{ q.controller(o) }} else {{ q.state().obj(o).owner }}) == each_player).collect() }}; let count = {count}; {local}.extend(cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, candidates, cantrip_mechanics::select::Selection::of(count, &[]))?); }}").unwrap();
         self.open_guard(&local, out);
-        self.selections.insert(result.0, local);
-        Ok(())
+        Ok(local)
     }
     /// "Instead create that many tokens that are copies of it": the same event, the
     /// tokens now each a copy of its copiable values (CR 707.2).

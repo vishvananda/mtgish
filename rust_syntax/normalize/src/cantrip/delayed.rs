@@ -396,6 +396,12 @@ impl Compiler {
             return Ok(None);
         };
         let local = match objects {
+            ObjectSet::Prepared(binding)=>self.prepared_selection(binding).is_ok(),
+            ObjectSet::Earlier {what:EarlierObjects::Selected,by:None}=> {
+                let own=self.notes.earlier.iter().any(|(word,_)|*word=="Selected");
+                let implicit_outer=outer.compiler.notes.earlier.iter().rev().find(|(word,_)|*word=="Selected").is_some_and(|(_,result)|outer.compiler.implicit_selections.contains_key(&result.0));
+                own || !implicit_outer
+            }
             ObjectSet::Selected(result) | ObjectSet::Observed(result) => {
                 self.selections.contains_key(&result.0)
             }
@@ -456,8 +462,7 @@ impl Compiler {
                     self.outside_object(object)?.expect("carried")
                 ))),
                 // What can only be one thing is what a subject holds.
-                ObjectSet::Created(result) | ObjectSet::Selected(result)
-                    if outer.compiler.single.contains(&result.0) =>
+                objects if outer.compiler.single_carried_selection(objects) =>
                 {
                     let code = format!("({}).first().copied()", outer.compiler.objects(objects)?);
                     let mut carried = subject.borrow_mut();

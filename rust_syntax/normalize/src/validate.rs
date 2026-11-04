@@ -23,6 +23,7 @@ type Result<T = ()> = std::result::Result<T, String>;
 #[derive(Clone, Default)]
 struct Scope<'a> {
     slots: BTreeMap<u16, &'a TargetSpec>,
+    prepared: BTreeMap<u32, Option<Vec<EventZone>>>,
     results: BTreeMap<u32, ResultKind>,
     result_zones: BTreeMap<u32, Vec<EventZone>>,
     activation_cost: Option<Cost>,
@@ -190,6 +191,7 @@ impl<'a> Scope<'a> {
     }
     fn known_zones(&self, objects: &ObjectSet) -> Option<Vec<EventZone>> {
         match objects {
+            ObjectSet::Prepared(binding) => self.prepared.get(&binding.0).cloned().flatten(),
             ObjectSet::CostObjects {
                 payment,
                 component,
@@ -905,6 +907,16 @@ impl<'a> Scope<'a> {
 
     fn objects(&self, objects: &ObjectSet) -> Result {
         match objects {
+            ObjectSet::Prepared(binding) => {
+                if self.prepared.contains_key(&binding.0) {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "selection {} is outside its preparation scope",
+                        binding.0
+                    ))
+                }
+            }
             ObjectSet::Scoped => Ok(()),
             ObjectSet::Earlier { by, .. } => {
                 by.iter().try_for_each(|players| self.players(players))
@@ -1713,9 +1725,9 @@ impl<'a> Scope<'a> {
         match defenders {
             AttackDefenders::Any => Ok(()),
             AttackDefenders::Objects(f) => self.filter(f),
-            AttackDefenders::Players(p) | AttackDefenders::PlayersAndPlaneswalkers(p) | AttackDefenders::DefendingPlayers(p) => {
-                self.players(p)
-            }
+            AttackDefenders::Players(p)
+            | AttackDefenders::PlayersAndPlaneswalkers(p)
+            | AttackDefenders::DefendingPlayers(p) => self.players(p),
         }
     }
     fn object_action(&self, action: &ObjectAction) -> Result {
@@ -2697,6 +2709,28 @@ impl<'a> Scope<'a> {
     }
     fn operation(&self, operation: &Operation) -> Result {
         match operation {
+            Operation::InOrder(actions) => {
+                actions.iter().try_for_each(|action| self.operation(action))
+            }
+            Operation::WithSelections { steps, action } => {
+                let mut scope = self.clone();
+                let mut own = BTreeSet::new();
+                for step in steps {
+                    if !own.insert(step.binding.0) {
+                        return Err("duplicate local selection binding".into());
+                    }
+                    if let SelectionChooser::Players(players) = &step.chooser {
+                        scope.players(players)?;
+                    }
+                    scope.objects(&step.objects)?;
+                    scope.count(&step.count)?;
+                    scope.selection_constraints(&step.constraints)?;
+                    let zones = scope.known_zones(&step.objects);
+                    scope.prepared.insert(step.binding.0, zones);
+                }
+                scope.operation(action)
+            }
+
             Operation::Meld { objects, entry, .. } => {
                 self.objects(objects)?;
                 entry.iter().try_for_each(|flag| self.operand(flag))
@@ -4017,6 +4051,7 @@ impl<'a> Scope<'a> {
         for instruction in &body.instructions {
             match instruction {
                 Instruction::Effect { result, operation } => {
+                    let operation = operation.action();
                     if crate::semantics::singular_operation(operation, |r| {
                         self.singular.contains(&r.0)
                     }) {
@@ -4068,6 +4103,7 @@ impl<'a> Scope<'a> {
                     }
                 }
                 Instruction::Effect { result, operation } => {
+                    let operation = operation.action();
                     if run.ordered_results.contains(&result.0) {
                         self.ordered_results.insert(result.0);
                     }
@@ -4123,7 +4159,7 @@ impl<'a> Scope<'a> {
                                 }
                             }
                         }
-                        let kind = match operation {
+                        let kind = match operation.action() {
                             Operation::LookAt { .. }
                             | Operation::Reveal { .. }
                             | Operation::RevealUntil { .. }
@@ -4165,7 +4201,7 @@ impl<'a> Scope<'a> {
                                 None => ResultKind::Other,
                             },
                         };
-                        let zones = match operation {
+                        let zones = match operation.action() {
                             Operation::LookAt { objects, .. } | Operation::Reveal { objects } => {
                                 self.known_zones(objects)
                             }

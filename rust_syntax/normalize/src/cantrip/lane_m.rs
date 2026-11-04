@@ -279,6 +279,10 @@ pub(super) struct Notes {
     /// What each instruction acted on, by the word `EarlierObjects` has for it:
     /// the last of these is what "that card" or "those" was.
     pub earlier: Vec<(&'static str, ResultId)>,
+    /// Cardinality of the pre-action choice view, independent of the action's
+    /// own transition/creation result with the same instruction id.
+    pub implicit_single: BTreeSet<u32>,
+    pub implicit_each: BTreeMap<u32,(String,String)>,
     /// For a step of a `ForEachPlayer`: the list of its players, and the test
     /// over `at`, an index into it, of whether that player's run did the step.
     pub took: BTreeMap<u32, (String, String)>,
@@ -315,7 +319,7 @@ pub(super) struct Notes {
 
 /// The words `EarlierObjects` has for what an operation acts on.
 fn acted_on(op: &Operation) -> &'static [&'static str] {
-    match op {
+    match op.action() {
         Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
         // "Chooses a card in your graveyard", "secretly chooses a creature": objects
         // chosen on terms, which "each creature chosen this way" reads back.
@@ -324,16 +328,16 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
             ..
         } => &["Selected"],
         Operation::Sacrifice { .. } => &["Sacrificed", "PutInGraveyard"],
-        Operation::PayCost { cost, optional: true, .. }
-            if matches!(cost.parts.as_slice(), [CostPart::Sacrifice { .. }]) =>
-        {
-            &["Sacrificed"]
-        }
-        Operation::PayCost { cost, optional: true, .. }
-            if matches!(cost.parts.as_slice(), [CostPart::UnattachFrom { .. }]) =>
-        {
-            &["Unattached"]
-        }
+        Operation::PayCost {
+            cost,
+            optional: true,
+            ..
+        } if matches!(cost.parts.as_slice(), [CostPart::Sacrifice { .. }]) => &["Sacrificed"],
+        Operation::PayCost {
+            cost,
+            optional: true,
+            ..
+        } if matches!(cost.parts.as_slice(), [CostPart::UnattachFrom { .. }]) => &["Unattached"],
         Operation::Destroy { .. } => &["PutInGraveyard"],
         Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
@@ -407,56 +411,6 @@ pub(super) fn each_discards(
     })
 }
 
-/// A player's move of what they choose among several zones, as the choice and the
-/// move of what was chosen: `fresh` numbers the choice.
-pub(super) fn chosen_then_moved(body: &Program, fresh: u32) -> Option<Program> {
-    let [Instruction::Effect {
-        result,
-        operation:
-            Operation::Move {
-                objects:
-                    ObjectSet::Chosen {
-                        chooser: PlayerSet::One(chooser @ PlayerRef::Bound(_)),
-                        objects,
-                        count,
-                    },
-                destination,
-                entry,
-                face_down,
-            },
-    }] = body.instructions.as_slice()
-    else {
-        return None;
-    };
-    let count = match count {
-        Count::Exactly(n) => Count::AsManyAsCan(n.clone()),
-        other => other.clone(),
-    };
-    let chosen = ResultId(fresh);
-    Some(Program {
-        instructions: vec![
-            Instruction::Effect {
-                result: chosen.clone(),
-                operation: Operation::ChooseObjects {
-                    player: chooser.clone(),
-                    objects: (**objects).clone(),
-                    count,
-                    constraints: Vec::new(),
-                },
-            },
-            Instruction::Effect {
-                result: result.clone(),
-                operation: Operation::Move {
-                    objects: ObjectSet::Selected(chosen),
-                    destination: destination.clone(),
-                    entry: entry.clone(),
-                    face_down: *face_down,
-                },
-            },
-        ],
-    })
-}
-
 impl Compiler {
     /// What an instruction leaves for later ones to read back.
     pub(super) fn note_step(&mut self, instruction: &Instruction) {
@@ -481,6 +435,7 @@ impl Compiler {
         for &what in acted_on(operation) {
             self.notes.earlier.push((what, result.clone()));
         }
+        let operation = operation.action();
         let chosen = match operation {
             Operation::Move { objects, .. }
             | Operation::Reveal { objects }
@@ -508,20 +463,42 @@ impl Compiler {
     pub(super) fn note_own(&mut self, body: &Program) {
         for instruction in &body.instructions {
             match instruction {
-                Instruction::Effect {
-                    result,
-                    operation:
+                Instruction::Effect { result, operation } => {
+                    // Inspect the pure pool without evaluating a choice or
+                    // substituting its selection id for the moved result.
+                    let mut scope = self.clone();
+                    let mut action = operation;
+                    while let Operation::WithSelections {
+                        steps,
+                        action: inner,
+                    } = action
+                    {
+                        scope.prepared_selections.push(BTreeMap::new());
+                        for step in steps {
+                            scope.bind_prepared_metadata(step, String::new());
+                        }
+                        action = inner;
+                    }
+                    let own = match action {
                         Operation::Discard { .. }
                         | Operation::DiscardObjects { .. }
-                        | Operation::Mill { .. },
-                } => {
-                    self.notes.own.insert(result.0);
-                }
-                Instruction::Effect {
-                    result,
-                    operation: Operation::Move { objects, .. },
-                } if lane_p::only_their_own(objects) => {
-                    self.notes.own.insert(result.0);
+                        | Operation::Mill { .. } => true,
+                        Operation::Move { objects, .. } => {
+                            let pool = match objects {
+                                ObjectSet::Prepared(binding) => scope
+                                    .prepared_selection(binding)
+                                    .ok()
+                                    .map(|p| &p.pool)
+                                    .unwrap_or(objects),
+                                other => other,
+                            };
+                            lane_p::only_their_own(pool)
+                        }
+                        _ => false,
+                    };
+                    if own {
+                        self.notes.own.insert(result.0);
+                    }
                 }
                 Instruction::Group(body) | Instruction::Optional { body, .. } => {
                     self.note_own(body)
@@ -613,6 +590,11 @@ impl Compiler {
             }
             return Ok(format!("{found}.iter().map(|&id| q.state().obj(id).became.filter(|&now| q.state().obj(now).zone.is(ZoneKind::Battlefield)).unwrap_or(id)).collect::<Vec<ObjectId>>()"));
         }
+        if matches!(what, EarlierObjects::Selected) {
+            if let Some(local) = self.implicit_selections.get(&result.0) {
+                return Ok(format!("{local}.clone()"));
+            }
+        }
         // What was sacrificed or countered is read as it last existed.
         if matches!(what, EarlierObjects::Sacrificed | EarlierObjects::Countered)
             && self.before.contains_key(&result.0)
@@ -680,7 +662,11 @@ impl Compiler {
         let word = form(what);
         let (_, result) = self.notes.earlier.iter().rev().find(|(w, _)| *w == word)?;
         let chosen = self.notes.acted_of.get(&result.0).unwrap_or(&result.0);
-        let walked = self.notes.each.get(chosen).or(self.notes.each.get(&result.0));
+        let walked = if matches!(what,EarlierObjects::Selected) && self.implicit_selections.contains_key(&result.0) {
+            // A pre-action pick keeps its own rows: transition rows contain new
+            // identities and may omit choices that could not actually move.
+            self.notes.implicit_each.get(&result.0)
+        } else {self.notes.each.get(chosen).or(self.notes.each.get(&result.0))};
         // "Choose a different opponent": each pick shuts out the rest, which a walk
         // of independent picks doesn't.
         if lane_k::printed_otherwise(self.line_text(), "a different") {
@@ -914,81 +900,6 @@ impl Compiler {
                 }],
             },
         })
-    }
-    /// The instruction with what it leaves to be picked already picked, by lot or
-    /// by a player: a read can't roll or ask, so the pick comes ahead of it and the
-    /// instruction reads what was picked.
-    pub(super) fn picked_first(
-        &mut self,
-        instruction: &Instruction,
-        body: &Program,
-        i: usize,
-        out: &mut String,
-    ) -> Result<Option<Instruction>> {
-        let Instruction::Effect { operation, .. } = instruction else {
-            return Ok(None);
-        };
-        let words = format!("{operation:?}");
-        if !(words.contains("Random {") || words.contains("Chosen {")) {
-            return Ok(None);
-        }
-        let Ok(mut value) = serde_json::to_value(instruction) else {
-            return Ok(None);
-        };
-        let id = self.fresh();
-        let picked = ResultId(PICKED + id as u32);
-        let Some(pick) = take_pick(&mut value, &picked) else {
-            return Ok(None);
-        };
-        let Ok(rewritten) = serde_json::from_value::<Instruction>(value) else {
-            return Ok(None);
-        };
-        match pick {
-            Pick::Random(objects, count) => {
-                let pool = self.objects(&objects)?;
-                let count = self.number(&count)?.code;
-                writeln!(
-                    out,
-                    "let mut pool_{id}: Vec<ObjectId> = {};",
-                    self.fetch(pool)
-                )
-                .unwrap();
-                writeln!(out, "let count_{id} = {};", self.fetch(count)).unwrap();
-                writeln!(
-                    out,
-                    "let mut random_{id}: Vec<ObjectId> = Vec::new(); for _ in 0..count_{id} {{ let Some(one) = cantrip_mechanics::library::random_of(g, &pool_{id}) else {{ break }}; pool_{id}.retain(|&o| o != one); random_{id}.push(one); }}"
-                )
-                .unwrap();
-                self.selections.insert(picked.0, format!("random_{id}"));
-            }
-            Pick::Chosen(chooser, objects, count) => {
-                let player = match chooser {
-                    PlayerSet::One(player) => player,
-                    // "Of an opponent's choice": the effect names no opponent, so the
-                    // controller says which one chooses (CR 608.2d), asked only when
-                    // there is more than one (`choose::opponent_chooses`).
-                    PlayerSet::OpponentsOf(_) => {
-                        let binding = ACTING + 100 + id as u32;
-                        let players = self.fetch(self.players(&chooser)?);
-                        writeln!(out, "let choosers_{id}: Vec<PlayerId> = {players}; let bound_{binding}: PlayerId = match choosers_{id}.len() {{ 0 => asker.controller, 1 => choosers_{id}[0], _ => cantrip_mechanics::choose::player(g, asker.controller, asker.source, choosers_{id}.clone(), \"Choose\", 0)?.unwrap_or(choosers_{id}[0]) }};").unwrap();
-                        self.bound_players.insert(binding);
-                        PlayerRef::Bound(Binding(binding))
-                    }
-                    _ => return Err(gap("object collection Chosen")),
-                };
-                let choice = Instruction::Effect {
-                    result: picked,
-                    operation: Operation::ChooseObjects {
-                        player,
-                        objects,
-                        count,
-                        constraints: Vec::new(),
-                    },
-                };
-                self.instruction(body, i, &choice, out)?;
-            }
-        }
-        Ok(Some(rewritten))
     }
     /// The choices `choose_value` leaves to this lane.
     pub(super) fn choose_value_more(
@@ -1308,7 +1219,16 @@ impl Compiler {
     /// The rest of `objects`.
     pub(super) fn objects_more(&self, objects: &ObjectSet) -> Result<String> {
         Ok(match objects {
+            ObjectSet::Prepared(binding) => {
+                format!("{}.clone()", self.prepared_selection(binding)?.local)
+            }
             ObjectSet::Earlier { what, by: None } => self.earlier_objects(what)?,
+            ObjectSet::Earlier {
+                what,
+                by: Some(PlayerSet::One(PlayerRef::Bound(binding))),
+            } if self.earlier_by(what, binding.0).is_some() => {
+                self.earlier_by(what, binding.0).expect("just asked")
+            }
             ObjectSet::Copies(result) => self.named(result)?,
             ObjectSet::Unselected(result) => self.unselected(result)?,
             other => return self.objects_p(other),
@@ -1954,51 +1874,6 @@ fn one_line(value: &impl std::fmt::Debug) -> String {
             .join(" "),
     )
 }
-
-/// What an instruction leaves to be picked.
-enum Pick {
-    Random(ObjectSet, Expr),
-    Chosen(PlayerSet, ObjectSet, Count),
-}
-
-/// Takes the first pick out of an instruction's JSON, leaving the selection
-/// `picked` where it was.
-fn take_pick(value: &mut serde_json::Value, picked: &ResultId) -> Option<Pick> {
-    use serde_json::{from_value, json, Value};
-    match value {
-        Value::Object(fields) => {
-            let pick = (|| {
-                let args = fields.get("args")?.as_object()?;
-                let objects = args.get("objects")?.clone();
-                let count = args.get("count")?.clone();
-                match fields.get("kind")?.as_str()? {
-                    "Random" => Some(Pick::Random(
-                        from_value(objects).ok()?,
-                        from_value(count).ok()?,
-                    )),
-                    "Chosen" => Some(Pick::Chosen(
-                        from_value(args.get("chooser")?.clone()).ok()?,
-                        from_value(objects).ok()?,
-                        from_value(count).ok()?,
-                    )),
-                    _ => None,
-                }
-            })();
-            if pick.is_some() {
-                *value = json!({ "kind": "Selected", "args": picked.0 });
-                return pick;
-            }
-            fields
-                .values_mut()
-                .find_map(|inner| take_pick(inner, picked))
-        }
-        Value::Array(items) => items.iter_mut().find_map(|inner| take_pick(inner, picked)),
-        _ => None,
-    }
-}
-
-/// Where a pick keeps its result, past any card's own.
-const PICKED: u32 = 1_000_000;
 
 /// A binding no card's AST uses, for an instruction taken one player at a time.
 const ACTING: u32 = 9_000;

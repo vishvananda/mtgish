@@ -429,6 +429,17 @@ impl Inventory<'_> {
     fn operation(&mut self, op: &Operation) {
         self.form("Operation", op);
         match op {
+            Operation::InOrder(actions) => actions.iter().for_each(|op| self.operation(op)),
+            Operation::WithSelections { steps, action } => {
+                for step in steps {
+                    if let SelectionChooser::Players(players) = &step.chooser {
+                        self.players(players);
+                    }
+                    self.objects(&step.objects);
+                    self.count(&step.count);
+                }
+                self.operation(action);
+            }
             Operation::Meld { objects, .. } | Operation::Piles { objects, .. } => {
                 self.objects(objects)
             }
@@ -1745,9 +1756,9 @@ impl Inventory<'_> {
         match d {
             AttackDefenders::Any => {}
             AttackDefenders::Objects(f) => self.filter(f),
-            AttackDefenders::Players(p) | AttackDefenders::PlayersAndPlaneswalkers(p) | AttackDefenders::DefendingPlayers(p) => {
-                self.players(p)
-            }
+            AttackDefenders::Players(p)
+            | AttackDefenders::PlayersAndPlaneswalkers(p)
+            | AttackDefenders::DefendingPlayers(p) => self.players(p),
         }
     }
     fn object_action(&mut self, a: &ObjectAction) {
@@ -2125,6 +2136,7 @@ impl Inventory<'_> {
     fn objects(&mut self, r: &ObjectSet) {
         self.form("ObjectSet", r);
         match r {
+            ObjectSet::Prepared(_) => {}
             ObjectSet::Scoped => {}
             ObjectSet::Named(_) => {}
             ObjectSet::Earlier { by, .. } => {

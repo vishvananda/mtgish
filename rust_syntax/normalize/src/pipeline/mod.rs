@@ -503,6 +503,7 @@ pub fn bind(structural: &Structural) -> Result<ir::Card, Vec<crate::lower::Diagn
     validate_final(card)
 }
 fn validate_final(value: ir::Card) -> Result<ir::Card, Vec<crate::lower::Diagnostic>> {
+    let value = crate::movement::normalize_card(value);
     crate::validate::card(&value).map_err(|message| {
         vec![crate::lower::Diagnostic {
             path: "finalization".into(),

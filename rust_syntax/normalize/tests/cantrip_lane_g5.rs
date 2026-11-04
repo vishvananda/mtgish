@@ -18,7 +18,7 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Demonic Hordes", "cantrip_mechanics::choose::player(g, asker.controller", true),
     ("Demonic Hordes", "Some(asker.controller) == Some(q.controller(id))", true),
     // "Each foe chooses one untapped creature they control, then taps the rest."
-    ("Regna's Sanction", "Purpose::Keep, all_", true),
+    ("Regna's Sanction", "Purpose::Keep, selected_", true),
     // "If you controlled ... as you cast this spell": kept as it is cast.
     ("Flame Discharge", "g.history().fact_as_cast(item.object) != 0", true),
     ("Flame Discharge", "cast_fact: Some(kept_as_cast)", true),

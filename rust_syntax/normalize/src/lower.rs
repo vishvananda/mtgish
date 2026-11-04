@@ -6393,7 +6393,7 @@ fn keyword(value: &source::Rule) -> Result<Keyword> {
 }
 
 pub fn card(value: &source::OracleCard) -> std::result::Result<Card, Vec<Diagnostic>> {
-    crate::corpus::on_large_stack(|| crate::pipeline::lower(value))
+    crate::corpus::on_large_stack(|| crate::pipeline::lower(value)).map(crate::movement::normalize_card)
 }
 pub(crate) fn bind_card(
     value: &source::OracleCard,

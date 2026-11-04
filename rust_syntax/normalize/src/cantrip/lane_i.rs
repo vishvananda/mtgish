@@ -16,9 +16,7 @@ pub(super) struct EachPlayer<'a> {
 /// one player, the one walked, doing it is that player's own turn at it, where
 /// `PlayerRef::Acting` is the player walked.
 pub(super) fn own_turns(body: &Program, binding: &Binding) -> Option<Program> {
-    let own = |i: &Instruction| {
-        matches!(i, Instruction::Effect { operation: Operation::EachPlayer { players, .. }, .. } if one_bound(players, binding))
-    };
+    let own = |i: &Instruction| matches!(i, Instruction::Effect { operation: Operation::EachPlayer { players, .. }, .. } if one_bound(players, binding));
     if !body.instructions.iter().any(own) {
         return None;
     }
@@ -26,11 +24,13 @@ pub(super) fn own_turns(body: &Program, binding: &Binding) -> Option<Program> {
         .instructions
         .iter()
         .map(|i| match i {
-            Instruction::Effect { result, operation: Operation::EachPlayer { players, action } }
-                if one_bound(players, binding) =>
-            {
-                Instruction::Effect { result: result.clone(), operation: (**action).clone() }
-            }
+            Instruction::Effect {
+                result,
+                operation: Operation::EachPlayer { players, action },
+            } if one_bound(players, binding) => Instruction::Effect {
+                result: result.clone(),
+                operation: (**action).clone(),
+            },
             other => other.clone(),
         })
         .collect();
@@ -63,7 +63,7 @@ fn bound_results(instruction: &Instruction, found: &mut BTreeSet<u32>) {
 /// one batch: a choice or a payment, or what happens to each player on its own.
 fn walked(op: &Operation) -> bool {
     matches!(
-        op,
+        op.action(),
         // Mana goes into a pool, which no permanent sees (CR 106.4): each in turn
         // is the same as all at once.
         Operation::AddMana { .. }
@@ -205,10 +205,62 @@ enum Part {
     Unbatched(String),
 }
 impl Gathered {
+    fn has_choice(&self) -> bool {
+        match self {
+            Self::WithSelections { steps, inner, .. } => {
+                steps
+                    .iter()
+                    .any(|s| matches!(s.chooser, SelectionChooser::Players(_)))
+                    || inner.has_choice()
+            }
+            _ => false,
+        }
+    }
+    fn prepare_choice_views(&self, local: usize, players:&str, out: &mut String) {
+        if let Self::WithSelections {
+            steps,
+            depth,
+            inner,
+            ..
+        } = self
+        {
+            if steps
+                .iter()
+                .any(|s| matches!(s.chooser, SelectionChooser::Players(_)))
+            {
+                writeln!(
+                    out,
+                    "let mut implicit_{local}_{depth}: Vec<ObjectId> = Vec::new(); let mut implicit_each_{local}_{depth}: Vec<Vec<ObjectId>> = vec![Vec::new(); {players}.len()];"
+                )
+                .unwrap();
+            }
+            inner.prepare_choice_views(local, players, out);
+        }
+    }
+
+    fn purpose(&self) -> &'static str {
+        match self {
+            Gathered::WithSelections { inner, .. } => inner.purpose(),
+            Gathered::Objects { objects, .. } if matches!(objects,ObjectSet::Difference {excluding,..} if matches!(excluding.as_ref(),ObjectSet::Prepared(_))) => {
+                "Keep"
+            }
+            Gathered::Objects {then,..}=>match then(ObjectSet::Union(vec![])) {
+                Operation::Move {destination:Destination::Exile,..}=>"Exile",
+                Operation::Move {destination:Destination::OwnersHand|Destination::Hand(_),..}=>"PutIntoHand",
+                Operation::Move {destination:Destination::OwnersGraveyard,..}=>"PutIntoGraveyard",
+                Operation::Move {destination:Destination::Battlefield(_)|Destination::OwnersBattlefield,..}=>"PutOntoBattlefield",
+                _=>"Choose",
+            },
+            _ => "Choose",
+        }
+    }
     /// What one thing gathered is.
     fn row(&self) -> &'static str {
         match self {
-            Gathered::Objects { .. } | Gathered::Offered { .. } | Gathered::Cards { .. } => "ObjectId",
+            Gathered::WithSelections { inner, .. } => inner.row(),
+            Gathered::Objects { .. } | Gathered::Offered { .. } | Gathered::Cards { .. } => {
+                "ObjectId"
+            }
             Gathered::Sacrifice { .. }
             | Gathered::SacrificeEach { .. }
             | Gathered::SacrificeRest { .. } => "(PlayerId, ObjectId)",
@@ -231,6 +283,12 @@ enum TokensAt {
     MustAttack,
 }
 enum Gathered {
+    WithSelections {
+        steps: Vec<SelectionStep>,
+        inner: Box<Gathered>,
+        result: ResultId,
+        depth: usize,
+    },
     SacrificeEach {
         slots: Vec<ObjectSet>,
         result: ResultId,
@@ -317,10 +375,12 @@ struct View {
     result: u32,
     each: String,
     all: Option<String>,
+    implicit_single: bool,
 }
 #[derive(Clone, Copy)]
 enum ViewKind {
     Selected,
+    Implicit,
     Moved,
     Created,
     Before,
@@ -470,6 +530,11 @@ impl Compiler {
     /// The zone of objects a player's own, so entering "under their control" is
     /// under their owner's.
     fn own_cards(&self, objects: &ObjectSet, binding: &Binding, earlier: &[Instruction]) -> bool {
+        if let ObjectSet::Prepared(id) = objects {
+            return self
+                .selection_metadata(id)
+                .is_ok_and(|p| self.own_cards(&p.pool, binding, earlier));
+        }
         if self.moved_their_own(objects, binding) {
             return true;
         }
@@ -632,6 +697,63 @@ impl Compiler {
             };
         };
         let result = result.clone();
+        if let Operation::WithSelections { steps, action } = operation {
+            let locals=steps.iter().map(|step|step.binding.0).collect::<BTreeSet<_>>();
+            let dependent=match action.action() {
+                Operation::Move {entry,destination,..}=>selections::reads_local(entry,&locals) || selections::reads_local(destination,&locals),
+                Operation::ChangeZone {entry,destination,face_down,..}=>entry.iter().any(|flag|selections::reads_local(flag,&locals)) || selections::reads_local(destination,&locals) || face_down.as_ref().is_some_and(|face|selections::reads_local(face,&locals)),
+                _=>false,
+            };
+            if dependent {return Part::Unbatched("per-player entry or destination with a local selection".into());}
+            // A local preparation must run once for each player, at this step.
+            // Classify the pure action independently; never move the preparation
+            // outside the walk, even if the original pool mentions no bound player.
+            let mut nested = flat.to_vec();
+            nested[step] = Instruction::Effect {
+                result: result.clone(),
+                operation: (**action).clone(),
+            };
+            let depth = self.prepared_selections.len();
+            let mut scope = self.clone();
+            scope.prepared_selections.push(BTreeMap::new());
+            for step in steps {
+                scope.bind_prepared_metadata(step, String::new());
+            }
+            let classified = scope.part(each, &nested, step, earlier);
+            let gathered = match classified {
+                Part::Walk => return Part::Walk,
+                Part::Unbatched(feature) => return Part::Unbatched(feature),
+                Part::Gather(inner) => Some(inner),
+                Part::Once(Instruction::Effect {
+                    operation:
+                        Operation::Move {
+                            objects,
+                            destination,
+                            entry,
+                            face_down,
+                        },
+                    ..
+                }) => Some(Gathered::Objects {
+                    objects,
+                    then: Box::new(move |objects| Operation::Move {
+                        objects,
+                        destination: destination.clone(),
+                        entry: entry.clone(),
+                        face_down,
+                    }),
+                }),
+                _ => None,
+            };
+            return match gathered {
+                Some(inner) => Part::Gather(Gathered::WithSelections {
+                    steps: steps.clone(),
+                    inner: Box::new(inner),
+                    result: result.clone(),
+                    depth,
+                }),
+                None => Part::Unbatched("per-player operation with local selections".into()),
+            };
+        }
         match operation {
             Operation::Move {
                 objects,
@@ -917,7 +1039,9 @@ impl Compiler {
                     matches!(s, EntryState::AttachedTo(_) | EntryState::AttachedToChosen(_) | EntryState::AttachedToPlayer(_))
                 });
                 let unbatched = || match () {
-                    _ if several_tapped => Part::Unbatched("per-player tapped token copies of several objects".into()),
+                    _ if several_tapped => {
+                        Part::Unbatched("per-player tapped token copies of several objects".into())
+                    }
                     _ if attached => Part::Unbatched("per-player tokens entering attached".into()),
                     _ => Part::Unbatched(format!("per-player {}", form(operation))),
                 };
@@ -1239,6 +1363,7 @@ impl Compiler {
                         gathered.row()
                     )
                     .unwrap();
+                    gathered.prepare_choice_views(gather, &format!("players_{id}"), out);
                     self.walk(
                         id,
                         &each,
@@ -1342,17 +1467,21 @@ impl Compiler {
     /// Reads in a walk see the player's own list, and what's after see them all.
     fn view_each(&mut self, views: &[View]) {
         for view in views {
-            self.view_set(view, Some(view.each.clone()));
+            self.view_set(view, Some(view.each.clone()),true);
         }
     }
     fn view_all(&mut self, views: &[View]) {
         for view in views {
-            self.view_set(view, view.all.clone());
+            self.view_set(view, view.all.clone(),false);
         }
     }
-    fn view_set(&mut self, view: &View, local: Option<String>) {
+    fn view_set(&mut self, view: &View, local: Option<String>, each:bool) {
+        if matches!(view.kind,ViewKind::Implicit) {
+            if each && view.implicit_single {self.notes.implicit_single.insert(view.result);} else {self.notes.implicit_single.remove(&view.result);}
+        }
         let map = match view.kind {
             ViewKind::Selected => &mut self.selections,
+            ViewKind::Implicit => &mut self.implicit_selections,
             ViewKind::Moved => &mut self.moved,
             ViewKind::Created => &mut self.creations,
             ViewKind::Before => &mut self.before,
@@ -1441,8 +1570,9 @@ impl Compiler {
         }
         let mut tail = String::new();
         let mut declared = String::new();
-        let scoped: [(ViewKind, &BTreeMap<u32, String>, &BTreeMap<u32, String>); 8] = [
+        let scoped: [(ViewKind, &BTreeMap<u32, String>, &BTreeMap<u32, String>); 9] = [
             (ViewKind::Selected, &self.selections, &before.selections),
+            (ViewKind::Implicit,&self.implicit_selections,&before.implicit_selections),
             (ViewKind::Moved, &self.moved, &before.moved),
             (ViewKind::Created, &self.creations, &before.creations),
             (ViewKind::Before, &self.before, &before.before),
@@ -1468,6 +1598,7 @@ impl Compiler {
             let list = matches!(
                 kind,
                 ViewKind::Selected
+                    | ViewKind::Implicit
                     | ViewKind::Moved
                     | ViewKind::Created
                     | ViewKind::Before
@@ -1481,6 +1612,9 @@ impl Compiler {
                 };
                 writeln!(declared, "let mut each_{k}: Vec<Vec<ObjectId>> = vec![Vec::new(); players_{id}.len()]; let mut all_{k}: Vec<ObjectId> = Vec::new();").unwrap();
                 writeln!(tail, "each_{k}[index_{id}] = {read}; all_{k}.extend(each_{k}[index_{id}].iter().copied());").unwrap();
+                if matches!(kind,ViewKind::Implicit) {
+                    self.notes.implicit_each.insert(result,(format!("players_{id}"),format!("each_{k}")));
+                }
                 if matches!(kind, ViewKind::Selected | ViewKind::Moved | ViewKind::Created) {
                     let lists = (format!("players_{id}"), format!("each_{k}"));
                     self.notes.each.entry(result).or_insert(lists);
@@ -1533,6 +1667,7 @@ impl Compiler {
                 }
             }
             let view = View {
+                implicit_single: matches!(kind,ViewKind::Implicit) && self.notes.implicit_single.contains(&result),
                 kind,
                 result,
                 each: match kind {
@@ -1639,6 +1774,34 @@ impl Compiler {
         let bound = format!("bound_{}", each.binding.0);
         let id = self.fresh();
         match gathered {
+            Gathered::WithSelections {
+                steps,
+                inner,
+                depth,
+                ..
+            } => {
+                self.prepared_selections.push(BTreeMap::new());
+                let done = self
+                    .prepare_selections(steps, inner.purpose(), out)
+                    .and_then(|()| {
+                        if let Some(last) = steps
+                            .iter()
+                            .rev()
+                            .find(|s| matches!(s.chooser, SelectionChooser::Players(_)))
+                        {
+                            let picked = &self.prepared_selection(&last.binding)?.local;
+                            let players=&self.notes.walking.as_ref().expect("player collection scope").1;
+                            writeln!(
+                                out,
+                                "implicit_{local}_{depth}.extend({picked}.iter().copied()); if let Some(at) = {players}.iter().position(|&p| p == {bound}) {{ implicit_each_{local}_{depth}[at] = {picked}.clone(); }}"
+                            )
+                            .unwrap();
+                        }
+                        self.gather(local, inner, each, out)
+                    });
+                self.prepared_selections.pop();
+                done?;
+            }
             // "Each foe chooses one untapped creature they control, then taps the
             // rest": the player whose turn it is chooses as the walk reaches them.
             Gathered::Objects {
@@ -1822,6 +1985,28 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         match gathered {
+            Gathered::WithSelections {
+                steps,
+                inner,
+                result,
+                depth,
+            } => {
+                let inner_choice = inner.has_choice();
+                self.after_gathering(local, *inner, program, at, out)?;
+                if !inner_choice
+                    && steps
+                        .iter()
+                        .any(|s| matches!(s.chooser, SelectionChooser::Players(_)))
+                {
+                    self.implicit_selections
+                        .insert(result.0, format!("implicit_{local}_{depth}"));
+                    self.notes.implicit_single.remove(&result.0);
+                    let players=self.notes.walking.as_ref().expect("player collection scope").1.clone();
+                    self.notes.implicit_each.insert(result.0,(players,format!("implicit_each_{local}_{depth}")));
+                    self.notes.earlier.push(("Selected", result));
+                }
+                return Ok(());
+            }
             Gathered::Objects { then, .. } => {
                 let Instruction::Effect { result, .. } = program.instructions[at].clone() else {
                     return Err(gap("gathered step that is no operation"));
@@ -2086,8 +2271,12 @@ impl Compiler {
         if declines > 1 || (declines == 1 && !empty(options.last()?)) {
             return None;
         }
-        let mut labels = option_words::printed_options(&self.lines_said(), printed)
-            .or_else(|| (declines == 0).then(|| lane_i_option_labels(options)).flatten())?;
+        let mut labels =
+            option_words::printed_options(&self.lines_said(), printed).or_else(|| {
+                (declines == 0)
+                    .then(|| lane_i_option_labels(options))
+                    .flatten()
+            })?;
         // "From that player's graveyard or hand" is printed the other way round.
         if labels[0] == "Graveyard" && labels[1] == "Hand" {
             labels.swap(0, 1);
@@ -2191,7 +2380,9 @@ impl Compiler {
     /// `slot_item` for the slot `objects` names.
     pub(super) fn objects_item(&self, objects: &ObjectSet) -> &'static str {
         match objects {
-            ObjectSet::One(ObjectRef::Target { slot, .. }) | ObjectSet::Targets(slot) => self.slot_item(slot),
+            ObjectSet::One(ObjectRef::Target { slot, .. }) | ObjectSet::Targets(slot) => {
+                self.slot_item(slot)
+            }
             _ => STACK_ITEM,
         }
     }
@@ -2615,9 +2806,7 @@ impl Compiler {
                 actor: PlayerSet::One(player),
                 object,
                 targets: NewTargets::To(to),
-            } => {
-                self.retarget_to(id, player, object, to, out)?
-            }
+            } => self.retarget_to(id, player, object, to, out)?,
             Operation::MoveCounters {
                 actor: PlayerSet::One(player),
                 from,
@@ -3844,7 +4033,11 @@ impl Compiler {
             let searcher = self.fetch(self.certain_player(player)?);
             let others: String = zones
                 .iter()
-                .map(|zone| format!("shown_{id}.extend(g.state().zone({zone}(searcher_{id})).iter().copied());"))
+                .map(|zone| {
+                    format!(
+                        "shown_{id}.extend(g.state().zone({zone}(searcher_{id})).iter().copied());"
+                    )
+                })
                 .collect();
             writeln!(out, "let searcher_{id} = {searcher}; let searches_{id} = g.may_search(searcher_{id}, searcher_{id}); let mut shown_{id}: Vec<ObjectId> = match searches_{id} {{ true => {M}::library::searched_cards(g, searcher_{id}), false => Vec::new() }}; {others} if searches_{id} {{ g.searched(searcher_{id}, searcher_{id}); }} let rule_{id} = {selection}; let found_{id}: Vec<ObjectId> = match shown_{id}.is_empty() {{ true => Vec::new(), false => {M}::choose::select(g, searcher_{id}, asker.source, Purpose::{purpose}, shown_{id}.clone(), rule_{id})? }};").unwrap();
             self.selections.insert(result.0, format!("found_{id}"));
@@ -3964,9 +4157,7 @@ fn lane_i_option_labels(options: &[Program]) -> Option<Vec<String>> {
         let first = steps.iter().find(|step| {
             !matches!(step, Instruction::Effect { operation: Operation::ModifyEvent { .. }, .. })
         })?;
-        let land = |filter: &ObjectFilter| {
-            matches!(filter, ObjectFilter::CardType(t) if form(t) == "Land")
-        };
+        let land = |filter: &ObjectFilter| matches!(filter, ObjectFilter::CardType(t) if form(t) == "Land");
         let label = match first {
             // "Choose land or nonland and reveal cards until you reveal one".
             Instruction::Effect {

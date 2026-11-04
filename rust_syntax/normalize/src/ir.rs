@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 174;
+pub const SCHEMA_VERSION: u32 = 175;
 
 /// Typed pattern for the permanent query of the shared battlefield. Card-only,
 /// player-scoped and other-zone queries deliberately do not match.
@@ -969,6 +969,23 @@ pub struct Binding(pub u32);
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct ResultId(pub u32);
 
+/// A preparation-local binding; never an instruction's observed/moved result.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct SelectionId(pub u32);
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SelectionChooser {
+    Players(PlayerSet),
+    Chance,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct SelectionStep {
+    pub binding: SelectionId,
+    pub chooser: SelectionChooser,
+    pub objects: ObjectSet,
+    pub count: Count,
+    pub constraints: Vec<SelectionConstraint>,
+}
+
 /// A program is a sequence of semantic instructions. The operations making
 /// up one continuous-effect instruction stay in one payload.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1906,6 +1923,16 @@ pub enum Operation {
         to: Expr,
         action: Box<Operation>,
     },
+    /// Resolve these selections at this operation's lexical execution point,
+    /// then execute its action. Bindings are local; the action supplies the
+    /// enclosing instruction's result without substituting a pre-move identity.
+    WithSelections {
+        steps: Vec<SelectionStep>,
+        action: Box<Operation>,
+    },
+    /// Ordered clauses, distinct from a simultaneous Together group. Each
+    /// clause observes the state left by the preceding clause.
+    InOrder(Vec<Operation>),
 }
 /// One thing to do for a kind of counter, in `Operation::EachCounterKind`.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4749,6 +4776,8 @@ pub enum ObjectSet {
         event: Box<EventSpec>,
         window: HistoryWindow,
     },
+    /// A selection in the nearest enclosing WithSelections scope.
+    Prepared(SelectionId),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -6638,5 +6667,14 @@ impl ObjectSet {
 
     pub fn battlefield_filter(&self) -> Option<&ObjectFilter> {
         match self { crate::battlefield_query!(filter) => Some(filter), _ => None }
+    }
+}
+
+impl Operation {
+    pub fn action(&self) -> &Operation {
+        match self {
+            Self::WithSelections { action, .. } => action.action(),
+            other => other,
+        }
     }
 }
