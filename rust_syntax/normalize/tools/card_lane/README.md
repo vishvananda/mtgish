@@ -485,3 +485,12 @@ keeps its original report and rejection count, and applies that diff on the new
 base. A conflicting diff stops before changing the new working tree; the parked
 branch remains available for explicit reconciliation. Driver processes reload at
 clean card boundaries before taking another lease.
+
+When a concrete finding also invalidates a completed approval, use
+`review_lane.py --root ROOT correct JOB --reason 'Finding and tested shared fix' --new-base VALIDATED_HEAD`.
+This archives the old approval, supersedes it, and creates a new review job from
+its complete approved candidate on the changed validated base. Prior card fixes
+and scenarios survive. Pending collection of the old approval is superseded;
+already collected versions remain historical and need the corrected candidate
+integrated afterward. The new correction goes through normal review and
+verification. Repeating the same request returns the same correction job.

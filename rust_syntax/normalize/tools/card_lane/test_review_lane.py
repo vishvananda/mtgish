@@ -493,7 +493,7 @@ class GitTests(unittest.TestCase):
     def migration_job(self, *, conflicting=False):
         self.git('checkout','-qb','parked',self.source)
         self.write('crates/cantrip-cards/src/cards/test_card.rs','retained fix')
-        self.write('scenarios/test-card.cantrip','original scenario\n')
+        self.write('scenarios/test-card-original.cantrip','original scenario\n')
         if conflicting:self.write('base','review helper fix')
         self.git('add','.');self.git('commit','-qm','Review WIP')
         retained=self.git('rev-parse','HEAD')
@@ -525,7 +525,7 @@ class GitTests(unittest.TestCase):
         self.assertEqual(self.git('rev-parse','parked'),retained)
         self.assertEqual((self.repo/'engine').read_text(),'new timing capability')
         self.assertEqual((self.repo/'crates/cantrip-cards/src/cards/test_card.rs').read_text(),'retained fix')
-        self.assertEqual((self.repo/'scenarios/test-card.cantrip').read_text(),'original scenario\n')
+        self.assertEqual((self.repo/'scenarios/test-card-original.cantrip').read_text(),'original scenario\n')
         self.assertEqual(actual['commit'],self.source)
         archived=lane.read(self.root/'jobs'/job['id']/'retry-1.json')
         self.assertEqual(json.loads(archived['job']['result'])['wip_commit'],retained)
@@ -548,6 +548,59 @@ class GitTests(unittest.TestCase):
         self.assertEqual(self.git('rev-parse','parked'),retained)
         self.assertEqual(self.git('show',retained+':base'),'review helper fix')
         self.assertEqual((self.repo/'base').read_text(),'new engine helper')
+
+    def test_empty_parked_diff_can_still_move_to_a_new_engine(self):
+        job,head,retained=self.migration_job()
+        with lane.connect(self.root) as db:
+            previous=json.loads(db.execute('select result from jobs').fetchone()[0])
+            previous.update(prepared_parent=self.source,wip_commit=self.source)
+            db.execute('update jobs set result=?',(json.dumps(previous),))
+        # This newer base already includes the card: the new review only needs the fixed engine.
+        self.git('checkout','-qb','engine-with-card',self.source)
+        self.write('engine','new timing capability');self.git('add','.');self.git('commit','-qm','Engine: fixed timing')
+        head=self.git('rev-parse','HEAD');manifest=self.root/'snapshot.json'
+        lane.save(manifest,dict(kind='local_integration',base=self.base,head=head,validation=dict(ok=True,head=head)))
+        lane.retry_stopped(self.root,job['id'],'Timing fixed',new_base=head)
+        with lane.connect(self.root) as db:retried=dict(db.execute('select * from jobs').fetchone())
+        _,parent,_=lane.prepare(self.root,self.repo,retried)
+        self.assertEqual(parent,head);self.assertEqual(self.git('status','--porcelain'),'')
+
+    def test_correcting_an_approval_keeps_the_complete_candidate_and_old_evidence(self):
+        job,head,retained=self.migration_job()
+        self.git('checkout','-qb','approved',self.source)
+        path='crates/cantrip-cards/src/cards/test_card.rs';scenario='scenarios/test-card-original.cantrip'
+        self.write(path,'retained fix');self.write(scenario,'original scenario\n')
+        candidate=lane.commit_candidate(self.repo,dict(name='Test Card',commit=self.source),self.base,[path,scenario])
+        with lane.connect(self.root) as db:
+            previous=dict(prepared_parent=self.base,report=dict(decision='pass',reason='Earlier checks passed'))
+            db.execute("update jobs set status='passed',candidate=?,result=?",(candidate,json.dumps(previous)))
+        key=lane.correct_approved(self.root,job['id'],'New timing finding; engine now fixed',head)
+        with lane.connect(self.root) as db:
+            old=dict(db.execute('select * from jobs where id=?',(job['id'],)).fetchone())
+            new=dict(db.execute('select * from jobs where id=?',(key,)).fetchone())
+        self.assertEqual(old['status'],'superseded');self.assertEqual(json.loads(old['result']),previous)
+        self.assertEqual(new['status'],'queued');self.assertEqual(new['source_commit'],candidate)
+        self.assertEqual(json.loads(new['source'])['publication_base'],head)
+        self.assertEqual(lane.correct_approved(self.root,job['id'],'Same finding',head),key)
+        self.git('checkout','new-engine')
+        _,parent,_=lane.prepare(self.root,self.repo,new)
+        self.assertEqual(parent,head)
+        self.assertEqual((self.repo/path).read_text(),'retained fix')
+        self.assertEqual((self.repo/scenario).read_text(),'original scenario\n')
+        archive=lane.read(self.root/'jobs'/job['id']/f'correction-{head}.json')
+        self.assertEqual(json.loads(archive['job']['result']),previous)
+
+    def test_correction_requires_a_new_validated_base_and_cannot_take_an_active_job(self):
+        job,head,retained=self.migration_job()
+        with self.assertRaisesRegex(ValueError,'completed approval'):
+            lane.correct_approved(self.root,job['id'],'Timing fixed',head)
+        with lane.connect(self.root) as db:
+            db.execute("update jobs set status='passed',candidate=?",(retained,))
+            source=json.loads(db.execute('select source from jobs').fetchone()[0]);source['publication_base']=head
+            db.execute('update jobs set source=?',(json.dumps(source),))
+        with self.assertRaisesRegex(ValueError,'changed validated'):
+            lane.correct_approved(self.root,job['id'],'Unchanged base',head)
+        with lane.connect(self.root) as db:self.assertEqual(db.execute('select count(*) from jobs').fetchone()[0],1)
 
 
     def test_verifier_handoff_materializes_candidate_and_preserves_evidence(self):

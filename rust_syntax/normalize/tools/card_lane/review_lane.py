@@ -349,6 +349,57 @@ def retry_stopped(root, job_id, reason, *, new_base=None):
     return job_id
 
 
+def correct_approved(root, job_id, reason, new_base):
+    """Invalidate an approval with a concrete new finding and review its complete candidate on a fixed engine."""
+    if not reason.strip():
+        raise ValueError('correction requires a concrete new finding and tested fix')
+    import shared_base
+    root = Path(root); cfg = config(root)
+    tree = cfg.get('integration', {}).get('tree')
+    if not tree:
+        raise ValueError('correction requires the local integration repository')
+    pin = shared_base.read_work_base(cfg, Path(tree))
+    if not pin or pin.get('kind') != 'local_integration' or pin['head'] != new_base:
+        raise ValueError('new base must be the currently validated local snapshot')
+    folder = root/'integration'; folder.mkdir(exist_ok=True)
+    with (folder/'integration.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        with connect(root) as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT * FROM jobs WHERE id=?', (job_id,)).fetchone()
+            if not row:
+                raise ValueError('correction requires a completed approval')
+            job = dict(row)
+            if job['status'] == 'superseded':
+                old = db.execute("SELECT detail FROM events WHERE job=? AND kind='correction_requested' ORDER BY id DESC LIMIT 1", (job_id,)).fetchone()
+                if old and json.loads(old['detail']).get('base') == new_base:
+                    return json.loads(old['detail'])['correction_job']
+            if job['status'] != 'passed' or not job['candidate']:
+                raise ValueError('correction requires a completed approval')
+            source = json.loads(job['source']); previous = json.loads(job['result'] or '{}')
+            if not previous.get('prepared_parent') or source.get('publication_base') == new_base:
+                raise ValueError('correction requires a changed validated engine base and preserved parent')
+            git(tree, 'merge-base', '--is-ancestor', previous['prepared_parent'], new_base)
+            retained = git(tree, 'rev-parse', job['candidate'])
+            key = hashlib.sha256((job['name']+'\0'+retained+'\0correction:'+new_base).encode()).hexdigest()[:20]
+            archive = root/'jobs'/job_id/f'correction-{new_base}.json'
+            save(archive, dict(at=now(), reason=reason, job=job, correction_job=key, base=new_base))
+            original_base = source.get('publication_base') or source.get('source_base') or previous['prepared_parent']
+            source.update(shared_base.metadata(pin), commit=retained, source_base=original_base,
+                          correction_of=job_id, correction_base=new_base, review_round=0, verifier_rejections=0,
+                          retry_note=f'Correct this previously approved candidate after a shared engine fix.\n{reason}\nPrior approval and complete candidate: {archive}\nRetain its prior fixes and scenarios; run normal review and verification.')
+            source.pop('confirmation_attempt', None)
+            db.execute('INSERT INTO jobs(id,name,source_commit,source,priority,enqueued) VALUES(?,?,?,?,?,?)',
+                       (key, job['name'], retained, json.dumps(source), max(job['priority'], 1), now()))
+            db.execute("UPDATE jobs SET status='superseded' WHERE id=?", (job_id,))
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='integration_jobs'").fetchone():
+                db.execute("UPDATE integration_jobs SET status='superseded',detail=? WHERE status='pending' AND json_extract(source,'$.job')=?",
+                           (f'Approval superseded by correction {key}', job_id))
+            event(db, job_id, None, 'correction_requested', dict(reason=reason, correction_job=key, base=new_base, prior=str(archive)))
+            event(db, key, None, 'correction_enqueued', dict(reason=reason, previous_job=job_id, base=new_base))
+    return key
+
+
 def prepare(root, tree, job):
     clean(tree)
     cfg, source = config(root), json.loads(job["source"])
@@ -360,8 +411,9 @@ def prepare(root, tree, job):
             diff = subprocess.run(['git', 'diff', '--binary', previous['rebase_base'], previous['rebase_head']],
                                   cwd=tree, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout
             # A conflicting migration stops before changing the new tree. The complete parked work and report remain.
-            subprocess.run(['git', 'apply', '--index', '--check'], cwd=tree, input=diff, check=True)
-            subprocess.run(['git', 'apply', '--index'], cwd=tree, input=diff, check=True)
+            if diff:
+                subprocess.run(['git', 'apply', '--index', '--check'], cwd=tree, input=diff, check=True)
+                subprocess.run(['git', 'apply', '--index'], cwd=tree, input=diff, check=True)
             return branch, previous['prepared_parent'], source
         if previous.get("retry_base") and previous.get("retry_candidate"):
             branch = f"review/{Path(root).name}/{job['id']}/review-round-{source['review_round']}"
@@ -1129,6 +1181,10 @@ def main():
     p.add_argument("job")
     p.add_argument("--reason", required=True, help="concrete change that resolves the previous blocker")
     p.add_argument("--new-base", help="explicitly migrate parked work to this currently validated local snapshot")
+    p = sub.add_parser("correct")
+    p.add_argument("job")
+    p.add_argument("--reason", required=True, help="concrete new finding and tested shared engine fix")
+    p.add_argument("--new-base", required=True, help="the currently validated local snapshot with that fix")
     sub.add_parser("check")
     p = sub.add_parser("tool")
     p.add_argument("tool")
@@ -1145,6 +1201,8 @@ def main():
         worker(args.root, args.slot, args.once, args.resume)
     elif args.command == "retry":
         print("requeued", retry_stopped(args.root, args.job, args.reason, new_base=args.new_base))
+    elif args.command == "correct":
+        print("correction", correct_approved(args.root, args.job, args.reason, args.new_base))
     elif args.command == "watch":
         stamp=driver_stamp()
         while True:
