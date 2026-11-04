@@ -3,6 +3,24 @@
 //! sees one game state, and each batch goes to the API that keeps it one batch.
 use super::*;
 
+/// The graveyard verb deliberately refuses battlefield permanents. Use it only
+/// when the selector proves every input is elsewhere; a mixed set must remain
+/// one simultaneous move rather than being partitioned into separate actions.
+fn excludes_battlefield(objects: &ObjectSet) -> bool {
+    match objects {
+        ObjectSet::Zone { scope, .. } => match scope {
+            ZoneScope::Shared(zone) | ZoneScope::Players { zone, .. } => !matches!(zone, EventZone::Battlefield),
+        },
+        ObjectSet::InZone { zone, .. } => !matches!(zone, EventZone::Battlefield),
+        ObjectSet::Matching { objects, .. }
+        | ObjectSet::Difference { objects, .. }
+        | ObjectSet::Take { objects, .. } => excludes_battlefield(objects),
+        ObjectSet::Union(sets) => sets.iter().all(excludes_battlefield),
+        ObjectSet::LibraryTops(_) | ObjectSet::OutsideTheGame(_) => true,
+        _ => false,
+    }
+}
+
 /// The prompt a choice asks with, from what its result is for. It is wording: a
 /// choice nothing consumes in sight stays a gap rather than asking something odd.
 pub(super) fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
@@ -3509,6 +3527,7 @@ impl Compiler {
         let revealed = self.revealed;
         let chosen = matches!(objects, ObjectSet::Selected(_) | ObjectSet::Prepared(_));
         let targeted = matches!(objects, ObjectSet::Targets(_));
+        let nonbattlefield = excludes_battlefield(objects);
         // Cards of one player's library, which a move to its bottom takes nowhere: "put the rest on the bottom of your
         // library in a random order" of cards revealed from it changes no zone (CR 401.4), and a move would carry them
         // hidden though all players saw them (CR 701.20a).
@@ -3594,7 +3613,11 @@ impl Compiler {
             // As it enters: `Entering::object` is the permanent it will be.
             Destination::Exile if self.links_exile => format!("{{ let by = g.text_linked(asker.source); g.exile_with(&objects_{id}, by, false) }}"),
             Destination::Exile => format!("g.exile_all(&objects_{id})"),
-            // `put_into_graveyard` refuses permanents, so name each destination.
+            // Replacement effects can move a card elsewhere. Preserve the
+            // result set's meaning: only cards that actually reached a graveyard.
+            Destination::OwnersGraveyard if nonbattlefield => format!("g.put_into_graveyard(&objects_{id}).into_iter().filter(|&o| g.state().obj(o).zone.kind() == ZoneKind::Graveyard).collect::<Vec<ObjectId>>()"),
+            // `put_into_graveyard` refuses permanents, so name each destination
+            // when the selector may include battlefield objects.
             Destination::OwnersGraveyard => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::graveyard(g.state().obj(o).owner))).collect(); let moved = g.move_together(&moves, MoveReason::Other); moved.into_iter().filter(|&o| g.state().obj(o).zone.kind() == ZoneKind::Graveyard).collect::<Vec<ObjectId>>() }}"),
             // Chosen cards put on the bottom together are ordered too (CR 401.4; Valakut Awakening).
             Destination::OwnersLibraryBottom if chosen => lane_k::in_an_order_asked(id, destination),

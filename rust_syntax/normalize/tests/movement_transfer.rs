@@ -57,6 +57,59 @@ fn card(body: Program) -> Card {
     card.abilities=vec![Ability::Spell {announcement:Announcement::empty(),body}];
     card
 }
+#[cfg(feature = "cantrip")]
+#[test]
+fn graveyard_moves_use_the_zone_verb_only_for_proven_nonpermanents() {
+    let exile = || ObjectSet::Zone {
+        scope: ZoneScope::Shared(EventZone::Exile),
+        kind: ObjectKind::Card,
+        filter: ObjectFilter::Any,
+    };
+    let emit = |objects| mtgish_ast::cantrip::module(&card(Program {
+        instructions: vec![Instruction::Effect {
+            result: ResultId(0),
+            operation: Operation::Move {
+                objects,
+                destination: Destination::OwnersGraveyard,
+                entry: EntrySpec::default(),
+                face_down: false,
+                terms: MovementTerms::default(),
+            },
+        }, Instruction::Effect {
+            result: ResultId(1),
+            operation: Operation::GainLife {
+                players: you(),
+                amount: Expr::CountObjects(Box::new(ObjectSet::Transition {
+                    result: ResultId(0), phase: ObjectPhase::After,
+                })),
+            },
+        }],
+    })).unwrap();
+    for objects in [
+        exile(),
+        ObjectSet::Matching { objects: Box::new(exile()), filter: ObjectFilter::Any },
+        ObjectSet::InZone { objects: Box::new(ObjectSet::AnyZone(ObjectFilter::Any)), zone: EventZone::Exile },
+        ObjectSet::Union(vec![exile(), ObjectSet::Zone {
+            scope: ZoneScope::Players { zone: EventZone::Hand, players: you() },
+            kind: ObjectKind::Card,
+            filter: ObjectFilter::Any,
+        }]),
+    ] {
+        let generated = emit(objects);
+        assert!(generated.contains("g.put_into_graveyard("), "{generated}");
+        assert!(!generated.contains("g.move_together("), "{generated}");
+        assert!(generated.contains("ZoneKind::Graveyard"), "replacement destinations must not count: {generated}");
+    }
+    for objects in [
+        pool(),
+        ObjectSet::AnyZone(ObjectFilter::Any),
+        ObjectSet::Union(vec![exile(), pool()]),
+    ] {
+        let generated = emit(objects);
+        assert!(generated.contains("g.move_together("), "{generated}");
+        assert!(!generated.contains("g.put_into_graveyard("), "{generated}");
+    }
+}
 #[test]
 fn draft_forms_decode_old_captures_but_cannot_reach_validated_records() {
     for line in include_str!("fixtures/movement_transfer_before.ronl").lines() {

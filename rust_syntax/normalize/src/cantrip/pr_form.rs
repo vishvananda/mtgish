@@ -3802,6 +3802,8 @@ enum Role {
     Static,
     /// The set a rule on an open set is asked of (CR 611.2c).
     Lasting,
+    /// A condition defining a continuous effect's duration (CR 611.2b).
+    Duration,
     /// The damage a prevention effect applies to (CR 615.1).
     Prevention,
     Mana,
@@ -3852,7 +3854,9 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                     Some("state_triggered") => {
                         if let Some(callback) = call.args.first() { self.mark(callback, Role::StateTriggerCondition); }
                     }
-                    Some("sacrifice" | "tap_objects" | "discard_cards" | "exile_from_graveyard") => {
+                    Some("sacrifice" | "tap_objects" | "tap_untapped" | "discard_cards" | "exile_from_graveyard"
+                        | "return_to_hand" | "return_tapped_to_hand" | "exile_permanents" | "exile_from_hand"
+                        | "exile_from_graveyard_of") => {
                         if let Some(callback) = call.args.iter().nth(1) { self.mark(callback, Role::Cost); }
                     }
                     _ => {}
@@ -3872,11 +3876,14 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
             visit::visit_expr_method_call(self, call);
         }
         fn visit_expr_struct(&mut self, expr: &'ast syn::ExprStruct) {
+            let kind = expr.path.segments.last().map(|segment| segment.ident.to_string());
             for field in &expr.fields {
-                match text_of(&field.member).as_str() {
-                    "cast_only_if" => self.mark(&field.expr, Role::CastCondition),
-                    "enchant" => self.mark(&field.expr, Role::Target),
-                    "regeneration_bans" => self.mark(&field.expr, Role::Static),
+                match (kind.as_deref(), text_of(&field.member).as_str()) {
+                    (Some("Lasting"), "holds") => self.mark(&field.expr, Role::Duration),
+                    (Some("LastingRule"), "applies") => self.mark(&field.expr, Role::Lasting),
+                    (_, "cast_only_if") => self.mark(&field.expr, Role::CastCondition),
+                    (_, "enchant") => self.mark(&field.expr, Role::Target),
+                    (_, "regeneration_bans") => self.mark(&field.expr, Role::Static),
                     _ => {}
                 }
             }
@@ -4101,6 +4108,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Target => "115.1",
         Role::Static => "604.1",
         Role::Lasting => "611.2c",
+        Role::Duration => "611.2b",
         Role::Prevention => "615.1",
         Role::Mana => "605.1a",
         Role::Cost => "118.1",
@@ -4111,6 +4119,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Replacement => "614.1a",
         Role::Effect => "608.2",
     }];
+    if role == Role::Cost { cited.push("601.2h"); }
     if entering && writes.tapped && writes.other { cited.push("614.1d"); }
     let body = text_of(&function.block);
     if entering && body.contains("entering . counters") {

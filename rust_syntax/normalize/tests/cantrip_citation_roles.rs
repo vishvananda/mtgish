@@ -105,6 +105,48 @@ fn nonstandard_callbacks_with_ambiguous_names_follow_the_api_position() {
 }
 
 #[test]
+fn duration_conditions_and_open_set_rules_have_different_rules() {
+    use cantrip::pr_form::{render, Characteristics};
+    let raw = r#"
+use cantrip_api::*;
+fn predicate(q: &dyn Query, e: &ContinuousEffect) -> bool { q.obj(e.source).tapped }
+fn unrelated_event(q: &dyn Query, _: &Asker, _: Target, id: ObjectId) -> bool { q.chars(id).is(CardType::Creature) }
+pub static CARD: CardDef = CardDef {
+    lasting: &[Lasting { text: "{source} remains tapped", holds: predicate }],
+    lasting_rules: &[LastingRule { text: "Creatures can't block.", rule: LastingRuleKind::CantBlock, applies: unrelated_event }],
+    ..CardDef::BLANK
+};
+"#;
+    let output = render(raw, "Fixture", "For as long as this artifact remains tapped.", Characteristics::Oracle).unwrap();
+    let condition = docs(&output, |name| name == "predicate");
+    assert_eq!(condition.len(), 1);
+    assert!(condition[0].contains("CR 611.2b"), "{output}");
+    assert!(!condition[0].contains("608.2"), "{output}");
+    let rule = docs(&output, |name| name == "unrelated_event");
+    assert_eq!(rule.len(), 1);
+    assert!(rule[0].contains("CR 611.2c"), "{output}");
+    assert!(!rule[0].contains("603.2"), "{output}");
+}
+
+#[test]
+fn permanent_and_card_cost_filters_cite_cost_payment() {
+    use cantrip::pr_form::{render, Characteristics};
+    for constructor in ["tap_untapped", "return_to_hand", "return_tapped_to_hand", "exile_permanents", "exile_from_hand", "exile_from_graveyard_of", "sacrifice"] {
+        let raw = format!(r#"
+use cantrip_api::*;
+fn predicate(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ q.controller(id) == asker.controller }}
+fn action(_: &mut dyn Game, _: &StackItem) -> Result<(), Suspend> {{ Ok(()) }}
+pub static CARD: CardDef = CardDef {{ abilities: &[ability({constructor}(1, predicate), action, "An activated ability.")], ..CardDef::BLANK }};
+"#);
+        let output = render(&raw, "Fixture", "An activated ability.", Characteristics::Oracle).unwrap();
+        let filter = docs(&output, |name| name == "predicate");
+        assert_eq!(filter.len(), 1, "{constructor}: {output}");
+        assert!(filter[0].contains("CR 118.1") && filter[0].contains("601.2h"), "{constructor}: {output}");
+        assert!(!filter[0].contains("608.2"), "{constructor}: {output}");
+    }
+}
+
+#[test]
 fn shared_only_cards_distinguish_spells_from_activated_mana_abilities() {
     for name in ["Boomerang", "Desert Twister"] {
         let found = docs(&modules()[name], |name| name == "CARD");
