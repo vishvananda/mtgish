@@ -1,0 +1,596 @@
+{
+  "branch": "refactor/semantic-movement",
+  "base": "eb831bf",
+  "commits": {
+    "mutable_traversal": "fa907bbe004303ff2383877fa40597da1a1ab6c2",
+    "selection_implementation": "559c924299b41b7fc35cb571fe8be2c57f933cde"
+  },
+  "schema": {
+    "before": 174,
+    "after": 175,
+    "old_enum_tags_preserved": true
+  },
+  "corpus_sha256": "52bd27be9d01cf179e331b3929a4d1c751533ac4e5bc50c6c5e896d6496e7ff3",
+  "native_records": 33529,
+  "selector_nodes": 41,
+  "selector_cards": 39,
+  "ordered_clause_nodes": 3,
+  "whole_records_exact_after_declared_migration": true,
+  "all_backend_record_objects_exact": true,
+  "backend_capable": 28511,
+  "normalizer_tests": {
+    "passed": 976,
+    "ignored": 2,
+    "targets": 91,
+    "focused_selection_tests": 21,
+    "mutable_visitor_tests": 3
+  },
+  "generated": {
+    "modules": {
+      "records": 82,
+      "exact": 32,
+      "gaps": 31,
+      "alpha_only": {
+        "Armed and Armored": {
+          "hoisted_6": "hoisted_5",
+          "player_5": "player_4",
+          "eligible_5": "eligible_4",
+          "host_5": "host_4",
+          "count_5": "count_4",
+          "chosen_5": "chosen_4"
+        },
+        "Battlefield Improvisation": {
+          "hoisted_3": "hoisted_2",
+          "player_2": "player_1",
+          "eligible_2": "eligible_1",
+          "host_2": "host_1",
+          "count_2": "count_1",
+          "chosen_2": "chosen_1"
+        },
+        "Beatrix, Loyal General": {
+          "hoisted_3": "hoisted_2",
+          "player_2": "player_1",
+          "eligible_2": "eligible_1",
+          "host_2": "host_1",
+          "count_2": "count_1",
+          "chosen_2": "chosen_1"
+        },
+        "Capricious Efreet": {},
+        "Change of Plans": {
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "objects_4": "objects_3"
+        },
+        "Chaos Defiler": {},
+        "Cinderheart Giant": {},
+        "Dementia Sliver": {
+          "player_3": "player_2",
+          "pool_3": "pool_2",
+          "count_3": "count_2",
+          "shown_3": "shown_2",
+          "cards_4": "cards_3",
+          "discarded_4": "discarded_3"
+        },
+        "Fumble": {
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "player_4": "player_3",
+          "attachments_4": "attachments_3",
+          "hosts_4": "hosts_3"
+        },
+        "Glamer Spinners": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "player_2": "player_1",
+          "attachments_2": "attachments_1",
+          "hosts_2": "hosts_1"
+        },
+        "Haphazard Bombardment": {},
+        "Heavenly Blademaster": {
+          "hoisted_3": "hoisted_2",
+          "player_2": "player_1",
+          "eligible_2": "eligible_1",
+          "host_2": "host_1",
+          "count_2": "count_1",
+          "chosen_2": "chosen_1"
+        },
+        "Helm of Kaldra": {
+          "hoisted_6": "hoisted_5",
+          "hoisted_5": "hoisted_4",
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "player_4": "player_3",
+          "attachments_4": "attachments_3",
+          "hosts_4": "hosts_3",
+          "attachments_7": "attachments_6",
+          "host_7": "host_6"
+        },
+        "Hide in Plain Sight": {
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "controller_4": "controller_3",
+          "cards_4": "cards_3",
+          "entered_4": "entered_3",
+          "library_5": "library_4",
+          "cards_5": "cards_4",
+          "placed_5": "placed_4"
+        },
+        "Hustle": {
+          "hoisted_6": "hoisted_5",
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "bound_4294967291": "bound_4294967292"
+        },
+        "Krenko's Buzzcrusher": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_pool": "selected_0_pool",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "destroyed_2": "destroyed_1",
+          "players_3": "players_2",
+          "guard_3_0": "guard_2_0",
+          "each_5": "each_4",
+          "all_5": "all_4",
+          "index_3": "index_2",
+          "searcher_4": "searcher_3",
+          "owner_4": "owner_3",
+          "rule_count_4": "rule_count_3",
+          "shown_4": "shown_3",
+          "can_4": "can_3",
+          "found_4": "found_3",
+          "objects_6": "objects_5",
+          "moved_6": "moved_5",
+          "rows_6": "rows_5",
+          "came_6": "came_5"
+        },
+        "Lich's Mastery": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2"
+        },
+        "Nahiri, Heir of the Ancients": {
+          "hoisted_4": "hoisted_3",
+          "player_3": "player_2",
+          "hosts_3": "hosts_2",
+          "eligible_3": "eligible_2",
+          "count_3": "count_2",
+          "chosen_3": "chosen_2",
+          "host_3": "host_2",
+          "player_5": "player_4",
+          "depth_5": "depth_4",
+          "word_5_0": "word_4_0",
+          "word_5_1": "word_4_1",
+          "looked_5": "looked_4",
+          "eligible_5": "eligible_4",
+          "rule_5": "rule_4",
+          "taken_5": "taken_4",
+          "source_6": "source_5",
+          "amount_6": "amount_5",
+          "recipients_6": "recipients_5"
+        },
+        "Nahiri, the Lithomancer": {
+          "hoisted_4": "hoisted_3",
+          "player_3": "player_2",
+          "hosts_3": "hosts_2",
+          "eligible_3": "eligible_2",
+          "count_3": "count_2",
+          "chosen_3": "chosen_2",
+          "host_3": "host_2",
+          "hoisted_9": "hoisted_8",
+          "hoisted_8": "hoisted_7",
+          "hoisted_7": "hoisted_6",
+          "selected_5_player": "selected_4_player",
+          "selected_5_candidates": "selected_4_candidates",
+          "selected_5_count": "selected_4_count",
+          "selected_5": "selected_4",
+          "player_6": "player_5",
+          "objects_6": "objects_5",
+          "moved_6": "moved_5",
+          "rows_6": "rows_5",
+          "came_6": "came_5",
+          "token_11": "token_10",
+          "players_10": "players_9",
+          "tokens_10": "tokens_9",
+          "count_10_0": "count_9_0",
+          "def_10_0": "def_9_0",
+          "words_10": "words_9",
+          "created_10": "created_9"
+        },
+        "Nebuchadnezzar": {
+          "player_2": "player_1",
+          "pool_2": "pool_1",
+          "count_2": "count_1",
+          "shown_2": "shown_1",
+          "cards_3": "cards_2",
+          "discarded_3": "discarded_2"
+        },
+        "Raving Dead": {
+          "pool_1": "pool_0",
+          "chosen_1": "chosen_0",
+          "objects_2": "objects_1",
+          "source_2": "source_1",
+          "duration_2": "duration_1",
+          "kind_2_0_0": "kind_1_0_0",
+          "amount_3": "amount_2",
+          "players_3": "players_2"
+        },
+        "Reckless Crew": {
+          "hoisted_5": "hoisted_4",
+          "hoisted_4": "hoisted_3",
+          "player_3": "player_2",
+          "eligible_3": "eligible_2",
+          "host_3": "host_2",
+          "count_3": "count_2",
+          "chosen_3": "chosen_2"
+        },
+        "Resolute Strike": {
+          "hoisted_4": "hoisted_3",
+          "hoisted_3": "hoisted_2",
+          "player_2": "player_1",
+          "eligible_2": "eligible_1",
+          "host_2": "host_1",
+          "count_2": "count_1",
+          "chosen_2": "chosen_1"
+        },
+        "Ruhan of the Fomori": {
+          "pool_1": "pool_0",
+          "chosen_1": "chosen_0",
+          "objects_2": "objects_1",
+          "source_2": "source_1",
+          "duration_2": "duration_1",
+          "kind_2_0_0": "kind_1_0_0"
+        },
+        "Scrambleverse": {
+          "hoisted_7": "hoisted_6",
+          "hoisted_6": "hoisted_5",
+          "hoisted_5": "hoisted_4",
+          "hoisted_4": "hoisted_3",
+          "pool_1": "pool_0",
+          "chosen_1": "chosen_0",
+          "objects_2": "objects_1",
+          "source_2": "source_1",
+          "duration_2": "duration_1",
+          "kind_2_0_0": "kind_1_0_0",
+          "objects_3": "objects_2",
+          "turned_3": "turned_2"
+        },
+        "Scroll of Fate": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "controller_2": "controller_1",
+          "cards_2": "cards_1",
+          "entered_2": "entered_1"
+        },
+        "Strax, Sontaran Nurse": {
+          "reflexive_4_target_0": "reflexive_3_target_0",
+          "REFLEXIVE_4_TARGETS": "REFLEXIVE_3_TARGETS",
+          "reflexive_4": "reflexive_3",
+          "first_5": "first_4",
+          "second_5": "second_4",
+          "pool_1": "pool_0",
+          "chosen_1": "chosen_0",
+          "happened_2": "happened_1",
+          "ability_2_6": "ability_2_5",
+          "counters_7": "counters_6",
+          "had_7": "had_6",
+          "applied_7": "applied_6"
+        },
+        "Sunder the Gateway": {
+          "selected_4_player": "selected_3_player",
+          "selected_4_candidates": "selected_3_candidates",
+          "selected_4_count": "selected_3_count",
+          "selected_4": "selected_3",
+          "bound_4294967290": "bound_4294967291"
+        },
+        "Territorial Hellkite": {
+          "hoisted_9": "hoisted_7",
+          "hoisted_8": "hoisted_6",
+          "hoisted_7": "hoisted_5",
+          "hoisted_5": "hoisted_3",
+          "paid_1": "paid_0",
+          "pool_3": "pool_1",
+          "chosen_3": "chosen_1",
+          "objects_4": "objects_2",
+          "source_4": "source_2",
+          "duration_4": "duration_2",
+          "kind_4_0_0": "kind_2_0_0",
+          "objects_6": "objects_4",
+          "before_6": "before_4",
+          "turned_6": "turned_4"
+        },
+        "Tibalt's Trickery": {
+          "chosen_2": "chosen_1",
+          "amount_3": "amount_2",
+          "mills_3": "mills_2",
+          "milled_3": "milled_2",
+          "owner_4": "owner_3",
+          "count_4": "count_3",
+          "found_4": "found_3",
+          "rest_4": "rest_3",
+          "shown_4": "shown_3",
+          "objects_4": "objects_3",
+          "objects_5": "objects_4",
+          "moved_5": "moved_4",
+          "caster_6": "caster_5",
+          "pool_6": "pool_5",
+          "left_6": "left_5",
+          "played_6": "played_5",
+          "open_6": "open_5",
+          "picked_6": "picked_5",
+          "card_6": "card_5",
+          "ways_6": "ways_5",
+          "done_6": "done_5",
+          "objects_7": "objects_6",
+          "moved_7": "moved_6"
+        },
+        "Tovolar, Dire Overlord": {
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "bound_4294967291": "bound_4294967292"
+        },
+        "Ugin's Mastery": {
+          "hoisted_6": "hoisted_5",
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "bound_4294967291": "bound_4294967292"
+        },
+        "Unexpected Request": {
+          "delayed_9": "delayed_7",
+          "hoisted_7": "hoisted_5",
+          "paid_4": "paid_3",
+          "player_6": "player_4",
+          "eligible_6": "eligible_4",
+          "host_6": "host_4",
+          "count_6": "count_4",
+          "chosen_6": "chosen_4"
+        },
+        "Ursine Monstrosity": {
+          "pool_2": "pool_1",
+          "chosen_2": "chosen_1",
+          "objects_3": "objects_2",
+          "source_3": "source_2",
+          "duration_3": "duration_2",
+          "kind_3_0_0": "kind_2_0_0",
+          "objects_4": "objects_3",
+          "source_4": "source_3",
+          "duration_4": "duration_3",
+          "kind_4_0_0": "kind_3_0_0",
+          "kind_4_1_0": "kind_3_1_0"
+        },
+        "Urza's Bauble": {},
+        "Vannifar, Evolved Enigma": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "controller_2": "controller_1",
+          "cards_2": "cards_1",
+          "entered_2": "entered_1",
+          "counters_3": "counters_2",
+          "had_3": "had_2",
+          "applied_3": "applied_2"
+        },
+        "Vault 21: House Gambit": {
+          "token_8": "token_7",
+          "selected_5_player": "selected_4_player",
+          "selected_5_candidates": "selected_4_candidates",
+          "selected_5_count": "selected_4_count",
+          "selected_5": "selected_4",
+          "objects_6": "objects_5",
+          "owners_6": "owners_5",
+          "players_7": "players_6",
+          "tokens_7": "tokens_6",
+          "count_7_0": "count_6_0",
+          "def_7_0": "def_6_0",
+          "words_7": "words_6",
+          "created_7": "created_6"
+        },
+        "Vial Smasher the Fierce": {
+          "pool_1": "pool_0",
+          "chosen_1": "chosen_0",
+          "player_2": "player_1",
+          "candidates_2": "candidates_1",
+          "chosen_2": "chosen_1",
+          "source_3": "source_2",
+          "amount_3": "amount_2",
+          "recipients_3": "recipients_2"
+        },
+        "Vow to Erebor": {
+          "hoisted_5": "hoisted_4",
+          "hoisted_4": "hoisted_3",
+          "player_3": "player_2",
+          "eligible_3": "eligible_2",
+          "host_3": "host_2",
+          "count_3": "count_2",
+          "chosen_3": "chosen_2"
+        },
+        "Wild Swing": {},
+        "Wildfire Devils": {
+          "pool_1": "pool_0",
+          "chosen_1": "chosen_0",
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "player_4": "player_3",
+          "originals_4": "originals_3",
+          "times_4": "times_3",
+          "copies_4": "copies_3",
+          "caster_5": "caster_4",
+          "pool_5": "pool_4",
+          "left_5": "left_4",
+          "played_5": "played_4",
+          "open_5": "open_4",
+          "picked_5": "picked_4",
+          "card_5": "card_4",
+          "ways_5": "ways_4",
+          "done_5": "done_4"
+        },
+        "Winter Soldier, Icy Assassin": {
+          "hoisted_3": "hoisted_2",
+          "player_2": "player_1",
+          "eligible_2": "eligible_1",
+          "host_2": "host_1",
+          "count_2": "count_1",
+          "chosen_2": "chosen_1"
+        },
+        "Write into Being": {
+          "TOP_OR_BOTTOM_5": "TOP_OR_BOTTOM_4",
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "controller_4": "controller_3",
+          "cards_4": "cards_3",
+          "entered_4": "entered_3",
+          "objects_5": "objects_4",
+          "player_5": "player_4",
+          "top_5": "top_4",
+          "moved_5": "moved_4"
+        },
+        "Yuffie, Materia Hunter": {
+          "hoisted_3": "hoisted_2",
+          "player_2": "player_1",
+          "eligible_2": "eligible_1",
+          "host_2": "host_1",
+          "count_2": "count_1",
+          "chosen_2": "chosen_1"
+        },
+        "Zack Fair": {
+          "player_4": "player_3",
+          "eligible_4": "eligible_3",
+          "host_4": "host_3",
+          "count_4": "count_3",
+          "chosen_4": "chosen_3"
+        },
+        "Zaffai, Thunder Conductor": {
+          "pool_5": "pool_4",
+          "chosen_5": "chosen_4",
+          "source_6": "source_5",
+          "amount_6": "amount_5",
+          "recipients_6": "recipients_5"
+        },
+        "Zimone, Mystery Unraveler": {
+          "hoisted_8": "hoisted_7",
+          "hoisted_7": "hoisted_6",
+          "selected_4_player": "selected_3_player",
+          "selected_4_candidates": "selected_3_candidates",
+          "selected_4_count": "selected_3_count",
+          "selected_4": "selected_3",
+          "bound_4294967290": "bound_4294967291"
+        }
+      },
+      "other_changes": {
+        "Demonic Hordes": "token count",
+        "Descent into Madness": "token count",
+        "Rag Man": "('mut', 'objects_0')"
+      }
+    },
+    "controls": {
+      "records": 266,
+      "exact": 264,
+      "gaps": 49,
+      "alpha_only": {
+        "Drana, the Last Bloodchief": {
+          "ENTERS_3": "ENTERS_2",
+          "carried_2_0": "carried_1_0",
+          "present_2_0": "present_0_0",
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "player_3": "player_2",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2"
+        },
+        "Glamer Spinners": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "player_2": "player_1",
+          "attachments_2": "attachments_1",
+          "hosts_2": "hosts_1"
+        }
+      },
+      "other_changes": {}
+    }
+  },
+  "native_runtime": {
+    "checkpoint": "def1558de5a5ebd33e4e85b51d3d6abfb22406ea",
+    "exact_card_modules": 265,
+    "affected": 49,
+    "controls": 216,
+    "total_rust_modules": 275,
+    "tests_passed": 6,
+    "preexisting_exclusions": {
+      "Descent into Madness": "CounterKind::Despair",
+      "Haphazard Bombardment": "CounterKind::Aim",
+      "Ian Malcolm, Chaotician": "ExileCast.instead"
+    },
+    "paired_prerequisite_evidence": {
+      "before": {
+        "exit": 101,
+        "features": {
+          "despair": 2,
+          "aim": 3,
+          "exile_cast_instead": 1
+        }
+      },
+      "after": {
+        "exit": 101,
+        "features": {
+          "despair": 2,
+          "aim": 3,
+          "exile_cast_instead": 1
+        }
+      }
+    }
+  },
+  "remaining": "Move/ChangeZone typed entry/order/group consolidation; legacy draft Chosen/Random producer removal",
+  "artifact_root": "/mnt/vizier/mtgish-ast-consolidation/target/movement-proof",
+  "artifacts": {
+    "selection-final-consumers-full-tests.log": "ad8c13a15642fc922543871daa2545ff2f025ba050c5f221429178817abf2a6e",
+    "selection-final-consumers-proof-build.log": "f156372cbb8118a733d960186eae0724f676071ffa869dce7ef416e1c43a5f59",
+    "selection.final-consumers.before.jsonl": "fd7ad9d49e03ac245a7a2303d4553bfd35d719cdc2fc1e9e6968e943da2bffea",
+    "selection.final-consumers.after.jsonl": "9509f3bb38dea24b96b6b8698e6c773ded23882852e91e9a1858eaff107ddc17",
+    "selection-final-consumers-native-comparison.json": "fb2c5e2a3db6a7dee81725d6c748a8063ee24e90a30f3db122008a296ca00a44",
+    "before-backend-report.json": "e10a2a9247edb0c71b1a594d9aefaaefd481cedbac6d70c15562b7509d06c000",
+    "selection-final-consumers-backend-report.json": "13205aa59de85a8b098288189e3587ecf1c1770ba20dadf731a2cb43b48e4663",
+    "selection.modules.before.rs": "06d6040503933a50b71681b201b47915a959baf7ef962c73c3617e462485f59b",
+    "selection.modules.final-consumers.rs": "f5087e41cd3a857f9ca062f0b66ebea35f017e42ed8fd22f1ab39ba06a98cc68",
+    "selection.controls.before.rs": "35b3f6a96dc133f45cd967c861de37524612e7f8797b22fc87b51e392172ecb8",
+    "selection.controls.final-consumers.rs": "615f3f4b15dbb1ff9888a634321e9f0101778e52f3213272524b807172f89a20",
+    "selection-final-generated-comparison.json": "9eb29c198b46f50b7b8207acf0d9f8a44bf23d7f5c5338c8606bd3bc246e9a80",
+    "native-final-runtime.log": "9de3fe18ba9d1926f97cb59256d714faa24fa5d091f45343b443bb59de1afe30",
+    "native-contract-gap-evidence.json": "78ae018824bb0d0094968e7b92195f9ef0bcb8e191e108cd0ecb2568390c82e1",
+    "native-gaps-before.log": "931d03f975bcb51fc4f8f43fad69a8e91305ac76da9004e02d7058ae2c37c514",
+    "native-gaps-after.log": "5130a416f084bcbf88264c1ad3797903780b0a7efc90ebb4a7472bee8601cb5c",
+    "compare_final_selection_json.py": "dbe46054e79fe445728301b449f491e37ad86107537b7d398f045d151ffcad54",
+    "compare_final_selection_modules.py": "56aea6c3cf0cd2c783a3503ac4f034b0955d96c4230838a61ddffd2573163ba9",
+    "native_batch_selection_probe.rs": "cf800654bd90190ddf0cdc9af70daa687bd310930032ce349d284cc3f6cae7dd"
+  }
+}
