@@ -1374,6 +1374,70 @@ class StreamContextCheckpoint(Streams):
 
 
 
+class BootstrapAliases(unittest.TestCase):
+    STUB = 'use cantrip_api::*;\nuse cantrip_oracle as oracle;\n\npub static CARD: CardDef = CardDef { ..oracle::DAND_N };\n'
+
+    def reference(self, path):
+        return f'=== wrote {path} (characteristics only; add the behavior)\n'
+
+    def test_only_the_reported_empty_alias_is_removed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); cards = root / lane.CARDS_DIR; cards.mkdir(parents=True)
+            alias = cards / 'dand_n.rs'; alias.write_text(self.STUB)
+            destination = cards / 'dandan.rs'; destination.write_text('actual generated behavior')
+            other = cards / 'unrelated.rs'; other.write_text(self.STUB)
+            with mock.patch.object(lane, 'CANTRIP', root), mock.patch.object(lane, 'git', return_value=''):
+                lane.remove_bootstrap_alias(self.reference(alias.relative_to(root)), destination)
+            self.assertFalse(alias.exists()); self.assertTrue(other.exists())
+            self.assertEqual(destination.read_text(), 'actual generated behavior')
+
+    def test_the_requested_module_is_left_for_the_generator_to_overwrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); cards = root / lane.CARDS_DIR; cards.mkdir(parents=True)
+            destination = cards / 'dandan.rs'; destination.write_text(self.STUB)
+            with mock.patch.object(lane, 'CANTRIP', root), mock.patch.object(lane, 'git') as git:
+                lane.remove_bootstrap_alias(self.reference(destination.relative_to(root)), destination)
+            self.assertTrue(destination.exists()); git.assert_not_called()
+
+    def test_tracked_aliases_and_aliases_with_behavior_are_never_removed(self):
+        for tracked, text, error in [(True, self.STUB, 'tracked'), (False, self.STUB + 'fn effect() {}', 'behavior')]:
+            with self.subTest(tracked=tracked), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp); cards = root / lane.CARDS_DIR; cards.mkdir(parents=True)
+                alias = cards / 'dand_n.rs'; alias.write_text(text)
+                with mock.patch.object(lane, 'CANTRIP', root), mock.patch.object(lane, 'git', return_value=str(alias) if tracked else ''):
+                    with self.assertRaisesRegex(RuntimeError, error):
+                        lane.remove_bootstrap_alias(self.reference(alias.relative_to(root)), cards / 'dandan.rs')
+                self.assertEqual(alias.read_text(), text)
+
+    def test_paths_outside_the_card_directory_and_symlinks_are_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); cards = root / lane.CARDS_DIR; cards.mkdir(parents=True)
+            outside = root / 'outside.rs'; outside.write_text(self.STUB)
+            alias = cards / 'dand_n.rs'; alias.symlink_to(outside)
+            with mock.patch.object(lane, 'CANTRIP', root):
+                for relative in ['outside.rs', str(alias.relative_to(root))]:
+                    with self.subTest(relative=relative), self.assertRaisesRegex(RuntimeError, 'path'):
+                        lane.remove_bootstrap_alias(self.reference(relative), cards / 'dandan.rs')
+            self.assertTrue(alias.is_symlink()); self.assertEqual(outside.read_text(), self.STUB)
+
+    def test_placeholder_names_use_the_same_canonical_slug_as_scope_ownership(self):
+        import cantrip_scenarios as cs
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); scripts = root / lane.SCENARIOS_DIR; scripts.mkdir(parents=True)
+            content = root / 'content.json'
+            content.write_text(json.dumps({'name': 'Dandân', 'type': 'Creature', 'oracleText': 'When you control no Islands, sacrifice this creature.'}))
+            def write_placeholder(*args):
+                path = scripts / 'dand-n-todo-line-1.cantrip'; path.write_text('[Expect]\nTODO = unfinished\n')
+                return 0, f'wrote {path.relative_to(root)}\n'
+            with mock.patch.multiple(lane, CANTRIP=root, BATCH=['Dandân'], content_file=lambda _: content), \
+                 mock.patch.object(lane, 'tool', side_effect=write_placeholder), mock.patch.object(cs, 'scenarios', return_value=[]), \
+                 mock.patch.object(cs, 'Pieces'):
+                self.assertEqual(lane.placeholders('Dandân'), ['dandan-todo-line-1.cantrip'])
+                self.assertEqual(lane.owner('dandan-todo-line-1.cantrip'), 'Dandân')
+            self.assertFalse((scripts / 'dand-n-todo-line-1.cantrip').exists())
+            self.assertIn('TODO = unfinished', (scripts / 'dandan-todo-line-1.cantrip').read_text())
+
+
 class FocusedBuilds(unittest.TestCase):
     def test_existing_legacy_non_ascii_module_is_selected(self):
         with tempfile.TemporaryDirectory() as tmp:

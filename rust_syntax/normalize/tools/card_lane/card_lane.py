@@ -590,6 +590,12 @@ def placeholders(card_name):
         if code != 0:
             sys.exit(out[-2000:])
         path = CANTRIP / out.strip().splitlines()[-1].removeprefix("wrote ")
+        canonical = CANTRIP / SCENARIOS_DIR / f"{names_of(card_name)[1]}-todo-line-{number}.cantrip"
+        if path != canonical:
+            if path.parent != CANTRIP / SCENARIOS_DIR or path.is_symlink() or canonical.exists():
+                raise RuntimeError(f"cannot normalize new placeholder path: {path}")
+            path.rename(canonical)
+            path = canonical
         of = f" of {face}" if several else ""
         path.write_text(f"# TODO placeholder for printed line {number}{of}: {line}\n" + path.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
         written.append(path.name)
@@ -675,6 +681,27 @@ def prior_art(source, reference):
     return "\n".join(out)
 
 
+def remove_bootstrap_alias(reference, destination):
+    """Drop only a new-card stub just created under its older non-ASCII filename.
+
+    The lane writes the complete generated module at `destination`. Existing
+    modules and anything richer than the tool's exact empty stub are retained.
+    """
+    for relative in re.findall(r"^=== wrote (\S+\.rs) \(characteristics only; add the behavior\)$", reference, re.M):
+        path = CANTRIP / relative
+        if path == destination:
+            continue
+        if path.parent != CANTRIP / CARDS_DIR or path.is_symlink():
+            raise RuntimeError(f"unexpected bootstrap module path: {relative}")
+        if git("ls-files", "--", relative).strip():
+            raise RuntimeError(f"bootstrap alias is tracked: {relative}")
+        text = path.read_text(encoding="utf-8")
+        if not re.fullmatch(r"\s*use cantrip_api::\*;\s*use cantrip_oracle as oracle;\s*"
+                            r"pub static CARD: CardDef = CardDef \{ \.\.oracle::[A-Z0-9_]+ \};\s*", text):
+            raise RuntimeError(f"bootstrap alias contains behavior: {relative}")
+        path.unlink()
+
+
 def prepare(card, build=True):
     """Everything a worker starts from, in the worktree and the packet. The generator's file goes in as it is, its fields
     on their own lines, which `card-mutate.py` needs: it passes over any line naming `oracle::`. If it cannot stand, no
@@ -691,10 +718,12 @@ def prepare(card, build=True):
         code, out = shell(sys.executable, Path(__file__).resolve(), "draft", name)
         if code != 0:
             raise RuntimeError(f"draft wrote no content file for {name}:\n{out[-1500:]}")
+    destination = card_file(name)
     code, out = tool("new-card.py", name)
     (packet / "reference.md").write_text(out, encoding="utf-8")
     if code != 0 or not content_file(name).exists():
         raise RuntimeError(f"new-card.py wrote no content file for {name}:\n{out[-1500:]}")
+    remove_bootstrap_alias(out, destination)
     repair_keywords(name)
     shutil.copyfile(content_file(name), packet / "content.json")
     source = row["rust"] or ""
