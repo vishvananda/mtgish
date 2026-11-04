@@ -1,8 +1,8 @@
 #![cfg(feature = "write_out_json")]
 
 use rust_syntax::mtg_types::{
-    Action, CardInHand, CardsInHand, Condition, FutureReplacableEventWouldDealDamage, GameNumber,
-    PlaneType, Players, Rule, SpellEffect, Target,
+    Action, CardInHand, CardsInHand, CardsInLibrary, Condition, FutureReplacableEventWouldDealDamage,
+    GameNumber, Permanent, PlaneType, Players, Rule, SpellEffect, Target,
 };
 use ts_rs::TS;
 
@@ -11,11 +11,14 @@ use ts_rs::TS;
 #[test]
 fn repaired_rust_forms_are_exported_in_typescript() {
     let bindings = include_str!("../../typescript_types/oracle_cards.d.ts");
+    let mut mismatches = Vec::new();
     for (name, declaration) in [
         ("Condition", Condition::decl()),
         ("Action", Action::decl()),
         ("CardInHand", CardInHand::decl()),
         ("CardsInHand", CardsInHand::decl()),
+        ("CardsInLibrary", CardsInLibrary::decl()),
+        ("Permanent", Permanent::decl()),
         ("PlaneType", PlaneType::decl()),
         ("Players", Players::decl()),
         ("Rule", Rule::decl()),
@@ -45,11 +48,13 @@ fn repaired_rust_forms_are_exported_in_typescript() {
         };
         let generated = arms(&declaration);
         let checked_in = arms(&bindings[start..end]);
-        assert!(
-            generated == checked_in,
-            "{name}: missing {:?}; unexpected {:?}",
-            generated.difference(&checked_in).collect::<Vec<_>>(),
-            checked_in.difference(&generated).collect::<Vec<_>>()
-        );
+        if generated != checked_in {
+            mismatches.push(format!(
+                "{name}: missing {:?}; unexpected {:?}",
+                generated.difference(&checked_in).collect::<Vec<_>>(),
+                checked_in.difference(&generated).collect::<Vec<_>>()
+            ));
+        }
     }
+    assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
 }

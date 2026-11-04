@@ -51,7 +51,6 @@ type Action =
 | { "_Action": "ReturnUptoNumberGroupCardsFromPlayersGraveyardToBattlefield", "args": [GameNumber, CardsInGraveyards, GroupFilter, Player, Array<EnterFlag>] }
 | { "_Action": "Recruit" }
 | { "_Action": "Assimilate", "args": CardInGraveyards }
-| { "_Action": "CastAnyNumberOfSpellsFromAmongCopiedCardsWithoutPaying", "args": Spells }
 | { "_Action": "ChooseACardFromOutsideGame", "args": CardsOutsideTheGame }
 | { "_Action": "PrepareEachPermanent", "args": Permanents }
 | { "_Action": "EachPlayerMayChooseAnAction", "args": [Players, Array<Cost>] }
@@ -495,8 +494,6 @@ type Action =
 | { "_Action": "CopySpellForEachAndMayChooseNewTargets", "args": [Spell, GameNumber] }
 | { "_Action": "CopySpellForEachOtherPermanentOrPlayerAndMustChooseThemAsNewTarget", "args": Spell }
 | { "_Action": "CopySpellForEachPermanentAndMustChooseItAsNewTarget", "args": [Spell, Permanents] }
-| { "_Action": "CopySpellForEachPlayerAndMustChooseNewTargetPermanentTheyControl", "args": [Spell, Players] }
-| { "_Action": "CopySpellForEachPlayerAndMustChooseThemAsNewTarget", "args": [Spell, Players] }
 | { "_Action": "CopySpellForEachSpellPermanentCardAndOrPlayerItCouldTarget", "args": Spell }
 | { "_Action": "CopySpellNumberTimes", "args": [Spell, GameNumber] }
 | { "_Action": "CopySpellNumberTimesAndMayChooseNewTargets", "args": [Spell, GameNumber] }
@@ -1018,7 +1015,6 @@ type Action =
 | { "_Action": "PutUptoNumberNameStickersOnPermanent", "args": [GameNumber, Permanent] }
 | { "_Action": "PutUptoOneCardOfEachCardtypeAmongPermanentsFromHandOnTheBattlefield", "args": [Permanents, Array<EnterFlag>] }
 | { "_Action": "RedistributeLifeTotalsOfPlayers", "args": Players }
-| { "_Action": "ReducePlayersSpeed", "args": [Player, GameNumber] }
 | { "_Action": "ReflexiveTriggerNEW", "args": Actions }
 | { "_Action": "RegenerateEachPermanent", "args": Permanents }
 | { "_Action": "RegeneratePermanent", "args": Permanent }
@@ -1358,7 +1354,13 @@ type Action =
 | { "_Action": "VoteForAWord", "args": Array<string> }
 | { "_Action": "VoteForColor", "args": Array<Color> }
 | { "_Action": "WinTheGame" }
-| { "_Action": "WouldDealExcessDamage_DealExcessToPlayerInstead", "args": Player };
+| { "_Action": "WouldDealExcessDamage_DealExcessToPlayerInstead", "args": Player }
+| { "_Action": "CastAnyNumberOfGroupSpellsFromAmongCopiedCardsWithoutPaying", "args": [Spells, GroupFilter] }
+| { "_Action": "CopySpellForEachPlayerAndMustChooseThemOrAPermanentTheyControlAsNewTarget", "args": [Spell, Players] }
+| { "_Action": "ReducePlayersSpeedToNoLessThan", "args": [Player, GameNumber, GameNumber] }
+| { "_Action": "RevealTheSecretlyChosenCard" }
+| { "_Action": "RollNumberD4", "args": GameNumber }
+| { "_Action": "SecretlyChooseACardInHand", "args": CardsInHand };
 type ActionOption =
 | { "_ActionOption": "ActionOption", "args": [Cost, Array<Action>] }
 | { "_ActionOption": "DoNothingOption", "args": Array<Action> };
@@ -2452,7 +2454,8 @@ type Condition =
 | { "_Condition": "WhenAPermanentBecomesTapped_NotTappedForAttacking" }
 | { "_Condition": "WhenAPlayerRollsAnyNumberOfDice_AnyDiceResultIs", "args": Comparison }
 | { "_Condition": "WordWasVotedFor", "args": string }
-| { "_Condition": "YouLostTheCoinFlip" };
+| { "_Condition": "YouLostTheCoinFlip" }
+| { "_Condition": "ANumberWasChosenThisWay" };
 type ConspiracyDeck =
 | { "_ConspiracyDeck": "ReduceStartingDeckSize", "args": GameNumber }
 | { "_ConspiracyDeck": "NoCardPassesFilter", "args": Cards };
@@ -3772,13 +3775,13 @@ type FutureReplacableEventWouldDealDamage =
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeCombatDamageWouldBeDealtThisTurnByCreature", "args": Permanent }
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToRecipient", "args": [Permanent, SingleDamageRecipient] }
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtThisTurnByASpellToRecipient", "args": [Spells, SingleDamageRecipient] }
-| { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtThisTurnByPermanentToARecipient", "args": [Permanent, DamageRecipientsList] }
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtThisTurnBySource", "args": SingleDamageSource }
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtThisTurnBySourceToRecipient", "args": [SingleDamageSource, SingleDamageRecipient] }
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtThisTurnToARecipient", "args": DamageRecipientsList }
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtThisTurnToRecipient", "args": SingleDamageRecipient }
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtToRecipient", "args": SingleDamageRecipient }
-| { "_FutureReplacableEventWouldDealDamage": "NextAmountOfDamageThatWouldBeDealtToRecipient", "args": [GameNumber, SingleDamageRecipient] };
+| { "_FutureReplacableEventWouldDealDamage": "NextAmountOfDamageThatWouldBeDealtToRecipient", "args": [GameNumber, SingleDamageRecipient] }
+| { "_FutureReplacableEventWouldDealDamage": "NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToARecipient", "args": [Permanent, DamageRecipientsList] };
 type FutureReplacableEventWouldDestroy =
 | { "_FutureReplacableEventWouldDestroy": "NextTimePermanentWouldBeDestroyedThisTurn", "args": Permanent };
 type FutureReplacableEventWouldDraw =
@@ -4288,7 +4291,9 @@ type GameNumber =
 | { "_GameNumber": "WouldLoseLife_ThatMuch" }
 | { "_GameNumber": "WouldPayLife_ThatMuch" }
 | { "_GameNumber": "WouldScry_ThatMuch" }
-| { "_GameNumber": "X_From_Casting" };
+| { "_GameNumber": "X_From_Casting" }
+| { "_GameNumber": "TheNumberGuessedThisWay" }
+| { "_GameNumber": "TheNumberOfDifferentNamesAmongFoundCards" };
 type GameRange =
 | { "_GameRange": "BetweenValues", "args": [number, number] }
 | { "_GameRange": "ValueOrBigger", "args": number }
@@ -4896,7 +4901,8 @@ type Permanent =
 | { "_Permanent": "Trigger_ThatSacrificedPermanent" }
 | { "_Permanent": "Trigger_ThatVehicle" }
 | { "_Permanent": "Trigger_TheAttackingCreature" }
-| { "_Permanent": "Trigger_TheBlockingCreature" };
+| { "_Permanent": "Trigger_TheBlockingCreature" }
+| { "_Permanent": "ThePermanentUntappedThisWay" };
 type PermanentRule =
 | { "_PermanentRule": "CantHaveCountersOfTypePutOnIt", "args": CounterType }
 | { "_PermanentRule": "CantHaveCountersOfTypeRemovedFromIt", "args": CounterType }
