@@ -31,5 +31,13 @@
   "artifacts": [
     "/mnt/vizier/johtull-recovery-20261104",
     "~/card-lane/pipeline-unlimited-20261103/integration/stopped-generator-recovery-20261104"
-  ]
+  ],
+  "producer_fix_commit": "4e1258220625cc97ffb77d475f6418fc4440a6fa",
+  "upstream_issue": "https://github.com/i5jb/mtgish/issues/190",
+  "pipeline_recovery": {
+    "status": "15 cards requeued; all15 cache rows refreshed, all others byte-for-byte unchanged",
+    "generator_revision": "4e1258220625cc97ffb77d475f6418fc4440a6fa",
+    "evidence": "~/card-lane/pipeline-unlimited-20261103/integration/stopped-generator-recovery-20261104/recovery.json",
+    "card_approval": false
+  }
 }
