@@ -186,6 +186,20 @@ integration suite or use baseline cards in a group's focused scenarios. Reconstr
 history from finished files and authorship/issue receipts, rather than repeatedly editing the working commit stack.
 The old twenty-card publisher remains disabled for this campaign, including after a checkpoint.
 
+`export_lane.py plan --head COMMIT --out FILE` inventories the frozen final tree and approval receipts. It assigns
+card files and focused tests to their cards, and shared code plus existing-caller refactors to the foundation.
+Scenario deck dependencies keep interacting new cards together; oversized connected groups remain blocked for
+coordinator resolution. Complete names take precedence over shorter prefixes such as Desert/Desert Twister.
+Components are packed deterministically into the configured group size.
+
+`export_lane.py build --plan FILE --prefix BRANCH_PREFIX --out RECEIPT` reconstructs local commits directly from
+the final file objects, preserving each card's author and issue. It requires an unchanged manifest, no unfinished
+work, and the exact validated final checkpoint. Every group starts at the same shared-only foundation. It checks
+disjoint group changes and exact equality of the complete exported union with the source tree before atomically
+creating local refs; existing different refs remain untouched. Neither command checks out a branch, pushes, or
+opens PRs. The receipt explicitly requires foundation/group validation before publication. Run both commands with
+`--root "$P"`; a draft plan can be generated while the campaign is unfinished, but cannot be built.
+
 ### Context and measurements
 
 Both stages measure latest-request context from Codex rollouts, separately from cumulative token usage. They
