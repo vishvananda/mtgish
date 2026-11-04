@@ -2,6 +2,7 @@
 //! schema so edits to lowering do not recompile its serialization derives.
 pub use rust_syntax::{corpus, inspect, mtg_types};
 pub mod ir;
+pub mod change_lists;
 pub mod lower;
 pub mod report;
 pub mod validate;

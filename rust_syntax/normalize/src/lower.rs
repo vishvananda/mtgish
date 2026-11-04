@@ -2502,7 +2502,7 @@ impl Context {
             });
             result.extend(changes.map_err(|e| e.at(format!("changes[{index}]")))?);
         }
-        Ok(result)
+        Ok(crate::change_lists::coalesce_creature_type_additions(result))
     }
 
     fn static_changes(&self, values: &[source::StaticLayerEffect]) -> Result<Vec<Change>> {
@@ -2546,7 +2546,7 @@ impl Context {
                     .map_err(|e| e.at(format!("static[{i}]")))?,
             );
         }
-        Ok(changes)
+        Ok(crate::change_lists::coalesce_creature_type_additions(changes))
     }
 
     fn counter_placement(
