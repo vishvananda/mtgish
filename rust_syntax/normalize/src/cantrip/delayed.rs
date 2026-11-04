@@ -610,12 +610,10 @@ impl Compiler {
             TurnPoint::DeclareAttackersStepBegins => "DeclareAttackers",
             other => return Err(gap(format!("delayed trigger at {}", form(other)))),
         };
-        // The next such step comes next turn only for a step no effect can
-        // resolve ahead of this turn; a later one could still be this turn's.
+        // A specified next turn is distinct from the next such step. Even
+        // upkeep can repeat in an additional beginning phase (CR 500.8, 603.7).
         match start {
             DelayedStart::Immediately => {}
-            DelayedStart::NextTurn if matches!(point, TurnPoint::UpkeepBegins) => {}
-            DelayedStart::PlayersNextTurn(_) if matches!(point, TurnPoint::UpkeepBegins) => {}
             DelayedStart::ExtraTurn(_) => {
                 return Ok(format!(
                     "DelayedWhen::ExtraTurnStep {{ step: Step::{step}, turn }}"

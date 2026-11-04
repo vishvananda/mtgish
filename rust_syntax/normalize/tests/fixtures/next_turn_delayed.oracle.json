@@ -1,0 +1,294 @@
+[
+  {
+    "name": "Barbed Sextant",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Barbed Sextant",
+        "manaCost": "{1}",
+        "type": "Artifact",
+        "text": "{1}, {T}, Sacrifice this artifact: Add one mana of any color. Draw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Blessed Wine",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Blessed Wine",
+        "manaCost": "{1}{W}",
+        "type": "Instant",
+        "text": "You gain 1 life.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Clairvoyance",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Clairvoyance",
+        "manaCost": "{U}",
+        "type": "Instant",
+        "text": "Look at target player's hand.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Enervate",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Enervate",
+        "manaCost": "{1}{U}",
+        "type": "Instant",
+        "text": "Tap target artifact, creature, or land.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Flare",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Flare",
+        "manaCost": "{2}{R}",
+        "type": "Instant",
+        "text": "Flare deals 1 damage to any target.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Force Void",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Force Void",
+        "manaCost": "{2}{U}",
+        "type": "Instant",
+        "text": "Counter target spell unless its controller pays {1}.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Formation",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Formation",
+        "manaCost": "{1}{W}",
+        "type": "Instant",
+        "text": "Target creature gains banding until end of turn. (Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding a player controls are blocking or being blocked by a creature, that player divides that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Foxfire",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Foxfire",
+        "manaCost": "{2}{G}",
+        "type": "Instant",
+        "text": "Untap target attacking creature. Prevent all combat damage that would be dealt to and dealt by that creature this turn.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Gravebind",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gravebind",
+        "manaCost": "{B}",
+        "type": "Instant",
+        "text": "Target creature can't be regenerated this turn.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Hazezon Tamar",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Hazezon Tamar",
+        "manaCost": "{4}{R}{G}{W}",
+        "type": "Legendary Creature — Human Warrior",
+        "text": "When Hazezon enters, create X 1/1 Sand Warrior creature tokens that are red, green, and white at the beginning of your next upkeep, where X is the number of lands you control at that time.\nWhen Hazezon leaves the battlefield, exile all Sand Warriors.",
+        "power": "2",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Heal",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Heal",
+        "manaCost": "{W}",
+        "type": "Instant",
+        "text": "Prevent the next 1 damage that would be dealt to any target this turn.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Infuse",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Infuse",
+        "manaCost": "{2}{U}",
+        "type": "Instant",
+        "text": "Untap target artifact, creature, or land.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Krovikan Fetish",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Krovikan Fetish",
+        "manaCost": "{2}{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nWhen this Aura enters, draw a card at the beginning of the next turn's upkeep.\nEnchanted creature gets +1/+1."
+      }
+    ]
+  },
+  {
+    "name": "Lightning Blow",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Lightning Blow",
+        "manaCost": "{1}{W}",
+        "type": "Instant",
+        "text": "Target creature gains first strike until end of turn.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Mind Ravel",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mind Ravel",
+        "manaCost": "{2}{B}",
+        "type": "Sorcery",
+        "text": "Target player discards a card.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Mishra's Bauble",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mishra's Bauble",
+        "manaCost": "{0}",
+        "type": "Artifact",
+        "text": "{T}, Sacrifice this artifact: Look at the top card of target player's library. Draw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Panic",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Panic",
+        "manaCost": "{R}",
+        "type": "Instant",
+        "text": "Cast this spell only during combat before blockers are declared.\nTarget creature can't block this turn.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Portent",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Portent",
+        "manaCost": "{U}",
+        "type": "Sorcery",
+        "text": "Look at the top three cards of target player's library, then put them back in any order. You may have that player shuffle.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Pyknite",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Pyknite",
+        "manaCost": "{2}{G}",
+        "type": "Creature — Ouphe",
+        "text": "When this creature enters, draw a card at the beginning of the next turn's upkeep.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Ray of Erasure",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ray of Erasure",
+        "manaCost": "{U}",
+        "type": "Instant",
+        "text": "Target player mills a card.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Touch of Death",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Touch of Death",
+        "manaCost": "{2}{B}",
+        "type": "Sorcery",
+        "text": "Touch of Death deals 1 damage to target player or planeswalker. You gain 1 life.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Touch of Vitae",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Touch of Vitae",
+        "manaCost": "{2}{G}",
+        "type": "Instant",
+        "text": "Until end of turn, target creature gains haste and \"{0}: Untap this creature. Activate only once.\"\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Updraft",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Updraft",
+        "manaCost": "{1}{U}",
+        "type": "Instant",
+        "text": "Target creature gains flying until end of turn.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Urza's Bauble",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Urza's Bauble",
+        "manaCost": "{0}",
+        "type": "Artifact",
+        "text": "{T}, Sacrifice this artifact: Look at a card at random in target player's hand. You draw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  }
+]

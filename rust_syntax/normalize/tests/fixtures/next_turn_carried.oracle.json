@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Kardum, Patron of Flames",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Kardum, Patron of Flames",
+        "manaCost": "{2}{R}{R}",
+        "type": "Legendary Creature — Demon",
+        "text": "Haste\nWhenever Kardum attacks, put a flame counter on it, then seek a card with mana value equal to the number of flame counters on it and exile that card face down.\nWhen Kardum dies, put all cards you own exiled with it into your hand. At the beginning of the end step of your next turn, discard those cards.",
+        "power": "4",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Kav Landseeker",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Kav Landseeker",
+        "manaCost": "{3}{R}",
+        "type": "Creature — Kavu Soldier",
+        "text": "Menace (This creature can't be blocked except by two or more creatures.)\nWhen this creature enters, create a Lander token. At the beginning of the end step on your next turn, sacrifice that token. (It's an artifact with \"{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\")",
+        "power": "4",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Meandering Towershell",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Meandering Towershell",
+        "manaCost": "{3}{G}{G}",
+        "type": "Creature — Turtle",
+        "text": "Islandwalk (This creature can't be blocked as long as defending player controls an Island.)\nWhenever this creature attacks, exile it. Return it to the battlefield under your control tapped and attacking at the beginning of the declare attackers step on your next turn.",
+        "power": "5",
+        "toughness": "9"
+      }
+    ]
+  },
+  {
+    "name": "Suppress",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Suppress",
+        "manaCost": "{2}{B}",
+        "type": "Sorcery",
+        "text": "Target player exiles all cards from their hand face down. At the beginning of the end step of that player's next turn, that player returns those cards to their hand."
+      }
+    ]
+  }
+]

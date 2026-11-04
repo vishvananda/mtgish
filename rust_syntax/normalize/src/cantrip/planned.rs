@@ -52,6 +52,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("pt-counters", "pub const POWER_TOUGHNESS:", &[]),
     ("regeneration-bans", "pub const fn granted_regeneration_ban(", &[]),
     ("mana-counter-costs", "pub const fn x_is_mana_amount(", &[]),
+    ("next-turn-delayed", "StepOfNextTurn { step: Step, of: Option<PlayerId> }", &["delayed-trigger-starting-next-turn", "delayed-trigger-starting-players-next-turn"]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";
