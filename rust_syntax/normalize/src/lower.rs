@@ -87,6 +87,13 @@ fn invalid(message: &str) -> Diagnostic {
     }
 }
 
+/// A compulsory effect encoded by source MustCost, rather than a real cost whose attempt counts as payment.
+#[derive(Clone, Copy)]
+enum RequiredEffectOutcome {
+    Destroyed,
+    ReturnedToHand,
+}
+
 #[derive(Default, Clone)]
 struct Context {
     prepared: crate::pipeline::PreparedRecipes,
@@ -109,6 +116,7 @@ struct Context {
     event: crate::semantics::EventBindings,
     created_tokens: Option<ResultId>,
     payment: Option<ResultId>,
+    required_effect_outcomes: std::collections::BTreeMap<u32, RequiredEffectOutcome>,
     paid: std::collections::BTreeMap<crate::number_spec::PaymentAction, Option<PaidBinding>>,
     /// A reviewed row may have changed what a "this way" means.
     forgotten: bool,

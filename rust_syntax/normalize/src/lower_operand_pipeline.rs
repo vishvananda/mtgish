@@ -227,11 +227,27 @@ impl Context {
                         return Ok(condition);
                     }
                 }
-                let paid = Condition::PaymentChosen(
-                    self.payment
-                        .clone()
-                        .ok_or_else(|| invalid("payment reference has no cost in this scope"))?,
-                );
+                let result = self.payment.clone()
+                    .ok_or_else(|| invalid("payment reference has no cost in this scope"))?;
+                let paid = match self.required_effect_outcomes.get(&result.0) {
+                    Some(outcome) => {
+                        let objects = ObjectSet::Transition { result, phase: ObjectPhase::After };
+                        let objects = match outcome {
+                            RequiredEffectOutcome::Destroyed => objects,
+                            RequiredEffectOutcome::ReturnedToHand => ObjectSet::Matching {
+                                objects: Box::new(objects),
+                                filter: ObjectFilter::InZone(ZoneScope::Players {
+                                    zone: EventZone::Hand, players: PlayerSet::All,
+                                }),
+                            },
+                        };
+                        Condition::Compare {
+                            left: Expr::CountObjects(Box::new(objects)),
+                            comparison: Comparison::Greater, right: Expr::Constant(0),
+                        }
+                    }
+                    None => Condition::PaymentChosen(result),
+                };
                 if *negated {
                     Condition::Not(Box::new(paid))
                 } else {
