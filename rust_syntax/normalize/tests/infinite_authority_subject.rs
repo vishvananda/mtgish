@@ -32,4 +32,3 @@ fn delayed_counter_names_the_original_creature_not_the_auras_later_host() {
     assert!(counter.contains("EventSubject"), "{counter}");
     assert!(!counter.contains("AttachedTo"), "{counter}");
 }
-
