@@ -34,7 +34,6 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Bold Plagiarist", "counters-the-event-put", false),
     ("Captain Marvel, Apex Avenger", "counters-the-event-put", false),
     ("Confusion in the Ranks", "event value in a target filter beyond its subject", false),
-    ("Venerable Warsinger", "event value in a target filter beyond its subject", false),
     ("Rootwater Shaman", "object filter CouldEnchant", false),
     ("Tallowisp", "object filter CouldEnchant", false),
     ("Hordewing Skaab", "the players a one-or-more damage trigger's batch dealt damage to", false),
@@ -69,5 +68,23 @@ fn modules_say_what_their_cards_say() {
         if *whole {
             assert!(!module.contains("planned"), "{name} should be whole:\n{module}");
         }
+    }
+}
+
+#[test]
+fn damage_quantity_target_filter_limits_are_explicit_in_both_api_profiles() {
+    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    if !data.join("mtgish.lines.ron").exists() { return; }
+    for (features, expected) in [
+        (&[][..], "event value in a target filter beyond its subject"),
+        (&["wide-effect-quantities"][..], "exact-wide-event-quantity-outside-its-local-callback"),
+    ] {
+        let modules = cantrip::planned::with_features(features, || {
+            cantrip::modules_printed(&data.join("mtgish.lines.ron"), &data.join("oracle.json"),
+                                    &["Venerable Warsinger".to_owned()]).unwrap()
+        });
+        let module = &modules[0].1;
+        assert!(module.contains(expected), "{module}");
+        assert!(module.contains("planned"), "target-filter capture is not claimed implemented: {module}");
     }
 }

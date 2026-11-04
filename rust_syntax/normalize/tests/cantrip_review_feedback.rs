@@ -23,10 +23,26 @@ fn modules() -> &'static BTreeMap<String, String> {
 }
 
 #[test]
-fn damage_counter_amounts_preserve_the_signed_counter_bound() {
-    let file = &modules()["Living Artifact"];
-    assert!(file.contains("i16::MAX"), "{file}");
-    assert!(!file.contains("i64::from(item.data[0]) as i16;"), "{file}");
+fn damage_counter_amounts_follow_the_actual_counter_placement_api() {
+    let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    for wide in [false, true] {
+        let features: &[&str] = if wide { &["wide-effect-quantities"] } else { &[] };
+        let files = cantrip::planned::with_features(features, || {
+            cantrip::modules_printed(&fixtures.join("generator_review_feedback.ronl"),
+                                    &fixtures.join("generator_review_feedback.oracle.json"),
+                                    &["Living Artifact".to_owned()]).unwrap()
+        });
+        let file = &files[0].1;
+        if wide {
+            // Replacements receive the full damage quantity; the engine checks its final physical counter storage.
+            assert!(file.contains("matched_damage_amount()"), "{file}");
+            assert!(file.contains(".damage_amount()"), "{file}");
+            assert!(!file.contains("i16::MAX"), "{file}");
+        } else {
+            assert!(file.contains("i16::MAX"), "{file}");
+        }
+        assert!(!file.contains("i64::from(item.data[0]) as i16;"), "{file}");
+    }
 }
 
 #[test]

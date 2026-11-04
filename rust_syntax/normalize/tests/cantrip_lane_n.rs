@@ -9,7 +9,6 @@ const CARDS: &[(&str, &str)] = &[
     // A surveil reports the cards it put in the graveyard.
     ("Enlightened Confidant", "surveil_into_graveyard"),
     // Excess damage is the event's own number.
-    ("Fall of Cair Andros", "recipient_excess"),
     // A later slot's rule reads what an earlier slot chose.
     ("Band Together", "q.chosen_targets()"),
     // "Whenever you cast a spell with one or more targets": how many it has.
@@ -119,5 +118,21 @@ fn a_filter_that_lost_its_negation_stays_a_hole() {
             .get(*name)
             .unwrap_or_else(|| panic!("no module for {name}"));
         assert!(module.contains(gap), "{name} has lost its gap:\n{module}");
+    }
+}
+
+#[test]
+fn excess_trigger_payload_is_not_confused_with_the_damage_amount() {
+    for (features, expected) in [
+        (&[][..], "recipient_excess"),
+        (&["wide-effect-quantities"][..], "exact wide event quantity outside its local callback"),
+    ] {
+        let files = cantrip::planned::with_features(features, || modules(vec!["Fall of Cair Andros".to_owned()]));
+        let Some(files) = files else { return };
+        let module = &files["Fall of Cair Andros"];
+        assert!(module.contains(expected), "{module}");
+        if !features.is_empty() {
+            assert!(module.contains("// gaps:"), "exact excess payload capture is not claimed implemented: {module}");
+        }
     }
 }

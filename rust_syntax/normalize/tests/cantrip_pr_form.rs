@@ -15,12 +15,19 @@ fn resolve(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
 }
 pub static CARD: CardDef = CardDef { spell: spell(&[cantrip_mechanics::targets::ANY], resolve), ..CardDef::BLANK };
 "#;
-    let render = |raw: &str| render(raw, "Sample", "This spell deals 4 damage to any target.", Characteristics::Oracle).unwrap();
-    assert!(render(raw).contains("effects::damage_first_target::<4>"));
-    for changed in [raw.replace("target(item, 0)", "target(item, 1)"),
-                    raw.replace("(item.object, *t,", "(item.subject.object().unwrap(), *t,"),
-                    raw.replace("Ok(())", "g.draw(item.controller, 1); Ok(())")] {
-        assert!(!render(&changed).contains("effects::damage_first_target::<"));
+    for wide in [false, true] {
+        let features: &[&str] = if wide { &["wide-effect-quantities"] } else { &[] };
+        mtgish_ast::cantrip::planned::with_features(features, || {
+            // Each sample uses the actual damage operand type of the API it is rendered for.
+            let raw = if wide { raw.replace("u16", "i64") } else { raw.to_owned() };
+            let render = |raw: &str| render(raw, "Sample", "This spell deals 4 damage to any target.", Characteristics::Oracle).unwrap();
+            assert!(render(&raw).contains("effects::damage_first_target::<4>"));
+            for changed in [raw.replace("target(item, 0)", "target(item, 1)"),
+                            raw.replace("(item.object, *t,", "(item.subject.object().unwrap(), *t,"),
+                            raw.replace("Ok(())", "g.draw(item.controller, 1); Ok(())")] {
+                assert!(!render(&changed).contains("effects::damage_first_target::<"));
+            }
+        });
     }
 }
 

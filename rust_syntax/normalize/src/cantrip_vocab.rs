@@ -1,6 +1,6 @@
 // Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.
 // These names are inert metadata, never behavior.
-pub const API_FINGERPRINT: &str = "196db526be984ea0ce62322dfc5de043f61759153c9d5fe498a3de9a50b556a4";
+pub const API_FINGERPRINT: &str = "0f5cfaa6bdad8ceb98f16068d8d459f3de415d4dc2df288ee673c9978024b0f4";
 pub const SUBTYPES: &[&str] = &[
     "Adventure",
     "Advisor",
@@ -629,11 +629,13 @@ pub const COUNTERS: &[&str] = &[
     "Dream",
     "Promotion",
     "Bounty",
-    "Vitality",
-    "Scream",
     "Pupa",
-    "Wind",
     "Matrix",
+    "Scream",
+    "Vitality",
+    "Fire",
+    "Conqueror",
+    "Wind",
     "Hatchling",
     "Sleep",
     "Plus1Plus0",
@@ -648,10 +650,19 @@ pub const COUNTERS: &[&str] = &[
     "Plus0Plus2",
     "Minus1Plus0",
     "Carrion",
+    "Credit",
+    "Depletion",
+    "Healing",
+    "Javelin",
+    "Paralyzation",
+    "Spore",
+    "Storage",
+    "Tide",
+    "Music",
 ];
 pub const LASTING_RULE_KINDS: &[&str] = &[
     "CantBlock",
     "MustAttack",
     "DoesntUntap",
 ];
-pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs"];
+pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "wide-effect-quantities", "snow-mana"];
