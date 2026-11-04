@@ -1360,6 +1360,21 @@ impl Compiler {
                 announcement,
                 body,
             } => {
+                if planned::switched_on("damage-poison") && scope.is_none()
+                    && self.trigger_gate.is_none() && self.ability_guard.is_none()
+                    && self.static_guard.is_none() && intervening_if.is_none()
+                    && limits.per_turn.is_none() && limits.total.is_none()
+                    && announcement.targets.is_empty() && announcement.modes.is_none()
+                {
+                    if let Some(amount) = recipes::damage_poison_amount(event, body) {
+                        let counter = if amount == 1 { "counter" } else { "counters" };
+                        let text = self.said(lane_k::Said::Triggered,
+                            format!("Whenever this creature deals damage to a player, that player gets {amount} poison {counter}."));
+                        parts.abilities.push(format!(
+                            "cantrip_mechanics::poison::on_damage_to_player::<{amount}>({})", quoted(&text)));
+                        return Ok(());
+                    }
+                }
                 self.event_object = lane_j::event_object(event);
                 self.source_entered = matches!(event, EventSpec::ZoneChange { objects: ObjectFilter::SameObject(ObjectRef::Source), to: EventZone::Battlefield, .. });
                 let def = self.triggered(

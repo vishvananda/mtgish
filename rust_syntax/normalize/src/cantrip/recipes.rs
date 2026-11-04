@@ -71,6 +71,29 @@ pub(super) fn combine_attack_block(card: &Card) -> Option<Card> {
     changed.then_some(out)
 }
 
+/// Pit Scorpion and Serpent Generator's Snake use the same complete ability.
+/// Match both halves together: the shared matcher binds the damaged player as
+/// its subject, rather than the generated matcher's source/object bindings.
+pub(super) fn damage_poison_amount(event: &EventSpec, body: &Program) -> Option<u32> {
+    if !matches!(event, EventSpec::Damage(DamageEvent {
+        source_kind: ObjectKind::Permanent,
+        sources: ObjectFilter::SameObject(ObjectRef::Source),
+        recipients: DamageRecipients::Players(PlayerSet::All),
+        kind: DamageKind::Any,
+        grouping: DamageGrouping::SourceRecipient,
+        subject: DamageSubject::Source,
+    })) { return None; }
+    let [Instruction::Effect { operation: Operation::PutCounters { placements }, .. }] =
+        ungroup(body).instructions.as_slice() else { return None };
+    let [CounterPlacement {
+        recipients: Recipients::Players(PlayerSet::One(PlayerRef::EventSubject)),
+        kind: crate::counter::CounterKind::Named(crate::counter::CounterName::PoisonCounter),
+        amount: Expr::Constant(amount),
+        selection: None,
+    }] = placements.as_slice() else { return None };
+    u32::try_from(*amount).ok()
+}
+
 pub(super) fn shared_trigger(event: &EventSpec, body: &Program) -> Option<String> {
     // These shared matchers omit event data. A body that reads any keeps its
     // generated matcher and the precise Frame bindings it needs.
