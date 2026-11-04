@@ -94,6 +94,9 @@ not exclusions. Existing queues and other workers' live claims are preserved. Cl
 Only generator-ready candidates are reserved by default. Gaps and missing generation are catalogued in the journal
 as `deferred_unclaimed`; `--reserve-gaps` is an explicit opt-in. Slow reservation calls do not hold the shared queue
 lock, and implementation outcomes are mirrored back into intake, including recovery after interrupted writes.
+Explicitly returned reservations remain in the intake journal as `release_pending` or `released` and are excluded
+from both new plans and frozen-plan replay, including `--reserve-gaps`. Their archived work remains available;
+reintroducing one requires deliberately clearing its campaign exclusion before reserving it again.
 
 ```sh
 P=~/card-lane/pipeline-unlimited-20261103

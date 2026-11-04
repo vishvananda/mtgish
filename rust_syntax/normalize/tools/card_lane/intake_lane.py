@@ -205,12 +205,16 @@ def plan(root, names, sets, color, oracle=ORACLE, catalog=CATALOG, tree=CANTRIP,
     import shared_base
     pin = shared_base.read_work_base(cfg, tree)
     known = {c['name'] for c in queue['cards']}; done = implemented(pin['head'] if pin else cfg['base'], tree)
+    journal = read(root/'intake-journal.json') if (root/'intake-journal.json').exists() else {'cards':{}}
+    released = {name for name, entry in journal['cards'].items() if entry.get('phase') in ('release_pending','released')}
     rows = rows_at(Path(cfg['lane_root'])/'gen/rows.jsonl')
     result = []
     for name, card, line in chosen:
         reason = exclusion(card)
         row = rows.get(name)
         status = 'excluded' if reason else 'already_queued' if name in known else 'implemented' if name in done else 'candidate'
+        if name in released:
+            status, reason = 'released', 'Reservation returned to the shared pool; excluded from this campaign'
         readiness = 'needs_generation' if row is None else 'generator_gap' if row.get('gap') else 'pending'
         result.append({'name':name,'status':status,'reason':reason,'readiness':readiness,'layout':card.get('layout','normal'),
                        'oracle_id':card.get('oracle_id'),'oracle_source':str(oracle),'oracle_line':line})
@@ -293,7 +297,12 @@ def add(root, candidates, claims_factory=Claims, oracle=ORACLE, reserve_gaps=Fal
         claims = None
         for item in candidates:
             if item['status'] != 'candidate': continue
-            name = item['name']; entry = dict(journal['cards'].get(name, {}), **item)
+            name = item['name']
+            # A stale frozen plan must not undo an explicit release, even after
+            # a later generator revision makes the card ready to implement.
+            if journal['cards'].get(name, {}).get('phase') in ('release_pending','released'):
+                continue
+            entry = dict(journal['cards'].get(name, {}), **item)
             # A frozen plan can be replayed after an interrupted API response.
             # Reconcile a completed queue write before doing any remote work.
             with Path(str(queue_path)+'.lock').open('a') as queue_lock:

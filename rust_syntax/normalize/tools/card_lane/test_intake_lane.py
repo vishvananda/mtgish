@@ -156,6 +156,27 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(intake.read(q)['cards'],[])
         self.assertEqual(intake.read(self.root/'intake-journal.json')['cards']['Crusade']['phase'],'deferred_unclaimed')
 
+    def test_released_cards_are_excluded_from_new_plans(self):
+        lane=self.root/'lane'; (lane/'gen').mkdir(parents=True)
+        q=self.root/'queue.json'; intake.save(q,{'generator_commit':'abc','cards':[]})
+        intake.save(self.root/'config.json',{'lane_root':str(lane),'implementation_queue':str(q),'base':'def'})
+        for phase in ('release_pending','released'):
+            intake.save(self.root/'intake-journal.json',{'cards':{'Crusade':{'phase':phase}}})
+            with patch.object(intake,'load_oracle',return_value=self.records), patch.object(intake,'implemented',return_value=set()):
+                self.assertEqual(intake.plan(self.root,['Crusade'],[],None)[0]['status'],'released')
+
+    def test_stale_frozen_plan_cannot_reclaim_a_released_card(self):
+        q=self.root/'queue.json'; intake.save(q,{'generator_commit':'abc','cards':[]})
+        intake.save(self.root/'config.json',{'implementation_queue':str(q),'base':'def'})
+        stale=dict(name='Crusade',status='candidate',readiness='pending')
+        for phase in ('release_pending','released'):
+            entry=dict(phase=phase,issue=42,receipt='retained')
+            intake.save(self.root/'intake-journal.json',{'cards':{'Crusade':entry}})
+            with patch.object(intake,'load_oracle',side_effect=AssertionError('released card must not be reclaimed')):
+                intake.add(self.root,[stale],lambda *_:self.fail('claim API called'),reserve_gaps=True)
+            self.assertEqual(intake.read(q)['cards'],[])
+            self.assertEqual(intake.read(self.root/'intake-journal.json')['cards']['Crusade'],entry)
+
     def test_incremental_claim_lookup_detects_a_late_unlabeled_issue(self):
         raw={'number':7,'title':'Card: Crusade','state':'closed','labels':[]}
         ci=SimpleNamespace(gh=unittest.mock.Mock(return_value=[[raw]]),
