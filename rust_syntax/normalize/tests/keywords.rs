@@ -221,7 +221,7 @@ fn landwalk_and_qualified_hexproof_keep_keyword_identity_and_typed_predicates() 
     assert!(matches!(
         &c.abilities[0],
         Ability::Static {
-            affected: EffectSubjects::Objects(ObjectSet::Battlefield(
+            affected: EffectSubjects::Objects(mtgish_ast::battlefield_query!(
                 ObjectFilter::HasKeywordFamily(KeywordFamily::Ward)
             )),
             ..
@@ -286,7 +286,7 @@ fn regeneration_creates_shields_without_immediate_tapping_damage_removal_or_comb
         program(&c).instructions.as_slice(),
         [Instruction::Effect {
             operation: Operation::CreateRegenerationShields {
-                objects: ObjectSet::Battlefield(_)
+                objects: mtgish_ast::battlefield_query!(_)
             },
             ..
         }]

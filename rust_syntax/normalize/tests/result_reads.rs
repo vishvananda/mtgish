@@ -1,3 +1,5 @@
+#[path = "support/query_aliases.rs"]
+mod query_aliases;
 use mtgish_ast::{
     ir::*,
     mtg_types::OracleCard,
@@ -121,7 +123,7 @@ fn inline_payment_selections_and_nested_control_flow_are_current_reads() {
         player: PlayerRef::AbilityController,
         cost: Cost {
             parts: vec![CostPart::Sacrifice {
-                objects: ObjectSet::Battlefield(membership(3)),
+                objects: mtgish_ast::battlefield_query!(membership(3)),
                 choose: Some(Count::Exactly(Expr::Constant(1))),
             }],
         },
@@ -259,7 +261,7 @@ fn surveil_can_report_graveyard_and_kept_cards_independently() {
 }
 
 #[test]
-fn whole_membership_records_change_only_the_alias_and_schema_stamps() {
+fn whole_membership_records_change_only_declared_aliases_and_schema_stamps() {
     fn migrate(value: &mut serde_json::Value) {
         if value.get("kind").and_then(serde_json::Value::as_str) == Some("InResult") {
             let result = value["args"].clone();
@@ -288,6 +290,7 @@ fn whole_membership_records_change_only_the_alias_and_schema_stamps() {
         let source: OracleCard = ron::from_str(line).unwrap();
         let mut expected: serde_json::Value = serde_json::from_str(before).unwrap();
         migrate(&mut expected);
+        query_aliases::battlefield(&mut expected);
         let actual = serde_json::to_value(unified::lower(&source).card).unwrap();
         assert_eq!(actual, expected, "{line}");
     }
@@ -320,20 +323,20 @@ fn named_membership_preserves_availability_and_does_not_become_a_selected_view()
         panic!()
     };
     body.instructions
-        .push(consume(ObjectSet::Battlefield(membership(0))));
+        .push(consume(mtgish_ast::battlefield_query!(membership(0))));
     validate::card(&card).unwrap();
     let mut unavailable = card.clone();
     let Ability::Spell { body, .. } = &mut unavailable.abilities[0] else {
         panic!()
     };
-    body.instructions[1] = consume(ObjectSet::Battlefield(membership(999)));
+    body.instructions[1] = consume(mtgish_ast::battlefield_query!(membership(999)));
     assert!(validate::card(&unavailable)
         .unwrap_err()
         .contains("result 999 is unavailable"));
     let Ability::Spell { body, .. } = &mut card.abilities[0] else {
         panic!()
     };
-    body.instructions[1] = consume(ObjectSet::Battlefield(ObjectFilter::InSet(Box::new(
+    body.instructions[1] = consume(mtgish_ast::battlefield_query!(ObjectFilter::InSet(Box::new(
         ObjectSet::Selected(ResultId(0)),
     ))));
     assert!(

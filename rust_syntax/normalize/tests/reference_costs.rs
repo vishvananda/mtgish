@@ -1,3 +1,5 @@
+#[path = "support/query_aliases.rs"]
+mod query_aliases;
 use mtgish_ast::{mtg_types::OracleCard, unified, validate};
 use serde_json::{json, Value};
 
@@ -170,6 +172,7 @@ fn all_three_reflexive_x_cards_only_change_the_amount_binding() {
         let mut expected: Value = serde_json::from_str(before).unwrap();
         // This is the pre-fix producer snapshot. A later schema migration does
         // not change the exact amount-only semantic comparison.
+        query_aliases::battlefield(&mut expected);
         expected["schema_version"] = json!(mtgish_ast::ir::SCHEMA_VERSION);
         for face in expected["faces"].as_array_mut().unwrap() {
             face["schema_version"] = json!(mtgish_ast::ir::SCHEMA_VERSION);

@@ -1,17 +1,7 @@
+#[path = "support/query_aliases.rs"]
+mod query_aliases;
 use mtgish_ast::{ir::*, mtg_types::OracleCard, unified, validate};
 use serde_json::{json, Value};
-
-fn canonical_queries(value: &mut Value) {
-    if value.get("kind").and_then(Value::as_str) == Some("Battlefield") {
-        let filter = value["args"].take();
-        *value = json!({"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":filter}});
-    }
-    match value {
-        Value::Object(fields) => fields.values_mut().for_each(canonical_queries),
-        Value::Array(values) => values.iter_mut().for_each(canonical_queries),
-        _ => {}
-    }
-}
 
 #[test]
 fn battlefield_access_is_exact_about_scope_kind_and_wrappers() {
@@ -68,7 +58,7 @@ fn printed_query_families_validate_and_roundtrip() {
         validate::unified(&lowered.card).unwrap();
         unified::round_trip(&lowered.card).unwrap();
         let mut value = serde_json::to_value(&lowered.card).unwrap();
-        canonical_queries(&mut value);
+        query_aliases::battlefield(&mut value);
         let canonical: UnifiedCard = serde_json::from_value(value).unwrap();
         validate::unified(&canonical).unwrap();
         unified::round_trip(&canonical).unwrap();
@@ -91,7 +81,7 @@ fn both_spellings_generate_the_same_modules_or_exact_gaps() {
         let source: OracleCard = ron::from_str(line).unwrap();
         let original = unified::lower(&source).card;
         let mut value = serde_json::to_value(&original).unwrap();
-        canonical_queries(&mut value);
+        query_aliases::battlefield(&mut value);
         let canonical: UnifiedCard = serde_json::from_value(value).unwrap();
         let old = mtgish_ast::cantrip::whole_module(&source, &original);
         let new = mtgish_ast::cantrip::whole_module(&source, &canonical);
@@ -119,7 +109,7 @@ fn permanent_statics_do_not_become_everywhere_card_statics() {
             continue;
         }
         let mut value = serde_json::to_value(&original).unwrap();
-        canonical_queries(&mut value);
+        query_aliases::battlefield(&mut value);
         let canonical: UnifiedCard = serde_json::from_value(value).unwrap();
         let code = mtgish_ast::cantrip::whole_module(&source, &canonical).unwrap();
         assert_eq!(
@@ -169,5 +159,30 @@ fn player_scoped_battlefields_remain_invalid_and_card_queries_stay_distinct() {
             },
         };
         assert_eq!(validate::card(&card).is_ok(), valid);
+    }
+}
+
+#[test]
+fn complete_producer_records_change_only_query_aliases_and_schema_stamps() {
+    let source: Vec<_> = include_str!("fixtures/battlefield_queries.ronl")
+        .lines()
+        .collect();
+    let before: Vec<_> = include_str!("fixtures/battlefield_queries_before.jsonl")
+        .lines()
+        .collect();
+    assert_eq!((source.len(), before.len()), (30, 30));
+    for (line, before) in source.into_iter().zip(before) {
+        let source: OracleCard = ron::from_str(line).unwrap();
+        let mut expected: Value = serde_json::from_str(before).unwrap();
+        query_aliases::battlefield(&mut expected);
+        expected["schema_version"] = json!(SCHEMA_VERSION);
+        for face in expected["faces"].as_array_mut().unwrap() {
+            face["schema_version"] = json!(SCHEMA_VERSION);
+        }
+        assert_eq!(
+            serde_json::to_value(unified::lower(&source).card).unwrap(),
+            expected,
+            "{line}"
+        );
     }
 }

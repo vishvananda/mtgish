@@ -85,7 +85,7 @@ fn a_life_total_compares_what_it_would_become() {
 fn lethal_loyalty_reads_the_counters_of_the_damaged_planeswalker() {
     let event = semantics::reduce_replacement(
         "EventReplaceWouldDealDamage::LethalLoyaltyDamageWouldBeDealtToAPlaneswalker".into(),
-        vec![Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any))],
+        vec![Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any))],
     );
     let ReplacementEvent::Measured {
         comparison, amount, ..

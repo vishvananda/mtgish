@@ -125,7 +125,7 @@ fn resolving_rule_effects_retain_subject_queries_while_characteristic_changes_sn
     };
     assert!(matches!(
         affected,
-        EffectSubjects::Objects(ObjectSet::Battlefield(_))
+        EffectSubjects::Objects(mtgish_ast::battlefield_query!(_))
     ));
     assert!(matches!(evaluation, EffectEvaluation::LiveObjects));
     assert!(matches!(
@@ -344,7 +344,7 @@ fn activation_filters_keep_mana_exceptions_and_battlefield_scope() {
     );
     let c = card("Stony Silence");
     assert!(
-        matches!(&c.abilities[0],Ability::Static{affected:EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::CardType(source::CardType::Artifact))),changes,..}
+        matches!(&c.abilities[0],Ability::Static{affected:EffectSubjects::Objects(mtgish_ast::battlefield_query!(ObjectFilter::CardType(source::CardType::Artifact))),changes,..}
         if matches!(changes.as_slice(),[Change::Rule(RuleChange::Prohibit(ObjectAction::Activate(ActivationFilter::Any)))]))
     );
     // Sources in any zone are a rule on players, not on battlefield permanents.
@@ -359,7 +359,7 @@ fn activation_filters_keep_mana_exceptions_and_battlefield_scope() {
 fn filter_candidates_and_declaring_players_do_not_escape_their_scopes() {
     let c = card("Ancient Lumberknot");
     let Ability::Static {
-        affected: EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters))),
+        affected: EffectSubjects::Objects(mtgish_ast::battlefield_query!(ObjectFilter::All(filters))),
         ..
     } = &c.abilities[0]
     else {

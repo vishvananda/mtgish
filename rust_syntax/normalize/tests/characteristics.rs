@@ -168,7 +168,7 @@ fn distinct_values_aggregation_and_mana_symbol_queries_remain_different_queries(
     let c = card("Daxos, Blessed by the Sun");
     assert_eq!(c.characteristics.power_toughness, Some((2, 0)));
     assert!(
-        matches!(changes(definitions(&c)[0]),[Change::SetToughness(Expr::CountManaSymbols {colors,objects})] if matches!(colors.as_slice(),[ManaColor::White]) && matches!(objects.as_ref(),ObjectSet::Battlefield(ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)))))
+        matches!(changes(definitions(&c)[0]),[Change::SetToughness(Expr::CountManaSymbols {colors,objects})] if matches!(colors.as_slice(),[ManaColor::White]) && matches!(objects.as_ref(),mtgish_ast::battlefield_query!(ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)))))
     );
     let c = custom("CDA_Power(TheHighestManaValueAmongPermanents(AnyPermanent))").unwrap();
     validate::card(&c).unwrap();
@@ -292,7 +292,7 @@ fn invalid_definitions_and_unbound_numeric_components_are_rejected() {
     let Ability::Static { affected, .. } = &mut c.abilities[0] else {
         panic!()
     };
-    *affected = EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    *affected = EffectSubjects::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any));
     assert!(validate::card(&c).unwrap_err().contains("only its source"));
     let mut c = card("Maro");
     let Ability::Static { changes, .. } = &mut c.abilities[0] else {

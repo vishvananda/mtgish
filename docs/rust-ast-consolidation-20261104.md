@@ -70,6 +70,8 @@ modified.
 
 The subsequent result-membership pass is documented in
 [`rust-ast-result-membership-20261104.md`](rust-ast-result-membership-20261104.md).
+The battlefield-query pass follows in
+[`rust-ast-battlefield-queries-20261104.md`](rust-ast-battlefield-queries-20261104.md).
 
 | Candidate | Assessment and next implementation boundary |
 | --- | --- |

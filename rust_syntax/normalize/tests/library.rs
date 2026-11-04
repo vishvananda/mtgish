@@ -368,7 +368,7 @@ fn search_results_have_typed_status_and_zone_scope() {
             Operation::ChooseObjects {
                 constraints: vec![],
                 player: PlayerRef::AbilityController,
-                objects: ObjectSet::Battlefield(ObjectFilter::Any),
+                objects: mtgish_ast::battlefield_query!(ObjectFilter::Any),
                 count: Count::UpTo(Expr::Constant(1)),
             },
             0,

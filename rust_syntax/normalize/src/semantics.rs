@@ -6075,8 +6075,7 @@ impl Effects {
             ObjectSet::Transition { result, phase } | ObjectSet::MovedBy { result, phase, .. } => {
                 self.result_library(result, phase)
             }
-            ObjectSet::Battlefield(_)
-            | ObjectSet::Created(_)
+            ObjectSet::Created(_)
             | ObjectSet::Copies(_)
             | ObjectSet::Unpaid(_)
             | ObjectSet::SplicedOnto(_)

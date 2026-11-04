@@ -45,7 +45,7 @@ fn an_unknown_row_stays_primitive() {
 #[test]
 fn numbers_and_conditions_are_typed() {
     let player = || Operand::Player(PlayerRef::AbilityController);
-    let filter = || Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    let filter = || Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any));
     for (name, operands) in [
         ("GameNumber::PlayersChosenNumber", vec![player()]),
         (
@@ -94,7 +94,7 @@ fn pairs_of_mana_count_whole_pairs() {
 #[test]
 fn rules_are_typed() {
     let player = || Operand::Player(PlayerRef::AbilityController);
-    let creatures = || Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    let creatures = || Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any));
     for (name, operands) in [
         ("PlayerEffect::ChoosesWhichCreaturesAttack", vec![]),
         ("PlayerEffect::UnspentManaBecomesColorless", vec![]),
@@ -236,7 +236,7 @@ fn actions_read_as_zone_changes_and_plays() {
 #[test]
 fn set_and_stack_actions_are_typed() {
     let you = || PlayerSet::One(PlayerRef::AbilityController);
-    let creatures = || Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    let creatures = || Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any));
     let reduced = |name: &str, operands| semantics::reduce_action(you(), name.into(), operands);
     assert!(matches!(
         reduced("Action::DestroyAPermanentAtRandom", vec![creatures()]),
@@ -431,7 +431,7 @@ fn counters_and_would_events_say_what_happens() {
             vec![
                 Operand::Number(Expr::Constant(3)),
                 plus,
-                Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any)),
+                Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any)),
             ],
         ),
         Operation::DistributeCounters {
@@ -442,7 +442,7 @@ fn counters_and_would_events_say_what_happens() {
     assert!(matches!(
         semantics::reduce_replacement(
             "ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefieldAndWasntCast".into(),
-            vec![Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any))],
+            vec![Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any))],
         ),
         ReplacementEvent::Enter { .. }
     ));
@@ -476,7 +476,7 @@ fn actions_keep_what_they_do() {
             PlayerSet::All,
             "Action::SeparatePermanentsIntoNumberPiles".into(),
             vec![
-                Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any)),
+                Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any)),
                 Operand::Number(Expr::Constant(3)),
             ],
         ),
@@ -505,7 +505,7 @@ fn actions_keep_what_they_do() {
 
 #[test]
 fn triggers_watch_by_shape() {
-    let creatures = || Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    let creatures = || Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any));
     assert!(matches!(
         semantics::reduce_event(
             "Trigger::WhenANumberOfCreaturesAttacksAPlayerAndArentBlocked".into(),
@@ -558,7 +558,7 @@ fn numbers_and_conditions_read_what_the_game_recorded() {
     assert!(matches!(
         semantics::reduce_condition(
             "Condition::NoPermanentsLeftTheBattlefieldThisTurn".into(),
-            vec![Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any))],
+            vec![Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any))],
         ),
         Condition::Compare { .. }
     ));
@@ -720,7 +720,7 @@ fn audited_forms_keep_every_clause() {
     let drain = semantics::reduce_action(
         you(),
         "Action::ActivateAManaAbilityOfEachPermanentAndLoseUnspentMana".into(),
-        vec![Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any))],
+        vec![Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any))],
     );
     assert!(
         format!("{drain:?}").contains("LoseUnspentMana"),

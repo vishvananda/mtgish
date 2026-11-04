@@ -151,7 +151,7 @@ fn cycling_retains_its_identity_exact_source_cost_and_hand_activation_scope() {
     assert!(matches!(
         &c.abilities[0],
         Ability::Static {
-            affected: EffectSubjects::Objects(ObjectSet::Battlefield(
+            affected: EffectSubjects::Objects(mtgish_ast::battlefield_query!(
                 ObjectFilter::HasActivatedAbility(ActivationFilter::Cycling)
             )),
             ..
@@ -699,7 +699,7 @@ fn a_clone_enters_as_a_copy_with_its_exceptions() {
         "AsPermanentEnters(ThisPermanent, [MayActions([EnterAsACopyOfAPermanent(IsCardtype(Creature), NoCopyEffects)])])",
     );
     assert!(
-        body.contains("Entry(CopyOf { objects: Battlefield(CardType(Creature))"),
+        body.contains("Entry(CopyOf { objects: Zone { scope: Shared(Battlefield), kind: Permanent, filter: CardType(Creature) }"),
         "{body}"
     );
 }

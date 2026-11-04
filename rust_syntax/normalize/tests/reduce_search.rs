@@ -95,7 +95,7 @@ fn a_counter_move_can_divide_among_a_set() {
     };
     assert!(matches!(
         to,
-        ObjectSet::Zone { .. } | ObjectSet::Battlefield(_)
+        ObjectSet::Zone { .. } | mtgish_ast::battlefield_query!(_)
     ));
     assert!(kind.is_some());
     assert!(matches!(amount, MovedCounters::AnyNumber));

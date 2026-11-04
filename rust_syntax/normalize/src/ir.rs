@@ -6,14 +6,13 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 171;
+pub const SCHEMA_VERSION: u32 = 172;
 
 /// Typed pattern for the permanent query of the shared battlefield. Card-only,
 /// player-scoped and other-zone queries deliberately do not match.
 #[macro_export]
 macro_rules! battlefield_query {
     ($($filter:tt)+) => {
-        $crate::ir::ObjectSet::Battlefield($($filter)+) |
         $crate::ir::ObjectSet::Zone {
             scope: $crate::ir::ZoneScope::Shared($crate::ir::EventZone::Battlefield),
             kind: $crate::ir::ObjectKind::Permanent,
@@ -4630,7 +4629,6 @@ pub enum ObjectSet {
     },
     One(ObjectRef),
     Targets(Slot),
-    Battlefield(ObjectFilter),
     /// Intersect a reference/result set with current zone membership. A saved
     /// object reference alone does not imply the object is still on the field.
     InZone {
@@ -6605,7 +6603,7 @@ impl ObjectFilter {
 
 impl ObjectSet {
     /// The shared battlefield contains permanents, including tokens.
-    pub fn battlefield(filter: ObjectFilter) -> Self { Self::Battlefield(filter) }
+    pub fn battlefield(filter: ObjectFilter) -> Self { crate::battlefield_query!(filter) }
 
     pub fn battlefield_filter(&self) -> Option<&ObjectFilter> {
         match self { crate::battlefield_query!(filter) => Some(filter), _ => None }

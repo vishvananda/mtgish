@@ -328,7 +328,7 @@ fn fixed_cost_subjects_can_be_named_in_target_filters_without_reading_a_future_h
 }
 
 #[test]
-fn cost_history_appends_its_binary_tag_without_reordering_existing_object_sets() {
+fn cost_history_tags_follow_the_canonical_query_schema() {
     let config = bincode::config::standard();
     assert_eq!(
         bincode::encode_to_vec(ObjectSet::Observed(ResultId(7)), config).unwrap(),
@@ -336,7 +336,7 @@ fn cost_history_appends_its_binary_tag_without_reordering_existing_object_sets()
     );
     assert_eq!(
         bincode::encode_to_vec(ObjectSet::Created(ResultId(7)), config).unwrap(),
-        vec![13, 7]
+        vec![12, 7]
     );
     let history = ObjectSet::CostObjects {
         payment: PaymentRef::Activation,
@@ -344,5 +344,7 @@ fn cost_history_appends_its_binary_tag_without_reordering_existing_object_sets()
         view: CostObjectView::Inputs,
         phase: ObjectPhase::Before,
     };
-    assert_eq!(bincode::encode_to_vec(history, config).unwrap()[0], 14);
+    // Schema 172 removes the Battlefield alias before these variants. Old
+    // schema payloads must be rebuilt; the payment view remains a distinct tag.
+    assert_eq!(bincode::encode_to_vec(history, config).unwrap()[0], 13);
 }

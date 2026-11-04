@@ -242,7 +242,7 @@ fn kytheon_counts_attacks_not_survivors() {
 
 #[test]
 fn forms_on_faces_a_card_export_cannot_reach_reduce_directly() {
-    let rooms = Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    let rooms = Operand::Objects(mtgish_ast::battlefield_query!(ObjectFilter::Any));
     assert!(matches!(
         semantics::reduce_condition(
             "Condition::ThereAreNumberNamesAmongUnlockedDoorsOfPermanents".into(),

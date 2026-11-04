@@ -2211,7 +2211,6 @@ impl Inventory<'_> {
                 self.player(player);
             }
             ObjectSet::One(r) => self.object(r),
-            ObjectSet::Battlefield(f) => self.filter(f),
             ObjectSet::InZone { objects, zone } => {
                 self.objects(objects);
                 self.form("EventZone", zone);

@@ -213,7 +213,7 @@ impl<'a> Scope<'a> {
             {
                 self.result_zones.get(&result.0).cloned()
             }
-            ObjectSet::Battlefield(_) | ObjectSet::Created(_) => Some(vec![EventZone::Battlefield]),
+            ObjectSet::Created(_) => Some(vec![EventZone::Battlefield]),
             ObjectSet::Zone { scope, .. } => Some(vec![match scope {
                 ZoneScope::Shared(z) | ZoneScope::Players { zone: z, .. } => z.clone(),
             }]),
@@ -1019,7 +1019,6 @@ impl<'a> Scope<'a> {
             ObjectSet::Targets(slot) => self
                 .target(slot, None, TargetKind::Object(ObjectDomain::permanent()))
                 .or_else(|_| self.target(slot, None, TargetKind::DamageRecipient)),
-            ObjectSet::Battlefield(filter) => self.filter(filter),
             ObjectSet::InZone { objects, .. } => self.objects(objects),
             ObjectSet::Selected(result) | ObjectSet::Unselected(result) => {
                 match self.results.get(&result.0) {

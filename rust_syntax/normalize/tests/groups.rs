@@ -216,7 +216,7 @@ fn crew_validation_preserves_other_untapped_controlled_creatures_and_resolution_
         };
         match case {
             0..=3 => {
-                let ObjectSet::Battlefield(ObjectFilter::All(filters)) = &mut selections[0].objects
+                let mtgish_ast::battlefield_query!(ObjectFilter::All(filters)) = &mut selections[0].objects
                 else {
                     panic!()
                 };
