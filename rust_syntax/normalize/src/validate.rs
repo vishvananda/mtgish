@@ -4549,7 +4549,8 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
                 destination: Destination::OwnersHand,
                 entry,
                 face_down: false,
-             .. },
+                terms,
+            },
         ..
     }, Instruction::Effect {
         operation:
@@ -4568,6 +4569,7 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
         && serde_json::to_value(&choices[0].filter).ok() == serde_json::to_value(filter).ok()
         && reveal.0 == result.0
         && moved.0 == result.0
+        && terms.is_default()
         && !entry.tapped
         && entry.counters.is_empty()
         && entry.states.is_empty()

@@ -452,6 +452,50 @@ fn typecycling_reuses_search_but_retains_keyword_identity_and_canonical_payment(
 }
 
 #[test]
+fn typecycling_rejects_richer_movement_terms_in_its_fixed_keyword_body() {
+    let plain = card("Pale Recluse");
+    #[cfg(feature = "cantrip")]
+    assert!(mtgish_ast::cantrip::module(&plain).unwrap().contains(".cycling()"));
+
+    for (index, replacement) in [
+        MovementTerms { order: MovementOrder::Random, ..Default::default() },
+        MovementTerms { qualifiers: vec![SelectionConstraint::DifferentNames], ..Default::default() },
+        MovementTerms { placement: MovementPlacement::By(PlayerSet::One(PlayerRef::AbilityController)), ..Default::default() },
+    ].into_iter().enumerate() {
+        let mut rich = plain.clone();
+        let ability = rich.abilities.iter_mut().find_map(|ability| match ability {
+            Ability::Scoped { ability, .. }
+                if matches!(ability.as_ref(), Ability::Activated { origin: ActivationOrigin::Cycling { search: Some(_) }, .. }) => Some(ability.as_mut()),
+            _ => None,
+        }).unwrap();
+        let Ability::Activated { body, .. } = ability else { unreachable!() };
+        let [Instruction::Group(body)] = body.instructions.as_mut_slice() else { panic!() };
+        let Instruction::Effect { operation: Operation::Move { terms, .. }, .. } = &mut body.instructions[2] else { panic!() };
+        *terms = replacement;
+        // Keyword identity promises the fixed search/reveal/hand/shuffle body.
+        // A generic movement term must not become part of that promise.
+        assert!(validate::card(&rich).unwrap_err().contains("invalid cycling scope"));
+        #[cfg(feature = "cantrip")]
+        assert_eq!(mtgish_ast::cantrip::module(&rich).unwrap_err().feature, "invalid AST");
+
+        if index < 2 {
+            // Ordinary hand-zone activations may retain richer movement.
+            // Their unsupported terms remain backend gaps, not erased recipes.
+            for ability in &mut rich.abilities {
+                if let Ability::Scoped { ability, .. } = ability {
+                    if let Ability::Activated { origin, .. } = ability.as_mut() {
+                        *origin = ActivationOrigin::Ordinary;
+                    }
+                }
+            }
+            validate::card(&rich).unwrap();
+            #[cfg(feature = "cantrip")]
+            assert_ne!(mtgish_ast::cantrip::module(&rich).unwrap_err().feature, "invalid AST");
+        }
+    }
+}
+
+#[test]
 fn library_observation_and_reordering_do_not_masquerade_as_zone_movement() {
     let cost = Cost { parts: vec![] };
     let ann = Announcement::empty();
