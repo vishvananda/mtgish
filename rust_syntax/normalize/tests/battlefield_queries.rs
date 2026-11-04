@@ -175,6 +175,7 @@ fn complete_producer_records_change_only_query_aliases_and_schema_stamps() {
         let source: OracleCard = ron::from_str(line).unwrap();
         let mut expected: Value = serde_json::from_str(before).unwrap();
         query_aliases::battlefield(&mut expected);
+        query_aliases::value_choices(&mut expected);
         expected["schema_version"] = json!(SCHEMA_VERSION);
         for face in expected["faces"].as_array_mut().unwrap() {
             face["schema_version"] = json!(SCHEMA_VERSION);

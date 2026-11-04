@@ -1173,65 +1173,6 @@ impl Compiler {
                 done?;
                 writeln!(out, "}}").unwrap();
             }
-            Operation::ChooseValueWith { actor, kind, terms } => match terms {
-                ChoiceTerms {
-                    options,
-                    except,
-                    count: None,
-                    secret: false,
-                    unchosen: false,
-                    random: false,
-                    ordered: false,
-                    up_to: false,
-                } if except.is_empty() => {
-                    // Apex Observatory: "choose a card type shared among two exiled
-                    // cards used to craft it" offers only the types those cards share.
-                    if *kind == ValueKind::CardType && options.iter().any(|o| matches!(o, Operand::Objects(_))) {
-                        self.as_event_chooses = true;
-                        return Err(gap("a card type shared among the cards used to craft it"));
-                    }
-                    let mut code = String::new();
-                    match self.choose_value(id, actor, *kind, 1, options, &mut code) {
-                        Ok(()) => out.push_str(&code),
-                        Err(_) => self.choose_value_terms(id, actor, *kind, terms, out)?,
-                    }
-                }
-                ChoiceTerms {
-                    options,
-                    except,
-                    count: Some(Expr::Constant(k)),
-                    secret: false,
-                    unchosen: false,
-                    random: false,
-                    ordered: false,
-                    up_to: false,
-                } if *kind == ValueKind::Ability
-                    && except.is_empty()
-                    && self.pending == Pending::Entering
-                    && *k > 1
-                    && (*k as usize) < options.len() =>
-                {
-                    self.abilities_as_enters(*k as usize, options, out)?
-                }
-                // "As this enters, choose a card type other than creature": the
-                // other types, kept as its chosen option, as Arachne's.
-                terms if *kind == ValueKind::CardType
-                    && self.pending == Pending::Entering
-                    && lane_p::entering_card_types_but(terms).is_some() =>
-                {
-                    let options = lane_p::entering_card_types_but(terms).unwrap_or_default();
-                    self.choose_value(id, actor, *kind, 1, &options, out)?;
-                }
-                terms => {
-                    self.choose_value_terms(id, actor, *kind, terms, out)?;
-                    self.chosen_number_performed(*kind, result);
-                    // Objects chosen on terms are what "each creature chosen this
-                    // way" reads back: the hole's own stand-in, not a hole of its own.
-                    if matches!(kind, ValueKind::Object) && out.contains(&format!("let chosen_{id} =")) {
-                        self.selections.insert(result.0, format!("chosen_{id}"));
-                    }
-                }
-            },
             Operation::CopyCards {
                 actor,
                 objects,
@@ -1994,7 +1935,7 @@ impl Compiler {
             Operation::Together(operations)
                 if operations
                     .iter()
-                    .all(|operation| matches!(operation, Operation::ChooseValue { .. })) =>
+                    .all(|operation| matches!(operation, Operation::ChooseValue { terms, .. } if terms.ordinary_count().is_some())) =>
             {
                 for operation in operations {
                     self.operation(operation, result, out)?;
@@ -3818,6 +3759,74 @@ impl Compiler {
     }
     /// "A choice of" on terms past one plain value: secret, several, up to, not
     /// what was chosen before. Later reads see the local it will be.
+    pub(super) fn choose_on_terms(
+        &mut self,
+        id: usize,
+        actor: &PlayerSet,
+        kind: ValueKind,
+        terms: &ChoiceTerms,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        if let Some(count) = terms.ordinary_count() {
+            if count == 1 {
+                // Restricted card types are not the unrestricted card-type menu.
+                if kind == ValueKind::CardType
+                    && terms
+                        .options
+                        .iter()
+                        .any(|o| matches!(o, Operand::Objects(_)))
+                {
+                    self.as_event_chooses = true;
+                    return Err(gap("a card type shared among the cards used to craft it"));
+                }
+                let mut code = String::new();
+                match self.choose_value(id, actor, kind, count, &terms.options, &mut code) {
+                    Ok(()) => {
+                        out.push_str(&code);
+                        return Ok(());
+                    }
+                    // These native menus validate their operands precisely. Keep
+                    // that diagnostic instead of hiding it behind a generic hole.
+                    Err(error)
+                        if matches!(
+                            kind,
+                            ValueKind::Ability | ValueKind::CardName | ValueKind::Word
+                        ) =>
+                    {
+                        return Err(error)
+                    }
+                    Err(_) => return self.choose_value_terms(id, actor, kind, terms, out),
+                }
+            }
+            if kind == ValueKind::Ability
+                && self.pending == Pending::Entering
+                && count > 1
+                && (count as usize) < terms.options.len()
+            {
+                return self.abilities_as_enters(count as usize, &terms.options, out);
+            }
+            // The scalar multi-choice helper has no option restrictions. Word
+            // replacement and entering pairs consume their options themselves.
+            if terms.options.is_empty()
+                || matches!(kind, ValueKind::ColorWord | ValueKind::BasicLandType)
+                || (self.pending == Pending::Entering && self.enters_two == Some(kind))
+            {
+                return self.choose_value(id, actor, kind, count, &terms.options, out);
+            }
+        }
+        if kind == ValueKind::CardType && self.pending == Pending::Entering {
+            if let Some(options) = lane_p::entering_card_types_but(terms) {
+                return self.choose_value(id, actor, kind, 1, &options, out);
+            }
+        }
+        self.choose_value_terms(id, actor, kind, terms, out)?;
+        self.chosen_number_performed(kind, result);
+        if kind == ValueKind::Object && out.contains(&format!("let chosen_{id} =")) {
+            self.selections.insert(result.0, format!("chosen_{id}"));
+        }
+        Ok(())
+    }
     pub(super) fn choose_value_terms(
         &mut self,
         id: usize,
@@ -3830,26 +3839,28 @@ impl Compiler {
         let options: Vec<String> = terms.options.iter().map(|o| self.operand_code(o)).collect();
         let except: Vec<String> = terms.except.iter().map(|o| self.operand_code(o)).collect();
         let count = match &terms.count {
-            Some(count) => format!(
+            // The planned helper uses None only for unbounded cardinality.
+            // A source default of one is already Exactly(1) in the IR.
+            ChoiceCount::AnyNumber => "None".to_string(),
+            ChoiceCount::Exactly(count) | ChoiceCount::UpTo(count) => format!(
                 "Some({})",
                 self.fetch(self.number(count)?.amount(u32::MAX.into(), "u32")?)
             ),
-            None => "None".to_string(),
         };
+        let up_to = matches!(terms.count, ChoiceCount::UpTo(_));
         let ChoiceTerms {
             secret,
             unchosen,
             random,
             ordered,
-            up_to,
             ..
         } = terms;
         if let (ValueKind::CreatureType, PlayerSet::One(player), [_, ..]) =
             (kind, actor, except.as_slice())
         {
             let plain = terms.options.is_empty()
-                && terms.count.is_none()
-                && !(*secret || *unchosen || *random || *ordered || *up_to)
+                && terms.exactly_one()
+                && !(*secret || *unchosen || *random || *ordered || up_to)
                 && except.iter().all(|word| word.starts_with("CreatureType::"))
                 && !self.chosen.iter().any(|(k, _)| *k == kind);
             if plain {

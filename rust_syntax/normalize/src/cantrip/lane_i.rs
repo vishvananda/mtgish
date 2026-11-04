@@ -72,7 +72,6 @@ fn walked(op: &Operation) -> bool {
             | Operation::ChoosePile { then: None, .. }
             | Operation::ChooseObjects { .. }
             | Operation::ChooseValue { .. }
-            | Operation::ChooseValueWith { .. }
             | Operation::ChooseAtRandom { .. }
             | Operation::ChoosePowerToughness { .. }
             | Operation::ChooseAction { .. }

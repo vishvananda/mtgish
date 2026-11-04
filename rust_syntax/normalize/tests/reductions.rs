@@ -265,7 +265,7 @@ fn set_and_stack_actions_are_typed() {
             "Action::SecretlyChooseANumberBetween",
             vec![Operand::Integer(1), Operand::Integer(3)]
         ),
-        Operation::ChooseValueWith {
+        Operation::ChooseValue {
             kind: ValueKind::Number,
             terms: ChoiceTerms { secret: true, .. },
             ..

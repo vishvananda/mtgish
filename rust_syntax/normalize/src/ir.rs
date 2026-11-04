@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 172;
+pub const SCHEMA_VERSION: u32 = 173;
 
 /// Typed pattern for the permanent query of the shared battlefield. Card-only,
 /// player-scoped and other-zone queries deliberately do not match.
@@ -1400,14 +1400,12 @@ pub enum Operation {
         spot: Option<ConjureSpot>,
         entry: Vec<Operand>,
     },
-    /// Choose `count` values of this kind. A read of one goes through
+    /// Choose values under explicit cardinality and terms. Reads go through
     /// `ObjectFilter::Chosen`, `Change::ChosenType` or `Expr::ChosenNumber`.
     ChooseValue {
         actor: PlayerSet,
         kind: ValueKind,
-        /// 0 is any number.
-        count: u32,
-        options: Vec<Operand>,
+        terms: ChoiceTerms,
     },
     /// Choose one of these power/toughness adjustments.
     ChoosePowerToughness {
@@ -1639,12 +1637,6 @@ pub enum Operation {
         first: Box<Operand>,
         second: Box<Operand>,
         until: Option<Duration>,
-    },
-    /// `ChooseValue` on terms.
-    ChooseValueWith {
-        actor: PlayerSet,
-        kind: ValueKind,
-        terms: ChoiceTerms,
     },
     /// Secret choices or votes of this kind become known.
     RevealChoices {
@@ -1942,13 +1934,54 @@ pub struct ChoiceTerms {
     /// What may be chosen: values, or a `Comparison` each number must meet.
     pub options: Vec<Operand>,
     pub except: Vec<Operand>,
-    pub count: Option<Expr>,
+    pub count: ChoiceCount,
     pub secret: bool,
     /// Not what was chosen before.
     pub unchosen: bool,
     pub random: bool,
     pub ordered: bool,
-    pub up_to: bool,
+}
+/// Cardinality for values, independent of object targeting and payment counts.
+/// The default is exactly one; zero is a real bound, never an unbounded sentinel.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ChoiceCount {
+    Exactly(Expr),
+    UpTo(Expr),
+    AnyNumber,
+}
+impl Default for ChoiceCount {
+    fn default() -> Self {
+        Self::Exactly(Expr::Constant(1))
+    }
+}
+impl ChoiceTerms {
+    /// Normalize the legacy grammar table's zero-as-any convention at its edge.
+    pub fn ordinary(count: u32, options: Vec<Operand>) -> Self {
+        Self {
+            options,
+            count: if count == 0 {
+                ChoiceCount::AnyNumber
+            } else {
+                ChoiceCount::Exactly(Expr::Constant(i64::from(count)))
+            },
+            ..Self::default()
+        }
+    }
+    /// An ordinary cardinality without rich flags or exclusions. Exact
+    /// zero must not reach that backend's legacy zero-as-any calling convention.
+    pub fn ordinary_count(&self) -> Option<u32> {
+        if !self.except.is_empty() || self.secret || self.unchosen || self.random || self.ordered {
+            return None;
+        }
+        match self.count {
+            ChoiceCount::AnyNumber => Some(0),
+            ChoiceCount::Exactly(Expr::Constant(n)) if n > 0 => u32::try_from(n).ok(),
+            _ => None,
+        }
+    }
+    pub fn exactly_one(&self) -> bool {
+        matches!(self.count, ChoiceCount::Exactly(Expr::Constant(1)))
+    }
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CombatChange {

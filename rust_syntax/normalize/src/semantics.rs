@@ -261,7 +261,7 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             until: Some(_),
             ..
         } => "Action::ExchangeControlOfEachPermanentWithPlayerUntil",
-        Operation::ChooseValueWith {
+        Operation::ChooseValue {
             kind: ValueKind::Object,
             terms,
             ..
@@ -854,8 +854,7 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         return Operation::ChooseValue {
             actor,
             kind: *kind,
-            count: *count,
-            options: operands,
+            terms: ChoiceTerms::ordinary(*count, operands),
         };
     }
     let action = KEYWORD_ACTIONS
@@ -5920,7 +5919,6 @@ impl Effects {
                     | Operation::Repeat { .. }
                     | Operation::TurnFaceDownAs { .. }
                     | Operation::Exchange { .. }
-                    | Operation::ChooseValueWith { .. }
                     | Operation::RevealChoices { .. }
                     | Operation::CoinFlips { .. }
                     | Operation::AttachEach { .. }

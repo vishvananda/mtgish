@@ -1690,12 +1690,15 @@ impl Compiler {
                     self.stated_mana(players, mana, restriction.as_ref(), failed, out)?
                 }
             },
-            Operation::ChooseValue {
-                actor,
-                kind,
-                count,
-                options,
-            } => self.choose_value(id, actor, *kind, *count, options, out)?,
+            Operation::ChooseValue { actor, kind, terms } => {
+                self.choose_on_terms(id, actor, *kind, terms, result, out)?;
+                // A scalar number belongs to this operation's result, not to
+                // an earlier choice of the same kind or an enclosing body.
+                let local = format!("chosen_{id}");
+                if *kind == ValueKind::Number && self.chosen.iter().any(|(k, value)| *k == *kind && value == &local) {
+                    self.performed.insert(result.0, format!("i64::from({local})"));
+                }
+            }
             Operation::Keyword {
                 actor,
                 action,

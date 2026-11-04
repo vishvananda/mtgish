@@ -436,12 +436,11 @@ pub(super) fn entering_card_types_but(terms: &ChoiceTerms) -> Option<Vec<Operand
     let ChoiceTerms {
         options,
         except,
-        count: None,
+        count: ChoiceCount::Exactly(Expr::Constant(1)),
         secret: false,
         unchosen: false,
         random: false,
         ordered: false,
-        up_to: false,
     } = terms
     else {
         return None;
@@ -460,24 +459,10 @@ pub(super) fn entering_card_type(card: &Card) -> Option<Vec<String>> {
             return None;
         };
         body.instructions.iter().find_map(|instruction| match instruction {
-            Instruction::Effect {
-                operation:
-                    Operation::ChooseValue {
-                        kind: ValueKind::CardType,
-                        options,
-                        ..
-                    },
-                ..
-            } => Some(entering_types(options)),
-            Instruction::Effect {
-                operation:
-                    Operation::ChooseValueWith {
-                        kind: ValueKind::CardType,
-                        terms,
-                        ..
-                    },
-                ..
-            } => entering_card_types_but(terms).map(|options| entering_types(&options)),
+            Instruction::Effect { operation: Operation::ChooseValue {kind: ValueKind::CardType, terms, ..}, .. } => {
+                if terms.ordinary_count().is_some() { Some(entering_types(&terms.options)) }
+                else { entering_card_types_but(terms).map(|options| entering_types(&options)) }
+            }
             _ => None,
         })
     })
@@ -496,8 +481,7 @@ impl Compiler {
                 Operation::ChooseValue {
                     actor: PlayerSet::One(PlayerRef::AbilityController),
                     kind: ValueKind::Color,
-                    count: 1,
-                    options,
+                    terms,
                 },
             ..
         }, Instruction::Effect {
@@ -516,6 +500,9 @@ impl Compiler {
         else {
             return Ok(None);
         };
+        if terms.ordinary_count() != Some(1) { return Ok(None); }
+        let options = &terms.options;
+
         let [Operand::Term { form, operands, .. }] = options.as_slice() else {
             return Ok(None);
         };
@@ -4120,20 +4107,17 @@ impl Compiler {
                 let spells = self.fetch(self.objects(objects)?);
                 format!("{M}::effects::counter_onto(g, {source}, {spells}, CounterDestination::{destination:?})?")
             }
-            Operation::ChooseValue {
-                actor,
-                kind,
-                count,
-                options,
-            } => {
+            Operation::ChooseValue { actor, kind, terms } => {
                 let actors = self.stated_players(actor)?;
-                let options = self.stated_operands(options);
-                // As lane_l's choice on terms calls it: one signature.
-                let count = match count {
-                    0 => "None".to_string(),
-                    n => format!("Some({n})"),
+                let options = self.stated_operands(&terms.options);
+                let except = self.stated_operands(&terms.except);
+                let count = match &terms.count {
+                    ChoiceCount::AnyNumber => "None".to_string(),
+                    ChoiceCount::Exactly(n) | ChoiceCount::UpTo(n) => format!("Some({})", self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?)),
                 };
-                format!("{M}::choose::value(g, {actors}, {source}, ChoiceKind::{kind:?}, ChoiceTerms {{ options: {options}, except: &[], count: {count}, secret: false, unchosen: false, random: false, ordered: false, up_to: false }})?")
+                let ChoiceTerms {secret, unchosen, random, ordered, ..} = terms;
+                let up_to = matches!(terms.count, ChoiceCount::UpTo(_));
+                format!("{M}::choose::value(g, {actors}, {source}, ChoiceKind::{kind:?}, ChoiceTerms {{ options: {options}, except: {except}, count: {count}, secret: {secret}, unchosen: {unchosen}, random: {random}, ordered: {ordered}, up_to: {up_to} }})?")
             }
             Operation::ChooseAtRandom { kind, options } => {
                 let options = self.stated_operands(options);

@@ -29,6 +29,12 @@ fn custom(rule: &str) -> Result<Card, Vec<lower::Diagnostic>> {
     *rules = Some(vec![ron::from_str(rule).unwrap()]);
     lower::card(&c)
 }
+fn value_choice(rule: &str) -> (ValueKind, ChoiceTerms) {
+    let card = custom(rule).unwrap();
+    let Ability::Spell { body, .. } = &card.abilities[0] else { panic!("{card:?}") };
+    let Instruction::Effect {operation:Operation::ChooseValue {kind,terms,..},..} = &body.instructions[0] else {panic!("{body:?}")};
+    (*kind, terms.clone())
+}
 fn inner(a: &Ability) -> &Ability {
     match a {
         Ability::Scoped { ability, .. } => inner(ability),
@@ -518,10 +524,10 @@ fn a_deck_rule_is_typed_and_names_its_partner() {
 
 #[test]
 fn choosing_a_player_or_an_ability_is_a_chosen_value() {
-    let body = lowered("SpellActions(ActionList([ChooseAPlayer(Opponent)]))");
-    assert!(body.contains("kind: Player, count: 1"), "{body}");
-    let body = lowered("SpellActions(ActionList([ChooseAnAbility([Flying, Haste])]))");
-    assert!(body.contains("kind: Ability, count: 1"), "{body}");
+    let (kind, terms) = value_choice("SpellActions(ActionList([ChooseAPlayer(Opponent)]))");
+    assert_eq!(kind, ValueKind::Player); assert!(terms.exactly_one());
+    let (kind, terms) = value_choice("SpellActions(ActionList([ChooseAnAbility([Flying, Haste])]))");
+    assert_eq!(kind, ValueKind::Ability); assert!(terms.exactly_one());
 }
 
 #[test]
@@ -638,9 +644,8 @@ fn a_change_to_a_spell_names_the_spell_and_ordinary_changes() {
 
 #[test]
 fn a_chosen_value_is_one_choice_read_by_kind() {
-    let body = lowered("SpellActions(ActionList([ChooseACreatureType]))");
-    assert!(body.contains("ChooseValue"), "{body}");
-    assert!(body.contains("kind: CreatureType, count: 1"), "{body}");
+    let (kind, terms) = value_choice("SpellActions(ActionList([ChooseACreatureType]))");
+    assert_eq!(kind, ValueKind::CreatureType); assert!(terms.exactly_one());
     let body = lowered(
         "PermanentLayerEffect(HostPermanent, [AddCreatureTypeVariable(TheChosenCreatureType)])",
     );
@@ -1062,10 +1067,10 @@ fn the_top_card_moves_only_if_it_matches() {
 
 #[test]
 fn a_chosen_colors_read_any_number() {
-    let body = lowered(
+    let (kind, terms) = value_choice(
         "SpellActions(Targeted([TargetPermanent(AnyPermanent)], ActionList([ChooseColors, CreatePermanentLayerEffect(Ref_TargetPermanent, [SetColor(TheChosenColors)])])))",
     );
-    assert!(body.contains("kind: Color, count: 0"), "{body}");
+    assert_eq!(kind, ValueKind::Color); assert!(matches!(terms.count, ChoiceCount::AnyNumber));
 }
 
 #[test]

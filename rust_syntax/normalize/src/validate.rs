@@ -2994,11 +2994,11 @@ impl<'a> Scope<'a> {
                 self.operand(second)?;
                 until.iter().try_for_each(|until| self.duration(until))
             }
-            Operation::ChooseValueWith { actor, terms, .. } => {
+            Operation::ChooseValue { actor, terms, .. } => {
                 self.players(actor)?;
                 terms.options.iter().try_for_each(|o| self.operand(o))?;
                 terms.except.iter().try_for_each(|o| self.operand(o))?;
-                terms.count.iter().try_for_each(|n| self.expr(n))
+                match &terms.count { ChoiceCount::Exactly(n) | ChoiceCount::UpTo(n) => self.expr(n), ChoiceCount::AnyNumber => Ok(()) }
             }
             Operation::RevealChoices { .. } => Ok(()),
             Operation::CoinFlips {
@@ -3365,10 +3365,6 @@ impl<'a> Scope<'a> {
                 options.iter().try_for_each(|o| self.operand(o))
             }
             Operation::ChooseAction { actor, options, .. } => {
-                self.players(actor)?;
-                options.iter().try_for_each(|o| self.operand(o))
-            }
-            Operation::ChooseValue { actor, options, .. } => {
                 self.players(actor)?;
                 options.iter().try_for_each(|o| self.operand(o))
             }

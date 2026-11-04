@@ -317,7 +317,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
         // "Chooses a card in your graveyard", "secretly chooses a creature": objects
         // chosen on terms, which "each creature chosen this way" reads back.
-        Operation::ChooseValueWith {
+        Operation::ChooseValue {
             kind: ValueKind::Object,
             ..
         } => &["Selected"],

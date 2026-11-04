@@ -568,7 +568,7 @@ impl Inventory<'_> {
                     self.duration(until);
                 }
             }
-            Operation::ChooseValueWith { actor, kind, .. } => {
+            Operation::ChooseValue { actor, kind, .. } => {
                 self.players(actor);
                 self.form("ValueKind", kind);
             }
@@ -886,10 +886,6 @@ impl Inventory<'_> {
             }
             Operation::ChooseAtRandom { kind, .. } => self.form("ValueKind", kind),
             Operation::ChooseAction { actor, .. } => self.players(actor),
-            Operation::ChooseValue { actor, kind, .. } => {
-                self.form("ValueKind", kind);
-                self.players(actor);
-            }
             Operation::Keyword {
                 actor,
                 action,

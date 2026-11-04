@@ -108,18 +108,20 @@ pub(super) fn enters_two(card: &Card) -> Option<ValueKind> {
         else {
             return None;
         };
-        body.instructions.iter().find_map(|instruction| match instruction {
-            Instruction::Effect {
-                operation:
-                    Operation::ChooseValue {
-                        kind: kind @ (ValueKind::Color | ValueKind::Player),
-                        count: 2,
-                        ..
-                    },
-                ..
-            } => Some(*kind),
-            _ => None,
-        })
+        body.instructions
+            .iter()
+            .find_map(|instruction| match instruction {
+                Instruction::Effect {
+                    operation:
+                        Operation::ChooseValue {
+                            kind: kind @ (ValueKind::Color | ValueKind::Player),
+                            terms,
+                            ..
+                        },
+                    ..
+                } if terms.ordinary_count() == Some(2) => Some(*kind),
+                _ => None,
+            })
     })
 }
 
@@ -137,28 +139,18 @@ pub(super) fn enters_choosing(card: &Card) -> Vec<ValueKind> {
         };
         for instruction in &body.instructions {
             if let Instruction::Effect {
-                operation: Operation::ChooseValue { kind, .. },
+                operation: Operation::ChooseValue { kind, terms, .. },
                 ..
             } = instruction
             {
-                kinds.push(*kind);
-                // One of printed pairs: both are chosen.
-                if *kind == ValueKind::ColorAndCreatureType {
-                    kinds.extend([ValueKind::Color, ValueKind::CreatureType]);
-                }
-            }
-            if let Instruction::Effect {
-                operation:
-                    Operation::ChooseValueWith {
-                        kind: ValueKind::CardType,
-                        terms,
-                        ..
-                    },
-                ..
-            } = instruction
-            {
-                if lane_p::entering_card_types_but(terms).is_some() {
-                    kinds.push(ValueKind::CardType);
+                if terms.ordinary_count().is_some()
+                    || (*kind == ValueKind::CardType
+                        && lane_p::entering_card_types_but(terms).is_some())
+                {
+                    kinds.push(*kind);
+                    if *kind == ValueKind::ColorAndCreatureType {
+                        kinds.extend([ValueKind::Color, ValueKind::CreatureType]);
+                    }
                 }
             }
         }
@@ -207,7 +199,9 @@ impl Compiler {
         if kind == ValueKind::Word
             && matches!(actor, PlayerSet::All)
             && self.stack_item
-            && self.line_text().is_some_and(|t| t.contains("For each player, choose"))
+            && self
+                .line_text()
+                .is_some_and(|t| t.contains("For each player, choose"))
         {
             return self.word_for_each_player(id, actor, options, out);
         }
@@ -340,7 +334,8 @@ impl Compiler {
         made.dedup_by_key(|(n, ..)| *n);
         let (_, kind, local) = made.get(index as usize)?;
         // Only a lone value (a list is no one choice).
-        if local.starts_with("colors_") || local.contains(['(', ' ', '[']) && !local.ends_with(KEPT) {
+        if local.starts_with("colors_") || local.contains(['(', ' ', '[']) && !local.ends_with(KEPT)
+        {
             return None;
         }
         let read = match local.strip_suffix(KEPT) {
@@ -381,7 +376,10 @@ impl Compiler {
         if !made_by_a_hole {
             return read;
         }
-        let feature = format!("planned_value!({:?}", format!("a choice of {kind:?} outside its body"));
+        let feature = format!(
+            "planned_value!({:?}",
+            format!("a choice of {kind:?} outside its body")
+        );
         read.replace(&feature, &format!("planned_value!({FOLLOWS_GAP:?}"))
     }
     /// `Option` of the choice: this body's, or what was chosen as the source
@@ -398,7 +396,9 @@ impl Compiler {
         }
         // The choice itself is a hole, so this read follows it.
         if self.as_event_chooses && kind == ValueKind::CardType {
-            return lane_p::chosen_elsewhere(self.linked(), kind).map(|read| read.replacen("a choice of CardType outside its body", FOLLOWS_GAP, 1));
+            return lane_p::chosen_elsewhere(self.linked(), kind).map(|read| {
+                read.replacen("a choice of CardType outside its body", FOLLOWS_GAP, 1)
+            });
         }
         // The engine keeps a permanent's choices as it entered, and no other.
         if !self.enters_choosing.contains(&kind) {
@@ -408,14 +408,19 @@ impl Compiler {
             // "{2}, {T}, Choose flying, first strike, trample, or shadow: target
             // creature with the chosen ability" (Phyrexian Splicer): chosen as
             // its cost, before its targets, and Cantrip announces no such choice.
-            let cost = format!("{:?}", self.activation_cost);
-            if cost.contains("ChooseValue") && cost.contains(&format!("kind: {kind:?},")) {
-                return Err(gap("a value chosen as an activation cost, read by its targets"));
+            if self
+                .activation_cost
+                .as_ref()
+                .is_some_and(|cost| chooses_in_cost(cost, kind))
+            {
+                return Err(gap(
+                    "a value chosen as an activation cost, read by its targets",
+                ));
             }
             if self.stack_item
-                && self.line_text().is_some_and(|line| {
-                    line.contains("hoose a ") && line.contains("henever")
-                })
+                && self
+                    .line_text()
+                    .is_some_and(|line| line.contains("hoose a ") && line.contains("henever"))
             {
                 return Err(gap("a resolution's choice read by the trigger it creates"));
             }
@@ -451,7 +456,9 @@ impl Compiler {
     pub(super) fn chosen_filter(&self, kind: ValueKind, chars: &str, id: &str) -> Result<String> {
         let list = self.chosen_lists.iter().find(|(k, _)| *k == kind);
         if list.is_none() && self.earlier_chosen_lists.contains(&kind) {
-            return Err(gap(format!("a {kind:?} each player chose as it entered, read by another ability")));
+            return Err(gap(format!(
+                "a {kind:?} each player chose as it entered, read by another ability"
+            )));
         }
         let value = match list {
             Some(_) => String::new(),
@@ -555,7 +562,8 @@ impl Compiler {
     }
     /// Whether the printed line keeps what the object was. Without a line, as read.
     fn printed_in_addition(&self) -> bool {
-        self.line_text().is_none_or(|line| line.contains("in addition"))
+        self.line_text()
+            .is_none_or(|line| line.contains("in addition"))
     }
     /// The body of a layer's change by a value chosen as the source entered.
     pub(super) fn chosen_layer(&self, change: &Change) -> Result<statics::LayerChange> {
@@ -637,5 +645,166 @@ impl Compiler {
             ))),
             other => Err(gap(format!("protection from a chosen {other:?}"))),
         }
+    }
+}
+
+/// Choices announced while paying this cost, excluding nested ability declarations.
+fn chooses_in_cost(cost: &Cost, kind: ValueKind) -> bool {
+    use crate::visit::{Visitor, Walk};
+    struct Choices {
+        kind: ValueKind,
+        found: bool,
+    }
+    impl Visitor for Choices {
+        fn ability(&mut self, _: &Ability) -> bool {
+            false
+        }
+        fn operation(&mut self, operation: &Operation) -> bool {
+            if matches!(operation, Operation::ChooseValue {kind, ..} if *kind == self.kind) {
+                self.found = true;
+            }
+            true
+        }
+    }
+    let mut reader = Choices { kind, found: false };
+    cost.walk(&mut reader);
+    reader.found
+}
+
+#[cfg(test)]
+mod value_choice_scope_tests {
+    use super::*;
+    fn choice() -> Program {
+        Program {
+            instructions: vec![Instruction::Effect {
+                result: ResultId(0),
+                operation: Operation::ChooseValue {
+                    actor: PlayerSet::One(PlayerRef::AbilityController),
+                    kind: ValueKind::Color,
+                    terms: ChoiceTerms::default(),
+                },
+            }],
+        }
+    }
+    fn cost(operand: Operand) -> Cost {
+        Cost {
+            parts: vec![CostPart::Primitive {
+                name: "scope-control".into(),
+                operands: vec![operand],
+            }],
+        }
+    }
+    #[test]
+    fn activation_cost_choice_reader_is_typed_and_respects_ability_scopes() {
+        assert!(chooses_in_cost(
+            &cost(Operand::Program(choice())),
+            ValueKind::Color
+        ));
+        assert!(!chooses_in_cost(
+            &cost(Operand::Program(choice())),
+            ValueKind::Ability
+        ));
+        let nested = Ability::Spell {
+            announcement: Announcement {
+                targets: vec![],
+                modes: None,
+            },
+            body: choice(),
+        };
+        assert!(!chooses_in_cost(
+            &cost(Operand::Ability(Box::new(nested))),
+            ValueKind::Color
+        ));
+        assert!(!chooses_in_cost(
+            &cost(Operand::Text("ChooseValue { kind: Color, }".into())),
+            ValueKind::Color
+        ));
+    }
+}
+
+#[cfg(test)]
+mod value_choice_result_tests {
+    use super::*;
+    fn choice(kind: ValueKind, count: ChoiceCount, secret: bool) -> Operation {
+        Operation::ChooseValue {
+            actor: PlayerSet::One(PlayerRef::AbilityController),
+            kind,
+            terms: ChoiceTerms {
+                count,
+                secret,
+                ..Default::default()
+            },
+        }
+    }
+    #[test]
+    fn planned_counts_keep_one_zero_up_to_and_unbounded_distinct() {
+        for (count, expected, up_to) in [
+            (ChoiceCount::default(), "1i64", false),
+            (ChoiceCount::Exactly(Expr::Constant(0)), "0i64", false),
+            (ChoiceCount::UpTo(Expr::Constant(2)), "2i64", true),
+            (ChoiceCount::AnyNumber, "None", false),
+        ] {
+            let mut compiler = Compiler::new();
+            let mut code = String::new();
+            compiler
+                .operation(
+                    &choice(ValueKind::Number, count, true),
+                    &ResultId(8),
+                    &mut code,
+                )
+                .unwrap();
+            let rendered = code
+                .split("count: ")
+                .nth(1)
+                .unwrap()
+                .split(", secret:")
+                .next()
+                .unwrap();
+            if expected == "None" {
+                assert_eq!(rendered, "None");
+            } else {
+                assert!(rendered.starts_with("Some("), "{code}");
+                assert!(rendered.contains(expected), "{code}");
+            }
+            assert!(code.contains(&format!("up_to: {up_to}")), "{code}");
+            assert!(code.contains("a value chosen in secret"), "{code}");
+        }
+    }
+    #[test]
+    fn consecutive_numeric_choices_have_separate_results_and_lexical_lifetimes() {
+        let mut compiler = Compiler::new();
+        let mut code = String::new();
+        let operation = choice(ValueKind::Number, ChoiceCount::default(), false);
+        compiler
+            .operation(&operation, &ResultId(10), &mut code)
+            .unwrap();
+        let first = compiler.performed[&10].clone();
+        let snapshot = compiler.results();
+        compiler
+            .operation(&operation, &ResultId(11), &mut code)
+            .unwrap();
+        let second = compiler.performed[&11].clone();
+        assert_ne!(first, second);
+        assert_eq!(compiler.performed[&10], first);
+        assert!(code.contains("chosen_0"));
+        assert!(code.contains("chosen_1"));
+        compiler.restore_results(snapshot);
+        assert_eq!(compiler.performed[&10], first);
+        assert!(!compiler.performed.contains_key(&11));
+    }
+    #[test]
+    fn a_secret_object_choice_keeps_its_selection_result() {
+        let mut compiler = Compiler::new();
+        let mut code = String::new();
+        compiler
+            .operation(
+                &choice(ValueKind::Object, ChoiceCount::default(), true),
+                &ResultId(21),
+                &mut code,
+            )
+            .unwrap();
+        assert_eq!(compiler.selections[&21], "chosen_0");
+        assert!(code.contains("Vec::<ObjectId>::new()"));
+        assert!(!compiler.selections.contains_key(&0));
     }
 }

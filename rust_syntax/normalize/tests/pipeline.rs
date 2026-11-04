@@ -2314,7 +2314,9 @@ fn another_player_acting_can_be_a_cost() {
 #[test]
 fn a_chosen_ability_is_a_change_after_the_choice() {
     let text = ability_json("SpellActions(ActionList([ChooseAnAbility([Flying,Haste]),CreatePermanentLayerEffectUntil(ThisPermanent,[AddAbilityVariable(TheChosenAbility)],UntilEndOfTurn)]))");
-    assert!(text.contains(r#""kind":"Ability","count":1"#), "{text}");
+    let ability: Ability = serde_json::from_str(&text).unwrap();
+    let Ability::Spell {body,..} = ability else { panic!("{text}") };
+    assert!(matches!(&body.instructions[0], Instruction::Effect {operation:Operation::ChooseValue {kind:ValueKind::Ability,terms,..},..} if terms.exactly_one()), "{text}");
     assert!(text.contains("ChosenAbility"), "{text}");
 }
 

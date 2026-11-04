@@ -1432,7 +1432,7 @@ fn reduce_choice(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<
     use Operand::{Filter, Integer, List, Number, Objects, Player, Players, Program as Actions};
     use ValueKind as V;
     let terms = ChoiceTerms::default;
-    let with = |kind, terms| Operation::ChooseValueWith {
+    let with = |kind, terms| Operation::ChooseValue {
         actor: actor.clone(),
         kind,
         terms,
@@ -1459,7 +1459,7 @@ fn reduce_choice(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<
         ("ChooseACreatureType_And_ChooseACreatureTypeOtherThan", [other]) => with(
             V::CreatureType,
             ChoiceTerms {
-                count: Some(Expr::Constant(2)),
+                count: ChoiceCount::Exactly(Expr::Constant(2)),
                 except: vec![other.clone()],
                 ..terms()
             },
@@ -1530,7 +1530,7 @@ fn reduce_choice(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<
             V::CardType,
             ChoiceTerms {
                 options: kinds.to_vec(),
-                count: Some(Expr::Constant(kinds.len() as i64)),
+                count: ChoiceCount::Exactly(Expr::Constant(kinds.len() as i64)),
                 ordered: true,
                 ..terms()
             },
@@ -1538,8 +1538,7 @@ fn reduce_choice(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<
         ("ForEachPlayerChooseAWord", [Players(players), List(words)]) => Operation::ChooseValue {
             actor: players.clone(),
             kind: V::Word,
-            count: 1,
-            options: words.clone(),
+            terms: ChoiceTerms::ordinary(1, words.clone()),
         },
         ("ChooseANumberBetweenAtRandom", [Number(a), Number(b)]) => random(
             V::Number,
@@ -1555,7 +1554,7 @@ fn reduce_choice(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<
             V::Ability,
             ChoiceTerms {
                 options: abilities.clone(),
-                count: Some(n.clone()),
+                count: ChoiceCount::Exactly(n.clone()),
                 random: true,
                 ..terms()
             },

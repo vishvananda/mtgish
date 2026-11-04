@@ -16,7 +16,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         amount,
         subtype: None,
     };
-    let choose_with = |kind, terms| Operation::ChooseValueWith {
+    let choose_with = |kind, terms| Operation::ChooseValue {
         actor: actor.clone(),
         kind,
         terms,
@@ -24,8 +24,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
     let choose_value = |kind| Operation::ChooseValue {
         actor: actor.clone(),
         kind,
-        count: 1,
-        options: vec![],
+        terms: ChoiceTerms::ordinary(1, vec![]),
     };
         let reveal_and_discard = |cards: &ObjectFilter, count: Expr| {
         Operation::Together(vec![
@@ -154,7 +153,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             ValueKind::Ability,
             ChoiceTerms {
                 options: options.clone(),
-                count: Some(count.clone()),
+                count: ChoiceCount::Exactly(count.clone()),
                 ..Default::default()
             },
         ),
@@ -163,8 +162,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                 ValueKind::Color,
                 ChoiceTerms {
                     options: vec![colors.clone()],
-                    count: Some(count.clone()),
-                    up_to: form == "ChooseUptoNumberColors",
+                    count: if form == "ChooseUptoNumberColors" { ChoiceCount::UpTo(count.clone()) } else { ChoiceCount::Exactly(count.clone()) },
                     ..Default::default()
                 },
             )
@@ -172,8 +170,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         ("ChooseAColorAndCreatureType", pairs) if !pairs.is_empty() => Operation::ChooseValue {
             actor: actor.clone(),
             kind: ValueKind::ColorAndCreatureType,
-            count: 1,
-            options: pairs.to_vec(),
+            terms: ChoiceTerms::ordinary(1, pairs.to_vec()),
         },
         ("ChooseALandTypeAndABasicLandType", []) => Operation::Together(vec![
             choose_value(ValueKind::LandType),
@@ -182,8 +179,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         ("SwapWordChoice", [Text(_), Text(_)]) => Operation::ChooseValue {
             actor: actor.clone(),
             kind: ValueKind::Word,
-            count: 1,
-            options: operands.to_vec(),
+            terms: ChoiceTerms::ordinary(1, operands.to_vec()),
         },
         ("ChooseAPlayerOrPlaneswalkerCurrentlyAttackedByPlayer", [Player(attacker)]) => {
             Operation::ChooseDefender {
@@ -997,8 +993,7 @@ fn tail_inspection_step(
         ("PlayerChoosesACardName", [Player(player), options @ ..]) => Operation::ChooseValue {
             actor: PlayerSet::One(player.clone()),
             kind: ValueKind::CardName,
-            count: 1,
-            options: options.to_vec(),
+            terms: ChoiceTerms::ordinary(1, options.to_vec()),
         },
         _ => return None,
     })
