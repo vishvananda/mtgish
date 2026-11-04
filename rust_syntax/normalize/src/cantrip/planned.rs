@@ -50,6 +50,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("blocked-status", "fn become_blocked(", &["engine-no-effect-makes-a-creature-blocked", "keyword-action-become-blocked"]),
     // A P/T counter also needs its exact kind in COUNTERS; do not globally land unknown pairs.
     ("pt-counters", "pub const POWER_TOUGHNESS:", &[]),
+    ("regeneration-bans", "pub const fn granted_regeneration_ban(", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

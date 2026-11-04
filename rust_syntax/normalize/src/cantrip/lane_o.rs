@@ -2063,6 +2063,11 @@ impl Compiler {
         // its place in the card's lists (as `GrantedWay::gains` names one of
         // `delayed`).
         let tabled = self.tabled;
+        let (granting, quoted_used) = (self.granting, self.quoted_used.clone());
+        self.granting = true;
+        let granted_text = self.said(lane_k::Said::Sentence, form(ability));
+        self.granting = granting;
+        self.quoted_used = quoted_used;
         let held = self.holding.replace(Vec::new());
         // The ability's own functions read the game they are given.
         self.tabled = false;
@@ -2070,6 +2075,25 @@ impl Compiler {
         self.tabled = tabled;
         let entries = std::mem::replace(&mut self.holding, held).unwrap_or_default();
         let mut grown = grown?;
+        // A granted regeneration prohibition is a static rule, not an ability
+        // to run or a characteristic-layer callback. Preserve its own ability
+        // identity so losing abilities removes it at the correct timestamp.
+        let bans = grown.tables.remove("regeneration_bans").unwrap_or_default();
+        if !bans.is_empty()
+            && entries.is_empty() && grown.only_abilities() && grown.abilities.is_empty()
+            && grown.spell == "None" && grown.enchant == "None" && grown.protection == 0
+            && planned::switched_on("regeneration-bans")
+        {
+            let mut refs = Vec::new();
+            for function in bans {
+                self.delayed.push(format!("granted_regeneration_ban({function}, {})", quoted(&granted_text)));
+                let index = self.delayed.len() - 1;
+                refs.push(if tabled { format!("GrantedAbility::Delayed({index})") }
+                    else { format!("AbilityRef::delayed({card}, {index})") });
+            }
+            return Ok(refs);
+        }
+        if !bans.is_empty() { grown.tables.insert("regeneration_bans".into(), bans); }
         // Cantrip's delayed table can also hold a granted static in layers
         // 6-7. Keep the layer, reach, callback and text of the compiled static.
         let statics = std::mem::take(&mut grown.statics);

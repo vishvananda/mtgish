@@ -1206,6 +1206,9 @@ impl Compiler {
                     "EffectKind::CantActivateNonManaAbilities",
                 )
             }
+            R::Prohibit(ObjectAction::Regenerate) if planned::switched_on("regeneration-bans") => {
+                vec!["EffectKind::CantBeRegenerated".into()]
+            }
             R::Prohibit(ObjectAction::Regenerate) => planned(
                 "continuous rule Prohibit Regenerate",
                 "EffectKind::CantBeRegenerated",
@@ -4032,6 +4035,9 @@ impl Compiler {
             }
             R::Prohibit(ObjectAction::Untap) => {
                 self.object_table("cant_become_untapped", function, affected, parts)?
+            }
+            R::Prohibit(ObjectAction::Regenerate) if planned::switched_on("regeneration-bans") => {
+                self.object_table("regeneration_bans", function, affected, parts)?
             }
             R::Prohibit(ObjectAction::Attack(
                 defenders @ (AttackDefenders::Players(_)

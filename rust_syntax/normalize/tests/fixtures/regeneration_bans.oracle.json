@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Bone Shaman",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Bone Shaman",
+        "manaCost": "{2}{R}{R}",
+        "type": "Creature — Giant Shaman",
+        "text": "{B}: Until end of turn, this creature gains \"Creatures dealt damage by this creature this turn can't be regenerated this turn.\"",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Clergy of the Holy Nimbus",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Clergy of the Holy Nimbus",
+        "manaCost": "{W}",
+        "type": "Creature — Human Cleric",
+        "text": "If this creature would be destroyed, regenerate it.\n{1}: This creature can't be regenerated this turn. Only your opponents may activate this ability.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Disintegrate",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Disintegrate",
+        "manaCost": "{X}{R}",
+        "type": "Sorcery",
+        "text": "Disintegrate deals X damage to any target. If it's a creature, it can't be regenerated this turn, and if it would die this turn, exile it instead."
+      }
+    ]
+  },
+  {
+    "name": "Gravebind",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gravebind",
+        "manaCost": "{B}",
+        "type": "Instant",
+        "text": "Target creature can't be regenerated this turn.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Hurr Jackal",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Hurr Jackal",
+        "manaCost": "{R}",
+        "type": "Creature — Jackal",
+        "text": "{T}: Target creature can't be regenerated this turn.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Incinerate",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Incinerate",
+        "manaCost": "{1}{R}",
+        "type": "Instant",
+        "text": "Incinerate deals 3 damage to any target. A creature dealt damage this way can't be regenerated this turn."
+      }
+    ]
+  },
+  {
+    "name": "Lim-Dûl's Cohort",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Lim-Dûl's Cohort",
+        "manaCost": "{1}{B}{B}",
+        "type": "Creature — Zombie",
+        "text": "Whenever this creature blocks or becomes blocked by a creature, that creature can't be regenerated this turn.",
+        "power": "2",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Orcish Healer",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Orcish Healer",
+        "manaCost": "{R}{R}",
+        "type": "Creature — Orc Cleric",
+        "text": "{R}{R}, {T}: Target creature can't be regenerated this turn.\n{B}{B}{R}, {T}: Regenerate target black or green creature.\n{R}{G}{G}, {T}: Regenerate target black or green creature.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Whippoorwill",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Whippoorwill",
+        "manaCost": "{G}",
+        "type": "Creature — Bird",
+        "text": "{G}{G}, {T}: Target creature can't be regenerated this turn. Damage that would be dealt to that creature this turn can't be prevented or dealt instead to another permanent or player. When the creature dies this turn, exile the creature.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  }
+]

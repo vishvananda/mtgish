@@ -1,6 +1,6 @@
 // Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.
 // These names are inert metadata, never behavior.
-pub const API_FINGERPRINT: &str = "247624750b3d6e0e4acb51d6c2f2661f579e6a6df29278fbeb6191368cee99d4";
+pub const API_FINGERPRINT: &str = "a82253b8f2a6a720f625bcaa34ba943f5a1e9c4d8e55a06f84b0f1e34ed0598a";
 pub const SUBTYPES: &[&str] = &[
     "Adventure",
     "Advisor",
@@ -641,4 +641,4 @@ pub const COUNTERS: &[&str] = &[
     "Plus0Plus2",
     "Minus1Plus0",
 ];
-pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters"];
+pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans"];

@@ -3600,7 +3600,7 @@ fn printed_of(call: &syn::ExprCall) -> Option<String> {
     if !matches!(
         name.as_str(),
         "triggered" | "ability" | "mana_ability" | "static_ability" | "activated" | "loyalty_ability"
-            | "replacement" | "prevention" | "chapter"
+            | "replacement" | "prevention" | "chapter" | "granted_regeneration_ban"
     ) {
         return None;
     }
@@ -3844,6 +3844,9 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                     Some("target") => {
                         if let Some(callback) = call.args.first() { self.mark(callback, Role::Target); }
                     }
+                    Some("granted_regeneration_ban") => {
+                        if let Some(callback) = call.args.first() { self.mark(callback, Role::Static); }
+                    }
                     Some("sacrifice" | "tap_objects" | "discard_cards" | "exile_from_graveyard") => {
                         if let Some(callback) = call.args.iter().nth(1) { self.mark(callback, Role::Cost); }
                     }
@@ -3868,6 +3871,7 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                 match text_of(&field.member).as_str() {
                     "cast_only_if" => self.mark(&field.expr, Role::CastCondition),
                     "enchant" => self.mark(&field.expr, Role::Target),
+                    "regeneration_bans" => self.mark(&field.expr, Role::Static),
                     _ => {}
                 }
             }
