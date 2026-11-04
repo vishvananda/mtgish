@@ -18071,8 +18071,10 @@ Card(
         CreatePermanentLayerEffect(
           Trigger_ThatCreature,
           [
-            AddCreatureType(Bird),
-            AddCreatureType(Giant),
+            SetCreatureTypes([
+              Bird,
+              Giant,
+            ]),
             LosesAbility(Defender),
           ],
         ),
@@ -70015,8 +70017,10 @@ Card(
         CreatePermanentLayerEffect(
           ThisPermanent,
           [
-            AddCreatureType(Spirit),
-            AddCreatureType(Warrior),
+            SetCreatureTypes([
+              Spirit,
+              Warrior,
+            ]),
             SetPT(PT(
               2,
               3,
@@ -70047,9 +70051,11 @@ Card(
             CreatePermanentLayerEffect(
               ThisPermanent,
               [
-                AddCreatureType(Spirit),
-                AddCreatureType(Warrior),
-                AddCreatureType(Angel),
+                SetCreatureTypes([
+                  Spirit,
+                  Warrior,
+                  Angel,
+                ]),
                 SetPT(PT(
                   4,
                   4,
@@ -416651,8 +416657,10 @@ Card(
         CreatePermanentLayerEffect(
           ThisPermanent,
           [
-            AddCreatureType(Human),
-            AddCreatureType(Cleric),
+            SetCreatureTypes([
+              Human,
+              Cleric,
+            ]),
             SetPT(PT(
               2,
               2,
@@ -416682,9 +416690,11 @@ Card(
             CreatePermanentLayerEffect(
               ThisPermanent,
               [
-                AddCreatureType(Phyrexian),
-                AddCreatureType(Human),
-                AddCreatureType(Cleric),
+                SetCreatureTypes([
+                  Phyrexian,
+                  Human,
+                  Cleric,
+                ]),
                 SetPT(PT(
                   3,
                   3,
@@ -450110,8 +450120,10 @@ Card(
         CreatePermanentLayerEffect(
           ThisPermanent,
           [
-            AddCreatureType(Kithkin),
-            AddCreatureType(Spirit),
+            SetCreatureTypes([
+              Kithkin,
+              Spirit,
+            ]),
             SetPT(PT(
               2,
               2,
@@ -450270,8 +450282,10 @@ Card(
         CreatePermanentLayerEffect(
           ThisPermanent,
           [
-            AddCreatureType(Kithkin),
-            AddCreatureType(Scout),
+            SetCreatureTypes([
+              Kithkin,
+              Scout,
+            ]),
             SetPT(PT(
               2,
               3,
@@ -1330388,8 +1330402,10 @@ Card(
         CreatePermanentLayerEffect(
           ThisPermanent,
           [
-            AddCreatureType(Human),
-            AddCreatureType(Detective),
+            SetCreatureTypes([
+              Human,
+              Detective,
+            ]),
             SetPT(PT(
               4,
               4,
@@ -1496221,8 +1496237,10 @@ Card(
         CreatePermanentLayerEffect(
           ThisPermanent,
           [
-            AddCreatureType(Human),
-            AddCreatureType(Warrior),
+            SetCreatureTypes([
+              Human,
+              Warrior,
+            ]),
             SetPT(PT(
               3,
               3,

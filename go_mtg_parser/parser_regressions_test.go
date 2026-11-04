@@ -60,6 +60,19 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Ageless Sentinels", []string{"SetCreatureTypes([Bird, Giant])"}, []string{"AddCreatureType(Bird)", "AddCreatureType(Giant)"}},
+		{"Ascendant Spirit", []string{"SetCreatureTypes([Spirit, Warrior])", "SetCreatureTypes([Spirit, Warrior, Angel])"}, []string{"AddCreatureType(Spirit)"}},
+		{"Evolved Sleeper", []string{"SetCreatureTypes([Human, Cleric])", "SetCreatureTypes([Phyrexian, Human, Cleric])"}, []string{"AddCreatureType(Human)"}},
+		{"Figure of Destiny", []string{"SetCreatureTypes([Kithkin, Spirit])", "SetCreatureTypes([Kithkin, Spirit, Warrior])"}, []string{"AddCreatureType(Kithkin)"}},
+		{"Figure of Fable", []string{"SetCreatureTypes([Kithkin, Scout])", "SetCreatureTypes([Kithkin, Soldier])"}, []string{"AddCreatureType(Kithkin)"}},
+		{"Tenth District Hero", []string{"SetCreatureTypes([Human, Detective])"}, []string{"AddCreatureType(Human)"}},
+		{"Warden of the First Tree", []string{"SetCreatureTypes([Human, Warrior])", "SetCreatureTypes([Human, Spirit, Warrior])"}, []string{"AddCreatureType(Human)"}},
+		{"Fendeep Summoner", []string{"AddCreatureType(Treefolk)", "AddCreatureType(Warrior)"}, []string{"SetCreatureTypes([Treefolk, Warrior])"}},
+		{"Hedge Whisperer", []string{"AddCreatureType(Plant)", "AddCreatureType(Boar)"}, []string{"SetCreatureTypes([Plant, Boar])"}},
+		{"Myth Realized", []string{"AddCreatureType(Monk)", "AddCreatureType(Avatar)"}, []string{"SetCreatureTypes([Monk, Avatar])"}},
+		{"Doc Ock, Evil Inventor", []string{"AddCreatureType(Robot)", "AddCreatureType(Villain)"}, []string{"SetCreatureTypes([Robot, Villain])"}},
+		{"Vihaan, Goldwaker", []string{"AddCreatureType(Construct)", "AddCreatureType(Assassin)"}, []string{"SetCreatureTypes([Construct, Assassin])"}},
+		{"Gideon Jura", []string{"AddCreatureType(Human)", "AddCreatureType(Soldier)"}, []string{"SetCreatureTypes([Human, Soldier])"}},
 		{"Gyruda, Doom of Depths", []string{"ReturnACardMilledThisWayToBattlefield(And([IsCardtype(Creature), ManaValueIs(Even)]),"}, []string{"ReturnACardMilledThisWayToBattlefield(AnyCard,"}},
 		{"Diregraf Horde", []string{"ActionList([Reflexive_CreateTokens_WhenYouDo("}, []string{"MayAction(Reflexive_CreateTokens_WhenYouDo("}},
 		{"Glissa's Retriever", []string{"ActionList([Reflexive_Exile_WhenYouDo("}, []string{"MayAction(Reflexive_Exile_WhenYouDo("}},
