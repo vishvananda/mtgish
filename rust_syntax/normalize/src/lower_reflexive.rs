@@ -347,6 +347,7 @@ impl Context {
             destination,
             entry,
             face_down: false,
+            terms: crate::ir::MovementTerms::default(),
         }));
         Ok(Instruction::Group(Program { instructions }))
     }

@@ -183,6 +183,7 @@ fn all_three_reflexive_x_cards_only_change_the_amount_binding() {
             .lines()
             .find(|line| line.contains(&format!("Name: {name:?}")))
             .unwrap();
+        query_aliases::movement_defaults(&mut expected);
         assert_eq!(replace_announced_x(&mut expected, &json!(0)), 1);
         assert_eq!(lowered(line), expected, "{name}");
     }

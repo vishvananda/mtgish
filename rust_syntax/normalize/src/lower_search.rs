@@ -239,6 +239,7 @@ impl Context {
                 destination: Destination::Exile,
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             });
             if let Instruction::Effect { result, .. } = &exile {
                 turns.push((player, result.clone()));
@@ -499,6 +500,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 };
                 self.inspection_assignment(operation, state, instructions);
                 let rest = ObjectSet::Difference {
@@ -564,6 +566,7 @@ impl Context {
                     destination: Destination::Exile,
                     entry,
                     face_down: true,
+                    terms: crate::ir::MovementTerms::default(),
                 };
                 self.inspection_assignment(operation, state, instructions);
                 Ok(())

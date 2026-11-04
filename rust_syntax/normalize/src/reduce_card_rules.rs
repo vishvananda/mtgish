@@ -192,7 +192,7 @@ fn reduce_card_replacement_action(
         // The body runs first and the damage then lands, so only earlier damage heals.
         ("DealDamageButHealPreviousDamage", []) => on_subject(KeywordAction::RemoveAllDamage),
         // The top card of a shuffled face-down pile is a random one of them.
-        ("PutTheTopCardOfTheExiledPileIntoHand", []) => Operation::ChangeZone {
+        ("PutTheTopCardOfTheExiledPileIntoHand", []) => Operation::DraftChangeZone {
             actor: actor.clone(),
             cards: exiled_with(&ObjectRef::Source),
             count: Some(Count::Exactly(Expr::Constant(1))),

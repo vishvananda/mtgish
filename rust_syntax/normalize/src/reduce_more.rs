@@ -44,7 +44,7 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
     let simple = |card, zone, entry: &[Operand]| conjure(actor, card, one.clone(), zone, None, None, entry);
     let random = |cards: &Operand| C::Random(Box::new(cards.clone()));
     let library_of = |players: PlayerSet, cards: &ObjectFilter, count: Expr| {
-        C::Duplicate(ObjectSet::Random {
+        C::Duplicate(ObjectSet::DraftRandom {
             objects: Box::new(zone_set(Z::Library, players, cards.clone())),
             count,
         })
@@ -1871,7 +1871,7 @@ fn inspection_step(
     let may_one = || Count::UpTo(Expr::Constant(1));
     let exactly_one = || Count::Exactly(Expr::Constant(1));
     let cast = |who: &PlayerSet, cards, count| cast_with(who, A::CastSpell, cards, count, free(), None);
-    let put = |who: &PlayerSet, cards, count, destination, entry: &[Operand]| Operation::ChangeZone {
+    let put = |who: &PlayerSet, cards, count, destination, entry: &[Operand]| Operation::DraftChangeZone {
         actor: who.clone(),
         cards,
         count,
@@ -1881,7 +1881,7 @@ fn inspection_step(
         entry: entry.to_vec(),
         face_down: None,
     };
-    let grouped = |cards, group: Operand, destination| Operation::ChangeZone {
+    let grouped = |cards, group: Operand, destination| Operation::DraftChangeZone {
         actor: actor.clone(),
         cards,
         count: Some(Count::AnyNumber),
@@ -2006,7 +2006,7 @@ fn inspection_step(
         ("ExileTheRemainingCardsInAFaceUpPile", []) => {
             put(actor, cards.clone(), None, D::Exile, &[flag("FaceUpPile")])
         }
-        ("ExileNumberGenericCardsAtRandom", [Number(amount)]) => Operation::ChangeZone {
+        ("ExileNumberGenericCardsAtRandom", [Number(amount)]) => Operation::DraftChangeZone {
             actor: actor.clone(),
             cards: cards.clone(),
             count: Some(Count::Exactly(amount.clone())),
@@ -2351,7 +2351,7 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             Expr::Constant(1),
         ),
         ("CopyNumberCardsAtRandom", [Number(amount), Filter(cards)]) => copies(
-            ObjectSet::Random {
+            ObjectSet::DraftRandom {
                 objects: Box::new(ObjectSet::OutsideTheGame(cards.clone())),
                 count: amount.clone(),
             },
@@ -2398,7 +2398,7 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             Operation::Note(NoteKind::Numbered(set.clone()))
         }
         ("PutUptoOneCardOfEachCardtypeAmongPermanentsFromHandOnTheBattlefield", [Objects(set), List(entry)]) => {
-            Operation::ChangeZone {
+            Operation::DraftChangeZone {
                 actor: actor.clone(),
                 cards: hand_of(actor, &ObjectFilter::Any),
                 count: Some(Count::AnyNumber),
@@ -2560,7 +2560,7 @@ fn reduce_perpetual(form: &str, operands: &[Operand]) -> Option<Operation> {
                     count: Expr::Constant(1),
                     from: SequenceEnd::Top,
                 },
-                "ARandomCardOfTypeFromPlayersLibrary" => ObjectSet::Random {
+                "ARandomCardOfTypeFromPlayersLibrary" => ObjectSet::DraftRandom {
                     objects: Box::new(library),
                     count: Expr::Constant(1),
                 },

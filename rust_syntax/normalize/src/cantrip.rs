@@ -2162,9 +2162,32 @@ fn ability_text(body: &Program) -> String {
                 Operation::Tap { tapped: true, .. } => "Tap the chosen permanents.".into(),
                 Operation::Tap { tapped: false, .. } => "Untap the chosen permanents.".into(),
                 Operation::Destroy { .. } => "Destroy the chosen permanents.".into(),
-                Operation::Move { .. } => {
-                    "Return the chosen permanents to their owners' hands.".into()
+                Operation::Move { destination, .. } => match destination {
+                    Destination::OwnersHand | Destination::Hand(_) => {
+                        "Return the chosen permanents to their owners' hands."
+                    }
+                    Destination::Exile => "Exile the chosen objects.",
+                    Destination::OwnersGraveyard => {
+                        "Put the chosen objects into their owners' graveyards."
+                    }
+                    Destination::Battlefield(_) | Destination::OwnersBattlefield => {
+                        "Put the chosen objects onto the battlefield."
+                    }
+                    Destination::OwnersLibraryTop => {
+                        "Put the chosen cards on top of their owners' libraries."
+                    }
+                    Destination::OwnersLibraryBottom | Destination::OwnersLibraryBottomRandom => {
+                        "Put the chosen cards on the bottom of their owners' libraries."
+                    }
+                    Destination::OwnersLibraryShuffled => {
+                        "Shuffle the chosen cards into their owners' libraries."
+                    }
+                    Destination::OwnersLibraryTopOrBottom => {
+                        "Put the chosen cards on top or bottom of their owners' libraries."
+                    }
+                    _ => "Move the chosen objects.",
                 }
+                .into(),
                 Operation::GainLife { .. } => "Gain life.".into(),
                 Operation::LoseLife { .. } => "Lose life.".into(),
                 Operation::Draw { .. } => "Draw cards.".into(),

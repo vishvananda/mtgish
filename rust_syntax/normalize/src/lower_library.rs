@@ -300,6 +300,7 @@ impl Context {
                         },
                         entry: EntrySpec::default(),
                         face_down: false,
+                        terms: crate::ir::MovementTerms::default(),
                     }
                 }
                 S::If(condition, then) | S::IfElse(condition, then, _) => {
@@ -405,6 +406,7 @@ impl Context {
                     },
                     entry: EntrySpec::default(),
                     face_down: matches!(action, S::ExileFoundCardsFaceDown),
+                    terms: crate::ir::MovementTerms::default(),
                 },
                 S::PutFoundCardsOntoBattlefield(flags) => {
                     let (destination, entry) = self.move_entry(flags, player.clone())?;
@@ -413,6 +415,7 @@ impl Context {
                         destination,
                         entry,
                         face_down: false,
+                        terms: crate::ir::MovementTerms::default(),
                     }
                 }
                 S::PutAFoundCardIntoHand | S::PutAFoundCardOntoBattlefield(_) => {
@@ -438,6 +441,7 @@ impl Context {
                         destination,
                         entry,
                         face_down: false,
+                        terms: crate::ir::MovementTerms::default(),
                     }
                 }
                 S::SetAsideFoundCards => {
@@ -466,6 +470,7 @@ impl Context {
                             destination: Destination::OwnersLibraryTop,
                             entry: EntrySpec::default(),
                             face_down: false,
+                            terms: crate::ir::MovementTerms::default(),
                         });
                         instructions.push(arrive);
                     }
@@ -514,6 +519,7 @@ impl Context {
                     destination: Destination::OwnersHand,
                     entry: EntrySpec::default(),
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 },
                 S::PutSetAsideCardsOntoBattlefield(flags) => {
                     let (destination, entry) = self.move_entry(flags, player.clone())?;
@@ -524,6 +530,7 @@ impl Context {
                         destination,
                         entry,
                         face_down: false,
+                        terms: crate::ir::MovementTerms::default(),
                     }
                 }
                 S::DiscardACardAtRandom => Operation::Discard {
@@ -606,6 +613,7 @@ impl Context {
                     destination: Destination::OwnersHand,
                     entry: EntrySpec::default(),
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }),
                 self.effect(Operation::Shuffle {
                     players: PlayerSet::One(player),

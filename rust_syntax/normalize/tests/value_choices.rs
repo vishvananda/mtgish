@@ -81,6 +81,7 @@ fn full_producer_records_keep_every_operand_except_declared_choice_schema() {
         query_aliases::value_choices(&mut expected);
         expected["schema_version"] = json!(SCHEMA_VERSION);
         let actual = pipeline::finalize(&source).unwrap();
+        query_aliases::movement_defaults(&mut expected);
         assert_eq!(
             serde_json::to_value(&actual).unwrap(),
             expected,

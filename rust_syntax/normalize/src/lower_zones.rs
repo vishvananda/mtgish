@@ -954,6 +954,7 @@ impl Context {
             destination: Destination::Exile,
             entry,
             face_down,
+            terms: crate::ir::MovementTerms::default(),
         });
         self.exiled_permanents = items.iter().all(|item| {
             matches!(
@@ -1034,6 +1035,7 @@ impl Context {
             destination: Destination::OwnersHand,
             entry: EntrySpec::default(),
             face_down: false,
+            terms: crate::ir::MovementTerms::default(),
         });
         Ok(Instruction::Group(Program {
             instructions: vec![choice, movement],
@@ -1054,6 +1056,7 @@ impl Context {
             destination: Destination::OwnersLibraryTop,
             entry: EntrySpec::default(),
             face_down: false,
+            terms: crate::ir::MovementTerms::default(),
         });
         let shuffle = self.effect(Operation::Shuffle {
             players: actor.clone(),
@@ -1086,6 +1089,7 @@ impl Context {
                 destination,
                 entry,
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             });
             self.note_moves(&Program {
                 instructions: vec![movement.clone()],
@@ -1107,6 +1111,7 @@ impl Context {
             destination,
             entry,
             face_down: false,
+            terms: crate::ir::MovementTerms::default(),
         });
         let body = Program {
             instructions: vec![choice, movement],

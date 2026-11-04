@@ -3,6 +3,7 @@ use crate::{
     ir::*,
     visit::{VisitorMut, WalkMut},
 };
+mod transfer;
 pub fn normalize_card(mut card: Card) -> Card {
     card.walk_mut(&mut Normalize);
     card
@@ -16,6 +17,11 @@ pub fn normalize_program(program: &mut Program) {
 struct Normalize;
 impl VisitorMut for Normalize {
     fn operation_end(&mut self, operation: &mut Operation) {
+        if matches!(operation, Operation::DraftChangeZone { .. }) {
+            *operation = transfer::canonical_move(operation);
+            operation.walk_mut(self);
+            return;
+        }
         if matches!(operation, Operation::WithSelections { .. }) {
             return;
         }
@@ -106,7 +112,7 @@ impl VisitorMut for Extract {
     }
     fn object_set_end(&mut self, objects: &mut ObjectSet) {
         let (chooser, pool, count) = match objects {
-            ObjectSet::Chosen {
+            ObjectSet::DraftChosen {
                 chooser,
                 objects,
                 count,
@@ -115,7 +121,7 @@ impl VisitorMut for Extract {
                 (**objects).clone(),
                 count.clone(),
             ),
-            ObjectSet::Random { objects, count } => (
+            ObjectSet::DraftRandom { objects, count } => (
                 SelectionChooser::Chance,
                 (**objects).clone(),
                 Count::AsManyAsCan(count.clone()),

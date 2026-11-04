@@ -2780,6 +2780,7 @@ impl Context {
                 destination: Destination::OwnersHand,
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             }));
         }
         if let source::Action::ReturnSpellOrPermanentToOwnersHand(object) = value {
@@ -2789,6 +2790,7 @@ impl Context {
                 destination: Destination::OwnersHand,
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             }));
         }
         // "Reveal exactly two cards you own with different names from outside the
@@ -3318,6 +3320,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             S::ShuffleEachPermanentIntoLibrary(objects) => Operation::Move {
@@ -3325,6 +3328,7 @@ impl Context {
                 destination: Destination::OwnersLibraryShuffled,
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             },
             S::PutAGraveyardCardOntoBattlefield(cards, flags) => {
                 let objects = self.grave_cards(cards)?;
@@ -3385,6 +3389,7 @@ impl Context {
                     destination: Destination::OwnersHand,
                     entry: EntrySpec::default(),
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             S::ReturnEachCardFromPlayersGraveyardToBattlefieldThatWasPutThereFromBattlefieldThisTurn(
@@ -3561,12 +3566,14 @@ impl Context {
                 destination: Destination::OwnersLibraryFromTop(self.number(n)?),
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             },
             S::PutPermanentInOwnersLibraryNthFromTheTop(object, n) => Operation::Move {
                 objects: ObjectSet::One(self.object(object)?),
                 destination: Destination::OwnersLibraryFromTop(self.number(n)?),
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             },
             S::PutEachCardFromEachPlayersGraveyardOntoTheBattlefield(cards, players, flags) => {
                 let PlayerSet::One(player) = actor else {
@@ -3582,6 +3589,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             S::PutACardFromPlayersGraveyardOnBattlefield(cards, owner, flags) => {
@@ -3607,6 +3615,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 });
                 return Ok(Instruction::Group(Program {
                     instructions: vec![choice, movement],
@@ -3626,6 +3635,7 @@ impl Context {
                 destination: Destination::OwnersHand,
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             },
             S::DiscardCards(cards) => Operation::DiscardObjects {
                 objects: self.private_cards(
@@ -3644,6 +3654,7 @@ impl Context {
                     destination: Destination::OwnersHand,
                     entry: EntrySpec::default(),
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             // "This card" went to the graveyard; the Aura returns itself.
@@ -3655,6 +3666,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             S::ReturnPermanentToLibraryUnderNumberCards(object, n)
@@ -3666,6 +3678,7 @@ impl Context {
                 )),
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             },
             S::ShuffleHandGraveyardAndPermanentsIntoLibrary => {
                 let owned = ObjectSet::battlefield(ObjectFilter::OwnedBy(actor.clone()));
@@ -3678,6 +3691,7 @@ impl Context {
                     destination: Destination::OwnersLibraryTop,
                     entry: EntrySpec::default(),
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 });
                 let shuffle = self.effect(Operation::Shuffle {
                     players: actor.clone(),
@@ -3692,6 +3706,7 @@ impl Context {
                 destination: Destination::OwnersLibraryTop,
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             },
             S::ReturnACardFromGraveyardToBattlefield(cards, _)
             | S::PutACardFromHandOrGraveyardOnBattlefield(cards, _, _)
@@ -3741,6 +3756,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 });
                 return Ok(Instruction::Group(Program {
                     instructions: vec![choice, movement],
@@ -3782,6 +3798,7 @@ impl Context {
                         },
                         entry: EntrySpec::default(),
                         face_down: false,
+                        terms: crate::ir::MovementTerms::default(),
                     }
                 });
                 return Ok(Instruction::Group(Program {
@@ -3817,6 +3834,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             S::DiscardAnyNumberOfCards | S::DiscardAnyNumberOfCardsOfType(_) => {
@@ -4040,6 +4058,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 });
                 return Ok(Instruction::Group(Program {
                     instructions: vec![choice, movement],
@@ -4218,6 +4237,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             S::AttachPermanentToAPermanent(attachment, hosts) => {
@@ -5695,6 +5715,7 @@ impl Context {
             destination,
             entry,
             face_down: false,
+            terms: crate::ir::MovementTerms::default(),
         });
         Ok(Instruction::Group(Program {
             instructions: vec![choice, movement],

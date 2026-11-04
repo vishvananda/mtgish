@@ -59,12 +59,7 @@ pub(super) fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'stati
                 destination,
                 ..
             }
-            | Operation::ChangeZone {
-                cards,
-                count: None,
-                destination,
-                ..
-            } if chosen(cards) => match destination {
+ if chosen(cards) => match destination {
                 Destination::OwnersHand => "PutIntoHand",
                 Destination::OwnersGraveyard => "PutIntoGraveyard",
                 Destination::Exile => "Exile",
@@ -382,6 +377,37 @@ fn adjusts(adjustment: &Operand) -> bool {
 /// `list` less what stayed: a transition is of what moved, not what was asked to.
 pub(super) fn gone(list: &str) -> String {
     format!("{list}.iter().copied().filter(|&o| q.state().obj(o).became.is_some()).collect::<Vec<ObjectId>>()")
+}
+fn entry_has_pile(entry: &EntrySpec) -> bool {
+    entry.states.iter().any(|state| match state {
+        EntryState::ExilePile { .. } => true,
+        EntryState::When { entry, .. } => entry_has_pile(entry),
+        _ => false,
+    })
+}
+/// A combined native recipe may only consume ordinary transfers. Future and
+/// independently granted programs retain their own execution sites.
+pub(super) fn only_plain_moves<T: crate::visit::Walk + ?Sized>(value: &T) -> bool {
+    use crate::visit::Visitor;
+    struct Plain(bool);
+    impl Visitor for Plain {
+        fn ability(&mut self, _: &Ability) -> bool { false }
+        fn operation(&mut self, operation: &Operation) -> bool {
+            match operation {
+                Operation::Move {entry,face_down,terms,..} => {
+                    self.0 &= !face_down && plain_entry(entry) && terms.is_default();
+                }
+                Operation::WithSelections {..} => self.0 = false,
+                Operation::CreateDelayedTrigger {..} | Operation::CreateTrigger {..}
+                | Operation::ReflexiveTrigger {..} | Operation::CreateReplacement {..} => return false,
+                _ => {}
+            }
+            self.0
+        }
+    }
+    let mut plain=Plain(true);
+    value.walk(&mut plain);
+    plain.0
 }
 
 /// What a result of the search that found it is about to become, for the search
@@ -1189,7 +1215,7 @@ impl Compiler {
                     Some(Instruction::Effect {
                         operation:
                             Operation::Move { objects, .. }
-                            | Operation::ChangeZone { cards: objects, .. },
+,
                         ..
                     }) => format!("{objects:?}") == them,
                     _ => false,
@@ -1213,9 +1239,10 @@ impl Compiler {
                         destination: Destination::Exile,
                         entry,
                         face_down: false,
+                        terms,
                     },
                 result,
-            } if plain_entry(entry)
+            } if terms.is_default() && plain_entry(entry)
                 && self.stack_item
                 && returns_with_source(result, &body.instructions[i + 1..], matches!(self.event_object, Some(ObjectRef::Source))) =>
             {
@@ -1236,9 +1263,10 @@ impl Compiler {
                         destination: Destination::Exile,
                         entry,
                         face_down: false,
+                        terms,
                     },
                 result,
-            } if plain_entry(entry)
+            } if terms.is_default() && plain_entry(entry)
                 && self.stack_item
                 && returns_with_holder(result, &body.instructions[i + 1..]).is_some() =>
             {
@@ -1255,9 +1283,10 @@ impl Compiler {
                         destination: Destination::Exile,
                         entry,
                         face_down: false,
+                        terms,
                     },
                 result,
-            } if plain_entry(entry)
+            } if terms.is_default() && plain_entry(entry)
                 && self.stack_item
                 && self.source_entered
                 && returns_when_crowned(result, &body.instructions[i + 1..]).is_some() =>
@@ -1664,9 +1693,11 @@ impl Compiler {
             return self.with_selections(steps, action, result, out);
         }
         let id = self.fresh();
-        if matches!(op, Operation::Move { .. } | Operation::ChangeZone { .. }) {
-            let words = format!("{op:?}");
-            self.exiled_piles |= words.contains("ExilePile") || words.contains("FaceUpPile") || words.contains("FaceDownPile");
+        if let Operation::Move { entry, terms, .. } = op {
+            self.exiled_piles |= entry_has_pile(entry);
+            if !terms.is_default() {
+                return self.move_with_terms(id, op, result, out);
+            }
         }
         match op {
             Operation::PayCost {
@@ -1961,7 +1992,7 @@ impl Compiler {
                 destination,
                 entry,
                 face_down: false,
-            } => self.move_objects_p(id, objects, destination, entry, false, result, out)?,
+             .. } => self.move_objects_p(id, objects, destination, entry, false, result, out)?,
             Operation::Tap { objects, tapped } => {
                 if *tapped {
                     // The core decides whether each object can tap. Record

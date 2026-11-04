@@ -537,7 +537,7 @@ fn library_observation_and_reordering_do_not_masquerade_as_zone_movement() {
                     destination: Destination::OwnersHand,
                     entry: EntrySpec::default(),
                     face_down: false
-                },
+                , terms: mtgish_ast::ir::MovementTerms::default(), },
                 1
             )
         ]),

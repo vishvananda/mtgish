@@ -23,6 +23,9 @@ pub trait Visitor {
     fn object_ref(&mut self, _: &ObjectRef) -> bool {
         true
     }
+    fn player_ref(&mut self, _: &PlayerRef) -> bool {
+        true
+    }
     fn expr(&mut self, _: &Expr) -> bool {
         true
     }
@@ -42,6 +45,16 @@ pub trait Visitor {
 
 pub trait Walk {
     fn walk<V: Visitor>(&self, visitor: &mut V);
+}
+impl<T: Walk> Walk for Vec<T> {
+    fn walk<V: Visitor>(&self, visitor: &mut V) {
+        self.iter().for_each(|value| value.walk(visitor));
+    }
+}
+impl<T: Walk> Walk for [T] {
+    fn walk<V: Visitor>(&self, visitor: &mut V) {
+        self.iter().for_each(|value| value.walk(visitor));
+    }
 }
 
 /// Mutable hooks bracket each node in declaration order. Returning false skips
@@ -71,6 +84,10 @@ pub trait VisitorMut {
         true
     }
     fn object_ref_end(&mut self, _: &mut ObjectRef) {}
+    fn player_ref(&mut self, _: &mut PlayerRef) -> bool {
+        true
+    }
+    fn player_ref_end(&mut self, _: &mut PlayerRef) {}
     fn expr(&mut self, _: &mut Expr) -> bool {
         true
     }

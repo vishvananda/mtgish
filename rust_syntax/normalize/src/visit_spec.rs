@@ -10,6 +10,7 @@ const HOOKS: &[(&str, &str)] = &[
     ("ObjectFilter", "object_filter"),
     ("ObjectSet", "object_set"),
     ("ObjectRef", "object_ref"),
+    ("PlayerRef", "player_ref"),
     ("Expr", "expr"),
     ("Cost", "cost"),
     ("Announcement", "announcement"),

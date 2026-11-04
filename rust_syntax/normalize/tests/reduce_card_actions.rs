@@ -137,7 +137,7 @@ fn an_exiled_card_goes_on_the_stack_as_its_spell() {
 fn a_restart_keeps_the_exiled_cards_for_the_new_game() {
     says(
         "Karn Liberated",
-        &["RestartGame { keep: Zone", "then: ChangeZone"],
+        &["RestartGame { keep: Zone", "then: Move", "destination: Battlefield(AbilityController)"],
     );
 }
 

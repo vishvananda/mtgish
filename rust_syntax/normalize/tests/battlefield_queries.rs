@@ -180,6 +180,7 @@ fn complete_producer_records_change_only_query_aliases_and_schema_stamps() {
         for face in expected["faces"].as_array_mut().unwrap() {
             face["schema_version"] = json!(SCHEMA_VERSION);
         }
+        query_aliases::movement_defaults(&mut expected);
         assert_eq!(
             serde_json::to_value(unified::lower(&source).card).unwrap(),
             expected,

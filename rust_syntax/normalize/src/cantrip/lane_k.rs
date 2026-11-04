@@ -736,20 +736,13 @@ fn chooses_first_after(decider: &PlayerRef, body: &Program, mut looked: bool) ->
                 ..
             } => return format!("{player:?}") == format!("{decider:?}"),
             Instruction::Effect {
-                operation:
-                    Operation::ChangeZone {
-                        actor: PlayerSet::One(player),
-                        count:
-                            Some(
-                                Count::UpTo(_)
-                                | Count::Exactly(Expr::Constant(1))
-                                | Count::AsManyAsCan(Expr::Constant(1)),
-                            ),
-                        random: false,
-                        ..
-                    },
+                operation: Operation::WithSelections { steps, .. },
                 ..
-            } => return format!("{player:?}") == format!("{decider:?}"),
+            } => return matches!(steps.first(), Some(SelectionStep {
+                chooser: SelectionChooser::Players(PlayerSet::One(player)),
+                count: Count::UpTo(_) | Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1)),
+                ..
+            }) if format!("{player:?}") == format!("{decider:?}")),
             Instruction::Effect {
                 operation:
                     Operation::ChooseObjects {
@@ -795,6 +788,7 @@ struct Taking<'a> {
 
 /// `body` as a `Taking`, what `looker` looked at.
 fn taking_from<'a>(looker: &PlayerRef, body: &'a [Instruction], id: usize) -> Option<Taking<'a>> {
+    if !effects::only_plain_moves(body) { return None; }
     let steps: Vec<(&ResultId, &Operation)> = body
         .iter()
         .map(|instruction| match instruction {
@@ -827,7 +821,7 @@ fn taking_from<'a>(looker: &PlayerRef, body: &'a [Instruction], id: usize) -> Op
             destination: Destination::OwnersHand,
             entry,
             face_down: false,
-        },
+         .. },
     ), (
         _,
         Operation::ReorderLibrary {
@@ -1673,6 +1667,7 @@ impl Compiler {
     /// the rest on the bottom": one question (Cantrip's `look_at_top`), the cards
     /// going to each place, not a choice and then an order. Whether `group` was it.
     pub(super) fn dig(&mut self, group: &Program, out: &mut String) -> Result<bool> {
+        if !effects::only_plain_moves(group) { return Ok(false); }
         if self.rest_to_graveyard(group, out)? {
             return Ok(true);
         }
@@ -1838,6 +1833,7 @@ impl Compiler {
     /// "Reveal the top four cards. You may put a land card from among them into
     /// your hand. Put the rest into your graveyard": Cantrip's one question.
     fn rest_to_graveyard(&mut self, group: &Program, out: &mut String) -> Result<bool> {
+        if !effects::only_plain_moves(group) { return Ok(false); }
         if group.instructions.last().is_some_and(
             |last| matches!(last, Instruction::Effect { result, .. } if self.read_later(result)),
         ) {
@@ -1861,7 +1857,7 @@ impl Compiler {
                     destination: Destination::OwnersHand,
                     entry,
                     face_down: false,
-                },
+                 .. },
             ..
         }, Instruction::Effect {
             operation:

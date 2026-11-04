@@ -1,5 +1,7 @@
 use mtgish_ast::{change_lists, ir::*, mtg_types::OracleCard, semantics, unified, validate};
 use serde_json::{json, Value};
+#[path = "support/query_aliases.rs"]
+mod query_aliases;
 fn migration(value: &mut Value) {
     match value {
         Value::Object(fields) => {
@@ -43,6 +45,7 @@ fn complete_old_producer_records_expand_only_inside_their_original_change_lists(
         assert!(actual.diagnostics.is_empty(), "{:?}", actual.diagnostics);
         let mut expected: Value = serde_json::from_str(before).unwrap();
         migration(&mut expected);
+        query_aliases::movement_defaults(&mut expected);
         assert_eq!(
             serde_json::to_value(&actual.card).unwrap(),
             expected,

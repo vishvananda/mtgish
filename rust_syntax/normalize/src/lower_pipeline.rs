@@ -260,6 +260,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             R::ObjectEffect { operation, .. } => match operation {

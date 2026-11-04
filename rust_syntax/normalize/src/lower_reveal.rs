@@ -66,6 +66,7 @@ impl Context {
             destination,
             entry: EntrySpec::default(),
             face_down: false,
+            terms: crate::ir::MovementTerms::default(),
         };
         self.inspection_assignment(operation, state, instructions);
     }
@@ -232,6 +233,7 @@ impl Context {
                         ..EntrySpec::default()
                     },
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 };
                 self.inspection_assignment(operation, state, instructions);
                 return Ok(());
@@ -247,6 +249,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 };
                 self.inspection_assignment(operation, state, instructions);
                 return Ok(());
@@ -277,6 +280,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 };
                 self.inspection_assignment(operation, state, instructions);
                 return Ok(());
@@ -444,6 +448,7 @@ impl Context {
                     destination: Destination::Exile,
                     entry: EntrySpec::default(),
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 };
                 self.inspection_assignment(operation, state, instructions);
                 return Ok(());
@@ -498,6 +503,7 @@ impl Context {
             destination,
             entry,
             face_down: false,
+            terms: crate::ir::MovementTerms::default(),
         };
         self.inspection_assignment(operation, state, instructions);
         Ok(())

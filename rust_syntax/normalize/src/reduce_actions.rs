@@ -179,7 +179,7 @@ impl ZoneMove {
         self
     }
     fn operation(self, actor: &PlayerSet) -> Operation {
-        Operation::ChangeZone {
+        Operation::DraftChangeZone {
             actor: actor.clone(),
             cards: self.cards,
             count: self.count,
@@ -966,14 +966,14 @@ fn reduce_cast(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Op
 }
 
 fn random(objects: &ObjectSet, count: i64) -> ObjectSet {
-    ObjectSet::Random {
+    ObjectSet::DraftRandom {
         objects: Box::new(objects.clone()),
         count: Expr::Constant(count),
     }
 }
 
 fn chosen(chooser: &PlayerSet, objects: &ObjectSet, count: Count) -> ObjectSet {
-    ObjectSet::Chosen {
+    ObjectSet::DraftChosen {
         chooser: chooser.clone(),
         objects: Box::new(objects.clone()),
         count,

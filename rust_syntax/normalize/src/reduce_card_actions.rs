@@ -141,7 +141,7 @@ fn reduce_card_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             [Objects(cards), List(entry)],
         ) => Operation::RestartGame {
             keep: cards.clone(),
-            then: Box::new(Operation::ChangeZone {
+            then: Box::new(Operation::DraftChangeZone {
                 actor: actor.clone(),
                 cards: cards.clone(),
                 count: None,

@@ -14,7 +14,7 @@ fn field() -> ObjectSet {
     ObjectSet::battlefield(ObjectFilter::Any)
 }
 fn picked(objects: ObjectSet) -> ObjectSet {
-    ObjectSet::Chosen {
+    ObjectSet::DraftChosen {
         chooser: you(),
         objects: Box::new(objects),
         count: Count::Exactly(Expr::Constant(1)),
@@ -54,7 +54,7 @@ fn action(instruction: &Instruction) -> &Operation {
 fn nested_choices_are_prepared_in_dependency_order_with_distinct_result_provenance() {
     let mut p = program(vec![effect(
         0,
-        tap(picked(ObjectSet::Random {
+        tap(picked(ObjectSet::DraftRandom {
             objects: Box::new(field()),
             count: Expr::Constant(3),
         })),
@@ -128,7 +128,7 @@ fn preparation_stays_at_the_nearest_nested_operation_and_future_program() {
 }
 #[test]
 fn costs_targets_and_filter_predicates_do_not_become_resolution_picks() {
-    let random = ObjectSet::Random {
+    let random = ObjectSet::DraftRandom {
         objects: Box::new(field()),
         count: Expr::Constant(2),
     };
@@ -338,7 +338,7 @@ fn granted_ability_local_choices_stay_inside_their_independent_program() {
 fn per_player_choices_are_gathered_before_one_simultaneous_move() {
     let binding = Binding(0);
     let player = PlayerSet::One(PlayerRef::Bound(binding.clone()));
-    let selected = ObjectSet::Chosen {
+    let selected = ObjectSet::DraftChosen {
         chooser: player.clone(),
         objects: Box::new(ObjectSet::Zone {
             scope: ZoneScope::Players {
@@ -362,6 +362,7 @@ fn per_player_choices_are_gathered_before_one_simultaneous_move() {
                 destination: Destination::Exile,
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: mtgish_ast::ir::MovementTerms::default(),
             },
         )]),
     }]);
@@ -423,7 +424,7 @@ fn reveal_then_random_discard_is_explicitly_ordered_and_samples_after_reveal() {
         Operation::Together(vec![
             Operation::Reveal { objects: field() },
             Operation::DiscardObjects {
-                objects: ObjectSet::Random {
+                objects: ObjectSet::DraftRandom {
                     objects: Box::new(field()),
                     count: Expr::Constant(1),
                 },
@@ -456,6 +457,7 @@ fn a_movement_result_keeps_pre_action_choice_and_new_identity_in_separate_views(
                 destination: Destination::Exile,
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: mtgish_ast::ir::MovementTerms::default(),
             },
         ),
         effect(
@@ -515,7 +517,7 @@ fn player_gathering_uses_prepared_pool_ownership_and_retains_choice_views() {
                 body: program(vec![effect(
                     0,
                     Operation::Move {
-                        objects: ObjectSet::Chosen {
+                        objects: ObjectSet::DraftChosen {
                             chooser: PlayerSet::One(player.clone()),
                             objects: Box::new(pool),
                             count: Count::Exactly(Expr::Constant(1)),
@@ -523,6 +525,7 @@ fn player_gathering_uses_prepared_pool_ownership_and_retains_choice_views() {
                         destination: Destination::Battlefield(player),
                         entry: EntrySpec::default(),
                         face_down: false,
+                        terms: mtgish_ast::ir::MovementTerms::default(),
                     },
                 )]),
             },
@@ -576,7 +579,7 @@ fn player_local_entry_values_remain_a_batching_gap_instead_of_leaking_the_bindin
             mtgish_ast::counter::CounterKind::Named(
                 mtgish_ast::counter::CounterName::ChargeCounter,
             ),
-            Expr::CountObjects(Box::new(ObjectSet::Chosen {
+            Expr::CountObjects(Box::new(ObjectSet::DraftChosen {
                 chooser: who.clone(),
                 objects: Box::new(field()),
                 count: Count::Exactly(Expr::Constant(1)),
@@ -602,6 +605,7 @@ fn player_local_entry_values_remain_a_batching_gap_instead_of_leaking_the_bindin
                 destination: Destination::OwnersBattlefield,
                 entry,
                 face_down: false,
+                terms: mtgish_ast::ir::MovementTerms::default(),
             },
         )]),
     }]);
@@ -617,7 +621,7 @@ fn optional_chooser_exports_the_choice_view_with_the_action_result() {
     let chooser = PlayerRef::OneOf(Box::new(PlayerSet::OpponentsOf(
         PlayerRef::AbilityController,
     )));
-    let objects = ObjectSet::Chosen {
+    let objects = ObjectSet::DraftChosen {
         chooser: PlayerSet::One(chooser),
         objects: Box::new(field()),
         count: Count::Exactly(Expr::Constant(1)),
@@ -630,6 +634,7 @@ fn optional_chooser_exports_the_choice_view_with_the_action_result() {
                 destination: Destination::Exile,
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: mtgish_ast::ir::MovementTerms::default(),
             },
         ),
         effect(
@@ -713,7 +718,7 @@ fn deferred_programs_capture_prepared_values_and_implicit_choice_views() {
 #[test]
 fn player_walked_choices_export_an_aggregate_pre_action_view() {
     let who = PlayerRef::Bound(Binding(0));
-    let chosen = ObjectSet::Chosen {
+    let chosen = ObjectSet::DraftChosen {
         chooser: PlayerSet::One(who.clone()),
         objects: Box::new(ObjectSet::Zone {
             scope: ZoneScope::Players {
@@ -830,7 +835,7 @@ fn an_individual_players_implicit_choices_use_pre_action_rows() {
             body: program(vec![effect(
                 0,
                 Operation::Move {
-                    objects: ObjectSet::Chosen {
+                    objects: ObjectSet::DraftChosen {
                         chooser: PlayerSet::One(who),
                         objects: Box::new(pool),
                         count: Count::Exactly(Expr::Constant(1)),
@@ -838,6 +843,7 @@ fn an_individual_players_implicit_choices_use_pre_action_rows() {
                     destination: Destination::Exile,
                     entry: EntrySpec::default(),
                     face_down: false,
+                    terms: mtgish_ast::ir::MovementTerms::default(),
                 },
             )]),
         },

@@ -125,14 +125,16 @@ fn begins_with_terms(body: &Program) -> Option<(Option<&Condition>, Option<Strin
                         objects: ObjectSet::Selected(moved),
                         destination: Destination::Exile,
                         face_down: false,
-                        ..
+                        entry,
+                        terms,
                     },
                 ..
             }] = steps
             else {
                 return None;
             };
-            if moved.0 != picked.0 || !constraints.is_empty() || !(1..=7).contains(n) {
+            if !terms.is_default() || !effects::plain_entry(entry)
+                || moved.0 != picked.0 || !constraints.is_empty() || !(1..=7).contains(n) {
                 return None;
             }
             *n

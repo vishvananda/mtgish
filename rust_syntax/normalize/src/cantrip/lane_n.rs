@@ -590,9 +590,11 @@ impl Compiler {
                             destination,
                             entry,
                             face_down: false,
+                            terms,
                         },
                     result,
                 } if kind == "ZoneChange"
+                    && terms.is_default()
                     && !entry.tapped
                     && entry.counters.is_empty()
                     && entry.states.is_empty() =>

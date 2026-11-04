@@ -583,8 +583,6 @@ impl Compiler {
             | ObjectSet::Difference { objects, .. }
             | ObjectSet::Take { objects, .. }
             | ObjectSet::InZone { objects, .. }
-            | ObjectSet::Random { objects, .. }
-            | ObjectSet::Chosen { objects, .. }
             | ObjectSet::One(ObjectRef::Query { objects, .. }) => self.from_outside(objects),
             _ => false,
         }
@@ -996,19 +994,6 @@ impl Compiler {
                     "q.earlier_objects(item, EarlierObjects::{}, {})",
                     form(what),
                     self.players(players)?
-                ),
-            ),
-            ObjectSet::Chosen {
-                chooser,
-                objects,
-                count,
-            } => held_objects(
-                &feature,
-                &format!(
-                    "{M}::choose::among(g, {}, asker.source, {}, {})?",
-                    self.players(chooser)?,
-                    self.objects(objects)?,
-                    self.select_count(count)?
                 ),
             ),
             ObjectSet::SplicedOnto(of) => held_objects(
@@ -2700,21 +2685,30 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        if entry.states.iter().any(|state|matches!(state,EntryState::FaceDownAs(_))) {
+            return Err(gap("put onto the battlefield face down as a stated creature"));
+        }
         let mut code = String::new();
         // "Exile them in a face-down pile, shuffle that pile": the pile's order, which
         // is all a shuffle of it can change, is taken as it is exiled.
         if let (Destination::Exile, false, [EntryState::ExilePile { shuffled }]) =
             (destination, entry.tapped, entry.states.as_slice())
         {
-            if entry.counters.is_empty() && (face_down && *shuffled || !self.links_exile) {
+            if entry.counters.is_empty() {
                 let pool = self.fetch(self.objects(objects)?);
+                let by = if self.links_exile {
+                    format!("Some({})", self.fetch(self.linked().to_string()))
+                } else {
+                    "None".to_string()
+                };
                 match (face_down, shuffled) {
-                    (true, true) => writeln!(out, "let mut pool_{id} = {pool}; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); objects_{id}.push(pool_{id}.remove(at)); }} let moved_{id} = g.exile_face_down(&objects_{id}, None);").unwrap(),
+                    (true, true) => writeln!(out, "let mut pool_{id} = {pool}; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); objects_{id}.push(pool_{id}.remove(at)); }} let moved_{id} = g.exile_face_down(&objects_{id}, {by});").unwrap(),
                     // "Exile the top four cards of your library in a face-down
                     // pile": a pile is the cards it holds, kept as what moved;
                     // the order of an unshuffled pile is no secret.
-                    (true, false) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_face_down(&objects_{id}, None);").unwrap(),
+                    (true, false) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_face_down(&objects_{id}, {by});").unwrap(),
                     // A face-up pile's order is seen by all: a shuffle hides nothing.
+                    (false, _) if self.links_exile => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_with(&objects_{id}, {by}.expect(\"linked exile pile\"), false);").unwrap(),
                     (false, _) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_all(&objects_{id});").unwrap(),
                 }
                 self.moved.insert(result.0, format!("moved_{id}"));
@@ -2791,80 +2785,6 @@ impl Compiler {
         )
         .unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
-        Ok(())
-    }
-    /// `change_zone`, or the call it will be for a rule the chosen cards keep.
-    pub(super) fn change_zone_p(
-        &mut self,
-        id: usize,
-        op: &Operation,
-        result: &ResultId,
-        out: &mut String,
-    ) -> Result<()> {
-        let mut code = String::new();
-        let failed = match self.change_zone(id, op, result, &mut code) {
-            Ok(()) => {
-                out.push_str(&code);
-                return Ok(());
-            }
-            Err(failed) => failed,
-        };
-        let Operation::ChangeZone {
-            actor,
-            cards,
-            count,
-            random,
-            group,
-            destination,
-            entry,
-            face_down,
-        } = op
-        else {
-            return Err(failed);
-        };
-        if failed.feature != "operation ChangeZone"
-            && failed.feature != "move to Hand"
-            && failed.feature != "put onto the battlefield face down as a stated creature"
-        {
-            return Err(failed);
-        }
-        let actor = self.fetch(self.players(actor)?);
-        let cards = self.fetch(self.objects(cards)?);
-        let count = match count {
-            Some(count) => format!("Some({})", self.fetch(self.select_count(count)?)),
-            None => "None".to_string(),
-        };
-        let group = match group {
-            Some(group) => format!("Some({})", self.kept_term(group)),
-            None => "None".to_string(),
-        };
-        let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
-        let face_down = match face_down {
-            Some(as_) => {
-                let shape = self.operand_code(&as_.power_toughness);
-                let kind = match &as_.creature_type {
-                    Some(kind) => format!("Some({})", self.operand_code(kind)),
-                    None => "None".to_string(),
-                };
-                format!(
-                    "Some(FaceDownAs {{ shape: {shape}, creature_type: {kind}, artifact: {} }})",
-                    as_.artifact
-                )
-            }
-            None => "None".to_string(),
-        };
-        let destination = self.destination_code(destination)?;
-        // Who moves and what is moved are read as it resolves, as `in_state`
-        // takes them; how is a `CardMove`, data (`ZoneChange` is the
-        // replacement effects' move, CR 614.1a).
-        let call = format!(
-            "{M}::enter::change_zone(g, asker, &{actor}, &{cards}, CardMove {{ count: {count}, random: {random}, group: {group}, destination: {destination}, entry: &[{}], face_down: {face_down} }})?",
-            entry.join(", ")
-        );
-        let moved = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
-        writeln!(out, "let moved_{id}: Vec<ObjectId> = {moved};").unwrap();
-        self.moved.insert(result.0, format!("moved_{id}"));
-        self.selections.insert(result.0, format!("moved_{id}"));
         Ok(())
     }
     /// `search_zones`, or the call it will be for what `library::search` can't do.

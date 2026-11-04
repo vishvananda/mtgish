@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 175;
+pub const SCHEMA_VERSION: u32 = 176;
 
 /// Typed pattern for the permanent query of the shared battlefield. Card-only,
 /// player-scoped and other-zone queries deliberately do not match.
@@ -1320,6 +1320,8 @@ pub enum Operation {
         destination: Destination,
         entry: EntrySpec,
         face_down: bool,
+        #[serde(default)]
+        terms: MovementTerms,
     },
     Tap {
         objects: ObjectSet,
@@ -1615,11 +1617,15 @@ pub enum Operation {
         cost: Cost,
         at_most: Expr,
     },
+    /// Draft producer/old-decoder form, forbidden in a validated card.
+    /// Canonical normalization elaborates its selections and typed movement.
     /// Cards change zones, as Forge's `ChangeZone`. `count` is how many the
     /// actor chooses, or which at `random`; none means all of `cards`, and
     /// `random` then means in a random order. `group` is a rule the chosen
     /// cards keep together.
-    ChangeZone {
+    #[doc(hidden)]
+    #[serde(rename = "ChangeZone")]
+    DraftChangeZone {
         actor: PlayerSet,
         cards: ObjectSet,
         count: Option<Count>,
@@ -2619,6 +2625,30 @@ pub enum SelectionConstraint {
     AllSameProperty(DistinctProperty),
     /// Not what an earlier run of the enclosing player loop picked.
     Unpicked,
+    /// One choice for each type in this domain. An object can fill only one
+    /// type's choice, even if it has several of those types.
+    OneForEachCardType(CardTypeDomain),
+    /// Choose a name by choosing one object, then take every offered object
+    /// with that name. This is stronger than merely sharing a name.
+    AllWithChosenName,
+    /// A reviewed set qualification whose richer semantics remain explicit.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CardTypeDomain {
+    All,
+    Permanent,
+    AmongObjects(ObjectSet),
+    /// Types observed in matching casts, including objects that have since
+    /// moved. This is not a filter over the currently live battlefield.
+    AmongCasts {
+        by: PlayerSet,
+        filter: ObjectFilter,
+        window: HistoryWindow,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -2816,6 +2846,37 @@ pub struct EntrySpec {
     pub tapped: bool,
     pub counters: Vec<(crate::counter::CounterKind, Expr)>,
     pub states: Vec<EntryState>,
+}
+
+/// Placement terms are independent of selecting the objects that will move.
+/// The default retains the destination's own ordering and chooser rules.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct MovementTerms {
+    pub order: MovementOrder,
+    pub placement: MovementPlacement,
+    /// Qualifications over the entire moved set when no selection is stated.
+    /// These do not implicitly ask a player to choose a subset.
+    pub qualifiers: Vec<SelectionConstraint>,
+}
+impl MovementTerms {
+    pub fn is_default(&self) -> bool {
+        matches!(self.order, MovementOrder::DestinationDefault)
+            && matches!(self.placement, MovementPlacement::DestinationDefault)
+            && self.qualifiers.is_empty()
+    }
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum MovementOrder {
+    #[default]
+    DestinationDefault,
+    Random,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum MovementPlacement {
+    #[default]
+    DestinationDefault,
+    /// A stated player chooses a library placement, rather than each owner.
+    By(PlayerSet),
 }
 
 /// What an object is as it enters, beyond tapped and counters.
@@ -4750,12 +4811,18 @@ pub enum ObjectSet {
     /// Cards a player owns outside the game (CR 400.11).
     OutsideTheGame(ObjectFilter),
     /// Some of these at random.
-    Random {
+    /// Draft producer/old-decoder form; canonical resolution uses Prepared.
+    #[doc(hidden)]
+    #[serde(rename = "Random")]
+    DraftRandom {
         objects: Box<ObjectSet>,
         count: Expr,
     },
     /// Some of these, which `chooser` picks as the instruction resolves.
-    Chosen {
+    /// Draft producer/old-decoder form; canonical resolution uses Prepared.
+    #[doc(hidden)]
+    #[serde(rename = "Chosen")]
+    DraftChosen {
         chooser: PlayerSet,
         objects: Box<ObjectSet>,
         count: Count,

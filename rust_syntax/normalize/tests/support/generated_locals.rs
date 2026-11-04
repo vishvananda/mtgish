@@ -13,7 +13,7 @@ fn normalize(tokens: TokenStream) -> TokenStream {
                 let mut parts: Vec<_> = name.split('_').map(str::to_owned).collect();
                 if matches!(
                     parts.first().map(String::as_str),
-                    Some("carried" | "selected" | "paid" | "hoisted")
+                    Some("carried" | "selected" | "paid" | "hoisted" | "objects" | "moved" | "player")
                 ) && parts
                     .get(1)
                     .is_some_and(|part| part.chars().all(|c| c.is_ascii_digit()))

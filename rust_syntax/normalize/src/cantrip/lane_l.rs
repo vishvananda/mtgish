@@ -1917,8 +1917,8 @@ impl Compiler {
                     players: PlayerSet::One(player),
                     objects: ObjectSet::One(ObjectRef::Target { slot: gone, index: gone_at }),
                     ..
-                }, Operation::ChangeZone {
-                    cards: ObjectSet::One(ObjectRef::Target { slot: back, index: back_at }),
+                }, Operation::Move {
+                    objects: ObjectSet::One(ObjectRef::Target { slot: back, index: back_at }),
                     ..
                 }] = operations.as_slice()
                 else {
@@ -3232,38 +3232,6 @@ impl Compiler {
             _ => return None,
         })
     }
-    /// `.with(part)` for the rule a move keeps its chosen `cards` to, if `select`
-    /// has it. The source's "from your graveyard" has to be what `cards` reads.
-    pub(super) fn group_rule(&mut self, group: &Operand, cards: &ObjectSet) -> Option<String> {
-        let from_graveyard = self.line_text().is_some_and(|line| line.contains("from your graveyard"));
-        if from_graveyard && !self.objects(cards).ok()?.contains("Zone::graveyard") {
-            return None;
-        }
-        let (form, operands): (&str, &[Operand]) = match group {
-            Operand::Vocabulary { family, form } if family == "GroupFilter" => (form, &[]),
-            Operand::Term { family, form, operands } if family == "GroupFilter" => (form, operands),
-            Operand::Form(named) if named.source_type == "GroupFilter" => {
-                (&named.form, &named.operands)
-            }
-            _ => return None,
-        };
-        let constraint = match (form, operands) {
-            ("DifferentNames", []) => SelectionConstraint::DifferentNames,
-            ("DifferentManaValues", []) => {
-                SelectionConstraint::DifferentProperty(Property::ManaValue)
-            }
-            ("DifferentPowers", []) => SelectionConstraint::DifferentProperty(Property::Power),
-            ("TotalManaValueIs", [Operand::Comparison(comparison, amount @ Expr::Constant(_))]) => {
-                SelectionConstraint::TotalProperty {
-                    property: Property::ManaValue,
-                    comparison: comparison.clone(),
-                    amount: amount.clone(),
-                }
-            }
-            _ => return None,
-        };
-        Some(format!(".with({})", self.set_rule(&constraint)?))
-    }
     /// `.with(part)` for each rule of a search.
     pub(super) fn search_rules(&mut self, constraints: &[SelectionConstraint]) -> Result<String> {
         let mut rules = String::new();
@@ -3373,27 +3341,8 @@ impl Compiler {
         let chooser = self.fetch(self.certain_player(player)?);
         let pool = self.fetch(self.objects(objects)?);
         if let SelectionConstraint::OneForEach(filters) = constraint {
-            let up_to = !matches!(count, Count::Exactly(_) | Count::AsManyAsCan(_));
-            writeln!(out, "let player_{id} = {chooser}; let pool_{id} = {pool}; let mut picked_{id}: Vec<ObjectId> = Vec::new();").unwrap();
-            // One object may be picked for each of its types: an artifact creature
-            // is the artifact and the creature (the rulings of Cataclysm, Tragic
-            // Arrogance and Ajani, Nacatl Avenger), a dual land two basic land types
-            // (Global Ruin, Sundering Titan). A party's members are distinct (CR
-            // 700.8), and so is a card picked for one keyword among several
-            // (Selective Adaptation) or for one color.
-            let distinct = ["party", "a card with ", "color"]
-                .iter()
-                .any(|words| lane_k::printed_otherwise(self.line_text(), words));
-            for filter in filters {
-                let test = self.filter(filter, &Candidate::of("id"))?;
-                let again = match distinct {
-                    false => String::new(),
-                    true => format!(".filter(|id| !picked_{id}.contains(id))"),
-                };
-                let open = self.fetch(format!("pool_{id}.iter().copied(){again}.filter(|&id| {test}).collect::<Vec<ObjectId>>()"));
-                writeln!(out, "{{ let open = {open}; let one = {M}::choose::cards(g, player_{id}, asker.source, Purpose::{purpose}, open, 1, {up_to})?; for o in one {{ if !picked_{id}.contains(&o) {{ picked_{id}.push(o); }} }} }}").unwrap();
-            }
-            self.selections.insert(result.0, format!("picked_{id}"));
+            let picked = self.choose_filter_parts_local(id, &chooser, &pool, count, filters, purpose, out)?;
+            self.selections.insert(result.0, picked);
             return Ok(());
         }
         // "Each opponent chooses a different card": not one an earlier turn of the
@@ -3464,15 +3413,13 @@ impl Compiler {
                 players: PlayerSet::One(_),
                 objects: ObjectSet::One(ObjectRef::Target { .. }),
                 choose: None,
-            }, Operation::ChangeZone {
-                cards: ObjectSet::One(ObjectRef::Target { .. }),
-                count: None,
-                random: false,
-                group: None,
+            }, Operation::Move {
+                objects: ObjectSet::One(ObjectRef::Target { .. }),
                 destination: Destination::OwnersBattlefield,
-                face_down: None,
-                ..
-            }]
+                face_down: false,
+                entry,
+                terms,
+            }] if effects::plain_entry(entry) && terms.is_default()
         )
     }
     /// `chosen_{id}`: a permanent `player_{id}` controls for each of `slots`, the
@@ -3503,9 +3450,10 @@ impl Compiler {
                     destination: Destination::Exile,
                     entry,
                     face_down: false,
+                    terms,
                 },
                 ..
-            }) if seen.0 == result.0 && !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
+            }) if terms.is_default() && seen.0 == result.0 && !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
         )
     }
     /// "Your choice of a reach, vigilance or trample counter", "a counter of a

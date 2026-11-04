@@ -104,6 +104,7 @@ impl Context {
                     destination: Destination::Exile,
                     entry: EntrySpec::default(),
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 });
                 self.exiled_permanents = false;
                 let Instruction::Effect { result, .. } = &movement else {
@@ -337,6 +338,7 @@ impl Context {
             destination: Destination::OwnersHand,
             entry: EntrySpec::default(),
             face_down: false,
+            terms: crate::ir::MovementTerms::default(),
         });
         let Instruction::Effect { result, .. } = &movement else {
             unreachable!()

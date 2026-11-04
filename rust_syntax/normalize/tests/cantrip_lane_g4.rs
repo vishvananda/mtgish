@@ -4,6 +4,8 @@
 //! names what Cantrip or the data lacks. It reads the corpus and the printed words
 //! for these cards alone, and has nothing to say without them.
 use mtgish_ast::cantrip;
+#[path = "support/generated_locals.rs"]
+mod generated_locals;
 use std::{collections::BTreeMap, path::PathBuf};
 
 /// The card, what its module has to say, and whether it is whole.
@@ -61,7 +63,7 @@ fn modules_say_what_their_cards_say() {
         let module = modules
             .get(*name)
             .unwrap_or_else(|| panic!("no module for {name}"));
-        assert!(module.contains(says), "{name} should have {says}:\n{module}");
+        assert!(generated_locals::contains(module,says), "{name} should have {says}:\n{module}");
         if *whole {
             assert!(!module.contains("planned"), "{name} should be whole:\n{module}");
         }

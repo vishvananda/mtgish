@@ -707,7 +707,7 @@ impl Context {
                     _,
                 ),
                 _,
-            ) => ObjectSet::Random {
+            ) => ObjectSet::DraftRandom {
                 objects: Box::new(self.private_cards(
                     EventZone::Library,
                     PlayerSet::One(self.player(player).ok()?),

@@ -872,7 +872,7 @@ impl Inventory<'_> {
                     self.destination(then);
                 }
             }
-            Operation::ChangeZone {
+            Operation::DraftChangeZone {
                 actor,
                 cards,
                 count,
@@ -1295,10 +1295,20 @@ impl Inventory<'_> {
                 objects,
                 destination,
                 entry,
+                terms,
                 ..
             } => {
                 self.objects(objects);
                 self.destination(destination);
+                self.form("MovementOrder", &terms.order);
+                self.form("MovementPlacement", &terms.placement);
+                terms
+                    .qualifiers
+                    .iter()
+                    .for_each(|constraint| self.selection_constraint(constraint));
+                if let MovementPlacement::By(players) = &terms.placement {
+                    self.players(players);
+                }
                 self.entry_states(entry);
                 for (k, n) in &entry.counters {
                     self.counter(k);
@@ -1350,6 +1360,21 @@ impl Inventory<'_> {
     fn selection_constraint(&mut self, c: &SelectionConstraint) {
         self.form("SelectionConstraint", c);
         match c {
+            SelectionConstraint::OneForEachCardType(domain) => {
+                self.form("CardTypeDomain", domain);
+                match domain {
+                    CardTypeDomain::AmongObjects(objects) => self.objects(objects),
+                    CardTypeDomain::AmongCasts { by, filter, window } => {
+                        self.players(by);
+                        self.filter(filter);
+                        self.form("HistoryWindow", window);
+                    }
+                    _ => {}
+                }
+            }
+            SelectionConstraint::Primitive { name, .. } => {
+                self.primitive(name);
+            }
             SelectionConstraint::CommonProperty(property) => {
                 self.form("DistinctProperty", property)
             }
@@ -2154,11 +2179,11 @@ impl Inventory<'_> {
                 self.event(event);
                 self.form("HistoryWindow", window);
             }
-            ObjectSet::Random { objects, count } => {
+            ObjectSet::DraftRandom { objects, count } => {
                 self.objects(objects);
                 self.expr(count);
             }
-            ObjectSet::Chosen {
+            ObjectSet::DraftChosen {
                 chooser,
                 objects,
                 count,

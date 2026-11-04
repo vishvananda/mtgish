@@ -240,9 +240,10 @@ fn moves_self_to_bottom(body: &Program) -> bool {
                 destination: Destination::OwnersLibraryBottom,
                 entry,
                 face_down: false,
+                terms,
             },
             ..
-        }] if !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
+        }] if terms.is_default() && !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
     )
 }
 /// Collect evidence as the action of a player action, as the cost part it is.

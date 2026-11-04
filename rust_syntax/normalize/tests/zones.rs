@@ -47,6 +47,7 @@ fn movement(objects: ObjectSet, destination: Destination) -> Operation {
         destination,
         entry: EntrySpec::default(),
         face_down: false,
+        terms: mtgish_ast::ir::MovementTerms::default(),
     }
 }
 fn library(players: PlayerSet) -> ObjectSet {

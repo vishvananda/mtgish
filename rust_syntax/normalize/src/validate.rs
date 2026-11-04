@@ -929,18 +929,8 @@ impl<'a> Scope<'a> {
             ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::SplicedOnto(object) | ObjectSet::TargetsOf(object) => self.object(object),
             ObjectSet::FromHistory { event, .. } => self.event(event),
-            ObjectSet::Random { objects, count } => {
-                self.objects(objects)?;
-                self.expr(count)
-            }
-            ObjectSet::Chosen {
-                chooser,
-                objects,
-                count,
-            } => {
-                self.players(chooser)?;
-                self.objects(objects)?;
-                self.count(count)
+            ObjectSet::DraftRandom { .. } | ObjectSet::DraftChosen { .. } => {
+                Err("a draft selector has no canonical choice at this execution site".into())
             }
             ObjectSet::CostObjects {
                 payment,
@@ -2413,6 +2403,7 @@ impl<'a> Scope<'a> {
                         destination: destination.clone(),
                         entry: entry.clone(),
                         face_down: *face_down,
+                        terms: crate::ir::MovementTerms::default(),
                     })?;
                     for selection in selections {
                         self.cost_object_selection(selection)?;
@@ -3359,31 +3350,8 @@ impl<'a> Scope<'a> {
                 terms.effects.iter().try_for_each(|o| self.operand(o))?;
                 group.iter().try_for_each(|o| self.operand(o))
             }
-            Operation::ChangeZone {
-                actor,
-                cards,
-                count,
-                group,
-                destination,
-                entry,
-                face_down,
-                ..
-            } => {
-                self.players(actor)?;
-                self.objects(cards)?;
-                if let Some(count) = count {
-                    self.count(count)?;
-                }
-                self.destination(destination)?;
-                if let Some(face_down) = face_down {
-                    self.operand(&face_down.power_toughness)?;
-                    face_down
-                        .creature_type
-                        .iter()
-                        .try_for_each(|o| self.operand(o))?;
-                }
-                entry.iter().try_for_each(|o| self.operand(o))?;
-                group.iter().try_for_each(|o| self.operand(o))
+            Operation::DraftChangeZone { .. } => {
+                Err("a draft zone change must be elaborated before validation".into())
             }
             Operation::CopyCards {
                 actor,
@@ -3551,9 +3519,19 @@ impl<'a> Scope<'a> {
                 destination,
                 entry,
                 face_down,
+                terms,
             } => {
                 self.objects(objects)?;
                 self.destination(destination)?;
+                self.selection_constraints(&terms.qualifiers)?;
+                if let MovementPlacement::By(players) = &terms.placement {
+                    self.players(players)?;
+                    if !matches!(destination, Destination::OwnersLibraryTopOrBottom) {
+                        return Err(
+                            "a placement chooser requires a top-or-bottom destination".into()
+                        );
+                    }
+                }
                 if entry.tapped
                     && !matches!(
                         destination,
@@ -3943,6 +3921,23 @@ impl<'a> Scope<'a> {
 
     fn selection_constraints(&self, constraints: &[SelectionConstraint]) -> Result {
         for constraint in constraints {
+            match constraint {
+                SelectionConstraint::OneForEachCardType(CardTypeDomain::AmongObjects(objects)) => {
+                    self.objects(objects)?;
+                }
+                SelectionConstraint::OneForEachCardType(CardTypeDomain::AmongCasts {
+                    by,
+                    filter,
+                    ..
+                }) => {
+                    self.players(by)?;
+                    self.filter(filter)?;
+                }
+                SelectionConstraint::Primitive { name, operands } => {
+                    self.primitive(name, operands)?;
+                }
+                _ => {}
+            }
             if let SelectionConstraint::TotalProperty { amount, .. }
             | SelectionConstraint::DistinctCount { amount, .. }
             | SelectionConstraint::TotalManaSymbols { amount, .. } = constraint
@@ -4554,7 +4549,7 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
                 destination: Destination::OwnersHand,
                 entry,
                 face_down: false,
-            },
+             .. },
         ..
     }, Instruction::Effect {
         operation:

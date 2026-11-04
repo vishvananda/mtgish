@@ -32,7 +32,7 @@ impl Context {
                         .ok_or_else(|| invalid("no creature is being iterated"))?;
                     let instruction = context.effect(Operation::CopyCards {
                         actor,
-                        objects: ObjectSet::Random {
+                        objects: ObjectSet::DraftRandom {
                             objects: Box::new(ObjectSet::OutsideTheGame(ObjectFilter::Shares {
                                 property: DistinctProperty::ManaCosts,
                                 with: ObjectRef::Bound(binding),
@@ -166,6 +166,7 @@ impl Context {
                                         destination: Destination::OwnersGraveyard,
                                         entry: EntrySpec::default(),
                                         face_down: false,
+                                        terms: crate::ir::MovementTerms::default(),
                                     })],
                                 })
                             },

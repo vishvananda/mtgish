@@ -1,5 +1,30 @@
 use serde_json::{json, Value};
 
+/// Declared schema-176 migration for these earlier captured fixtures: ordinary
+/// move defaults and an unselected/unflagged zone change. Richer transfers must
+/// use the separate full migration oracle, rather than relaxing this comparison.
+pub fn movement_defaults(value: &mut Value) {
+    if value.get("kind").and_then(Value::as_str) == Some("ChangeZone") {
+        let a=&value["args"];
+        let normal=a["entry"].as_array().unwrap().iter().all(|flag|*flag==json!({"kind":"Term","args":{"family":"EnterFlag","form":"EntersNormally","operands":[]}}));
+        assert!(a["count"].is_null() && a["group"].is_null() && a["random"]==false && a["face_down"].is_null() && normal,"a richer captured transfer needs its declared migration: {value}");
+        let placement=if a["destination"]=="OwnersLibraryTopOrBottom" {json!({"By":a["actor"]})}else{json!("DestinationDefault")};
+        *value=json!({"kind":"Move","args":{"objects":a["cards"],"destination":a["destination"],"entry":{"tapped":false,"counters":[],"states":[]},"face_down":false,"terms":{"order":"DestinationDefault","placement":placement,"qualifiers":[]}}});
+    }
+    if value.get("kind").and_then(Value::as_str) == Some("Move") {
+        if let Some(args)=value.get_mut("args").and_then(Value::as_object_mut) {
+            if args.contains_key("objects") && args.contains_key("entry") {
+                args.entry("terms").or_insert_with(||json!({"order":"DestinationDefault","placement":"DestinationDefault","qualifiers":[]}));
+            }
+        }
+    }
+    match value {
+        Value::Object(fields)=>fields.values_mut().for_each(movement_defaults),
+        Value::Array(values)=>values.iter_mut().for_each(movement_defaults),
+        _=>{},
+    }
+}
+
 /// Only the declared portable-query alias migration; every filter and other
 /// operand is retained. Captured producer fixtures remain byte-for-byte intact.
 pub fn battlefield(value: &mut Value) {

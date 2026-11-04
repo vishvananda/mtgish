@@ -189,7 +189,7 @@ fn actions_read_as_zone_changes_and_plays() {
         "Action::ReturnACardFromGraveyardToHandAtRandom",
         vec![cards()],
     ) {
-        Operation::ChangeZone {
+        Operation::DraftChangeZone {
             random: true,
             destination: Destination::OwnersHand,
             count: Some(Count::Exactly(_)),
@@ -241,7 +241,7 @@ fn set_and_stack_actions_are_typed() {
     assert!(matches!(
         reduced("Action::DestroyAPermanentAtRandom", vec![creatures()]),
         Operation::Destroy {
-            objects: ObjectSet::Random { .. },
+            objects: ObjectSet::DraftRandom { .. },
             regeneration: true,
         }
     ));
@@ -249,7 +249,7 @@ fn set_and_stack_actions_are_typed() {
         reduced("Action::PhaseOutAnyNumberOfPermanents", vec![creatures()]),
         Operation::KeywordEach {
             action: KeywordAction::PhaseOut,
-            objects: ObjectSet::Chosen { .. },
+            objects: ObjectSet::DraftChosen { .. },
             ..
         }
     ));

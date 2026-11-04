@@ -189,14 +189,15 @@ fn basic_plains(filter: &ObjectFilter) -> bool {
 
 impl Compiler {
     pub(super) fn sequence_recipe(&mut self, body: &Program, out: &mut String) -> Result<bool> {
+        if !effects::only_plain_moves(body) { return Ok(false); }
         let steps = &ungroup(body).instructions;
         if let [
             Instruction::Effect { result: found, operation: Operation::Search { player: PlayerRef::AbilityController, library: PlayerRef::AbilityController, top: None, choices, also, either: false, outside: false } },
             Instruction::Effect { operation: Operation::Reveal { objects: ObjectSet::Selected(revealed) }, .. },
-            Instruction::Effect { operation: Operation::Move { objects: ObjectSet::Selected(moved), destination: Destination::OwnersHand, face_down: false, .. }, .. },
+            Instruction::Effect { operation: Operation::Move { objects: ObjectSet::Selected(moved), destination: Destination::OwnersHand, face_down: false, terms, .. }, .. },
             Instruction::Effect { operation: Operation::Shuffle { players: PlayerSet::One(PlayerRef::AbilityController), excluding: None }, .. },
         ] = steps.as_slice() {
-            if also.is_empty() && found.0 == revealed.0 && found.0 == moved.0
+            if terms.is_default() && also.is_empty() && found.0 == revealed.0 && found.0 == moved.0
                 && matches!(choices.as_slice(), [choice] if basic_plains(&choice.filter) && matches!(choice.count, Count::UpTo(Expr::Constant(1))) && choice.constraints.is_empty())
             {
                 out.push_str("cantrip_mechanics::library::find_to_hand(g, asker.controller, asker.source, cantrip_mechanics::select::BASIC_PLAINS_CARD, true)?;\n");
@@ -214,7 +215,8 @@ impl Compiler {
         let [CostPart::PlayerAction { player: PlayerRef::AbilityController, body: action }] = cost.parts.as_slice() else { return Ok(false) };
         let [Instruction::Effect { operation: Operation::MoveTopCard { actor: PlayerSet::One(PlayerRef::AbilityController), cards: ObjectFilter::CardType(t), reveal: false, destination: Destination::OwnersBattlefield, entry }, .. }] = ungroup(action).instructions.as_slice() else { return Ok(false) };
         if name(t) != "Land" { return Ok(false); }
-        let [Instruction::Effect { operation: Operation::Move { objects: fallback, destination: Destination::OwnersHand, face_down: false, .. }, .. }] = ungroup(then).instructions.as_slice() else { return Ok(false) };
+        let [Instruction::Effect { operation: Operation::Move { objects: fallback, destination: Destination::OwnersHand, face_down: false, terms, .. }, .. }] = ungroup(then).instructions.as_slice() else { return Ok(false) };
+        if !terms.is_default() { return Ok(false); }
         if format!("{fallback:?}") != format!("{looked:?}") { return Ok(false); }
         let Some((entry, _)) = lane_i::entry_of(entry, &Destination::OwnersBattlefield) else { return Ok(false) };
         if !entry.states.is_empty() || !entry.counters.is_empty() { return Ok(false); }

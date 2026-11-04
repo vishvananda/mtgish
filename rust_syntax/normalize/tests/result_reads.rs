@@ -293,6 +293,7 @@ fn whole_membership_records_change_only_declared_aliases_and_schema_stamps() {
         query_aliases::battlefield(&mut expected);
         query_aliases::value_choices(&mut expected);
         let actual = serde_json::to_value(unified::lower(&source).card).unwrap();
+        query_aliases::movement_defaults(&mut expected);
         assert_eq!(actual, expected, "{line}");
     }
 }

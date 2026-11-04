@@ -241,7 +241,7 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
     if matches!(operation, Operation::PutChosenCounters { .. }) {
         return Some("counters");
     }
-    if let Operation::ChangeZone { destination, .. } = operation {
+    if let Operation::DraftChangeZone { destination, .. } = operation {
         return Some(match destination {
             Destination::OwnersHand | Destination::Hand(_) => "hand",
             Destination::OwnersGraveyard => "graveyard",
@@ -4272,7 +4272,7 @@ fn reduce_attack(name: &str, operands: &[Operand]) -> Option<EventSpec> {
 }
 
 /// A counter's kind, read from its operand.
-fn counter_kind(operand: &Operand) -> Option<crate::counter::CounterKind> {
+pub(crate) fn counter_kind(operand: &Operand) -> Option<crate::counter::CounterKind> {
     use crate::counter::CounterKind;
     match operand {
         Operand::Term {
@@ -5876,7 +5876,7 @@ impl Effects {
                         destination,
                         ..
                     }
-                    | Operation::ChangeZone {
+                    | Operation::DraftChangeZone {
                         cards: objects,
                         destination,
                         ..
@@ -6107,8 +6107,8 @@ impl Effects {
             ObjectSet::One(o) => self.object_library(o),
             ObjectSet::Union(sets) => sets.iter().any(|s| self.objects_library(s)),
             ObjectSet::Take { objects, .. }
-            | ObjectSet::Random { objects, .. }
-            | ObjectSet::Chosen { objects, .. } => self.objects_library(objects),
+            | ObjectSet::DraftRandom { objects, .. }
+            | ObjectSet::DraftChosen { objects, .. } => self.objects_library(objects),
             ObjectSet::Targets(slot) => self.targets.get(&slot.0).copied().unwrap_or(false),
             ObjectSet::Selected(result) | ObjectSet::Unselected(result) => {
                 self.result_library(result, &ObjectPhase::After)

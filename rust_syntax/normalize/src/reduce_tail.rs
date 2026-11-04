@@ -89,7 +89,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             players,
             Operation::GiveControl {
                 players: actor.clone(),
-                objects: ObjectSet::Chosen {
+                objects: ObjectSet::DraftChosen {
                     chooser: actor.clone(),
                     objects: Box::new(ObjectSet::Matching {
                         objects: Box::new(objects.clone()),
@@ -101,7 +101,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             },
         ),
         ("PutACommanderFromCommandZoneOntoBattlefield", [commanders, List(entry)]) => {
-            Operation::ChangeZone {
+            Operation::DraftChangeZone {
                 actor: actor.clone(),
                 cards: commanders_in(Z::Command, Some(commanders), actor)?,
                 count: Some(Count::UpTo(Expr::Constant(1))),
@@ -233,7 +233,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             times: Expr::Constant(2),
             body: Box::new(keyword(actor.clone(), KeywordAction::RollDie(6), None, None)),
         },
-        ("ExileUptoNumberGraveyardCards", [Number(count), Filter(cards)]) => Operation::ChangeZone {
+        ("ExileUptoNumberGraveyardCards", [Number(count), Filter(cards)]) => Operation::DraftChangeZone {
             actor: actor.clone(),
             cards: ObjectSet::AnyZone(cards.clone()),
             count: Some(Count::UpTo(count.clone())),
@@ -317,7 +317,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                 keyword(actor.clone(), KeywordAction::LoseUnspentMana, None, None),
             ])
         }
-        ("ShuffleHandAndPermanentsIntoLibrary", []) => Operation::ChangeZone {
+        ("ShuffleHandAndPermanentsIntoLibrary", []) => Operation::DraftChangeZone {
             actor: actor.clone(),
             cards: ObjectSet::Union(vec![
                 zone_set(Z::Hand, actor.clone(), ObjectFilter::Any),
@@ -422,7 +422,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             )
         }
         ("RevealCardFromOutsideGameAndPutInHandOrPutAnExiledCardInOwnersHand", [Filter(cards), Objects(exiled)]) => {
-            Operation::ChangeZone {
+            Operation::DraftChangeZone {
                 actor: actor.clone(),
                 cards: ObjectSet::Union(vec![
                     ObjectSet::OutsideTheGame(cards.clone()),
@@ -875,9 +875,10 @@ fn tail_inspection_step(
             destination: D::Exile,
             entry: EntrySpec::default(),
             face_down: false,
+            terms: crate::ir::MovementTerms::default(),
         });
     }
-    let put = |cards: ObjectSet, destination, entry: &[Operand]| Operation::ChangeZone {
+    let put = |cards: ObjectSet, destination, entry: &[Operand]| Operation::DraftChangeZone {
         actor: actor.clone(),
         cards,
         count: None,
@@ -887,7 +888,7 @@ fn tail_inspection_step(
         entry: entry.to_vec(),
         face_down: None,
     };
-    let picked = |count| ObjectSet::Chosen {
+    let picked = |count| ObjectSet::DraftChosen {
         chooser: actor.clone(),
         objects: Box::new(cards.clone()),
         count,
@@ -1065,7 +1066,7 @@ fn tail_objects(form: &str, operands: &[Operand]) -> Option<ObjectSet> {
         (
             "NumberPermanentsCardsInHandOrCardsInGraveyards",
             [Number(count), Objects(permanents), held, Filter(graveyard)],
-        ) => ObjectSet::Chosen {
+        ) => ObjectSet::DraftChosen {
             chooser: hand(held)?,
             objects: Box::new(ObjectSet::Union(vec![
                 permanents.clone(),
@@ -1075,7 +1076,7 @@ fn tail_objects(form: &str, operands: &[Operand]) -> Option<ObjectSet> {
             count: Count::Exactly(count.clone()),
         },
         ("NumberPermanentsOrCardsInHand", [Number(count), Objects(permanents), held]) => {
-            ObjectSet::Chosen {
+            ObjectSet::DraftChosen {
                 chooser: hand(held)?,
                 objects: Box::new(ObjectSet::Union(vec![
                     permanents.clone(),

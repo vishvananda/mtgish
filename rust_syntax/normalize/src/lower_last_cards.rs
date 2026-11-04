@@ -58,6 +58,7 @@ impl Context {
                 destination: Destination::OwnersPlanarDeck(end),
                 entry: EntrySpec::default(),
                 face_down: false,
+                terms: crate::ir::MovementTerms::default(),
             });
             let Instruction::Effect { result, .. } = &put else {
                 unreachable!()

@@ -352,6 +352,7 @@ impl Context {
                     destination: Destination::OwnersHand,
                     entry: EntrySpec::default(),
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 },
                 state,
                 instructions,
@@ -584,6 +585,7 @@ impl Context {
                         destination,
                         entry,
                         face_down,
+                        terms: crate::ir::MovementTerms::default(),
                     },
                     state,
                     instructions,
@@ -635,6 +637,7 @@ impl Context {
                     destination,
                     entry: EntrySpec::default(),
                     face_down: matches!(action, S::ExileTheRemainingCardsFaceDown),
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             S::PutTheRemainingCardsOnTopOfLibraryInAnyOrder
@@ -731,6 +734,7 @@ impl Context {
                     destination,
                     entry,
                     face_down: false,
+                    terms: crate::ir::MovementTerms::default(),
                 }
             }
             S::GainLife(n) => Operation::GainLife {
