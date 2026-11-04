@@ -243,10 +243,14 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
                     n.unsigned_abs()
                 )
             };
+            let word = format!("{}{}", part(power), part(toughness));
+            if planned::switched_on("pt-counters") && crate::cantrip_vocab::COUNTERS.contains(&word.as_str()) {
+                return Ok(format!("CounterKind::{word}"));
+            }
             return Ok(planned::planned_value(
                 "power/toughness counter other than ±1/±1",
                 "CounterKind::PlusOne",
-                &format!("CounterKind::{}{}", part(power), part(toughness)),
+                &format!("CounterKind::{word}"),
             ));
         }
         K::Named(counter) => name(counter),
@@ -267,6 +271,23 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
             "CounterKind::Charge",
             &format!("CounterKind::{word}"),
         ))
+    }
+}
+
+#[cfg(test)]
+mod counter_tests {
+    use super::*;
+
+    #[test]
+    fn a_native_counter_family_does_not_implicitly_add_an_unknown_counter_kind() {
+        planned::with_features(&["pt-counters"], || {
+            let unknown = counter_kind(&crate::counter::CounterKind::PowerToughness(42, 3)).unwrap();
+            assert!(unknown.contains("planned_value!"), "{unknown}");
+            let plus = counter_kind(&crate::counter::CounterKind::PowerToughness(1, 1)).unwrap();
+            assert_eq!(plus, "CounterKind::PlusOne");
+            let minus = counter_kind(&crate::counter::CounterKind::PowerToughness(-1, -1)).unwrap();
+            assert_eq!(minus, "CounterKind::MinusOne");
+        });
     }
 }
 

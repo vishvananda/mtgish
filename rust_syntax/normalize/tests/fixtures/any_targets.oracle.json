@@ -1,0 +1,76 @@
+[
+  {
+    "name": "Dwarven Song",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dwarven Song",
+        "manaCost": "{R}",
+        "type": "Instant",
+        "text": "One or more target creatures become red until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "Heaven's Gate",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Heaven's Gate",
+        "manaCost": "{W}",
+        "type": "Instant",
+        "text": "One or more target creatures become white until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "Miasma Demon",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Miasma Demon",
+        "manaCost": "{4}{B}{B}",
+        "type": "Creature — Demon",
+        "text": "Flying\nWhen this creature enters, you may discard any number of cards. When you do, up to that many target creatures each get -2/-2 until end of turn.",
+        "power": "5",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Sea Kings' Blessing",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sea Kings' Blessing",
+        "manaCost": "{U}",
+        "type": "Instant",
+        "text": "One or more target creatures become blue until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "Sylvan Paradise",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sylvan Paradise",
+        "manaCost": "{G}",
+        "type": "Instant",
+        "text": "One or more target creatures become green until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "Touch of Darkness",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Touch of Darkness",
+        "manaCost": "{B}",
+        "type": "Instant",
+        "text": "One or more target creatures become black until end of turn."
+      }
+    ]
+  }
+]

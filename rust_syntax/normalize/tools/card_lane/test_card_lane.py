@@ -1075,11 +1075,20 @@ class Counters(unittest.TestCase):
         code = ('let a = CounterKind::Spore; let b = CounterKind::Charge; for k in CounterKind::ALL {} let c = CounterKind::Spore;'
                 ' let d = planned_value!("counter kind Rad", CounterKind::Charge => CounterKind::Rad);')
         self.assertEqual(lane.counters_wanted(code, TABLE), ["Spore"])
+        self.assertEqual(lane.counters_wanted("CounterKind::KEYWORDS; CounterKind::POWER_TOUGHNESS", TABLE), [])
 
     def test_lines_run_on_from_the_last_number_and_leave_the_rest_alone(self):
         table = lane.with_counters(TABLE, ["Spore", "Verse"])
         self.assertIn('    Charge = 1, "charge", "Charge";\n    Spore = 2, "spore", "Spore";\n    Verse = 3, "verse", "Verse";\n}\n\npub struct After;', table)
         self.assertEqual(lane.counters_wanted("CounterKind::Verse", table), [])
+
+    def test_appending_a_named_counter_preserves_intrinsic_pt_metadata(self):
+        metadata = 'PlusOne = 0, "+1/+1", "PlusOnePlusOne", (1, 1);'
+        base = TABLE.replace('PlusOne = 0, "+1/+1", "PlusOnePlusOne";', metadata)
+        grown = lane.with_counters(base, ["Spore"])
+        self.assertIn(metadata, grown)
+        self.assertIn('Spore = 2, "spore", "Spore";', grown)
+        self.assertEqual(lane.counters_wanted("CounterKind::PlusOne; CounterKind::Spore", grown), [])
 
     def repository(self, root):
         table = root / lane.COUNTER_TABLE

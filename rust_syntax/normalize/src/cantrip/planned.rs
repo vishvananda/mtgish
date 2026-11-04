@@ -48,6 +48,8 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("rampage", "pub mod rampage;", &["engine-no-rampage"]),
     ("combat-removal", "pub fn remove_from_combat_and_unblock(", &["engine-no-effect-removes-from-combat"]),
     ("blocked-status", "fn become_blocked(", &["engine-no-effect-makes-a-creature-blocked", "keyword-action-become-blocked"]),
+    // A P/T counter also needs its exact kind in COUNTERS; do not globally land unknown pairs.
+    ("pt-counters", "pub const POWER_TOUGHNESS:", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

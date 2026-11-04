@@ -244,7 +244,7 @@ KNOWN_COUNTERS = {}  # the last table read and the kinds `counters_wanted` knows
 
 def known_counters(table):
     if KNOWN_COUNTERS.get("table") is not table:
-        KNOWN_COUNTERS.update(table=table, known={*counter_kinds(table), "ALL", "COUNT"})
+        KNOWN_COUNTERS.update(table=table, known={*counter_kinds(table), "ALL", "COUNT", "KEYWORDS", "POWER_TOUGHNESS"})
     return KNOWN_COUNTERS["known"]
 
 

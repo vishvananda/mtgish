@@ -35,6 +35,23 @@ fn docs(source: &str, name: impl Fn(&str) -> bool) -> Vec<String> {
 }
 
 #[test]
+fn enters_tapped_has_its_own_rule_and_combined_entry_replacements_cite_both() {
+    for name in ["Dwarven Ruins", "Ebon Stronghold"] {
+        let found = docs(&modules()[name], |name| name.ends_with("_enters"));
+        assert_eq!(found.len(), 1, "{name}");
+        assert!(found[0].contains("614.1d"), "{name}: {}", found[0]);
+        assert!(!found[0].contains("614.1c"), "{name}: {}", found[0]);
+    }
+    let bog = docs(&modules()["Peat Bog"], |name| name.ends_with("_enters"));
+    assert_eq!(bog.len(), 1);
+    assert!(bog[0].contains("614.1c, 614.1d"), "{}", bog[0]);
+    let depths = docs(&modules()["Dark Depths"], |name| name.ends_with("_enters"));
+    assert_eq!(depths.len(), 1);
+    assert!(depths[0].contains("614.1c"), "{}", depths[0]);
+    assert!(!depths[0].contains("614.1d"), "{}", depths[0]);
+}
+
+#[test]
 fn aura_target_callbacks_cite_targeting_instead_of_resolution() {
     for name in ["Divine Transformation", "Fishliver Oil", "Gaseous Form", "Giant Strength", "Immolation", "Seeker"] {
         let found = docs(&modules()[name], |name| name.ends_with("_enchant"));

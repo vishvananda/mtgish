@@ -863,7 +863,7 @@ impl Compiler {
         };
         Ok(match count {
             Count::AtLeast(Expr::Constant(n)) if *n >= 0 => {
-                format!(".between({n}, cantrip_mechanics::ANY_NUMBER)")
+                format!(".between({n}, cantrip_api::TargetSpec::ANY_NUMBER)")
             }
             Count::Exactly(n) => {
                 // A spell's slot counts only `TargetSpec::COUNTED`: its X, or else the
@@ -882,7 +882,7 @@ impl Compiler {
             }
             Count::AtLeast(n) => {
                 let n = planned::planned_value("target cardinality AtLeast", "1u32", &read(n)?);
-                format!(".between({n}, cantrip_mechanics::ANY_NUMBER)")
+                format!(".between({n}, cantrip_api::TargetSpec::ANY_NUMBER)")
             }
             other => return Err(gap(format!("target cardinality {}", form(other)))),
         })

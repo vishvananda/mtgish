@@ -1,0 +1,134 @@
+[
+  {
+    "name": "Armor Thrull",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Armor Thrull",
+        "manaCost": "{2}{B}",
+        "type": "Creature — Thrull",
+        "text": "{T}, Sacrifice this creature: Put a +1/+2 counter on target creature.",
+        "power": "1",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Balduvian Hydra",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Balduvian Hydra",
+        "manaCost": "{X}{R}{R}",
+        "type": "Creature — Hydra",
+        "text": "This creature enters with X +1/+0 counters on it.\nRemove a +1/+0 counter from this creature: Prevent the next 1 damage that would be dealt to it this turn.\n{R}{R}{R}: Put a +1/+0 counter on this creature. Activate only during your upkeep.",
+        "power": "0",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Clockwork Avian",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Clockwork Avian",
+        "manaCost": "{5}",
+        "type": "Artifact Creature — Bird",
+        "text": "Flying\nThis creature enters with four +1/+0 counters on it.\nAt end of combat, if this creature attacked or blocked this combat, remove a +1/+0 counter from it.\n{X}, {T}: Put up to X +1/+0 counters on this creature. This ability can't cause the total number of +1/+0 counters on this creature to be greater than four. Activate only during your upkeep.",
+        "power": "0",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Dwarven Armorer",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dwarven Armorer",
+        "manaCost": "{R}",
+        "type": "Creature — Dwarf",
+        "text": "{R}, {T}, Discard a card: Put a +0/+1 counter or a +1/+0 counter on target creature.",
+        "power": "0",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Dwarven Armory",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dwarven Armory",
+        "manaCost": "{2}{R}{R}",
+        "type": "Enchantment",
+        "text": "{2}, Sacrifice a land: Put a +2/+2 counter on target creature. Activate only during any upkeep step."
+      }
+    ]
+  },
+  {
+    "name": "Ebon Praetor",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ebon Praetor",
+        "manaCost": "{4}{B}{B}",
+        "type": "Creature — Avatar Praetor",
+        "text": "First strike, trample\nAt the beginning of your upkeep, put a -2/-2 counter on this creature.\nSacrifice a creature: Remove a -2/-2 counter from this creature. If the sacrificed creature was a Thrull, put a +1/+0 counter on this creature. Activate only during your upkeep and only once each turn.",
+        "power": "5",
+        "toughness": "5"
+      }
+    ]
+  },
+  {
+    "name": "Essence Flare",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Essence Flare",
+        "manaCost": "{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature gets +2/+0.\nAt the beginning of the upkeep of enchanted creature's controller, put a -0/-1 counter on that creature."
+      }
+    ]
+  },
+  {
+    "name": "Lesser Werewolf",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Lesser Werewolf",
+        "manaCost": "{3}{B}",
+        "type": "Creature — Werewolf",
+        "text": "{B}: If this creature's power is 1 or more, it gets -1/-0 until end of turn and put a -0/-1 counter on target creature blocking or blocked by this creature. Activate only during the declare blockers step.",
+        "power": "2",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Living Armor",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Living Armor",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{T}, Sacrifice this artifact: Put X +0/+1 counters on target creature, where X is that creature's mana value."
+      }
+    ]
+  },
+  {
+    "name": "Spirit Shackle",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Spirit Shackle",
+        "manaCost": "{B}{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nWhenever enchanted creature becomes tapped, put a -0/-2 counter on it."
+      }
+    ]
+  }
+]

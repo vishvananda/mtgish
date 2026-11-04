@@ -169,8 +169,10 @@ def clean(tree):
 
 
 def driver_stamp():
-    return tuple((HERE / name).stat().st_mtime_ns for name in (
-        'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py', 'card_lane.py'))
+    paths = [HERE / name for name in (
+        'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py', 'card_lane.py')]
+    paths.append(HERE.parent / 'cantrip_tree.py')
+    return tuple(path.stat().st_mtime_ns for path in paths)
 
 
 def reload_at_boundary(root, slot, tree, script, stamp):

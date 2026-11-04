@@ -4044,8 +4044,43 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         ("may_pay", "118.1"),
         ("add_mana", "106.3"),
     ];
-    let entering = text_of(&function.sig.inputs).contains("Entering");
+    let entry_params: BTreeSet<String> = function.sig.inputs.iter().filter_map(|arg| {
+        let syn::FnArg::Typed(arg) = arg else { return None };
+        let syn::Type::Reference(ty) = &*arg.ty else { return None };
+        let syn::Type::Path(ty) = &*ty.elem else { return None };
+        let Pat::Ident(name) = &*arg.pat else { return None };
+        (ty.path.segments.last()?.ident == "Entering").then(|| name.ident.to_string())
+    }).collect();
+    let entering = !entry_params.is_empty();
+    // "Enters tapped" is 614.1d; "as/with/as though" entry replacements are 614.1c. A land can do both.
+    struct EntryWrites { params: BTreeSet<String>, tapped: bool, other: bool }
+    impl<'ast> Visit<'ast> for EntryWrites {
+        fn visit_expr_assign(&mut self, node: &'ast syn::ExprAssign) {
+            fn field<'a>(expr: &'a Expr, params: &BTreeSet<String>) -> Option<&'a syn::Member> {
+                match expr {
+                    Expr::Field(f) => {
+                        if let Expr::Path(base) = &*f.base {
+                            if base.path.get_ident().is_some_and(|name| params.contains(&name.to_string())) { return Some(&f.member); }
+                        }
+                        field(&f.base, params)
+                    }
+                    Expr::Index(i) => field(&i.expr, params),
+                    Expr::Paren(p) => field(&p.expr, params),
+                    _ => None,
+                }
+            }
+            if let Some(member) = field(&node.left, &self.params) {
+                if matches!(member, syn::Member::Named(name) if name == "tapped") {
+                    self.tapped = true;
+                } else { self.other = true; }
+            }
+            syn::visit::visit_expr_assign(self, node);
+        }
+    }
+    let mut writes = EntryWrites { params: entry_params, tapped: false, other: false };
+    if entering { writes.visit_block(&function.block); }
     let mut cited: Vec<&str> = vec![match role {
+        _ if entering && writes.tapped && !writes.other => "614.1d",
         _ if entering => "614.1c",
         Role::Trigger => "603.2",
         Role::Target => "115.1",
@@ -4060,6 +4095,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Replacement => "614.1a",
         Role::Effect => "608.2",
     }];
+    if entering && writes.tapped && writes.other { cited.push("614.1d"); }
     let body = text_of(&function.block);
     if entering && body.contains("entering . counters") {
         cited.push("122.6");

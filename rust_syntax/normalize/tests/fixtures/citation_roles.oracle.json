@@ -357,5 +357,49 @@
         "text": "Cast this spell only during the declare attackers step.\nTarget creature can't be blocked this turn."
       }
     ]
+  },
+  {
+    "name": "Dark Depths",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dark Depths",
+        "type": "Legendary Snow Land",
+        "text": "Dark Depths enters with ten ice counters on it.\n{3}: Remove an ice counter from Dark Depths.\nWhen Dark Depths has no ice counters on it, sacrifice it. If you do, create Marit Lage, a legendary 20/20 black Avatar creature token with flying and indestructible."
+      }
+    ]
+  },
+  {
+    "name": "Dwarven Ruins",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dwarven Ruins",
+        "type": "Land",
+        "text": "This land enters tapped.\n{T}: Add {R}.\n{T}, Sacrifice this land: Add {R}{R}."
+      }
+    ]
+  },
+  {
+    "name": "Ebon Stronghold",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ebon Stronghold",
+        "type": "Land",
+        "text": "This land enters tapped.\n{T}: Add {B}.\n{T}, Sacrifice this land: Add {B}{B}."
+      }
+    ]
+  },
+  {
+    "name": "Peat Bog",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Peat Bog",
+        "type": "Land",
+        "text": "This land enters tapped with two depletion counters on it.\n{T}, Remove a depletion counter from this land: Add {B}{B}. If there are no depletion counters on this land, sacrifice it."
+      }
+    ]
   }
 ]
