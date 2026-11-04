@@ -6993,7 +6993,7 @@
     "color among other legendary permanents you control": "NumColorsAmongPermanents(And([Other({{ThatPermanent}}), IsSupertype(Legendary), ControlledByAPlayer(SinglePlayer(You))]))",
     "counter on it": "TheTotalNumberOfCountersAmongPermanents(SinglePermanent({{ThatPermanent}}))",
     "creature blocking it": "TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Creature), IsBlockingAttacker({{ThatPermanent}})]))",
-    "creature blocking it beyond the first": "Minus(TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Creature), IsBlockingAttacker({{ThatPermanent}})])), Integer(1))",
+    "creature blocking it beyond the first": "MaximumOf(Integer(0), Minus(TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Creature), IsBlockingAttacker({{ThatPermanent}})])), Integer(1)))",
     "creature it's blocking": "TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Creature), IsBlockedByDefender({{ThatPermanent}})]))",
     "creature that crewed it this turn": "TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Creature), CrewedVehicleThisTurn({{ThatPermanent}})]))",
     "kind of counter on it": "TheNumberOfCounterTypesAmongPermanents(SinglePermanent({{ThatPermanent}}))",

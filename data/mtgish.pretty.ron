@@ -686608,12 +686608,15 @@ Card(
             AdjustPTForEach(
               -2,
               -1,
-              Minus(
-                TheNumberOfPermanentsOnTheBattlefield(And([
-                  IsCardtype(Creature),
-                  IsBlockingAttacker(Trigger_ThatCreature),
-                ])),
-                Integer(1),
+              MaximumOf(
+                Integer(0),
+                Minus(
+                  TheNumberOfPermanentsOnTheBattlefield(And([
+                    IsCardtype(Creature),
+                    IsBlockingAttacker(Trigger_ThatCreature),
+                  ])),
+                  Integer(1),
+                ),
               ),
             ),
           ],
@@ -691842,12 +691845,15 @@ Card(
             AdjustPTForEach(
               -1,
               -1,
-              Minus(
-                TheNumberOfPermanentsOnTheBattlefield(And([
-                  IsCardtype(Creature),
-                  IsBlockingAttacker(Trigger_ThatCreature),
-                ])),
-                Integer(1),
+              MaximumOf(
+                Integer(0),
+                Minus(
+                  TheNumberOfPermanentsOnTheBattlefield(And([
+                    IsCardtype(Creature),
+                    IsBlockingAttacker(Trigger_ThatCreature),
+                  ])),
+                  Integer(1),
+                ),
               ),
             ),
           ],

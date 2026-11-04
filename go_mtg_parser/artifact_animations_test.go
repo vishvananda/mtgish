@@ -24,6 +24,10 @@ func TestTapSubtypeCostsAndMaxSpeedReference(t *testing.T) {
 	testSourceReferenceFixtures(t, "reference_costs.ronl")
 }
 
+func TestJohtullWurmBlockersBeyondTheFirst(t *testing.T) {
+	testSourceReferenceFixtures(t, "johtull_wurm.ronl")
+}
+
 func testSourceReferenceFixtures(t *testing.T, fixtureNames ...string) {
 	t.Helper()
 	englishFiles, _ := filepath.Glob("../grammars/english_grammar*.json5")

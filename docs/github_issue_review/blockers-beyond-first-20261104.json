@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-04",
+  "producer_base": "3cfea2b",
+  "problem": "Count of blockers beyond the first becomes -1 after the only blocker leaves before resolution. Negative PT multipliers then grant an unprinted bonus.",
+  "source_fix": "MaximumOf(Integer(0), Minus(blocker_count, Integer(1)))",
+  "cards": [
+    "Johtull Wurm",
+    "Jungle Wurm"
+  ],
+  "native_reproduction": {
+    "card": "Johtull Wurm",
+    "scenario": "johtull-wurm-no-remaining-blockers-does-not-get-a-bonus.cantrip",
+    "old": "Power expected6, actual8 after the blocker leaves",
+    "fresh": "Power6, unchanged toughness6",
+    "negative_control": "Old generated module fails behaviorally; fresh restored module passes on same native engine/scenario."
+  },
+  "validation": {
+    "whole_source_records": 33529,
+    "source_ron_changed": 2,
+    "source_json_changed": 2,
+    "source_pretty_ron_changed": 2,
+    "full_card_semantic_comparison": "Both native card trees are identical except the count operand gains Maximum(0,...); validate/roundtrip pass.",
+    "parser": "Both whole-source fixtures parsed from current Oracle; full Go suite recorded in /mnt/vizier/johtull-recovery-20261104/go-all.log.",
+    "audit": "All37 existing context-review evidence hashes unchanged,185 total reviewed findings.",
+    "native_scope": "Validation-only probe; card implementation/scenario completion/full card gates remain owned by the normal pipeline. Jungle Wurm has source/native-IR proof only, outside through-IceAge intake scope.",
+    "rust_related_passes": 244,
+    "rust_related_suites": 4,
+    "go": "Full go test ./... PASS"
+  },
+  "separate_recovery": "14 other stopped generator cards proved against current generator:11citation cases+3battle-attack cases.28meaningful draft scenarios pass;2GoblinRockSledTODOdrafts remain. Johtull adds one meaningful passing scenario and oneTODOdraft remains. NoCard approval claimed.",
+  "artifacts": [
+    "/mnt/vizier/johtull-recovery-20261104",
+    "~/card-lane/pipeline-unlimited-20261103/integration/stopped-generator-recovery-20261104"
+  ]
+}
