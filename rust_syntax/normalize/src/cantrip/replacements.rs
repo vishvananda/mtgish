@@ -732,7 +732,7 @@ impl Compiler {
         &mut self,
         frame: Frame,
         rest: &[Instruction],
-        performed: Option<(u32, &str)>,
+        performed: Option<(u32, &str, Quantity)>,
     ) -> Result<String> {
         let hoisted = self.hoisted.take();
         let out = self.then_program(frame, rest, performed);
@@ -743,11 +743,11 @@ impl Compiler {
         &mut self,
         frame: Frame,
         rest: &[Instruction],
-        performed: Option<(u32, &str)>,
+        performed: Option<(u32, &str, Quantity)>,
     ) -> Result<String> {
         self.reset_results();
-        if let Some((result, local)) = performed {
-            self.performed.insert(result, local.to_string());
+        if let Some((result, local, domain)) = performed {
+            self.report_quantity(result, local, domain);
         }
         for result in self.replacing.changed.clone() {
             self.performed.insert(result, "true".to_string());

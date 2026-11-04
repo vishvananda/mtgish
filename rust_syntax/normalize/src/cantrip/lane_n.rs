@@ -710,7 +710,7 @@ impl Compiler {
         let locals = arms[0].locals.clone();
         self.replacing.event = Some(("Damage", "e", frame));
         let prevented = self.replacing.prevented;
-        let out = self.then_steps(frame, rest, prevented.map(|r| (r, "done_prevented")))?;
+        let out = self.then_steps(frame, rest, prevented.map(|r| (r, "done_prevented", Quantity::Prevention)))?;
         let (subject_alone, second_alone) = match frame.damage_source {
             Some(Carried::Subject) => alone,
             _ => (alone.1, alone.0),
@@ -908,13 +908,25 @@ impl Compiler {
                 self.token_change(*copies, tokens, frame)?
             }
             ("PlayerCounters", C::SetAmount(n)) => {
-                let n = self
-                    .matching(frame, |c| c.number(n))?
-                    .quantity(Quantity::Prevention)?;
-                match self.replacing.player_counter {
-                    Some(field) => format!("c.{field} = {n};"),
-                    // "Of each of those kinds": the amount of each, its own.
-                    None => format!("for kind in [&mut c.poison, &mut c.energy, &mut c.experience] {{ if *kind > 0 {{ let data = [u32::from(*kind), u32::MAX]; *kind = {n}; }} }}"),
+                if let Some(field) = self.replacing.player_counter {
+                    let n = self.matching(frame, |c| c.number(n))?
+                        .quantity(Quantity::player_counter(field))?;
+                    format!("c.{field} = {n};")
+                } else if planned::switched_on(quantity::FEATURE) {
+                    // The proposal's fields are heterogeneous: poison is i64,
+                    // energy/experience remain u16. Evaluate each kind's amount
+                    // against that kind, never manufacture homogeneous references.
+                    let mut edits = String::new();
+                    for field in ["poison", "energy", "experience"] {
+                        let n = self.matching(frame, |c| c.number(n))?
+                            .quantity(Quantity::player_counter(field))?;
+                        write!(edits, "if c.{field} > 0 {{ let event_quantity = i64::from(c.{field}); c.{field} = {n}; }} ").unwrap();
+                    }
+                    edits
+                } else {
+                    let n = self.matching(frame, |c| c.number(n))?
+                        .quantity(Quantity::SmallPlayerCounter)?;
+                    format!("for kind in [&mut c.poison, &mut c.energy, &mut c.experience] {{ if *kind > 0 {{ let data = [u32::from(*kind), u32::MAX]; *kind = {n}; }} }}")
                 }
             }
             ("PlayerCounters", C::Cancel) => match self.replacing.player_counter {
@@ -926,7 +938,7 @@ impl Compiler {
                     .ok_or_else(|| gap("replacement of counters of more than one kind"))?;
                 let n = self
                     .matching(frame, |c| c.number(amount))?
-                    .quantity(Quantity::Prevention)?;
+                    .quantity(Quantity::player_counter(field))?;
                 format!("c.{field} = c.{field}.saturating_add({n});")
             }
             ("ZoneChange", C::Entry(state)) => self.entry_change(state, frame)?,
@@ -1424,7 +1436,10 @@ impl Compiler {
         field: Option<&'static str>,
         players: &PlayerSet,
     ) -> Result<Option<(Vec<Watched>, Frame)>> {
+        let wide_amount = planned::switched_on(quantity::FEATURE)
+            && field.is_none_or(|field| field == "poison");
         let frame = Frame {
+            quantity: wide_amount.then_some(Quantity::PoisonProposal),
             player: Some(Carried::Subject),
             amount: Some(Carried::Data(0)),
             ..Frame::default()
@@ -1432,10 +1447,12 @@ impl Compiler {
         let test = self.matching(frame, |c| c.player_in(players, "c.player"))?;
         self.replacing.player_counter = field;
         let (some, amount) = match field {
+            Some(field) if wide_amount => (format!("c.{field} > 0"), format!("c.{field}.max(0)")),
             Some(field) => (format!("c.{field} > 0"), format!("u32::from(c.{field})")),
             None => (
                 "c.poison > 0 || c.energy > 0 || c.experience > 0".to_string(),
-                "u32::from(c.poison) + u32::from(c.energy) + u32::from(c.experience)".to_string(),
+                if wide_amount { "c.poison.max(0).saturating_add(i64::from(c.energy)).saturating_add(i64::from(c.experience))".into() }
+                else { "u32::from(c.poison) + u32::from(c.energy) + u32::from(c.experience)".into() },
             ),
         };
         Ok(Some((
@@ -1443,9 +1460,9 @@ impl Compiler {
                 kind: "Counters",
                 variant: "PlayerCounters",
                 binding: "c",
-                locals: format!(
-                    "let subject = Target::Player(c.player); let data = [{amount}, u32::MAX];"
-                ),
+                locals: if wide_amount {
+                    format!("let event_quantity = {amount}; let subject = Target::Player(c.player); let data = [u32::try_from(event_quantity).unwrap_or(u32::MAX), u32::MAX];")
+                } else { format!("let subject = Target::Player(c.player); let data = [{amount}, u32::MAX];") },
                 tests: vec![some, test],
             }],
             frame,

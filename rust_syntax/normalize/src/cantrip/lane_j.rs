@@ -2239,8 +2239,9 @@ impl Compiler {
                     _ => None,
                 };
                 match only {
-                    Some(only) => counted(format!(
-                        "{list}.iter(){only}.map(|(_, n)| i64::from(*n)).sum::<i64>()"
+                    Some(only) => Quantity::DamageExcess.number(format!(
+                        "{list}.iter(){only}.map(|(_, n)| i64::from(*n)).{sum}",
+                        sum = Quantity::DamageExcess.sum_i64()
                     )),
                     None => held_number(feature, "i64::from(result.excess)"),
                 }

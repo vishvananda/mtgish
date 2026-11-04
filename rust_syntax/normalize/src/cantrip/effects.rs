@@ -481,6 +481,7 @@ pub(super) struct Results {
     pub(super) before: BTreeMap<u32, String>,
     pub(super) performed: BTreeMap<u32, String>,
     quantity_results: BTreeMap<u32, Quantity>,
+    excess: BTreeMap<u32, (String, String, Option<String>)>,
     pub(super) values: BTreeMap<u32, String>,
     pub(super) flips: BTreeMap<u32, String>,
     pub(super) chosen: Vec<(ValueKind, String)>,
@@ -920,6 +921,7 @@ impl Compiler {
             before: self.before.clone(),
             performed: self.performed.clone(),
             quantity_results: self.quantity_results.clone(),
+            excess: self.excess.clone(),
             values: self.values.clone(),
             flips: self.flips.clone(),
             chosen: self.chosen.clone(),
@@ -940,6 +942,7 @@ impl Compiler {
             before,
             performed,
             quantity_results,
+            excess,
             values,
             flips,
             chosen,
@@ -957,6 +960,7 @@ impl Compiler {
         self.before = before;
         self.performed = performed;
         self.quantity_results = quantity_results;
+        self.excess = excess;
         self.values = values;
         self.flips = flips;
         self.chosen = chosen;
@@ -1866,7 +1870,7 @@ impl Compiler {
                 } else if self.read_later(result) {
                     let measure = "i64::from(g.state().player(player).life)";
                     writeln!(out, "let mut done_{id}: i64 = 0; for player in players_{id} {{ let before = {measure}; g.{method}(player, amount_{id}); done_{id} += ({measure} - before).abs(); }}").unwrap();
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), if several { Quantity::LifeEffect } else { Quantity::LifeChangeMagnitude });
                 } else {
                     writeln!(
                         out,
@@ -2058,9 +2062,8 @@ impl Compiler {
                 preventable: true,
             } => {
                 let amount = self.number(amount)?.quantity(Quantity::Damage)?;
-                if planned::switched_on(quantity::FEATURE) { self.quantity_results.insert(result.0, Quantity::Damage); }
                 let (declare, deal) = if lane_n::read_as_damaged(&self.after, result) {
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
                     self.moved.insert(result.0, format!("dealt_{id}"));
                     self.hurt_players.insert(result.0, format!("hurt_{id}"));
                     (
@@ -2068,7 +2071,7 @@ impl Compiler {
                         format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).{damage_sum}; dealt_{id}.extend(cantrip_mechanics::history::permanents_dealt_damage_by(g.history(), source, before_{id})); for r in &g.history().all()[before_{id}..] {{ if let Event::Damage {{ source: s, target: Target::Player(p), amount, .. }} = r.event {{ if s == source && amount > 0 && !hurt_{id}.contains(&p) {{ hurt_{id}.push(p); }} }} }}", damage_sum = Quantity::Damage.sum_i64()),
                     )
                 } else if lane_n::read_as_objects(&self.after, result) {
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
                     self.moved.insert(result.0, format!("dealt_{id}"));
                     (
                         format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); "),
@@ -2083,14 +2086,14 @@ impl Compiler {
                     // damage was dealt, the planeswalker's loyalty before the damage
                     // was dealt, or the creature's toughness" (Drain Life): each
                     // recipient's damage, no more than that.
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
                     let clamped = format!("clamped_damage_{}", result.0);
                     (
                         format!("let mut done_{id}: i64 = 0; let mut {clamped}: i64 = 0; "),
                         format!("let caps: Vec<i64> = batch.iter().map(|&(_, t, _)| match t {{ Target::Player(p) => i64::from(g.state().player(p).life).max(0), Target::Object(o) if g.chars(o).is(CardType::Planeswalker) => i64::from(g.state().obj(o).counters(CounterKind::Loyalty)).max(0), Target::Object(o) => i64::from(g.chars(o).toughness.unwrap_or(0)).max(0), _ => 0 }}).collect(); let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).{damage_sum}; {clamped} += dealt.iter().zip(&caps).map(|(&n, &cap)| i64::from(n).min(cap)).{damage_sum};", damage_sum = Quantity::Damage.sum_i64()),
                     )
                 } else if self.read_later(result) {
-                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
                     (
                         format!("let mut done_{id}: i64 = 0; "),
                         format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).{damage_sum};", damage_sum = Quantity::Damage.sum_i64()),
@@ -2107,7 +2110,7 @@ impl Compiler {
                     };
                     self.excess.insert(result.0, (format!("excess_{id}"), format!("recipients_{id}"), aimed));
                     (
-                        format!("{declare}let mut excess_{id}: Vec<(Target, u32)> = Vec::new(); let since_{id} = g.history().head() as usize; "),
+                        format!("{declare}let mut excess_{id}: Vec<(Target, {excess_ty})> = Vec::new(); let since_{id} = g.history().head() as usize; ", excess_ty = Quantity::DamageExcess.kind()),
                         format!("{deal} excess_{id}.extend(g.history().all()[since_{id}..].iter().filter_map(|r| match r.event {{ Event::Damage {{ source: s, target, recipient_excess, .. }} if s == source => Some((target, recipient_excess)), _ => None }}));"),
                     )
                 } else {

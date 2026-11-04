@@ -15,6 +15,8 @@ pub(super) enum Domain {
     /// Magnitude of an actual change between physically stored i32 totals.
     LifeChangeMagnitude,
     PoisonEffect,
+    PoisonProposal,
+    SmallPlayerCounter,
     // These remain physically bounded on the wide native API.
     LifeTotal,
     ShieldCapacity,
@@ -26,7 +28,7 @@ impl Domain {
             match self {
                 Self::LifeTotal => "i32",
                 Self::LifeChangeMagnitude => "u32",
-                Self::ShieldCapacity => "u16",
+                Self::ShieldCapacity | Self::SmallPlayerCounter => "u16",
                 Self::StoredCounter => "i16",
                 _ => "i64",
             }
@@ -35,12 +37,28 @@ impl Domain {
                 Self::ShieldCapacity
                 | Self::Damage
                 | Self::Prevention
-                | Self::DamageExcess
-                | Self::DamagePrevented => "u16",
+                | Self::DamagePrevented
+                | Self::PoisonProposal
+                | Self::SmallPlayerCounter => "u16",
                 Self::CounterPlacement | Self::StoredCounter => "i16",
                 Self::LifeEffect | Self::LifeTotal => "i32",
-                Self::LifeChangeMagnitude | Self::PoisonEffect => "u32",
+                Self::LifeChangeMagnitude | Self::PoisonEffect | Self::DamageExcess => "u32",
             }
+        }
+    }
+    pub(super) fn number(self, code: String) -> Number {
+        Number {
+            code,
+            min: 0,
+            max: self.max(),
+            dynamic: true,
+        }
+    }
+    pub(super) fn player_counter(field: &str) -> Self {
+        if field == "poison" {
+            Self::PoisonProposal
+        } else {
+            Self::SmallPlayerCounter
         }
     }
     pub(super) fn from_stored(self, code: &str) -> String {
@@ -61,6 +79,22 @@ impl Domain {
         integer_range(self.kind())
             .expect("native quantity integer")
             .1
+    }
+}
+
+impl Compiler {
+    /// A semantic numeric receipt and its bounds are one binding. Keep callers
+    /// from registering a widened local while leaving it classified as a count.
+    pub(super) fn report_quantity(
+        &mut self,
+        result: u32,
+        local: impl Into<String>,
+        domain: Quantity,
+    ) {
+        self.performed.insert(result, local.into());
+        if planned::switched_on(FEATURE) {
+            self.quantity_results.insert(result, domain);
+        }
     }
 }
 
@@ -118,6 +152,10 @@ const WIDE_CONTRACT: &[(&str, &str)] = &[
     ("cantrip-api/src/game.rs", "fn remove_counters(&mut self, object: ObjectId, kind: CounterKind, amount: i16) -> i16;"),
     ("cantrip-api/src/card.rs", "pub counters: [i64; CounterKind::COUNT],"),
     ("cantrip-api/src/replace.rs", "pub counts: [i64; CounterKind::COUNT],"),
+    ("cantrip-api/src/replace.rs", "pub poison: i64,"),
+    ("cantrip-api/src/replace.rs", "pub energy: u16,"),
+    ("cantrip-api/src/replace.rs", "pub experience: u16,"),
+    ("cantrip-api/src/event.rs", "recipient_excess: i64,"),
     ("cantrip-api/src/card.rs", "pub damage_amount: bool,"),
     ("cantrip-api/src/ability.rs", "pub const fn damage_amount(self) -> AbilityDef"),
     ("cantrip-state/src/object.rs", "pub fn matched_damage_amount(&self) -> i64"),
@@ -428,7 +466,7 @@ mod tests {
             .collect::<Vec<_>>().join("\n");
         let source = format!(
             r#"
-            #![allow(unused_variables, unused_mut, dead_code)]
+            #![allow(unused_variables, unused_mut, unused_assignments, dead_code)]
             #[derive(Clone, Copy)] struct ObjectId(u32);
             type PlayerId = u8;
             #[derive(Clone, Copy)] enum Target {{ Player(PlayerId), Object(ObjectId) }}
@@ -523,10 +561,16 @@ mod tests {
             let mut compiler = Compiler::new();
             compiler.performed.insert(0, "outer_damage".into());
             compiler.quantity_results.insert(0, Domain::Damage);
+            compiler
+                .excess
+                .insert(0, ("outer_excess".into(), "outer_targets".into(), None));
             let outer = compiler.results();
             compiler.reset_results();
             compiler.performed.insert(1, "inner_damage".into());
             compiler.quantity_results.insert(1, Domain::Damage);
+            compiler
+                .excess
+                .insert(1, ("inner_excess".into(), "inner_targets".into(), None));
             compiler.restore_results(outer);
             let doubled = compiler
                 .number(&Expr::multiply(
@@ -563,6 +607,8 @@ mod tests {
                 i128::from(i64::MAX)
             );
             assert!(!compiler.quantity_results.contains_key(&1));
+            assert!(compiler.excess.contains_key(&0));
+            assert!(!compiler.excess.contains_key(&1));
             fs::remove_dir_all(dir).unwrap();
         });
     }
@@ -666,5 +712,306 @@ mod tests {
             String::from_utf8_lossy(&ran.stderr)
         );
         fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn player_counter_proposals_preserve_poison_and_small_field_contracts() {
+        for wide in [false, true] {
+            let functions = planned::with_features(if wide { &[FEATURE] } else { &[] }, || {
+                let mut functions = String::new();
+                for (field, kind) in [
+                    ("poison", Some(crate::counter::CounterName::PoisonCounter)),
+                    ("energy", None),
+                    (
+                        "experience",
+                        Some(crate::counter::CounterName::ExperienceCounter),
+                    ),
+                    ("all", None),
+                ] {
+                    let mut compiler = Compiler::new();
+                    let event = if field == "energy" {
+                        ReplacementEvent::Player {
+                            event: ReplacedPlayerEvent::GetEnergy,
+                            players: PlayerSet::All,
+                        }
+                    } else {
+                        ReplacementEvent::Counters {
+                            kind: kind.clone().map(crate::counter::CounterKind::Named),
+                            objects: ObjectFilter::Any,
+                            players: Some(PlayerSet::All),
+                            by: None,
+                            effect_only: false,
+                        }
+                    };
+                    let (arms, frame) = compiler.watched(&event).unwrap();
+                    let edits = compiler
+                        .reshape(
+                            "PlayerCounters",
+                            &EventChange::SetAmount(Expr::multiply(
+                                Expr::EventAmount,
+                                Expr::Constant(2),
+                            )),
+                            frame,
+                        )
+                        .unwrap();
+                    functions.push_str(&format!(
+                        "fn double_{field}(c: &mut PlayerCounters) {{ {} {edits} }}\n",
+                        arms[0].locals
+                    ));
+                    if let Some(kind) = kind {
+                        let edits = compiler
+                            .reshape(
+                                "PlayerCounters",
+                                &EventChange::AddCounters {
+                                    kind: crate::counter::CounterKind::Named(kind),
+                                    amount: Expr::Constant(7),
+                                },
+                                frame,
+                            )
+                            .unwrap();
+                        functions.push_str(&format!(
+                            "fn add_{field}(c: &mut PlayerCounters) {{ {} {edits} }}\n",
+                            arms[0].locals
+                        ));
+                    }
+                }
+                functions
+            });
+            let poison_type = if wide { "i64" } else { "u16" };
+            let poison = if wide { 1i64 << 32 } else { 30000 };
+            let source = format!(
+                r#"
+                #![allow(unused_variables, dead_code)]
+                enum Target {{ Player(u8) }}
+                struct PlayerCounters {{ player: u8, poison: {poison_type}, energy: u16, experience: u16 }}
+                {functions}
+                fn fresh() -> PlayerCounters {{ PlayerCounters {{ player: 1, poison: {poison}, energy: 30000, experience: 30000 }} }}
+                fn main() {{
+                    let mut c = fresh(); double_poison(&mut c); assert_eq!(c.poison, {poison} * 2);
+                    let mut c = fresh(); double_energy(&mut c); assert_eq!(c.energy, 60000);
+                    let mut c = fresh(); double_experience(&mut c); assert_eq!(c.experience, 60000);
+                    let mut c = fresh(); double_all(&mut c); assert_eq!((c.poison, c.energy, c.experience), ({poison} * 2, 60000, 60000));
+                    let mut c = fresh(); add_poison(&mut c); add_experience(&mut c);
+                    assert_eq!((c.poison, c.energy, c.experience), ({poison} + 7, 30000, 30007));
+                }}"#
+            );
+            let dir = std::env::temp_dir().join(format!(
+                "mtgish-player-counter-contract-{}-{wide}",
+                std::process::id()
+            ));
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("main.rs"), &source).unwrap();
+            let built = Command::new("rustc")
+                .args(["--edition=2021", "-Dwarnings"])
+                .arg(dir.join("main.rs"))
+                .arg("-o")
+                .arg(dir.join("witness"))
+                .output()
+                .unwrap();
+            assert!(
+                built.status.success(),
+                "{}\n{source}",
+                String::from_utf8_lossy(&built.stderr)
+            );
+            let ran = Command::new(dir.join("witness")).output().unwrap();
+            assert!(
+                ran.status.success(),
+                "{}",
+                String::from_utf8_lossy(&ran.stderr)
+            );
+            fs::remove_dir_all(dir).unwrap();
+        }
+    }
+
+    #[test]
+    fn supported_damage_and_excess_receipts_keep_semantic_bounds_and_saturate() {
+        let functions = planned::with_features(&[FEATURE], || {
+            let mut functions = String::new();
+            for (tag, each, fight, read, amount) in [
+                ("each_control", true, false, true, 1i64 << 32),
+                ("each_max", true, false, true, i64::MAX),
+                ("each_unread", true, false, false, i64::MAX),
+                ("ordinary_excess", false, false, true, i64::MAX),
+                ("fight_excess", false, true, true, i64::MAX),
+            ] {
+                let mut compiler = Compiler::new();
+                compiler.selections.insert(10, "selected_sources".into());
+                compiler.affected_object = Some("other");
+                let receipt = if each {
+                    Expr::Performed(ResultId(0))
+                } else {
+                    Expr::ExcessDamage {
+                        result: ResultId(0),
+                        to: Box::new(ObjectFilter::Any),
+                    }
+                };
+                let after = Instruction::Effect {
+                    result: ResultId(1),
+                    operation: Operation::GainLife {
+                        players: PlayerSet::One(PlayerRef::AbilityController),
+                        amount: Expr::multiply(receipt.clone(), Expr::Constant(2)),
+                    },
+                };
+                if read {
+                    compiler.after = vec![after.clone()];
+                }
+                let op = if each {
+                    Operation::DealDamageFromEach {
+                        sources: ObjectSet::Selected(ResultId(10)),
+                        recipients: Recipients::Players(PlayerSet::One(
+                            PlayerRef::AbilityController,
+                        )),
+                        amount: Expr::Constant(amount),
+                    }
+                } else if fight {
+                    Operation::Keyword {
+                        actor: PlayerSet::One(PlayerRef::AbilityController),
+                        action: KeywordAction::Fight,
+                        object: Some(ObjectRef::Source),
+                        other: Some(ObjectRef::Affected),
+                        amount: None,
+                        subtype: None,
+                    }
+                } else {
+                    damage(amount)
+                };
+                let mut body = String::new();
+                compiler.operation(&op, &ResultId(0), &mut body).unwrap();
+                if read {
+                    assert_eq!(compiler.number(&receipt).unwrap().max, i128::from(i64::MAX));
+                    compiler.after.clear();
+                    let Instruction::Effect { operation, result } = after else {
+                        unreachable!()
+                    };
+                    compiler.operation(&operation, &result, &mut body).unwrap();
+                }
+                functions.push_str(&format!("fn run_{tag}(g: &mut dyn Game, asker: &Asker, selected_sources: Vec<ObjectId>, other: ObjectId) {{ {body} }}\n"));
+            }
+            // A prevention's exact numeric receipt is registered at its source,
+            // not reclassified as a u32 count in its continuation.
+            let mut compiler = Compiler::new();
+            let after = Instruction::Effect {
+                result: ResultId(1),
+                operation: Operation::GainLife {
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                    amount: Expr::multiply(Expr::Performed(ResultId(0)), Expr::Constant(2)),
+                },
+            };
+            let body = compiler
+                .then_steps(
+                    Frame::default(),
+                    &[after],
+                    Some((0, "done_prevented", Quantity::Prevention)),
+                )
+                .unwrap();
+            assert!(body.contains("saturating_mul"), "{body}");
+            functions.push_str(&format!("fn run_prevention(g: &mut dyn Game, asker: &Asker, done_prevented: i64) {{ {body} }}\n"));
+            functions
+        });
+        let source = format!(
+            r#"
+            #![allow(unused_variables, unused_mut, unused_assignments, dead_code)]
+            #[derive(Clone, Copy, PartialEq, Eq)] struct ObjectId(u32);
+            type PlayerId = u8;
+            #[derive(Clone, Copy, PartialEq, Eq)] enum Target {{ Player(PlayerId), Object(ObjectId) }}
+            impl Target {{ fn object(self) -> Option<ObjectId> {{ match self {{ Self::Object(o) => Some(o), _ => None }} }} }}
+            #[derive(Clone, Copy)] enum Event {{ Damage {{ source: ObjectId, target: Target, recipient_excess: i64 }}, Other }}
+            #[derive(Clone, Copy)] struct Record {{ event: Event }}
+            #[derive(Default)] struct History {{ rows: Vec<Record> }}
+            impl History {{ fn head(&self) -> u32 {{ self.rows.len() as u32 }} fn all(&self) -> &[Record] {{ &self.rows }} }}
+            struct Obj {{ became: Option<ObjectId> }}
+            struct State;
+            impl State {{ fn obj(&self, _: ObjectId) -> &Obj {{ &Obj {{ became: None }} }} }}
+            struct Asker {{ source: ObjectId, controller: PlayerId }}
+            trait Query {{ fn state(&self) -> &State {{ &State }} }}
+            trait Game: Query {{
+                fn history(&self) -> &History;
+                fn damage_together(&mut self, rows: &[(ObjectId, Target, i64)]) -> Vec<i64>;
+                fn fight(&mut self, first: ObjectId, second: ObjectId);
+                fn gain_life(&mut self, player: PlayerId, amount: i64);
+            }}
+            #[derive(Default)] struct Mock {{ history: History, rows: usize, gains: Vec<i64> }}
+            impl Query for Mock {{}}
+            impl Game for Mock {{
+                fn history(&self) -> &History {{ &self.history }}
+                fn damage_together(&mut self, rows: &[(ObjectId, Target, i64)]) -> Vec<i64> {{
+                    self.rows += rows.len();
+                    self.history.rows.extend(rows.iter().map(|&(source, target, n)| Record {{ event: Event::Damage {{ source, target, recipient_excess: n }} }}));
+                    rows.iter().map(|r| r.2).collect()
+                }}
+                fn fight(&mut self, first: ObjectId, second: ObjectId) {{ self.damage_together(&[(first, Target::Object(second), i64::MAX), (second, Target::Object(first), i64::MAX)]); }}
+                fn gain_life(&mut self, _: PlayerId, amount: i64) {{ self.gains.push(amount); }}
+            }}
+            {functions}
+            fn main() {{
+                let asker = Asker {{ source: ObjectId(1), controller: 0 }};
+                let sources = vec![ObjectId(1), ObjectId(2)];
+                let mut g = Mock::default(); run_each_control(&mut g, &asker, vec![ObjectId(1)], ObjectId(2)); assert_eq!(g.gains, [1i64 << 33]);
+                let mut g = Mock::default(); run_each_max(&mut g, &asker, vec![ObjectId(1)], ObjectId(2)); assert_eq!(g.gains, [i64::MAX]);
+                let mut g = Mock::default(); run_each_unread(&mut g, &asker, sources.clone(), ObjectId(2)); assert_eq!(g.rows, 2); assert!(g.gains.is_empty());
+                let mut g = Mock::default(); run_ordinary_excess(&mut g, &asker, sources.clone(), ObjectId(2)); assert_eq!(g.gains, [i64::MAX]);
+                let mut g = Mock::default(); run_fight_excess(&mut g, &asker, sources, ObjectId(2)); assert_eq!(g.gains, [i64::MAX]);
+                let mut g = Mock::default(); run_prevention(&mut g, &asker, i64::MAX); assert_eq!(g.gains, [i64::MAX]);
+            }}"#
+        );
+        let dir = std::env::temp_dir().join(format!(
+            "mtgish-wide-receipt-contract-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("main.rs"), &source).unwrap();
+        let built = Command::new("rustc")
+            .args(["--edition=2021", "-Dwarnings", "-C", "overflow-checks=on"])
+            .arg(dir.join("main.rs"))
+            .arg("-o")
+            .arg(dir.join("witness"))
+            .output()
+            .unwrap();
+        assert!(
+            built.status.success(),
+            "{}\n{source}",
+            String::from_utf8_lossy(&built.stderr)
+        );
+        let ran = Command::new(dir.join("witness")).output().unwrap();
+        assert!(
+            ran.status.success(),
+            "{}\n{source}",
+            String::from_utf8_lossy(&ran.stderr)
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn life_receipt_bounds_distinguish_one_actual_delta_from_multiple_players() {
+        planned::with_features(&[FEATURE], || {
+            for (players, max) in [
+                (
+                    PlayerSet::One(PlayerRef::AbilityController),
+                    i128::from(u32::MAX),
+                ),
+                (PlayerSet::All, i128::from(i64::MAX)),
+            ] {
+                let mut compiler = Compiler::new();
+                compiler.after = vec![Instruction::Effect {
+                    result: ResultId(1),
+                    operation: Operation::GainLife {
+                        players: PlayerSet::One(PlayerRef::AbilityController),
+                        amount: Expr::Performed(ResultId(0)),
+                    },
+                }];
+                compiler
+                    .operation(
+                        &Operation::GainLife {
+                            players,
+                            amount: Expr::Constant(1),
+                        },
+                        &ResultId(0),
+                        &mut String::new(),
+                    )
+                    .unwrap();
+                assert_eq!(
+                    compiler.number(&Expr::Performed(ResultId(0))).unwrap().max,
+                    max
+                );
+            }
+        });
     }
 }

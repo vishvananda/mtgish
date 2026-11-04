@@ -2001,8 +2001,8 @@ impl Compiler {
             }
             Gathered::Damage { .. } => match &program.instructions[at] {
                 Instruction::Effect { result, .. } if self.read_later(result) => {
-                    writeln!(out, "let done_{local}: i64 = g.damage_together(&gathered_{local}).iter().map(|&n| i64::from(n)).sum();").unwrap();
-                    self.performed.insert(result.0, format!("done_{local}"));
+                    writeln!(out, "let done_{local}: i64 = g.damage_together(&gathered_{local}).iter().map(|&n| i64::from(n)).{damage_sum};", damage_sum = if planned::switched_on(quantity::FEATURE) { Quantity::Damage.sum_i64() } else { "sum()" }).unwrap();
+                    self.report_quantity(result.0, format!("done_{local}"), Quantity::Damage);
                 }
                 _ => writeln!(out, "g.damage_together(&gathered_{local});").unwrap(),
             },
@@ -4259,5 +4259,29 @@ mod entry_ability_tests {
             .is_err());
             assert!(compiler.aura.is_none());
         }
+    }
+}
+
+#[cfg(test)]
+mod wide_quantity_receipt_tests {
+    use super::*;
+    #[test]
+    fn gathered_damage_registers_its_semantic_numeric_receipt() {
+        planned::with_features(&[quantity::FEATURE], || {
+            let mut compiler = Compiler::new();
+            compiler.after = vec![Instruction::Effect { result: ResultId(1), operation: Operation::GainLife {
+                players: PlayerSet::One(PlayerRef::AbilityController), amount: Expr::Performed(ResultId(0)) } }];
+            let source = ObjectRef::Source;
+            let recipients = Recipients::Players(PlayerSet::One(PlayerRef::AbilityController));
+            let amount = Expr::Constant(i64::MAX);
+            let mut program = Program { instructions: vec![Instruction::Effect { result: ResultId(0), operation: Operation::DealDamage {
+                source: source.clone(), recipients: recipients.clone(), amount: amount.clone(), preventable: true } }] };
+            let mut body = String::new();
+            compiler.after_gathering(0, Gathered::Damage { source, recipients, amount }, &mut program, 0, &mut body).unwrap();
+            assert!(body.contains("fold(0i64, i64::saturating_add)"), "{body}");
+            assert_eq!(compiler.quantity_results.get(&0), Some(&Quantity::Damage));
+            let doubled = compiler.number(&Expr::multiply(Expr::Performed(ResultId(0)), Expr::Constant(2))).unwrap();
+            assert!(doubled.code.contains("saturating_mul"), "{}", doubled.code);
+        });
     }
 }

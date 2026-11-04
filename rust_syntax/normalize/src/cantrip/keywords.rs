@@ -152,7 +152,7 @@ impl Compiler {
                     let aimed = action.other.as_ref().map(|other| format!("{other:?}"));
                     self.excess.insert(result.0, (format!("excess_{id}"), format!("recipients_{id}"), aimed));
                     (
-                        format!("let mut excess_{id}: Vec<(Target, u32)> = Vec::new(); let recipients_{id}: Vec<Target> = second_{id}.map(Target::Object).into_iter().collect(); let since_{id} = g.history().head() as usize; "),
+                        format!("let mut excess_{id}: Vec<(Target, {excess_ty})> = Vec::new(); let recipients_{id}: Vec<Target> = second_{id}.map(Target::Object).into_iter().collect(); let since_{id} = g.history().head() as usize; ", excess_ty = Quantity::DamageExcess.kind()),
                         format!(" excess_{id}.extend(g.history().all()[since_{id}..].iter().filter_map(|r| match r.event {{ Event::Damage {{ source: s, target, recipient_excess, .. }} if s == first || s == second => Some((target, recipient_excess)), _ => None }}));"),
                     )
                 } else {

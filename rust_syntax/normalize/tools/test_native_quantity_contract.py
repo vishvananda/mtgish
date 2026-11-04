@@ -8,7 +8,7 @@ CONTRACT = Path(__file__).resolve().parents[1].joinpath('src/cantrip/quantity.rs
 
 class NativeQuantityContract(unittest.TestCase):
     def test_contract_contains_every_reviewed_boundary(self):
-        self.assertEqual(len(witnesses(CONTRACT)), 22)
+        self.assertEqual(len(witnesses(CONTRACT)), 26)
 
     def tree(self, root, rows):
         files = {}

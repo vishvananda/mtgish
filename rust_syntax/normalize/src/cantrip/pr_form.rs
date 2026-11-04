@@ -1906,9 +1906,13 @@ fn simplify_stmts(block: &mut Block, returns_result: bool) -> bool {
         }
         // `done += g.damage_together(&x).iter().map(..).sum();`, the total no one wanted.
         if let Stmt::Expr(Expr::MethodCall(sum), Some(_)) = &block.stmts[i] {
-            if sum.method == "sum" {
+            let saturating = sum.method == "fold" && sum.args.len() == 2
+                && eval(&sum.args[0]) == Some(0)
+                && text_of(&sum.args[1]) == "i64 :: saturating_add";
+            if sum.method == "sum" || saturating {
                 if let Expr::MethodCall(mapped) = &*sum.receiver {
-                    if let (true, Expr::MethodCall(iter)) = (mapped.method == "map", &*mapped.receiver) {
+                    let pure = !saturating || mapped.args.first().is_some_and(is_pure);
+                    if let (true, Expr::MethodCall(iter)) = (pure && mapped.method == "map", &*mapped.receiver) {
                         if iter.method == "iter" {
                             let value = (*iter.receiver).clone();
                             block.stmts[i] = Stmt::Expr(value, Some(Default::default()));
@@ -5066,5 +5070,38 @@ fn say_printed_text(file: &mut File, printed: &str) {
     };
     for expr in definitions(file) {
         say.visit_expr_mut(expr);
+    }
+}
+
+
+#[cfg(test)]
+mod quantity_reduction_tests {
+    use super as renderer;
+    use syn::parse_quote;
+    #[test]
+    fn unread_saturating_total_preserves_the_damage_call_without_arithmetic() {
+        let mut function: syn::ItemFn = parse_quote! {
+            fn run(g: &mut dyn Game) {
+                let mut done: i64 = 0;
+                done += g.damage_together(&batch).iter().map(|&n| i64::from(n)).fold(0i64, i64::saturating_add);
+            }
+        };
+        renderer::simplify_function(&mut function, false);
+        let code = renderer::text_of(&function.block);
+        assert_eq!(code.matches("damage_together").count(), 1, "{code}");
+        assert!(!code.contains("saturating_add"), "{code}");
+        assert!(!code.contains("done"), "{code}");
+    }
+    #[test]
+    fn an_effectful_mapping_is_not_dropped_as_an_unused_saturating_total() {
+        let mut function: syn::ItemFn = parse_quote! {
+            fn run(g: &mut dyn Game) {
+                g.damage_together(&batch).iter().map(|&n| { g.gain_life(player, n); n }).fold(0i64, i64::saturating_add);
+            }
+        };
+        renderer::simplify_function(&mut function, false);
+        let code = renderer::text_of(&function.block);
+        assert!(code.contains("gain_life"), "{code}");
+        assert!(code.contains("saturating_add"), "{code}");
     }
 }

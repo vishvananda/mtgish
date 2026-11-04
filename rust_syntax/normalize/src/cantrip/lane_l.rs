@@ -4032,8 +4032,11 @@ impl Compiler {
         let targets = self.recipients(recipients);
         self.affected_object = saved;
         let (amount, targets) = (self.fetch(amount?), self.fetch(targets?));
-        writeln!(out, "let sources_{id} = {}; let mut batch_{id}: Vec<(ObjectId, Target, {damage_ty})> = Vec::new(); for &source in &sources_{id} {{ let amount = {amount}; for t in {targets} {{ batch_{id}.push((source, t, amount)); }} }} let dealt_{id} = g.damage_together(&batch_{id}); let done_{id}: i64 = dealt_{id}.iter().map(|&n| i64::from(n)).sum();", self.fetch(self.objects(sources)?), damage_ty = Quantity::Damage.kind()).unwrap();
-        self.performed.insert(result.0, format!("done_{id}"));
+        let deal = if self.read_later(result) {
+            self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
+            format!("let dealt_{id} = g.damage_together(&batch_{id}); let done_{id}: i64 = dealt_{id}.iter().map(|&n| i64::from(n)).{damage_sum};", damage_sum = if planned::switched_on(quantity::FEATURE) { Quantity::Damage.sum_i64() } else { "sum()" })
+        } else { format!("g.damage_together(&batch_{id});") };
+        writeln!(out, "let sources_{id} = {}; let mut batch_{id}: Vec<(ObjectId, Target, {damage_ty})> = Vec::new(); for &source in &sources_{id} {{ let amount = {amount}; for t in {targets} {{ batch_{id}.push((source, t, amount)); }} }} {deal}", self.fetch(self.objects(sources)?), damage_ty = Quantity::Damage.kind()).unwrap();
         Ok(())
     }
     /// "Reveals a card from their hand": at random, of their choice, or all.
