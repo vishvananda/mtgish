@@ -415,6 +415,7 @@ impl Context {
                     .map(|(i, mode)| {
                         let mut context = Context {
                             event: self.event,
+                            cast_x: self.cast_x.clone(),
                             result: self.result,
                             acted: self.acted.clone(),
                             singular: self.singular.clone(),

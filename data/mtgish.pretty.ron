@@ -10764,7 +10764,7 @@ Card(
   Rules: [
     TriggerI(
       WhenAPlayerCastsASpell(
-        SinglePlayer(You),
+        AnyPlayer,
         AnySpell,
       ),
       PlayerPassesFilter(
@@ -329215,7 +329215,7 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        MayAction(Reflexive_CreateTokens_WhenYouDo(
+        Reflexive_CreateTokens_WhenYouDo(
           [
             NumberTokens(
               Integer(2),
@@ -329257,7 +329257,7 @@ Card(
               ),
             ]),
           ),
-        )),
+        ),
       ]),
     ),
   ],
@@ -522622,7 +522622,7 @@ Card(
   Rules: [
     TriggerI(
       WhenAPlayerCastsASpell(
-        SinglePlayer(You),
+        AnyPlayer,
         AnySpell,
       ),
       PlayerPassesFilter(
@@ -526944,7 +526944,7 @@ Card(
     TriggerA(
       WhenAPermanentDies(SinglePermanent(ThisPermanent)),
       ActionList([
-        MayAction(Reflexive_Exile_WhenYouDo(
+        Reflexive_Exile_WhenYouDo(
           [
             CardInGraveyards(Trigger_ThatGraveyardCard),
           ],
@@ -526966,7 +526966,7 @@ Card(
               PutEachGraveyardCardIntoHand(Ref_TargetGraveyardCards),
             ]),
           ),
-        )),
+        ),
       ]),
     ),
   ],
@@ -574170,7 +574170,10 @@ Card(
           MillNumberCards(Integer(4)),
         ),
         ReturnACardMilledThisWayToBattlefield(
-          AnyCard,
+          And([
+            IsCardtype(Creature),
+            ManaValueIs(Even),
+          ]),
           [
             EntersUnderPlayersControl(You),
           ],
@@ -1089437,7 +1089440,7 @@ Card(
     ),
     TriggerI(
       WhenAPlayerCastsASpell(
-        SinglePlayer(You),
+        AnyPlayer,
         AnySpell,
       ),
       SpellPassesFilter(
@@ -1139778,7 +1139781,7 @@ Card(
   Rules: [
     TriggerI(
       WhenAPlayerCastsASpell(
-        SinglePlayer(You),
+        AnyPlayer,
         AnySpell,
       ),
       PlayerPassesFilter(
@@ -1473186,7 +1473189,7 @@ Card(
     Flying,
     TriggerI(
       WhenAPlayerCastsASpell(
-        SinglePlayer(You),
+        AnyPlayer,
         AnySpell,
       ),
       PlayerPassesFilter(

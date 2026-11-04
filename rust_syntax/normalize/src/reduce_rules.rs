@@ -1360,7 +1360,14 @@ fn reduce_rule_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
     };
     match (bare, operands) {
         ("CardEffect", [Filter(cards), Operand::List(effects)]) => {
-            Some(everywhere(cards.clone(), graveyard_changes(effects)?))
+            // These card populations exclude battlefield objects; the separately
+            // printed permanent effect applies there according to control, not ownership.
+            let mut filters = match cards.clone() {
+                ObjectFilter::All(filters) => filters,
+                filter => vec![filter],
+            };
+            filters.push(ObjectFilter::Not(Box::new(ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield)))));
+            Some(everywhere(ObjectFilter::All(filters), graveyard_changes(effects)?))
         }
         ("SelfEffect", effects) => Some(everywhere(source(), graveyard_changes(effects)?)),
         ("SelfEffect_NonBattlefield", effects) => Some(Ability::Scoped {

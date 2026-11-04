@@ -60,6 +60,14 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Gyruda, Doom of Depths", []string{"ReturnACardMilledThisWayToBattlefield(And([IsCardtype(Creature), ManaValueIs(Even)]),"}, []string{"ReturnACardMilledThisWayToBattlefield(AnyCard,"}},
+		{"Diregraf Horde", []string{"ActionList([Reflexive_CreateTokens_WhenYouDo("}, []string{"MayAction(Reflexive_CreateTokens_WhenYouDo("}},
+		{"Glissa's Retriever", []string{"ActionList([Reflexive_Exile_WhenYouDo("}, []string{"MayAction(Reflexive_Exile_WhenYouDo("}},
+		{"Adrenaline Jockey", []string{"WhenAPlayerCastsASpell(AnyPlayer, AnySpell)"}, []string{"WhenAPlayerCastsASpell(SinglePlayer(You), AnySpell)"}},
+		{"Glademuse", []string{"WhenAPlayerCastsASpell(AnyPlayer, AnySpell)"}, []string{"WhenAPlayerCastsASpell(SinglePlayer(You), AnySpell)"}},
+		{"Roiling Vortex", []string{"WhenAPlayerCastsASpell(AnyPlayer, AnySpell)"}, []string{"WhenAPlayerCastsASpell(SinglePlayer(You), AnySpell)"}},
+		{"Scytheclaw Raptor", []string{"WhenAPlayerCastsASpell(AnyPlayer, AnySpell)"}, []string{"WhenAPlayerCastsASpell(SinglePlayer(You), AnySpell)"}},
+		{"Vision, Synthezoid Avenger", []string{"WhenAPlayerCastsASpell(AnyPlayer, AnySpell)"}, []string{"WhenAPlayerCastsASpell(SinglePlayer(You), AnySpell)"}},
 		{"Explicit Subtype Creature Cost", []string{"IsCreatureType(Wizard), IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))"}, nil},
 		{"Explicit Plural Subtype Creature Cost", []string{"IsCreatureType(Wizard), IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))"}, nil},
 		{"Yavimaya Kavu", []string{"CDA_Power(", "CDA_Toughness("}, []string{"CDA_PowerToughness("}},
