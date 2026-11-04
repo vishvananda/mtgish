@@ -494,3 +494,9 @@ and scenarios survive. Pending collection of the old approval is superseded;
 already collected versions remain historical and need the corrected candidate
 integrated afterward. The new correction goes through normal review and
 verification. Repeating the same request returns the same correction job.
+
+The local collector parks a conflicting integration step with its worktree and
+evidence intact. Its watcher waits for coordinator resolution and `resume`,
+then continues automatically; a single `run` still reports the retained failure.
+Assembly counts distinct cards, while `revision_counts` also records corrected
+versions of cards collected earlier.

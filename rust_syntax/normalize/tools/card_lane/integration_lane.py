@@ -13,6 +13,10 @@ import publish_lane as publication
 import review_lane as review
 
 
+class RetainedIntegration(RuntimeError):
+    """Work is preserved for coordinator resolution; a watcher must wait rather than exit."""
+
+
 def connect(root):
     db = publication.connect(root)
     db.execute('''CREATE TABLE IF NOT EXISTS integration_jobs (
@@ -113,7 +117,7 @@ def integrate_one(root, defer_prerequisites=False):
         with connect(root) as db:
             held = db.execute("SELECT name FROM integration_jobs WHERE status IN ('running','needs_resolution') LIMIT 1").fetchone()
             if held:
-                raise RuntimeError('Resolve retained integration work first: '+held['name'])
+                raise RetainedIntegration('Resolve retained integration work first: '+held['name'])
             clean_branch(tree, integration)
             row = db.execute("SELECT * FROM integration_jobs WHERE status='pending' ORDER BY rowid LIMIT 1").fetchone()
             if not row:
@@ -160,7 +164,7 @@ def integrate_one(root, defer_prerequisites=False):
                     db.execute("UPDATE integration_jobs SET status='needs_resolution',detail=? WHERE id=?", (str(error),job['id'])); db.commit()
                     review.save(proof/'conflict.json', dict(step=index,source=sha,before=before,error=str(error)))
                     snapshot(root)
-                    raise
+                    raise RetainedIntegration('Resolve retained integration work first: '+card['name']) from error
             clean_branch(tree, integration)
             outcome='assembled' if defer_prerequisites else 'integrated'
             db.execute("UPDATE integration_jobs SET status=?,finished=?,detail=NULL WHERE id=?", (outcome,review.now(),job['id'])); db.commit()
@@ -263,6 +267,7 @@ def main():
     if args.action=='dependencies':print(dependency_inventory(root));return
     if args.action=='checkpoint':print(checkpoint(root));return
     stamp=Path(__file__).stat().st_mtime_ns
+    waiting=None
     while True:
         if args.action=='watch' and Path(__file__).stat().st_mtime_ns != stamp:
             os.execv(sys.executable,[sys.executable,'-u',str(Path(__file__).resolve()),'--root',str(root),'watch'])
@@ -274,6 +279,13 @@ def main():
         except BlockingIOError:
             if args.action!='watch':raise
             time.sleep(cfg.get('poll_seconds',5));continue
+        except RetainedIntegration as error:
+            if args.action!='watch':raise
+            if waiting != str(error):
+                print(str(error),flush=True)
+                waiting=str(error)
+            time.sleep(cfg.get('poll_seconds',5));continue
+        waiting=None
         print(result or 'No approved cards waiting',flush=True)
         if args.action in ('run','assemble'):return
         if result is None:

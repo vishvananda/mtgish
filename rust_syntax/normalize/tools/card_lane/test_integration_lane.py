@@ -3,6 +3,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 import integration_lane as lane
 import publish_lane
@@ -20,6 +21,25 @@ class IntegrationTests(unittest.TestCase):
         (self.root/'config.json').write_text(json.dumps(self.cfg));(self.root/'integration').mkdir()
 
     def tearDown(self):self.tmp.cleanup()
+
+    def test_watcher_waits_for_retained_work_and_collects_after_resolution(self):
+        with mock.patch('sys.argv',['integration_lane.py','--root',str(self.root),'watch']), \
+             mock.patch.object(lane,'sync'), \
+             mock.patch.object(lane,'integrate_one',side_effect=[lane.RetainedIntegration('Resolve Card'),lane.RetainedIntegration('Resolve Card'),'Assembled Card',None]) as integrate, \
+             mock.patch.object(lane.time,'sleep',side_effect=[None,None,StopIteration]), \
+             mock.patch('builtins.print') as output:
+            with self.assertRaises(StopIteration):lane.main()
+        self.assertEqual(integrate.call_count,4)
+        self.assertEqual(sum(call.args==('Resolve Card',) for call in output.call_args_list),1)
+        self.assertTrue(any(call.args==('Assembled Card',) for call in output.call_args_list))
+
+    def test_single_run_still_reports_a_retained_integration_failure(self):
+        with mock.patch('sys.argv',['integration_lane.py','--root',str(self.root),'run']), \
+             mock.patch.object(lane,'sync'), \
+             mock.patch.object(lane,'integrate_one',side_effect=lane.RetainedIntegration('Resolve Card')), \
+             mock.patch.object(lane.time,'sleep') as sleep:
+            with self.assertRaisesRegex(lane.RetainedIntegration,'Resolve Card'):lane.main()
+        sleep.assert_not_called()
 
     def git(self,*args):return subprocess.check_output(['git',*args],cwd=self.repo,text=True,stderr=subprocess.STDOUT).strip()
 
