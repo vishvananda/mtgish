@@ -329,7 +329,7 @@ fn regeneration_creates_shields_without_immediate_tapping_damage_removal_or_comb
 #[test]
 fn keyword_cost_bindings_and_nested_quality_references_cannot_escape_their_scope() {
     for amount in [
-        Expr::PlayerLife(PlayerRef::WardPayer),
+        Expr::player_life(PlayerRef::WardPayer),
         Expr::ObjectProperty {
             object: ObjectRef::KeywordHost,
             property: Property::Power,

@@ -335,7 +335,7 @@ impl Context {
         (|| -> Result<Condition> {
             Ok(match value {
                 S::LifeTotalIs(comparison) => {
-                    self.history_compare(Expr::PlayerLife(player.clone()), comparison)?
+                    self.history_compare(Expr::player_life(player.clone()), comparison)?
                 }
                 S::SacrificedNumPermanentsThisTurn(comparison, objects) => self.history_compare(
                     Self::history(

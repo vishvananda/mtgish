@@ -372,7 +372,7 @@ fn state_event(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         ("WhenAPlayerHasAnAmountOfLife", [Players(players), Compare(comparison, n)]) => any_player(
             players,
             Condition::Compare {
-                left: Expr::PlayerLife(player()),
+                left: Expr::player_life(player()),
                 comparison: comparison.clone(),
                 right: n.clone(),
             },

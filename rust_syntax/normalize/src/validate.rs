@@ -1256,7 +1256,6 @@ impl<'a> Scope<'a> {
                 }
                 self.object(object)
             }
-            Expr::PlayerLife(player) => self.player(player),
             Expr::AnyOf(values) => values.iter().try_for_each(|value| self.expr(value)),
             Expr::Add(a, b)
             | Expr::Subtract(a, b)

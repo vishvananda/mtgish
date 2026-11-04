@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 169;
+pub const SCHEMA_VERSION: u32 = 170;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -4051,7 +4051,6 @@ pub enum Expr {
         property: Property,
         information: Information,
     },
-    PlayerLife(PlayerRef),
     Add(Box<Expr>, Box<Expr>),
     Subtract(Box<Expr>, Box<Expr>),
     Multiply(Box<Expr>, Box<Expr>),
@@ -6539,6 +6538,14 @@ impl ActivationLimits {
 }
 
 impl Expr {
+    /// A player's life is a signed player quantity, not a nonnegative count.
+    pub fn player_life(player: PlayerRef) -> Self {
+        Self::PlayerNumber {
+            player,
+            number: PlayerNumber::Life,
+        }
+    }
+
     /// Fold only constants, using checked arithmetic. Dynamic reads stay at the
     /// same semantic point; overflow keeps the expression for a backend to judge.
     pub fn add(a: Self, b: Self) -> Self {

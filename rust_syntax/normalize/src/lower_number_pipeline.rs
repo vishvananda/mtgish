@@ -100,7 +100,7 @@ impl Context {
                 property: property.clone(),
                 information: Information::CurrentOrLastKnown,
             },
-            Q::PlayerLife(player) => Expr::PlayerLife(self.player(player)?),
+            Q::PlayerLife(player) => Expr::player_life(self.player(player)?),
             Q::Count(query) => Expr::CountObjects(Box::new(self.pipeline_number_query(query)?)),
             Q::Aggregate {
                 query,

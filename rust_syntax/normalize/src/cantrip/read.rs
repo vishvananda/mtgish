@@ -1733,15 +1733,6 @@ impl Compiler {
                     counters_on("o", kind.as_ref())?
                 ))
             }
-            Expr::PlayerLife(p) => Number {
-                code: format!(
-                    "{}.map_or(0i64, |p: PlayerId| i64::from(q.state().player(p).life))",
-                    self.player(p)?
-                ),
-                min: i32::MIN.into(),
-                max: i32::MAX.into(),
-                dynamic: true,
-            },
             Expr::Performed(result) | Expr::CountersRemoved(result) | Expr::DieResult(result)
                 if self.counted == Some(result.0) =>
             {
@@ -2653,4 +2644,35 @@ fn object_kind(kind: &ObjectKind, id: &str) -> Result<String> {
         ObjectKind::Card => format!("!q.state().obj({id}).token && !q.state().obj({id}).card_copy"),
         ObjectKind::Ability => return Err(gap("abilities on the stack in a zone query")),
     })
+}
+
+#[cfg(test)]
+mod player_number_tests {
+    use super::*;
+
+    #[test]
+    fn life_keeps_signed_bounds_and_floors_only_when_used_as_an_amount() {
+        let compiler = Compiler::new();
+        let life = compiler.number(&Expr::player_life(PlayerRef::AbilityController)).unwrap();
+        assert_eq!((life.min, life.max), (i32::MIN.into(), i32::MAX.into()));
+        assert!(life.amount(u32::MAX.into(), "u32").unwrap().contains(".max(0)"));
+        assert!(!life.fit(i32::MIN.into(), i32::MAX.into(), "i32").unwrap().contains("clamp"));
+        assert!(life.code.contains("q.state().player(p).life"));
+    }
+
+    #[test]
+    fn signed_life_bounds_do_not_turn_safe_arithmetic_into_saturating_math() {
+        let expr = Expr::multiply(Expr::player_life(PlayerRef::AbilityController), Expr::Constant(1i64 << 32));
+        let number = Compiler::new().number(&expr).unwrap();
+        assert_eq!(number.min, i64::MIN.into());
+        assert_eq!(number.max, i128::from(i32::MAX) * (1i128 << 32));
+        assert!(!number.code.contains("saturating_mul"));
+    }
+
+    #[test]
+    fn ordinary_player_counts_remain_nonnegative() {
+        let number = Compiler::new().number(&Expr::PlayerNumber { player: PlayerRef::AbilityController, number: PlayerNumber::CardsDrawnThisTurn }).unwrap();
+        assert_eq!((number.min, number.max), (0, u32::MAX.into()));
+        assert!(!number.amount(u32::MAX.into(), "u32").unwrap().contains(".max(0)"));
+    }
 }

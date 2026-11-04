@@ -5357,7 +5357,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
         ) => {
             return EventSpec::State {
                 condition: Condition::Compare {
-                    left: Expr::PlayerLife(player.clone()),
+                    left: Expr::player_life(player.clone()),
                     comparison: comparison.clone(),
                     right: value.clone(),
                 },

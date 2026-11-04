@@ -127,7 +127,7 @@ impl Context {
             S::LifeTotalIs(comparison) => {
                 let (comparison, right) = self.comparison(comparison)?;
                 Condition::Compare {
-                    left: Expr::PlayerLife(player),
+                    left: Expr::player_life(player),
                     comparison,
                     right,
                 }

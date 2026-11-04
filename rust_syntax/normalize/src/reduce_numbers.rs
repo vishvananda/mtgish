@@ -436,7 +436,7 @@ fn reduce_game_number(form: &str, operands: &[Operand]) -> Option<Expr> {
             as_of(Moment::TurnBegan, count(objects.clone()))
         }
         ("LifeTotalOfPlayerAsTurnBegan", [Player(player)]) => {
-            as_of(Moment::TurnBegan, Expr::PlayerLife(player.clone()))
+            as_of(Moment::TurnBegan, Expr::player_life(player.clone()))
         }
         ("Power", [Number(base), Number(exponent)]) => {
             Expr::Power(Box::new(base.clone()), Box::new(exponent.clone()))

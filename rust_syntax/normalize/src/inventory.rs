@@ -2436,7 +2436,6 @@ impl Inventory<'_> {
                 self.form("Property", property);
                 self.form("Information", information);
             }
-            Expr::PlayerLife(p) => self.player(p),
             Expr::AnyOf(values) => values.iter().for_each(|value| self.expr(value)),
             Expr::Add(a, b)
             | Expr::Subtract(a, b)

@@ -1557,7 +1557,7 @@ fn condition_templates_preserve_quantified_player_bindings_and_source_zone_check
         matches!(&conditions[0],Condition::ExistsPlayer {binding:Binding(0),condition,..} if matches!(condition.as_ref(),Condition::PlayerIsActive(PlayerRef::Bound(Binding(0)))))
     );
     assert!(
-        matches!(&conditions[1],Condition::ExistsPlayer {binding:Binding(0),condition,..} if matches!(condition.as_ref(),Condition::Compare {left:Expr::PlayerLife(PlayerRef::Bound(Binding(0))),comparison:Comparison::Greater,right:Expr::Constant(4)}))
+        matches!(&conditions[1],Condition::ExistsPlayer {binding:Binding(0),condition,..} if matches!(condition.as_ref(),Condition::Compare {left:Expr::PlayerNumber {player:PlayerRef::Bound(Binding(0)),number:PlayerNumber::Life},comparison:Comparison::Greater,right:Expr::Constant(4)}))
     );
     assert!(
         matches!(&conditions[2],Condition::ObjectMatches {object:ObjectRef::Source,filter:ObjectFilter::Either(zones)} if matches!(zones.as_slice(),[ObjectFilter::InZone(ZoneScope::Shared(EventZone::Exile)),ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield))]))

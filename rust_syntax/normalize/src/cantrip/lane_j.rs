@@ -2128,11 +2128,22 @@ impl Compiler {
         let resolving = self.reader == Reader::Resolution && self.stack_item;
         let feature = format!("numeric expression {}", form(n));
         Ok(match n {
-            Expr::PlayerNumber { player, number } => counted(format!(
-                "{}.map_or(0i64, |p: PlayerId| {})",
-                self.player(player)?,
-                self.player_number("p", number)?
-            )),
+            Expr::PlayerNumber { player, number } => {
+                let code = format!(
+                    "{}.map_or(0i64, |p: PlayerId| {})",
+                    self.player(player)?,
+                    self.player_number("p", number)?
+                );
+                match number {
+                    PlayerNumber::Life => Number {
+                        code,
+                        min: i32::MIN.into(),
+                        max: i32::MAX.into(),
+                        dynamic: true,
+                    },
+                    _ => counted(code),
+                }
+            }
             Expr::AmongPlayers {
                 players,
                 number,
