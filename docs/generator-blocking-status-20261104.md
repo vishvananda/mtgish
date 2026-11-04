@@ -51,3 +51,15 @@ Evidence is under
 `~/card-lane/pipeline-unlimited-20261103/integration/blocking-status-{proof,generator-proof}`
 and adjacent baseline, focused, workspace and benchmark logs. Native changes
 remain local during consolidation. The semantic schema remains 174.
+
+Follow-up: Rally's reviewer found that the first-strike step decision still
+read only remaining block associations. Native checkpoint
+`956974eaf722e2021c609df481ed80d6c4bef66d` reads the independent blockers list
+there too. Its full workspace passes **17,173 tests**, with fifteen focused
+blocking tests, including first/double strikers with no remaining attacker and
+the intervening priority window. The API fingerprint is unchanged. A 128-game
+before/after pair measures 36.86 / 31.77 microseconds per engine decision;
+load varies and no speedup is inferred. Rally passed independent confirmation
+after returning on this checkpoint. Snow Devil's old approved static predicate
+was separately reopened for repair; the two native callers were migrated in
+the engine change. Evidence is in `integration/blocking-first-strike-proof`.

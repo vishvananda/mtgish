@@ -1097,9 +1097,16 @@ impl Compiler {
                 at_most,
             } => {
                 let kind = counter_kind(kind)?;
-                let amount = self.number(amount)?.amount(i16::MAX.into(), "i16")?;
-                let cap = self.number(at_most)?.amount(i16::MAX.into(), "i16")?;
-                writeln!(out, "let object_{id} = {}; let amount_{id} = {}; let cap_{id} = {}; if let Some(object) = object_{id} {{ let room = cap_{id}.saturating_sub(g.state().obj(object).counters({kind})).max(0); g.add_counters(object, {kind}, amount_{id}.min(room)); }}", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(cap)).unwrap();
+                let amount = self.number(amount)?;
+                let cap = self.number(at_most)?;
+                // This operation means "up to", not an obligatory placement capped afterward.
+                // The existing number prompt represents at most 256 choices; never truncate a wider choice.
+                if amount.max.min(cap.max) > u8::MAX.into() {
+                    return Err(gap("choice of more than 255 capped counters"));
+                }
+                let amount = amount.amount(u32::MAX.into(), "u32")?;
+                let cap = cap.amount(i16::MAX.into(), "i16")?;
+                writeln!(out, "let object_{id} = {}; let amount_{id} = {}; let cap_{id} = {}; if let Some(object) = object_{id}.filter(|&object| is_live(g, object)) {{ let room = cap_{id}.saturating_sub(g.state().obj(object).counters({kind})).max(0) as u32; let most = amount_{id}.min(room); let chosen = {M}::choose::number(g, asker.controller, asker.source, 0, most, \"Put counters\")? as i16; g.add_counters(object, {kind}, chosen); }}", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(cap)).unwrap();
             }
             Operation::Repeat { times, body } => {
                 let runs = self.number(times)?.amount(u32::MAX.into(), "u32")?;

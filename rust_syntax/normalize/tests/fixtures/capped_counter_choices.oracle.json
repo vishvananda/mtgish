@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Clockwork Avian",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Clockwork Avian",
+        "manaCost": "{5}",
+        "type": "Artifact Creature — Bird",
+        "text": "Flying\nThis creature enters with four +1/+0 counters on it.\nAt end of combat, if this creature attacked or blocked this combat, remove a +1/+0 counter from it.\n{X}, {T}: Put up to X +1/+0 counters on this creature. This ability can't cause the total number of +1/+0 counters on this creature to be greater than four. Activate only during your upkeep.",
+        "power": "0",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Clockwork Beast",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Clockwork Beast",
+        "manaCost": "{6}",
+        "type": "Artifact Creature — Beast",
+        "text": "This creature enters with seven +1/+0 counters on it.\nAt end of combat, if this creature attacked or blocked this combat, remove a +1/+0 counter from it.\n{X}, {T}: Put up to X +1/+0 counters on this creature. This ability can't cause the total number of +1/+0 counters on this creature to be greater than seven. Activate only during your upkeep.",
+        "power": "0",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Clockwork Gnomes",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Clockwork Gnomes",
+        "manaCost": "{4}",
+        "type": "Artifact Creature — Gnome",
+        "text": "{3}, {T}: Regenerate target artifact creature.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Clockwork Steed",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Clockwork Steed",
+        "manaCost": "{4}",
+        "type": "Artifact Creature — Horse",
+        "text": "This creature enters with four +1/+0 counters on it.\nThis creature can't be blocked by artifact creatures.\nAt end of combat, if this creature attacked or blocked this combat, remove a +1/+0 counter from it.\n{X}, {T}: Put up to X +1/+0 counters on this creature. This ability can't cause the total number of +1/+0 counters on this creature to be greater than four. Activate only during your upkeep.",
+        "power": "0",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Clockwork Swarm",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Clockwork Swarm",
+        "manaCost": "{4}",
+        "type": "Artifact Creature — Insect",
+        "text": "This creature enters with four +1/+0 counters on it.\nThis creature can't be blocked by Walls.\nAt end of combat, if this creature attacked or blocked this combat, remove a +1/+0 counter from it.\n{X}, {T}: Put up to X +1/+0 counters on this creature. This ability can't cause the total number of +1/+0 counters on this creature to be greater than four. Activate only during your upkeep.",
+        "power": "0",
+        "toughness": "3"
+      }
+    ]
+  }
+]
