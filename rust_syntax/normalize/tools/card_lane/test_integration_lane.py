@@ -117,6 +117,27 @@ class IntegrationTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'Publication deferred'):
                 publish_lane.publish(self.root,self.cfg,db,1)
 
+    def test_feature_checkpoint_pins_only_the_clean_tested_ancestor_after_integration(self):
+        tested=self.root/'tested'
+        self.git('worktree','add','-qb','feature/shared',str(tested),self.base)
+        def feature(*args):
+            return subprocess.check_output(['git',*args],cwd=tested,text=True,stderr=subprocess.STDOUT).strip()
+        (tested/'shared').write_text('engine feature');feature('add','.');feature('commit','-qm','Engine: shared feature')
+        head=feature('rev-parse','HEAD');proof=dict(ok=True,head=head)
+        self.start()
+        with self.assertRaises(RuntimeError):lane.promote_snapshot(self.root,head,proof,validated_tree=tested)
+        self.git('merge','-q','--no-ff','feature/shared','-m','Integrate shared feature')
+        (self.repo/'later-card').write_text('not part of tested checkpoint');self.git('add','.');self.git('commit','-qm','Card: Later')
+        with self.assertRaises(ValueError):lane.promote_snapshot(self.root,head,proof)
+        (tested/'shared').write_text('untested changes')
+        with self.assertRaises(RuntimeError):lane.promote_snapshot(self.root,head,proof,validated_tree=tested)
+        feature('restore','shared')
+        path=lane.promote_snapshot(self.root,head,proof,validated_tree=tested)
+        self.assertEqual(json.loads(path.read_text())['head'],head)
+        pin=shared_base.read_work_base(json.loads((self.root/'config.json').read_text()),self.repo)
+        self.assertEqual(pin['head'],head)
+        self.assertFalse((tested/'later-card').exists())
+
     def test_card_counts_do_not_count_reapproved_revisions_as_new_cards(self):
         with lane.connect(self.root) as db:
             for key,name,status in [('a1','Alpha','assembled'),('b1','Beta','assembled'),('a2','Alpha','pending')]:

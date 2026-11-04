@@ -210,12 +210,20 @@ def resume(root, key, reason):
     snapshot(root)
 
 
-def promote_snapshot(root, head, validation):
-    """Promote tested committed state; no PR or remote is involved."""
+def promote_snapshot(root, head, validation, *, validated_tree=None):
+    """Promote tested committed state, optionally from a clean feature tree already merged into integration.
+
+    The collector may continue importing cards after the tested checkpoint. Its later, unvalidated callers must not
+    enter workers merely because a shared feature is ready: pin the exact tested ancestor instead.
+    """
     root = Path(root); cfg, integration, tree = settings(root)
     clean_branch(tree, integration)
-    if publication.git(tree,'rev-parse','HEAD') != head or validation.get('ok') is not True or validation.get('head') != head:
-        raise ValueError('Snapshot validation must match the clean integration head')
+    tested = Path(validated_tree) if validated_tree is not None else tree
+    review.clean(tested)
+    if publication.git(tested,'rev-parse','HEAD') != head or validation.get('ok') is not True or validation.get('head') != head:
+        raise ValueError('Snapshot validation must match the clean tested head')
+    # An isolated feature checkpoint becomes a common base only after integration contains its exact history.
+    publication.git(tree,'merge-base','--is-ancestor',head,'HEAD')
     path = root/'integration/snapshots'/f'{head}.json'
     data = dict(kind='local_integration',base=integration['base'],head=head,validation=validation)
     if path.exists() and review.read(path) != data:
