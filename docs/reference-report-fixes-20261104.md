@@ -39,7 +39,8 @@ Validation:
 
 The oracle-grammar repository was checked through `94bcd76`. Its catalog still ends at REF-012; the newer hand and
 combat-binding reports add no further reference bugs. Its immutable reference, gold, scorer and pins are untouched.
-The separately reported Ydwen Efreet producer correction ([#191](https://github.com/i5jb/mtgish/issues/191)) remains
-outside this five-group repair.
+The Ydwen Efreet report ([#191](https://github.com/i5jb/mtgish/issues/191)) was withdrawn: its parser already correctly
+keeps the associated unblocking conditional on losing the flip. The proposed unconditional-unblocking change was
+discarded before commit. That interpretation was an error in our review, not a parser defect.
 
 Full receipts are in `~/card-lane/pipeline-unlimited-20261103/integration/reference-008-012-current-audit/`.

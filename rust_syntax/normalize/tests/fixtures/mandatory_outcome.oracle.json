@@ -1,0 +1,49 @@
+[
+  {
+    "name": "Puppet Master",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Puppet Master",
+        "manaCost": "{U}{U}{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nWhen enchanted creature dies, return that card to its owner's hand. If that card is returned to its owner's hand this way, you may pay {U}{U}{U}. If you do, return this card to its owner's hand.",
+        "colors": [
+          "U"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Cosmic Horror",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cosmic Horror",
+        "manaCost": "{3}{B}{B}{B}",
+        "type": "Creature — Horror",
+        "text": "First strike\nAt the beginning of your upkeep, destroy this creature unless you pay {3}{B}{B}{B}. If this creature is destroyed this way, it deals 7 damage to you.",
+        "power": "7",
+        "toughness": "7",
+        "colors": [
+          "B"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Infinite Authority",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Infinite Authority",
+        "manaCost": "{W}{W}{W}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nWhenever enchanted creature blocks or becomes blocked by a creature with toughness 3 or less, destroy the other creature at end of combat. At the beginning of the next end step, if that creature was destroyed this way, put a +1/+1 counter on the first creature.",
+        "colors": [
+          "W"
+        ]
+      }
+    ]
+  }
+]

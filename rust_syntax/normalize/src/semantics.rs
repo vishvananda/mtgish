@@ -5663,6 +5663,13 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 |(name, _)| row_bindings(name),
             )
         }
+        // The first filter names the subject of these pair events; the other
+        // creature has its own role. Neither is necessarily the blocker.
+        EventSpec::Pair { event: PairEvent::Blocks | PairEvent::BecomesBlockedBy, .. } => EventBindings {
+            object: true,
+            block_pair: true,
+            ..EventBindings::default()
+        },
         EventSpec::Pair { event, .. } => PAIR_EVENTS
             .iter()
             .find(|(_, row)| row == event)

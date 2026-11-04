@@ -650274,7 +650274,7 @@ Card(
                           1,
                           1,
                         ),
-                        HostPermanent,
+                        Trigger_ThatPermanent,
                       ),
                     ]),
                   ]),

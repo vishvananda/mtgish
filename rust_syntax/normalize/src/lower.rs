@@ -87,6 +87,13 @@ fn invalid(message: &str) -> Diagnostic {
     }
 }
 
+/// A compulsory effect encoded by source MustCost, rather than a real cost whose attempt counts as payment.
+#[derive(Clone, Copy)]
+enum RequiredEffectOutcome {
+    Destroyed,
+    ReturnedToHand,
+}
+
 #[derive(Default, Clone)]
 struct Context {
     prepared: crate::pipeline::PreparedRecipes,
@@ -109,6 +116,7 @@ struct Context {
     event: crate::semantics::EventBindings,
     created_tokens: Option<ResultId>,
     payment: Option<ResultId>,
+    required_effect_outcomes: std::collections::BTreeMap<u32, RequiredEffectOutcome>,
     paid: std::collections::BTreeMap<crate::number_spec::PaymentAction, Option<PaidBinding>>,
     /// A reviewed row may have changed what a "this way" means.
     forgotten: bool,
@@ -850,6 +858,10 @@ impl Context {
                     index: 0,
                 });
             }
+            // A pair's primary subject is the first creature in its trigger,
+            // which may be the attacker or the blocker. The dedicated creature
+            // roles below continue to distinguish the two combat participants.
+            S::Trigger_ThatPermanent if self.event.block_pair => return Ok(ObjectRef::EventSubject),
             S::Trigger_ThatVehicle if self.event.other => return Ok(ObjectRef::EventOther),
             S::Trigger_ThatPermanent
             | S::Trigger_ThatCreature

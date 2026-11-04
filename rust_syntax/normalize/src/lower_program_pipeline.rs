@@ -285,6 +285,29 @@ impl Context {
                     context.resolving_payment = true;
                     context.bind_cost_recipe(cost)?
                 };
+                // Source MustCost also spells compulsory effects whose success is tested later. Keep these
+                // as ordinary effects with their actual receipts; PaymentChosen retains its CR 118.12 meaning.
+                fn required_effect(body: &Program) -> Option<(&Operation, RequiredEffectOutcome)> {
+                    match body.instructions.as_slice() {
+                        [Instruction::Group(body)] => required_effect(body),
+                        [Instruction::Effect { operation, .. }] => match operation.action() {
+                            Operation::Destroy { .. } => Some((operation, RequiredEffectOutcome::Destroyed)),
+                            Operation::Move { destination: Destination::OwnersHand, .. }
+                                => Some((operation, RequiredEffectOutcome::ReturnedToHand)),
+                            _ => None,
+                        },
+                        _ => None,
+                    }
+                }
+                if let (false, [CostPart::PlayerAction { body, .. }]) = (*optional, cost.parts.as_slice()) {
+                    if let Some((operation, outcome)) = required_effect(body) {
+                        let step = self.effect(operation.clone());
+                        let Instruction::Effect { result, .. } = &step else { unreachable!() };
+                        self.payment = Some(result.clone());
+                        self.required_effect_outcomes.insert(result.0, outcome);
+                        return Ok(Program { instructions: vec![step] });
+                    }
+                }
                 // The amount chosen while paying {X} is X from here on.
                 let chooses_x = cost
                     .parts
