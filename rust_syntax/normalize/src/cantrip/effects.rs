@@ -4189,7 +4189,7 @@ impl Compiler {
         if let Change::GrantAbility(ability) = change {
             if let Some(keyword) = self.grants_keyword(ability) {
                 return Ok(vec![format!(
-                    "EffectKind::AddKeywords(Keywords::of(&[{keyword}]))"
+                    "EffectKind::AddKeywords({})", lane_k::keyword_mask(&keyword, "asker.source")
                 )]);
             }
             return self.grant_kinds(ability);
@@ -4249,8 +4249,8 @@ impl Compiler {
             }
             Change::GrantKeyword(k) => {
                 vec![format!(
-                    "EffectKind::AddKeywords(Keywords::of(&[{}]))",
-                    keyword(k)?
+                    "EffectKind::AddKeywords({})",
+                    lane_k::keyword_mask(&keyword(k)?, "asker.source")
                 )]
             }
             Change::RemoveAllAbilities => vec!["EffectKind::LoseAllAbilities".into()],

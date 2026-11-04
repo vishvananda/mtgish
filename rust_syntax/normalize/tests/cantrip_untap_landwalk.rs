@@ -36,6 +36,13 @@ fn supported_landwalks_and_references_use_native_keyword_metadata() {
 }
 
 #[test]
+fn floating_landwalk_grants_and_removals_read_the_sources_type_word() {
+    let generated = cantrip::module(&card("Scarwood Hag")).unwrap();
+    assert!(generated.contains("EffectKind::AddKeywords") && generated.contains("EffectKind::LoseKeywords"), "{generated}");
+    assert!(generated.matches("q.words(asker.source).subtype(Subtype::Forest)").count() >= 2, "Both effects must follow the printed land type: {generated}");
+}
+
+#[test]
 fn simultaneous_untap_results_record_actual_untaps() {
     let source: OracleCard = ron::from_str(r#"Card(Name: "Untap probe", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), Rules: [SpellActions(ActionList([DrawACard]))])"#).unwrap();
     let mut card = lower::card(&source).unwrap();

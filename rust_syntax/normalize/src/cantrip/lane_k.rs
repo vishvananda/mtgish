@@ -1192,6 +1192,15 @@ pub(super) fn landwalk_named_by(keyword: &str, source: &str) -> Option<String> {
     Some(if snow { format!("{plain}.and_then(Keyword::snow_landwalk)") } else { plain })
 }
 
+/// A resolving keyword grant or removal reads the type word when it resolves
+/// (CR 612.1-2), before the effect's characteristics are fixed (CR 611.2c).
+pub(super) fn keyword_mask(keyword: &str, source: &str) -> String {
+    match landwalk_named_by(keyword, source) {
+        Some(walk) => format!("{walk}.map_or(Keywords::NONE, |walk| Keywords::of(&[walk]))"),
+        None => format!("Keywords::of(&[{keyword}])"),
+    }
+}
+
 /// Whether `objects` are read out of a graveyard, whose first card is its top.
 pub(super) fn from_a_graveyard(objects: &ObjectSet) -> bool {
     matches!(

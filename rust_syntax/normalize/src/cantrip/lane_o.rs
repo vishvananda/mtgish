@@ -2330,7 +2330,7 @@ impl Compiler {
             return Err(failed);
         };
         if let Some(lost) = lost_keyword(lost) {
-            return Ok(vec![format!("EffectKind::LoseKeywords(Keywords::of(&[{lost}]))")]);
+            return Ok(vec![format!("EffectKind::LoseKeywords({})", lane_k::keyword_mask(&lost, "asker.source"))]);
         }
         match word.as_str() {
             "AnyLandwalk" => Ok(vec!["EffectKind::LoseKeywords(Keywords::LANDWALKS)".into()]),
@@ -2358,7 +2358,7 @@ impl Compiler {
                         i.to_string()
                     };
                     arms.push(format!(
-                        "{pattern} => EffectKind::LoseKeywords(Keywords::of(&[{lost}])),"
+                        "{pattern} => EffectKind::LoseKeywords({}),", lane_k::keyword_mask(&lost, "asker.source")
                     ));
                 }
                 Ok(vec![format!("match {local} {{ {} }}", arms.join(" "))])
@@ -2388,7 +2388,7 @@ impl Compiler {
             };
             return Ok(statics::LayerChange::of(
                 "Ability",
-                format!("chars.keywords = Keywords(chars.keywords.0 & !Keywords::of(&[{lost}]).for_effect().0);{and}"),
+                format!("chars.keywords = Keywords(chars.keywords.0 & !({}).for_effect().0);{and}", lane_k::keyword_mask(&lost, "source")),
             ));
         }
         let word = self.lost_word(lost).map_err(|_| failed.clone())?;
