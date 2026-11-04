@@ -2349,7 +2349,24 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
 }
 
 /// A row's change in generic form, or the row itself when it has none.
-pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
+pub fn reduce_changes(name: String, operands: Vec<Operand>) -> Vec<Change> {
+    if matches!(
+        name.split_once("::"),
+        Some((
+            "LayerEffect" | "StaticLayerEffect" | "SpellEffect",
+            "AddAbilityAndLoseAllOtherAbilities"
+        ))
+    ) && !operands.is_empty()
+    {
+        if let Some(abilities) = ability_list(&operands) {
+            return crate::change_lists::replace_abilities(abilities);
+        }
+    }
+    vec![reduce_single_change(name, operands)]
+}
+
+/// A single ordinary change. Compound source forms are handled at the list edge.
+fn reduce_single_change(name: String, operands: Vec<Operand>) -> Change {
     match (name.as_str(), operands.as_slice()) {
         ("SettableColor::TheManaColorChosenThisWay", [Operand::Result(mana)]) => {
             Change::ColorOfMana {
@@ -2375,9 +2392,6 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
         ("LayerEffect::LosesAbility", [ability]) => Change::LosesAbility(Box::new(ability.clone())),
         ("LayerEffect::SetLandType", [land]) => Change::SetLandType(Box::new(land.clone())),
         ("LayerEffect::SetName", [Operand::Text(name)]) => Change::SetName(name.clone()),
-        ("LayerEffect::AddAbilityAndLoseAllOtherAbilities", [Operand::Ability(ability)]) => {
-            Change::OnlyAbilities(vec![(**ability).clone()])
-        }
         ("LayerEffect::IsACopyOfExiledCard", [Operand::Object(object), effects]) => {
             Change::CopyOf {
                 object: object.clone(),

@@ -2993,6 +2993,36 @@ impl Compiler {
             _ => self.arrival_rest(entry, counters)?,
         })
     }
+    /// Entry has a typed enchant restriction instead of an ordinary delayed
+    /// ability slot. Both single/batch entry paths use the same extraction.
+    pub(super) fn entry_ability(&mut self, ability: &Ability) -> Result<Option<usize>> {
+        match ability {
+            Ability::Enchant { hosts } => {
+                self.aura_enchant(hosts)?;
+                Ok(None)
+            }
+            other => self.grant(other).map(Some),
+        }
+    }
+    /// Visit erased nonkeyword definitions in their printed order, so a later
+    /// retained grant still receives its own quoted text and delayed identity.
+    /// Their references are omitted from EntersAs. Enchant extraction has no
+    /// quotation cursor and must not install a discarded restriction.
+    pub(super) fn entry_discarded_abilities(&mut self, changes: &[Change]) -> Result<()> {
+        if let Some(last) = changes
+            .iter()
+            .rposition(|change| matches!(change, Change::RemoveAllAbilities))
+        {
+            for change in &changes[..last] {
+                if let Change::GrantAbility(ability) = change {
+                    if !matches!(ability.as_ref(), Ability::Enchant { .. }) {
+                        self.grant(ability)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
     /// Objects that enter together as `changes` says (CR 614.12): one static
     /// `EntersAs`, read by the engine as they enter.
     pub(super) fn entering_as(
@@ -3008,12 +3038,13 @@ impl Compiler {
         if entry.tapped {
             return Err(gap("enters tapped as something else"));
         }
+        self.entry_discarded_abilities(changes)?;
         let mut fields = Vec::new();
         let mut adds = Vec::new();
         let mut subtypes = Vec::new();
         let mut keywords = Vec::new();
         let mut abilities = Vec::new();
-        for change in changes {
+        for change in crate::change_lists::entering_changes(changes) {
             match change {
                 Change::SetCardTypes(types) => {
                     let types = types
@@ -3054,7 +3085,7 @@ impl Compiler {
                     toughness: Expr::Constant(toughness),
                 } => fields.push(format!("power_toughness: Some(({power}, {toughness}))")),
                 Change::GrantAbility(ability) => {
-                    abilities.push(self.grant(ability)?.to_string());
+                    if let Some(index) = self.entry_ability(ability)? { abilities.push(index.to_string()); }
                 }
                 Change::GrantKeyword(k)
                     if !matches!(k, Keyword::Protection(_) | Keyword::Ward(_)) =>
@@ -3066,19 +3097,8 @@ impl Compiler {
                 }
                 // "It's an Aura enchantment with enchant [quality] and [ability], and
                 // it loses all other abilities."
-                Change::AddEnchantmentType(kind) if format!("{kind:?}").contains("Aura") => {
+                Change::AddEnchantmentType(kind) if matches!(kind.as_ref(), Operand::Vocabulary {family,form} if family == "EnchantmentType" && form == "Aura") => {
                     fields.push("aura: true".to_string())
-                }
-                Change::OnlyAbilities(only) => {
-                    fields.push("loses_other_abilities: true".to_string());
-                    for ability in only {
-                        match ability {
-                            Ability::Enchant { hosts } => {
-                                self.aura_enchant(hosts)?;
-                            }
-                            ability => abilities.push(self.grant(ability)?.to_string()),
-                        }
-                    }
                 }
                 Change::Colors { .. } => return Err(gap("move arrival with a color")),
                 _ => return Err(gap("move arrival state")),
@@ -4169,4 +4189,165 @@ pub(super) fn without_tapped(filter: &ObjectFilter) -> Option<ObjectFilter> {
 pub(super) fn artifact_creature(types: &[crate::mtg_types::CardType]) -> bool {
     use crate::mtg_types::CardType as T;
     matches!(types, [T::Artifact, T::Creature] | [T::Creature, T::Artifact])
+}
+
+#[cfg(test)]
+mod entry_ability_tests {
+    use super::*;
+    fn enchant() -> Ability {
+        Ability::Enchant {
+            hosts: EnchantHosts::Permanents(ObjectFilter::All(vec![
+                ObjectFilter::CardType(crate::mtg_types::CardType::Creature),
+                ObjectFilter::Not(Box::new(ObjectFilter::SameObject(ObjectRef::Source))),
+            ])),
+        }
+    }
+    fn activated() -> Ability {
+        Ability::Activated {
+            origin: ActivationOrigin::Ordinary,
+            cost: Cost {
+                parts: vec![CostPart::Mana(vec![ManaSymbol::Generic(1)])],
+            },
+            limits: ActivationLimits::unrestricted(),
+            announcement: Announcement {
+                targets: vec![],
+                modes: None,
+            },
+            body: Program::empty(),
+        }
+    }
+    fn entry(compiler: &mut Compiler, changes: Vec<Change>, batch: bool) -> Result<String> {
+        compiler.stack_item = true;
+        let spec = EntrySpec {
+            states: vec![EntryState::Changes(changes.clone())],
+            ..Default::default()
+        };
+        if batch {
+            compiler.arriving_together(7, &spec, "asker.controller")
+        } else {
+            compiler.entering_as(7, &spec, &changes, "asker.controller")
+        }
+    }
+    #[test]
+    fn both_entry_paths_extract_enchant_and_keep_the_ordinary_ability_identity() {
+        for batch in [false, true] {
+            let mut compiler = Compiler::new();
+            let mut changes = vec![
+                Change::SetCardTypes(vec![crate::mtg_types::CardType::Enchantment]),
+                Change::AddEnchantmentType(Box::new(Operand::Vocabulary {
+                    family: "EnchantmentType".into(),
+                    form: "Aura".into(),
+                })),
+            ];
+            changes.extend(crate::change_lists::replace_abilities(vec![
+                enchant(),
+                activated(),
+            ]));
+            let code = entry(&mut compiler, changes, batch).unwrap();
+            assert!(code.contains("put_all_onto_battlefield_becoming"));
+            assert!(compiler.aura.is_some());
+            assert_eq!(compiler.delayed.len(), 1);
+            assert!(compiler.functions.contains("CardType::Creature"));
+            assert!(compiler.functions.contains("asker.source"));
+            assert!(compiler.functions.contains("aura: true"));
+            assert!(compiler.functions.contains("loses_other_abilities: true"));
+            assert!(compiler.functions.contains("abilities: &[0]"));
+            syn::parse_file(&compiler.functions).unwrap();
+        }
+    }
+    #[test]
+    fn a_later_loss_discards_earlier_entry_grants_and_enchant_metadata() {
+        for batch in [false, true] {
+            let mut compiler = Compiler::new();
+            let changes = vec![
+                Change::GrantAbility(Box::new(enchant())),
+                Change::GrantKeyword(Keyword::Flying),
+                Change::RemoveAllAbilities,
+                Change::GrantAbility(Box::new(activated())),
+                Change::RemoveAllAbilities,
+                Change::GrantKeyword(Keyword::Haste),
+            ];
+            entry(&mut compiler, changes, batch).unwrap();
+            assert!(compiler.aura.is_none());
+            // The discarded definition still consumes its own printed quote;
+            // it is never included in the final entry ability references.
+            assert_eq!(compiler.delayed.len(), 1);
+            assert!(!compiler.functions.contains("abilities: &[0]"));
+            assert_eq!(
+                compiler
+                    .functions
+                    .matches("loses_other_abilities: true")
+                    .count(),
+                1
+            );
+            assert!(compiler.functions.contains("Keyword::Haste"));
+            assert!(!compiler.functions.contains("Keyword::Flying"));
+            syn::parse_file(&compiler.functions).unwrap();
+        }
+    }
+    #[test]
+    fn discarded_grants_do_not_steal_a_retained_grants_quoted_text_or_identity() {
+        for batch in [false, true] {
+            let mut compiler = Compiler::new();
+            let outer = Ability::Static {
+                kind: StaticKind::Ordinary,
+                affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                changes: vec![],
+            };
+            compiler.printed =
+                lane_k::Printed::read("It has \"{1}: Draw a card.\" and \"{1}: Gain 1 life.\".")
+                    .aligned(&[outer]);
+            compiler.on_ability(0);
+            let changes = vec![
+                Change::GrantAbility(Box::new(activated())),
+                Change::RemoveAllAbilities,
+                Change::GrantAbility(Box::new(activated())),
+            ];
+            entry(&mut compiler, changes, batch).unwrap();
+            assert_eq!(compiler.delayed.len(), 2);
+            assert!(
+                compiler.delayed[0].contains("Draw a card."),
+                "{:?}",
+                compiler.delayed
+            );
+            assert!(
+                compiler.delayed[1].contains("Gain 1 life."),
+                "{:?}",
+                compiler.delayed
+            );
+            assert!(!compiler.delayed[1].contains("Draw a card."));
+            assert!(compiler.functions.contains("abilities: &[1]"));
+            assert!(!compiler.functions.contains("abilities: &[0]"));
+        }
+    }
+    #[test]
+    fn copied_enchant_text_and_fake_aura_words_do_not_enter_the_entry_extraction_path() {
+        let mut compiler = Compiler::new();
+        assert!(compiler.grant(&enchant()).is_err());
+        assert!(entry(
+            &mut compiler,
+            vec![Change::Copiable(vec![Change::GrantAbility(Box::new(
+                enchant()
+            ))])],
+            false
+        )
+        .is_err());
+        assert!(compiler.aura.is_none());
+        for (family, form) in [
+            ("EnchantmentType", "NotAura"),
+            ("NotAnEnchantmentType", "Aura"),
+        ] {
+            let mut compiler = Compiler::new();
+            assert!(entry(
+                &mut compiler,
+                vec![Change::AddEnchantmentType(Box::new(Operand::Vocabulary {
+                    family: family.into(),
+                    form: form.into()
+                }))],
+                false
+            )
+            .is_err());
+            assert!(compiler.aura.is_none());
+        }
+    }
 }

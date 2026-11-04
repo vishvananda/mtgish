@@ -1895,7 +1895,6 @@ impl<'a> Scope<'a> {
                 self.object(object)?;
                 self.operand(plus)
             }
-            Change::OnlyAbilities(abilities) => abilities.iter().try_for_each(validate_ability),
             Change::GrantAbilityIfAbsent(ability) => validate_ability(ability),
             Change::GainAbilitiesOf { objects, kinds, .. } => {
                 self.objects(objects)?;

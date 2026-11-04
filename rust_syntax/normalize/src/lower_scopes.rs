@@ -86,7 +86,7 @@ impl Context {
                     })
                     .collect::<Result<_>>()?,
                 _ => match self.primitive("SpellEffect", effect) {
-                    Some((name, operands)) => vec![crate::semantics::reduce_change(name, operands)],
+                    Some((name, operands)) => crate::semantics::reduce_changes(name, operands),
                     None => {
                         let rule = as_family::<source::Rule>(effect, "Rule");
                         let granted = rule.and_then(|rule| self.fresh().ability(&rule).ok());

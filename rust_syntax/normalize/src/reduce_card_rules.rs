@@ -444,7 +444,7 @@ fn reduce_card_mana(form: &str, operands: &[Operand]) -> Option<ManaProduction> 
 }
 
 /// One `StaticLayerEffect` written as a term of a rule.
-fn static_layer_term(term: &Operand) -> Option<Change> {
+fn static_layer_term(term: &Operand) -> Option<Vec<Change>> {
     let Operand::Term {
         family,
         form,
@@ -453,17 +453,20 @@ fn static_layer_term(term: &Operand) -> Option<Change> {
     else {
         return None;
     };
-    Some(match (form.as_str(), operands.as_slice()) {
-        ("LosesAllAbilities", []) => Change::RemoveAllAbilities,
-        ("SetPowerAndToughnessBoth", [Operand::Number(amount)]) => Change::SetBasePowerToughness {
-            power: amount.clone(),
-            toughness: amount.clone(),
-        },
-        _ => match reduce_change(format!("{family}::{form}"), operands.clone()) {
-            Change::Primitive { .. } => return None,
-            change => change,
-        },
-    })
+    let changes = match (form.as_str(), operands.as_slice()) {
+        ("LosesAllAbilities", []) => vec![Change::RemoveAllAbilities],
+        ("SetPowerAndToughnessBoth", [Operand::Number(amount)]) => {
+            vec![Change::SetBasePowerToughness {
+                power: amount.clone(),
+                toughness: amount.clone(),
+            }]
+        }
+        _ => reduce_changes(format!("{family}::{form}"), operands.clone()),
+    };
+    (!changes
+        .iter()
+        .any(|change| matches!(change, Change::Primitive { .. })))
+    .then_some(changes)
 }
 
 /// Rules that stand alone as abilities.
@@ -525,7 +528,7 @@ fn reduce_card_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
                 changes: effects
                     .iter()
                     .map(static_layer_term)
-                    .collect::<Option<_>>()?,
+                    .collect::<Option<Vec<_>>>()?.into_iter().flatten().collect(),
             })
         }
         // Covercast works from everywhere but the battlefield, as Forge's

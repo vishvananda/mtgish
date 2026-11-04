@@ -191,9 +191,6 @@ fn reduce_layer(form: &str, operands: &[Operand]) -> Option<Change> {
             power: Expr::Constant(*power),
             toughness: Expr::Constant(*toughness),
         },
-        ("AddAbilityAndLoseAllOtherAbilities", abilities) if abilities.len() > 1 => {
-            Change::OnlyAbilities(ability_list(abilities)?)
-        }
         ("AddAbilityIfItDoesntHaveIt", [Operand::Ability(ability)]) => {
             Change::GrantAbilityIfAbsent(ability.clone())
         }

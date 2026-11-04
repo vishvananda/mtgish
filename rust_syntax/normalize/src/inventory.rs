@@ -1881,7 +1881,6 @@ impl Inventory<'_> {
             Change::GainAbilitiesOf { objects, .. } => self.objects(objects),
             Change::AddNames(filter) => self.filter(filter),
             Change::CreatureTypesOf { object, .. } => self.object(object),
-            Change::OnlyAbilities(abilities) => abilities.iter().for_each(|a| self.ability(a)),
             Change::GrantAbilityIfAbsent(a) => self.ability(a),
             Change::GrantAbility(a) => self.ability(a),
             Change::CreatureTypes { mode, types } => {

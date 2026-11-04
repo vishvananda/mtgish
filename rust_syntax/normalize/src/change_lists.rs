@@ -55,3 +55,36 @@ pub fn coalesce_creature_type_additions(changes: Vec<Change>) -> Vec<Change> {
     }
     out
 }
+
+/// Lose the other abilities, then gain these within the enclosing effect's
+/// ordered change list. No operation/effect boundary or new timestamp is added.
+pub fn replace_abilities(abilities: Vec<crate::ir::Ability>) -> Vec<Change> {
+    use crate::ir::Ability;
+    let mut changes = Vec::with_capacity(abilities.len() + 1);
+    changes.push(Change::RemoveAllAbilities);
+    changes.extend(abilities.into_iter().map(|ability| match ability {
+        Ability::Keyword(keyword) => Change::GrantKeyword(keyword),
+        other => Change::GrantAbility(Box::new(other)),
+    }));
+    changes
+}
+
+/// The retained direct ability changes of an entry specification. EntersAs is a
+/// final set of abilities; grants before the last loss do not survive. Nested
+/// change lists are barriers and are deliberately not searched or flattened.
+pub fn entering_changes(changes: &[Change]) -> impl Iterator<Item = &Change> {
+    let last_loss = changes
+        .iter()
+        .rposition(|change| matches!(change, Change::RemoveAllAbilities));
+    changes
+        .iter()
+        .enumerate()
+        .filter_map(move |(index, change)| {
+            let keep = match (last_loss, change) {
+                (Some(last), Change::GrantAbility(_) | Change::GrantKeyword(_)) => index > last,
+                (Some(last), Change::RemoveAllAbilities) => index == last,
+                _ => true,
+            };
+            keep.then_some(change)
+        })
+}

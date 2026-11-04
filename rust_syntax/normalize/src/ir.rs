@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 173;
+pub const SCHEMA_VERSION: u32 = 174;
 
 /// Typed pattern for the permanent query of the shared battlefield. Card-only,
 /// player-scoped and other-zone queries deliberately do not match.
@@ -3005,8 +3005,6 @@ pub enum Change {
         object: ObjectRef,
         mode: ChangeMode,
     },
-    /// Loses all other abilities and has these, in one effect.
-    OnlyAbilities(Vec<Ability>),
     /// Has this ability unless it already does.
     GrantAbilityIfAbsent(Box<Ability>),
     /// Also has every name of these cards.

@@ -4751,11 +4751,12 @@ impl Compiler {
     /// An `EntersAs` of what a card says its objects are as they enter, and whether
     /// it has a color, which `EntersAs` has no field for.
     fn enters_as(&mut self, changes: &[Change]) -> Result<(String, bool)> {
+        self.entry_discarded_abilities(changes)?;
         let mut fields = Vec::new();
         let (mut subtypes, mut adds, mut keywords, mut abilities) =
             (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         let mut colored = false;
-        for change in changes {
+        for change in crate::change_lists::entering_changes(changes) {
             match change {
                 Change::SetBasePowerToughness {
                     power: Expr::Constant(p),
@@ -4786,7 +4787,11 @@ impl Compiler {
                     fields.push(format!("types: Some(TypeSet::of(&[{}]))", types.join(", ")));
                 }
                 Change::GrantKeyword(k) => keywords.push(keyword(k)?),
-                Change::GrantAbility(ability) => abilities.push(self.grant(ability)?.to_string()),
+                Change::GrantAbility(ability) => {
+                    if let Some(index) = self.entry_ability(ability)? { abilities.push(index.to_string()); }
+                }
+                Change::RemoveAllAbilities => fields.push("loses_other_abilities: true".to_string()),
+                Change::AddEnchantmentType(kind) if matches!(kind.as_ref(), Operand::Vocabulary {family,form} if family == "EnchantmentType" && form == "Aura") => fields.push("aura: true".to_string()),
                 Change::Colors {
                     mode: ChangeMode::Add,
                     colors,

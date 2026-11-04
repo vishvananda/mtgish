@@ -611,7 +611,6 @@ impl Compiler {
             return Ok(());
         }
         let changes = &self.casting_tables(label, affected, changes, parts)?[..];
-        let changes = &lane_o::in_one_effect(changes)[..];
         if changes.is_empty() || self.copy_static(label, affected, changes, parts)? {
             return Ok(());
         }

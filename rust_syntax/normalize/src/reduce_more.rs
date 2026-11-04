@@ -2496,34 +2496,37 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
 }
 
 fn perpetual_changes(effects: &[Operand]) -> Option<Vec<Change>> {
-    effects
-        .iter()
-        .map(|effect| {
-            let Operand::Term { form, operands, .. } = effect else {
-                return None;
-            };
-            match (form.as_str(), operands.as_slice()) {
-                ("AdjustPT", [Operand::Integer(power), Operand::Integer(toughness)]) => {
-                    Some(Change::Pump {
-                        power: Expr::Constant(*power),
-                        toughness: Expr::Constant(*toughness),
-                    })
-                }
-                ("AddAbility", [Operand::Ability(ability)]) => {
-                    Some(Change::GrantAbility(ability.clone()))
-                }
-                ("AdjustPTX", [power, toughness, Operand::Number(x)]) => Some(Change::Pump {
-                    power: mod_x(power, x)?,
-                    toughness: mod_x(toughness, x)?,
-                }),
-                ("SetPT", [pt]) => set_pt(pt),
-                _ => match reduce_change(format!("LayerEffect::{form}"), operands.clone()) {
-                    Change::Primitive { .. } => None,
-                    change => Some(change),
-                },
+    let mut changes = Vec::new();
+    for effect in effects {
+        let Operand::Term { form, operands, .. } = effect else {
+            return None;
+        };
+        let reduced = match (form.as_str(), operands.as_slice()) {
+            ("AdjustPT", [Operand::Integer(power), Operand::Integer(toughness)]) => {
+                vec![Change::Pump {
+                    power: Expr::Constant(*power),
+                    toughness: Expr::Constant(*toughness),
+                }]
             }
-        })
-        .collect()
+            ("AddAbility", [Operand::Ability(ability)]) => {
+                vec![Change::GrantAbility(ability.clone())]
+            }
+            ("AdjustPTX", [power, toughness, Operand::Number(x)]) => vec![Change::Pump {
+                power: mod_x(power, x)?,
+                toughness: mod_x(toughness, x)?,
+            }],
+            ("SetPT", [pt]) => vec![set_pt(pt)?],
+            _ => reduce_changes(format!("LayerEffect::{form}"), operands.clone()),
+        };
+        if reduced
+            .iter()
+            .any(|change| matches!(change, Change::Primitive { .. }))
+        {
+            return None;
+        }
+        changes.extend(reduced);
+    }
+    Some(changes)
 }
 
 /// Perpetual changes to cards the row picked out by a term.

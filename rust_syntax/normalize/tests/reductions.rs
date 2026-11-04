@@ -347,25 +347,25 @@ fn references_name_what_they_read() {
 #[test]
 fn continuous_effects_say_what_they_change() {
     assert!(matches!(
-        semantics::reduce_change("SpellEffect::HasAllCreatureTypes".into(), vec![]),
-        Change::CreatureTypes {
+        semantics::reduce_changes("SpellEffect::HasAllCreatureTypes".into(), vec![]).as_slice(),
+        [Change::CreatureTypes {
             types: CreatureTypeSet::All,
             ..
-        }
+        }]
     ));
     assert!(matches!(
-        semantics::reduce_change(
+        semantics::reduce_changes(
             "LayerEffect::AddLandTypeVariable".into(),
             vec![Operand::Term {
                 family: "LandTypeVariable".into(),
                 form: "EachBasicLandType".into(),
                 operands: vec![],
             }],
-        ),
-        Change::LandTypes {
+        ).as_slice(),
+        [Change::LandTypes {
             scope: LandTypeScope::Basic,
             mode: ChangeMode::Add,
-        }
+        }]
     ));
     assert!(matches!(
         semantics::reduce_duration("Expiration::UntilEndOfTheNextTurn", &[]),

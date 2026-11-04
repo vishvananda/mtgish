@@ -2486,7 +2486,7 @@ impl Context {
                     S::SetColor(c @ source::SettableColor::TheManaColorChosenThisWay) => {
                         let (name, operands) =
                             self.primitive("SettableColor", c).ok_or_else(|| unsupported(c))?;
-                        vec![crate::semantics::reduce_change(name, operands)]
+                        crate::semantics::reduce_changes(name, operands)
                     }
                     S::SetColor(c) | S::AddColor(c) => vec![Change::Colors { mode:if matches!(value,S::SetColor(_)) {ChangeMode::Set} else {ChangeMode::Add},colors:self.fixed_colors(c)? }],
                     S::HasAllCreatureTypes => vec![Change::CreatureTypes {mode:ChangeMode::Set,types:CreatureTypeSet::All}],
@@ -2497,7 +2497,7 @@ impl Context {
             })();
             let changes = changes.or_else(|error| {
                 self.rescue(error, || {
-                    self.primitive_change(value).map(|change| vec![change])
+                    self.primitive_changes(value)
                 })
             });
             result.extend(changes.map_err(|e| e.at(format!("changes[{index}]")))?);
@@ -2536,7 +2536,7 @@ impl Context {
                         let (name, operands) = self
                             .primitive("StaticLayerEffect", value)
                             .ok_or_else(|| unsupported(value).at(format!("changes[{i}]")))?;
-                        changes.push(crate::semantics::reduce_change(name, operands));
+                        changes.extend(crate::semantics::reduce_changes(name, operands));
                         continue;
                     }
                 },

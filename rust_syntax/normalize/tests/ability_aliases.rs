@@ -1,36 +1,23 @@
 use mtgish_ast::{ir::*, mtg_types::OracleCard, semantics, unified, validate};
-use serde_json::Value;
-
-fn count_plural(value: &Value) -> usize {
-    match value {
-        Value::Object(fields) => {
-            usize::from(fields.get("kind").and_then(Value::as_str) == Some("OnlyAbilities"))
-                + fields.values().map(count_plural).sum::<usize>()
-        }
-        Value::Array(values) => values.iter().map(count_plural).sum(),
-        _ => 0,
-    }
-}
 
 #[test]
 fn singleton_replacement_has_the_same_ordered_list_as_multiple_abilities() {
     let ability = Ability::Keyword(Keyword::Flying);
-    let change = semantics::reduce_change(
+    let changes = semantics::reduce_changes(
         "LayerEffect::AddAbilityAndLoseAllOtherAbilities".into(),
-        vec![Operand::Ability(Box::new(ability.clone()))],
+        vec![Operand::Ability(Box::new(ability))],
     );
-    let Change::OnlyAbilities(abilities) = change else {
-        panic!("{change:?}")
-    };
-    assert_eq!(abilities.len(), 1);
-    assert_eq!(
-        serde_json::to_value(&abilities[0]).unwrap(),
-        serde_json::to_value(ability).unwrap()
-    );
+    assert!(matches!(
+        changes.as_slice(),
+        [
+            Change::RemoveAllAbilities,
+            Change::GrantKeyword(Keyword::Flying)
+        ]
+    ));
 }
 
 #[test]
-fn real_replacement_records_roundtrip_with_one_ability_list_form() {
+fn real_replacement_records_roundtrip_with_ordered_ordinary_changes() {
     for line in include_str!("fixtures/ability_aliases.ronl").lines() {
         let source: OracleCard = ron::from_str(line).unwrap();
         let lowered = unified::lower(&source);
@@ -38,11 +25,7 @@ fn real_replacement_records_roundtrip_with_one_ability_list_form() {
         unified::round_trip(&lowered.card).unwrap();
         let value = serde_json::to_value(&lowered.card).unwrap();
         assert!(!value.to_string().contains("\"OnlyAbility\""));
-        assert_eq!(
-            count_plural(&value),
-            line.matches("AddAbilityAndLoseAllOtherAbilities(").count(),
-            "{line}"
-        );
+        assert!(!value.to_string().contains("\"OnlyAbilities\""));
     }
 }
 

@@ -1176,15 +1176,21 @@ impl Context {
         }
     }
 
+    /// A scalar-only source position (for example one characteristic type).
     fn primitive_change(&self, value: &source::LayerEffect) -> Option<Change> {
+        let changes = self.primitive_changes(value)?;
+        match changes.as_slice() { [one] => Some(one.clone()), _ => None }
+    }
+
+    fn primitive_changes(&self, value: &source::LayerEffect) -> Option<Vec<Change>> {
         if let source::LayerEffect::IsACopyOfThatCard(effects) = value {
-            return self.primitive_change(&source::LayerEffect::IsACopyOfLibraryCard(
+            return self.primitive_changes(&source::LayerEffect::IsACopyOfLibraryCard(
                 source::CardInLibrary::TheLibraryCardFoundThisWay,
                 effects.clone(),
             ));
         }
         let (name, operands) = self.primitive("LayerEffect", value)?;
-        Some(crate::semantics::reduce_change(name, operands))
+        Some(crate::semantics::reduce_changes(name, operands))
     }
 
     /// The tested player comes first, then the form's own operands.

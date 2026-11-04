@@ -13,30 +13,6 @@ pub(super) const CARD_IT_IS_PAID_FOR: &str = "a cost reading the card it is paid
 /// onto the battlefield (Necromancy).
 const AURA_PUT_WITH_THIS: &str = "Some(cantrip_mechanics::targets::CREATURE_PUT_ONTO_THE_BATTLEFIELD_WITH_THIS)";
 
-/// "Loses all other abilities and has this", as the two changes it is: they keep
-/// their order in the ability layer, so what it has it keeps (CR 613.1f).
-pub(super) fn in_one_effect(changes: &[Change]) -> Vec<Change> {
-    let mut split = Vec::new();
-    for change in changes {
-        match change {
-            Change::OnlyAbilities(abilities) => {
-                split.push(Change::RemoveAllAbilities);
-                split.extend(abilities.iter().map(grant_of));
-            }
-            other => split.push(other.clone()),
-        }
-    }
-    split
-}
-
-/// What is left of an ability a permanent keeps: a keyword is a change of its own.
-fn grant_of(ability: &Ability) -> Change {
-    match ability {
-        Ability::Keyword(keyword) => Change::GrantKeyword(keyword.clone()),
-        other => Change::GrantAbility(Box::new(other.clone())),
-    }
-}
-
 /// The player a player rule is asked of, in a test of what they are doing.
 fn players_card(id: &str) -> Candidate {
     Candidate {
@@ -2548,14 +2524,6 @@ impl Compiler {
                 }
                 other => return Err(gap(format!("enchantment type {}", super::form(other)))),
             },
-            // One effect: it loses the others, then has this (CR 613.1f).
-            Change::OnlyAbilities(abilities) => {
-                let mut kinds = vec!["EffectKind::LoseAllAbilities".to_string()];
-                for ability in abilities {
-                    kinds.extend(self.effect_kinds(&grant_of(ability))?);
-                }
-                kinds
-            }
             Change::GrantAbilityIfAbsent(ability) => {
                 let feature = "continuous change GrantAbilityIfAbsent";
                 let mut kinds = Vec::new();
