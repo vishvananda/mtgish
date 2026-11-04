@@ -272,7 +272,7 @@ impl Compiler {
     ) -> Result<String> {
         let number = |c: &mut Self, n: &Expr| c.matching(frame, |c| c.number(n));
         let counter = |c: &mut Self, kind: &crate::counter::CounterKind, amount: &Expr| {
-            let n = number(c, amount)?.amount(i16::MAX.into(), "i16")?;
+            let n = number(c, amount)?.quantity(Quantity::CounterPlacement)?;
             let kind = counter_kind(kind)?;
             Ok::<_, Diagnostic>(format!(
                 "z.counters[{kind} as usize] = z.counters[{kind} as usize].saturating_add({n});"
@@ -284,12 +284,16 @@ impl Compiler {
             {
                 let amount = number(self, amount)?.code;
                 let plus = number(self, plus)?.code;
-                format!("e.amount = (({amount}) + ({plus}).max(0)).clamp(0, 65535) as u16;")
+                if planned::switched_on(quantity::FEATURE) {
+                    format!("e.amount = ({amount}).saturating_add(({plus}).max(0)).max(0);")
+                } else {
+                    format!("e.amount = (({amount}) + ({plus}).max(0)).clamp(0, 65535) as u16;")
+                }
             }
             ("Damage", EventChange::SetAmount(n)) => {
                 format!(
                     "e.amount = {};",
-                    number(self, n)?.amount(u16::MAX.into(), "u16")?
+                    number(self, n)?.quantity(Quantity::Prevention)?
                 )
             }
             ("Damage", EventChange::Cancel) => "e.amount = 0;".into(),
@@ -374,7 +378,7 @@ impl Compiler {
         match change {
             EventChange::SetTapped(tapped) => writeln!(out, "entering.tapped = {tapped};").unwrap(),
             EventChange::AddCounters { kind, amount } => {
-                let n = self.number(amount)?.amount(i16::MAX.into(), "i16")?;
+                let n = self.number(amount)?.quantity(Quantity::CounterPlacement)?;
                 let kind = counter_kind(kind)?;
                 writeln!(
                     out,
@@ -561,12 +565,12 @@ impl Compiler {
                     EventChange::PreventDamage => Some(None),
                     EventChange::PreventSomeDamage(n) => {
                         Some(Some(self.matching(frame, |c| {
-                            Ok(c.number(n)?.amount(u16::MAX.into(), "u16")?)
+                            Ok(c.number(n)?.quantity(Quantity::Prevention)?)
                         })?))
                     }
                     EventChange::PreventAllButDamage(n) => {
                         Some(Some(self.matching(frame, |c| {
-                            let kept = c.number(n)?.amount(u16::MAX.into(), "u16")?;
+                            let kept = c.number(n)?.quantity(Quantity::Prevention)?;
                             Ok(format!("amount.saturating_sub({kept})"))
                         })?))
                     }
@@ -575,7 +579,12 @@ impl Compiler {
                 if let Some(amount) = amount {
                     let then =
                         self.prevention_then(label, &arms, frame, &rest, "", (true, true))?;
-                    return self.prevention(label, &arms, &extra, amount, hint, then, parts);
+                    let relative = match change {
+                        EventChange::PreventSomeDamage(n) => quantity::relative_to_event(n),
+                        EventChange::PreventAllButDamage(_) => true,
+                        _ => false,
+                    };
+                    return self.prevention(label, &arms, &extra, amount, relative, hint, then, parts);
                 }
             }
         }
@@ -710,8 +719,11 @@ impl Compiler {
         let then = format!("{label}_then");
         let out = self.then_steps(frame, rest, None)?;
         let pass = if made { "affected, " } else { "" };
-        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2]) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
-        writeln!(self.callbacks(), "#[allow(unused_variables)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}before: &Proposal, _: &Proposal) {{ if let Proposal::{variant}({binding}) = before {{ let q: &dyn Query = g; {locals} let _ = {then}_steps(g, asker, {pass}subject, data); }} }}").unwrap();
+        let (quantity_param, quantity_arg) = if frame.quantity.is_some() {
+            (", event_quantity: i64", ", event_quantity")
+        } else { ("", "") };
+        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2]{quantity_param}) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
+        writeln!(self.callbacks(), "#[allow(unused_variables)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}before: &Proposal, _: &Proposal) {{ if let Proposal::{variant}({binding}) = before {{ let q: &dyn Query = g; {locals} let _ = {then}_steps(g, asker, {pass}subject, data{quantity_arg}); }} }}").unwrap();
         Ok((kind, applies, apply, Some(then)))
     }
     /// What an effect does besides changing its event, run once it has: the
@@ -1111,6 +1123,7 @@ impl Compiler {
         arms: &[Watched],
         extra: &[String],
         amount: Option<String>,
+        relative: bool,
         hint: String,
         then: Option<String>,
         parts: &mut Parts,
@@ -1125,11 +1138,15 @@ impl Compiler {
             true,
         );
         let amount = match amount {
+            None if planned::switched_on(quantity::FEATURE) => "PreventionAmount::All".into(),
             None => "None".to_string(),
             Some(code) => {
                 let function = format!("{label}_amount");
-                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, e: &cantrip_api::DamageEvent) -> u16 {{ {} {code} }}", arms[0].locals).unwrap();
-                format!("Some({function})")
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, e: &cantrip_api::DamageEvent) -> {prevention_ty} {{ {} {code} }}", arms[0].locals, prevention_ty = Quantity::Prevention.kind()).unwrap();
+                if planned::switched_on(quantity::FEATURE) {
+                    let kind = if relative { "Relative" } else { "Specific" };
+                    format!("PreventionAmount::{kind}({function})")
+                } else { format!("Some({function})") }
             }
         };
         let may = self.replacing.may.take();

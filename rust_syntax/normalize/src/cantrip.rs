@@ -42,6 +42,8 @@ mod playing;
 pub mod pr_cache;
 pub mod pr_form;
 mod read;
+mod quantity;
+use quantity::Domain as Quantity;
 mod recipes;
 mod replacements;
 mod statics;
@@ -127,6 +129,7 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            ("cantrip/quantity.rs", include_bytes!("cantrip/quantity.rs").as_slice()),
             ("cantrip/selections.rs", include_bytes!("cantrip/selections.rs").as_slice()),
             ("cantrip/recipes.rs", include_bytes!("cantrip/recipes.rs").as_slice()),
             (
@@ -525,6 +528,15 @@ impl Number {
             Err(gap(format!("numeric range for {kind}")))
         }
     }
+    fn choice_amount(&self) -> Result<String> {
+        if self.max > u32::MAX.into() {
+            return Err(gap("full numeric choice exceeds native u32 range"));
+        }
+        self.amount(u32::MAX.into(), "u32")
+    }
+    fn quantity(&self, domain: Quantity) -> Result<String> {
+        self.amount(domain.max(), domain.kind())
+    }
     /// `amount`, but a fixed number written as its literal, for a static's
     /// table, where `max` is not callable.
     fn constant(&self, max: i128, kind: &str) -> Result<String> {
@@ -536,14 +548,7 @@ impl Number {
 }
 /// The greatest value of an integer type an `i64` converts back from.
 fn type_max(kind: &str) -> Option<i128> {
-    Some(match kind {
-        "u8" => u8::MAX.into(),
-        "u16" => u16::MAX.into(),
-        "u32" => u32::MAX.into(),
-        "i16" => i16::MAX.into(),
-        "i32" => i32::MAX.into(),
-        _ => return None,
-    })
+    quantity::integer_range(kind).map(|(_, max)| max)
 }
 #[derive(Clone)]
 struct Compiler {
@@ -768,6 +773,8 @@ struct Compiler {
     /// The announcement slot whose filter is being compiled.
     choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
+    /// Semantic result bounds can exceed the physical u32 object-count domain.
+    quantity_results: BTreeMap<u32, Quantity>,
     /// The payments whose `unpaid_` list this resolution keeps.
     unpaid: BTreeSet<u32>,
     /// The players a damage instruction dealt damage to.
@@ -1247,6 +1254,7 @@ impl Compiler {
             door: None,
             choosing: None,
             performed: BTreeMap::new(),
+            quantity_results: BTreeMap::new(),
             unpaid: BTreeSet::new(),
             hurt_players: BTreeMap::new(),
             coins: None,
@@ -2314,7 +2322,7 @@ pub(crate) fn printed_face<'a>(oracle: &'a BTreeMap<String, String>, faces: &[&s
 pub fn modules_named(input: &Path, names: &[String]) -> corpus::Result<Vec<(String, String)>> {
     let wanted: BTreeSet<&str> = names.iter().map(String::as_str).collect();
     let mut found = Vec::new();
-    corpus::map_cards(
+    planned::map_cards(
         input,
         |_, source| -> corpus::Result<Option<(String, String)>> {
             let identity = corpus::Identity::of(&source)?;
@@ -2360,7 +2368,7 @@ pub fn modules_printed(
     let oracle = oracle_texts(oracle)?;
     let wanted: BTreeSet<&str> = names.iter().map(String::as_str).collect();
     let mut found = Vec::new();
-    corpus::map_cards(
+    planned::map_cards(
         input,
         |_, source| -> corpus::Result<Option<(String, String)>> {
             let identity = corpus::Identity::of(&source)?;

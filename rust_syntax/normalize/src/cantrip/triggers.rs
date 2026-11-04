@@ -83,6 +83,9 @@ fn damage_pattern(damage: &DamageEvent) -> &'static str {
 fn damage_values(damage: &DamageEvent) -> &'static str {
     match damage.kind {
         DamageKind::Prevented => "let (source, amount, combat) = (*source, *amount, *combat);",
+        DamageKind::Excess | DamageKind::ExcessNoncombat if planned::switched_on(quantity::FEATURE) => {
+            "let (source, amount, combat) = (*source, *recipient_excess, kind.is_combat());"
+        }
         DamageKind::Excess | DamageKind::ExcessNoncombat => {
             "let (source, amount, combat) = (*source, (*recipient_excess).min(u32::from(u16::MAX)) as u16, kind.is_combat());"
         }
@@ -477,6 +480,7 @@ impl Compiler {
             ..Frame::default()
         };
         let life = Frame {
+            quantity: planned::switched_on(quantity::FEATURE).then_some(Quantity::LifeEffect),
             amount: Some(Carried::Data(0)),
             ..about
         };
@@ -489,7 +493,9 @@ impl Compiler {
             PlayerEvent::GainsLife | PlayerEvent::LosesLife => (
                 "LIFE_CHANGE",
                 "Event::LifeChange { player, delta }",
-                "let subject = Target::Player(*player); let data = [delta.unsigned_abs(), 0];",
+                if planned::switched_on(quantity::FEATURE) {
+                    "let event_quantity = delta.saturating_abs(); let subject = Target::Player(*player); let data = [u32::try_from(delta.unsigned_abs()).unwrap_or(u32::MAX), 0];"
+                } else { "let subject = Target::Player(*player); let data = [delta.unsigned_abs(), 0];" },
                 "*player",
                 life,
                 Some(match event {
@@ -1400,8 +1406,15 @@ impl Compiler {
         let singular = matches!(grouping, DamageGrouping::SourceRecipient);
         let carried_second = Some(Carried::Data(1));
         let excess = matches!(kind, DamageKind::Excess | DamageKind::ExcessNoncombat);
+        let domain = match kind {
+            DamageKind::Excess | DamageKind::ExcessNoncombat => Quantity::DamageExcess,
+            DamageKind::Prevented => Quantity::DamagePrevented,
+            _ => Quantity::Damage,
+        };
+        let has_amount = singular || excess || sums_damage(damage);
         let mut frame = Frame {
-            amount: (singular || excess || sums_damage(damage)).then_some(Carried::Data(0)),
+            quantity: (has_amount && planned::switched_on(quantity::FEATURE)).then_some(domain),
+            amount: has_amount.then_some(Carried::Data(0)),
             ..Frame::default()
         };
         if by_source {
@@ -1481,7 +1494,11 @@ impl Compiler {
         } else {
             "*target"
         };
-        let locals = format!("let subject = {subject}; let data = [u32::from(amount), {second}];");
+        let locals = if planned::switched_on(quantity::FEATURE) {
+            format!("let event_quantity = amount; let subject = {subject}; let data = [u32::try_from(amount).unwrap_or(u32::MAX), {second}];")
+        } else {
+            format!("let subject = {subject}; let data = [u32::from(amount), {second}];")
+        };
         Ok((frame, locals, tests))
     }
     /// `EventSpec::Discard`. The card is named where the discard put it, which
@@ -2150,6 +2167,14 @@ impl Compiler {
         if matched.sums {
             def.push_str(".sums_per_subject()");
         }
+        if matched.frame.quantity == Some(Quantity::Damage) {
+            // All arms must be ordinary Damage; the native captured quantity is
+            // the exact amount of matched events, never an unfiltered batch scan.
+            if !matched.arms.iter().all(|arm| arm.pattern.starts_with("Event::Damage {")) {
+                return Err(gap("exact wide quantity of a mixed damage trigger"));
+            }
+            def.push_str(".damage_amount()");
+        }
         // The event is the sacrifice, not the dying it causes (701.21a).
         if matched.arms.iter().any(|a| a.pattern.contains("ZoneReason::Sacrifice,")) {
             def.push_str(".on_sacrifice()");
@@ -2265,6 +2290,14 @@ impl Compiler {
         }
         if matched.sums {
             def.push_str(".sums_per_subject()");
+        }
+        if matched.frame.quantity == Some(Quantity::Damage) {
+            // All arms must be ordinary Damage; the native captured quantity is
+            // the exact amount of matched events, never an unfiltered batch scan.
+            if !matched.arms.iter().all(|arm| arm.pattern.starts_with("Event::Damage {")) {
+                return Err(gap("exact wide quantity of a mixed damage trigger"));
+            }
+            def.push_str(".damage_amount()");
         }
         if let Some(per_turn) = limits.per_turn {
             def.push_str(&format!(".triggers_each_turn({per_turn})"));

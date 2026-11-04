@@ -504,7 +504,8 @@ impl Compiler {
                 _ => None,
             };
             if let (Some((more, energy)), true, None) = (more, from == to, kind) {
-                writeln!(out, "for player in {from} {{ let (poison, energy, experience) = {{ let counters = g.state().player(player); (u32::from(counters.poison()), u32::from(counters.energy()), u32::from(counters.experience())) }}; let n = poison; if n > 0 {{ g.give_poison(player, {more}); }} let n = energy; if n > 0 {{ g.change_energy(player, {energy}); }} let n = experience; if n > 0 {{ g.give_experience(player, {more}); }} }}").unwrap();
+                let poison_more = Quantity::PoisonEffect.from_stored(more);
+                writeln!(out, "for player in {from} {{ let (poison, energy, experience) = {{ let counters = g.state().player(player); (u32::from(counters.poison()), u32::from(counters.energy()), u32::from(counters.experience())) }}; let n = poison; if n > 0 {{ g.give_poison(player, {poison_more}); }} let n = energy; if n > 0 {{ g.change_energy(player, {energy}); }} let n = experience; if n > 0 {{ g.give_experience(player, {more}); }} }}").unwrap();
                 return Ok(());
             }
             // "Choose a counter on target player. Give that player another counter
@@ -534,12 +535,12 @@ impl Compiler {
                 true => ".filter(|&o| g.obj(o).counter_array()[kind as usize] == 0)",
                 false => "",
             };
-            format!("let puts: Vec<(ObjectId, CounterKind, i16)> = to_{id}.iter().copied(){lacks}.map(|o| (o, kind, 1i16)).collect(); g.add_counters_together(&puts);")
+            format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().copied(){lacks}.map(|o| (o, kind, 1{counter_ty})).collect(); g.add_counters_together(&puts);", counter_ty = Quantity::CounterPlacement.kind())
         };
         let code = match copies {
-            C::All if same => format!("let puts: Vec<(ObjectId, CounterKind, i16)> = to_{id}.iter().flat_map(|&o| {{ let have = g.obj(o).counter_array(); kinds_{id}.iter().copied().filter(move |&kind| have[kind as usize] > 0).map(move |kind| (o, kind, have[kind as usize])).collect::<Vec<_>>() }}).collect(); g.add_counters_together(&puts);"),
-            C::All => format!("let puts: Vec<(ObjectId, CounterKind, i16)> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(|&kind| (o, kind, from_{id}.iter().map(|&f| g.obj(f).counter_array()[kind as usize]).sum::<i16>())).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);"),
-            C::OneOfEachKind => format!("let puts: Vec<(ObjectId, CounterKind, i16)> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(move |&kind| (o, kind, 1i16)).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);"),
+            C::All if same => format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().flat_map(|&o| {{ let have = g.obj(o).counter_array(); kinds_{id}.iter().copied().filter(move |&kind| have[kind as usize] > 0).map(move |kind| (o, kind, {counter_read})).collect::<Vec<_>>() }}).collect(); g.add_counters_together(&puts);", counter_ty = Quantity::CounterPlacement.kind(), counter_read = Quantity::CounterPlacement.from_stored("have[kind as usize]")),
+            C::All => format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(|&kind| (o, kind, from_{id}.iter().map(|&f| {copy_counter_read}).sum::<{counter_ty}>())).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);", counter_ty = Quantity::CounterPlacement.kind(), copy_counter_read = Quantity::CounterPlacement.from_stored("g.obj(f).counter_array()[kind as usize]")),
+            C::OneOfEachKind => format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(move |&kind| (o, kind, 1{counter_ty})).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);", counter_ty = Quantity::CounterPlacement.kind()),
             C::OneOfEachKindDistributed => format!("for kind in kinds_{id}.clone() {{ if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::ChooseAsEnters, to_{id}.clone())? {{ g.add_counters(object, kind, 1); }} }}"),
             C::One => format!("if !kinds_{id}.is_empty() {{ let kind = {chosen}; {} }}", each(false)),
             C::OneMissing => format!("if !kinds_{id}.is_empty() {{ let kind = {chosen}; {} }}", each(true)),
@@ -1084,10 +1085,10 @@ impl Compiler {
                 let saved = self.affected_object.replace("object");
                 let amount = self
                     .number(amount)
-                    .and_then(|n| n.amount(i16::MAX.into(), "i16"));
+                    .and_then(|n| n.quantity(Quantity::CounterPlacement));
                 self.affected_object = saved;
                 let amount = self.fetch(amount?);
-                writeln!(out, "let objects_{id} = {}; let mut counters_{id}: Vec<(ObjectId, CounterKind, i16)> = Vec::new(); for &object in &objects_{id} {{ let amount = {amount}; counters_{id}.push((object, {kind}, amount)); }} g.add_counters_together(&counters_{id});", self.acted_on(objects)?).unwrap();
+                writeln!(out, "let objects_{id} = {}; let mut counters_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = Vec::new(); for &object in &objects_{id} {{ let amount = {amount}; counters_{id}.push((object, {kind}, amount)); }} g.add_counters_together(&counters_{id});", self.acted_on(objects)?, counter_ty = Quantity::CounterPlacement.kind()).unwrap();
                 self.selections.insert(result.0, format!("objects_{id}"));
             }
             Operation::PutCountersCapped {
@@ -1099,14 +1100,17 @@ impl Compiler {
                 let kind = counter_kind(kind)?;
                 let amount = self.number(amount)?;
                 let cap = self.number(at_most)?;
-                // This operation means "up to", not an obligatory placement capped afterward.
-                // The existing number prompt represents at most 256 choices; never truncate a wider choice.
-                if amount.max.min(cap.max) > u8::MAX.into() {
-                    return Err(gap("choice of more than 255 capped counters"));
+                if !planned::switched_on("counter-placement-ceiling") {
+                    return Err(gap("post-replacement counter placement ceiling"));
                 }
-                let amount = amount.amount(u32::MAX.into(), "u32")?;
-                let cap = cap.amount(i16::MAX.into(), "i16")?;
-                writeln!(out, "let object_{id} = {}; let amount_{id} = {}; let cap_{id} = {}; if let Some(object) = object_{id}.filter(|&object| is_live(g, object)) {{ let room = cap_{id}.saturating_sub(g.state().obj(object).counters({kind})).max(0) as u32; let most = amount_{id}.min(room); let chosen = {M}::choose::number(g, asker.controller, asker.source, 0, most, \"Put counters\")? as i16; g.add_counters(object, {kind}, chosen); }}", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(cap)).unwrap();
+                // The choice is up to X, even if replacements would reduce it.
+                // Only the native placement authority applies the total ceiling.
+                if amount.max > Quantity::CounterPlacement.max() {
+                    return Err(gap("counter placement cannot represent the full chosen range"));
+                }
+                let amount = amount.choice_amount()?;
+                let cap = cap.quantity(Quantity::CounterPlacement)?;
+                writeln!(out, "let object_{id} = {}; let amount_{id} = {}; let cap_{id} = {}; if let Some(object) = object_{id}.filter(|&object| is_live(g, object)) {{ let chosen = {M}::choose::number(g, asker.controller, asker.source, 0, amount_{id}, \"Put counters\")? as {counter_ty}; g.add_counters_with_limit(object, {kind}, chosen, cap_{id}); }}", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(cap), counter_ty = Quantity::CounterPlacement.kind()).unwrap();
             }
             Operation::Repeat { times, body } => {
                 let runs = self.number(times)?.amount(u32::MAX.into(), "u32")?;
@@ -1645,7 +1649,7 @@ impl Compiler {
             } => {
                 let source = self.fetch(self.object(source)?);
                 let targets = self.fetch(self.recipients(recipients)?);
-                let amount = self.fetch(self.number(amount)?.amount(u16::MAX.into(), "u16")?);
+                let amount = self.fetch(self.number(amount)?.quantity(Quantity::Damage)?);
                 self.plan_code(&feature, &format!("if let Some(source) = {source} {{ {M}::damage::unpreventable(g, source, &{targets}, {amount}); }}"), out);
             }
             Operation::DealDamageWith {
@@ -1656,7 +1660,7 @@ impl Compiler {
             } => {
                 let source = self.fetch(self.object(source)?);
                 let targets = self.fetch(self.recipients(recipients)?);
-                let amount = self.fetch(self.number(amount)?.amount(u16::MAX.into(), "u16")?);
+                let amount = self.fetch(self.number(amount)?.quantity(Quantity::Damage)?);
                 match rider {
                     DamageRider::DividedEvenly(rounding) => {
                         let share = match rounding {
@@ -1664,17 +1668,17 @@ impl Compiler {
                             Rounding::Up => "amount_{id}.div_ceil(shares)",
                         }
                         .replace("{id}", &id.to_string());
-                        writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: u16 = {amount}; if let Some(source) = source_{id} {{ let shares = (targets_{id}.len() as u16).max(1); let share = {share}; let batch: Vec<(ObjectId, Target, u16)> = targets_{id}.iter().map(|&t| (source, t, share)).collect(); g.damage_together(&batch); }}").unwrap();
+                        writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: {damage_ty} = {amount}; if let Some(source) = source_{id} {{ let shares = (targets_{id}.len() as {damage_ty}).max(1); let share = {share}; let batch: Vec<(ObjectId, Target, {damage_ty})> = targets_{id}.iter().map(|&t| (source, t, share)).collect(); g.damage_together(&batch); }}", damage_ty = Quantity::Damage.kind()).unwrap();
                     }
                     // What isn't lethal (120.10) goes to the player at the same
                     // time: the creature is never dealt the excess.
                     DamageRider::ExcessTo(player) => {
                         let player = self.fetch(self.certain_player(player)?);
-                        writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: u16 = {amount}; let player_{id} = {player}; if let (Some(source), Some(&target)) = (source_{id}, targets_{id}.first()) {{ let lethal_{id} = {{ let q: &dyn Query = g; target.object().map_or(amount_{id}, |o: ObjectId| {{ let chars = q.chars(o); let left = u16::try_from(chars.toughness.unwrap_or(0).max(0)).unwrap_or(0).saturating_sub(q.state().obj(o).damage); match q.chars(source).has(Keyword::Deathtouch) {{ true => left.min(1), false => left }} }}) }}; let dealt_{id} = amount_{id}.min(lethal_{id}); g.damage_together(&[(source, target, dealt_{id}), (source, Target::Player(player_{id}), amount_{id} - dealt_{id})]); }}").unwrap();
+                        writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: {damage_ty} = {amount}; let player_{id} = {player}; if let (Some(source), Some(&target)) = (source_{id}, targets_{id}.first()) {{ let lethal_{id} = {{ let q: &dyn Query = g; target.object().map_or(amount_{id}, |o: ObjectId| {{ let chars = q.chars(o); let left = {lethal_left}; match q.chars(source).has(Keyword::Deathtouch) {{ true => left.min(1), false => left }} }}) }}; let dealt_{id} = amount_{id}.min(lethal_{id}); g.damage_together(&[(source, target, dealt_{id}), (source, Target::Player(player_{id}), amount_{id} - dealt_{id})]); }}", damage_ty = Quantity::Damage.kind(), lethal_left = if planned::switched_on(quantity::FEATURE) { "i64::from(chars.toughness.unwrap_or(0).max(0)).saturating_sub(i64::from(q.state().obj(o).damage)).max(0)" } else { "u16::try_from(chars.toughness.unwrap_or(0).max(0)).unwrap_or(0).saturating_sub(q.state().obj(o).damage)" }).unwrap();
                     }
                     DamageRider::Prevented(prevented) => {
                         let prevented =
-                            self.fetch(self.number(prevented)?.amount(u16::MAX.into(), "u16")?);
+                            self.fetch(self.number(prevented)?.quantity(Quantity::Prevention)?);
                         self.plan_code(&feature, &format!("if let Some(source) = {source} {{ {M}::damage::partly_prevented(g, source, &{targets}, {amount}, {prevented}); }}"), out);
                     }
                     DamageRider::DividedBy(player) => {
@@ -1968,7 +1972,7 @@ impl Compiler {
                 {
                     // "Each of those creatures deals damage equal to its toughness to the
                     // other": every amount read first, then one event of damage (CR 120.3).
-                    writeln!(out, "let mut together_{id}: Vec<(ObjectId, Target, u16)> = Vec::new();").unwrap();
+                    writeln!(out, "let mut together_{id}: Vec<(ObjectId, Target, {damage_ty})> = Vec::new();", damage_ty = Quantity::Damage.kind()).unwrap();
                     out.push_str(&parts.replace(
                         "g.damage_together(&batch);",
                         &format!("together_{id}.extend(batch);"),
@@ -2631,8 +2635,11 @@ impl Compiler {
                 up_to: true,
             } => {
                 let kind = counter_kind(kind)?;
-                let amount = self.fetch(self.number(amount)?.amount(i16::MAX.into(), "i16")?);
-                writeln!(out, "let objects_{id} = {}; let most_{id} = {amount}; for &object in &objects_{id} {{ let many = {M}::choose::number(g, asker.controller, asker.source, 0, most_{id}.max(0) as u32, \"Put how many counters\")?; g.add_counters(object, {kind}, many as i16); }}", self.fetch(self.objects(objects)?)).unwrap();
+                let choice = self.number(amount)?;
+                let amount = if planned::switched_on(quantity::FEATURE) {
+                    self.fetch(choice.choice_amount()?)
+                } else { self.fetch(choice.quantity(Quantity::CounterPlacement)?) };
+                writeln!(out, "let objects_{id} = {}; let most_{id} = {amount}; for &object in &objects_{id} {{ let many = {M}::choose::number(g, asker.controller, asker.source, 0, most_{id}.max(0) as u32, \"Put how many counters\")?; g.add_counters(object, {kind}, many as {counter_ty}); }}", self.fetch(self.objects(objects)?), counter_ty = Quantity::CounterPlacement.kind()).unwrap();
                 self.selections.insert(result.0, format!("objects_{id}"));
             }
             // "Move any number of counters": from what, of what kind, onto what and
@@ -2899,9 +2906,9 @@ impl Compiler {
                 any_number,
             } => {
                 let kind = counter_kind(kind)?;
-                let amount = self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?);
+                let amount = self.fetch(self.number(amount)?.choice_amount()?);
                 let least = u32::from(!*any_number);
-                writeln!(out, "let objects_{id} = {}; let mut left_{id}: u32 = {amount}; let mut puts_{id}: Vec<(ObjectId, CounterKind, i16)> = Vec::new(); for (i, &object) in objects_{id}.iter().enumerate() {{ let after = (objects_{id}.len() - i - 1) as u32; let n = if after == 0 {{ left_{id} }} else {{ let most = left_{id}.saturating_sub(after * {least}); {M}::choose::number(g, asker.controller, asker.source, {least}.min(most), most, \"Distribute\")? }}; left_{id} -= n.min(left_{id}); if n > 0 {{ puts_{id}.push((object, {kind}, n as i16)); }} }} g.add_counters_together(&puts_{id});", self.acted_on(objects)?).unwrap();
+                writeln!(out, "let objects_{id} = {}; let mut left_{id}: u32 = {amount}; let mut puts_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = Vec::new(); for (i, &object) in objects_{id}.iter().enumerate() {{ let after = (objects_{id}.len() - i - 1) as u32; let n = if after == 0 {{ left_{id} }} else {{ let most = left_{id}.saturating_sub(after * {least}); {M}::choose::number(g, asker.controller, asker.source, {least}.min(most), most, \"Distribute\")? }}; left_{id} -= n.min(left_{id}); if n > 0 {{ puts_{id}.push((object, {kind}, n as {counter_ty})); }} }} g.add_counters_together(&puts_{id});", self.acted_on(objects)?, counter_ty = Quantity::CounterPlacement.kind()).unwrap();
             }
             _ => return Err(gap(feature)),
         }
@@ -2913,7 +2920,7 @@ impl Compiler {
             Change::EntersWithCounters { kind, amount } => format!(
                 "SpellChange::EntersWithCounters({}, {})",
                 counter_kind(kind)?,
-                self.number(amount)?.amount(i16::MAX.into(), "i16")?
+                self.number(amount)?.quantity(Quantity::CounterPlacement)?
             ),
             Change::CantBeCountered => "SpellChange::CantBeCountered".to_string(),
             Change::SpellCost(modifier) => {
@@ -3492,12 +3499,12 @@ impl Compiler {
                 let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
                 self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
                 let kinds = list(kinds)?;
-                writeln!(out, "let objects_{id} = {objects}; let mut rows_{id}: Vec<(ObjectId, CounterKind, i16)> = Vec::new(); for object in objects_{id} {{ let picked = {M}::choose::option(g, asker.controller, asker.source, item.ability.card, {base}..{end})? - {base}; rows_{id}.push((object, {kinds}[picked as usize], 1)); }} g.add_counters_together(&rows_{id});").unwrap();
+                writeln!(out, "let objects_{id} = {objects}; let mut rows_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = Vec::new(); for object in objects_{id} {{ let picked = {M}::choose::option(g, asker.controller, asker.source, item.ability.card, {base}..{end})? - {base}; rows_{id}.push((object, {kinds}[picked as usize], 1)); }} g.add_counters_together(&rows_{id});", counter_ty = Quantity::CounterPlacement.kind()).unwrap();
             }
             CounterChoice::OneOf(_) => return Ok(false),
             CounterChoice::OnePerColor(kind) => {
                 let kind = counter_kind(kind)?;
-                writeln!(out, "let objects_{id} = {objects}; let mut rows_{id}: Vec<(ObjectId, CounterKind, i16)> = Vec::new(); for color in Color::ALL {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.chars(o).colors.has(color)).collect(); if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::PutCounters({kind}, 1), eligible)? {{ rows_{id}.push((object, {kind}, 1)); }} }} let mut before_{id}: Vec<(ObjectId, i16)> = rows_{id}.iter().map(|row| (row.0, g.state().obj(row.0).counters({kind}))).collect(); before_{id}.sort(); before_{id}.dedup(); g.add_counters_together(&rows_{id}); let placed_{id}: Vec<ObjectId> = before_{id}.iter().filter(|row| g.state().obj(row.0).counters({kind}) > row.1).map(|row| row.0).collect();").unwrap();
+                writeln!(out, "let objects_{id} = {objects}; let mut rows_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = Vec::new(); for color in Color::ALL {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.chars(o).colors.has(color)).collect(); if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::PutCounters({kind}, 1), eligible)? {{ rows_{id}.push((object, {kind}, 1)); }} }} let mut before_{id}: Vec<(ObjectId, i16)> = rows_{id}.iter().map(|row| (row.0, g.state().obj(row.0).counters({kind}))).collect(); before_{id}.sort(); before_{id}.dedup(); g.add_counters_together(&rows_{id}); let placed_{id}: Vec<ObjectId> = before_{id}.iter().filter(|row| g.state().obj(row.0).counters({kind}) > row.1).map(|row| row.0).collect();", counter_ty = Quantity::CounterPlacement.kind()).unwrap();
                 self.selections.insert(result.0, format!("placed_{id}"));
             }
             CounterChoice::PerAbility {
@@ -3884,21 +3891,21 @@ impl Compiler {
             .counters
             .iter()
             .map(|(kind, n)| {
-                let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+                let n = self.number(n)?.quantity(Quantity::CounterPlacement)?;
                 Ok(format!("({}, {n})", counter_kind(kind)?))
             })
             .collect();
         self.moving_one = None;
         let each = each?;
         if each.iter().any(|c| c.contains("moved_o")) {
-            return Ok(format!("{{ let exiled = g.exile_all(&objects_{id}); let puts: Vec<(ObjectId, CounterKind, i16)> = {{ let q: &dyn Query = g; exiled.iter().flat_map(|&moved_o| [{}].into_iter().map(move |(kind, n): (CounterKind, i16)| (moved_o, kind, n))).collect() }}; g.add_counters_together(&puts); exiled }}", each.join(", ")));
+            return Ok(format!("{{ let exiled = g.exile_all(&objects_{id}); let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = {{ let q: &dyn Query = g; exiled.iter().flat_map(|&moved_o| [{}].into_iter().map(move |(kind, n): (CounterKind, {counter_ty})| (moved_o, kind, n))).collect() }}; g.add_counters_together(&puts); exiled }}", each.join(", "), counter_ty = Quantity::CounterPlacement.kind()));
         }
         let mut counters = Vec::new();
         for (kind, n) in &entry.counters {
-            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            let n = self.number(n)?.quantity(Quantity::CounterPlacement)?;
             counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
         }
-        Ok(format!("{{ let counters: Vec<(CounterKind, i16)> = vec![{}]; let exiled = g.exile_all(&objects_{id}); let puts: Vec<(ObjectId, CounterKind, i16)> = exiled.iter().flat_map(|&o| counters.iter().map(move |&(kind, n)| (o, kind, n))).collect(); g.add_counters_together(&puts); exiled }}", counters.join(", ")))
+        Ok(format!("{{ let counters: Vec<(CounterKind, {counter_ty})> = vec![{}]; let exiled = g.exile_all(&objects_{id}); let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = exiled.iter().flat_map(|&o| counters.iter().map(move |&(kind, n)| (o, kind, n))).collect(); g.add_counters_together(&puts); exiled }}", counters.join(", "), counter_ty = Quantity::CounterPlacement.kind()))
     }
     /// What `arrival_in_state` has no arm for: one object, for `moved`.
     pub(super) fn arrival_rest(&mut self, entry: &EntrySpec, counters: &str) -> Result<String> {
@@ -4021,11 +4028,11 @@ impl Compiler {
         let saved = self.affected_object.replace("source");
         let amount = self
             .number(amount)
-            .and_then(|n| n.amount(u16::MAX.into(), "u16"));
+            .and_then(|n| n.quantity(Quantity::Damage));
         let targets = self.recipients(recipients);
         self.affected_object = saved;
         let (amount, targets) = (self.fetch(amount?), self.fetch(targets?));
-        writeln!(out, "let sources_{id} = {}; let mut batch_{id}: Vec<(ObjectId, Target, u16)> = Vec::new(); for &source in &sources_{id} {{ let amount = {amount}; for t in {targets} {{ batch_{id}.push((source, t, amount)); }} }} let dealt_{id} = g.damage_together(&batch_{id}); let done_{id}: i64 = dealt_{id}.iter().map(|&n| i64::from(n)).sum();", self.fetch(self.objects(sources)?)).unwrap();
+        writeln!(out, "let sources_{id} = {}; let mut batch_{id}: Vec<(ObjectId, Target, {damage_ty})> = Vec::new(); for &source in &sources_{id} {{ let amount = {amount}; for t in {targets} {{ batch_{id}.push((source, t, amount)); }} }} let dealt_{id} = g.damage_together(&batch_{id}); let done_{id}: i64 = dealt_{id}.iter().map(|&n| i64::from(n)).sum();", self.fetch(self.objects(sources)?), damage_ty = Quantity::Damage.kind()).unwrap();
         self.performed.insert(result.0, format!("done_{id}"));
         Ok(())
     }

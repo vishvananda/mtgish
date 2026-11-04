@@ -86,7 +86,7 @@ fn greedy(blocked: &[Blocked]) -> Vec<Step> {
 
 pub fn survey(input: &Path) -> corpus::Result<Survey> {
     let mut survey = Survey::default();
-    corpus::map_cards(
+    super::planned::map_cards(
         input,
         |line, source| -> corpus::Result<Outcome> {
             let identity = corpus::Identity::of(&source)?;

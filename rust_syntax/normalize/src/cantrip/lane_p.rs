@@ -2768,7 +2768,7 @@ impl Compiler {
             let mut counters = String::new();
             for (kind, n) in &entry.counters {
                 let n = self.fetch(self.number(n)?.code);
-                write!(counters, "g.add_counters(o, {}, ({n}) as i16); ", counter_kind(kind)?).unwrap();
+                write!(counters, "g.add_counters(o, {}, ({n}) as {counter_ty}); ", counter_kind(kind)?, counter_ty = Quantity::CounterPlacement.kind()).unwrap();
             }
             // The last player this resolution had look at cards, who chose among them.
             let looked = out
@@ -3962,7 +3962,7 @@ impl Compiler {
                 up_to,
             } => {
                 let objects = self.fetch(self.objects(objects)?);
-                let amount = self.fetch(self.number(amount)?.amount(i16::MAX.into(), "i16")?);
+                let amount = self.fetch(self.number(amount)?.quantity(Quantity::CounterPlacement)?);
                 format!(
                     "{M}::counters::put_on_each(g, {source}, {objects}, {}, {amount}, {up_to})?",
                     counter_kind(kind)?

@@ -102,6 +102,8 @@ pub(super) struct Frame {
     pub other: Option<Carried>,
     pub other_player: Option<Carried>,
     pub amount: Option<Carried>,
+    /// Exact local proposal quantity, separate from the legacy u32 payload.
+    pub quantity: Option<Quantity>,
     pub damage_source: Option<Carried>,
     pub damage_recipient: Option<Carried>,
     /// Damage dealt to a permanent or a player: `data` holds which, as `Target`.
@@ -140,6 +142,7 @@ impl Frame {
             other: same(self.other, other.other),
             other_player: same(self.other_player, other.other_player),
             amount: same(self.amount, other.amount),
+            quantity: self.quantity.filter(|q| other.quantity == Some(*q)),
             damage_source: same(self.damage_source, other.damage_source),
             damage_recipient: same(self.damage_recipient, other.damage_recipient),
             recipient: same(self.recipient, other.recipient),
@@ -1390,6 +1393,17 @@ impl Compiler {
             {
                 count("q.event_objects(item).len() as i64".into())
             }
+            Expr::EventAmount if self.frame.quantity.is_some() => {
+                if self.event_at == EventAt::Item && self.frame.quantity == Some(Quantity::Damage) {
+                    return Ok(Number { code: "item.matched_damage_amount()".into(), min: 0,
+                        max: Quantity::Damage.max(), dynamic: true });
+                }
+                if self.event_at != EventAt::Matcher || self.history.is_some() {
+                    return Err(gap("exact wide event quantity outside its local callback"));
+                }
+                Number { code: "event_quantity".into(), min: 0,
+                    max: self.frame.quantity.unwrap().max(), dynamic: true }
+            }
             // "When you do, ... the amount of life you gained": the event was the
             // ability around this one's, which tells this one the number.
             Expr::EventAmount
@@ -1479,6 +1493,10 @@ impl Compiler {
                     frame: self.frame,
                 });
                 let matched = asked.event(event)?;
+                if matched.frame.quantity.is_some() && matches!(measure,
+                    HistoryMeasure::TotalAmount | HistoryMeasure::MostFromOneSource) {
+                    return Err(gap("exact wide history quantity instead of Fired data"));
+                }
                 let hits = format!("{scope}.filter_map({})", faces::as_dealt(&matched.history_test()));
                 let answer = match measure {
                     HistoryMeasure::Occurrences => faces::attackers_counted(event, &hits)
@@ -1784,7 +1802,11 @@ impl Compiler {
             | Expr::SurveilKeptOnTop(result)
             | Expr::CountersRemoved(result) => {
                 match (self.performed.get(&result.0), self.moved.get(&result.0)) {
-                    (Some(local), _) => count(format!("({local} as i64)")),
+                    (Some(local), _) => match self.quantity_results.get(&result.0) {
+                        Some(domain) => Number { code: format!("({local} as i64)"), min: 0,
+                            max: domain.max(), dynamic: true },
+                        None => count(format!("({local} as i64)")),
+                    },
                     (None, Some(moved)) => count(format!("({moved}.len() as i64)")),
                     _ if self.failed.contains(&result.0) => {
                         count(planned::unreported("0i64", result))

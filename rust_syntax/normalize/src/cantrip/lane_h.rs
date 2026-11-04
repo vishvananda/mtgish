@@ -1001,12 +1001,18 @@ impl Compiler {
                     ReplacedPlayerEvent::GainLife => "l.amount > 0",
                     _ => "l.amount < 0",
                 };
+                let wide = planned::switched_on(quantity::FEATURE);
+                let player_frame = Frame { quantity: wide.then_some(Quantity::LifeEffect), ..player_frame };
                 one(
                     Watched {
                         kind: "LifeChange",
                         variant: "LifeChange",
                         binding: "l",
-                        locals: "let amount = l.amount.unsigned_abs(); let subject = Target::Player(l.player); let data = [amount, u32::MAX];".into(),
+                        locals: if wide {
+                            "let amount = l.amount.unsigned_abs(); let event_quantity = l.amount.saturating_abs(); let subject = Target::Player(l.player); let data = [u32::MAX; 2];".into()
+                        } else {
+                            "let amount = l.amount.unsigned_abs(); let subject = Target::Player(l.player); let data = [amount, u32::MAX];".into()
+                        },
                         tests: vec![
                             sign.to_string(),
                             self.matching(player_frame, |c| c.player_in(players, "l.player"))?,
@@ -1089,13 +1095,23 @@ impl Compiler {
                 if *effect_only {
                     tests.push("c.effect".to_string());
                 }
+                let wide = planned::switched_on(quantity::FEATURE);
+                let exact = match &index {
+                    Some(index) => format!("c.counts[{index}].max(0)"),
+                    None => "c.counts.iter().fold(0i64, |n, &count| n.saturating_add(count.max(0)))".into(),
+                };
+                let object_frame = Frame { quantity: wide.then_some(Quantity::CounterPlacement), ..object_frame };
                 self.replaced_counter = index;
                 one(
                     Watched {
                         kind: "Counters",
                         variant: "Counters",
                         binding: "c",
-                        locals: format!("let id = c.object; let subject = Target::Object(id); let data = [{amount}, u32::MAX];"),
+                        locals: if wide {
+                            format!("let event_quantity = {exact}; let id = c.object; let subject = Target::Object(id); let data = [u32::MAX; 2];")
+                        } else {
+                            format!("let id = c.object; let subject = Target::Object(id); let data = [{amount}, u32::MAX];")
+                        },
                         tests,
                     },
                     object_frame,
@@ -1142,7 +1158,7 @@ impl Compiler {
             ("LifeChange", EventChange::Cancel) => "l.amount = 0;".into(),
             ("LifeChange", EventChange::SetAmount(n)) => format!(
                 "l.amount = l.amount.signum() * {};",
-                self.matching(frame, |c| c.number(n))?.amount(i32::MAX.into(), "i32")?
+                self.matching(frame, |c| c.number(n))?.quantity(Quantity::LifeEffect)?
             ),
             ("TokenCreation", EventChange::Cancel) => "t.count = 0;".into(),
             ("TokenCreation", EventChange::SetAmount(n)) => format!(
@@ -1155,9 +1171,12 @@ impl Compiler {
             ("Counters", EventChange::SetAmount(n)) => {
                 let amount = self
                     .matching(frame, |c| c.number(n))?
-                    .amount(i16::MAX.into(), "i16")?;
+                    .quantity(Quantity::CounterPlacement)?;
                 match self.replaced_counter.clone() {
                     Some(index) => format!("c.counts[{index}] = {amount};"),
+                    None if planned::switched_on(quantity::FEATURE) => format!(
+                        "for i in 0..c.counts.len() {{ if c.counts[i] > 0 {{ let event_quantity = c.counts[i]; c.counts[i] = {amount}; }} }}"
+                    ),
                     None => format!(
                         "for i in 0..c.counts.len() {{ if c.counts[i] > 0 {{ let data = [c.counts[i] as u32, u32::MAX]; c.counts[i] = {amount}; }} }}"
                     ),
@@ -1166,7 +1185,7 @@ impl Compiler {
             ("Counters", EventChange::AddCounters { kind, amount }) => {
                 let n = self
                     .matching(frame, |c| c.number(amount))?
-                    .amount(i16::MAX.into(), "i16")?;
+                    .quantity(Quantity::CounterPlacement)?;
                 let kind = counter_kind(kind)?;
                 format!("c.counts[{kind} as usize] = c.counts[{kind} as usize].saturating_add({n});")
             }

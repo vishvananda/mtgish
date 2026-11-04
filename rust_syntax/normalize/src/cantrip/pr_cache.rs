@@ -36,6 +36,9 @@ const RENDER_SOURCES: &[(&str, &[u8])] = &[
     ("cantrip/pr_form.rs", include_bytes!("pr_form.rs")),
     ("cantrip/card_file.rs", include_bytes!("card_file.rs")),
     ("cantrip/costs.rs", include_bytes!("costs.rs")),
+    ("cantrip/quantity.rs", include_bytes!("quantity.rs")),
+    ("cantrip/planned.rs", include_bytes!("planned.rs")),
+    ("cantrip_vocab.rs", include_bytes!("../cantrip_vocab.rs")),
     ("cantrip/shared_tokens.tsv", include_bytes!("shared_tokens.tsv")),
     ("Cargo.lock", include_bytes!("../../../Cargo.lock")),
 ];
@@ -185,6 +188,9 @@ impl Renders {
         let mut bytes = Vec::with_capacity(raw.len() + printed.len() + 256);
         field(&mut bytes, b"render");
         field(&mut bytes, fingerprint().as_bytes());
+        // Stand-in profiles can share a process in tests; cache the actual
+        // rendering contract too, not just the pinned metadata's bytes.
+        field(&mut bytes, super::quantity::Domain::Damage.kind().as_bytes());
         unsigned_field(&mut bytes, raw);
         field(&mut bytes, name.as_bytes());
         field(&mut bytes, printed.as_bytes());
@@ -209,6 +215,9 @@ impl Renders {
         let mut bytes = Vec::with_capacity(raw.len() + 1024);
         field(&mut bytes, b"render_faces");
         field(&mut bytes, fingerprint().as_bytes());
+        // Stand-in profiles can share a process in tests; cache the actual
+        // rendering contract too, not just the pinned metadata's bytes.
+        field(&mut bytes, super::quantity::Domain::Damage.kind().as_bytes());
         unsigned_field(&mut bytes, raw);
         field(&mut bytes, &(modules.len() as u64).to_le_bytes());
         for module in modules {
@@ -362,6 +371,27 @@ mod tests {
         assert!(!second.had(kept.as_ref().unwrap()));
         let (_, kept) = second.render(MODULE, "Bear", "Flash", Characteristics::Inline);
         assert!(!second.had(kept.as_ref().unwrap()));
+    }
+
+    #[test]
+    fn native_quantity_profiles_do_not_reuse_each_others_render() {
+        let dir = dir("pr_cache_quantity_profile");
+        let cache = Renders::open(&dir);
+        super::super::planned::with_features(&[], || {
+            let (_, kept) = cache.render(MODULE, "Bear", "", Characteristics::Inline);
+            let mut keeper = cache.keeper();
+            keeper.keep(kept.unwrap(), false).unwrap();
+            keeper.commit().unwrap();
+        });
+        let cache = Renders::open(&dir);
+        super::super::planned::with_features(&["wide-effect-quantities"], || {
+            let (_, kept) = cache.render(MODULE, "Bear", "", Characteristics::Inline);
+            assert!(!cache.had(kept.as_ref().unwrap()));
+        });
+        super::super::planned::with_features(&[], || {
+            let (_, kept) = cache.render(MODULE, "Bear", "", Characteristics::Inline);
+            assert!(cache.had(kept.as_ref().unwrap()));
+        });
     }
 
     /// A module that doesn't parse comes back as passed, header lines and all.
