@@ -75,14 +75,15 @@ The battlefield-query pass follows in
 Value-choice consolidation is documented in
 [`rust-ast-value-choices-20261104.md`](rust-ast-value-choices-20261104.md).
 
-Life expressions, result membership, battlefield queries, and value choices are consolidated. Ability replacement
-is partially consolidated: the singular alias is gone, while expansion of the plural wrapper is assigned to the AST
-worker. Movement and embedded selection remain the other unfinished candidate.
+Life expressions, result membership, battlefield queries, value choices, and ability replacement are consolidated.
+The full ordered ability-replacement pass is documented in
+[`rust-ast-ability-expansion-20261104.md`](rust-ast-ability-expansion-20261104.md).
+Movement and embedded selection remains the final unfinished candidate and is assigned to the AST worker.
 
 | Candidate | Assessment and next implementation boundary |
 | --- | --- |
 | Movement/embedded selection | Worth doing after a shared result allocator and resolution-context normalization exist. Start with deterministic, unconstrained movement; lower an embedded selection to `ChooseObjects` and preserve the move's result separately. Then use one typed entry specification. The existing `chosen_then_moved` transformation only handles one narrow bound-player case and changes `Exactly` to `AsManyAsCan` specifically for resolution. Random library order, group constraints, face-down arrival and simultaneous choices need explicit representations and separate tests. Do not apply that count conversion to costs or target declarations. |
-| Full ability replacement expansion | The singular alias is gone. Expanding the plural node requires moving entry-as-Aura Enchant extraction into a shared typed entry path, then expanding ordered changes within the original effect in both static and resolving contexts. Preserve effect grouping and ability-layer ordering. |
+| Full ability replacement expansion | Complete: singular and plural wrappers are removed. Ordered loss/grants stay within their original effect; both entry paths share typed Enchant extraction and preserve retained ability/quotation identity. Full native and generated comparisons are recorded in the linked report; schema is now 174. |
 | Value choices | Complete: one `ChooseValue` with explicit `ChoiceCount::Exactly`, `UpTo`, or `AnyNumber`. Default-one, exact zero, rich terms, as-enters discovery, scalar results, and lexical scope are preserved. The linked report records full native and generated-output comparisons; schema is now 173. |
 | Result membership | Complete: typed continuation reads preserve result roles and lexical scope; membership uses `InSet(Named(r))`. Full native and generated-output comparisons are recorded in the linked report. |
 | Battlefield queries | Complete: the alias is removed in favor of Shared/Battlefield/Permanent, with shared accessors and preserved token, historical, scoped, and stale-object behavior. Full comparisons are recorded in the linked report; schema is now 172. |
