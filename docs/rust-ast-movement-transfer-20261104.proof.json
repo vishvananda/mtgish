@@ -1,0 +1,2266 @@
+{
+  "implementation_commit": "be6f5568cac03215e182452e4d65aad63b84e1c5",
+  "branch": "refactor/semantic-movement-transfer",
+  "base": "760c356",
+  "schema_before": 175,
+  "schema_after": 176,
+  "scope": "bounded validated semantic contract; draft producer/decode nodes rejected by current validator; physical source API deletion deferred",
+  "corpus": {
+    "sha256": "52bd27be9d01cf179e331b3929a4d1c751533ac4e5bc50c6c5e896d6496e7ff3",
+    "oracle_sha256": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
+    "records": 33529,
+    "native_exact_after_closed_migration": true,
+    "current_json_byte_exact_to_proved_after": true,
+    "moves_defaulted": 8059,
+    "zone_changes": 131,
+    "choices": 63,
+    "flags": 54,
+    "groups": 14,
+    "failures": []
+  },
+  "backend": {
+    "capable_before": 28511,
+    "capable_after": 28511,
+    "all_identities_capabilities_exact": true,
+    "first_diagnostic_changes": [
+      {
+        "before": {
+          "line": 6139,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "Cybership"
+            ],
+            "source_sha256": "08a1715c08fe90f77cd32745c9deaa09558f8d3e7cc1e3d6db0b6d09e99a8138"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "",
+            "feature": "put onto the battlefield face down as a stated creature",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        },
+        "after": {
+          "line": 6139,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "Cybership"
+            ],
+            "source_sha256": "08a1715c08fe90f77cd32745c9deaa09558f8d3e7cc1e3d6db0b6d09e99a8138"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "abilities[1].instructions[0]",
+            "feature": "put onto the battlefield face down as a stated creature",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        }
+      },
+      {
+        "before": {
+          "line": 6554,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "Death in Heaven"
+            ],
+            "source_sha256": "5cbee1ac4c37351a6b8069a5a7d8d28283dd2e0f10546a3d94387e6ca03eb112"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "",
+            "feature": "put onto the battlefield face down as a stated creature",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        },
+        "after": {
+          "line": 6554,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "Death in Heaven"
+            ],
+            "source_sha256": "5cbee1ac4c37351a6b8069a5a7d8d28283dd2e0f10546a3d94387e6ca03eb112"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "abilities[0].instructions[0]",
+            "feature": "put onto the battlefield face down as a stated creature",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        }
+      },
+      {
+        "before": {
+          "line": 18178,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "Missy"
+            ],
+            "source_sha256": "8692f9551be6101f083ebcf276ab2bf2498aff30e91a71d496f06fdc0f1f3b79"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "abilities[1].instructions[0]",
+            "feature": "per-player choice among different actions, done at once",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        },
+        "after": {
+          "line": 18178,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "Missy"
+            ],
+            "source_sha256": "8692f9551be6101f083ebcf276ab2bf2498aff30e91a71d496f06fdc0f1f3b79"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "abilities[0].instructions[0]",
+            "feature": "put onto the battlefield face down as a stated creature",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        }
+      },
+      {
+        "before": {
+          "line": 28851,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "Tezzeret, Cruel Machinist"
+            ],
+            "source_sha256": "e83bb96eca30bcf96f5f34379b1c04183aa9476442c064c4423823dbf4523ed0"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "",
+            "feature": "put onto the battlefield face down as a stated creature",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        },
+        "after": {
+          "line": 28851,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "Tezzeret, Cruel Machinist"
+            ],
+            "source_sha256": "e83bb96eca30bcf96f5f34379b1c04183aa9476442c064c4423823dbf4523ed0"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "abilities[2].instructions[0]",
+            "feature": "put onto the battlefield face down as a stated creature",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        }
+      },
+      {
+        "before": {
+          "line": 28962,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "The Cyber-Controller"
+            ],
+            "source_sha256": "16adabb473b54b148ca3f5e22437fad481bc2e547bfb2262e3e55e32a445a3f9"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "",
+            "feature": "put onto the battlefield face down as a stated creature",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        },
+        "after": {
+          "line": 28962,
+          "identity": {
+            "layout": "Card",
+            "names": [
+              "The Cyber-Controller"
+            ],
+            "source_sha256": "16adabb473b54b148ca3f5e22437fad481bc2e547bfb2262e3e55e32a445a3f9"
+          },
+          "complete": true,
+          "unified": true,
+          "named": {},
+          "blockers": {},
+          "primitives": {},
+          "diagnostics": [],
+          "backend_capable": false,
+          "backend_diagnostic": {
+            "path": "abilities[0].instructions[1]",
+            "feature": "put onto the battlefield face down as a stated creature",
+            "message": "Cantrip code generation has not implemented this capability"
+          }
+        }
+      }
+    ]
+  },
+  "generator_tests": {
+    "passed": 985,
+    "targets": 92,
+    "existing_ignored": 2,
+    "transfer_integration_tests": 7,
+    "final_layout_check_exit": 0
+  },
+  "whole_modules": {
+    "legacy-zone": {
+      "records": 121,
+      "exact": [
+        "A Premonition of Your Demise",
+        "Amulet of Quoz",
+        "Arashin Sovereign",
+        "Bruna, Light of Alabaster",
+        "Campfire",
+        "Chronicler of Worship",
+        "Command Beacon",
+        "Contract from Below",
+        "Cosima, God of the Voyage",
+        "Demonic Attorney",
+        "Derevi, Empyrial Tactician",
+        "Doomsday",
+        "Forgotten Lore",
+        "Goblin Welder",
+        "Hellkite Courser",
+        "Hostile Negotiations",
+        "Jeweled Bird",
+        "Karn Liberated",
+        "Leadership Vacuum",
+        "Legion's Chant",
+        "Lonis, Cryptozoologist",
+        "Mind Grind",
+        "Nephalia",
+        "Netherborn Altar",
+        "Next of Kin",
+        "Pair o' Dice Lost",
+        "Petals of Insight",
+        "Rebirth",
+        "Road of Return",
+        "Shrouded Lore",
+        "Stormkeld Curator",
+        "Stronghold Gambit",
+        "Tevesh Szat, Doom of Fools",
+        "The Fourteenth Doctor",
+        "The Great Aurora",
+        "Timmerian Fiends",
+        "Triumph of Saint Katherine",
+        "Worldpurge"
+      ],
+      "caption_only": [
+        "Moorland Rescuer"
+      ],
+      "alpha_plus_captions": {
+        "Atraxa, Grand Unifier": {},
+        "Aurora Awakener": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2",
+          "library_4": "library_3",
+          "cards_4": "cards_3",
+          "placed_4": "placed_3"
+        },
+        "Avenging Angel": {
+          "hoisted_4": "hoisted_3",
+          "hoisted_3": "hoisted_2",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1"
+        },
+        "Cellar Door": {
+          "token_3": "token_2",
+          "hoisted_4": "hoisted_3",
+          "objects_1": "objects_0",
+          "moved_1": "moved_0",
+          "players_2": "players_1",
+          "tokens_2": "tokens_1",
+          "count_2_0": "count_1_0",
+          "def_2_0": "def_1_0",
+          "words_2": "words_1",
+          "created_2": "created_1"
+        },
+        "Cleansing Meditation": {
+          "hoisted_9": "hoisted_8",
+          "hoisted_8": "hoisted_7",
+          "hoisted_6": "hoisted_5",
+          "hoisted_5": "hoisted_4",
+          "hoisted_4": "hoisted_3",
+          "hoisted_3": "hoisted_2",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1",
+          "rows_2": "rows_1",
+          "came_2": "came_1",
+          "objects_7": "objects_6",
+          "destroyed_7": "destroyed_6"
+        },
+        "Eerie Ultimatum": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1",
+          "rows_2": "rows_1",
+          "came_2": "came_1"
+        },
+        "Elixir of Immortality": {
+          "objects_2": "objects_1",
+          "moved_2": "moved_1"
+        },
+        "Emergent Ultimatum": {
+          "objects_5": "objects_4",
+          "moved_5": "moved_4",
+          "objects_7": "objects_6",
+          "moved_7": "moved_6"
+        },
+        "Extrapolate the Impossible": {
+          "hoisted_11": "hoisted_10",
+          "hoisted_10": "hoisted_9",
+          "hoisted_9": "hoisted_8",
+          "hoisted_8": "hoisted_7",
+          "hoisted_7": "hoisted_6",
+          "objects_6": "objects_5",
+          "moved_6": "moved_5"
+        },
+        "Grenzo, Dungeon Warden": {
+          "hoisted_5": "hoisted_4",
+          "hoisted_4": "hoisted_3",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1",
+          "player_3": "player_2",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2"
+        },
+        "Gruesome Menagerie": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1",
+          "rows_2": "rows_1",
+          "came_2": "came_1"
+        },
+        "Hofri Ghostforge": {
+          "objects_4": "objects_3",
+          "moved_4": "moved_3",
+          "hoisted_5": "hoisted_4"
+        },
+        "Hurkyl, Master Wizard": {},
+        "Liberated Livestock": {
+          "selected_6_player": "selected_5_player",
+          "selected_6_candidates": "selected_5_candidates",
+          "selected_6_count": "selected_5_count",
+          "selected_6": "selected_5",
+          "objects_7": "objects_6",
+          "moved_7": "moved_6"
+        },
+        "Lively Dirge": {
+          "selected_4_player": "selected_3_player",
+          "selected_4_candidates": "selected_3_candidates",
+          "selected_4_count": "selected_3_count",
+          "selected_4": "selected_3",
+          "objects_5": "objects_4",
+          "moved_5": "moved_4",
+          "rows_5": "rows_4",
+          "came_5": "came_4"
+        },
+        "Long-Term Plans": {
+          "objects_2": "objects_1",
+          "moved_2": "moved_1"
+        },
+        "Mastermind's Acquisition": {
+          "selected_4_player": "selected_3_player",
+          "selected_4_candidates": "selected_3_candidates",
+          "selected_4_count": "selected_3_count",
+          "selected_4": "selected_3",
+          "objects_5": "objects_4",
+          "moved_5": "moved_4"
+        },
+        "Mimeoplasm, Revered One": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1",
+          "objects_4": "objects_3",
+          "source_4": "source_3",
+          "duration_4": "duration_3",
+          "original_4": "original_3",
+          "values_4": "values_3"
+        },
+        "Mind Roots": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "player_3": "player_2",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2"
+        },
+        "Myojin of Grim Betrayal": {
+          "player_2": "player_1",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1",
+          "rows_2": "rows_1",
+          "came_2": "came_1"
+        },
+        "Portent of Calamity": {},
+        "Random Encounter": {
+          "delayed_6": "delayed_5",
+          "objects_7": "objects_6",
+          "moved_7": "moved_6",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2",
+          "objects_4": "objects_3",
+          "source_4": "source_3",
+          "duration_4": "duration_3",
+          "kind_4_0_0": "kind_3_0_0"
+        },
+        "Research": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1"
+        },
+        "Revival Experiment": {},
+        "Revivify": {
+          "hoisted_7": "hoisted_6",
+          "hoisted_6": "hoisted_5",
+          "hoisted_4": "hoisted_3",
+          "hoisted_3": "hoisted_2",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1",
+          "player_5": "player_4",
+          "objects_5": "objects_4",
+          "moved_5": "moved_4",
+          "rows_5": "rows_4",
+          "came_5": "came_4"
+        },
+        "Rip, Spawn Hunter": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "library_4": "library_3",
+          "cards_4": "cards_3",
+          "placed_4": "placed_3"
+        },
+        "Scroll Rack": {
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "player_4": "player_3",
+          "objects_4": "objects_3",
+          "objects_5": "objects_4",
+          "moved_5": "moved_4"
+        },
+        "Seasons Past": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2"
+        },
+        "Serene Remembrance": {
+          "objects_1": "objects_0",
+          "moved_1": "moved_0"
+        },
+        "Shadow of the Grave": {
+          "objects_1": "objects_0",
+          "moved_1": "moved_0"
+        },
+        "Stroke of Luck": {
+          "player_1": "player_0",
+          "objects_1": "objects_0",
+          "chooser_2": "chooser_1",
+          "pool_2": "pool_1",
+          "picked_2": "picked_1",
+          "one_2": "one_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "amount_4": "amount_3",
+          "players_4": "players_3",
+          "library_5": "library_4",
+          "cards_5": "cards_4",
+          "placed_5": "placed_4"
+        },
+        "Sword of Hearth and Home": {
+          "player_3": "player_2",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2",
+          "attachments_5": "attachments_4",
+          "host_5": "host_4"
+        },
+        "Technomancer": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2"
+        },
+        "The Weaver King": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_pool": "selected_1_pool",
+          "selected_2": "selected_1",
+          "player_3": "player_2",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2"
+        },
+        "Thrilling Encore": {
+          "player_1": "player_0",
+          "objects_1": "objects_0",
+          "moved_1": "moved_0",
+          "rows_1": "rows_0",
+          "came_1": "came_0"
+        },
+        "Timothar, Baron of Bats": {
+          "objects_7": "objects_6",
+          "moved_7": "moved_6",
+          "rows_7": "rows_6",
+          "came_7": "came_6",
+          "hoisted_9": "hoisted_8",
+          "hoisted_8": "hoisted_7"
+        },
+        "Venser's Diffusion": {
+          "objects_1": "objects_0",
+          "moved_1": "moved_0"
+        },
+        "Worldsoul's Rage": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2"
+        },
+        "Write into Being": {
+          "TOP_OR_BOTTOM_4": "TOP_OR_BOTTOM_3",
+          "player_1": "player_0",
+          "objects_1": "objects_0",
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "controller_3": "controller_2",
+          "cards_3": "cards_2",
+          "entered_3": "entered_2",
+          "objects_4": "objects_3",
+          "player_4": "player_3",
+          "top_4": "top_3",
+          "moved_4": "moved_3"
+        },
+        "Xenagos, the Reveler": {
+          "selected_6_player": "selected_5_player",
+          "selected_6_candidates": "selected_5_candidates",
+          "selected_6_count": "selected_5_count",
+          "selected_6": "selected_5",
+          "objects_7": "objects_6",
+          "moved_7": "moved_6",
+          "rows_7": "rows_6",
+          "came_7": "came_6"
+        },
+        "Zask, Skittering Swarmlord": {
+          "objects_1": "objects_0",
+          "moved_1": "moved_0",
+          "amount_2": "amount_1",
+          "mills_2": "mills_1",
+          "milled_2": "milled_1",
+          "objects_3": "objects_2",
+          "source_3": "source_2",
+          "duration_3": "duration_2",
+          "kind_3_0_0": "kind_2_0_0",
+          "kind_3_1_0": "kind_2_1_0"
+        },
+        "Zimone's Experiment": {
+          "player_1": "player_0",
+          "objects_1": "objects_0",
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "owners_3": "owners_2",
+          "library_4": "library_3",
+          "cards_4": "cards_3",
+          "placed_4": "placed_3",
+          "objects_6": "objects_4",
+          "moved_6": "moved_4",
+          "rows_6": "rows_4",
+          "came_6": "came_4",
+          "objects_8": "objects_5",
+          "moved_8": "moved_5"
+        }
+      },
+      "structural": [
+        "Caravan Vigil",
+        "Charmbreaker Devils",
+        "Coax from the Blind Eternities",
+        "Coral Fighters",
+        "Deadly Brew",
+        "Death Wish",
+        "Draugr Thought-Thief",
+        "Eivor, Wolf-Kissed",
+        "Exalted Flamer of Tzeentch",
+        "Eye Spy",
+        "Ghoulraiser",
+        "Haunting Voyage",
+        "Jace, the Mind Sculptor",
+        "Karn, Scion of Urza",
+        "Karn, the Great Creator",
+        "Lurking Informant",
+        "Mangara's Tome",
+        "Michelangelo, Improviser",
+        "North Wind Avatar",
+        "Orcish Librarian",
+        "Parallel Thoughts",
+        "Phyrexian Portal",
+        "Precognition",
+        "Ruin in Their Wake",
+        "Scholar of New Horizons",
+        "See the Unwritten",
+        "Sphinx Ambassador",
+        "The Raven's Warning",
+        "Treasure Chest",
+        "Verdant Mastery",
+        "Viconia, Drow Apostate",
+        "Woodland Sleuth"
+      ],
+      "changed_gaps": [
+        "Cybership",
+        "Death in Heaven",
+        "Only I Know What Awaits",
+        "Tempest Efreet",
+        "Tezzeret, Cruel Machinist",
+        "The Celestial Toymaker",
+        "The Cyber-Controller",
+        "The Moonbase"
+      ]
+    },
+    "selection": {
+      "records": 82,
+      "exact": [
+        "Ambassador of Evendo",
+        "Arcanis, the Omnipotent Avatar",
+        "Armed and Armored",
+        "Battlefield Improvisation",
+        "Beatrix, Loyal General",
+        "Blitzwing, Cruel Tormentor",
+        "Bruna, Light of Alabaster",
+        "Capricious Efreet",
+        "Cass, Hand of Vengeance",
+        "Change of Plans",
+        "Chaos Defiler",
+        "Cinderheart Giant",
+        "Clone Crafter",
+        "Dementia Sliver",
+        "Demonic Hordes",
+        "Descent into Madness",
+        "Flametongue Kavu Avatar",
+        "Fumble",
+        "Ghostly Dancers",
+        "Gilgamesh, Master-at-Arms",
+        "Glamer Spinners",
+        "Haktos the Unscarred",
+        "Haphazard Bombardment",
+        "Heavenly Blademaster",
+        "Helm of Kaldra",
+        "Human-Time Lord Meta-Crisis",
+        "Hydroponics Architect",
+        "Indoraptor, the Perfect Hybrid",
+        "Jaya Ballard Avatar",
+        "Jhoira of the Ghitu Avatar",
+        "Juggle the Performance",
+        "Knight Rampager",
+        "Kozilek, the Broken Reality",
+        "Krenko's Buzzcrusher",
+        "Lae'zel, Illithid Thrall",
+        "Maddening Hex",
+        "Maelstrom Archangel Avatar",
+        "Master of the Wild Hunt Avatar",
+        "Nahiri, Heir of the Ancients",
+        "Nahiri, the Lithomancer",
+        "Nebuchadnezzar",
+        "Opulent Clomper",
+        "Rag Man",
+        "Raving Dead",
+        "Reckless Crew",
+        "Regna's Sanction",
+        "Resolute Strike",
+        "Riku of Many Paths",
+        "Ruhan of the Fomori",
+        "Scrambleverse",
+        "Scroll of Fate",
+        "Seize the Spotlight",
+        "Sower of Discord",
+        "Spellweaver Volute",
+        "Strax, Sontaran Nurse",
+        "Sunder the Gateway",
+        "Territorial Hellkite",
+        "The Ruinous Powers",
+        "Tibalt's Trickery",
+        "Tovolar, Dire Overlord",
+        "Truth or Consequences",
+        "Undercity Plunder",
+        "Unexpected Request",
+        "Ursine Monstrosity",
+        "Urza's Bauble",
+        "Vannifar, Evolved Enigma",
+        "Vault 21: House Gambit",
+        "Vial Smasher the Fierce",
+        "Vow to Erebor",
+        "Wild Swing",
+        "Worldpurge",
+        "Yuffie, Materia Hunter",
+        "Zack Fair",
+        "Zaffai, Thunder Conductor"
+      ],
+      "caption_only": [
+        "Wildfire Devils",
+        "Winter Soldier, Icy Assassin"
+      ],
+      "alpha_plus_captions": {
+        "Hide in Plain Sight": {
+          "player_1": "player_0",
+          "objects_1": "objects_0",
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "controller_3": "controller_2",
+          "cards_3": "cards_2",
+          "entered_3": "entered_2",
+          "library_4": "library_3",
+          "cards_4": "cards_3",
+          "placed_4": "placed_3"
+        },
+        "Write into Being": {
+          "TOP_OR_BOTTOM_4": "TOP_OR_BOTTOM_3",
+          "player_1": "player_0",
+          "objects_1": "objects_0",
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "controller_3": "controller_2",
+          "cards_3": "cards_2",
+          "entered_3": "entered_2",
+          "objects_4": "objects_3",
+          "player_4": "player_3",
+          "top_4": "top_3",
+          "moved_4": "moved_3"
+        }
+      },
+      "structural": [
+        "Hustle",
+        "Lich's Mastery",
+        "Ugin's Mastery",
+        "Zimone, Mystery Unraveler"
+      ],
+      "changed_gaps": []
+    },
+    "controls": {
+      "records": 266,
+      "exact": [
+        "\"Lifetime\" Pass Holder",
+        "Abuelo's Awakening",
+        "Acid-Spewer Dragon",
+        "Admiral Brass, Unsinkable",
+        "Aether Syphon",
+        "Afterlife from the Loam",
+        "Ajani, Nacatl Pariah",
+        "Alms Beast",
+        "Anavolver",
+        "Ancestral Vengeance",
+        "Anointed Chorister",
+        "Arbiter of the Ideal",
+        "Argivian Find",
+        "Ashcloud Phoenix",
+        "Auger Spree",
+        "Avengers Tower",
+        "Balduvian Shaman",
+        "Barret Wallace",
+        "Bear Cub",
+        "Benalish Lancer",
+        "Beskir Shieldmate",
+        "Black Ward",
+        "Blinding Light",
+        "Bloodsprout Talisman",
+        "Bond of Flourishing",
+        "Bounce Chamber",
+        "Breeches, the Blastmaker",
+        "Brilliance Unleashed",
+        "Brudiclad, Telchor Engineer",
+        "Cabal Evangel",
+        "Call a Surprise Witness",
+        "Canoptek Spyder",
+        "Cartouche of Strength",
+        "Celestial Judgment",
+        "Cetavolver",
+        "Chandra's Ignition",
+        "Chill",
+        "Citadel Siege",
+        "Clot Sliver",
+        "Colossal Collision",
+        "Congregation Gryff",
+        "Core Prowler",
+        "Corrupted Shapeshifter",
+        "Crackling Cyclops",
+        "Crown of Doom",
+        "Cunning Geysermage",
+        "Daggerclaw Imp",
+        "Dance of the Manse",
+        "Darksteel Juggernaut",
+        "Deadly Recluse",
+        "Deepcavern Imp",
+        "Degavolver",
+        "Demystify",
+        "Devour Intellect",
+        "Disciple of the Old Ways",
+        "Displaced Dinosaurs",
+        "Dockside Extortionist",
+        "Dracoplasm",
+        "Drag Under",
+        "Dralnu's Pet",
+        "Dread Slaver",
+        "Dreadhorde Twins",
+        "Druid's Familiar",
+        "Duskwalker",
+        "Dwarven Weaponsmith",
+        "Eel-Hounds",
+        "Elite Instructor",
+        "Emergency Phytomedic",
+        "Emergent Sequence",
+        "Enduring Friendship",
+        "Enlightened Maniac",
+        "Esper",
+        "Ever After",
+        "Evolution Vat",
+        "Exuberant Fuseling",
+        "Faerie Squadron",
+        "Faller's Faithful",
+        "Fear of Impostors",
+        "Festering Newt",
+        "Fire Snake",
+        "Flaming Sword",
+        "Flowstone Wyvern",
+        "Foriysian Interceptor",
+        "Frightcrawler",
+        "Future Sight",
+        "Garruk, Apex Predator",
+        "Geometric Nexus",
+        "Ghouls' Night Out",
+        "Giant Slug",
+        "Glamer Spinners",
+        "Glyph of Reincarnation",
+        "Goblin Researcher",
+        "Gongaga, Reactor Town",
+        "Graverobber Spider",
+        "Grim Return",
+        "Guardian of the Ages",
+        "Halimar Depths",
+        "Harsh Deceiver",
+        "Hearthcage Giant",
+        "Herald of Torment",
+        "Highly Illogical",
+        "Honor the Past",
+        "Hooded Blightfang",
+        "Hulking Bugbear",
+        "Immobilizing Ink",
+        "Indoraptor, the Perfect Hybrid",
+        "Insectoid Exterminator",
+        "Invasive Species",
+        "It That Heralds the End",
+        "Jaya Ballard",
+        "Kami of Fire's Roar",
+        "Kavu Titan",
+        "Kazandu Blademaster",
+        "Kill-Zone Acrobat",
+        "Klement, Life Acolyte",
+        "Kozilek's Channeler",
+        "La Forge, Perceptive Engineer",
+        "Lava Zombie",
+        "Leshrac's Sigil",
+        "Lightning Spear",
+        "Llanowar Stalker",
+        "Lost in Thought",
+        "Lurking Jackals",
+        "Magmaw",
+        "Manascape Refractor",
+        "Master Biomancer",
+        "Mawcor",
+        "Merciless Eternal",
+        "Might of the Meek",
+        "Minotaur Skullcleaver",
+        "Mistform Mutant",
+        "Molten Sentry",
+        "Molting Snakeskin",
+        "Moritte of the Frost",
+        "Morphic Tide",
+        "Mythos of Illuna",
+        "Nebula Dragon",
+        "Necravolver",
+        "Necromantic Selection",
+        "Never",
+        "Nimraiser Paladin",
+        "Novice Occultist",
+        "Omen of the Hunt",
+        "Orcish Bowmasters",
+        "Outflank",
+        "Pale Recluse",
+        "Path of the Schemer",
+        "Patrolling Peacemaker",
+        "Pests of Honor",
+        "Phyrexian Tyranny",
+        "Plaguemaw Beast",
+        "Pouncing Kavu",
+        "Pouncing Wurm",
+        "Priest of the Blessed Graf",
+        "Primal Clay",
+        "Primal Plasma",
+        "Princess Yue",
+        "Prison Barricade",
+        "Prophesied End",
+        "Puppeteer",
+        "Quest for the Gravelord",
+        "Raging Cougar",
+        "Rakavolver",
+        "Rampart Architect",
+        "Ray of Dissolution",
+        "Reclamation",
+        "Relic Bane",
+        "Relive the Past",
+        "Rhonas's Last Stand",
+        "Rise",
+        "Rise from the Grave",
+        "Rock Jockey",
+        "Rottenheart Ghoul",
+        "Runic Repetition",
+        "Saheeli's Artistry",
+        "Sangrite Surge",
+        "Saw It Coming",
+        "Scorned Villager",
+        "Seafarer's Quay",
+        "Seismic Monstrosaur",
+        "Serpentine Spike",
+        "Shamanic Revelation",
+        "Shieldmate's Blessing",
+        "Shrink",
+        "Skycloud Expanse",
+        "Skyway Robber",
+        "Slip Out the Back",
+        "Snowmelt Stag",
+        "Sorcerous Spyglass",
+        "Spark Trooper",
+        "Sphinx of the Chimes",
+        "Spiritual Sanctuary",
+        "Squeeze",
+        "Staunch Defenders",
+        "Stoke the Flames",
+        "Storm of Souls",
+        "Strangle",
+        "Sunpearl Kirin",
+        "Supper for Spiders",
+        "Swamp Mosquito",
+        "Tam, Observant Sequencer",
+        "Teferi's Contingency",
+        "Tenth District Hero",
+        "Thatcher Revolt",
+        "The Hourglass Coven",
+        "The Master, Transcendent",
+        "The Unagi of Kyoshi Island",
+        "Thought Collapse",
+        "Thryx, the Sudden Storm",
+        "Time Walk",
+        "Tomik, Wielder of Law",
+        "Tragic Arrogance",
+        "Trench Wurm",
+        "Tukatongue Thallid",
+        "Tyvar Kell",
+        "Underdark Explorer",
+        "Valgavoth, Harrower of Souls",
+        "Vedalken Entrancer",
+        "Vedalken Squirrel-Whacker",
+        "Veteran Armorsmith",
+        "Vindictive Warden",
+        "Vodalian Tide Mage",
+        "Voidpouncer",
+        "Vraska's Scorn",
+        "Wanderbrine Trapper",
+        "Wasteland",
+        "Weight of Spires",
+        "Wickerwing Effigy",
+        "Wing Commando",
+        "Wojek Investigator",
+        "Wretched Anurid",
+        "You Are Already Dead",
+        "Zimone and Dina"
+      ],
+      "caption_only": [
+        "Arcane Artisan",
+        "Drana, the Last Bloodchief",
+        "Enduring Courage",
+        "Enduring Curiosity",
+        "Enduring Innocence",
+        "Enduring Tenacity",
+        "Enduring Vitality",
+        "Excava, the Risen Past",
+        "Fang, Roku's Companion",
+        "Ghost Vacuum",
+        "Hellcat, Undying Vigilante",
+        "Ian Malcolm, Chaotician",
+        "Infernal Vessel",
+        "Journey to the Lost City",
+        "Marsh Flats",
+        "Murdock's Crusade",
+        "Necromancy",
+        "Obscura Polymorphist",
+        "Otherworldly Escort",
+        "Portcullis",
+        "Resounding Silence",
+        "Shilgengar, Sire of Famine",
+        "Silkwing Scout",
+        "Sizzling Changeling",
+        "Spawning Pod",
+        "Sudden Disappearance",
+        "Synod Sanctum",
+        "Terror of Towashi",
+        "Thunderbolts Conspiracy",
+        "Tom, Bert, and William",
+        "Unstoppable Slasher",
+        "Valkyrie's Call",
+        "Xu-Ifit, Osteoharmonist"
+      ],
+      "alpha_plus_captions": {},
+      "structural": [],
+      "changed_gaps": []
+    },
+    "printed": {
+      "records": 121,
+      "complete_before": 78,
+      "complete_after": 78,
+      "exact": 52
+    }
+  },
+  "structural_export_audit": {
+    "legacy-zone": {
+      "Caravan Vigil": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_5",
+          "hoisted_6"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_5",
+          "hoisted_6"
+        ],
+        "alpha": {
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "objects_4": "objects_3",
+          "moved_4": "moved_3",
+          "rows_4": "rows_3",
+          "came_4": "came_3"
+        }
+      },
+      "Charmbreaker Devils": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [],
+        "removed_after": []
+      },
+      "Coax from the Blind Eternities": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_3"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_2",
+          "hoisted_3"
+        ],
+        "alpha": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1"
+        }
+      },
+      "Coral Fighters": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_5"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_3"
+        ]
+      },
+      "Deadly Brew": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_7",
+          "hoisted_5",
+          "hoisted_6",
+          "hoisted_4"
+        ],
+        "removed_after": [
+          "hoisted_6",
+          "hoisted_8",
+          "hoisted_7",
+          "hoisted_4",
+          "hoisted_5",
+          "hoisted_3"
+        ],
+        "alpha": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2"
+        }
+      },
+      "Death Wish": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_3"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_2",
+          "hoisted_3"
+        ],
+        "alpha": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1"
+        }
+      },
+      "Draugr Thought-Thief": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_5"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_3"
+        ]
+      },
+      "Eivor, Wolf-Kissed": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_5"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_5",
+          "hoisted_3"
+        ],
+        "alpha": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2"
+        }
+      },
+      "Exalted Flamer of Tzeentch": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [],
+        "removed_after": []
+      },
+      "Eye Spy": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_5"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_3"
+        ]
+      },
+      "Ghoulraiser": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [],
+        "removed_after": []
+      },
+      "Haunting Voyage": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_8",
+          "hoisted_7",
+          "hoisted_2",
+          "hoisted_3"
+        ],
+        "removed_after": [
+          "hoisted_2",
+          "hoisted_8",
+          "hoisted_7",
+          "hoisted_3",
+          "hoisted_6"
+        ],
+        "alpha": {
+          "selected_5_player": "selected_4_player",
+          "selected_5_candidates": "selected_4_candidates",
+          "selected_5_count": "selected_4_count",
+          "selected_5": "selected_4",
+          "objects_6": "objects_5",
+          "moved_6": "moved_5",
+          "rows_6": "rows_5",
+          "came_6": "came_5"
+        }
+      },
+      "Jace, the Mind Sculptor": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_5"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_3"
+        ]
+      },
+      "Karn, Scion of Urza": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [],
+        "removed_after": []
+      },
+      "Karn, the Great Creator": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_5"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_5",
+          "hoisted_3"
+        ],
+        "alpha": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2"
+        }
+      },
+      "Lurking Informant": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_5"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_3"
+        ]
+      },
+      "Mangara's Tome": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [],
+        "removed_after": []
+      },
+      "Michelangelo, Improviser": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_3"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_2",
+          "hoisted_3"
+        ],
+        "alpha": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1",
+          "rows_2": "rows_1",
+          "came_2": "came_1"
+        }
+      },
+      "North Wind Avatar": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_4",
+          "hoisted_3"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_2",
+          "hoisted_3"
+        ],
+        "alpha": {
+          "selected_1_player": "selected_0_player",
+          "selected_1_candidates": "selected_0_candidates",
+          "selected_1_count": "selected_0_count",
+          "selected_1": "selected_0",
+          "objects_2": "objects_1",
+          "moved_2": "moved_1"
+        }
+      },
+      "Orcish Librarian": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [],
+        "removed_after": []
+      },
+      "Parallel Thoughts": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [],
+        "removed_after": []
+      },
+      "Phyrexian Portal": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_9",
+          "hoisted_8",
+          "hoisted_12",
+          "hoisted_11",
+          "hoisted_10"
+        ],
+        "removed_after": [
+          "hoisted_9",
+          "hoisted_6",
+          "hoisted_8",
+          "hoisted_7",
+          "hoisted_11",
+          "hoisted_10"
+        ],
+        "alpha": {
+          "player_1": "player_0",
+          "objects_1": "objects_0",
+          "separator_2": "separator_1",
+          "rest_2": "rest_1",
+          "piles_2": "piles_1",
+          "choosers_2": "choosers_1",
+          "rows_2": "rows_1",
+          "chooser_3": "chooser_2",
+          "from_3": "from_2",
+          "chosen_3": "chosen_2",
+          "moved_3": "moved_2",
+          "selected_5_player": "selected_3_player",
+          "selected_5_candidates": "selected_3_candidates",
+          "selected_5_count": "selected_3_count",
+          "selected_5": "selected_3",
+          "objects_6": "objects_4",
+          "moved_6": "moved_4"
+        }
+      },
+      "Precognition": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [
+          "hoisted_2",
+          "hoisted_8",
+          "hoisted_9",
+          "hoisted_7",
+          "hoisted_6"
+        ],
+        "removed_after": [
+          "hoisted_2",
+          "hoisted_8",
+          "hoisted_7",
+          "hoisted_5",
+          "hoisted_6"
+        ]
+      },
+      "Ruin in Their Wake": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_5",
+          "hoisted_6"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_5",
+          "hoisted_6"
+        ],
+        "alpha": {
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "objects_4": "objects_3",
+          "moved_4": "moved_3",
+          "rows_4": "rows_3",
+          "came_4": "came_3"
+        }
+      },
+      "Scholar of New Horizons": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_7",
+          "hoisted_6"
+        ],
+        "removed_after": [
+          "hoisted_7",
+          "hoisted_5",
+          "hoisted_6"
+        ],
+        "alpha": {
+          "selected_4_player": "selected_3_player",
+          "selected_4_candidates": "selected_3_candidates",
+          "selected_4_count": "selected_3_count",
+          "selected_4": "selected_3",
+          "objects_5": "objects_4",
+          "moved_5": "moved_4",
+          "rows_5": "rows_4",
+          "came_5": "came_4"
+        }
+      },
+      "See the Unwritten": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_9",
+          "hoisted_17",
+          "hoisted_6",
+          "hoisted_8",
+          "hoisted_5",
+          "hoisted_19",
+          "hoisted_14",
+          "hoisted_7",
+          "hoisted_16",
+          "hoisted_18",
+          "hoisted_15"
+        ],
+        "removed_after": [
+          "hoisted_9",
+          "hoisted_17",
+          "hoisted_6",
+          "hoisted_8",
+          "hoisted_5",
+          "hoisted_19",
+          "hoisted_14",
+          "hoisted_7",
+          "hoisted_4",
+          "hoisted_16",
+          "hoisted_18",
+          "hoisted_15"
+        ],
+        "alpha": {
+          "selected_2_player": "selected_1_player",
+          "selected_2_candidates": "selected_1_candidates",
+          "selected_2_count": "selected_1_count",
+          "selected_2": "selected_1",
+          "objects_3": "objects_2",
+          "moved_3": "moved_2",
+          "rows_3": "rows_2",
+          "came_3": "came_2",
+          "objects_4": "objects_3",
+          "moved_4": "moved_3"
+        }
+      },
+      "Sphinx Ambassador": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_5",
+          "hoisted_6"
+        ],
+        "removed_after": [
+          "hoisted_4",
+          "hoisted_5",
+          "hoisted_6"
+        ],
+        "alpha": {
+          "selected_3_player": "selected_2_player",
+          "selected_3_candidates": "selected_2_candidates",
+          "selected_3_count": "selected_2_count",
+          "selected_3": "selected_2",
+          "player_4": "player_3",
+          "objects_4": "objects_3",
+          "moved_4": "moved_3",
+          "rows_4": "rows_3",
+          "came_4": "came_3"
+        }
+      },
+      "The Raven's Warning": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_11",
+          "hoisted_10"
+        ],
+        "removed_after": [
+          "hoisted_9",
+          "hoisted_11",
+          "hoisted_10"
+        ],
+        "alpha": {
+          "selected_8_player": "selected_7_player",
+          "selected_8_candidates": "selected_7_candidates",
+          "selected_8_count": "selected_7_count",
+          "selected_8": "selected_7",
+          "objects_9": "objects_8",
+          "moved_9": "moved_8"
+        }
+      },
+      "Treasure Chest": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_17",
+          "hoisted_19",
+          "hoisted_4",
+          "hoisted_15",
+          "hoisted_16",
+          "hoisted_18",
+          "hoisted_12",
+          "hoisted_11"
+        ],
+        "removed_after": [
+          "hoisted_17",
+          "hoisted_19",
+          "hoisted_12",
+          "hoisted_20",
+          "hoisted_4",
+          "hoisted_15",
+          "hoisted_16",
+          "hoisted_18",
+          "hoisted_11",
+          "hoisted_10"
+        ],
+        "alpha": {
+          "selected_9_player": "selected_8_player",
+          "selected_9_candidates": "selected_8_candidates",
+          "selected_9_count": "selected_8_count",
+          "selected_9": "selected_8",
+          "objects_10": "objects_9",
+          "moved_10": "moved_9",
+          "rows_10": "rows_9",
+          "came_10": "came_9"
+        }
+      },
+      "Verdant Mastery": {
+        "after_dead_export_elimination": "alpha exact",
+        "removed_before": [
+          "hoisted_27",
+          "hoisted_17",
+          "hoisted_30",
+          "hoisted_31",
+          "hoisted_12",
+          "hoisted_19",
+          "hoisted_32",
+          "hoisted_14",
+          "hoisted_13",
+          "hoisted_15",
+          "hoisted_16",
+          "hoisted_11",
+          "hoisted_18",
+          "hoisted_28",
+          "hoisted_29"
+        ],
+        "removed_after": [
+          "hoisted_27",
+          "hoisted_17",
+          "hoisted_30",
+          "hoisted_31",
+          "hoisted_12",
+          "hoisted_19",
+          "hoisted_10",
+          "hoisted_32",
+          "hoisted_26",
+          "hoisted_14",
+          "hoisted_13",
+          "hoisted_15",
+          "hoisted_16",
+          "hoisted_11",
+          "hoisted_18",
+          "hoisted_28",
+          "hoisted_29"
+        ],
+        "alpha": {
+          "selected_7_player": "selected_6_player",
+          "selected_7_candidates": "selected_6_candidates",
+          "selected_7_count": "selected_6_count",
+          "selected_7": "selected_6",
+          "player_8": "player_7",
+          "objects_8": "objects_7",
+          "moved_8": "moved_7",
+          "rows_8": "rows_7",
+          "came_8": "came_7",
+          "objects_9": "objects_8",
+          "moved_9": "moved_8",
+          "selected_23_player": "selected_22_player",
+          "selected_23_candidates": "selected_22_candidates",
+          "selected_23_count": "selected_22_count",
+          "selected_23": "selected_22",
+          "player_24": "player_23",
+          "objects_24": "objects_23",
+          "moved_24": "moved_23",
+          "rows_24": "rows_23",
+          "came_24": "came_23",
+          "objects_25": "objects_24",
+          "moved_25": "moved_24"
+        }
+      },
+      "Viconia, Drow Apostate": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [],
+        "removed_after": []
+      },
+      "Woodland Sleuth": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [],
+        "removed_after": []
+      }
+    },
+    "selection": {
+      "Hustle": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [
+          "hoisted_5"
+        ],
+        "removed_after": [
+          "hoisted_4"
+        ]
+      },
+      "Lich's Mastery": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "('Choose', 'Exile')",
+        "removed_before": [],
+        "removed_after": []
+      },
+      "Ugin's Mastery": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [
+          "hoisted_5"
+        ],
+        "removed_after": [
+          "hoisted_4"
+        ]
+      },
+      "Zimone, Mystery Unraveler": {
+        "after_dead_export_elimination": "remaining semantic/API delta",
+        "reason": "token count",
+        "removed_before": [
+          "hoisted_7",
+          "hoisted_1",
+          "hoisted_6"
+        ],
+        "removed_after": [
+          "hoisted_1",
+          "hoisted_6",
+          "hoisted_5"
+        ]
+      }
+    }
+  },
+  "printed": {
+    "legacy-zone": {
+      "exact": [
+        "Arashin Sovereign",
+        "Atraxa, Grand Unifier",
+        "Goblin Welder",
+        "Hurkyl, Master Wizard",
+        "Moorland Rescuer",
+        "Portent of Calamity",
+        "Revival Experiment",
+        "The Great Aurora",
+        "Triumph of Saint Katherine",
+        "Venser's Diffusion"
+      ],
+      "alpha": [
+        "Aurora Awakener",
+        "Avenging Angel",
+        "Cellar Door",
+        "Cleansing Meditation",
+        "Eerie Ultimatum",
+        "Elixir of Immortality",
+        "Emergent Ultimatum",
+        "Extrapolate the Impossible",
+        "Grenzo, Dungeon Warden",
+        "Gruesome Menagerie",
+        "Hofri Ghostforge",
+        "Liberated Livestock",
+        "Lively Dirge",
+        "Long-Term Plans",
+        "Mastermind's Acquisition",
+        "Mimeoplasm, Revered One",
+        "Mind Roots",
+        "Myojin of Grim Betrayal",
+        "Random Encounter",
+        "Research // Development",
+        "Revivify",
+        "Rip, Spawn Hunter",
+        "Scroll Rack",
+        "Seasons Past",
+        "Serene Remembrance",
+        "Shadow of the Grave",
+        "Stroke of Luck",
+        "Sword of Hearth and Home",
+        "The Weaver King",
+        "Thrilling Encore",
+        "Timothar, Baron of Bats",
+        "Worldsoul's Rage",
+        "Write into Being",
+        "Xenagos, the Reveler",
+        "Zask, Skittering Swarmlord",
+        "Zimone's Experiment"
+      ],
+      "structural": [
+        "Caravan Vigil",
+        "Charmbreaker Devils",
+        "Coax from the Blind Eternities",
+        "Coral Fighters",
+        "Deadly Brew",
+        "Death Wish",
+        "Draugr Thought-Thief",
+        "Eivor, Wolf-Kissed",
+        "Exalted Flamer of Tzeentch",
+        "Eye Spy",
+        "Ghoulraiser",
+        "Haunting Voyage",
+        "Jace, the Mind Sculptor",
+        "Karn, Scion of Urza",
+        "Karn, the Great Creator",
+        "Lurking Informant",
+        "Mangara's Tome",
+        "Michelangelo, Improviser",
+        "North Wind Avatar",
+        "Orcish Librarian",
+        "Parallel Thoughts",
+        "Phyrexian Portal",
+        "Precognition",
+        "Ruin in Their Wake",
+        "Scholar of New Horizons",
+        "See the Unwritten",
+        "Sphinx Ambassador",
+        "The Raven's Warning",
+        "Treasure Chest",
+        "Verdant Mastery",
+        "Viconia, Drow Apostate",
+        "Woodland Sleuth"
+      ],
+      "same_gap": [
+        "A Premonition of Your Demise",
+        "Amulet of Quoz",
+        "Bruna, Light of Alabaster",
+        "Campfire",
+        "Chronicler of Worship",
+        "Command Beacon",
+        "Contract from Below",
+        "Cosima, God of the Voyage // The Omenkeel",
+        "Cybership",
+        "Death in Heaven",
+        "Demonic Attorney",
+        "Derevi, Empyrial Tactician",
+        "Doomsday",
+        "Forgotten Lore",
+        "Hellkite Courser",
+        "Hostile Negotiations",
+        "Jeweled Bird",
+        "Karn Liberated",
+        "Leadership Vacuum",
+        "Legion's Chant",
+        "Lonis, Cryptozoologist",
+        "Mind Grind",
+        "Nephalia",
+        "Netherborn Altar",
+        "Next of Kin",
+        "Only I Know What Awaits",
+        "Pair o' Dice Lost",
+        "Petals of Insight",
+        "Rebirth",
+        "Road of Return",
+        "Shrouded Lore",
+        "Stormkeld Curator // Giant Secrets",
+        "Stronghold Gambit",
+        "Tempest Efreet",
+        "Tevesh Szat, Doom of Fools",
+        "Tezzeret, Cruel Machinist",
+        "The Celestial Toymaker",
+        "The Cyber-Controller",
+        "The Fourteenth Doctor",
+        "The Moonbase",
+        "Timmerian Fiends",
+        "Worldpurge"
+      ],
+      "changed_gap": [
+        "Technomancer"
+      ]
+    },
+    "controls": {
+      "exact": [
+        "Abuelo's Awakening",
+        "Acid-Spewer Dragon",
+        "Admiral Brass, Unsinkable",
+        "Aether Syphon",
+        "Afterlife from the Loam",
+        "Ajani, Nacatl Pariah // Ajani, Nacatl Avenger",
+        "Alms Beast",
+        "Anavolver",
+        "Ancestral Vengeance",
+        "Anointed Chorister",
+        "Arcane Artisan",
+        "Argivian Find",
+        "Auger Spree",
+        "Avengers Tower",
+        "Barret Wallace",
+        "Bear Cub",
+        "Benalish Lancer",
+        "Beskir Shieldmate",
+        "Blinding Light",
+        "Bond of Flourishing",
+        "Breeches, the Blastmaker",
+        "Brilliance Unleashed",
+        "Brudiclad, Telchor Engineer",
+        "Cabal Evangel",
+        "Call a Surprise Witness",
+        "Canoptek Spyder",
+        "Cartouche of Strength",
+        "Celestial Judgment",
+        "Cetavolver",
+        "Chandra's Ignition",
+        "Chill",
+        "Citadel Siege",
+        "Clot Sliver",
+        "Colossal Collision",
+        "Congregation Gryff",
+        "Core Prowler",
+        "Corrupted Shapeshifter",
+        "Crackling Cyclops",
+        "Crown of Doom",
+        "Cunning Geysermage",
+        "Daggerclaw Imp",
+        "Dance of the Manse",
+        "Darksteel Juggernaut",
+        "Deadly Recluse",
+        "Deepcavern Imp",
+        "Degavolver",
+        "Demystify",
+        "Devour Intellect",
+        "Disciple of the Old Ways",
+        "Dockside Extortionist",
+        "Drag Under",
+        "Dralnu's Pet",
+        "Drana, the Last Bloodchief",
+        "Dreadhorde Twins",
+        "Duskwalker",
+        "Dwarven Weaponsmith",
+        "Eel-Hounds",
+        "Elite Instructor",
+        "Emergency Phytomedic // Seed Suture",
+        "Enduring Courage",
+        "Enduring Curiosity",
+        "Enduring Innocence",
+        "Enduring Tenacity",
+        "Enduring Vitality",
+        "Enlightened Maniac",
+        "Evolution Vat",
+        "Excava, the Risen Past",
+        "Exuberant Fuseling",
+        "Faerie Squadron",
+        "Faller's Faithful",
+        "Fang, Roku's Companion",
+        "Fear of Impostors",
+        "Festering Newt",
+        "Fire Snake",
+        "Flaming Sword",
+        "Flowstone Wyvern",
+        "Frightcrawler",
+        "Garruk, Apex Predator",
+        "Ghost Vacuum",
+        "Glamer Spinners",
+        "Gongaga, Reactor Town",
+        "Graverobber Spider",
+        "Grim Return",
+        "Guardian of the Ages",
+        "Halimar Depths",
+        "Harsh Deceiver",
+        "Hearthcage Giant",
+        "Hellcat, Undying Vigilante",
+        "Herald of Torment",
+        "Highly Illogical",
+        "Honor the Past",
+        "Hooded Blightfang",
+        "Hulking Bugbear",
+        "Ian Malcolm, Chaotician",
+        "Immobilizing Ink",
+        "Infernal Vessel",
+        "Insectoid Exterminator",
+        "Invasive Species",
+        "It That Heralds the End",
+        "Jaya Ballard",
+        "Journey to the Lost City",
+        "Kami of Fire's Roar",
+        "Kavu Titan",
+        "Kazandu Blademaster",
+        "Kill-Zone Acrobat",
+        "Kozilek's Channeler",
+        "La Forge, Perceptive Engineer",
+        "Lava Zombie",
+        "Leshrac's Sigil",
+        "Lightning Spear",
+        "Llanowar Stalker",
+        "Lurking Jackals",
+        "Magmaw",
+        "Manascape Refractor",
+        "Marsh Flats",
+        "Mawcor",
+        "Might of the Meek",
+        "Minotaur Skullcleaver",
+        "Mistform Mutant",
+        "Molten Sentry",
+        "Molting Snakeskin",
+        "Murdock's Crusade",
+        "Mythos of Illuna",
+        "Nebula Dragon",
+        "Necravolver",
+        "Necromancy",
+        "Never // Return",
+        "Nimraiser Paladin",
+        "Novice Occultist",
+        "Obscura Polymorphist",
+        "Omen of the Hunt",
+        "Orcish Bowmasters",
+        "Otherworldly Escort",
+        "Outflank",
+        "Pale Recluse",
+        "Patrolling Peacemaker",
+        "Pests of Honor",
+        "Phyrexian Tyranny",
+        "Plaguemaw Beast",
+        "Portcullis",
+        "Pouncing Kavu",
+        "Pouncing Wurm",
+        "Priest of the Blessed Graf",
+        "Primal Clay",
+        "Primal Plasma",
+        "Prophesied End",
+        "Puppeteer",
+        "Quest for the Gravelord",
+        "Raging Cougar",
+        "Rakavolver",
+        "Rampart Architect",
+        "Ray of Dissolution",
+        "Relic Bane",
+        "Relive the Past",
+        "Resounding Silence",
+        "Rhonas's Last Stand",
+        "Rise // Fall",
+        "Rock Jockey",
+        "Rottenheart Ghoul",
+        "Runic Repetition",
+        "Saheeli's Artistry",
+        "Sangrite Surge",
+        "Saw It Coming",
+        "Scorned Villager // Moonscarred Werewolf",
+        "Seismic Monstrosaur",
+        "Serpentine Spike",
+        "Shamanic Revelation",
+        "Shieldmate's Blessing",
+        "Shilgengar, Sire of Famine",
+        "Shrink",
+        "Silkwing Scout",
+        "Sizzling Changeling",
+        "Skycloud Expanse",
+        "Skyway Robber",
+        "Slip Out the Back",
+        "Snowmelt Stag",
+        "Spark Trooper",
+        "Spawning Pod",
+        "Spiritual Sanctuary",
+        "Squeeze",
+        "Staunch Defenders",
+        "Stoke the Flames",
+        "Storm of Souls",
+        "Strangle",
+        "Sudden Disappearance",
+        "Sunpearl Kirin",
+        "Supper for Spiders",
+        "Swamp Mosquito",
+        "Synod Sanctum",
+        "Tam, Observant Sequencer // Deep Sight",
+        "Terror of Towashi",
+        "Thatcher Revolt",
+        "Thought Collapse",
+        "Thryx, the Sudden Storm",
+        "Thunderbolts Conspiracy",
+        "Time Walk",
+        "Tom, Bert, and William",
+        "Tomik, Wielder of Law",
+        "Tragic Arrogance",
+        "Trench Wurm",
+        "Tukatongue Thallid",
+        "Underdark Explorer",
+        "Unstoppable Slasher",
+        "Valgavoth, Harrower of Souls",
+        "Valkyrie's Call",
+        "Vedalken Entrancer",
+        "Veteran Armorsmith",
+        "Vindictive Warden",
+        "Voidpouncer",
+        "Vraska's Scorn",
+        "Wanderbrine Trapper",
+        "Wasteland",
+        "Weight of Spires",
+        "Wing Commando",
+        "Wojek Investigator",
+        "Wretched Anurid",
+        "Xu-Ifit, Osteoharmonist",
+        "You Are Already Dead",
+        "Zimone and Dina"
+      ],
+      "alpha": [],
+      "structural": [],
+      "same_gap": [
+        "\"Lifetime\" Pass Holder",
+        "Arbiter of the Ideal",
+        "Ashcloud Phoenix",
+        "Balduvian Shaman",
+        "Black Ward",
+        "Bloodsprout Talisman",
+        "Bounce Chamber",
+        "Displaced Dinosaurs",
+        "Dracoplasm",
+        "Dread Slaver",
+        "Druid's Familiar",
+        "Emergent Sequence",
+        "Enduring Friendship",
+        "Esper",
+        "Ever After",
+        "Foriysian Interceptor",
+        "Future Sight",
+        "Geometric Nexus",
+        "Ghouls' Night Out",
+        "Giant Slug",
+        "Glyph of Reincarnation",
+        "Goblin Researcher",
+        "Indoraptor, the Perfect Hybrid",
+        "Klement, Life Acolyte",
+        "Lost in Thought",
+        "Master Biomancer",
+        "Merciless Eternal",
+        "Moritte of the Frost",
+        "Morphic Tide",
+        "Necromantic Selection",
+        "Path of the Schemer",
+        "Princess Yue",
+        "Prison Barricade",
+        "Reclamation",
+        "Rise from the Grave",
+        "Seafarer's Quay",
+        "Sorcerous Spyglass",
+        "Sphinx of the Chimes",
+        "Teferi's Contingency",
+        "Tenth District Hero",
+        "The Hourglass Coven",
+        "The Master, Transcendent",
+        "The Unagi of Kyoshi Island",
+        "Tyvar Kell",
+        "Vedalken Squirrel-Whacker",
+        "Vodalian Tide Mage",
+        "Wickerwing Effigy"
+      ],
+      "changed_gap": []
+    }
+  },
+  "native": {
+    "engine_commit": "def1558de5a5ebd33e4e85b51d3d6abfb22406ea",
+    "donor": "/mnt/vizier/card-lane/engine-mana-counter-costs",
+    "unchanged_donor": true,
+    "exact_module_pairs": 341,
+    "probe_modules": 18,
+    "total_modules": 700,
+    "real_engine_tests_passed": 9,
+    "excluded_preexisting": {
+      "Descent into Madness": "CounterKind::Despair",
+      "Haphazard Bombardment": "CounterKind::Aim",
+      "Ian Malcolm, Chaotician": "ExileCast.instead",
+      "Emergent Ultimatum": "pre-existing Choice.player and inline Query borrow conflicts"
+    },
+    "paired_error_signatures_equal": true,
+    "paired_errors": [
+      "no variant, associated function, or constant named `Despair` found for enum `cantrip_api::CounterKind` in the current scope",
+      "no variant, associated function, or constant named `Despair` found for enum `cantrip_api::CounterKind` in the current scope",
+      "no variant, associated function, or constant named `Aim` found for enum `cantrip_api::CounterKind` in the current scope",
+      "no variant, associated function, or constant named `Aim` found for enum `cantrip_api::CounterKind` in the current scope",
+      "no variant, associated function, or constant named `Aim` found for enum `cantrip_api::CounterKind` in the current scope",
+      "missing field `instead` in initializer of `cantrip_api::ExileCast`",
+      "no field `player` on type `&cantrip_api::Choice<'_>`",
+      "cannot borrow `*g` as immutable because it is also borrowed as mutable",
+      "cannot borrow `*g` as immutable because it is also borrowed as mutable",
+      "cannot borrow `*g` as immutable because it is also borrowed as mutable",
+      "cannot borrow `*g` as immutable because it is also borrowed as mutable",
+      "cannot borrow `*g` as immutable because it is also borrowed as mutable",
+      "could not compile `movement-transfer-contract-gaps` (lib) due to 12 previous errors; 20 warnings emitted"
+    ],
+    "successful_handle": "native-tests-2 finished; PTY ID lost at compaction; terminal process absence and exact success log retained",
+    "failed_prerequisite_checks_exit": 101
+  },
+  "reference_finding": {
+    "card": "Technomancer",
+    "source_record_zero_based": 28539,
+    "source_line": 28540,
+    "oracle_scope": "from your graveyard",
+    "source_scope": "Named(0), preceding Mill result",
+    "diagnostic": "a narrowed choice pool where the card says from your graveyard",
+    "reference_inputs_unchanged": true
+  },
+  "integration_notes": [
+    "Retain newer root cantrip_vocab/API_FINGERPRINT and native features.",
+    "No root checkout, source corpus, Oracle, reference fixtures, native donor, live worker or pipeline edits.",
+    "lower_reflexive.rs has only the parent-approved default MovementTerms constructor field.",
+    "All handles terminal; untracked consolidation.md and ignored-size proof directories preserved.",
+    "Last two source edits after full suite were whitespace only; subsequent cargo check passed."
+  ],
+  "artifact_root": "/mnt/vizier/mtgish-ast-consolidation/target/movement-transfer-proof",
+  "artifacts_sha256": {
+    "ast-before": "fb9a53d38adbd659362790db948fef22a45c04f5aa6780ba3bb0b45cb36fcae6",
+    "before.jsonl": "9509f3bb38dea24b96b6b8698e6c773ded23882852e91e9a1858eaff107ddc17",
+    "current.jsonl": "e7705abd03404bb3b4b0099b8c820a3c3c3c955eecde7e9c407e1bfbda6ab2bd",
+    "before-backend-report.json": "13205aa59de85a8b098288189e3587ecf1c1770ba20dadf731a2cb43b48e4663",
+    "current-backend-report.json": "14a24c2b2b575396426b8a9ba08a31ce2e45bc4bc92328d2b454fd58778845bd",
+    "current-record-deltas.json": "131bc5c870f527b187e59a1d8c8b9da83183a1788d0d7654f0b3a8b716d135a8",
+    "native-comparison.json": "5c9672cea5cea4929ded9cb0e85f099a0e28a11034f4a708548d141933999916",
+    "compare_native.py": "6e12d35b2feeff4c61c1eabb0d17daac966e4ee07d4643400919145c37a31d1e",
+    "module-comparison.json": "052926f0c45ed60f63798f3352d5737e0380b0d7008e0daeae443e7c22a77044",
+    "compare_modules.py": "670eb2d5499e8c7df032b1ec63c68531140e803b7f1f491c00dda31b97b65663",
+    "structural-export-audit.json": "ddf9ba59935460b8a6f3d90742cf6acc45fcefa7732e2c94e5cadebd7abed341",
+    "audit_structural.py": "eaa615edf9d622b3efc52b1eb7a4d8744d02a319cc24438140e313f7ff57f48b",
+    "final-full-tests.log": "c1a43dbd8eee9a1bf6417fb51e5e525720508ced96b75bce6e08cb3b38d6cdd4",
+    "final-layout-check.log": "33f2b0d185245ec2e514b9a0a46518d122a4ba438c41f1fb87b453cc89f7342e",
+    "native-tests-2.log": "96fc54fc8ad35e4177e68d27d5a768f37e65259e7ff9bce30e4e03c459ba06c8",
+    "native/exclusions.json": "272f84c6837d2bcbb28b3eba03b09f84e1995cb70f03150477d3b0af77865056",
+    "native/mapping.json": "3db0946549e33c636c2acf0865c7057dd0dc40dbf68892c23c2774e0255cf13e",
+    "native/lib.rs": "bde1898e8f23bb9d4c4f3a8f4ed9513aba3010427958d609a2e8fb3803a3912b",
+    "native/tests.rs": "0663fc2cc7e1d96aa7d6192f6945b186febf1f82249c4a0a4a8fd089944f4543",
+    "native/Cargo.toml": "a840fc92d8f464cc1a051ed13d610c2b6e9fbb1b2cd248567dc5f58c95095a22",
+    "contract-before.log": "1507e3d8acde1a66feab5d449452cf4a928463fa055f863d48db59da4ccf2c4e",
+    "contract-after.log": "dde4b0f9fb933642907a44371d2d7dfbacdbfb03c029840b8261fa705eea67ba",
+    "legacy-zone.printed-comparison.json": "8f11c5978a6c51dfe50dd7cc052ba0892eef46a209fb939c93b64ced87eec2ef",
+    "controls.printed-comparison.json": "334d9fdbe3f3e9fe2504882672c11c1009b9927811c82ecebef69f02d9417c9f",
+    "proof-sources/movement_transfer_dump.rs": "67475b2508e29f26c25c336494cd31c9255861f5d76c2dd993d42c1d5df1940d",
+    "proof-sources/native_transfer_probes.rs": "b018c040ee94784a8af37a33112e0ddd75d6bd5662f5a416bf269ea3676a4e22",
+    "legacy-zone.modules.current.rs": "a3eeb279ced0fdf4a6e10b0c8d770a377e3271524b389e5649c7242922eb562c",
+    "selection.modules.current.rs": "bd0eaed643726f449c9481d38b7ea2e99082b566a2cf1383988a40b67cda688b",
+    "controls.modules.current.rs": "4bf0ed3b49c52b2406c4776ed198ffc4c4f7178d6a1d62ba7b6fd06ae0b9a633",
+    "legacy-zone.modules.before.rs": "d11254600e0186bc2c9df53ae0c7f6a14be00a7c9aa6a2389df5cab231f3c957",
+    "selection.modules.before.rs": "f5087e41cd3a857f9ca062f0b66ebea35f017e42ed8fd22f1ab39ba06a98cc68",
+    "selection.controls.before.rs": "615f3f4b15dbb1ff9888a634321e9f0101778e52f3213272524b807172f89a20",
+    "legacy-zone.printed.before.jsonl": "2e10971ca352ff43ceacddab9dbf1fd937b92a55fac64a491b0bc6e4a3ee80e7",
+    "legacy-zone.printed.current.jsonl": "399f3ad6c5b91ad69b5f0ce9ad723572d66cab7e0e2db4605a4fb55837a757ba",
+    "controls.printed.before.jsonl": "0b8982491420cfa0f1f2063e78fc2490738a9100b9db4c28458c8ada2a068f87",
+    "controls.printed.current.jsonl": "0b8982491420cfa0f1f2063e78fc2490738a9100b9db4c28458c8ada2a068f87"
+  }
+}
