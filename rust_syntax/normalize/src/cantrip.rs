@@ -1915,16 +1915,17 @@ impl Compiler {
                 let mask = color_mask(colors)?;
                 let combination = matches!(plan, ManaPlan::Combination { .. });
                 let number = self.number(amount)?;
+                let chunked = combination && number.max > u8::MAX.into();
                 writeln!(
                     out,
                     "let mana_{id} = {};",
                     self.fetch(number.amount(
-                        if combination {
+                        if combination && !chunked {
                             u8::MAX.into()
                         } else {
                             u32::MAX.into()
                         },
-                        if combination { "u8" } else { "u32" }
+                        if combination && !chunked { "u8" } else { "u32" }
                     )?)
                 )
                 .unwrap();
@@ -1939,6 +1940,9 @@ impl Compiler {
                     )
                     .unwrap();
                     out.push_str(&add("player", "color.mana()", &format!("mana_{id}")));
+                } else if chunked {
+                    // Each wire question holds u8 colors; the mana amount keeps its full u32 width.
+                    writeln!(out, "let mut left_{id} = mana_{id}; while left_{id} > 0 {{ let count_{id} = left_{id}.min(u32::from(u8::MAX)) as u8; let colors = cantrip_mechanics::choose_colors(g, player, asker.source, ColorSet({mask}), count_{id})?; for color in colors {{ {} }} left_{id} -= u32::from(count_{id}); }}", add("player", "color.mana()", "1")).unwrap();
                 } else {
                     writeln!(out,"if mana_{id} > 0 {{ let colors = cantrip_mechanics::choose_colors(g, player, asker.source, ColorSet({mask}), {})?;",if combination{format!("mana_{id}")}else{"1".into()}).unwrap();
                     if combination {

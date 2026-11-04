@@ -51,6 +51,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     // A P/T counter also needs its exact kind in COUNTERS; do not globally land unknown pairs.
     ("pt-counters", "pub const POWER_TOUGHNESS:", &[]),
     ("regeneration-bans", "pub const fn granted_regeneration_ban(", &[]),
+    ("mana-counter-costs", "pub const fn x_is_mana_amount(", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

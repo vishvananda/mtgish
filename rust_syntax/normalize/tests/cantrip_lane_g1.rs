@@ -20,10 +20,10 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Shatterskull Smashing", "of_x: Some(", true),
     // A planeswalker with loyalty X enters with X loyalty counters (CR 306.5b).
     ("Nissa, Steward of Elements", "enters_with_x_loyalty", true),
-    // Removing X counters to activate a mana ability: only {X} is announced there.
-    ("Calciform Pools", "removing X counters to activate a mana ability", false),
-    ("Petalmane Baku", "removing X counters to activate a mana ability", false),
-    ("Haruspex", "removing X counters to activate a mana ability", false),
+    // Removing X counters now announces and reads the mana activation's own X.
+    ("Calciform Pools", "mana_ability_x()", true),
+    ("Petalmane Baku", "mana_ability_x()", true),
+    ("Haruspex", "mana_ability_x()", true),
     // A card with mana value X as a cost: a cost's filter has no X to read.
     ("Blazing Shoal", "a cost's filter reading the X announced", false),
     ("Scrap Welder", "a cost's filter reading the X announced", false),

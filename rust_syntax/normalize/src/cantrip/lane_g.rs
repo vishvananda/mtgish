@@ -8,8 +8,84 @@ const PERPETUAL: &str = "cantrip_mechanics::perpetual::Perpetual";
 /// The label of a cost paid as something resolves, where any number can be read.
 pub(super) const PAID: &str = "paid";
 /// "Remove X storage counters from this land: Add X mana": a mana ability that
-/// announces how many counters it removes, which Cantrip's mana abilities don't.
+/// announces how many counters it removes, unsupported by older Cantrip targets.
 pub(super) const MANA_COUNTERS_X: &str = "removing X counters to activate a mana ability";
+
+/// The scalar is this activation's one variable counter-removal component.
+pub(super) fn mana_counter_component(cost: &Cost, payment: &PaymentRef, path: &[u32]) -> bool {
+    if !matches!(payment, PaymentRef::Activation) { return false; }
+    let [index] = path else { return false };
+    let variable = |part: &CostPart| matches!(part, CostPart::RemoveCounters { removals }
+        if removals.iter().any(|r| matches!(r.amount, CounterAmount::Count(Count::AnyNumber | Count::Exactly(Expr::AnnouncedX)))));
+    if cost.parts.iter().filter(|part| variable(part)).count() != 1 { return false; }
+    matches!(cost.parts.get(*index as usize), Some(CostPart::RemoveCounters { removals })
+        if matches!(removals.as_slice(), [CounterRemoval {
+            player: PlayerRef::AbilityController,
+            recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)), kind: Some(_),
+            amount: CounterAmount::Count(Count::AnyNumber | Count::Exactly(Expr::AnnouncedX)), selection: None, ..
+        }]))
+}
+
+pub(super) fn has_mana_counter_x(cost: &Cost) -> bool {
+    cost.parts.iter().enumerate().any(|(index, _)|
+        mana_counter_component(cost, &PaymentRef::Activation, &[index as u32]))
+}
+
+/// Positive X changes only the amount of these productions, not their possible types.
+/// Deliberately exclude conditions, subtraction, and other choices whose outcomes could depend on X.
+pub(super) fn x_is_mana_amount(body: &Program, cost: &Cost) -> bool {
+    fn amount(n: &Expr, cost: &Cost) -> bool {
+        match n {
+            Expr::Constant(n) => *n >= 0,
+            Expr::AnnouncedX => true,
+            Expr::PaidCountersRemoved { payment, component } => mana_counter_component(cost, payment, component),
+            Expr::Add(a, b) | Expr::Multiply(a, b) => amount(a, cost) && amount(b, cost),
+            _ => false,
+        }
+    }
+    fn production(mana: &ManaProduction, cost: &Cost) -> bool {
+        match mana {
+            ManaProduction::Amount { amount: n, .. } => amount(n, cost),
+            ManaProduction::All(parts) | ManaProduction::ChooseOne(parts) => !parts.is_empty() && parts.iter().all(|part| production(part, cost)),
+            ManaProduction::Repeat { amount: n, production: inner, .. } => amount(n, cost) && production(inner, cost),
+            _ => false,
+        }
+    }
+    !body.instructions.is_empty() && body.instructions.iter().all(|instruction| matches!(instruction,
+        Instruction::Effect { operation: Operation::AddMana { mana, .. }, .. } if production(mana, cost)))
+}
+
+#[cfg(test)]
+mod mana_counter_tests {
+    use super::*;
+
+    #[test]
+    fn counter_payment_reads_require_the_exact_activation_component() {
+        let cost = Cost { parts: vec![CostPart::TapSymbol, CostPart::RemoveCounters {
+            removals: vec![CounterRemoval {
+                player: PlayerRef::AbilityController,
+                recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
+                kind: Some(crate::counter::CounterKind::Named(crate::counter::CounterName::ChargeCounter)),
+                amount: CounterAmount::Count(Count::AnyNumber), selection: None,
+            }],
+        }] };
+        assert!(mana_counter_component(&cost, &PaymentRef::Activation, &[1]));
+        for payment in [PaymentRef::Casting { ability: 0 }, PaymentRef::Resolution(ResultId(1)), PaymentRef::Branch] {
+            assert!(!mana_counter_component(&cost, &payment, &[1]));
+        }
+        for path in [vec![], vec![0], vec![1, 0], vec![2]] {
+            assert!(!mana_counter_component(&cost, &PaymentRef::Activation, &path));
+        }
+        let mut fixed = cost.clone();
+        if let CostPart::RemoveCounters { removals } = &mut fixed.parts[1] {
+            removals[0].amount = CounterAmount::Count(Count::Exactly(Expr::Constant(2)));
+        }
+        assert!(!has_mana_counter_x(&fixed));
+        let mut duplicate = cost.clone();
+        duplicate.parts.push(cost.parts[1].clone());
+        assert!(!mana_counter_component(&duplicate, &PaymentRef::Activation, &[1]));
+    }
+}
 
 /// What an optional additional cost sets on the card.
 enum Optional {
@@ -1593,7 +1669,7 @@ impl Compiler {
                 let kind = kind.ok_or_else(|| gap(SHAPE))?;
                 // A mana ability announces only its {X} (`activate_mana_as`): no
                 // number of counters to remove, nor an X its effect could read.
-                if self.paid_for == lane_j::PaidFor::Mana {
+                if self.paid_for == lane_j::PaidFor::Mana && !planned::switched_on("mana-counter-costs") {
                     return Ok(planned::planned_value(
                         MANA_COUNTERS_X,
                         "Cost::NONE",

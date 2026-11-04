@@ -1288,13 +1288,15 @@ impl Compiler {
                     dynamic: true,
                 }
             }
-            // A mana ability's {X} is kept on its source (CR 107.3a, 605.3a).
+            // Newer engines keep the mana activation's X separate from its source's casting X (CR 107.3k).
             Expr::AnnouncedX
                 if self.mana_body
                     && self.activation_cost.as_ref().is_some_and(target_counts::has_mana_x) =>
             {
                 Number {
-                    code: "i64::from(q.obj(asker.source).x)".into(),
+                    code: if planned::switched_on("mana-counter-costs") {
+                        "i64::from(q.mana_ability_x().unwrap_or(0))".into()
+                    } else { "i64::from(q.obj(asker.source).x)".into() },
                     min: 0,
                     max: u16::MAX.into(),
                     dynamic: true,
@@ -1309,6 +1311,9 @@ impl Compiler {
                     && self.activation_cost.as_ref().is_some_and(|cost| !target_counts::has_mana_x(cost)) =>
             {
                 let removes = self.activation_cost.as_ref().is_some_and(target_counts::removes_x_counters);
+                if removes && planned::switched_on("mana-counter-costs") {
+                    return Ok(Number { code: "i64::from(q.mana_ability_x().unwrap_or(0))".into(), min: 0, max: u16::MAX.into(), dynamic: true });
+                }
                 Number {
                     code: planned::planned_value(
                         if removes { lane_g::MANA_COUNTERS_X } else { FOLLOWS_GAP },

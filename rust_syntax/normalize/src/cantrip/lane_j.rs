@@ -2196,9 +2196,15 @@ impl Compiler {
                 )
             }
             // How many counters a cost removed is the X announced with it
-            // (`VariableCost::RemoveAnyNumberOfCounters`): a mana ability has no
-            // stack item, and its X is its source's, as `lane_g::MANA_COUNTERS_X`
-            // reads it; a target's filter reads the X announced (CR 601.2b).
+            // (`VariableCost::RemoveAnyNumberOfCounters`). A mana ability has no
+            // stack item; newer engines expose its activation-local X. Older
+            // targets retain the explicit gap rather than reading casting X.
+            Expr::PaidCountersRemoved { payment, component }
+                if self.mana_body && planned::switched_on("mana-counter-costs")
+                    && self.activation_cost.as_ref().is_some_and(|cost| lane_g::mana_counter_component(cost, payment, component)) =>
+            {
+                Number { code: "i64::from(q.mana_ability_x().unwrap_or(0))".into(), min: 0, max: u16::MAX.into(), dynamic: true }
+            }
             Expr::PaidCountersRemoved { .. } if self.mana_body => {
                 held_number(feature, "i64::from(q.obj(asker.source).x)")
             }
@@ -5013,6 +5019,9 @@ impl Compiler {
         let variable = format!("RemoveAnyNumberOfCounters({kind})");
         match (self.paid_for, self.mana_x) {
             (PaidFor::Ability, false) => Ok(format!(
+                "Cost {{ variable: Some(VariableCost::{variable}), ..Cost::NONE }}"
+            )),
+            (PaidFor::Mana, _) if planned::switched_on("mana-counter-costs") => Ok(format!(
                 "Cost {{ variable: Some(VariableCost::{variable}), ..Cost::NONE }}"
             )),
             (PaidFor::Mana, _) => Self::planned_cost(lane_g::MANA_COUNTERS_X, variable),

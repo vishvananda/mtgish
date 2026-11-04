@@ -557,7 +557,9 @@ impl Compiler {
         let mut kinds: Vec<(String, String, bool, &str)> = Vec::new();
         for change in changes {
             if let Some(kind) = lasting_rule_kind(change) {
-                kinds.push((format!("LastingRuleKind::{kind}"), open_set_feature(change), false, kind));
+                let present = crate::cantrip_vocab::LASTING_RULE_KINDS.contains(&kind);
+                let feature = if present { open_set_feature(change) } else { format!("engine: no lasting rule {kind}") };
+                kinds.push((format!("LastingRuleKind::{kind}"), feature, !present, kind));
                 continue;
             }
             let feature = beyond_lasting_rules(change);

@@ -29,20 +29,21 @@ const CARDS: &[(&str, &str, bool)] = &[
     (
         "Orim's Chant",
         "text: \"If this spell was kicked, creatures can't attack this turn.\"",
-        true,
+        false,
     ),
     (
         "Jace, Arcane Strategist",
         "text: \"Creatures you control can't be blocked this turn.\"",
-        true,
+        false,
     ),
     (
         "Reverse the Polarity",
         "text: \"Creatures can't be blocked this turn.\"",
-        true,
+        false,
     ),
     // "Other creatures": the target creature is the one left out.
-    ("Intimidation Bolt", "!(about.object() == Some(id))", true),
+    ("Intimidation Bolt", "!(about.object() == Some(id))", false),
+    ("Festival", "rule: LastingRuleKind::CantAttack", false),
     // Attacking creatures are the ones attacking as it resolves (Tangle's
     // ruling), each waiting on its own controller's untap step.
     ("Tangle", "EffectKind::DoesntUntap", true),
@@ -173,7 +174,7 @@ fn without_lasting_rules_the_same_code_is_in_holes() {
         let whole = whole[*name].replace("lasting_rules: LASTING_RULES, ", "");
         assert_eq!(filled(module), whole, "{name}'s holes should hold its code");
     }
-    for name in ["Falter", "Goblin Diplomats", "Exhaustion", "Orim's Chant"] {
+    for name in ["Falter", "Goblin Diplomats", "Exhaustion"] {
         let module = &holes[name];
         assert!(
             module.contains("planned!(\"engine-no-resolving-rule-on-an-open-set-") && module.contains("=> g.add_lasting_rule(item, 0, about_0, until_0);)"),
@@ -184,7 +185,7 @@ fn without_lasting_rules_the_same_code_is_in_holes() {
     }
     // A rule beyond #897's waits on its own requirement with the feature too:
     // its table and its call stay holes.
-    for name in ["Alluring Scent", "Taunt", "Legion Loyalist", "War Tax", "Runesword"] {
+    for name in ["Alluring Scent", "Taunt", "Legion Loyalist", "War Tax", "Runesword", "Orim's Chant", "Jace, Arcane Strategist", "Reverse the Polarity", "Intimidation Bolt", "Festival"] {
         let module = &whole[name];
         assert!(!module.contains("add_open_effect"), "{name}:\n{module}");
         assert!(module.contains("=> g.add_lasting_rule(item, 0, about_0, until_0);)"), "{name}:\n{module}");

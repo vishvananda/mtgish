@@ -1,0 +1,117 @@
+[
+  {
+    "name": "Black Mana Battery",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Black Mana Battery",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{2}, {T}: Put a charge counter on this artifact.\n{T}, Remove any number of charge counters from this artifact: Add {B}, then add an additional {B} for each charge counter removed this way."
+      }
+    ]
+  },
+  {
+    "name": "Blue Mana Battery",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Blue Mana Battery",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{2}, {T}: Put a charge counter on this artifact.\n{T}, Remove any number of charge counters from this artifact: Add {U}, then add an additional {U} for each charge counter removed this way."
+      }
+    ]
+  },
+  {
+    "name": "Bottomless Vault",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Bottomless Vault",
+        "type": "Land",
+        "text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {B} for each storage counter removed this way."
+      }
+    ]
+  },
+  {
+    "name": "Dwarven Hold",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dwarven Hold",
+        "type": "Land",
+        "text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {R} for each storage counter removed this way."
+      }
+    ]
+  },
+  {
+    "name": "Green Mana Battery",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Green Mana Battery",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{2}, {T}: Put a charge counter on this artifact.\n{T}, Remove any number of charge counters from this artifact: Add {G}, then add an additional {G} for each charge counter removed this way."
+      }
+    ]
+  },
+  {
+    "name": "Hollow Trees",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Hollow Trees",
+        "type": "Land",
+        "text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {G} for each storage counter removed this way."
+      }
+    ]
+  },
+  {
+    "name": "Icatian Store",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Icatian Store",
+        "type": "Land",
+        "text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {W} for each storage counter removed this way."
+      }
+    ]
+  },
+  {
+    "name": "Red Mana Battery",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Red Mana Battery",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{2}, {T}: Put a charge counter on this artifact.\n{T}, Remove any number of charge counters from this artifact: Add {R}, then add an additional {R} for each charge counter removed this way."
+      }
+    ]
+  },
+  {
+    "name": "Sand Silos",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sand Silos",
+        "type": "Land",
+        "text": "This land enters tapped.\nYou may choose not to untap this land during your untap step.\nAt the beginning of your upkeep, if this land is tapped, put a storage counter on it.\n{T}, Remove any number of storage counters from this land: Add {U} for each storage counter removed this way."
+      }
+    ]
+  },
+  {
+    "name": "White Mana Battery",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "White Mana Battery",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{2}, {T}: Put a charge counter on this artifact.\n{T}, Remove any number of charge counters from this artifact: Add {W}, then add an additional {W} for each charge counter removed this way."
+      }
+    ]
+  }
+]

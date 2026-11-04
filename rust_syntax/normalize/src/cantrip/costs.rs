@@ -850,12 +850,21 @@ impl Compiler {
                 self.paid_for = PaidFor::Mana;
                 let cost = self.cost(price, label);
                 self.paid_for = PaidFor::Ability;
-                let made = format!(
+                let mut made = format!(
                     "mana_ability({}, {adds}, {}){}",
                     cost?,
                     quoted(&text),
                     self.colors_from(body, label)?
                 );
+                if planned::switched_on("mana-counter-costs")
+                    && (target_counts::has_mana_x(price) || lane_g::has_mana_counter_x(price))
+                {
+                    if lane_g::x_is_mana_amount(body, price) {
+                        made.push_str(".x_is_mana_amount()");
+                    } else {
+                        return Err(gap("a mana ability's X changes more than its mana amount"));
+                    }
+                }
                 match colors {
                     Some((suffix, None)) => format!("{made}{suffix}"),
                     Some((suffix, Some(feature))) => {

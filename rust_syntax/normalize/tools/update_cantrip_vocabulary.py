@@ -18,12 +18,14 @@ args = parser.parse_args()
 checkout = args.checkout.resolve()
 state = checkout / 'crates/cantrip-state/src'
 
-def variants(path, name):
+def variants(path, name, *, required=True):
     match = re.search(r'pub enum ' + name + r'\s*{(.*?)\n}', path.read_text(), re.S)
     if match is None:
+        if not required:
+            return []
         raise ValueError(f'cannot locate {name} in {path}')
     result = re.findall(r'^    ([A-Za-z_][A-Za-z_0-9]*)\s*(?:,|=)', match[1], re.M)
-    if not result or len(result) != len(set(result)):
+    if (required and not result) or len(result) != len(set(result)):
         raise ValueError(f'invalid {name} vocabulary')
     return result
 
@@ -43,7 +45,7 @@ api_hash = hashlib.sha256(json.dumps(fingerprints, sort_keys=True, separators=('
 text = '// Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.\n'
 text += '// These names are inert metadata, never behavior.\n'
 text += f'pub const API_FINGERPRINT: &str = {json.dumps(api_hash)};\n'
-vocabularies = [('SUBTYPES', variants(state / 'subtypes.rs', 'Subtype')), ('KEYWORDS', variants(state / 'vocab.rs', 'Keyword')), ('COUNTERS', counter_kinds(state / 'vocab.rs'))]
+vocabularies = [('SUBTYPES', variants(state / 'subtypes.rs', 'Subtype')), ('KEYWORDS', variants(state / 'vocab.rs', 'Keyword')), ('COUNTERS', counter_kinds(state / 'vocab.rs')), ('LASTING_RULE_KINDS', variants(checkout / 'crates/cantrip-api/src/card.rs', 'LastingRuleKind', required=False))]
 for name, values in vocabularies:
     text += 'pub const ' + name + ': &[&str] = &[\n' + ''.join('    ' + json.dumps(v) + ',\n' for v in values) + '];\n'
 def switched_features():

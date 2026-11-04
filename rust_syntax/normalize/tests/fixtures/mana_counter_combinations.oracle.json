@@ -1,0 +1,53 @@
+[
+  {
+    "name": "Calciform Pools",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Calciform Pools",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{1}, {T}: Put a storage counter on this land.\n{1}, Remove X storage counters from this land: Add X mana in any combination of {W} and/or {U}."
+      }
+    ]
+  },
+  {
+    "name": "Haruspex",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Haruspex",
+        "manaCost": "{3}{G}",
+        "type": "Creature — Tyranid",
+        "text": "Rapacious Hunger — Whenever another creature dies, put a +1/+1 counter on this creature.\nDevouring Monster — {T}, Remove X +1/+1 counters from this creature: Add X mana of any one color.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Petalmane Baku",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Petalmane Baku",
+        "manaCost": "{1}{G}",
+        "type": "Creature — Spirit",
+        "text": "Whenever you cast a Spirit or Arcane spell, you may put a ki counter on this creature.\n{1}, Remove X ki counters from this creature: Add X mana of any one color.",
+        "power": "1",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Wizard's Rockets",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Wizard's Rockets",
+        "manaCost": "{1}",
+        "type": "Artifact",
+        "text": "This artifact enters tapped.\n{X}, {T}, Sacrifice this artifact: Add X mana in any combination of colors.\nWhen this artifact is put into a graveyard from the battlefield, draw a card."
+      }
+    ]
+  }
+]
