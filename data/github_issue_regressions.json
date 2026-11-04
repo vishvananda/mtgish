@@ -11701,10 +11701,11 @@
       81
     ],
     "contains": [
-      "HostPermanent)])"
+      "ACounterOfTypeOnPermanent(PTCounter(+1, +1), Trigger_ThatPermanent)"
     ],
     "excludes": [
-      "PTCounter(+1, +1), Trigger_ThatCreature"
+      "PTCounter(+1, +1), Trigger_ThatCreature",
+      "PTCounter(+1, +1), HostPermanent"
     ]
   },
   {
