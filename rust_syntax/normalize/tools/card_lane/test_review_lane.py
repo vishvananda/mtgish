@@ -19,6 +19,33 @@ class QueueTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_pipeline_counts_exclude_superseded_approvals_and_keep_live_verification(self):
+        cfg = dict(reviewers={'v1': {'role': 'confirm'}, 'v2': {'role': 'confirm'}})
+        with lane.connect(self.root) as db:
+            for number in range(8):
+                lane.enqueue(db, dict(name=f'Old approval {number}', commit=str(number)))
+            db.execute("UPDATE jobs SET status='superseded',stage='confirm',worker='old-verifier'")
+            db.execute("UPDATE jobs SET stage='review' WHERE name='Old approval 7'")
+            lane.enqueue(db, dict(name='Live confirmation', commit='live'))
+            db.execute("UPDATE jobs SET stage='confirm' WHERE name='Live confirmation'")
+            lane.enqueue(db, dict(name='Blocked confirmation', commit='blocked'))
+            db.execute("UPDATE jobs SET stage='confirm',status='blocked' WHERE name='Blocked confirmation'")
+            db.commit()
+            flow = lane.pipeline_flow(db, cfg)
+            self.assertEqual(flow['verify']['cards'], 1)
+            self.assertEqual(flow['verify']['workers'], 2)
+            self.assertEqual(flow['verify']['active_workers'], 0)
+            self.assertEqual(flow['verify']['rounds'], [0, 1, 0, 0])
+            self.assertEqual(flow['blocked']['cards'], 1)
+            self.assertEqual(flow['review']['cards'], 0)
+            self.assertEqual(flow['fix']['cards'], 0)
+            job = lane.claim(db, 'v1', 'confirm')
+            self.assertEqual(job['name'], 'Live confirmation')
+            flow = lane.pipeline_flow(db, cfg)
+            self.assertEqual(flow['verify']['cards'], 1)
+            self.assertEqual(flow['verify']['active_workers'], 1)
+            self.assertEqual(db.execute("SELECT count(*) FROM jobs WHERE status='superseded'").fetchone()[0], 8)
+
     def test_consolidation_defers_extraction_but_preserves_review_requirements(self):
         job = dict(stage='review', source=json.dumps(dict(name='Card')))
         folder = self.root/'packet'
