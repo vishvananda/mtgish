@@ -1556,6 +1556,23 @@ fn spliced(body: Block, after: &[Stmt]) -> Vec<Stmt> {
     }
 }
 
+/// The optional-answer rewrite must not change Result::expect into an Option
+/// pattern. Checked numeric conversions express a proven native quantity bound
+/// (for example an actual delta between i32 life totals fits a u32 magnitude).
+/// Keep that assertion, including inside an array or a read block.
+fn optional_expect(call: &syn::ExprMethodCall) -> bool {
+    fn checked_conversion(expr: &Expr) -> bool {
+        match expr {
+            Expr::Paren(p) => checked_conversion(&p.expr),
+            Expr::Group(g) => checked_conversion(&g.expr),
+            Expr::Call(call) => matches!(&*call.func, Expr::Path(path)
+                if path.path.segments.last().is_some_and(|s| s.ident == "try_from")),
+            _ => false,
+        }
+    }
+    call.method == "expect" && !checked_conversion(&call.receiver)
+}
+
 /// The first `x.expect(..)` a statement evaluates itself, as `named`: the `x` is
 /// returned. Nested blocks and closures keep theirs, for their own statements.
 struct TakeExpect<'a> {
@@ -1571,7 +1588,7 @@ impl VisitMut for TakeExpect<'_> {
             return;
         }
         if let Expr::MethodCall(call) = node {
-            if call.method == "expect" {
+            if optional_expect(call) {
                 self.taken = Some((*call.receiver).clone());
                 let named = self.named;
                 *node = parse_quote!(#named);
@@ -1783,7 +1800,7 @@ fn simplify_stmts(block: &mut Block, returns_result: bool) -> bool {
         if let Stmt::Local(local) = &block.stmts[i] {
             if let (Some(name), Some(init)) = (plain_binding(local), &local.init) {
                 if let Expr::MethodCall(call) = &*init.expr {
-                    if call.method == "expect" {
+                    if optional_expect(call) {
                         let (variable, option) = (syn::Ident::new(&name, proc_macro2::Span::call_site()), &call.receiver);
                         let done = if returns_result { quote::quote!(return Ok(());) } else { quote::quote!(return;) };
                         block.stmts[i] = parse_quote!(let Some(#variable) = #option else { #done };);
@@ -1797,7 +1814,7 @@ fn simplify_stmts(block: &mut Block, returns_result: bool) -> bool {
             if let (Some(name), Some(init)) = (plain_binding(local), &local.init) {
                 if let Expr::Block(read) = &*init.expr {
                     if let Some(Stmt::Expr(Expr::MethodCall(call), None)) = read.block.stmts.last() {
-                        if call.method == "expect" && read.block.stmts.len() == 2 {
+                        if optional_expect(call) && read.block.stmts.len() == 2 {
                             let (variable, option) = (syn::Ident::new(&name, proc_macro2::Span::call_site()), &call.receiver);
                             let first = &read.block.stmts[0];
                             let done = if returns_result { quote::quote!(return Ok(());) } else { quote::quote!(return;) };
@@ -5078,6 +5095,30 @@ fn say_printed_text(file: &mut File, printed: &str) {
 mod quantity_reduction_tests {
     use super as renderer;
     use syn::parse_quote;
+    #[test]
+    fn checked_numeric_conversions_are_not_optional_answers() {
+        let mut function: syn::ItemFn = parse_quote! {
+            fn exact(delta: i64) -> Option<[u32; 3]> {
+                let direct = u32::try_from(delta.unsigned_abs()).expect("native bound");
+                let read = { let magnitude = delta.unsigned_abs(); u32::try_from(magnitude).expect("native bound") };
+                Some([direct, read, u32::try_from(delta.unsigned_abs()).expect("native bound")])
+            }
+        };
+        renderer::simplify_function(&mut function, false);
+        let code = renderer::text_of(&function.block);
+        assert_eq!(code.matches("expect").count(), 3, "{code}");
+        assert!(!code.contains("let Some"), "{code}");
+        let mut optional: syn::ItemFn = parse_quote! {
+            fn resolve(chosen: Option<u32>) {
+                let answer = chosen.expect("answered");
+                consume(answer);
+            }
+        };
+        renderer::simplify_function(&mut optional, false);
+        let code = renderer::text_of(&optional.block);
+        assert!(code.contains("Some"), "{code}");
+        assert!(!code.contains("expect"), "{code}");
+    }
     #[test]
     fn unread_saturating_total_preserves_the_damage_call_without_arithmetic() {
         let mut function: syn::ItemFn = parse_quote! {

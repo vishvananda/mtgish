@@ -1497,18 +1497,31 @@ impl Compiler {
                     frame: self.frame,
                 });
                 let matched = asked.event(event)?;
-                if matched.frame.quantity.is_some() && matches!(measure,
-                    HistoryMeasure::TotalAmount | HistoryMeasure::MostFromOneSource) {
-                    return Err(gap("exact wide history quantity instead of Fired data"));
+                let exact_amount = matched.frame.quantity.is_some()
+                    && matches!(measure, HistoryMeasure::TotalAmount | HistoryMeasure::MostFromOneSource);
+                if exact_amount && matched.frame.quantity == Some(Quantity::DamageExcess) {
+                    // Each source record repeats its recipient's simultaneous
+                    // excess. History has no event/batch key with which to count
+                    // that aggregate once; summing these records would multiply it.
+                    return Err(gap("exact excess history grouped by simultaneous damage event"));
                 }
-                let hits = format!("{scope}.filter_map({})", faces::as_dealt(&matched.history_test()));
+                let history_test = if exact_amount {
+                    matched.quantity_history_test()
+                } else {
+                    matched.history_test()
+                };
+                let hits = format!("{scope}.filter_map({})", faces::as_dealt(&history_test));
                 let answer = match measure {
                     HistoryMeasure::Occurrences => faces::attackers_counted(event, &hits)
                         .unwrap_or_else(|| format!("{hits}.count() as i64")),
                     HistoryMeasure::TotalAmount
                         if matched.frame.amount == Some(Carried::Data(0)) =>
                     {
-                        format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
+                        if exact_amount {
+                            format!("{hits}.map(|(_, amount)| amount).fold(0i64, i64::saturating_add)")
+                        } else {
+                            format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
+                        }
                     }
                     // "The greatest amount of damage dealt by a source to a permanent
                     // or player this turn" (Impact Resonance) sums each source's
@@ -1533,7 +1546,12 @@ impl Compiler {
                             }) => "0",
                             _ => "f.data[1]",
                         };
-                        format!("{{ let mut most: Vec<(Target, u32, i64)> = Vec::new(); for f in {hits} {{ let key: u32 = {key}; match most.iter_mut().find(|d| d.0 == f.subject && d.1 == key) {{ Some(d) => d.2 += i64::from(f.data[0]), None => most.push((f.subject, key, i64::from(f.data[0]))) }} }} most.into_iter().map(|d| d.2).max().unwrap_or(0) }}")
+                        let (binding, amount, add) = if exact_amount {
+                            ("(f, amount)", "amount", "d.2 = d.2.saturating_add(amount)")
+                        } else {
+                            ("f", "i64::from(f.data[0])", "d.2 += i64::from(f.data[0])")
+                        };
+                        format!("{{ let mut most: Vec<(Target, u32, i64)> = Vec::new(); for {binding} in {hits} {{ let key: u32 = {key}; match most.iter_mut().find(|d| d.0 == f.subject && d.1 == key) {{ Some(d) => {add}, None => most.push((f.subject, key, {amount})) }} }} most.into_iter().map(|d| d.2).max().unwrap_or(0) }}")
                     }
                     // "The total power of Daleks that died this turn" (Genesis of the
                     // Daleks): each record's subject is the object that moved, read as
@@ -1550,6 +1568,7 @@ impl Compiler {
                             _ => format!("{each}.min().unwrap_or(0)"),
                         }
                     }
+                    _ if exact_amount => return Err(gap("exact wide history amount with this grouping")),
                     other => lane_p::history_measured(other, scope, &matched.history_test())
                         .unwrap_or_else(|| lane_p::history_measure(other, &hits)),
                 };
@@ -1562,11 +1581,16 @@ impl Compiler {
                     Some(candidate) => format!("{{ let history_candidate = {candidate}; {answer} }}"),
                     None => answer,
                 };
-                count(if self.event_at == EventAt::Matcher {
+                let answer = if self.event_at == EventAt::Matcher {
                     format!("{{ let (outer_subject, outer_data) = (subject, data); {answer} }}")
                 } else {
                     answer
-                })
+                };
+                if exact_amount {
+                    Number { code: answer, min: 0, max: i64::MAX.into(), dynamic: true }
+                } else {
+                    count(answer)
+                }
             }
             Expr::ManaSpent {
                 object,

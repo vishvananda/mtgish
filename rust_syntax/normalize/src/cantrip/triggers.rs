@@ -130,11 +130,21 @@ impl Matched {
         format!("(|| -> bool {{ {body} false }})()").replace("cast_of(q, ", "cast_at(q, event, ")
     }
     pub(super) fn history_test(&self) -> String {
+        self.history_read("Fired", "Fired { subject, data }")
+    }
+    /// Numeric history queries do not cross a trigger/stack boundary. Preserve
+    /// the exact native quantity alongside the subject/key metadata instead of
+    /// trying to pack it into Fired's two u32 words.
+    pub(super) fn quantity_history_test(&self) -> String {
+        debug_assert!(self.frame.quantity.is_some());
+        self.history_read("(Fired, i64)", "(Fired { subject, data }, event_quantity)")
+    }
+    fn history_read(&self, kind: &str, value: &str) -> String {
         let mut body = String::new();
         for arm in &self.arms {
             write!(
                 body,
-                "if let {} = event {{ {} if {} {{ return Some(Fired {{ subject, data }}); }} }} ",
+                "if let {} = event {{ {} if {} {{ return Some({value}); }} }} ",
                 arm.pattern,
                 arm.locals,
                 arm.tests.join(" && ")
@@ -145,7 +155,7 @@ impl Matched {
         let body = body
             .replace("q.state().turn.active", "r.active")
             .replace("q.event_cause()", "r.cause");
-        format!("|r: &Record| -> Option<Fired> {{ let event = &r.event; {body} None }}")
+        format!("|r: &Record| -> Option<{kind}> {{ let event = &r.event; {body} None }}")
     }
 }
 

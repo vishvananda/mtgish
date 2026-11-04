@@ -555,6 +555,141 @@ mod tests {
             );
         });
     }
+    fn damage_history(measure: HistoryMeasure, recipients: DamageRecipients) -> Expr {
+        Expr::EventHistory {
+            event: Box::new(EventSpec::Damage(DamageEvent {
+                source_kind: ObjectKind::Any,
+                sources: ObjectFilter::Any,
+                recipients,
+                kind: DamageKind::Any,
+                grouping: DamageGrouping::SourceRecipient,
+                subject: DamageSubject::Source,
+            })),
+            window: HistoryWindow::ThisTurn,
+            measure,
+        }
+    }
+
+    #[test]
+    fn exact_history_keeps_amount_bounds_metadata_and_source_snapshots() {
+        let (total, doubled, most_pair, most_source, filtered, life) =
+            planned::with_features(&[FEATURE], || {
+                let compiler = Compiler::new();
+                let total_expr = damage_history(HistoryMeasure::TotalAmount, DamageRecipients::Any);
+                let total = compiler.number(&total_expr).unwrap();
+                assert_eq!(total.max, i128::from(i64::MAX));
+                let doubled = compiler.number(&Expr::multiply(total_expr.clone(), Expr::Constant(2))).unwrap();
+                assert!(doubled.code.contains("saturating_mul"), "{}", doubled.code);
+                let most_pair = compiler.number(&damage_history(HistoryMeasure::MostFromOneSource, DamageRecipients::Players(PlayerSet::All))).unwrap();
+                let most_source = compiler.number(&damage_history(HistoryMeasure::MostFromOneSource, DamageRecipients::Any)).unwrap();
+                let mut filtered = total_expr;
+                let Expr::EventHistory { event, .. } = &mut filtered else { unreachable!() };
+                let EventSpec::Damage(damage) = &mut **event else { unreachable!() };
+                damage.kind = DamageKind::Noncombat;
+                damage.sources = ObjectFilter::All(vec![
+                    ObjectFilter::Color(ManaColor::Red),
+                    ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),
+                ]);
+                let filtered = compiler.number(&filtered).unwrap();
+                assert!(filtered.code.contains("dealt.chars(q)"), "{}", filtered.code);
+                assert!(!filtered.code.contains("q.controller(source)"));
+                let life = compiler.number(&Expr::EventHistory {
+                    event: Box::new(EventSpec::Player { event: PlayerEvent::GainsLife, players: PlayerSet::All, objects: None }),
+                    window: HistoryWindow::ThisTurn,
+                    measure: HistoryMeasure::TotalAmount,
+                }).unwrap();
+                assert_eq!(life.max, i128::from(i64::MAX));
+                (total.code, doubled.code, most_pair.code, most_source.code, filtered.code, life.code)
+            });
+        planned::with_features(&[], || {
+            let legacy = Compiler::new().number(&damage_history(HistoryMeasure::TotalAmount, DamageRecipients::Any)).unwrap();
+            assert!(legacy.code.contains("map(|f: Fired| i64::from(f.data[0]))"));
+            assert!(!legacy.code.contains("Option<(Fired, i64)>"));
+            assert_eq!(legacy.max, i128::from(u32::MAX));
+        });
+        let source = format!(r#"
+            #![allow(dead_code, unused_variables)]
+            #[derive(Clone, Copy, Debug, PartialEq, Eq)] struct ObjectId(u32);
+            #[derive(Clone, Copy, Debug, PartialEq, Eq)] struct PlayerId(u8);
+            #[derive(Clone, Copy, Debug, PartialEq, Eq)] enum Target {{ Object(ObjectId), Player(PlayerId) }}
+            #[derive(Clone, Copy)] enum Color {{ Red }}
+            #[derive(Clone, Copy)] struct Colors(bool);
+            impl Colors {{ fn has(self, _: Color) -> bool {{ self.0 }} }}
+            #[derive(Clone, Copy)] struct Chars {{ colors: Colors }}
+            struct Words;
+            impl Words {{ fn color(&self, c: Color) -> Color {{ c }} }}
+            #[derive(Clone, Copy)] struct Kind(bool);
+            impl Kind {{ fn is_combat(self) -> bool {{ self.0 }} }}
+            #[derive(Clone, Copy)] enum Event {{ Damage {{ source: ObjectId, target: Target, amount: i64, kind: Kind, controller: PlayerId, known: u32 }}, LifeChange {{ player: PlayerId, delta: i64 }}, Other }}
+            struct Record {{ event: Event }}
+            struct Fired {{ subject: Target, data: [u32; 2] }}
+            struct Asker {{ source: ObjectId, controller: PlayerId }}
+            struct Mock {{ rows: Vec<Record>, now_red: bool, now_controller: PlayerId }}
+            impl Mock {{
+                fn history(&self) -> History<'_> {{ History(&self.rows) }}
+                fn chars(&self, _: ObjectId) -> Chars {{ Chars {{ colors: Colors(self.now_red) }} }}
+                fn controller(&self, _: ObjectId) -> PlayerId {{ self.now_controller }}
+                fn words(&self, _: ObjectId) -> Words {{ Words }}
+            }}
+            struct History<'a>(&'a [Record]);
+            impl<'a> History<'a> {{ fn this_turn(&self) -> &'a [Record] {{ self.0 }} }}
+            // The real native DamageDealt overlays the retained last-known row.
+            // Here known=1/0 are retained red/blue rows, independent of current
+            // colors/controller (and source's current battlefield membership).
+            struct DamageDealt {{ source: ObjectId, target: Target, amount: i64, combat: bool, controller: PlayerId, known: u32 }}
+            impl DamageDealt {{ fn chars(&self, q: &Mock) -> Chars {{ let _ = q.chars(self.source); Chars {{ colors: Colors(self.known == 1) }} }} }}
+            fn total(q: &Mock, asker: &Asker) -> i64 {{ {total} }}
+            fn doubled(q: &Mock, asker: &Asker) -> i64 {{ {doubled} }}
+            fn most_pair(q: &Mock, asker: &Asker) -> i64 {{ {most_pair} }}
+            fn most_source(q: &Mock, asker: &Asker) -> i64 {{ {most_source} }}
+            fn filtered(q: &Mock, asker: &Asker) -> i64 {{ {filtered} }}
+            fn life(q: &Mock, asker: &Asker) -> i64 {{ {life} }}
+            fn damage(source: u32, player: u8, amount: i64, red: bool, controller: u8, combat: bool) -> Record {{ Record {{ event: Event::Damage {{ source: ObjectId(source), target: Target::Player(PlayerId(player)), amount, kind: Kind(combat), controller: PlayerId(controller), known: u32::from(red) }} }} }}
+            fn main() {{
+                let asker = Asker {{ source: ObjectId(99), controller: PlayerId(0) }};
+                let n = i64::from(u32::MAX) + 1;
+                let mut q = Mock {{ rows: vec![], now_red: false, now_controller: PlayerId(1) }};
+                assert_eq!(total(&q, &asker), 0); assert_eq!(most_pair(&q, &asker), 0);
+                q.rows = vec![damage(1, 0, n, true, 0, false)];
+                assert_eq!(total(&q, &asker), n); assert_eq!(doubled(&q, &asker), n * 2);
+                assert_eq!(filtered(&q, &asker), n); // source is now blue/opponent-controlled
+                q.now_red = true; q.now_controller = PlayerId(0);
+                q.rows.push(damage(2, 0, 7, false, 0, false)); // now-red does not rewrite blue history
+                q.rows.push(damage(3, 0, 11, true, 1, false)); // now-controlled does not rewrite old controller
+                q.rows.push(damage(1, 0, 13, true, 0, true)); // combat excluded
+                assert_eq!(filtered(&q, &asker), n);
+                q.rows = vec![damage(1, 0, n, true, 0, false), damage(1, 0, n, true, 0, false), damage(1, 1, 3*n, true, 0, false), damage(2, 0, 4*n, true, 0, false)];
+                assert_eq!(most_pair(&q, &asker), 4*n); // source AND recipient, not one source's 5*n
+                assert_eq!(most_source(&q, &asker), 5*n);
+                q.rows = vec![damage(1, 0, i64::MAX, true, 0, false), damage(1, 0, i64::MAX, true, 0, false)];
+                assert_eq!(total(&q, &asker), i64::MAX); assert_eq!(doubled(&q, &asker), i64::MAX);
+                assert_eq!(most_pair(&q, &asker), i64::MAX); assert_eq!(most_source(&q, &asker), i64::MAX);
+                q.rows = vec![Record {{ event: Event::LifeChange {{ player: PlayerId(0), delta: i64::from(u32::MAX) }} }}, Record {{ event: Event::LifeChange {{ player: PlayerId(0), delta: i64::from(u32::MAX) }} }}, Record {{ event: Event::LifeChange {{ player: PlayerId(0), delta: -7 }} }}];
+                assert_eq!(life(&q, &asker), 2*i64::from(u32::MAX));
+            }}"#);
+        let dir = std::env::temp_dir().join(format!("mtgish-wide-history-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("main.rs"), &source).unwrap();
+        let built = Command::new("rustc").args(["--edition=2021", "-C", "overflow-checks=on"]).arg(dir.join("main.rs")).arg("-o").arg(dir.join("witness")).output().unwrap();
+        assert!(built.status.success(), "{}\n{source}", String::from_utf8_lossy(&built.stderr));
+        let ran = Command::new(dir.join("witness")).output().unwrap();
+        assert!(ran.status.success(), "{}", String::from_utf8_lossy(&ran.stderr));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn excess_history_does_not_sum_repeated_recipient_aggregates() {
+        planned::with_features(&[FEATURE], || {
+            for measure in [HistoryMeasure::TotalAmount, HistoryMeasure::MostFromOneSource] {
+                let mut expr = damage_history(measure, DamageRecipients::Any);
+                let Expr::EventHistory { event, .. } = &mut expr else { unreachable!() };
+                let EventSpec::Damage(damage) = &mut **event else { unreachable!() };
+                damage.kind = DamageKind::Excess;
+                assert!(Compiler::new().number(&expr).err().unwrap().feature.contains("excess history grouped by simultaneous damage event"));
+            }
+        });
+    }
+
     #[test]
     fn lexical_quantity_snapshot_restores_outer_bounds_and_drops_inner_domains() {
         planned::with_features(&[FEATURE], || {

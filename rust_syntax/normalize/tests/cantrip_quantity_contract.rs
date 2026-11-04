@@ -93,3 +93,85 @@ fn printed_life_delta_uses_the_exact_bounded_legacy_payload() {
         syn::parse_file(&file).unwrap();
     });
 }
+
+#[test]
+fn printed_wide_history_queries_keep_exact_amounts_and_snapshot_filters() {
+    for (name, marker) in [
+        ("Ojer Axonil, Deepest Might", "let dealt = DamageDealt {"),
+        ("Impact Resonance", "Vec<(Target, u32, i64)>"),
+        ("Enlightened Confidant", "Option<(Fired, i64)>"),
+        ("Reverse Polarity", "saturating_mul"),
+    ] {
+        let line = include_str!("fixtures/pipeline_generated.ronl").lines()
+            .find(|line| line.contains(&format!("Name: \"{name}\""))).unwrap();
+        let source: OracleCard = ron::from_str(line).unwrap();
+        let card = mtgish_ast::unified::lower(&source).card;
+        for wide in [false, true] {
+            cantrip::planned::with_features(if wide { &["wide-effect-quantities"] } else { &[] }, || {
+                let raw = if name == "Impact Resonance" {
+                    let whole = cantrip::whole(&source, &card).unwrap();
+                    let gaps: Vec<_> = whole.faces.iter().flat_map(|f| &f.gaps).map(|g| g.feature.as_str()).collect();
+                    assert_eq!(gaps, ["target with a divided amount read as chosen"], "{name} wide={wide}");
+                    whole.faces[0].rust.clone()
+                } else {
+                    cantrip::whole_module(&source, &card).unwrap_or_else(|e| panic!("{name} wide={wide}: {e:?}"))
+                };
+                if wide {
+                    assert!(raw.contains(marker), "{name}: {raw}");
+                    assert!(raw.contains("Option<(Fired, i64)>"), "{name}: {raw}");
+                    assert!(raw.contains("saturating_add"), "{name}: {raw}");
+                } else {
+                    assert!(!raw.contains("Option<(Fired, i64)>"), "{name}: {raw}");
+                }
+                syn::parse_file(&raw).unwrap();
+            });
+        }
+    }
+}
+
+
+#[test]
+fn final_pr_form_actual_life_matcher_compiles_and_preserves_full_magnitude() {
+    use quote::ToTokens;
+    use std::{fs, process::Command};
+    let line = include_str!("fixtures/pipeline_generated.ronl").lines()
+        .find(|line| line.contains("Name: \"Oath of Lim-Dûl\"" )).unwrap();
+    let source: OracleCard = ron::from_str(line).unwrap();
+    let card = lower::card(&source).unwrap();
+    let raw = cantrip::planned::with_features(&["wide-effect-quantities"], || cantrip::module(&card).unwrap());
+    let file = cantrip::pr_form::render(&raw, "Oath of Lim-Dûl", "Whenever you lose life, for each 1 life you lost, sacrifice a permanent other than this enchantment unless you discard a card.", cantrip::pr_form::Characteristics::Inline).unwrap();
+    let parsed = syn::parse_file(&file).unwrap();
+    let matcher = parsed.items.iter().find_map(|item| match item {
+        syn::Item::Fn(f) if f.sig.output.to_token_stream().to_string().contains("Option < Fired >") => Some(f),
+        _ => None,
+    }).unwrap();
+    let name = &matcher.sig.ident;
+    // Compile the exact matcher AST taken AFTER final PR-form rewrites. These
+    // types match the final native life-event boundary, not an alternate callback.
+    let witness = format!(r#"
+        #![allow(dead_code, unused_variables)]
+        type PlayerId = u8;
+        trait Query {{}}
+        struct Q; impl Query for Q {{}}
+        struct Asker {{ controller: PlayerId }}
+        #[derive(Debug, PartialEq)] enum Target {{ Player(PlayerId) }}
+        enum Event {{ LifeChange {{ player: PlayerId, delta: i64 }}, Other }}
+        struct Fired {{ subject: Target, data: [u32; 2] }}
+        {matcher}
+        fn main() {{
+            let q = Q; let asker = Asker {{ controller: 1 }};
+            for magnitude in [1, i64::from(u32::MAX)] {{
+                let fired = {name}(&q, &asker, &Event::LifeChange {{ player: 1, delta: -magnitude }}).unwrap();
+                assert_eq!(fired.subject, Target::Player(1)); assert_eq!(i64::from(fired.data[0]), magnitude);
+                assert!({name}(&q, &asker, &Event::LifeChange {{ player: 1, delta: magnitude }}).is_none());
+                assert!({name}(&q, &asker, &Event::LifeChange {{ player: 0, delta: -magnitude }}).is_none());
+            }}
+            assert!({name}(&q, &asker, &Event::Other).is_none());
+        }}"#, matcher = matcher.to_token_stream());
+    let dir = std::env::temp_dir().join(format!("mtgish-final-pr-life-{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap(); fs::write(dir.join("main.rs"), &witness).unwrap();
+    let built = Command::new("rustc").args(["--edition=2021", "-C", "overflow-checks=on"]).arg(dir.join("main.rs")).arg("-o").arg(dir.join("witness")).output().unwrap();
+    assert!(built.status.success(), "{}\n{file}", String::from_utf8_lossy(&built.stderr));
+    assert!(Command::new(dir.join("witness")).status().unwrap().success());
+    fs::remove_dir_all(dir).unwrap();
+}
