@@ -2111,6 +2111,13 @@ impl Compiler {
             ObjectFilter::HasKeyword(Keyword::Flanking) if self.reader != Reader::Layer => {
                 format!("{chars}.abilities().any(|a| q.triggered_ability(a).is_some_and(|t| t.flanking))")
             }
+            ObjectFilter::HasKeyword(k @ Keyword::Landwalk(_)) => {
+                let keyword = keyword(k)?;
+                match lane_k::landwalk_named_by(&keyword, "asker.source") {
+                    Some(walk) => format!("{walk}.is_some_and(|walk| {chars}.keywords.matches(walk))"),
+                    None => format!("{chars}.keywords.matches({keyword})"),
+                }
+            }
             ObjectFilter::HasKeyword(k) => {
                 format!("{chars}.keywords.has({})", keyword(k)?)
             }

@@ -3,6 +3,27 @@
 //! will have, and the callback a table asks is written out either way.
 use super::*;
 
+/// The native duration records the uninterrupted source interval, including a
+/// lapse before resolution. Only these exact conjuncts share that authority;
+/// an arbitrary callback must retain its own condition.
+fn source_tapped_duration(duration: &crate::ir::Duration) -> Option<&'static str> {
+    use crate::ir::Duration as D;
+    fn flags(duration: &D) -> Option<u8> {
+        match duration {
+            D::WhileMatches { object: ObjectRef::Source, filter: ObjectFilter::Tapped } => Some(1),
+            D::WhileControlled { player: PlayerRef::AbilityController, object: ObjectRef::Source } => Some(2),
+            D::WhileOnBattlefield(ObjectRef::Source) => Some(0),
+            D::Either(parts) if !parts.is_empty() => parts.iter().try_fold(0, |all, part| Some(all | flags(part)?)),
+            _ => None,
+        }
+    }
+    match flags(duration)? {
+        1 => Some("WhileSourceTapped"),
+        3 => Some("WhileSourceTappedAndControlled"),
+        _ => None,
+    }
+}
+
 const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
 /// The shape of most object tables: `id` is the permanent the rule is about.
 const ASKED: &str = "(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool";
@@ -690,6 +711,9 @@ impl Compiler {
     /// 611.2b), or the word Cantrip will have for it.
     pub(super) fn more_duration(&mut self, duration: &crate::ir::Duration) -> Result<String> {
         use crate::ir::Duration as D;
+        if let Some(native) = source_tapped_duration(duration) {
+            return Ok(format!("Duration::{native}"));
+        }
         Ok(match duration {
             D::WhileMatches {
                 object: ObjectRef::Affected,
@@ -3622,6 +3646,9 @@ impl Compiler {
             return Err(gap("two choices of labels as it enters"));
         }
         let count = labels.len();
+        if count == 0 || arms.len() != count {
+            return Err(gap("empty or mismatched as-enters options"));
+        }
         let quoted_labels: Vec<String> = labels.iter().map(|l| quoted(l)).collect();
         self.entering_labels = Some(format!("&[{}]", quoted_labels.join(", ")));
         writeln!(
@@ -3630,9 +3657,13 @@ impl Compiler {
         )
         .unwrap();
         for (i, arm) in arms.iter().enumerate() {
-            writeln!(out, "Some({i}) => {{ {arm} }}").unwrap();
+            // option_as_enters returns only after storing a valid index. The
+            // last valid option is exhaustive; an extra empty arm is unreachable
+            // and cannot be exercised by a legal scenario.
+            let pattern = if i + 1 == count { "_".to_string() } else { format!("Some({i})") };
+            writeln!(out, "{pattern} => {{ {arm} }}").unwrap();
         }
-        writeln!(out, "_ => {{}} }}").unwrap();
+        writeln!(out, "}}").unwrap();
         Ok(())
     }
     /// How `Entry` says the permanent enters, past tapped and counters.

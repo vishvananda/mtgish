@@ -2022,7 +2022,7 @@ impl Compiler {
                     ).unwrap();
                 } else {
                     writeln!(out,
-                        "let objects_{id} = {}; let turned_{id}: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.state().obj(o).tapped).collect(); cantrip_api::instruction(g, |g| {{ for &object in &turned_{id} {{ g.untap(object); }} }});",
+                        "let objects_{id} = {}; let before_{id} = g.history().head() as usize; g.untap_together(&objects_{id}); let turned_{id}: Vec<ObjectId> = g.history().all()[before_{id}..].iter().filter_map(|r| match r.event {{ Event::Untapped {{ permanent }} if objects_{id}.contains(&permanent) => Some(permanent), _ => None }}).collect();",
                         self.acted_on(objects)?,
                     ).unwrap();
                 }

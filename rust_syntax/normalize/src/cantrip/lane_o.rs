@@ -2333,6 +2333,7 @@ impl Compiler {
             return Ok(vec![format!("EffectKind::LoseKeywords(Keywords::of(&[{lost}]))")]);
         }
         match word.as_str() {
+            "AnyLandwalk" => Ok(vec!["EffectKind::LoseKeywords(Keywords::LANDWALKS)".into()]),
             // The enchant ability is the engine's to take.
             "Enchant" => Ok(vec![format!(
                 "EffectKind::LoseEnchant({})",
@@ -2377,6 +2378,9 @@ impl Compiler {
         lost: &Operand,
         failed: Diagnostic,
     ) -> Result<statics::LayerChange> {
+        if matches!(lost, Operand::Term { form, operands, .. } if form == "AnyLandwalk" && operands.is_empty()) {
+            return Ok(statics::LayerChange::of("Ability", "chars.keywords = Keywords(chars.keywords.0 & !Keywords::LANDWALKS.0);".into()));
+        }
         if let Some(lost) = lost_keyword(lost) {
             let and = match lost.as_str() {
                 "Keyword::Hexproof" => " chars.hexproof_from = HexproofFrom::NONE;",
@@ -2384,7 +2388,7 @@ impl Compiler {
             };
             return Ok(statics::LayerChange::of(
                 "Ability",
-                format!("chars.keywords = Keywords(chars.keywords.0 & !Keywords::of(&[{lost}]).0);{and}"),
+                format!("chars.keywords = Keywords(chars.keywords.0 & !Keywords::of(&[{lost}]).for_effect().0);{and}"),
             ));
         }
         let word = self.lost_word(lost).map_err(|_| failed.clone())?;

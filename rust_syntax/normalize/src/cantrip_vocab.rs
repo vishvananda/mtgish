@@ -1,6 +1,6 @@
 // Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.
 // These names are inert metadata, never behavior.
-pub const API_FINGERPRINT: &str = "152f4651d82b88dd6aeea358f46fd1678369a58d84985e650ca051dedbf63979";
+pub const API_FINGERPRINT: &str = "ea3dd20df51ee60b3288cb5227df69cb912ff0e2a306a4ee459505548dff67e8";
 pub const SUBTYPES: &[&str] = &[
     "Adventure",
     "Advisor",
@@ -562,6 +562,13 @@ pub const KEYWORDS: &[&str] = &[
     "CantBeCopied",
     "Mutate",
     "ReadAhead",
+    "SnowPlainswalk",
+    "SnowIslandwalk",
+    "SnowSwampwalk",
+    "SnowMountainwalk",
+    "SnowForestwalk",
+    "SnowLandwalk",
+    "Desertwalk",
 ];
 pub const COUNTERS: &[&str] = &[
     "PlusOne",
@@ -640,6 +647,7 @@ pub const COUNTERS: &[&str] = &[
     "Plus2Plus0",
     "Plus0Plus2",
     "Minus1Plus0",
+    "Carrion",
 ];
 pub const LASTING_RULE_KINDS: &[&str] = &[
     "CantBlock",

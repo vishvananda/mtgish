@@ -1984,10 +1984,15 @@ fn simplify_stmts(block: &mut Block, returns_result: bool) -> bool {
                     let uses = uses_in_stmts(later, &name);
                     if uses.reads + uses.in_macros == 0 {
                         let keep = (!is_pure(&value)).then(|| {
-                            if text_of(&value).ends_with(". collect ()") {
-                                parse_quote!(let _: Vec<_> = #value;)
-                            } else {
-                                Stmt::Expr(value.clone(), Some(Default::default()))
+                            match &value {
+                                Expr::MethodCall(call) if call.method == "collect" => {
+                                    if call.turbofish.is_some() {
+                                        parse_quote!(let _ = #value;)
+                                    } else {
+                                        parse_quote!(let _: Vec<_> = #value;)
+                                    }
+                                }
+                                _ => Stmt::Expr(value.clone(), Some(Default::default())),
                             }
                         });
                         block.stmts.splice(i..=i, keep);

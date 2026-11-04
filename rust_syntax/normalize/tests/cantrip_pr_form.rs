@@ -910,3 +910,17 @@ fn a_subject_that_is_always_an_object_is_a_guard() {
     let file = render(&player, "Sample", printed, Characteristics::Oracle).unwrap();
     assert!(file.contains("if let Some(source)"), "{file}");
 }
+#[test]
+fn ignored_turbofish_collections_keep_the_action_without_a_must_use_warning() {
+    use mtgish_ast::cantrip::pr_form::{render, Characteristics};
+    let raw = r#"use cantrip_api::*;
+fn action(g: &mut dyn Game, _: &StackItem) -> Result<(), Suspend> {
+    let moved = g.put_into_graveyard(&[]).into_iter().filter(|&o| g.obj(o).zone.is(ZoneKind::Graveyard)).collect::<Vec<ObjectId>>();
+    Ok(())
+}
+pub static CARD: CardDef = CardDef { spell: spell(&[], action), ..CardDef::BLANK };
+"#;
+    let output = render(raw, "Fixture", "Put the cards into their owners' graveyards.", Characteristics::Oracle).unwrap();
+    assert!(output.contains("let _ = g"), "{output}");
+    assert!(output.contains("put_into_graveyard") && output.contains("collect::<Vec<ObjectId>>()"), "{output}");
+}

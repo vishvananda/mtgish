@@ -2615,15 +2615,7 @@ impl Compiler {
                     "({printed} || q.state().permissions.iter().any(|p| p.grant.flashback && q.state().permission_covers(p, {id})) || q.state().battlefield().iter().any(|&p| !q.lost_all_abilities(p) && q.card(q.chars(p).card).granted_ways.iter().any(|w| w.flashback && q.state().obj({id}).zone.is(w.from) && (w.cost)(q, &Asker::new(p, q.controller(p)), {id}, q.state().obj({id}).owner).is_some())))"
                 )
             }
-            KeywordFamily::Landwalk => any(&[
-                "Islandwalk",
-                "Plainswalk",
-                "Swampwalk",
-                "Mountainwalk",
-                "Forestwalk",
-                "NonbasicLandwalk",
-                "LegendaryLandwalk",
-            ]),
+            KeywordFamily::Landwalk => format!("{chars}.keywords.has_landwalk()"),
             other => planned::planned_value(
                 "object filter HasKeywordFamily",
                 "false",

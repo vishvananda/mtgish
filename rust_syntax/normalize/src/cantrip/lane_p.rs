@@ -2050,6 +2050,7 @@ impl Compiler {
 /// Whether a printed landwalk of `land` is a rule of the block of its own: of a
 /// land type Cantrip has no word for, or a type and a supertype together.
 pub(super) fn landwalk_rule(land: &ObjectFilter) -> bool {
+    if native_landwalk(land).is_some() { return false; }
     let snow = |f: &ObjectFilter| {
         matches!(f, ObjectFilter::Supertype(crate::mtg_types::SuperType::Snow))
     };
@@ -2071,6 +2072,7 @@ pub(super) fn landwalk_rule(land: &ObjectFilter) -> bool {
 }
 /// "Nonbasic landwalk", and landwalk of what no word of Cantrip's names (CR 702.14).
 pub(super) fn landwalk(land: &ObjectFilter) -> Result<String> {
+    if let Some(word) = native_landwalk(land) { return Ok(format!("Keyword::{word}")); }
     let feature = format!("landwalk of {}", form(land));
     if let ObjectFilter::Not(inner) = land {
         if matches!(
@@ -2092,6 +2094,40 @@ pub(super) fn landwalk(land: &ObjectFilter) -> Result<String> {
         "Keyword::Swampwalk",
         &format!("Keyword::Landwalk({filter})"),
     ))
+}
+/// Exact native landwalk metadata. Grants retain the stated qualifier; checks
+/// and removals separately use the native ability-reference authority.
+fn native_landwalk(land: &ObjectFilter) -> Option<&'static str> {
+    use crate::mtg_types::{SubType as T, SuperType as S};
+    let word = match land {
+        ObjectFilter::Subtype(T::Plains) => "Plainswalk",
+        ObjectFilter::Subtype(T::Island) => "Islandwalk",
+        ObjectFilter::Subtype(T::Swamp) => "Swampwalk",
+        ObjectFilter::Subtype(T::Mountain) => "Mountainwalk",
+        ObjectFilter::Subtype(T::Forest) => "Forestwalk",
+        ObjectFilter::Subtype(T::Desert) => "Desertwalk",
+        ObjectFilter::Supertype(S::Legendary) => "LegendaryLandwalk",
+        ObjectFilter::Supertype(S::Snow) => "SnowLandwalk",
+        ObjectFilter::Not(inner) if matches!(**inner, ObjectFilter::Supertype(S::Basic)) => "NonbasicLandwalk",
+        ObjectFilter::All(parts) if parts.len() == 2 => {
+            let snow = |f: &ObjectFilter| matches!(f, ObjectFilter::Supertype(S::Snow));
+            let ty = match parts.as_slice() {
+                [a, b] if snow(a) => b,
+                [a, b] if snow(b) => a,
+                _ => return None,
+            };
+            match ty {
+                ObjectFilter::Subtype(T::Plains) => "SnowPlainswalk",
+                ObjectFilter::Subtype(T::Island) => "SnowIslandwalk",
+                ObjectFilter::Subtype(T::Swamp) => "SnowSwampwalk",
+                ObjectFilter::Subtype(T::Mountain) => "SnowMountainwalk",
+                ObjectFilter::Subtype(T::Forest) => "SnowForestwalk",
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    crate::cantrip_vocab::KEYWORDS.contains(&word).then_some(word)
 }
 fn land_filter(land: &ObjectFilter) -> Option<String> {
     Some(match land {

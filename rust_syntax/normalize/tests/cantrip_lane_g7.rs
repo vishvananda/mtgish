@@ -41,7 +41,7 @@ const CARDS: &[(&str, &str, bool)] = &[
     // Tap creatures rather than pay mana.
     ("Heirloom Epic", ".tap_creatures_for_mana()", true),
     // Held by other forms; the landed part.
-    ("Zombie Musher", "q.chars(land).supertypes.snow", false),
+    ("Zombie Musher", "Keyword::SnowLandwalk", false),
     ("Moritte of the Frost", "with_keyword(Keyword::Changeling)", false),
     ("Orcish Farmer", "Duration::UntilNextTurnOf(", false),
 ];

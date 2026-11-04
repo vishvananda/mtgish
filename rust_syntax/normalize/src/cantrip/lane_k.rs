@@ -1177,16 +1177,19 @@ pub(super) fn blights(player: &PlayerRef, body: &Program) -> Option<u8> {
 /// Giving a keyword, in a static ability's layer function. A landwalk's land type is
 /// a word of the text, which an effect may have changed (612.2).
 pub(super) fn keyword_granted(keyword: &str) -> String {
-    let land = ["Plains", "Island", "Swamp", "Mountain", "Forest"]
-        .into_iter()
-        .find(|land| {
-            keyword.strip_prefix("Keyword::")
-                == Some(&format!("{}walk", land.trim_end_matches('s')))
-        });
-    match land {
-        Some(land) => format!("if let Some(walk) = Keyword::landwalk(q.words(source).subtype(Subtype::{land})) {{ chars.keywords = chars.keywords.with(walk); }}"),
+    match landwalk_named_by(keyword, "source") {
+        Some(walk) => format!("if let Some(walk) = {walk} {{ chars.keywords = chars.keywords.with(walk); }}"),
         None => format!("chars.keywords = chars.keywords.with({keyword});"),
     }
+}
+
+/// A named landwalk's type word follows text changes; its snow qualifier stays.
+pub(super) fn landwalk_named_by(keyword: &str, source: &str) -> Option<String> {
+    let name = keyword.strip_prefix("Keyword::")?;
+    let (snow, name) = match name.strip_prefix("Snow") { Some(name) => (true, name), None => (false, name) };
+    let land = ["Plains", "Island", "Swamp", "Mountain", "Forest"].into_iter().find(|land| name == format!("{land}walk"))?;
+    let plain = format!("Keyword::landwalk(q.words({source}).subtype(Subtype::{land}))");
+    Some(if snow { format!("{plain}.and_then(Keyword::snow_landwalk)") } else { plain })
 }
 
 /// Whether `objects` are read out of a graveyard, whose first card is its top.

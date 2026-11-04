@@ -32,8 +32,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Deflecting Palm", "then: Some("),
     // A basic landwalk is the keyword anything reading or removing it asks after.
     ("Bog Wraith", "Keyword::Swampwalk"),
-    // Landwalk no word says is a rule of the block, by whoever is defending.
-    ("Rime Dryad", "q.defending_player(attacker)"),
+    // A snow variant is native keyword metadata, including for references/removal.
+    ("Rime Dryad", "Keyword::SnowForestwalk"),
     // "Your last upkeep", in your upkeep, is the one before it.
     ("Wiitigo", "!(upkeeping && r.turn == history.turn)"),
     // One window in the AST for two sentences, "ended" and "the beginning of": without
@@ -69,8 +69,8 @@ const CARDS: &[(&str, &str)] = &[
     // "Permanents you've sacrificed this turn" (#175): yours now, but a count of
     // distinct card types in a history isn't written yet.
     ("Korvold, Gleeful Glutton", "history measure Distinct"),
-    // Losing keywords wouldn't reach a landwalk that's a rule of the block.
-    ("Hammerheim", "losing ability AnyLandwalk"),
+    // The complete native family mask includes snow and qualified landwalks.
+    ("Hammerheim", "EffectKind::LoseKeywords(Keywords::LANDWALKS)"),
     // An event-fired delayed ability keeps no list: this read would be empty.
     ("Searing Blood", "engine: a delayed ability on an event keeps no list"),
     // The creature enters with the Aura attached, so its enchant ability names it.

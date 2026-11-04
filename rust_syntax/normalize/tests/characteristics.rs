@@ -30,6 +30,13 @@ fn copiable_entry_changes_preserve_the_pending_copy() {
         assert!(generated.contains(suffix), "{generated}");
     }
 }
+#[cfg(feature = "cantrip")]
+#[test]
+fn a_validated_entry_choice_has_no_unreachable_empty_arm() {
+    let generated = mtgish_ast::cantrip::module(&card("Primal Clay")).unwrap();
+    assert!(!generated.contains("_ => {}"), "{generated}");
+    assert!(generated.contains("_ => { entering.copy"), "{generated}");
+}
 fn custom(rule: &str) -> Result<Card, Vec<lower::Diagnostic>> {
     let mut c = source("Maro");
     let source::OracleCard::Card { rules, .. } = &mut c else {
