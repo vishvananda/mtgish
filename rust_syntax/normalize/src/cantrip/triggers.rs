@@ -480,7 +480,9 @@ impl Compiler {
             ..Frame::default()
         };
         let life = Frame {
-            quantity: planned::switched_on(quantity::FEATURE).then_some(Quantity::LifeEffect),
+            // Unlike an i64 life-change proposal, an actual delta between
+            // stored i32 totals has magnitude <= u32::MAX. Its old payload is exact.
+            quantity: planned::switched_on(quantity::FEATURE).then_some(Quantity::LifeChangeMagnitude),
             amount: Some(Carried::Data(0)),
             ..about
         };
@@ -494,7 +496,7 @@ impl Compiler {
                 "LIFE_CHANGE",
                 "Event::LifeChange { player, delta }",
                 if planned::switched_on(quantity::FEATURE) {
-                    "let event_quantity = delta.saturating_abs(); let subject = Target::Player(*player); let data = [u32::try_from(delta.unsigned_abs()).unwrap_or(u32::MAX), 0];"
+                    "let subject = Target::Player(*player); let data = [u32::try_from(delta.unsigned_abs()).expect(\"actual life delta magnitude fits u32\"), 0]; let event_quantity = i64::from(data[0]);"
                 } else { "let subject = Target::Player(*player); let data = [delta.unsigned_abs(), 0];" },
                 "*player",
                 life,

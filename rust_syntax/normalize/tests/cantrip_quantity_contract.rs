@@ -69,3 +69,27 @@ fn exact_damage_capture_survives_pr_form_for_a_printed_damage_trigger() {
         syn::parse_file(&file).unwrap();
     });
 }
+
+#[test]
+fn printed_life_delta_uses_the_exact_bounded_legacy_payload() {
+    let source: OracleCard =
+        ron::from_str(include_str!("fixtures/quantity_life.ronl").trim()).unwrap();
+    let card = lower::card(&source).unwrap();
+    cantrip::planned::with_features(&["wide-effect-quantities"], || {
+        let raw = cantrip::module(&card).unwrap();
+        assert!(raw.contains("u32::try_from(delta.unsigned_abs())"), "{raw}");
+        assert!(raw.contains("i64::from(item.data[0])"), "{raw}");
+        assert!(!raw.contains("matched_damage_amount()"), "{raw}");
+        assert!(!raw.contains("as i32"), "{raw}");
+        let file = cantrip::pr_form::render(
+            &raw,
+            "Exquisite Blood",
+            "",
+            cantrip::pr_form::Characteristics::Inline,
+        )
+        .unwrap();
+        assert!(!file.contains("planned"), "{file}");
+        assert!(!file.contains("as i32"), "{file}");
+        syn::parse_file(&file).unwrap();
+    });
+}

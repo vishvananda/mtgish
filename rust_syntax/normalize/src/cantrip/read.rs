@@ -102,7 +102,7 @@ pub(super) struct Frame {
     pub other: Option<Carried>,
     pub other_player: Option<Carried>,
     pub amount: Option<Carried>,
-    /// Exact local proposal quantity, separate from the legacy u32 payload.
+    /// Numeric binding domain, separate from the payload's general count role.
     pub quantity: Option<Quantity>,
     pub damage_source: Option<Carried>,
     pub damage_recipient: Option<Carried>,
@@ -1394,6 +1394,10 @@ impl Compiler {
                 count("q.event_objects(item).len() as i64".into())
             }
             Expr::EventAmount if self.frame.quantity.is_some() => {
+                if self.event_at == EventAt::Item && self.frame.quantity == Some(Quantity::LifeChangeMagnitude) {
+                    return Ok(Number { code: "i64::from(item.data[0])".into(), min: 0,
+                        max: Quantity::LifeChangeMagnitude.max(), dynamic: true });
+                }
                 if self.event_at == EventAt::Item && self.frame.quantity == Some(Quantity::Damage) {
                     return Ok(Number { code: "item.matched_damage_amount()".into(), min: 0,
                         max: Quantity::Damage.max(), dynamic: true });

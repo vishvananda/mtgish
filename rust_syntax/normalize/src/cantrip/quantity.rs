@@ -12,6 +12,8 @@ pub(super) enum Domain {
     DamagePrevented,
     CounterPlacement,
     LifeEffect,
+    /// Magnitude of an actual change between physically stored i32 totals.
+    LifeChangeMagnitude,
     PoisonEffect,
     // These remain physically bounded on the wide native API.
     LifeTotal,
@@ -23,6 +25,7 @@ impl Domain {
         if planned::switched_on(FEATURE) {
             match self {
                 Self::LifeTotal => "i32",
+                Self::LifeChangeMagnitude => "u32",
                 Self::ShieldCapacity => "u16",
                 Self::StoredCounter => "i16",
                 _ => "i64",
@@ -36,8 +39,7 @@ impl Domain {
                 | Self::DamagePrevented => "u16",
                 Self::CounterPlacement | Self::StoredCounter => "i16",
                 Self::LifeEffect | Self::LifeTotal => "i32",
-                Self::ShieldCapacity => "u16",
-                Self::PoisonEffect => "u32",
+                Self::LifeChangeMagnitude | Self::PoisonEffect => "u32",
             }
         }
     }
@@ -563,5 +565,106 @@ mod tests {
             assert!(!compiler.quantity_results.contains_key(&1));
             fs::remove_dir_all(dir).unwrap();
         });
+    }
+    #[test]
+    fn actual_life_delta_matchers_and_effects_roundtrip_u32_magnitudes_exactly() {
+        let (gains, losses, effect) = planned::with_features(&[FEATURE], || {
+            let mut compiler = Compiler::new();
+            let gains = compiler
+                .event(&EventSpec::Player {
+                    event: PlayerEvent::GainsLife,
+                    players: PlayerSet::All,
+                    objects: None,
+                })
+                .unwrap();
+            let losses = compiler
+                .event(&EventSpec::Player {
+                    event: PlayerEvent::LosesLife,
+                    players: PlayerSet::All,
+                    objects: None,
+                })
+                .unwrap();
+            compiler.frame = losses.frame;
+            compiler.event_at = EventAt::Item;
+            let quantity = compiler.number(&Expr::EventAmount).unwrap();
+            assert_eq!(quantity.max, i128::from(u32::MAX));
+            let mut effect = String::new();
+            compiler
+                .operation(
+                    &Operation::GainLife {
+                        players: PlayerSet::One(PlayerRef::AbilityController),
+                        amount: Expr::EventAmount,
+                    },
+                    &ResultId(0),
+                    &mut effect,
+                )
+                .unwrap();
+            (gains.history_test(), losses.history_test(), effect)
+        });
+        let source = format!(
+            r#"
+            #![allow(dead_code, unused_variables)]
+            type PlayerId = u8;
+            #[derive(Clone, Copy, Debug, PartialEq)] enum Target {{ Player(PlayerId) }}
+            enum Event {{ LifeChange {{ player: PlayerId, delta: i64 }}, Other }}
+            struct Record {{ event: Event }}
+            struct Fired {{ subject: Target, data: [u32; 2] }}
+            struct StackItem {{ data: [u32; 2] }}
+            struct Asker {{ controller: PlayerId }}
+            trait Query {{}}
+            trait Game: Query {{ fn gain_life(&mut self, player: PlayerId, amount: i64); }}
+            #[derive(Default)] struct Mock {{ gains: Vec<(PlayerId, i64)> }}
+            impl Query for Mock {{}}
+            impl Game for Mock {{ fn gain_life(&mut self, player: PlayerId, amount: i64) {{ self.gains.push((player, amount)); }} }}
+            fn resolve(g: &mut dyn Game, asker: &Asker, item: &StackItem) {{ {effect} }}
+            fn main() {{
+                let gains = {gains}; let losses = {losses};
+                let magnitude = i64::from(i32::MAX) - i64::from(i32::MIN);
+                assert_eq!(magnitude, i64::from(u32::MAX));
+                for n in [1, magnitude] {{
+                    let positive = Record {{ event: Event::LifeChange {{ player: 1, delta: n }} }};
+                    let negative = Record {{ event: Event::LifeChange {{ player: 1, delta: -n }} }};
+                    assert!(gains(&negative).is_none()); assert!(losses(&positive).is_none());
+                    for fired in [gains(&positive).unwrap(), losses(&negative).unwrap()] {{
+                        assert_eq!(fired.subject, Target::Player(1));
+                        assert_eq!(i64::from(fired.data[0]), n);
+                        let mut game = Mock::default();
+                        resolve(&mut game, &Asker {{ controller: 0 }}, &StackItem {{ data: fired.data }});
+                        assert_eq!(game.gains, [(0, n)]);
+                    }}
+                }}
+                let zero = Record {{ event: Event::LifeChange {{ player: 1, delta: 0 }} }};
+                assert!(gains(&zero).is_none()); assert!(losses(&zero).is_none());
+                // Forged history outside the native actual-delta invariant is
+                // rejected by the checked conversion, never silently truncated.
+                let invalid = Record {{ event: Event::LifeChange {{ player: 1, delta: magnitude + 1 }} }};
+                assert!(std::panic::catch_unwind(|| gains(&invalid)).is_err());
+            }}"#
+        );
+        let dir = std::env::temp_dir().join(format!(
+            "mtgish-actual-life-contract-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("main.rs"), &source).unwrap();
+        let built = Command::new("rustc")
+            .args(["--edition=2021", "-Dwarnings"])
+            .arg(dir.join("main.rs"))
+            .arg("-o")
+            .arg(dir.join("witness"))
+            .output()
+            .unwrap();
+        assert!(
+            built.status.success(),
+            "{}\n{source}",
+            String::from_utf8_lossy(&built.stderr)
+        );
+        let ran = Command::new(dir.join("witness")).output().unwrap();
+        assert!(
+            ran.status.success(),
+            "{}",
+            String::from_utf8_lossy(&ran.stderr)
+        );
+        fs::remove_dir_all(dir).unwrap();
     }
 }
