@@ -72,17 +72,18 @@ The subsequent result-membership pass is documented in
 [`rust-ast-result-membership-20261104.md`](rust-ast-result-membership-20261104.md).
 The battlefield-query pass follows in
 [`rust-ast-battlefield-queries-20261104.md`](rust-ast-battlefield-queries-20261104.md).
+Value-choice consolidation is documented in
+[`rust-ast-value-choices-20261104.md`](rust-ast-value-choices-20261104.md).
 
-Life expressions, result membership, and battlefield queries are consolidated. Ability replacement is partially
-consolidated: the singular alias is gone, while expansion of the plural wrapper remains. Movement and value choices
-remain separate candidates. The value-choice pass is now assigned to the AST worker; it is not yet implemented or
-validated.
+Life expressions, result membership, battlefield queries, and value choices are consolidated. Ability replacement
+is partially consolidated: the singular alias is gone, while expansion of the plural wrapper is assigned to the AST
+worker. Movement and embedded selection remain the other unfinished candidate.
 
 | Candidate | Assessment and next implementation boundary |
 | --- | --- |
 | Movement/embedded selection | Worth doing after a shared result allocator and resolution-context normalization exist. Start with deterministic, unconstrained movement; lower an embedded selection to `ChooseObjects` and preserve the move's result separately. Then use one typed entry specification. The existing `chosen_then_moved` transformation only handles one narrow bound-player case and changes `Exactly` to `AsManyAsCan` specifically for resolution. Random library order, group constraints, face-down arrival and simultaneous choices need explicit representations and separate tests. Do not apply that count conversion to costs or target declarations. |
 | Full ability replacement expansion | The singular alias is gone. Expanding the plural node requires moving entry-as-Aura Enchant extraction into a shared typed entry path, then expanding ordered changes within the original effect in both static and resolving contexts. Preserve effect grouping and ability-layer ordering. |
-| Value choices | Replace the two operation forms with one typed choice node only after representing default-one versus any-number explicitly. `ChooseValue.count == 0` is unbounded; `ChoiceTerms.count == None` means one. Audit as-enters discovery in `chosen.rs`, richer-term fallback in `lane_l.rs`, ability subsets, secret/random/order/exclusion flags and result bookkeeping before deleting either form. Equivalent backend calls alone do not prove these forms equivalent in context. |
+| Value choices | Complete: one `ChooseValue` with explicit `ChoiceCount::Exactly`, `UpTo`, or `AnyNumber`. Default-one, exact zero, rich terms, as-enters discovery, scalar results, and lexical scope are preserved. The linked report records full native and generated-output comparisons; schema is now 173. |
 | Result membership | Complete: typed continuation reads preserve result roles and lexical scope; membership uses `InSet(Named(r))`. Full native and generated-output comparisons are recorded in the linked report. |
 | Battlefield queries | Complete: the alias is removed in favor of Shared/Battlefield/Permanent, with shared accessors and preserved token, historical, scoped, and stale-object behavior. Full comparisons are recorded in the linked report; schema is now 172. |
 | Life expressions | Complete for the proposed alias: signed bounds are preserved. Optional aggregate-life bound improvements would be separate arithmetic work, with empty-player-set tests. |

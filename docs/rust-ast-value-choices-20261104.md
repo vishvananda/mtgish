@@ -106,6 +106,12 @@ No source corpus, immutable reference/gold/scorer data, live pipeline, engine,
 Cantrip vocabulary, or root worktree files were changed. Build processes used
 this worktree's own target directory and are terminal.
 
+Root integration cherry-picked the implementation as `b454190` and the report
+as `62b6d53`, preserving the later vocabulary fingerprint and preparation fixes.
+All 31 tests across the five merged choice, reference, result, regeneration and
+delayed-label suites pass in
+`~/card-lane/pipeline-unlimited-20261103/integration/value-choice-merged-tests.log`.
+
 ## Remaining consolidation
 
 This finishes the full value-choice candidate. The broad movement/embedded
