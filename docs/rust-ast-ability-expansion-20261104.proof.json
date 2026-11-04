@@ -1,0 +1,95 @@
+{
+  "base": "62b6d53",
+  "branch": "refactor/semantic-ability-changes",
+  "schema": {
+    "before": 173,
+    "after": 174
+  },
+  "native": {
+    "records": 33529,
+    "affected_records": 11,
+    "expanded_nodes": 12,
+    "keyword_grants": 6,
+    "other_grants": 8,
+    "schema_before": 173,
+    "schema_after": 174,
+    "native_exact_after_only_declared_migration": true,
+    "all_record_diagnostics_and_capabilities_exact": true,
+    "only_declared_inventory_delta": true,
+    "changed_input_fingerprints": [
+      "rust_syntax/normalize/src/cantrip/lane_i.rs",
+      "rust_syntax/normalize/src/cantrip/lane_j.rs",
+      "rust_syntax/normalize/src/cantrip/lane_o.rs",
+      "rust_syntax/normalize/src/cantrip/statics.rs",
+      "rust_syntax/normalize/src/change_lists.rs",
+      "rust_syntax/normalize/src/inventory.rs",
+      "rust_syntax/normalize/src/ir.rs",
+      "rust_syntax/normalize/src/lower.rs",
+      "rust_syntax/normalize/src/lower_named.rs",
+      "rust_syntax/normalize/src/lower_scopes.rs",
+      "rust_syntax/normalize/src/reduce_card_rules.rs",
+      "rust_syntax/normalize/src/reduce_effects.rs",
+      "rust_syntax/normalize/src/reduce_more.rs",
+      "rust_syntax/normalize/src/semantics.rs",
+      "rust_syntax/normalize/src/validate.rs"
+    ],
+    "backend_capable": 28511
+  },
+  "generated": {
+    "affected": {
+      "records": 11,
+      "requested_names": 11,
+      "complete_modules": 7,
+      "full_diagnostic_lists": 4,
+      "byte_identical_bodies_or_diagnostics": 9,
+      "only_verified_bound_effect_kind_identifier_renames": {
+        "Dragonshift": {
+          "kind_0_4_1": "kind_0_4_0",
+          "kind_1_4_1": "kind_1_4_0"
+        },
+        "Kitesail Larcenist": {
+          "kind_0_4_1": "kind_0_4_0"
+        }
+      },
+      "before_sha256": "7e9648673065068d320a12ac5759bd2d1cc847d57bc6da7fce4db7cd2aac242c",
+      "after_sha256": "f0c91c1ee7a3838a0e3abbec0368e55df575b474f262a97ae6f9750a459dd1d6"
+    },
+    "controls": {
+      "records": 266,
+      "requested_names": 272,
+      "complete_modules": 217,
+      "full_diagnostic_lists": 49,
+      "byte_identical_bodies_or_diagnostics": 266,
+      "only_verified_bound_effect_kind_identifier_renames": {},
+      "before_sha256": "3123651bc3fa55eecf1f6b49d55a7e4a7bdc1b8ec975b9c4f6c6a1c38b10fc96",
+      "after_sha256": "35b3f6a96dc133f45cd967c861de37524612e7f8797b22fc87b51e392172ecb8"
+    }
+  },
+  "tests": {
+    "targets": 89,
+    "passing": 951,
+    "failing": 0,
+    "existing_ignored": 2,
+    "new_integration_tests": 7,
+    "new_library_controls": 4,
+    "final_ability_expansion_rerun": 7
+  },
+  "ordinary_intrinsic_cda_invalid_payload_rejection": true,
+  "copiable_intrinsic_definition_positive_control": true,
+  "entry_final_loss_and_quoted_identity_controls": true,
+  "granted_refs_stage_snapshot_and_regeneration_branches_unchanged": true,
+  "artifact_sha256": {
+    "before.unified.ronl": "555fe13d4c50d7a99b23d8f1c189e225e92062f44d3d6c43ae768fc8adf22e0e",
+    "after.unified.ronl": "8d114e796d11a5aa67a5b2c4e6d402cf0173de951e45423042df0200cc3026e0",
+    "before-backend-report.json": "7f7e41df3165df228970ba64abb10b3eadfbc2bda28aa14fcd14cb1733cbea26",
+    "after-backend-report.json": "e10a2a9247edb0c71b1a594d9aefaaefd481cedbac6d70c15562b7509d06c000",
+    "before.modules.rs": "7e9648673065068d320a12ac5759bd2d1cc847d57bc6da7fce4db7cd2aac242c",
+    "after.modules.rs": "f0c91c1ee7a3838a0e3abbec0368e55df575b474f262a97ae6f9750a459dd1d6",
+    "before.controls.rs": "3123651bc3fa55eecf1f6b49d55a7e4a7bdc1b8ec975b9c4f6c6a1c38b10fc96",
+    "after.controls.rs": "35b3f6a96dc133f45cd967c861de37524612e7f8797b22fc87b51e392172ecb8",
+    "verified-tests.log": "da2f97eae8897f98607efc4576b165e3980d0152a31a5d449386bc42c9a0a8d0",
+    "final-ability-tests.log": "ee85a3320b411a96fc7d6b03a73aa647f5ac21e51eeb36f2d4e4b0003aba2891"
+  },
+  "captured_fixture_sha256": "bc14545c3acfb7b2fbf7c165c63dc4067d4e7e597febb45e2ac1e50fa8ca73a8",
+  "implementation_commit": "31f58846c5b54cc1fd956e456f7e537927ebde90"
+}
