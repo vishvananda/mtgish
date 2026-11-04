@@ -5,6 +5,7 @@ mod audit;
 mod bindings;
 mod created;
 mod departures;
+mod entry;
 mod event_order;
 
 // Reuse the existing canonical regression suite without building the export CLI.

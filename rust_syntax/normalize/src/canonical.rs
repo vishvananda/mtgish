@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
+mod entry;
 mod events;
 #[cfg(test)]
 mod tests;
@@ -202,6 +203,11 @@ impl Walker {
         }
         let scoped = name == "Ability";
         if scoped {
+            if !self.keep_order && value["kind"] == "Triggered" {
+                if let Some((_, fields)) = self.schema.variant("Ability", "Triggered") {
+                    entry::header(&mut value["args"], fields, self.schema);
+                }
+            }
             self.scopes.push(Ids {
                 visit: self.visits,
                 ..Ids::default()
@@ -234,6 +240,9 @@ impl Walker {
 
     fn variant(&mut self, value: &mut Value, name: &str, adjacent: bool) {
         let schema = self.schema;
+        if name == "EventSpec" && !self.keep_order {
+            entry::player(value, schema);
+        }
         let variant = if adjacent {
             value
                 .get("kind")
@@ -289,6 +298,11 @@ impl Walker {
                 ("EventSpec", "ZoneChange") => {
                     if value["ZoneChange"]["to"] == "Battlefield" {
                         drop_permanent_types(&mut value["ZoneChange"]["objects"]);
+                    }
+                }
+                ("EventSpec", "Player") => {
+                    if !self.keep_order && value["Player"]["event"] == "EntersUnderControl" {
+                        drop_permanent_types(&mut value["Player"]["objects"]);
                     }
                 }
                 ("EventSpec", "Either") if !self.keep_order => {
@@ -365,6 +379,9 @@ impl Walker {
                 let previous_binding = binding
                     .then(|| self.scopes.last().map(|s| s.maps.get("binding").cloned()))
                     .flatten();
+                if owner == "Operation::CreateTrigger" && !self.keep_order {
+                    entry::header(value, fields, self.schema);
+                }
                 let created = events::created(owner, value);
                 let old_reductions = self.reference_reductions;
                 if matches!(
