@@ -1326,6 +1326,14 @@ class SyntaxNotes(unittest.TestCase):
 
 
 class ContextBudget(unittest.TestCase):
+    def test_idle_context_expires_only_after_an_hour_since_completion(self):
+        idle = lane.context_budget.idle_restart
+        self.assertFalse(idle(None, now=10000))
+        self.assertFalse(idle(100, now=99))
+        self.assertFalse(idle(100, now=3699))
+        self.assertFalse(idle(100, now=3700))
+        self.assertTrue(idle(100, now=3700.001))
+
     def test_rollout_uses_latest_request_and_counts_compactions(self):
         with tempfile.TemporaryDirectory() as scratch:
             path = Path(scratch) / 'sessions' / '2026' / 'rollout-abc.jsonl'

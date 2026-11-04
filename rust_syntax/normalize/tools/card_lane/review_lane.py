@@ -23,6 +23,8 @@ import traceback
 import tomllib
 import unicodedata
 
+import context_budget
+
 HERE = Path(__file__).resolve().parent
 DEFAULT_ROOT = Path.home() / "card-lane" / "pipeline"
 
@@ -170,7 +172,8 @@ def clean(tree):
 
 def driver_stamp():
     paths = [HERE / name for name in (
-        'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py', 'card_lane.py')]
+        'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py', 'card_lane.py',
+        'context_budget.py')]
     paths.append(HERE.parent / 'cantrip_tree.py')
     return tuple(path.stat().st_mtime_ns for path in paths)
 
@@ -889,6 +892,7 @@ def worker(root, slot, once=False, resume=None):
     with (folder / "slot.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         session, context_cards, previous_usage, session_role = None, 0, None, None
+        last_finished = None
         stamp = driver_stamp()
         while True:
             cfg = config(root)
@@ -949,6 +953,12 @@ def worker(root, slot, once=False, resume=None):
                     lane.environment = lambda: dict(original_environment(), REVIEW_LANE_CURRENT=str(folder / "current.json"), CARGO_BUILD_JOBS="8")
                     dedicated_verifier = cfg["reviewers"][slot].get("role") == "confirm"
                     if job["stage"] == "confirm" and not dedicated_verifier:
+                        session, context_cards, previous_usage = None, 0, None
+                    if session and context_budget.idle_restart(last_finished):
+                        event(db, job["id"], slot, "context_rotation",
+                              dict(reason="idle", idle_seconds=time.monotonic() - last_finished,
+                                   cards=context_cards))
+                        db.commit()
                         session, context_cards, previous_usage = None, 0, None
                     cap = cfg.get("cards_per_context", 20)
                     try:
@@ -1058,6 +1068,7 @@ def worker(root, slot, once=False, resume=None):
                             print("Infrastructure stop; card work retained on", branch, flush=True)
                             return
                     save(packet_dir / "result.json", result)
+                    last_finished = time.monotonic()
                     print(source["name"], job["stage"], result["seconds"], "seconds", flush=True)
                 except Exception as error:
                     branch=git(tree,'branch','--show-current')

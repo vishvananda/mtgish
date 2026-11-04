@@ -357,6 +357,62 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(sessions,[None,'independent-verifier-session'])
 
 
+    def test_review_and_verification_expire_idle_context_before_the_next_card(self):
+        import card_lane
+        for role in ('review', 'confirm'):
+            with self.subTest(role=role):
+                root = self.root/role
+                tree = root/'tree'
+                tree.mkdir(parents=True)
+                lane.save(root/'config.json', {'reviewers': {'slot': {'tree': str(tree), 'role': role}},
+                                               'review_model': 'test', 'repairs': 0})
+                with lane.connect(root) as db:
+                    for name in ('A', 'B', 'C'):
+                        lane.enqueue(db, {'name': name, 'commit': name})
+                    db.execute('UPDATE jobs SET stage=?,candidate=?', (role, 'candidate'))
+                clock, sessions = [0.0], []
+                def prepare(root, tree, job):
+                    clock[0] += (0, 3600, 3600.001)[len(sessions)]
+                    return 'branch', 'parent', json.loads(job['source'])
+                def packet(root, tree, job, source, backend):
+                    folder = root/job['id']
+                    folder.mkdir()
+                    lane.save(folder/'review.json', {'decision': 'pass', 'validation': [{'agrees': True}],
+                                                     'affected_cards': [source['name']], 'client': 'unchanged'})
+                    lane.save(folder/'checks.json', {'ok': True, 'diff_digest': 'digest'})
+                    return folder
+                def spawn(backend, card, prompt, session, timeout, log):
+                    sessions.append(session)
+                    if len(sessions) == 3:
+                        cfg = lane.config(root)
+                        cfg['enabled'] = False
+                        lane.save(root/'config.json', cfg)
+                    used = card_lane.Usage()
+                    used.input, used.turns = (20 if session else 10), 1
+                    return 0, 'retained', used
+                fake = SimpleNamespace(environment=lambda: {}, Usage=card_lane.Usage,
+                                       Codex=lambda model, effort: SimpleNamespace(model=model), spawn=spawn)
+                with mock.patch.object(lane, 'clean'), mock.patch.object(lane, 'git', return_value=''), \
+                     mock.patch.object(lane, 'prepare', side_effect=prepare), \
+                     mock.patch.object(lane, 'load_lane', return_value=fake), \
+                     mock.patch.object(lane, 'packet', side_effect=packet), \
+                     mock.patch.object(lane, 'prompt', return_value=role), \
+                     mock.patch.object(lane, 'allowed_changes', return_value=[]), \
+                     mock.patch.object(lane, 'work_digest', return_value='digest'), \
+                     mock.patch.object(lane, 'commit_candidate', return_value='candidate'), \
+                     mock.patch.object(lane.context_budget, 'session_context', return_value={}), \
+                     mock.patch.object(lane.time, 'monotonic', side_effect=lambda: clock[0]):
+                    lane.worker(root, 'slot')
+                self.assertEqual(sessions, [None, 'retained', None])
+                with lane.connect(root) as db:
+                    rotations = [json.loads(r['detail']) for r in db.execute("SELECT detail FROM events WHERE kind='context_rotation'")]
+                    self.assertEqual(len(rotations), 1)
+                    self.assertEqual(rotations[0]['reason'], 'idle')
+                    self.assertGreater(rotations[0]['idle_seconds'], 3600)
+                    results = [json.loads(r['result']) for r in db.execute('SELECT result FROM jobs')]
+                    self.assertEqual([r['usage']['input'] for r in results], [10, 10, 10])
+
+
 class GitTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

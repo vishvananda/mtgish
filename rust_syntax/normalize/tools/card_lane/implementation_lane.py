@@ -146,6 +146,7 @@ class Session:
         self.session = None
         self.cards = 0
         self.previous = None
+        self.last_finished = None
         self.original = lane.spawn
         self.total = None
         self.attempts = []
@@ -155,11 +156,16 @@ class Session:
         cap = self.cfg.get('implementation_cards_per_context', 20)
         if not cap and metrics.get('last_tokens') is None:
             cap = 20  # Keep a bounded fallback when the rollout cannot be measured.
-        if self.session and ((cap and self.cards >= cap) or
+        if self.session and (context_budget.idle_restart(self.last_finished) or
+                             (cap and self.cards >= cap) or
                              context_budget.budget_restart(metrics, self.cfg.get('context_tokens', 300000))):
             self.session, self.cards, self.previous = None, 0, None
         self.total = self.lane.Usage()
         self.attempts = []
+
+    def finish_card(self):
+        self.cards += 1
+        self.last_finished = time.monotonic()
 
     def spawn(self, backend, card, prompt, session, timeout, log):
         deadline = time.monotonic() + timeout
@@ -255,7 +261,6 @@ def worker(root, slot, once=False):
             try:
                 args = SimpleNamespace(timeout=cfg.get('timeout_seconds', 3600), repairs=cfg.get('repairs', 3))
                 outcome = lane.run_card(card, backend, args, queue)
-                session.cards += 1
                 result = dict(card=card, elapsed_seconds=round(time.monotonic()-started, 2), attempts=session.attempts)
                 if outcome == 'committed':
                     source = dict(card, producer=slot, producer_tree=str(tree),
@@ -266,6 +271,7 @@ def worker(root, slot, once=False):
                     db = review.connect(root)
                     review.enqueue(db, source, cfg.get('priorities', {}).get(card['name'], 0))
                 finish(root, job, outcome, result)
+                session.finish_card()
                 if outcome in ('infrastructure', 'error', 'timeout'):
                     return
             except Exception as error:

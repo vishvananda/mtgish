@@ -206,6 +206,9 @@ Both stages measure latest-request context from Codex rollouts, separately from 
 restart at a card boundary at 300,000 measured tokens or 20 cards, whichever comes first. Implementation streams
 accept `--context-budget` and `--context-cards`; reviewers use `context_tokens` and `cards_per_context` in config.
 Zero removes the card cap; implementations retain a 20-card fallback when context measurement is unavailable.
+Implementation, review and dedicated verification queue workers also discard retained context when more than
+one hour has passed since they finished their previous card. They check before starting the next card; a long
+running card and its repair turns keep their context. Waiting for work does not refresh the idle timer.
 
 A narrowly trusted `PreCompact` hook returns `continue: false` before automatic compaction. A stopped worker
 restarts in fresh context on the **same unfinished card**, keeping its files and packet. Three repeated stops on

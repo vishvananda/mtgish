@@ -149,6 +149,30 @@ class ImplementationLaneTests(unittest.TestCase):
         assert calls[0] is None and all(s == 'session' for s in calls[1:20]) and calls[20] is None
 
 
+    def test_idle_session_restarts_without_reusing_cumulative_usage(self):
+        clock, calls = [10.0], []
+        def spawn(backend, card, prompt, session, timeout, log):
+            calls.append(session)
+            used = card_lane.Usage()
+            used.input = (10, 20, 30, 10)[len(calls) - 1]
+            used.turns = 1
+            if len(calls) == 2:
+                clock[0] += 7200  # A long current card does not make its next card stale.
+            return 0, 'session', used
+        lane = SimpleNamespace(spawn=spawn, Usage=card_lane.Usage)
+        state = impl.Session(lane, {}, self.tmp_path)
+        backend = SimpleNamespace(cumulative=True, model='gpt-6.1-terra')
+        with mock.patch.object(impl.time, 'monotonic', side_effect=lambda: clock[0]), \
+             mock.patch.object(impl.context_budget, 'session_context', return_value={}):
+            for gap in (0, 3600, 0, 3600.001):
+                clock[0] += gap
+                state.start_card()
+                _, _, used = state.spawn(backend, {'name': 'A'}, 'prompt', None, 10000, self.tmp_path/'log')
+                self.assertEqual(used.input, 10)
+                state.finish_card()
+        self.assertEqual(calls, [None, 'session', 'session', None])
+        self.assertEqual(state.cards, 1)
+
     def test_precompact_resumes_same_card(self):
         tmp_path = self.tmp_path
         calls = []

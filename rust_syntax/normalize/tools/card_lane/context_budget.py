@@ -2,6 +2,18 @@
 import json
 import os
 from pathlib import Path
+import time
+
+
+IDLE_CONTEXT_SECONDS = 60 * 60
+
+
+def idle_restart(last_finished, *, now=None):
+    """Expire retained context between cards, never during work on the current card."""
+    if last_finished is None:
+        return False
+    current = time.monotonic() if now is None else now
+    return current - last_finished > IDLE_CONTEXT_SECONDS
 
 
 def session_context(session, codex_home=None):
