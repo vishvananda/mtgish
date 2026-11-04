@@ -292,7 +292,6 @@ Card(
             TapAPermanent(And([
               IsUntapped,
               IsCreatureType(Bird),
-              IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
             ])),
             SacrificeAPermanent(IsCardtype(Artifact)),
@@ -3519,7 +3518,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Octopus),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -25205,7 +25203,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),
@@ -52261,7 +52258,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Spider),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -89463,7 +89459,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Wizard),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       ActionList([
@@ -137067,7 +137062,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Vampire),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       (Targeted(
@@ -146423,7 +146417,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Ally),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -222427,7 +222420,6 @@ Transforming(
           TapAPermanent(And([
             IsUntapped,
             IsCreatureType(Vampire),
-            IsCardtype(Creature),
             ControlledByAPlayer(SinglePlayer(You)),
           ])),
         ]),
@@ -227811,7 +227803,6 @@ Card(
           And([
             IsUntapped,
             IsCreatureType(Citizen),
-            IsCardtype(Creature),
             ControlledByAPlayer(SinglePlayer(You)),
           ]),
         ]))),
@@ -352032,7 +352023,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),
@@ -360424,7 +360414,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Merfolk),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -367304,7 +367293,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Dwarf),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -390955,7 +390943,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Zombie),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -422434,7 +422421,6 @@ Card(
     Replicate(TapAPermanent(And([
       IsUntapped,
       IsCreatureType(Dalek),
-      IsCardtype(Creature),
       ControlledByAPlayer(SinglePlayer(You)),
     ]))),
     SpellActions(Targeted(
@@ -493979,7 +493965,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Wizard),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -608962,14 +608947,14 @@ Card(
         ]),
       ),
     ),
-    PlayerEffect(
+    MaxSpeed(PlayerEffect(
       You,
       [
         MayPayAlternateCostForFirstUnearthCostEachTurn([
           ManaCostGeneric(0),
         ]),
       ],
-    ),
+    )),
   ],
   CardPT: (
     Power: 4,
@@ -737204,7 +737189,6 @@ Card(
         And([
           IsUntapped,
           IsCreatureType(Merfolk),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ]),
       ])),
@@ -797827,7 +797811,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),
@@ -812783,7 +812766,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Cleric),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -868859,7 +868841,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),
@@ -894317,7 +894298,6 @@ Card(
     CastEffect(AdditionalCastingCost(TapAPermanent(And([
       IsUntapped,
       IsCreatureType(Vampire),
-      IsCardtype(Creature),
       ControlledByAPlayer(SinglePlayer(You)),
     ])))),
     SpellActions(Targeted(
@@ -929315,7 +929295,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),
@@ -941777,7 +941756,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Rebel),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),
@@ -958581,7 +958559,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Wizard),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -1007335,7 +1007312,6 @@ Card(
     Replicate(TapAPermanent(And([
       IsUntapped,
       IsCreatureType(Horror),
-      IsCardtype(Creature),
       ControlledByAPlayer(SinglePlayer(You)),
     ]))),
     SpellActions(Targeted(
@@ -1158755,7 +1158731,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Druid),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       ActionList([
@@ -1160933,7 +1160908,6 @@ Card(
         And([
           IsUntapped,
           IsCreatureType(Rogue),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ]),
       ])),
@@ -1232843,7 +1232817,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),
@@ -1270885,7 +1270858,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),
@@ -1295338,7 +1295310,6 @@ Card(
         And([
           IsUntapped,
           IsCreatureType(Rogue),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ]),
       ])),
@@ -1462431,7 +1462402,6 @@ Card(
         And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ]),
       ])),
@@ -1468923,7 +1468893,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Villain),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       ActionList([
@@ -1477501,7 +1477470,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Merfolk),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       ActionList([
@@ -1477518,7 +1477486,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Merfolk),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       ActionList([
@@ -1548238,7 +1548205,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),
@@ -1554893,7 +1554859,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Zombie),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -1554915,7 +1554880,6 @@ Card(
       TapAPermanent(And([
         IsUntapped,
         IsCreatureType(Zombie),
-        IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       Targeted(
@@ -1555848,7 +1555812,6 @@ Card(
         TapAPermanent(And([
           IsUntapped,
           IsCreatureType(Ally),
-          IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
       ]),

@@ -176,13 +176,13 @@ func TestGrammarAuditReviewedCorpusEvidence(t *testing.T) {
 			automatic++
 		}
 	}
-	if len(report.Findings) != 188 || automatic != 151 {
-		t.Fatalf("expected 151 scalar cases plus 37 context cases, got %d total and %d scalar", len(report.Findings), automatic)
+	if len(report.Findings) != 185 || automatic != 148 {
+		t.Fatalf("expected 148 scalar cases plus 37 context cases, got %d total and %d scalar", len(report.Findings), automatic)
 	}
 	if err := ReviewGrammarAudit(&report, "../data/grammar_audit_review.json", true); err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Findings) != 0 || len(report.Reviewed) != 188 {
+	if len(report.Findings) != 0 || len(report.Reviewed) != 185 {
 		t.Fatalf("%d unresolved reviewed findings; review status: %s", len(report.Findings), report.ReviewStatus)
 	}
 }

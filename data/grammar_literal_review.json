@@ -9673,6 +9673,50 @@
    "template": "Another target {{Permanent}} gains protection from the card type of your choice until end of turn",
    "result": "Targeted([TargetPermanent(And([Other({{ThatPermanent}}), {{Permanent[0]}}]))], ActionList([ChooseACardtype, CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [AddAbility([Protection(FromTypes(IsCardtypeVariable(TheChosenCardtype)))])], UntilEndOfTurn)]))",
    "reason": "triaged 2026-11-02: reads correctly; the card says \"of that type\" or \"of your choice\" for the chosen card type, and this finding appeared once Karona's creature type stopped reading as a card type (#166)"
+  },
+  {
+    "id": "2ff61627760110f72b9c2565bfcd6d5651cf8673065de273fdab0a595f711cb0",
+    "kind": "mined_word",
+    "rule": "ActivatedActions(ThatPermanent)",
+    "token": "MaxSpeed",
+    "word": "speed",
+    "support": "26/30",
+    "template": "It deals {{Digits}} damage to each player who doesn't have max speed",
+    "result": "ActionList([PermanentDealsDamage({{ThatPermanent}}, {{Digits[0]}}, EachPlayer(DoesntHaveMaxSpeed))])",
+    "reason": "Reviewed 2026-11-04 after Highway Reaver added a MaxSpeed wrapper and shifted the mining threshold: DoesntHaveMaxSpeed implements the printed lack of max speed; a separate MaxSpeed wrapper would invert or gate the action."
+  },
+  {
+    "id": "37c24d29c3057c1a2a542cf3a928154267bca56013314fe00da211c648f81dcd",
+    "kind": "mined_word",
+    "rule": "Condition",
+    "token": "MaxSpeed",
+    "word": "speed",
+    "support": "26/30",
+    "template": "you have max speed",
+    "result": "PlayerPassesFilter(You, HasMaxSpeed)",
+    "reason": "Reviewed 2026-11-04 after Highway Reaver added a MaxSpeed wrapper and shifted the mining threshold: HasMaxSpeed is the condition itself; the MaxSpeed rule wrapper is not a player filter."
+  },
+  {
+    "id": "531f4b4c358500b67d411d0e3a3f735bc377195d678586f7f9eec72a92abbba1",
+    "kind": "mined_word",
+    "rule": "GameNumber",
+    "token": "MaxSpeed",
+    "word": "speed",
+    "support": "26/30",
+    "template": "your speed",
+    "result": "SpeedOfPlayer(You)",
+    "reason": "Reviewed 2026-11-04 after Highway Reaver added a MaxSpeed wrapper and shifted the mining threshold: SpeedOfPlayer reads the numeric speed, not a max-speed gate."
+  },
+  {
+    "id": "920d5c598091139177b794ac75c636f30f353de5fd61d6be6b35bf1f68d162ac",
+    "kind": "mined_word",
+    "rule": "TriggerActions",
+    "token": "MaxSpeed",
+    "word": "speed",
+    "support": "26/30",
+    "template": "return target creature or Vehicle an opponent controls to its owner's hand. If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1. This effect can't reduce their speed below 1",
+    "result": "Targeted([TargetPermanent(And([Or([IsCardtype(Creature), IsArtifactType(Vehicle)]), ControlledByAPlayer(Opponent)]))], ActionList([PutPermanentIntoItsOwnersHand(Ref_TargetPermanent), If(PlayerPassesFilter(ControllerOfPermanent(Ref_TargetPermanent), SpeedIs(GreaterThan(TheHighestSpeedAmongPlayers(Other(ControllerOfPermanent(Ref_TargetPermanent)))))), [ReducePlayersSpeedToNoLessThan(ControllerOfPermanent(Ref_TargetPermanent), Integer(1), Integer(1))])]))",
+    "reason": "Reviewed 2026-11-04 after Highway Reaver added a MaxSpeed wrapper and shifted the mining threshold: SpeedIs and ReducePlayersSpeedToNoLessThan implement the printed comparison and reduction; this text has no max-speed prerequisite."
   }
 ]
 }

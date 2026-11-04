@@ -20,6 +20,10 @@ func TestDiscardedCardReturnReference(t *testing.T) {
 	testSourceReferenceFixtures(t, "discard_return.ronl")
 }
 
+func TestTapSubtypeCostsAndMaxSpeedReference(t *testing.T) {
+	testSourceReferenceFixtures(t, "reference_costs.ronl")
+}
+
 func testSourceReferenceFixtures(t *testing.T, fixtureNames ...string) {
 	t.Helper()
 	englishFiles, _ := filepath.Glob("../grammars/english_grammar*.json5")

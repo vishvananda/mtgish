@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "rules": 33190,
+  "rules": 33192,
   "sources": {
     "grammars/english_grammar-INPUT.json5": "9bf36603040f3eb3018a65f8520554300a6307cda98bb1df3034f454adafdbe6",
     "grammars/english_grammar-ability_word.json5": "bd1eb337e7a29f7f27e2124944c6ac3ebfa545bac51d65faba595de71063d3fb",
@@ -10,7 +10,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "06050dfd2da05b42ce89e9d49a07802382d5f37787e80cff32acc055782679af"
+    "grammars/english_grammar.json5": "850b924f6977314c72a73fab148cc8d88387dccbed8ab64d5e3699aa18de912b"
   },
   "source_order": [
     "grammars/english_grammar-INPUT.json5",
@@ -31,7 +31,7 @@
     "go_mtg_parser/clean_rules_text.go": "ea8917bf330d361afffa43c56340a8746f6cbe8c994aeb2c9789b6e6d1c6ab40",
     "go_mtg_parser/go.mod": "8e1f33bbe2be97798fd7b5e2df7da71eadd97ef37d7ecf9cbba89df076769993",
     "go_mtg_parser/jsonc.go": "271decc6b1b04aa723450401a66be83ccbc5e6d4b329dc26ca3da03562cd5332",
-    "go_mtg_parser/main.go": "3ec8e1632493e41be46b8fa036edc945c96a22e83b3f4d4bef272bf04a8dc4e0",
+    "go_mtg_parser/main.go": "ada21a5a310f5fa7bf952ba5e9eb98f19c4d7f9a594fff933395db6991d8f00d",
     "go_mtg_parser/prefix_tree.go": "d8b6a1b5f8d8c4e602e451cd289bd0143e9877a639845c48c153ff28342e1d2b",
     "go_mtg_parser/serialize.go": "fb654cb71be04c4dff500ae4efe5f976fa3c0a3a948c013fb9fa76a26c848b05",
     "grammars/english_grammar-INPUT.json5": "9bf36603040f3eb3018a65f8520554300a6307cda98bb1df3034f454adafdbe6",
@@ -42,20 +42,20 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "06050dfd2da05b42ce89e9d49a07802382d5f37787e80cff32acc055782679af",
-    "grammars/find_replace.json5": "b58cddf2b8729603e0abd05ff9ac4880e99ac791e942362490d0bf94c435be44",
+    "grammars/english_grammar.json5": "850b924f6977314c72a73fab148cc8d88387dccbed8ab64d5e3699aa18de912b",
+    "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
     "grammars/mtgish_grammar-create_tokens.json5": "13100305c8edb8ec9c4002e59250c3011c01598a332ffe6c7258090b70230554",
     "grammars/mtgish_grammar-exile.json5": "31f6ac351b04ef00c1fbcac5706c4ee1f2e6802272a62c686959b8084fe981b3",
     "grammars/mtgish_grammar-fight.json5": "d7ff5d99d50e960a10f560da82c8dbe7a219b6b6827f0697310a8b0a0b90db6c",
     "grammars/mtgish_grammar-mana.json5": "1212a7f06a53ba3032673c18d129267f1256384e0c6c3fa604aff846de1960bb",
-    "grammars/mtgish_grammar-named_cards.json5": "a44e7d644245c567452cef8d723e8b6dd2bcd11c7f5880c43320d1ff934f3be0",
+    "grammars/mtgish_grammar-named_cards.json5": "20cf1602077a3e3864f0b6a3e74bb933a547f58d5c129b81812d5c5f635199a0",
     "grammars/mtgish_grammar-put_counters.json5": "77425da052f6e30ba54e23b90f41e440a3e484a72f2cb28bd39d22ce24fe6c23",
     "grammars/mtgish_grammar-triggers.json5": "96b070faa84d9a5cad36071d156a01e6139a8590a57f3b51a9b94fca9c1dff24",
     "grammars/mtgish_grammar-type_line.json5": "27f424e58808988f4317eacf3f6aee9ace7d360ca886e034f099e7e1c10a81ae",
     "grammars/mtgish_grammar-vote_option.json5": "93e2f2472543b1a6865d80c7d45032788759dfc365c41d5dfb0a424cd65587e3",
-    "grammars/mtgish_grammar.json5": "4274be1d1d6f806efc5a53c768aba76a8216d777387f25a69cf9af69cdb23463",
+    "grammars/mtgish_grammar.json5": "cdecacef7bbaf54a95540b7bac47b2e574aa57ecd8f94adb8537670a558c882c",
     "grammars/short_names.json5": "dd44ee8da0d0546722fa3b83de3d042c5f147cbe7553ad8e200c3b572b2c76a3"
   },
   "parsed_cards": 33529,
@@ -255,34 +255,6 @@
             ],
             "a": [
               "a"
-            ]
-          }
-        }
-      ],
-      "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
-    },
-    {
-      "id": "63c82ce614f8738b8f98ed5794ecad4c365c94e80c8867a0bc553b130645c69a",
-      "file": "grammars/english_grammar.json5",
-      "line": 1833,
-      "rule": "ActivatedActions(~Permanent)",
-      "kind": "unused_semantic_capture",
-      "severity": "error",
-      "capture": "Digits[1]",
-      "input": "{{ThisPermanent}}'s power becomes the toughness of target creature blocking or being blocked by this creature minus {{Digits}} until end of turn, and its toughness becomes {{Digits}} plus the power of that creature until end of turn",
-      "output": "Targeted([TargetPermanent(And([IsCardtype(Creature), Or([IsBlockingAttacker(ThisPermanent), IsBlockedByDefender(ThisPermanent)])]))], ActionList([CreatePermanentLayerEffectUntil(ThisPermanent, [SetPower(Minus(ToughnessOfPermanent(Ref_TargetPermanent), {{Digits[0]}})), SetToughness(PowerOfPermanent(Ref_TargetPermanent))], UntilEndOfTurn)]))",
-      "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
-      "usage": [
-        {
-          "card": "Sworn Defender",
-          "matched_text": "This creature's power becomes the toughness of target creature blocking or being blocked by this creature minus 1 until end of turn, and its toughness becomes 1 plus the power of that creature until end of turn",
-          "captures": {
-            "Digits": [
-              "1",
-              "1"
-            ],
-            "ThisPermanent": [
-              "This creature"
             ]
           }
         }
@@ -744,7 +716,7 @@
     {
       "id": "73d3c33a161c207fc48861db5f04e2a7826131bee2ff5efeff1c9cd561396cd5",
       "file": "grammars/english_grammar.json5",
-      "line": 7339,
+      "line": 7340,
       "rule": "EmblemQuotedAbility",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -772,7 +744,7 @@
     {
       "id": "f51d84446570eb37dc85162dda2951f799fd0d8c434b6fa7c5d0c8eacb352bca",
       "file": "grammars/english_grammar.json5",
-      "line": 7339,
+      "line": 7340,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -800,7 +772,7 @@
     {
       "id": "cf1fb5d6093515d01e97518049195c01a7594268df4d97db08ac5397b398b555",
       "file": "grammars/english_grammar.json5",
-      "line": 10615,
+      "line": 10617,
       "rule": "MultilinePermanent(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -846,7 +818,7 @@
     {
       "id": "9879ccca346d09a49b669793624dab884814340fc7deaf7db38816dad9f05c37",
       "file": "grammars/english_grammar.json5",
-      "line": 11723,
+      "line": 11725,
       "rule": "QuotedAbility(~Guest)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -880,7 +852,7 @@
     {
       "id": "3227b33337b514a9062ab5be52d140fdb101cc23424a672e1a66fd29ce3af240",
       "file": "grammars/english_grammar.json5",
-      "line": 12466,
+      "line": 12468,
       "rule": "SagaActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -905,7 +877,7 @@
     {
       "id": "9964be50ba238296b16c3e91e983a7846dae691f2ee5c35b21c57bcfc33496f6",
       "file": "grammars/english_grammar.json5",
-      "line": 13020,
+      "line": 13022,
       "rule": "SelfEntersActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -939,7 +911,7 @@
     {
       "id": "b6846d554b4ad34c3f5d5084aaff0080970610616faed61eb3e334887d7139a7",
       "file": "grammars/english_grammar.json5",
-      "line": 13059,
+      "line": 13061,
       "rule": "SelfEntersActions(~Permanent,X)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -970,7 +942,7 @@
     {
       "id": "9b63c3d22469777d4c701dc8e3ed78e0e7e24e969509333ab7ff19bb1a261ee4",
       "file": "grammars/english_grammar.json5",
-      "line": 13516,
+      "line": 13518,
       "rule": "SpellActions(X)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -995,7 +967,7 @@
     {
       "id": "c19f31854b6844f579814296960797b2df5864a00cc3cac9605e8b8ae76a8df8",
       "file": "grammars/english_grammar.json5",
-      "line": 13764,
+      "line": 13766,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1023,7 +995,7 @@
     {
       "id": "ceaec3f01a0373868ca6d302af2d2faec80cb4d6711c67e8d5140f748b4995a9",
       "file": "grammars/english_grammar.json5",
-      "line": 13942,
+      "line": 13944,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1054,7 +1026,7 @@
     {
       "id": "4544c4e510cef601a641e379820d65e2b6323d701088f4fb9f9e01ae17741d89",
       "file": "grammars/english_grammar.json5",
-      "line": 14056,
+      "line": 14058,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1082,7 +1054,7 @@
     {
       "id": "df80c1163ebb1f4ad4448a81c540f90d72e9b478932eaf7246bfea6b17dcaa1a",
       "file": "grammars/english_grammar.json5",
-      "line": 14165,
+      "line": 14167,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1113,7 +1085,7 @@
     {
       "id": "8027b20dd2f7be8f2fd066c12186924390cc50f359dd91489c5ee6fe191adfab",
       "file": "grammars/english_grammar.json5",
-      "line": 14245,
+      "line": 14247,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1145,7 +1117,7 @@
     {
       "id": "64c5665e55427eb18a733ad77e1f691e645206ee527cc448ac2f79bb2d146517",
       "file": "grammars/english_grammar.json5",
-      "line": 14255,
+      "line": 14257,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1200,7 +1172,7 @@
     {
       "id": "3f6376b08069dafe32c79e1c362099e94ee16a6ed84f2dcb5d684c99ebf1831a",
       "file": "grammars/english_grammar.json5",
-      "line": 14288,
+      "line": 14290,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1263,7 +1235,7 @@
     {
       "id": "655c6348c7ecef9eafa2f0898137dcba33aac73db27427a86b33a6729a3564e2",
       "file": "grammars/english_grammar.json5",
-      "line": 14289,
+      "line": 14291,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1297,7 +1269,7 @@
     {
       "id": "3ac50dc4052c744474ddc3649796b0e67ba4674807df3089c7943bc771d0c426",
       "file": "grammars/english_grammar.json5",
-      "line": 14292,
+      "line": 14294,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1344,7 +1316,7 @@
     {
       "id": "273478fe37708a42b94e3a519f276912764cd10efb28eacb50f5d2f5b4ba1cd4",
       "file": "grammars/english_grammar.json5",
-      "line": 14293,
+      "line": 14295,
       "rule": "SpellActions(~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1375,7 +1347,7 @@
     {
       "id": "63a68be3d2c55fed5c1cd0b5b7ae8b2edb68c487c90b9cf8ab278420721ed130",
       "file": "grammars/english_grammar.json5",
-      "line": 14420,
+      "line": 14422,
       "rule": "SpellActions[Cleave]",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1400,7 +1372,7 @@
     {
       "id": "22dc87f71d73d186513336fb7e4d4502e6cc4a8024120f910677028e7613a548",
       "file": "grammars/english_grammar.json5",
-      "line": 14677,
+      "line": 14679,
       "rule": "SpellActions[Overload]",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1432,7 +1404,7 @@
     {
       "id": "5c18433f59e9f3abc3a180c019b7d384d7eff186b4cd914abe0de21d80ab814d",
       "file": "grammars/english_grammar.json5",
-      "line": 14678,
+      "line": 14680,
       "rule": "SpellActions[Overload]",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1464,7 +1436,7 @@
     {
       "id": "20b292d2d8435b5458d951aa5e70ab10ab427260adf7c8c0d1097a0ae08073c0",
       "file": "grammars/english_grammar.json5",
-      "line": 14705,
+      "line": 14707,
       "rule": "SpellActions[RevealedACard](~Spell)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1506,7 +1478,7 @@
     {
       "id": "b9194134b77a5b255a2efd6d3a04b9b94e583568ec4bb87f87c4c949a053a753",
       "file": "grammars/english_grammar.json5",
-      "line": 14867,
+      "line": 14869,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1534,7 +1506,7 @@
     {
       "id": "dbe92166970d350a792a68514d20a6b43d65f1dde6ee54cd03162bff3063d70c",
       "file": "grammars/english_grammar.json5",
-      "line": 15246,
+      "line": 15248,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1562,7 +1534,7 @@
     {
       "id": "88e9ccdd28eb7a137ac8e78c94dc246835d9360eb32b5942b3127c2e6f3f0a0b",
       "file": "grammars/english_grammar.json5",
-      "line": 15667,
+      "line": 15669,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1597,7 +1569,7 @@
     {
       "id": "eb2ecc61740d6503e651c267b5cfc10060318c1b9b4adc07cc8c24d7c92a8fda",
       "file": "grammars/english_grammar.json5",
-      "line": 15667,
+      "line": 15669,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1632,7 +1604,7 @@
     {
       "id": "1e9a6fb1bc0ce1e1fe43b4707f8445a366d35299aafc7e074d968034eb33ed9b",
       "file": "grammars/english_grammar.json5",
-      "line": 15678,
+      "line": 15680,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1668,7 +1640,7 @@
     {
       "id": "95ed03ab41e076e37142a0315d8892ec3a2844c4233ffc67e4435e83a2c9b045",
       "file": "grammars/english_grammar.json5",
-      "line": 15678,
+      "line": 15680,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1704,7 +1676,7 @@
     {
       "id": "453189bae6cceb4d0af22dc4fec353705095ef7591ce42875e6233fe227086e6",
       "file": "grammars/english_grammar.json5",
-      "line": 15759,
+      "line": 15761,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1739,7 +1711,7 @@
     {
       "id": "86a707290743b7bb8e81e626978b8b46789454176a34b19581507bb1c4cd4f37",
       "file": "grammars/english_grammar.json5",
-      "line": 15881,
+      "line": 15883,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1780,7 +1752,7 @@
     {
       "id": "603d47e079e664aba5933278a7fe0574797c1a225366059e8fe7e389653e3fbe",
       "file": "grammars/english_grammar.json5",
-      "line": 15921,
+      "line": 15923,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1814,7 +1786,7 @@
     {
       "id": "7527af2db1b9cd1fe3b94df4ba6fd334e3ed3457cdf2a55ce13ec6c13e483b4b",
       "file": "grammars/english_grammar.json5",
-      "line": 16312,
+      "line": 16314,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1849,7 +1821,7 @@
     {
       "id": "83e7725a4718c431ee24f414db7088ec3a35996fec481e7be6179416d6a4404f",
       "file": "grammars/english_grammar.json5",
-      "line": 16312,
+      "line": 16314,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1884,7 +1856,7 @@
     {
       "id": "43f60ec87600ad2d367392346bd823951a0dbe2aa6e16e6b65c6ecad6724f482",
       "file": "grammars/english_grammar.json5",
-      "line": 16467,
+      "line": 16469,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1909,7 +1881,7 @@
     {
       "id": "3e3f03d9d6e7875aeafa5e2339249334573ca12afcb33c61873aa6b82b990190",
       "file": "grammars/english_grammar.json5",
-      "line": 16664,
+      "line": 16666,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1956,7 +1928,7 @@
     {
       "id": "f12b02dec6b43a7c0c4d36c5ec58e459312b85acf4379fcea78ab8f10f50bc77",
       "file": "grammars/english_grammar.json5",
-      "line": 16687,
+      "line": 16689,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -1989,7 +1961,7 @@
     {
       "id": "ac030fc9458ebfa572e50f8ec28e5ab5693504fb9817a2e5aa7f7e436827072a",
       "file": "grammars/english_grammar.json5",
-      "line": 16924,
+      "line": 16926,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2017,7 +1989,7 @@
     {
       "id": "ae083bb3bc71761798bf0ed5098203f9ed4f985716da8b19cb86cb2cd26be5ee",
       "file": "grammars/english_grammar.json5",
-      "line": 16925,
+      "line": 16927,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2045,7 +2017,7 @@
     {
       "id": "5a397edc935e4e269638f4ac7562a386da14663ecd2dd0f34f0dcdde4ad99a5c",
       "file": "grammars/english_grammar.json5",
-      "line": 16933,
+      "line": 16935,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2074,7 +2046,7 @@
     {
       "id": "fec5ad8cde145000b88562a01539f9cebb30771b919b60786293d034960ff70e",
       "file": "grammars/english_grammar.json5",
-      "line": 16934,
+      "line": 16936,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2103,7 +2075,7 @@
     {
       "id": "cb1af8478c3f666a49cb84d367d7a97724e3705b71eb94d08b0ee19333a9ecb1",
       "file": "grammars/english_grammar.json5",
-      "line": 16936,
+      "line": 16938,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2132,15 +2104,15 @@
       "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
     },
     {
-      "id": "15206829580b85098993d20becfbba90e6e147bbdd5929fd12d286ba1a6d677b",
+      "id": "48c19916afddc0055e0c769ea745ffbc5070d4ff8c9392635d2016a938f3dc2a",
       "file": "grammars/english_grammar.json5",
-      "line": 17111,
+      "line": 17113,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
       "capture": "Number[2]",
       "input": "Search your library for up to {{Number}} {{SpecificCards}}, reveal those cards, and put one onto the battlefield tapped and the rest into your hand. Then shuffle.\n{{AbilityWord}} - If {{Condition}}, search your library for up to {{Number}} {{SpecificCards}} instead of {{Number}}",
-      "output": "ActionList([IfElse({{Condition[0]}}, [SearchLibrary([FindNumberCardsOfType({{Number[1]}}, {{SpecificCards[1]}}), RevealFoundCards, PutAFoundCardOntoBattlefield([EntersNormally]), PutFoundCardsIntoHand, Shuffle])], [SearchLibrary([FindNumberCardsOfType({{Number[0]}}, {{SpecificCards[0]}}), RevealFoundCards, PutAFoundCardOntoBattlefield([EntersNormally]), PutFoundCardsIntoHand, Shuffle])])])",
+      "output": "ActionList([IfElse({{Condition[0]}}, [SearchLibrary([FindNumberCardsOfType({{Number[1]}}, {{SpecificCards[1]}}), RevealFoundCards, PutAFoundCardOntoBattlefield([EntersTapped]), PutFoundCardsIntoHand, Shuffle])], [SearchLibrary([FindNumberCardsOfType({{Number[0]}}, {{SpecificCards[0]}}), RevealFoundCards, PutAFoundCardOntoBattlefield([EntersTapped]), PutFoundCardsIntoHand, Shuffle])])])",
       "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
       "usage": [
         {
@@ -2168,37 +2140,9 @@
       "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
     },
     {
-      "id": "1761eaf20b7ca78d37802d5039fa54de202fcc570b20d416a5e5560e558ab148",
-      "file": "grammars/english_grammar.json5",
-      "line": 17118,
-      "rule": "SpellActions",
-      "kind": "unused_semantic_capture",
-      "severity": "error",
-      "capture": "Number[1]",
-      "input": "Search your library for {{Number}} {{SpecificCards}} and reveal them. If you reveal {{Number}} cards with different names, choose one of them at random and put that card into your hand. Shuffle the rest into your library",
-      "output": "ActionList([SearchLibrary([FindNumberGroupCards({{Number[0]}}, {{SpecificCards[0]}}, DifferentNames), RevealFoundCards, ChooseAFoundCardAtRandom, PutChosenFoundCardIntoHand, Shuffle])])",
-      "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
-      "usage": [
-        {
-          "card": "Signal the Clans",
-          "matched_text": "Search your library for three creature cards and reveal them. If you reveal three cards with different names, choose one of them at random and put that card into your hand. Shuffle the rest into your library",
-          "captures": {
-            "Number": [
-              "three",
-              "three"
-            ],
-            "SpecificCards": [
-              "creature cards"
-            ]
-          }
-        }
-      ],
-      "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
-    },
-    {
       "id": "be329b7305d842b69178849be4b57b771e97fa30701bb675bee19279d1c9b628",
       "file": "grammars/english_grammar.json5",
-      "line": 17228,
+      "line": 17230,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2252,7 +2196,7 @@
     {
       "id": "02a145ad2dbd219fecd3ff91bf05cd5aaa964cb09f2d17f0740a4f53fd78a718",
       "file": "grammars/english_grammar.json5",
-      "line": 17230,
+      "line": 17232,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2286,7 +2230,7 @@
     {
       "id": "358ef25d0ff0aad93eacc189c40e85d1377e6ce6347239f19713bdcc6962ec1a",
       "file": "grammars/english_grammar.json5",
-      "line": 17292,
+      "line": 17294,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2317,7 +2261,7 @@
     {
       "id": "2f76b709ba38592547e4ea0d21f08153f80a0b49a028394696c8d902c65776cb",
       "file": "grammars/english_grammar.json5",
-      "line": 17328,
+      "line": 17330,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2345,7 +2289,7 @@
     {
       "id": "70bcd841380a29ef0bed8864b7fec7400e875c19e844f9ee2c7aad4b7d8588f8",
       "file": "grammars/english_grammar.json5",
-      "line": 17434,
+      "line": 17436,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2384,7 +2328,7 @@
     {
       "id": "e49e637d00be413ee9b01ad8b33e1eb8786f8ea3e2be49e8cc898926d871f28d",
       "file": "grammars/english_grammar.json5",
-      "line": 17490,
+      "line": 17492,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2412,7 +2356,7 @@
     {
       "id": "54f5784ad1ec4d6e80dcf1b83f7de94ea7a38eff0494333f4bf2adb8687675bc",
       "file": "grammars/english_grammar.json5",
-      "line": 17491,
+      "line": 17493,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2440,7 +2384,7 @@
     {
       "id": "a99b18eb76dc5335788d12993e9f4562f83b02784f4fa9188d45038edb3d3747",
       "file": "grammars/english_grammar.json5",
-      "line": 17509,
+      "line": 17511,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2468,7 +2412,7 @@
     {
       "id": "dce03f50970c631d032f3ea9d4099b3a4340917713c1e331f9faddbe695ed39a",
       "file": "grammars/english_grammar.json5",
-      "line": 17532,
+      "line": 17534,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2493,7 +2437,7 @@
     {
       "id": "3d1ca7bf55729cc0d962da198e7d6c5ebbf7fae0f9049dec1644c8b0ecefc231",
       "file": "grammars/english_grammar.json5",
-      "line": 18100,
+      "line": 18102,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2518,7 +2462,7 @@
     {
       "id": "8b481cd5779b1124a9ae48611ece881da09472810f014ec83de5e08afee87182",
       "file": "grammars/english_grammar.json5",
-      "line": 18114,
+      "line": 18116,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2546,7 +2490,7 @@
     {
       "id": "189643575cfe4da69e9a6d18add5d31c9c043f727bd73edd903d2abebd697928",
       "file": "grammars/english_grammar.json5",
-      "line": 18122,
+      "line": 18124,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2578,7 +2522,7 @@
     {
       "id": "1af2b6e575d0e85ed68d13cef69727f37a05fffbfe4a778439509502268a24f0",
       "file": "grammars/english_grammar.json5",
-      "line": 18122,
+      "line": 18124,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2610,7 +2554,7 @@
     {
       "id": "b71c51cc12731b5b2d3252d1b9056114d6d1583cce1d95baccb112ec5016eee0",
       "file": "grammars/english_grammar.json5",
-      "line": 18184,
+      "line": 18186,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2638,7 +2582,7 @@
     {
       "id": "2c8f27c6d68a4a515c995ded313c69df7a75c7ac1aeb3943cabb638a9287d767",
       "file": "grammars/english_grammar.json5",
-      "line": 18848,
+      "line": 18850,
       "rule": "StaticEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2669,7 +2613,7 @@
     {
       "id": "ec1e5bea916647143cc1410f531007957c6bd94fc8903e85593370c3c3af5a44",
       "file": "grammars/english_grammar.json5",
-      "line": 19786,
+      "line": 19788,
       "rule": "StaticEffect[WouldDealDamage](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2697,7 +2641,7 @@
     {
       "id": "c0a610ab92e75ea7e767ad6c5e41784dfcd1246f4289eb97c4d160dffd49d051",
       "file": "grammars/english_grammar.json5",
-      "line": 19788,
+      "line": 19790,
       "rule": "StaticEffect[WouldDealDamage](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2725,7 +2669,7 @@
     {
       "id": "39f344a0d1d28d41050ce55f2273f60a24fd36246a5ba7d69ec2ce694fa2bb68",
       "file": "grammars/english_grammar.json5",
-      "line": 19789,
+      "line": 19791,
       "rule": "StaticEffect[WouldDealDamage](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2754,7 +2698,7 @@
     {
       "id": "0c985358b0e0d60d103faa214040adeb28a14323a6e33027226a356b7712432d",
       "file": "grammars/english_grammar.json5",
-      "line": 19790,
+      "line": 19792,
       "rule": "StaticEffect[WouldDealDamage](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2783,7 +2727,7 @@
     {
       "id": "a9b33a15c33604e85345512f0e987602d687959b3ed2addf609c161a80d84ba5",
       "file": "grammars/english_grammar.json5",
-      "line": 19791,
+      "line": 19793,
       "rule": "StaticEffect[WouldDealDamage](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2812,7 +2756,7 @@
     {
       "id": "e0ea868d283fd6dca9792e35d5987e42f5ec954d4ebc4fd8731a08a3122a38aa",
       "file": "grammars/english_grammar.json5",
-      "line": 19791,
+      "line": 19793,
       "rule": "StaticEffect[WouldDealDamage](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2841,7 +2785,7 @@
     {
       "id": "c3e3e268664cd6b99c3f2c8a1aa59da729c59beb83bcd1c0de379204bcbcab51",
       "file": "grammars/english_grammar.json5",
-      "line": 19796,
+      "line": 19798,
       "rule": "StaticEffect[WouldDealDamage](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2872,7 +2816,7 @@
     {
       "id": "6b6dc1e5d8f897bf2df5de3f0b6d6aeee729371f43b5fd7d19949a80cce24642",
       "file": "grammars/english_grammar.json5",
-      "line": 19966,
+      "line": 19968,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2900,7 +2844,7 @@
     {
       "id": "5100331e7eed6e343ba0d89b85d75bf973126ad0cfd0fc91a3a936f586a86a15",
       "file": "grammars/english_grammar.json5",
-      "line": 20015,
+      "line": 20017,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2945,7 +2889,7 @@
     {
       "id": "df124b58c1c3a963c38dd126c790f56b493de77c81ffdbd8c817e0a79e04c1cd",
       "file": "grammars/english_grammar.json5",
-      "line": 20193,
+      "line": 20195,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -2973,7 +2917,7 @@
     {
       "id": "9197cf19bc1667c6dde079f01f6f906466491e05aa7904561508e651aec6f5f3",
       "file": "grammars/english_grammar.json5",
-      "line": 20200,
+      "line": 20202,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3001,7 +2945,7 @@
     {
       "id": "41fe66f486289a6150cef4e8727eebfe10197e52fafe21439797a6a3d4395ed9",
       "file": "grammars/english_grammar.json5",
-      "line": 20244,
+      "line": 20246,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3029,7 +2973,7 @@
     {
       "id": "95b42e43ddb1d2a13dd4b00bb5f7c727d870a9986ef60e01cf86e639d37f2938",
       "file": "grammars/english_grammar.json5",
-      "line": 20245,
+      "line": 20247,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3096,7 +3040,7 @@
     {
       "id": "f1c4b33c5fded9c30774863134cac02bf1ffce73c863ebeeb256e2891c66ce5c",
       "file": "grammars/english_grammar.json5",
-      "line": 20246,
+      "line": 20248,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3124,7 +3068,7 @@
     {
       "id": "e0d0f259569aa480a8af4522728cc8c2f1aceacf12aad0da1e3edbff3c84b53a",
       "file": "grammars/english_grammar.json5",
-      "line": 20247,
+      "line": 20249,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3152,7 +3096,7 @@
     {
       "id": "bf125c8683a5ce0461c3d1073d4e679a1c091909cf755212bb1671e3280e9018",
       "file": "grammars/english_grammar.json5",
-      "line": 20248,
+      "line": 20250,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3177,7 +3121,7 @@
     {
       "id": "0881f3defe28476e8c59339dd4383b7827ee0ae70052cbcc8a8b44be7fd4c13b",
       "file": "grammars/english_grammar.json5",
-      "line": 20249,
+      "line": 20251,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3222,7 +3166,7 @@
     {
       "id": "1247ed11099dd6419e8a5e52987a323e29b50788aa9c327cf5234a24fab176da",
       "file": "grammars/english_grammar.json5",
-      "line": 20250,
+      "line": 20252,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3247,7 +3191,7 @@
     {
       "id": "427e7ec59a12abb985470ccbeefd7abb6913f5516dc3d52abebc293deeb68265",
       "file": "grammars/english_grammar.json5",
-      "line": 20251,
+      "line": 20253,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3275,7 +3219,7 @@
     {
       "id": "473eccc72574085780fb6c7d7241cbe73144984dfabde223046bfc7488e48f38",
       "file": "grammars/english_grammar.json5",
-      "line": 20252,
+      "line": 20254,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3303,7 +3247,7 @@
     {
       "id": "e56453c4868740ed586e6811be15befe7ca29185b3647031a22aaeb9ce3690a8",
       "file": "grammars/english_grammar.json5",
-      "line": 20253,
+      "line": 20255,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3331,7 +3275,7 @@
     {
       "id": "e447ed768675fc1ffcd2c530be73367a60001e0f984fbb178e979bffbb99a4fe",
       "file": "grammars/english_grammar.json5",
-      "line": 20254,
+      "line": 20256,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3359,7 +3303,7 @@
     {
       "id": "58285c2af2663c0833abc6828a1bfc10182cc4cbc9184b9cabd113c1fb31d846",
       "file": "grammars/english_grammar.json5",
-      "line": 20255,
+      "line": 20257,
       "rule": "StaticEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3395,7 +3339,7 @@
     {
       "id": "94e56e9de26a755f78d232f51c86507147b94c9c108f34932fc7e72efa322da8",
       "file": "grammars/english_grammar.json5",
-      "line": 20993,
+      "line": 20995,
       "rule": "TriggerActions(DefendingPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3480,7 +3424,7 @@
     {
       "id": "4a67f5220d7e41dc06d19dd5ec86581266f5d09b14e5779ecf42b5f74ca1a879",
       "file": "grammars/english_grammar.json5",
-      "line": 21018,
+      "line": 21020,
       "rule": "TriggerActions(DefendingPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3512,7 +3456,7 @@
     {
       "id": "9f2443616795d001809076bb32854159647d398135e16fa8c515945f438e0613",
       "file": "grammars/english_grammar.json5",
-      "line": 21510,
+      "line": 21512,
       "rule": "TriggerActions(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3540,7 +3484,7 @@
     {
       "id": "3da7970e29918bdfabc42074e7a56b9dd0a25f9fb92ba544d0d24045a4fe63ea",
       "file": "grammars/english_grammar.json5",
-      "line": 21583,
+      "line": 21585,
       "rule": "TriggerActions(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3575,7 +3519,7 @@
     {
       "id": "e10a3d0631b3b85d6f1641bfd92638c75431851c2f72e583db0c6b27352e7a3f",
       "file": "grammars/english_grammar.json5",
-      "line": 21664,
+      "line": 21666,
       "rule": "TriggerActions(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3606,7 +3550,7 @@
     {
       "id": "72f8cc05d30481a3cd8e3331b4ba132fe808d386c24c550170a922b5902df2f2",
       "file": "grammars/english_grammar.json5",
-      "line": 21666,
+      "line": 21668,
       "rule": "TriggerActions(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3634,7 +3578,7 @@
     {
       "id": "b2bf573ef4a3f0a8921e96c263fd181409e01508867fd11991f9a706e050f08b",
       "file": "grammars/english_grammar.json5",
-      "line": 21739,
+      "line": 21741,
       "rule": "TriggerActions(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3662,7 +3606,7 @@
     {
       "id": "492192e776bc803fce8b7aad11117c342d9c2ab60a376eacb6616e0c55fa8bb9",
       "file": "grammars/english_grammar.json5",
-      "line": 22225,
+      "line": 22227,
       "rule": "TriggerActions(ThatPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3687,7 +3631,7 @@
     {
       "id": "56adc5b40b31521a2388c486fe71585def588298f78b540b1e4d8e51efae43ee",
       "file": "grammars/english_grammar.json5",
-      "line": 22742,
+      "line": 22744,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3722,7 +3666,7 @@
     {
       "id": "4d39c3c1ef6076690f9b766a2a01234be40e65c1df7c951c028e01033097574f",
       "file": "grammars/english_grammar.json5",
-      "line": 22778,
+      "line": 22780,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3757,7 +3701,7 @@
     {
       "id": "fcfdb014e7a0e7040781641ab9c704a727af8b7d3958530642ea535c570d9bff",
       "file": "grammars/english_grammar.json5",
-      "line": 22881,
+      "line": 22883,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3795,7 +3739,7 @@
     {
       "id": "d84a7d557ac5d079bbbe8b9a4500eaa16cffe7e5e9744d2963c503947952be37",
       "file": "grammars/english_grammar.json5",
-      "line": 23010,
+      "line": 23012,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3827,7 +3771,7 @@
     {
       "id": "c1f56f31ec5bc924b44e4f7ea2f7394d69c85907897ff05e5c98c3a2de7daa03",
       "file": "grammars/english_grammar.json5",
-      "line": 23037,
+      "line": 23039,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3864,7 +3808,7 @@
     {
       "id": "58570a7864ecd817d2dbf972dba032f280a3c1341666ba486cd45ae4521a7e43",
       "file": "grammars/english_grammar.json5",
-      "line": 23083,
+      "line": 23085,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3889,7 +3833,7 @@
     {
       "id": "3cd6125eb3d4f2cde7f919d9cd1b184e37a35918a3be3b6d59f9c1d85fde55fd",
       "file": "grammars/english_grammar.json5",
-      "line": 23086,
+      "line": 23088,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3920,7 +3864,7 @@
     {
       "id": "dd778be58445e2f426144780a3ccab1456724c3c596e0b272364eebcd9002fb5",
       "file": "grammars/english_grammar.json5",
-      "line": 23136,
+      "line": 23138,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3959,7 +3903,7 @@
     {
       "id": "c0ad5bb7824098f8214432077b8b63dac031e476c15712529311a1134912af1f",
       "file": "grammars/english_grammar.json5",
-      "line": 23258,
+      "line": 23260,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3984,7 +3928,7 @@
     {
       "id": "732855bf58ae59778967adee5512aa5d4b2b424f7f2a4110fb182240ce06c4e8",
       "file": "grammars/english_grammar.json5",
-      "line": 23314,
+      "line": 23316,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4015,7 +3959,7 @@
     {
       "id": "719604a1be1b11a03836b6fea7a3727878539552e711f770e2603e31c71ceab6",
       "file": "grammars/english_grammar.json5",
-      "line": 23317,
+      "line": 23319,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4052,7 +3996,7 @@
     {
       "id": "cda2f563787612d6bb4b374947590ef497120d02c6432523e9d69f795424a296",
       "file": "grammars/english_grammar.json5",
-      "line": 23318,
+      "line": 23320,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4089,7 +4033,7 @@
     {
       "id": "b81fbae42bdda53524e30b6cf699eb11c09a8cb0a322dba8ac8e0ee07fa12d4d",
       "file": "grammars/english_grammar.json5",
-      "line": 23327,
+      "line": 23329,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4120,7 +4064,7 @@
     {
       "id": "2090b91717c634a02edd2d704aa41cf15f6236084da69e79d671170925c6d7a7",
       "file": "grammars/english_grammar.json5",
-      "line": 23517,
+      "line": 23519,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4156,7 +4100,7 @@
     {
       "id": "0d6249ea5adaafc4a6a06668e15c9dcae05dba2c6004203464f1ebd67a2aae45",
       "file": "grammars/english_grammar.json5",
-      "line": 23812,
+      "line": 23814,
       "rule": "TriggerActions(~Permanent,ThatCreature)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4181,7 +4125,7 @@
     {
       "id": "0846fc6880a9758b1567ec16b600c059bfd7eb764cf95a625dcd9cfd2135d765",
       "file": "grammars/english_grammar.json5",
-      "line": 23954,
+      "line": 23956,
       "rule": "TriggerActions(~Permanent,ThatPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4223,7 +4167,7 @@
     {
       "id": "4b52d780207396369d07bd22949b12f81302932069c06ea3a0326300efdfb2cb",
       "file": "grammars/english_grammar.json5",
-      "line": 23956,
+      "line": 23958,
       "rule": "TriggerActions(~Permanent,ThatPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4265,7 +4209,7 @@
     {
       "id": "95f78f8e5ea64e90b0f7a669e489e0f659f4bcaacaf97b0c24f525ee69abc525",
       "file": "grammars/english_grammar.json5",
-      "line": 24186,
+      "line": 24188,
       "rule": "TriggerActions[EnchantedPermanent]",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4300,7 +4244,7 @@
     {
       "id": "024413b1795eeff2dcfbd3267d3fc09d3353ec1b6971379b6c39993cb09e894e",
       "file": "grammars/english_grammar.json5",
-      "line": 24448,
+      "line": 24450,
       "rule": "TriggerActions[WhenACreatureOrPlaneswalkerDies](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4340,7 +4284,7 @@
     {
       "id": "f338407ebc790eba6339f5e9da26c181dba68ff7a28f97b2b56ac1b6b30b5f28",
       "file": "grammars/english_grammar.json5",
-      "line": 24824,
+      "line": 24826,
       "rule": "TriggerActions_Modal(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4378,7 +4322,7 @@
     {
       "id": "f115de565ac41bcf61b6aaef8dd729b2cfa87a474461024d255fa1c508807421",
       "file": "grammars/english_grammar.json5",
-      "line": 24949,
+      "line": 24951,
       "rule": "TriggerActions_Modal",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4403,7 +4347,7 @@
     {
       "id": "37973129dad8d3ba8954906f470579a9dc8e8910cdc04d8013856bdd51f7c9cf",
       "file": "grammars/english_grammar.json5",
-      "line": 25001,
+      "line": 25003,
       "rule": "TriggerActions_Modal",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4450,7 +4394,7 @@
     {
       "id": "58ea578c53560410379ac4e3efb11415729dd88df3547bd5d0da65ee73b9e814",
       "file": "grammars/english_grammar.json5",
-      "line": 25081,
+      "line": 25083,
       "rule": "TriggerActions_Modal",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4475,7 +4419,7 @@
     {
       "id": "642e9a6e7b6174ccf51ed09c4a3cb337bd5c22dee2f0f99da04edd570a5c06ba",
       "file": "grammars/english_grammar.json5",
-      "line": 25730,
+      "line": 25732,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4504,7 +4448,7 @@
     {
       "id": "eef9f9ed4cdf7bc85efa1cb78a259e109b84dfa517b414f34ca36363e8d34121",
       "file": "grammars/english_grammar.json5",
-      "line": 25730,
+      "line": 25732,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4533,7 +4477,7 @@
     {
       "id": "b5d1356b32bd147fe31785fc64d36412249ef6f086df595c83b744a297f99067",
       "file": "grammars/english_grammar.json5",
-      "line": 26591,
+      "line": 26593,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4564,7 +4508,7 @@
     {
       "id": "8c6c39ef7316e82f195da15ea028f7862508b3c847f0e5fae0e177ace0477330",
       "file": "grammars/english_grammar.json5",
-      "line": 26593,
+      "line": 26595,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4601,7 +4545,7 @@
     {
       "id": "10a76bb93a52160e0ff44e8512bcada9fa5e36c4f7a14a72dae534af40d462a2",
       "file": "grammars/english_grammar.json5",
-      "line": 26595,
+      "line": 26597,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4636,7 +4580,7 @@
     {
       "id": "38bcfdb8e4bf7718c968649aba9fc3f6f185f0b154b0517803cdd9096b67df1b",
       "file": "grammars/english_grammar.json5",
-      "line": 26999,
+      "line": 27001,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4664,7 +4608,7 @@
     {
       "id": "d8e64ac847a309b719332452482ff8977de8cad734752bd1d9376eba650d23d1",
       "file": "grammars/english_grammar.json5",
-      "line": 27009,
+      "line": 27011,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4695,7 +4639,7 @@
     {
       "id": "93c989c46135fae1381f6ff94daa2c2d8d5e07ebb60760d3c1457dee7e6cb2ff",
       "file": "grammars/english_grammar.json5",
-      "line": 27021,
+      "line": 27023,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4726,7 +4670,7 @@
     {
       "id": "4f03cd432c2708bd0e37fd951650a177052d06cb81783b73dd61ac7c3733aac7",
       "file": "grammars/english_grammar.json5",
-      "line": 27143,
+      "line": 27145,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4760,7 +4704,7 @@
     {
       "id": "7218ae29859c73665bb897f0ca369289c142b82a2704ed3c45c8fc96a6966d7d",
       "file": "grammars/english_grammar.json5",
-      "line": 27205,
+      "line": 27207,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4785,7 +4729,7 @@
     {
       "id": "687a003e8eaa3c8ba5ef972a1b72f13fe857de56721646f1b07495474221eb9f",
       "file": "grammars/english_grammar.json5",
-      "line": 27206,
+      "line": 27208,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4826,7 +4770,7 @@
     {
       "id": "a0a639f2e5a6c7325d15e6479ea3757f67b8a57965e7b3c94134dfbdf9028f64",
       "file": "grammars/english_grammar.json5",
-      "line": 27282,
+      "line": 27284,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4857,7 +4801,7 @@
     {
       "id": "36ce5f75fac477a06c019934722dd71715549f72e958ae6d96906242a1e65e0b",
       "file": "grammars/english_grammar.json5",
-      "line": 27300,
+      "line": 27302,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4894,7 +4838,7 @@
     {
       "id": "7fd34b6e9edf9b0e6b9a87aba2377fe33d0035a747bdd1bc4974c8cfa7a58adc",
       "file": "grammars/english_grammar.json5",
-      "line": 27372,
+      "line": 27374,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4925,7 +4869,7 @@
     {
       "id": "b214c8357db0aff009074752413c4ce708c1d8adb4fdfd5f3ec36c0b274ebd3f",
       "file": "grammars/english_grammar.json5",
-      "line": 27409,
+      "line": 27411,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4959,7 +4903,7 @@
     {
       "id": "42d26a9748cf5ef06c57461137ed5d46ac990336d9bcf83e6ef5e4f55d5c1127",
       "file": "grammars/english_grammar.json5",
-      "line": 28447,
+      "line": 28449,
       "rule": "TriggerEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4988,52 +4932,9 @@
       "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
     },
     {
-      "id": "fee7476d783325ea3d720defe0de531f56551e9ee52372548ce345b84e35e063",
-      "file": "grammars/english_grammar.json5",
-      "line": 28536,
-      "rule": "TriggerEffect(~Permanent)",
-      "kind": "unused_semantic_capture",
-      "severity": "error",
-      "capture": "Digits[1]",
-      "input": "When {{ThisPermanent}} enters, target player loses {{Digits}} life.\nWhen {{ThisPermanent}} leaves the battlefield, that player gains {{Digits}} life",
-      "output": "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), Targeted([TargetPlayer(AnyPlayer)], ActionList([RememberPlayer(Ref_TargetPlayer), PlayerAction(Ref_TargetPlayer, LoseLife({{Digits[0]}}))]))), TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([PlayerAction(RememberedPlayer, GainLife(LifeLostThisWay))]))",
-      "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
-      "usage": [
-        {
-          "card": "Laquatus's Champion",
-          "matched_text": "When this creature enters, target player loses 6 life.\nWhen this creature leaves the battlefield, that player gains 6 life",
-          "captures": {
-            "Digits": [
-              "6",
-              "6"
-            ],
-            "ThisPermanent": [
-              "this creature",
-              "this creature"
-            ]
-          }
-        },
-        {
-          "card": "Soul Scourge",
-          "matched_text": "When this creature enters, target player loses 3 life.\nWhen this creature leaves the battlefield, that player gains 3 life",
-          "captures": {
-            "Digits": [
-              "3",
-              "3"
-            ],
-            "ThisPermanent": [
-              "this creature",
-              "this creature"
-            ]
-          }
-        }
-      ],
-      "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
-    },
-    {
       "id": "b05702370a9afa2a79074ce762ab9b1db91367f3c52e35924b3531dfd7a09ab6",
       "file": "grammars/english_grammar.json5",
-      "line": 28657,
+      "line": 28659,
       "rule": "TriggerEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -5061,7 +4962,7 @@
     {
       "id": "1f2bb5a6fc0239ad4427d365879aed7cf12492720ed6307e21dd0151af1ee27c",
       "file": "grammars/english_grammar.json5",
-      "line": 28891,
+      "line": 28893,
       "rule": "TriggerEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -5751,7 +5652,7 @@
     {
       "id": "bcf004c91b155527d08eb639bbfe50dd57a8c1931a4555fe46f41caa0f490b34",
       "file": "grammars/english_grammar.json5",
-      "line": 12483,
+      "line": 12485,
       "rule": "SagaActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -5778,7 +5679,7 @@
     {
       "id": "7eecae5c1dbd75cd15247ecb0c73029254ca7afeafd771777473e86131ffe21c",
       "file": "grammars/english_grammar.json5",
-      "line": 13087,
+      "line": 13089,
       "rule": "SelfEntersActions[ChooseACardtype](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -5802,7 +5703,7 @@
     {
       "id": "9d1bde30e151ba1838b03db46b5d12383dc6cabecc99935a0e1b28177aa62cd5",
       "file": "grammars/english_grammar.json5",
-      "line": 15421,
+      "line": 15423,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -5826,7 +5727,7 @@
     {
       "id": "0a23b6c3873549761651aef86d4e69625ca9002bb22f94ba39cb7a3243f70f4a",
       "file": "grammars/english_grammar.json5",
-      "line": 16163,
+      "line": 16165,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -5848,15 +5749,15 @@
       "review_reason": "Tainted Pact stops when a newly exiled card shares a name with an earlier card; the captured two restates that duplicate-name stopping condition."
     },
     {
-      "id": "d8c15797d3c9926af603793ad7e8efefbfdbc43e9338f92097278fce2cadb81e",
+      "id": "48fc9cea695bbac89f96672d2187f958eb24c995072766f4dc2139700d2d5980",
       "file": "grammars/english_grammar.json5",
-      "line": 16873,
+      "line": 16875,
       "rule": "SpellActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
       "capture": "Hasable[1]",
       "input": "Return target {{SpecificCard}} from your graveyard to the battlefield. That creature gains {{Hasable}}. Return it to your hand at the beginning of the next end step.\nYou may put {{a}} {{CreatureCard}} from your hand onto the battlefield. That creature gains {{Hasable}}. Its controller sacrifices it at the beginning of the next end step",
-      "output": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([MayCost(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersNormally])), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])]), If(CostWasPaid, [CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay)]))]), MayActions([PutACardFromHandOnBattlefield({{CreatureCard[0]}}, [EntersNormally]), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ControllersSacrificeEachPermanent(TheTokensCreatedThisWay)]))])]))",
+      "output": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([MustCost(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersNormally])), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])]), If(CostWasPaid, [CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay)]))]), MayActions([PutACardFromHandOnBattlefield({{CreatureCard[0]}}, [EntersNormally]), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ControllersSacrificeEachPermanent(SinglePermanent(ThePermanentPutOnTheBattlefieldThisWay))]))])]))",
       "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
       "usage": [
         {
@@ -5879,12 +5780,12 @@
           }
         }
       ],
-      "review_reason": "The unused occurrence repeats an earlier captured value in every matched card. No current-card mismatch was found; differing future values still require review."
+      "review_reason": "Rechecked 2026-11-04 after the prior MustCost correction: Cauldron Dance is the only use and both Hasable captures are Haste; both grants preserve that value."
     },
     {
       "id": "4fa5ac304e5250b0ee3c5a106f553b7c4947d3649396dc324cfaee32ca28c3aa",
       "file": "grammars/english_grammar.json5",
-      "line": 18655,
+      "line": 18657,
       "rule": "StaticEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -5917,7 +5818,7 @@
     {
       "id": "db06296227a9116ff167dc6528f2a634ac94d45aa9224c7a18e0a4e810b37b0f",
       "file": "grammars/english_grammar.json5",
-      "line": 18783,
+      "line": 18785,
       "rule": "StaticEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -5962,7 +5863,7 @@
     {
       "id": "4004779683f066ecbef8556a4b6589a73b931d3327ebd8a7ff1831384a3dd945",
       "file": "grammars/english_grammar.json5",
-      "line": 18842,
+      "line": 18844,
       "rule": "StaticEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -5999,7 +5900,7 @@
     {
       "id": "b8aa0e940dfca40bda36a2f69dac16c4956fc077ba95f7f23b4b6497e5af6ef4",
       "file": "grammars/english_grammar.json5",
-      "line": 18857,
+      "line": 18859,
       "rule": "StaticEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6039,7 +5940,7 @@
     {
       "id": "d30e4abe0bba10f07ba6d52cce721ee56695538df7bb2b761a6283ee8c37721c",
       "file": "grammars/english_grammar.json5",
-      "line": 19086,
+      "line": 19088,
       "rule": "StaticEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6080,7 +5981,7 @@
     {
       "id": "b9dbe1ec729bb06608869d496de7563b5a3ef3f2bee86a29f0e4da36ca863fd6",
       "file": "grammars/english_grammar.json5",
-      "line": 19087,
+      "line": 19089,
       "rule": "StaticEffect(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6122,7 +6023,7 @@
     {
       "id": "82779e00f632a71f6b2e81f7244e94f94b2b2baab67b3322606dae366386f390",
       "file": "grammars/english_grammar.json5",
-      "line": 19456,
+      "line": 19458,
       "rule": "StaticEffect[EquippedCreature](~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6167,7 +6068,7 @@
     {
       "id": "41a78480262938c6013844612ea55ba4f9c32aec367a38a05d69da8a142b9860",
       "file": "grammars/english_grammar.json5",
-      "line": 23738,
+      "line": 23740,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6208,7 +6109,7 @@
     {
       "id": "f5fd9bb07a746ad36561290258ded4de169be0364901e1d0372501ad43a53528",
       "file": "grammars/english_grammar.json5",
-      "line": 23758,
+      "line": 23760,
       "rule": "TriggerActions(~Permanent,DefendingPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6241,7 +6142,7 @@
     {
       "id": "fe4e34460f8c367463cb44e07b548de74c997a32be84574fcf5d194950bf50c3",
       "file": "grammars/english_grammar.json5",
-      "line": 23758,
+      "line": 23760,
       "rule": "TriggerActions(~Permanent,DefendingPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6274,7 +6175,7 @@
     {
       "id": "c89a6485c7e7bbd487fcf5cec44b91104263e8de8168bde6ab4a1544da567c59",
       "file": "grammars/english_grammar.json5",
-      "line": 23879,
+      "line": 23881,
       "rule": "TriggerActions(~Permanent,ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6302,7 +6203,7 @@
     {
       "id": "d152f866bdceb205cdf152d03f5cbf833ef80a9daaa5283a05d7e89ec638f8f4",
       "file": "grammars/english_grammar.json5",
-      "line": 27954,
+      "line": 27956,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6350,7 +6251,7 @@
     {
       "id": "0ff12d26749ed7c718cc4344119bb624353dc446ce52b101959cd0fd9c4b0dc5",
       "file": "grammars/english_grammar.json5",
-      "line": 27977,
+      "line": 27979,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6393,7 +6294,7 @@
     {
       "id": "9f02322e58f3782076e29763271f43f7ea75a95fc79ba52c2d1bee88599a70c8",
       "file": "grammars/english_grammar.json5",
-      "line": 27978,
+      "line": 27980,
       "rule": "TriggerActions",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6439,7 +6340,7 @@
     {
       "id": "1aec6a833b7ea475d04fba3a6ac375b7d28a541e8ed4ebbaacd72c878889a8b3",
       "file": "grammars/english_grammar.json5",
-      "line": 30375,
+      "line": 30377,
       "rule": "TriggerEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6469,7 +6370,7 @@
     {
       "id": "02cf1818684b9be8c7476d5c28d5c9215028911102fdeead7481cc10e2eaa6e0",
       "file": "grammars/english_grammar.json5",
-      "line": 30973,
+      "line": 30975,
       "rule": "TriggerEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",

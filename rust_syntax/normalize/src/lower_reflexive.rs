@@ -268,11 +268,20 @@ impl Context {
                     let mut context = self.clone();
                     context.payer = Some(payer.clone());
                     let cost = context.cost(cost)?;
-                    self.effect(Operation::PayCost {
+                    let chooses_x = cost.parts.iter().any(|part| {
+                        matches!(part, CostPart::ManaWithX { x: None, .. })
+                    });
+                    let payment = self.effect(Operation::PayCost {
                         cost,
                         player: payer.clone(),
                         optional: false,
-                    })
+                    });
+                    // The reflexive body closes over this resolution-time
+                    // payment, just like the ordinary Payment recipe does.
+                    if let (true, Instruction::Effect { result, .. }) = (chooses_x, &payment) {
+                        self.value_x = Some(result.clone());
+                    }
+                    payment
                 }
                 Base::Repeated(cost, times) => {
                     let PlayerSet::One(payer) = actor else {

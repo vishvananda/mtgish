@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-04",
+  "producer_base": "b7bbba6",
+  "reported_reference_pin": "893f8559ca427c124dea1ceee26e10a4dba179dd",
+  "source_report": "~/oracle-grammar/reports/analysis/mtgish-reference-mistakes.json",
+  "issues": [
+    {
+      "id": "REF-005",
+      "producer_fix": "Remove the unprinted creature conjunct from untapped subtype-only selectors; preserve subtype, untapped, controller, otherness, cardinality and every other operand.",
+      "reported_cards": 22,
+      "confirmed_cards": 35,
+      "cards": [
+        "A Golden Opportunity",
+        "Aboshan, Cephalid Emperor",
+        "Akoum Flameseeker",
+        "Arachnus Spinner",
+        "Azami, Lady of Scrolls",
+        "Blood Tribute",
+        "Boiling Rock Rioter",
+        "Chosen of Markov",
+        "Civil Servant",
+        "Drana's Chosen",
+        "Drowner of Secrets",
+        "Dwarven Bloodboiler",
+        "Embalmer's Tools",
+        "Exterminate!",
+        "Galecaster Colossus",
+        "Kumena, Tyrant of Orazca",
+        "Malakir Soothsayer",
+        "Master Apothecary",
+        "Munda's Vanguard",
+        "New Blood",
+        "Ondu War Cleric",
+        "Otharri, Suns' Glory",
+        "Patron Wizard",
+        "Psionic Ritual",
+        "Seton, Krosan Protector",
+        "Shadow Stinger",
+        "Spawnbinder Mage",
+        "Stoneforge Acolyte",
+        "Sure-Footed Infiltrator",
+        "Veteran Warleader",
+        "Villainous Syndication",
+        "Vodalian War Machine",
+        "Zada's Commando",
+        "Zombie Trailblazer",
+        "Zulaport Chainmage"
+      ]
+    },
+    {
+      "id": "REF-006",
+      "producer_fix": "Manual reflexive Base::Cost captures the actual PayCost result for ManaWithX{x:None}; creator context supplies BoundValue to the reflexive body.",
+      "cards": [
+        "Electro, Assaulting Battery",
+        "Remnant of the Rising Star",
+        "Wildborn Preserver"
+      ],
+      "preservation_note": "Electro damage-source reference is independent and is unchanged."
+    },
+    {
+      "id": "REF-007",
+      "producer_fix": "Wrap Highway Reaver alternate-first-unearth rule in MaxSpeed; preserve other three abilities and first_each_turn."
+    }
+  ],
+  "validation": {
+    "whole_source_fixtures": 46,
+    "rust_reference_tests": 6,
+    "rust_related_passed": 446,
+    "rust_related_suites": 9,
+    "known_baseline_failure": "pipeline::schema_46_costs_roundtrip_and_reject_previous_versions_at_validation hardcodes167 at baseb7bbba6 whose schema is168; isolated consolidation branch fixes it to SCHEMA_VERSION. Only this known assertion filtered from broader root test run.",
+    "go": "Full go test ./... passes, including source fixtures, explicit creature controls and audited review evidence.",
+    "source_exports": {
+      "records": 33529,
+      "source_changed": 36,
+      "json_changed": 36,
+      "pretty_changed": 36,
+      "outputs": {
+        "generated.ronl": "f11a4a974c91ef33d54fa3990be3b36ccd95c93c3623b88e36508a981c01f122",
+        "source.jsonl": "7c255d0ab12aaa99fceb8ef5474b45a1103f3a5949be18f711745efba052766e",
+        "source.pretty.ron": "6c41acbed22af7ba104ce836b0e7ef4cb5901c2bc4b0648bfc9643e9f26b6366"
+      }
+    },
+    "audit": "Full33529-card derivation; existing context matched-evidence hashes unchanged, prior MustCost Cauldron Dance template separately re-reviewed, four exact new speed-mining findings explicitly triaged. Preserve parser-source fingerprints.",
+    "old_native_capture": "Three affected reflexive cards captured before source edit; current whole-card comparison changes only X amount to BoundValue. Earlier unrelated-action test requires nonzero payment ResultId."
+  },
+  "immutable_artifacts": "No oracle-grammar gold, scorer, saved reference pin or comparison semantics modified. NORM001/002 are separate canonicalization work."
+}

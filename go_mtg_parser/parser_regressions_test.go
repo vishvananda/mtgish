@@ -44,11 +44,24 @@ func TestParserSemanticRegressions(t *testing.T) {
 	}
 	mtgish["QUOTED_NAME"] = LoadTemplatesFor(makeSelfPairs(quotedNames))
 	mtgishTree := CreateTokenReTriesFromTemplatesAndResults(mtgish)
+	// Synthetic controls distinguish printed creature restrictions from a bare
+	// subtype. Kindred permanents can satisfy only the latter.
+	for _, text := range []struct{ name, cost string }{
+		{"Explicit Subtype Creature Cost", "Tap an untapped Wizard creature you control"},
+		{"Explicit Plural Subtype Creature Cost", "Tap two untapped Wizard creatures you control"},
+	} {
+		control := cards["Azami, Lady of Scrolls"]
+		control.Cards = append([]MtgJsonAtomic(nil), control.Cards...)
+		control.Cards[0].Text = text.cost + ": Draw a card."
+		cards[text.name] = control
+	}
 	cases := []struct {
 		name     string
 		contains []string
 		excludes []string
 	}{
+		{"Explicit Subtype Creature Cost", []string{"IsCreatureType(Wizard), IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))"}, nil},
+		{"Explicit Plural Subtype Creature Cost", []string{"IsCreatureType(Wizard), IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))"}, nil},
 		{"Yavimaya Kavu", []string{"CDA_Power(", "CDA_Toughness("}, []string{"CDA_PowerToughness("}},
 		{"Ana Battlemage", []string{"Kicker(PayMana([ManaCostGeneric(2), ManaCostU])), Kicker(PayMana([ManaCostGeneric(1), ManaCostB]))"}, []string{"Kicker(Or("}},
 		{"Stronghold Arena", []string{"Kicker(PayMana([ManaCostG])), Kicker(PayMana([ManaCostW]))"}, []string{"Kicker(Or("}},

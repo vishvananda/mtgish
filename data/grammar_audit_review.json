@@ -21,7 +21,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "dc4dc4fd20daed45601b01d975076d0b145b8eb74957310ef5cb8d8ed2b13ef1"
+    "grammars/english_grammar.json5": "850b924f6977314c72a73fab148cc8d88387dccbed8ab64d5e3699aa18de912b"
   },
   "original_findings": 365,
   "resolved_findings": 170,
@@ -47,7 +47,8 @@
     },
     "detector_saved_evidence_recheck": "passed: 151 automatic scalar equivalences plus 37 exact-ID, input- and evidence-checked context reviews",
     "github_regression_cards": 632,
-    "github_semantic_assertion_cards": 146
+    "github_semantic_assertion_cards": 146,
+    "reference_costs_20261104": "33529 fresh records; all existing context-review usage hashes unchanged; Cauldron Dance MustCost template re-reviewed for equal Haste captures; 35 subtype-cost and one MaxSpeed source changes only."
   },
   "resolved": [
     {
@@ -3709,6 +3710,18 @@
       "disposition": "reviewed_equivalent_in_current_corpus",
       "reason": "every freshly matched occurrence equals an output-referenced scalar capture",
       "matched_evidence_sha256": "7d6b0ff997a4513a2cb8c92ab72a8a3a1a63a70f2ce1cbb936d916010b749fe1"
+    },
+    {
+      "id": "48fc9cea695bbac89f96672d2187f958eb24c995072766f4dc2139700d2d5980",
+      "file": "grammars/english_grammar.json5",
+      "line": 16873,
+      "rule": "SpellActions",
+      "kind": "unused_semantic_capture",
+      "capture": "Hasable[1]",
+      "disposition": "reviewed_equivalent_in_current_corpus",
+      "reason": "Rechecked 2026-11-04 after the prior MustCost correction: Cauldron Dance is the only use and both Hasable captures are Haste; both grants preserve that value.",
+      "matched_evidence_sha256": "fda8cc8a9ecd200256706319f949c003a024abde32e3d62e33e079ed1f16f7d3",
+      "detector_handling": "context_review"
     }
   ],
   "repairs": [
@@ -5397,7 +5410,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "dc4dc4fd20daed45601b01d975076d0b145b8eb74957310ef5cb8d8ed2b13ef1",
+    "grammars/english_grammar.json5": "850b924f6977314c72a73fab148cc8d88387dccbed8ab64d5e3699aa18de912b",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
@@ -5410,7 +5423,7 @@
     "grammars/mtgish_grammar-triggers.json5": "96b070faa84d9a5cad36071d156a01e6139a8590a57f3b51a9b94fca9c1dff24",
     "grammars/mtgish_grammar-type_line.json5": "27f424e58808988f4317eacf3f6aee9ace7d360ca886e034f099e7e1c10a81ae",
     "grammars/mtgish_grammar-vote_option.json5": "93e2f2472543b1a6865d80c7d45032788759dfc365c41d5dfb0a424cd65587e3",
-    "grammars/mtgish_grammar.json5": "da61119f2d1c755d202683ae733fd06e8d936565f923c16e72ae2bc8daf7bff2",
+    "grammars/mtgish_grammar.json5": "cdecacef7bbaf54a95540b7bac47b2e574aa57ecd8f94adb8537670a558c882c",
     "grammars/short_names.json5": "dd44ee8da0d0546722fa3b83de3d042c5f147cbe7553ad8e200c3b572b2c76a3"
   },
   "reviewed_source_order": [
