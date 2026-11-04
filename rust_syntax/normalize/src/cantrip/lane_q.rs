@@ -19,8 +19,7 @@ pub(super) fn second_chosen_land_type(land: &Operand) -> Option<String> {
 
 /// Whether a later instruction asks how many cards a surveil left on top.
 pub(super) fn reads_kept_on_top(after: &[Instruction], result: &ResultId) -> bool {
-    let r = result.0;
-    format!("{after:?}").contains(&format!("SurveilKeptOnTop(ResultId({r}))"))
+    crate::result_reads::ResultReads::instructions(after, result).kept_on_top
 }
 
 /// What a surveil does before and after, to say how many of the cards stayed.

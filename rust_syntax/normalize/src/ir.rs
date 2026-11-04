@@ -6577,3 +6577,17 @@ impl Expr {
         Self::Multiply(Box::new(a), Box::new(b))
     }
 }
+
+impl ObjectFilter {
+    /// Membership of the objects named by one result, independent of spelling.
+    pub fn named_result(&self) -> Option<&ResultId> {
+        match self {
+            Self::InResult(result) => Some(result),
+            Self::InSet(objects) => match objects.as_ref() {
+                ObjectSet::Named(result) => Some(result),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+}

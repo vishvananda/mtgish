@@ -1664,7 +1664,8 @@ impl Compiler {
         let those = match &mut plain {
             ReplacementEvent::Damage(damage) if one && prevents_at_all(body) => {
                 match &damage.recipients {
-                    DamageRecipients::Objects(ObjectFilter::InResult(result)) => {
+                    DamageRecipients::Objects(filter) if filter.named_result().is_some() => {
+                        let result = filter.named_result().expect("named result checked above");
                         let list = self.objects(&ObjectSet::Named(result.clone()))?;
                         damage.recipients = DamageRecipients::Any;
                         Some(self.fetch(list))
@@ -2345,12 +2346,7 @@ pub(super) fn spell_or_ability(
 /// which is what `InResult` of it says. "Cards you put on top" has no word of its
 /// own in the AST: `Named` of a surveil does not say which part it means.
 pub(super) fn reads_graveyard_part(after: &[Instruction], result: &ResultId) -> bool {
-    let r = result.0;
-    let text = format!("{after:?}");
-    text.contains(&format!("InResult(ResultId({r}))"))
-        || text.contains(&format!(
-            "what: PutInGraveyard, measure: Count, result: Some(ResultId({r}))"
-        ))
+    crate::result_reads::ResultReads::instructions(after, result).graveyard()
 }
 
 /// A cost of moving objects it names, as "exile it".
@@ -2463,19 +2459,7 @@ pub(super) fn damaged_to_bound(filter: &mut ObjectFilter, result: u32, each: &Ob
 
 /// Whether what comes later reads an instruction's result as objects.
 pub(super) fn read_as_objects(after: &[Instruction], result: &ResultId) -> bool {
-    let r = result.0;
-    let text = format!("{after:?}");
-    let joined = after.iter().any(|i| matches!(i, Instruction::Effect { operation: Operation::JoinResults { results }, .. } if results.iter().any(|joined| joined.0 == r)));
-    joined
-        || [
-            format!("Named(ResultId({r}))"),
-            format!("Named {{ result: ResultId({r})"),
-            format!("InResult(ResultId({r}))"),
-            format!("Affected(ResultId({r}))"),
-            format!("Transition {{ result: ResultId({r})"),
-        ]
-        .iter()
-        .any(|read| text.contains(read))
+    crate::result_reads::ResultReads::instructions(after, result).objects
 }
 
 /// Whether an amount a walk over the players made is read player by player.

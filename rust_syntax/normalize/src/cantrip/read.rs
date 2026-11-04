@@ -2003,9 +2003,9 @@ impl Compiler {
             // "The other pile" of a choice between exiled piles: the pile not
             // chosen, not anything else in exile.
             ObjectFilter::Not(p)
-                if matches!(&**p, ObjectFilter::InResult(r) if self.pile_not_chosen.contains_key(&r.0)) =>
+                if p.named_result().is_some_and(|r| self.pile_not_chosen.contains_key(&r.0)) =>
             {
-                let ObjectFilter::InResult(r) = &**p else { unreachable!() };
+                let r = p.named_result().expect("named result checked above");
                 format!("{}.contains(&{})", self.pile_not_chosen[&r.0], c.id)
             }
             ObjectFilter::Not(p) => format!("!({})", self.predicate(p, c)?),
@@ -2674,5 +2674,23 @@ mod player_number_tests {
         let number = Compiler::new().number(&Expr::PlayerNumber { player: PlayerRef::AbilityController, number: PlayerNumber::CardsDrawnThisTurn }).unwrap();
         assert_eq!((number.min, number.max), (0, u32::MAX.into()));
         assert!(!number.amount(u32::MAX.into(), "u32").unwrap().contains(".max(0)"));
+    }
+}
+
+#[cfg(test)]
+mod result_membership_tests {
+    use super::*;
+
+    #[test]
+    fn a_pile_complement_uses_the_other_pile_not_every_object_outside_the_choice() {
+        let mut compiler = Compiler::new();
+        compiler.pile_not_chosen.insert(3, "other_pile".into());
+        compiler.moved.insert(3, "chosen_pile".into());
+        let chosen = ObjectFilter::InSet(Box::new(ObjectSet::Named(ResultId(3))));
+        let other = ObjectFilter::Not(Box::new(chosen.clone()));
+        assert_eq!(compiler.predicate(&other, &Candidate::of("id")).unwrap(), "other_pile.contains(&id)");
+        assert_eq!(compiler.predicate(&chosen, &Candidate::of("id")).unwrap(), "(chosen_pile.clone()).contains(&id)");
+        compiler.pile_not_chosen.clear();
+        assert_eq!(compiler.predicate(&other, &Candidate::of("id")).unwrap(), "!((chosen_pile.clone()).contains(&id))");
     }
 }
