@@ -49,7 +49,7 @@ tests.
 
 `~/card-lane/pipeline-unlimited-20261103/released-held-20261104` contains the
 frozen release plan, original queue, intake journal and all 34 GitHub release
-receipts with clear post-release holder checks. The intake suite has 295 passing
+receipts with clear post-release holder checks. The pipeline suite has 295 passing
 tests after the exclusion guard.
 
 Native, browser, paired benchmark, printed-card and generator receipts are in

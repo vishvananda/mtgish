@@ -1,6 +1,9 @@
 # Reserved-card gap audit, 2026-11-04
 
-Priority is completing the reserved cards before expanding intake into the 163 unreserved cards.
+This is the earlier reservation audit. The user subsequently requested releasing
+these held cards and completing the remaining blocked work and consolidation.
+All 34 held reservations have been released; see
+`blocked-recovery-foundation-20261104.md`. No new intake is planned.
 
 The audit started with 35 held entries. The queue now has **34 held cards**, all represented by the **39 distinct gap diagnostics** below, with 61 emitted occurrences. Clockwork Beast was the additional held entry and has returned to implementation. Its subsequent up-to-counter-choice generator defect was fixed in `bd0703b`, together with Clockwork Avian; compilation alone had not established that choice was correct. A queue hold is not itself evidence of a current engine gap.
 
