@@ -150,7 +150,9 @@ mod tests {
         }
         planned::with_features(&[FEATURE], || {
             assert!(Number::integer(i64::from(u32::MAX)).choice_amount().is_ok());
-            assert!(Number::integer(i64::from(u32::MAX) + 1).choice_amount().is_err());
+            assert!(Number::integer(i64::from(u32::MAX) + 1)
+                .choice_amount()
+                .is_err());
             assert_eq!(Domain::ShieldCapacity.kind(), "u16");
             assert_eq!(Domain::LifeTotal.kind(), "i32");
             assert_eq!(Domain::StoredCounter.kind(), "i16");
@@ -511,6 +513,55 @@ mod tests {
                     .fold(0i64, i64::saturating_add),
                 i64::MAX
             );
+        });
+    }
+    #[test]
+    fn lexical_quantity_snapshot_restores_outer_bounds_and_drops_inner_domains() {
+        planned::with_features(&[FEATURE], || {
+            let mut compiler = Compiler::new();
+            compiler.performed.insert(0, "outer_damage".into());
+            compiler.quantity_results.insert(0, Domain::Damage);
+            let outer = compiler.results();
+            compiler.reset_results();
+            compiler.performed.insert(1, "inner_damage".into());
+            compiler.quantity_results.insert(1, Domain::Damage);
+            compiler.restore_results(outer);
+            let doubled = compiler
+                .number(&Expr::multiply(
+                    Expr::Performed(ResultId(0)),
+                    Expr::Constant(2),
+                ))
+                .unwrap();
+            let dir =
+                std::env::temp_dir().join(format!("mtgish-quantity-scope-{}", std::process::id()));
+            fs::create_dir_all(&dir).unwrap();
+            let source = format!("fn main() {{ let outer_damage = std::hint::black_box(i64::MAX); let value = {}; assert_eq!(value, i64::MAX); }}", doubled.code);
+            fs::write(dir.join("main.rs"), source).unwrap();
+            let built = Command::new("rustc")
+                .args(["--edition=2021", "-C", "overflow-checks=on"])
+                .arg(dir.join("main.rs"))
+                .arg("-o")
+                .arg(dir.join("witness"))
+                .output()
+                .unwrap();
+            assert!(
+                built.status.success(),
+                "{}",
+                String::from_utf8_lossy(&built.stderr)
+            );
+            let ran = Command::new(dir.join("witness")).output().unwrap();
+            assert!(
+                ran.status.success(),
+                "{}; generated {}",
+                String::from_utf8_lossy(&ran.stderr),
+                doubled.code
+            );
+            assert_eq!(
+                compiler.number(&Expr::Performed(ResultId(0))).unwrap().max,
+                i128::from(i64::MAX)
+            );
+            assert!(!compiler.quantity_results.contains_key(&1));
+            fs::remove_dir_all(dir).unwrap();
         });
     }
 }

@@ -480,6 +480,7 @@ pub(super) struct Results {
     pub(super) moved: BTreeMap<u32, String>,
     pub(super) before: BTreeMap<u32, String>,
     pub(super) performed: BTreeMap<u32, String>,
+    quantity_results: BTreeMap<u32, Quantity>,
     pub(super) values: BTreeMap<u32, String>,
     pub(super) flips: BTreeMap<u32, String>,
     pub(super) chosen: Vec<(ValueKind, String)>,
@@ -918,6 +919,7 @@ impl Compiler {
             moved: self.moved.clone(),
             before: self.before.clone(),
             performed: self.performed.clone(),
+            quantity_results: self.quantity_results.clone(),
             values: self.values.clone(),
             flips: self.flips.clone(),
             chosen: self.chosen.clone(),
@@ -937,6 +939,7 @@ impl Compiler {
             moved,
             before,
             performed,
+            quantity_results,
             values,
             flips,
             chosen,
@@ -953,6 +956,7 @@ impl Compiler {
         self.moved = moved;
         self.before = before;
         self.performed = performed;
+        self.quantity_results = quantity_results;
         self.values = values;
         self.flips = flips;
         self.chosen = chosen;
