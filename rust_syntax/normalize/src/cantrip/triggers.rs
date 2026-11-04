@@ -261,18 +261,21 @@ impl Compiler {
         };
         // Once however many block it, so the blockers are no one subject.
         if let ObjectEvent::BecomesBlocked = event {
+            let transition = planned::switched_on("blocked-status");
             let test = self.matching(plain, |c| c.filter(objects, &Candidate::of("id")))?;
             let mut matched = single(
-                "BLOCKS",
+                if transition { "BECAME_BLOCKED" } else { "BLOCKS" },
                 Arm {
-                    pattern: "Event::Blocks { attacker, .. }".into(),
+                    pattern: if transition { "Event::BecameBlocked { attacker }" } else { "Event::Blocks { attacker, .. }" }.into(),
                     locals: "let id = *attacker; let subject = Target::Object(id); let data = [u32::MAX, id.0];".into(),
                     tests: vec![test],
                 },
                 plain,
                 "Whenever this becomes blocked",
             );
-            matched.batch = Some(true);
+            // Older trees deduplicate the declared block batch. The transition event also covers effects that make
+            // an attacker blocked without a blocker, and does not repeat when more blockers join it (CR 509.3c).
+            matched.batch = (!transition).then_some(true);
             return Ok(matched);
         }
         let (mask, pattern, id, data, frame, extra, phrase): (

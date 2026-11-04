@@ -1,0 +1,228 @@
+[
+  {
+    "name": "Aerathi Berserker",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Aerathi Berserker",
+        "manaCost": "{2}{R}{R}{R}",
+        "type": "Creature — Human Berserker",
+        "text": "Rampage 3 (Whenever this creature becomes blocked, it gets +3/+3 until end of turn for each creature blocking it beyond the first.)",
+        "power": "2",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Chromium",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Chromium",
+        "manaCost": "{2}{W}{W}{U}{U}{B}{B}",
+        "type": "Legendary Creature — Elder Dragon",
+        "text": "Flying\nRampage 2 (Whenever this creature becomes blocked, it gets +2/+2 until end of turn for each creature blocking it beyond the first.)\nAt the beginning of your upkeep, sacrifice Chromium unless you pay {W}{U}{B}.",
+        "power": "7",
+        "toughness": "7"
+      }
+    ]
+  },
+  {
+    "name": "Craw Giant",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Craw Giant",
+        "manaCost": "{3}{G}{G}{G}{G}",
+        "type": "Creature — Giant",
+        "text": "Trample\nRampage 2 (Whenever this creature becomes blocked, it gets +2/+2 until end of turn for each creature blocking it beyond the first.)",
+        "power": "6",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Curtain of Light",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Curtain of Light",
+        "manaCost": "{1}{W}",
+        "type": "Instant",
+        "text": "Cast this spell only during combat after blockers are declared.\nTarget unblocked attacking creature becomes blocked. (This spell works on creatures that can't be blocked.)\nDraw a card."
+      }
+    ]
+  },
+  {
+    "name": "Dazzling Beauty",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dazzling Beauty",
+        "manaCost": "{2}{W}",
+        "type": "Instant",
+        "text": "Cast this spell only during the declare blockers step.\nTarget unblocked attacking creature becomes blocked. (This spell works on creatures that can't be blocked.)\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Disharmony",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Disharmony",
+        "manaCost": "{2}{R}",
+        "type": "Instant",
+        "text": "Cast this spell only during combat before blockers are declared.\nUntap target attacking creature and remove it from combat. Gain control of that creature until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "False Orders",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "False Orders",
+        "manaCost": "{R}",
+        "type": "Instant",
+        "text": "Cast this spell only during the declare blockers step.\nRemove target creature defending player controls from combat. Creatures it was blocking that had become blocked by only that creature this combat become unblocked. You may have it block an attacking creature of your choice."
+      }
+    ]
+  },
+  {
+    "name": "Frost Giant",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Frost Giant",
+        "manaCost": "{3}{R}{R}{R}",
+        "type": "Creature — Giant",
+        "text": "Rampage 2 (Whenever this creature becomes blocked, it gets +2/+2 until end of turn for each creature blocking it beyond the first.)",
+        "power": "4",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Hunding Gjornersen",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Hunding Gjornersen",
+        "manaCost": "{3}{W}{U}{U}",
+        "type": "Legendary Creature — Human Warrior",
+        "text": "Rampage 1 (Whenever this creature becomes blocked, it gets +1/+1 until end of turn for each creature blocking it beyond the first.)",
+        "power": "5",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Imprison",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Imprison",
+        "manaCost": "{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nWhenever a player activates an ability of enchanted creature with {T} in its activation cost that isn't a mana ability, you may pay {1}. If you do, counter that ability. If you don't, destroy this Aura.\nWhenever enchanted creature attacks or blocks, you may pay {1}. If you do, tap the creature, remove it from combat, and creatures it was blocking that had become blocked by only that creature this combat become unblocked. If you don't, destroy this Aura."
+      }
+    ]
+  },
+  {
+    "name": "Marhault Elsdragon",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Marhault Elsdragon",
+        "manaCost": "{3}{R}{R}{G}",
+        "type": "Legendary Creature — Elf Warrior",
+        "text": "Rampage 1 (Whenever this creature becomes blocked, it gets +1/+1 until end of turn for each creature blocking it beyond the first.)",
+        "power": "4",
+        "toughness": "6"
+      }
+    ]
+  },
+  {
+    "name": "Mijae Djinn",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mijae Djinn",
+        "manaCost": "{R}{R}{R}",
+        "type": "Creature — Djinn",
+        "text": "Whenever this creature attacks, flip a coin. If you lose the flip, remove this creature from combat and tap it.",
+        "power": "6",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Rapid Fire",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Rapid Fire",
+        "manaCost": "{3}{W}",
+        "type": "Instant",
+        "text": "Cast this spell only before blockers are declared.\nTarget creature gains first strike until end of turn. If it doesn't have rampage, that creature gains rampage 2 until end of turn. (Whenever the creature becomes blocked, it gets +2/+2 until end of turn for each creature blocking it beyond the first.)"
+      }
+    ]
+  },
+  {
+    "name": "Wolverine Pack",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Wolverine Pack",
+        "manaCost": "{2}{G}{G}",
+        "type": "Creature — Wolverine",
+        "text": "Rampage 2 (Whenever this creature becomes blocked, it gets +2/+2 until end of turn for each creature blocking it beyond the first.)",
+        "power": "2",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Ydwen Efreet",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ydwen Efreet",
+        "manaCost": "{R}{R}{R}",
+        "type": "Creature — Efreet",
+        "text": "Whenever this creature blocks, flip a coin. If you lose the flip, remove this creature from combat and it can't block this turn. Creatures it was blocking that had become blocked by only this creature this combat become unblocked.",
+        "power": "3",
+        "toughness": "6"
+      }
+    ]
+  },
+  {
+    "name": "Cockatrice",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cockatrice",
+        "manaCost": "{3}{G}{G}",
+        "type": "Creature — Cockatrice",
+        "text": "Flying\nWhenever this creature blocks or becomes blocked by a non-Wall creature, destroy that creature at end of combat.",
+        "power": "2",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Karn, Silver Golem",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Karn, Silver Golem",
+        "manaCost": "{5}",
+        "type": "Legendary Artifact Creature — Golem",
+        "text": "Whenever Karn blocks or becomes blocked, it gets -4/+4 until end of turn.\n{1}: Target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value until end of turn.",
+        "power": "4",
+        "toughness": "4"
+      }
+    ]
+  }
+]

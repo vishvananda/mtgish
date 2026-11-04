@@ -32,7 +32,7 @@ const LANDED: &[&str] = &[
 ];
 
 /// Cantrip features some Cantrip has and another may not: (name, the line of
-/// `crates/cantrip-api` that shows a tree has it, the requirements it lands).
+/// the API or mechanics source that shows a tree has it, the requirements it lands).
 /// The code is always the code the feature takes; where the pinned Cantrip
 /// (`cantrip_vocab::FEATURES`) lacks it, that code is a hole naming the
 /// requirement, so the file compiles there and the two differ only by the
@@ -45,6 +45,9 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     // PR #897. Its rules on open sets are `plan_switched` holes, not landed ids:
     // a rule it has no `LastingRuleKind` for shares their requirement.
     ("lasting-rules", "fn add_lasting_rule", &["continuous-rule-untap-step", "duration-during-controllers-next-untap-step", "duration-during-next-untap-step"]),
+    ("rampage", "pub mod rampage;", &["engine-no-rampage"]),
+    ("combat-removal", "pub fn remove_from_combat_and_unblock(", &["engine-no-effect-removes-from-combat"]),
+    ("blocked-status", "fn become_blocked(", &["engine-no-effect-makes-a-creature-blocked", "keyword-action-become-blocked"]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

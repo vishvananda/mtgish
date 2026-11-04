@@ -617,7 +617,7 @@ impl Compiler {
             K::RemoveFromCombatUnblocking => self.plan_for_object(
                 "engine: no effect removes from combat",
                 action,
-                "g.remove_from_combat_and_unblock(object)",
+                &format!("{M}::combat::remove_from_combat_and_unblock(g, object)"),
                 out,
             )?,
             K::PhaseIn => self.plan_for_object(

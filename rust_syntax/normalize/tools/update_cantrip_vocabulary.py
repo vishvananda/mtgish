@@ -47,13 +47,13 @@ vocabularies = [('SUBTYPES', variants(state / 'subtypes.rs', 'Subtype')), ('KEYW
 for name, values in vocabularies:
     text += 'pub const ' + name + ': &[&str] = &[\n' + ''.join('    ' + json.dumps(v) + ',\n' for v in values) + '];\n'
 def switched_features():
-    """The SWITCHED features of the generator's planned.rs whose API this tree has: each names a line of cantrip-api."""
+    """SWITCHED features present in the same API/state/mechanics inputs that the snapshot fingerprints."""
     planned = Path(__file__).resolve().parents[1].joinpath('src/cantrip/planned.rs').read_text()
     table = re.search(r'^const SWITCHED: [^=]*= &\[\n(.*?)^\];', planned, re.S | re.M)
     entries = re.findall(r'^    \("([a-z0-9-]+)", "((?:[^"\\]|\\.)*)", &\[', table[1], re.M) if table else []
     if not entries:
         raise ValueError('cannot locate SWITCHED in planned.rs')
-    api = '\n'.join(p.read_text() for p in sorted((checkout / 'crates/cantrip-api/src').rglob('*.rs')))
+    api = '\n'.join(p.read_text() for p in inputs)
     return [name for name, shown in entries if json.loads(f'"{shown}"') in api]
 
 features = switched_features()
