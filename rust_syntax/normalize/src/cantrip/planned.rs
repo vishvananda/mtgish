@@ -55,6 +55,8 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("next-turn-delayed", "StepOfNextTurn { step: Step, of: Option<PlayerId> }", &["delayed-trigger-starting-next-turn", "delayed-trigger-starting-players-next-turn"]),
     ("blocking-status", "fn is_blocking(&self, id: ObjectId) -> bool", &["blocking-status-after-attacker-leaves-combat"]),
     ("damage-poison", "pub const fn on_damage_to_player<const N: u32>", &[]),
+    ("combat-lki", "fn creatures_blocked_by(&self, source: ObjectId)", &["last-known-combat-relationships"]),
+    ("entry-actor", "fn put_onto_battlefield_by(&mut self", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

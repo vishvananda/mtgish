@@ -20,8 +20,8 @@ Replacing only the matcher would be incorrect because the previous generated
 resolver uses different event bindings.
 
 The `damage-poison` feature is detected from the pinned native vocabulary. It
-remains disabled on the current `ea3dd20d` snapshot until the reviewed native
-helper is promoted and the vocabulary is refreshed. Both original whole source
+was disabled on the `ea3dd20d` snapshot. The reviewed helper is now promoted in
+`31abfac8` and enabled by the refreshed `ed84a7b7` vocabulary. Both original whole source
 records are retained as fixtures; no Oracle or reference correction is involved.
 
 Validation:

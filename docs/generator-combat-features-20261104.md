@@ -17,14 +17,18 @@ which also covers an effect making a creature blocked without a blocking creatur
 **by a creature** still reads each `Blocks` relationship. Seventeen complete local source/Oracle fixtures cover both
 capability configurations and the Karn/Cockatrice distinction.
 
-The historical unblocking recipe is shared by False Orders, Imprison, and Ydwen Efreet. Another blocker leaving
+The historical unblocking recipe is shared by False Orders and Imprison. Another blocker leaving
 earlier does not qualify an attacker that had become blocked by two creatures. The recipe asks this combat's event
 history, removes the blocker, ends that instruction, and unblocks qualifying attackers together.
 
 Ready for ordinary card implementation and review:
 
 - Aerathi Berserker, Chromium, Craw Giant, Frost Giant, Hunding Gjornersen, Marhault Elsdragon, Wolverine Pack.
-- Disharmony, Imprison, Mijae Djinn, Ydwen Efreet.
+- Disharmony, Imprison, Mijae Djinn.
+
+Ydwen Efreet additionally needs the departed-source relationship query now in native checkpoint `31abfac8`,
+and its retained reviewed card fixes the unconditional final sentence. The raw producer incorrectly places
+combined removal/unblocking inside the lost-flip branch; see [issue 191](https://github.com/i5jb/mtgish/issues/191).
 
 Rapid Fire still needs the `HasKeywordFamily` filter. False Orders still needs combat reassignment. Their remaining
 holes stay explicit, and their new-card intake stays deferred.

@@ -15,8 +15,10 @@ fn rows(features: &[&str], tag: &str) -> BTreeMap<String, serde_json::Value> {
 
 #[test]
 fn nonstandard_counters_keep_their_distinct_kinds_and_old_targets_keep_the_gap() {
-    let old = rows(&[], "old");
-    let new = rows(&["pt-counters"], "new");
+    // Keep relationship support constant while isolating P/T-counter support:
+    // Lesser Werewolf also needs the independent combat-history capability.
+    let old = rows(&["combat-lki"], "old");
+    let new = rows(&["combat-lki", "pt-counters"], "new");
     for (name, kinds) in [
         ("Armor Thrull", &["Plus1Plus2"][..]), ("Balduvian Hydra", &["Plus1Plus0"][..]),
         ("Clockwork Avian", &["Plus1Plus0"][..]), ("Dwarven Armorer", &["Plus0Plus1", "Plus1Plus0"][..]),

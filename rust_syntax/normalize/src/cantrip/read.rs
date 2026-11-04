@@ -2221,6 +2221,11 @@ impl Compiler {
                 let test = self.filter(host, &Candidate::of("host"))?;
                 format!("q.state().obj({id}).attached_to.is_some_and(|host| {test})")
             }
+            ObjectFilter::BlockingObject(attacker) if self.reader != Reader::Layer => planned::planned_value(
+                "last-known combat relationships",
+                &format!("{{ let attacker = {}; q.state().blocks.iter().any(|b| b.blocker == {id} && Some(b.attacker) == attacker) }}", self.object(attacker)?),
+                &format!("{}.is_some_and(|attacker| q.creatures_blocking(attacker).contains(&{id}))", self.object(attacker)?),
+            ),
             ObjectFilter::BlockingObject(attacker) => format!(
                 "{{ let attacker = {}; q.state().blocks.iter().any(|b| b.blocker == {id} && Some(b.attacker) == attacker) }}",
                 self.object(attacker)?

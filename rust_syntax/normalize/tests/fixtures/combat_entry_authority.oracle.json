@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Ydwen Efreet",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ydwen Efreet",
+        "manaCost": "{R}{R}{R}",
+        "type": "Creature \u2014 Efreet",
+        "text": "Whenever this creature blocks, flip a coin. If you lose the flip, remove this creature from combat and it can't block this turn. Creatures it was blocking that had become blocked by only this creature this combat become unblocked."
+      }
+    ]
+  },
+  {
+    "name": "Abu Ja'far",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Abu Ja'far",
+        "manaCost": "{W}",
+        "type": "Creature \u2014 Human",
+        "text": "When this creature dies, destroy all creatures blocking or blocked by it. They can't be regenerated."
+      }
+    ]
+  },
+  {
+    "name": "Tourach's Chant",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Tourach's Chant",
+        "manaCost": "{1}{B}{B}",
+        "type": "Enchantment",
+        "text": "At the beginning of your upkeep, sacrifice this enchantment unless you pay {B}.\nWhenever a player puts a Forest onto the battlefield, this enchantment deals 3 damage to that player unless they put a -1/-1 counter on a creature they control."
+      }
+    ]
+  },
+  {
+    "name": "Tinder Wall",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Tinder Wall",
+        "manaCost": "{G}",
+        "type": "Creature \u2014 Plant Wall",
+        "text": "Defender (This creature can't attack.)\nSacrifice this creature: Add {R}{R}.\n{R}, Sacrifice this creature: It deals 2 damage to target creature it's blocking."
+      }
+    ]
+  },
+  {
+    "name": "Thelon's Chant",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Thelon's Chant",
+        "manaCost": "{1}{G}{G}",
+        "type": "Enchantment",
+        "text": "At the beginning of your upkeep, sacrifice this enchantment unless you pay {G}.\nWhenever a player puts a Swamp onto the battlefield, this enchantment deals 3 damage to that player unless the player puts a -1/-1 counter on a creature they control."
+      }
+    ]
+  }
+]

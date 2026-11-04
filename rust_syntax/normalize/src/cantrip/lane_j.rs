@@ -435,6 +435,9 @@ impl Compiler {
         objects: Option<&ObjectFilter>,
     ) -> Result<Matched> {
         type E = PlayerEvent;
+        if matches!(event, E::PutsOntoBattlefield) && !planned::switched_on("entry-actor") {
+            return Err(gap("battlefield entry actor"));
+        }
         // What a Room's doors are now says nothing of a past unlock.
         if matches!(event, E::FullyUnlocksRoom) && self.history.is_some() {
             return Err(gap(
@@ -584,7 +587,17 @@ impl Compiler {
                 "Whenever a player draws a card",
                 false,
             ),
-            E::EntersUnderControl | E::PutsOntoBattlefield => (
+            E::PutsOntoBattlefield => (
+                "ZONE_CHANGE",
+                "Event::ZoneChange { new, to, put_by: Some(put_by), .. }",
+                "let id = *new; let player = *put_by; let subject = Target::Object(id); let data = [new.0, u32::from(player.0)];",
+                "player",
+                moved_by(),
+                Some(ON_BATTLEFIELD),
+                "Whenever a player puts a permanent onto the battlefield",
+                false,
+            ),
+            E::EntersUnderControl => (
                 "ZONE_CHANGE",
                 "Event::ZoneChange { new, to, .. }",
                 MOVED,
@@ -2772,14 +2785,31 @@ impl Compiler {
                 "{}.is_some_and(|o: ObjectId| q.exiled_with(q.linked_to(&Asker::new(o, q.controller(o)))).contains(&{id}))",
                 self.object(object)?
             ),
+            ObjectFilter::BlockedByObject(object) if self.reader != Reader::Layer => planned::planned_value(
+                "last-known combat relationships",
+                &format!("{{ let blocker = {}; q.state().blocks.iter().any(|b| b.attacker == {id} && Some(b.blocker) == blocker) }}", self.object(object)?),
+                &format!("{}.is_some_and(|blocker| q.creatures_blocked_by(blocker).contains(&{id}))", self.object(object)?),
+            ),
             ObjectFilter::BlockedByObject(object) => format!(
                 "{{ let blocker = {}; q.state().blocks.iter().any(|b| b.attacker == {id} && Some(b.blocker) == blocker) }}",
                 self.object(object)?
             ),
+            ObjectFilter::BlockingAny(attackers) if self.reader != Reader::Layer => {
+                let test = self.filter(attackers, &Candidate::of("other"))?;
+                planned::planned_value("last-known combat relationships",
+                    &format!("q.state().blocks.iter().any(|b| b.blocker == {id} && {{ let other = b.attacker; {test} }})"),
+                    &format!("q.creatures_blocked_by({id}).into_iter().any(|other| {test})"))
+            }
             ObjectFilter::BlockingAny(attackers) => format!(
                 "q.state().blocks.iter().any(|b| b.blocker == {id} && {})",
                 self.filter(attackers, &Candidate::of("b.attacker"))?
             ),
+            ObjectFilter::BlockedByAny(blockers) if self.reader != Reader::Layer => {
+                let test = self.filter(blockers, &Candidate::of("other"))?;
+                planned::planned_value("last-known combat relationships",
+                    &format!("q.state().blocks.iter().any(|b| b.attacker == {id} && {{ let other = b.blocker; {test} }})"),
+                    &format!("q.creatures_blocking({id}).into_iter().any(|other| {test})"))
+            }
             ObjectFilter::BlockedByAny(blockers) => format!(
                 "q.state().blocks.iter().any(|b| b.attacker == {id} && {})",
                 self.filter(blockers, &Candidate::of("b.blocker"))?
