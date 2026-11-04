@@ -2064,10 +2064,12 @@ impl Compiler {
         // `delayed`).
         let tabled = self.tabled;
         let (granting, quoted_used) = (self.granting, self.quoted_used.clone());
+        let stage_lines = self.stage_lines.clone();
         self.granting = true;
         let granted_text = self.said(lane_k::Said::Sentence, form(ability));
         self.granting = granting;
         self.quoted_used = quoted_used;
+        self.stage_lines = stage_lines;
         let held = self.holding.replace(Vec::new());
         // The ability's own functions read the game they are given.
         self.tabled = false;

@@ -1,0 +1,116 @@
+[
+  {
+    "name": "Battle Cry",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Battle Cry",
+        "manaCost": "{2}{W}",
+        "type": "Instant",
+        "text": "Untap all white creatures you control.\nWhenever a creature blocks this turn, it gets +0/+1 until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "Blessed Wine",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Blessed Wine",
+        "manaCost": "{1}{W}",
+        "type": "Instant",
+        "text": "You gain 1 life.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Blizzard",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Blizzard",
+        "manaCost": "{G}{G}",
+        "type": "Enchantment",
+        "text": "Cast this spell only if you control a snow land.\nCumulative upkeep {2} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nCreatures with flying don't untap during their controllers' untap steps."
+      }
+    ]
+  },
+  {
+    "name": "Dandân",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dandân",
+        "manaCost": "{U}{U}",
+        "type": "Creature — Fish",
+        "text": "This creature can't attack unless defending player controls an Island.\nWhen you control no Islands, sacrifice this creature.",
+        "power": "4",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Island Fish Jasconius",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Island Fish Jasconius",
+        "manaCost": "{4}{U}{U}{U}",
+        "type": "Creature — Fish",
+        "text": "This creature doesn't untap during your untap step.\nAt the beginning of your upkeep, you may pay {U}{U}{U}. If you do, untap this creature.\nThis creature can't attack unless defending player controls an Island.\nWhen you control no Islands, sacrifice this creature.",
+        "power": "6",
+        "toughness": "8"
+      }
+    ]
+  },
+  {
+    "name": "Lightning Blow",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Lightning Blow",
+        "manaCost": "{1}{W}",
+        "type": "Instant",
+        "text": "Target creature gains first strike until end of turn.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Merchant Ship",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Merchant Ship",
+        "manaCost": "{U}",
+        "type": "Creature — Human",
+        "text": "This creature can't attack unless defending player controls an Island.\nWhenever this creature attacks and isn't blocked, you gain 2 life.\nWhen you control no Islands, sacrifice this creature.",
+        "power": "0",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Panic",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Panic",
+        "manaCost": "{R}",
+        "type": "Instant",
+        "text": "Cast this spell only during combat before blockers are declared.\nTarget creature can't block this turn.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  },
+  {
+    "name": "Ray of Erasure",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ray of Erasure",
+        "manaCost": "{U}",
+        "type": "Instant",
+        "text": "Target player mills a card.\nDraw a card at the beginning of the next turn's upkeep."
+      }
+    ]
+  }
+]

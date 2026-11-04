@@ -3601,6 +3601,7 @@ fn printed_of(call: &syn::ExprCall) -> Option<String> {
         name.as_str(),
         "triggered" | "ability" | "mana_ability" | "static_ability" | "activated" | "loyalty_ability"
             | "replacement" | "prevention" | "chapter" | "granted_regeneration_ban"
+            | "delayed_trigger" | "state_triggered"
     ) {
         return None;
     }
@@ -3808,6 +3809,7 @@ enum Role {
     CastCondition,
     ActivationCondition,
     TriggerCondition,
+    StateTriggerCondition,
     Replacement,
 }
 
@@ -3846,6 +3848,9 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                     }
                     Some("granted_regeneration_ban") => {
                         if let Some(callback) = call.args.first() { self.mark(callback, Role::Static); }
+                    }
+                    Some("state_triggered") => {
+                        if let Some(callback) = call.args.first() { self.mark(callback, Role::StateTriggerCondition); }
                     }
                     Some("sacrifice" | "tap_objects" | "discard_cards" | "exile_from_graveyard") => {
                         if let Some(callback) = call.args.iter().nth(1) { self.mark(callback, Role::Cost); }
@@ -3955,6 +3960,12 @@ fn function_names(file: &File, printed: &str) -> Names {
         } else {
             Role::Effect
         };
+        // A restriction can precede a keyword paragraph, while `spell_text`
+        // intentionally selects the run of resolving instructions after it.
+        let source = if text.is_none() && role == Role::CastCondition {
+            printed.lines().map(str::trim).find(|line| line.starts_with("Cast this spell only "))
+                .map(str::to_owned).unwrap_or(source)
+        } else { source };
         let quote = match role {
             Role::Trigger => trigger_quote(&source),
             _ => source.lines().next().unwrap_or_default().trim().to_string(),
@@ -4096,6 +4107,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::CastCondition => "601.3",
         Role::ActivationCondition => "602.5",
         Role::TriggerCondition => "603.4",
+        Role::StateTriggerCondition => "603.8",
         Role::Replacement => "614.1a",
         Role::Effect => "608.2",
     }];

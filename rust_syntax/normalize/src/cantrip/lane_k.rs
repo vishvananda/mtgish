@@ -29,6 +29,9 @@ pub(super) struct Line {
     head: String,
     /// The bulleted lines under it, without their bullets.
     modes: Vec<String>,
+    /// Unclaimed paragraphs of the same spell, including instructions creating
+    /// delayed triggers. A spell's effects need not fit in one Oracle paragraph.
+    spell_paragraphs: Vec<(Said, String)>,
     /// What it quotes: the text of an ability it grants or a token has.
     quotes: Vec<(Said, String)>,
     /// A counter stage's power and toughness, "LEVEL 1-4: 2/2".
@@ -218,6 +221,7 @@ fn line_of(kind: Said, text: String, raw: &str) -> Line {
         head: text.clone(),
         text,
         modes: Vec::new(),
+        spell_paragraphs: Vec::new(),
         stats: false,
         staged: 0,
         said: false,
@@ -368,6 +372,7 @@ impl Printed {
             }
         }
         let mut aligned = vec![None; n];
+        let mut claimed = BTreeSet::new();
         let (mut a, mut l, mut used) = (0, 0, 0);
         while a < n && l < m {
             if taken[a][l][used] {
@@ -379,11 +384,24 @@ impl Printed {
                     }
                 }
                 aligned[a] = Some(line);
+                claimed.insert(l);
                 (a, used) = (a + 1, 1);
             } else if best[a][l][used] == best[a + 1][l][used] {
                 a += 1;
             } else {
                 (l, used) = (l + 1, 0);
+            }
+        }
+        if abilities.iter().filter(|ability| matches!(ability, Ability::Spell { .. })).count() == 1 {
+            for (ability, line) in abilities.iter().zip(&mut aligned) {
+                if matches!(ability, Ability::Spell { .. }) {
+                    if let Some(line) = line {
+                        line.spell_paragraphs = self.lines.iter().enumerate()
+                            .filter(|(at, paragraph)| !claimed.contains(at)
+                                && matches!(paragraph.kind, Said::Sentence | Said::Triggered))
+                            .map(|(_, paragraph)| (paragraph.kind, paragraph.head.clone())).collect();
+                    }
+                }
             }
         }
         aligned
@@ -2098,11 +2116,12 @@ impl Compiler {
         let Some(line) = self.line.clone() else {
             return self.said(Said::Triggered, fallback);
         };
-        let blocks: Vec<(Said, String)> = match self.granting {
-            true => line.quotes.clone(),
+        let blocks: Vec<(Said, String, bool)> = match self.granting {
+            true => line.quotes.iter().map(|(kind, words)| (*kind, words.clone(), true)).collect(),
             false => {
-                let modes = line.modes.iter().map(|mode| (Said::Sentence, mode.clone()));
-                modes.chain([(line.kind, line.head.clone())]).collect()
+                let modes = line.modes.iter().map(|mode| (Said::Sentence, mode.clone(), true));
+                modes.chain([(line.kind, line.head.clone(), true)])
+                    .chain(line.spell_paragraphs.iter().map(|(kind, words)| (*kind, words.clone(), false))).collect()
             }
         };
         let makes = |sentence: &str| {
@@ -2124,7 +2143,7 @@ impl Compiler {
             }
         };
         let mut first = None;
-        for (kind, block) in &blocks {
+        for (kind, block, own_line) in &blocks {
             let sentences = effect_sentences(*kind, block);
             for at in 0..sentences.len() {
                 if !makes(&sentences[at]) {
@@ -2133,7 +2152,7 @@ impl Compiler {
                 let to = if reflexive { sentences.len() } else { at + 1 };
                 let words = self.printed_run(&sentences, at, to);
                 // A triggered ability's first sentence is its own trigger.
-                if at == 0 && *kind == Said::Triggered {
+                if at == 0 && *kind == Said::Triggered && *own_line {
                     first.get_or_insert(words);
                     continue;
                 }
