@@ -965,20 +965,31 @@ impl Compiler {
     /// engine keeps what an activation's cost chose of the battlefield, and
     /// what a spell sacrificed is in the history ahead of its cast.
     fn cost_objects(&self, payment: &PaymentRef, component: &[u32]) -> Result<String> {
+        // `cost()` combines these parts into one native Cost. Only a single chosen
+        // sacrifice has an unambiguous Permanents receipt in that representation.
+        let single_sacrifice = |cost: &Cost| {
+            let [index] = component else { return false };
+            matches!(cost.parts.get(*index as usize), Some(CostPart::Sacrifice { choose: Some(Count::Exactly(Expr::Constant(n))), .. }) if *n > 0)
+                && cost.parts.iter().filter(|part| matches!(part, CostPart::Sacrifice { .. })).count() == 1
+                && cost.parts.iter().all(|part| matches!(part, CostPart::Sacrifice { .. } | CostPart::TapSymbol | CostPart::Mana(_) | CostPart::Life(_)))
+        };
+        let receipt = |code: &str| planned::planned_value("cost-object-receipts", "Vec::<ObjectId>::new()", code);
+        if matches!(payment, PaymentRef::Activation) && self.reader == Reader::Resolution && !self.stack_item
+            && self.activation_cost.as_ref().is_some_and(single_sacrifice)
+        {
+            return Ok(receipt("q.mana_ability_cost_objects(0, CostPart::Permanents)"));
+        }
+        if let PaymentRef::Casting { ability } = payment {
+            if self.reader == Reader::Resolution && self.stack_item && self.casting_costs.len() == 1
+                && self.printed_additional_costs.contains(ability)
+                && self.casting_costs.get(ability).is_some_and(|cost| cost.parts.len() == 1 && single_sacrifice(cost))
+            {
+                return Ok(receipt("q.history().spell_cost_objects(item.object, CostOrigin::PrintedAdditional, 0, CostPart::Permanents).collect::<Vec<ObjectId>>()"));
+            }
+            return Err(gap("cost objects of an unsupported casting cost composition"));
+        }
         if self.reader != Reader::Resolution || !self.stack_item {
             if matches!(payment, PaymentRef::Activation) && self.activation_cost.is_some() {
-                // A mana ability's effect runs as its cost is paid (605.3a), with
-                // nothing between: what its one leaving part took left last, and
-                // `old` reads as it last existed.
-                let leaving = self.activation_cost.as_ref().map_or(0, |cost| {
-                    let leaves = |part: &&CostPart| {
-                        matches!(part, CostPart::Sacrifice { .. } | CostPart::Move { .. })
-                    };
-                    cost.parts.iter().filter(leaves).count()
-                });
-                if leaving == 1 && !self.stack_item && self.reader == Reader::Resolution {
-                    return Ok("q.events().iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, from, part: false, .. } if from.is(ZoneKind::Battlefield) => Some(old), _ => None }).into_iter().collect::<Vec<ObjectId>>()".into());
-                }
                 return Ok(planned::planned_value(
                     "cost objects outside a resolving ability",
                     "Vec::<ObjectId>::new()",
@@ -1029,21 +1040,7 @@ impl Compiler {
                 }
                 Ok("q.cost_objects(item).to_vec()".into())
             }
-            PaymentRef::Casting { ability } => {
-                let cost = self
-                    .casting_costs
-                    .get(ability)
-                    .ok_or_else(|| gap("cost objects of no additional cost"))?;
-                let paid = part(cost)?;
-                let CostPart::Sacrifice {
-                    choose: Some(Count::Exactly(Expr::Constant(n))),
-                    ..
-                } = paid
-                else {
-                    return Ok(lane_g::paid_objects(component));
-                };
-                Ok(format!("{{ let records = q.history().all(); let spell = q.history().original_spell(item.object); records.iter().rposition(|r| matches!(r.event, Event::Cast(c) if c.spell == spell)).map_or_else(Vec::new, |cast| records[..cast].iter().rev().filter_map(|r| match r.event {{ Event::ZoneChange {{ old, from, reason: ZoneReason::Sacrifice, .. }} if from.is(ZoneKind::Battlefield) => Some(old), _ => None }}).take({n}).collect::<Vec<ObjectId>>()) }}"))
-            }
+            PaymentRef::Casting { .. } => unreachable!("casting receipts are handled above"),
             PaymentRef::Resolution(result) => self.paid_at_resolution(result),
             other => Err(gap(format!("cost objects of {}", form(other)))),
         }

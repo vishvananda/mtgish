@@ -727,6 +727,8 @@ struct Compiler {
     activation_cost: Option<Cost>,
     /// Each additional cost this card declares, by its ability's index.
     casting_costs: BTreeMap<u32, Cost>,
+    /// Unconditional once-only printed additional costs, by ability index.
+    printed_additional_costs: BTreeSet<u32>,
     /// A cost this card's spell pays beyond its additional costs is being written.
     spell_cost: bool,
     /// The cost of the option of a choice of costs whose body is being compiled
@@ -1237,6 +1239,7 @@ impl Compiler {
             asking: None,
             activation_cost: None,
             casting_costs: BTreeMap::new(),
+            printed_additional_costs: BTreeSet::new(),
             spell_cost: false,
             option_cost: None,
             chose_object_as_enters: false,
@@ -2615,6 +2618,9 @@ fn emit_face(
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
             c.casting_costs.insert(i as u32, cost.clone());
+        }
+        if matches!(a, Ability::Casting(CastingRule::AdditionalCost { optional: false, repetition: CostRepetition::Once, .. })) {
+            c.printed_additional_costs.insert(i as u32);
         }
     }
     let mut firsts: Vec<String> = card

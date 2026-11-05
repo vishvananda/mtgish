@@ -68,6 +68,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("target-original-context", "replacing: Option<(u32, Target)>", &[]),
     ("delayed-watched-source", "ThisTurnWatching(ObjectId)", &[]),
     ("multiple-blocks", "pub const fn block_allowance(", &[]),
+    ("cost-object-receipts", "fn mana_ability_cost_objects(&self,", &["cost-object-receipts"]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

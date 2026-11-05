@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Priest of Yawgmoth",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Priest of Yawgmoth",
+        "manaCost": "{1}{B}",
+        "type": "Creature \u2014 Phyrexian Human Cleric",
+        "text": "{T}, Sacrifice an artifact: Add an amount of {B} equal to the sacrificed artifact's mana value.",
+        "power": "1",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Sacrifice",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sacrifice",
+        "manaCost": "{B}",
+        "type": "Instant",
+        "text": "As an additional cost to cast this spell, sacrifice a creature.\nAdd an amount of {B} equal to the sacrificed creature's mana value."
+      }
+    ]
+  }
+]
