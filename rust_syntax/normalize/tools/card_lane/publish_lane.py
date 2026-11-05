@@ -309,6 +309,7 @@ def pick_prerequisite(tree, sha):
 
 
 def integration_checks(root, cfg, b, cards, tree, folder):
+    review.maintain_caches(root, cfg, begin_target=tree / 'target')
     if cfg['publisher'].get('check_pending_prs', True):
         pending_pr_checks(cfg, b, tree, folder)
     scratch = tree / 'target' / 'tmp'
@@ -395,6 +396,7 @@ def publish(root, cfg, db, number):
         raise RuntimeError('Publication deferred: export coherent sets from the finished local integration branch')
     p = cfg['publisher']; repo = Path(p['repo']); b, cards = batch(db, number)
     tree = Path(p['worktree_root']) / b['branch'].replace('/', '-')
+    completed = b['status'] == 'published'
     try:
         if not b.get('source_base'):
             raise RuntimeError('batch has no frozen source base; inspect legacy reservation')
@@ -462,6 +464,7 @@ def publish(root, cfg, db, number):
                 update(db, number, status='creating')
                 _, url = external_read(command, repo, 'gh', 'pr', 'create', '--repo', p['upstream_repo'], '--base', 'main', '--head', p['fork_owner'] + ':' + b['branch'], '--title', f"Adds {len(cards)} {p.get('set_name', 'Unlimited')} cards (batch {number:03d})", '--body-file', str(folder / 'pr.md'))
             update(db, number, status='published', pr_url=url, detail=None)
+            completed = True
     except Exception as e:
         # Push/create can have succeeded even if their client failed. Retain their state for retry.
         state, _ = batch(db, number)
@@ -470,6 +473,10 @@ def publish(root, cfg, db, number):
         else:
             update(db, number, status='blocked', detail=str(e))
         raise
+    finally:
+        # The branch and evidence remain. Retire a successful cache only after releasing its use lease.
+        review.maintain_caches(root, cfg, end_target=tree / 'target',
+                              retired_target=tree / 'target' if completed else None)
 
 
 

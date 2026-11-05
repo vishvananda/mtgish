@@ -220,6 +220,7 @@ def worker(root, slot, once=False):
     state.mkdir(parents=True, exist_ok=True)
     with (folder / 'slot.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        review.maintain_caches(root, cfg, begin_target=tree / 'target')
         review.clean(tree)
         base = cfg['base']
         review.git(tree, 'merge-base', '--is-ancestor', base, 'HEAD')
@@ -271,6 +272,7 @@ def worker(root, slot, once=False):
                     db = review.connect(root)
                     review.enqueue(db, source, cfg.get('priorities', {}).get(card['name'], 0))
                 finish(root, job, outcome, result)
+                review.maintain_caches(root, cfg)
                 session.finish_card()
                 if outcome in ('infrastructure', 'error', 'timeout'):
                     return

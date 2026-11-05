@@ -26,6 +26,7 @@ import unicodedata
 
 import context_budget
 import review_evidence
+import cache_leases
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_ROOT = Path.home() / "card-lane" / "pipeline"
@@ -60,6 +61,23 @@ def save(path, value):
         json.dump(value, f, indent=2)
         f.write("\n")
     os.replace(f.name, path)
+
+
+def maintain_caches(root, cfg, *, begin_target=None, retired_target=None, end_target=None):
+    """Optional housekeeping cannot reclassify a completed card or publication."""
+    # Cache-use protection is core coordination, established before optional maintenance imports.
+    if begin_target is not None:
+        cache_leases.acquire(begin_target)
+    try:
+        if end_target is not None:
+            cache_leases.release(end_target)
+        import cache_cleanup
+        if begin_target is not None:
+            cache_cleanup.record_reuse(root, begin_target)
+        return cache_cleanup.after_lane_work(root, cfg, retired_target=retired_target)
+    except Exception as error:
+        print(f'Card-lane cache maintenance skipped: {error}', file=sys.stderr)
+        return False
 
 
 def connect(root):
@@ -175,7 +193,7 @@ def clean(tree):
 def driver_stamp():
     paths = [HERE / name for name in (
         'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py', 'card_lane.py',
-        'context_budget.py', 'review_evidence.py')]
+        'context_budget.py', 'review_evidence.py', 'cache_cleanup.py', 'cache_leases.py')]
     paths.append(HERE.parent / 'cantrip_tree.py')
     return tuple(path.stat().st_mtime_ns for path in paths)
 
@@ -975,6 +993,7 @@ def worker(root, slot, once=False, resume=None):
     # Lock the slot across supervisors and invocations, independently of the DB job lease.
     with (folder / "slot.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        maintain_caches(root, cfg, begin_target=tree / 'target')
         session, context_cards, previous_usage, session_role = None, 0, None, None
         last_finished = None
         stamp = driver_stamp()
@@ -1317,6 +1336,7 @@ def main():
             if config(args.root).get('handoff_enabled',True):
                 handoff_verifier_findings(args.root)
             cfg = config(args.root)
+            maintain_caches(args.root, cfg)
             if cfg.get('workflow') == 'consolidate_then_publish':
                 import integration_lane
                 integration_lane.snapshot(args.root)

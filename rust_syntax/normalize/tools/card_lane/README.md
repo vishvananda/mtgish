@@ -141,6 +141,44 @@ freezes each card's base and helper dependencies, includes the prerequisite comm
 and links the helper PRs. Thus independent card batches can share helpers without depending on earlier card
 batches. Overlapping helper changes still stop for a semantic resolution rather than being deduplicated by name.
 
+### Build-cache cleanup
+
+While its watch loop runs, the supervisor schedules an hourly deterministic cleanup job, also checked after implementation work. Successful
+publication retires that batch's temporary Cargo cache immediately. Worktrees, branches, source edits, reports and
+validation receipts remain available. A cleanup error never changes a card result or a published PR's state.
+
+Ordinary unused caches expire after six hours. Configured implementer/reviewer caches, integration caches and explicit
+prepared seeds stay protected; sibling campaigns' configured slots are protected too. The job checks process handles,
+Cargo locks and tracked files before deletion. Fresh CoW copies remain recent even when `cp -a` preserved old mtimes.
+Workers and publishers explicitly cancel retirement and record cache use when they start, even for a read-only warm-cache
+hit. Kernel leases protect active use across campaigns, including the gap before Cargo starts; retirement and removal
+require exclusive ownership. CoW reduces the initial copy, but compiler writes still create
+private data, so retired caches need this lifecycle.
+
+The scan defaults to `publisher.worktree_root`. Configure additional owned pools and retained seeds explicitly:
+
+```json
+"cache_cleanup": {
+  "enabled": true,
+  "idle_hours": 6,
+  "interval_seconds": 3600,
+  "worktree_roots": ["/mnt/vizier/card-lane"],
+  "protected_paths": ["/mnt/vizier/card-lane/prepared-seed/target"]
+}
+```
+
+```sh
+python3 "$T/cache_cleanup.py" --root "$P" sweep --dry-run
+python3 "$T/cache_cleanup.py" --root "$P" sweep
+# A temporary verification cache whose full evidence has been retained:
+python3 "$T/cache_cleanup.py" --root "$P" retire /path/to/temporary/target
+# Reusing a temporary cache outside a configured worker:
+python3 "$T/cache_cleanup.py" --root "$P" reuse /path/to/temporary/target
+```
+
+Cleanup results and actual filesystem free-space readings are in `$P/cache-cleanup/latest.json`; manual previews use
+`dry-run.json`. The supervisor runs scans in a separate process so card dispatch stays responsive.
+
 ### Consolidate locally, publish when finished
 
 `workflow: "consolidate_then_publish"` replaces immediate batch publication for a campaign. The legacy
