@@ -159,6 +159,17 @@ class ExportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Export is held'):
             lane.build(self.root, plan, 'publish/exact-scenario')
 
+    def test_selected_scenario_cannot_depend_on_a_deferred_new_card(self):
+        self.ready()
+        self.unfinished('Gamma')
+        self.write('scenarios/alpha-with-gamma.cantrip', '[Bot1 Deck]\nAlpha\nGamma x2\n[Actions]\n')
+        self.finish()
+        plan = lane.plan(self.root, self.head, defer_implementations=['Gamma'])
+        self.assertIn('Scenario depends on deferred new card: Gamma: scenarios/alpha-with-gamma.cantrip',
+                      plan['blockers'])
+        with self.assertRaisesRegex(ValueError, 'Export is held'):
+            lane.build(self.root, plan, 'publish/deferred-dependency')
+
     def test_builds_final_file_objects_with_original_authors_and_independent_sibling_parents(self):
         self.ready()
         plan = lane.plan(self.root, self.head)

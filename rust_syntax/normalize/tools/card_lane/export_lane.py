@@ -144,6 +144,7 @@ def plan(root, head, *, defer_implementations=()):
         stem, slug = review.names(name)
         extra_tests = json.loads(unfinished[name].get('card', '{}')).get('card_test_paths', [])
         deferred_cards.append(dict(name=name, stem=stem, slug=slug, extra_tests=extra_tests))
+    deferred_by_name = {review.canonical_typography(card['name']): card for card in deferred_cards}
     for path in changed:
         # An explicit backlog deferral never permits its unreviewed file objects
         # into the foundation. Compare longest owners to avoid prefix collisions
@@ -167,7 +168,12 @@ def plan(root, head, *, defer_implementations=()):
         required = set()
         if path.startswith('scenarios/') and path.endswith('.cantrip') and path in after:
             text = publication.git(tree, 'show', head + ':' + path)
-            required = {by_name[name] for name in scenario_cards(text) if name in by_name}
+            deck_names = set(scenario_cards(text))
+            required = {by_name[name] for name in deck_names if name in by_name}
+            for name in deck_names & deferred_by_name.keys():
+                card = deferred_by_name[name]
+                if f"content/mtg/cards/{card['slug']}.json" not in before:
+                    blockers.append(f"Scenario depends on deferred new card: {card['name']}: {path}")
         reconciled = all_cards[owners[0]] if owners and owners[0] >= len(cards) else None
         if owners and owners[0] < len(cards):
             owner = owners[0]
