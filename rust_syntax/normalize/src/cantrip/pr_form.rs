@@ -245,6 +245,16 @@ fn rendered(
         || raw.contains("counted_by_amount")
         || raw.contains(".data[");
     let reads_subject = raw.contains("event_subject") || raw.contains("event_objects") || raw.contains("item.subject");
+    // Bestow and mutate can resolve by a different procedure after their target
+    // becomes illegal. Arcane spells can gain splice targets, and modal spells
+    // can have targets outside this ability's one static spec.
+    let raw_lower = raw.to_ascii_lowercase();
+    let required_objects = if ["bestow", "mutat", "arcane", "modal: some"]
+        .iter().any(|word| raw_lower.contains(word)) {
+        BTreeSet::new()
+    } else {
+        sole_required_object_targets(&file)
+    };
     let unread = matchers_whose_data_is_unread(&file);
     let reads_data = |function: &syn::ItemFn| reads_data && !unread.contains(&function.sig.ident.to_string());
     flatten_tokens(&mut file, &mut BTreeSet::new());
@@ -273,6 +283,7 @@ fn rendered(
     use_shared_mana(&mut file);
     use_shared_effects(&mut file);
     one_target_lists(&mut file);
+    sole_object_guards(&mut file, &required_objects);
     use_shared_effects(&mut file);
     drop_unreached(&mut file);
     drop_defaults(&mut file, characteristics);
@@ -2975,6 +2986,102 @@ fn single_targets(file: &File) -> BTreeMap<String, Vec<bool>> {
         }
     }
     found
+}
+
+/// A single mandatory object-only spec, before PR-form rewrites remove its static.
+/// The resolver refuses to run an item when its one announced target is illegal
+/// (CR 608.2b). Optional and multimode targets must retain their guards.
+fn sole_required_object_targets(file: &File) -> BTreeSet<String> {
+    if chooses_many_modes(file) { return BTreeSet::new(); }
+    let predicates: BTreeSet<String> = file.items.iter().filter_map(|item| {
+        let Item::Fn(function) = item else { return None };
+        let body = body_text(&function.block);
+        (body.starts_with("matches ! (t , Target :: Object") && !body.contains("Target :: Player")
+            && !body.contains("Target :: Ability"))
+            .then(|| function.sig.ident.to_string())
+    }).collect();
+    file.items.iter().filter_map(|item| {
+        let Item::Static(item) = item else { return None };
+        let stem = item.ident.to_string().strip_suffix("_TARGETS")?.to_lowercase();
+        let Expr::Reference(list) = &*item.expr else { return None };
+        let Expr::Array(array) = &*list.expr else { return None };
+        let [Expr::Call(call)] = array.elems.iter().collect::<Vec<_>>().as_slice() else { return None };
+        if ident_of(&call.func).as_deref() != Some("target") || call.args.len() != 1 { return None; }
+        predicates.contains(&ident_of(&call.args[0])?).then_some(stem)
+    }).collect()
+}
+
+/// Remove only the generated immediate read of an unchanged sole required object.
+fn sole_object_guards(file: &mut File, required: &BTreeSet<String>) {
+    let pattern: Expr = syn::parse_str("({ let q: &dyn Query = g; t_0.get(0).copied().and_then(|t: Target| t.object()).into_iter().filter(|&o| q.state().obj(o).became.is_none()).collect::<Vec<ObjectId>>() }).first().copied()").unwrap();
+    let pattern = text_of(&pattern);
+    for item in &mut file.items {
+        let Item::Fn(function) = item else { continue };
+        if !required.contains(&function.sig.ident.to_string()) { continue; }
+        let block = &mut function.block;
+        for i in 0..block.stmts.len() {
+            if !block.stmts[..i].iter().all(|stmt| matches!(stmt, Stmt::Local(local) if local.init.as_ref().is_some_and(|init| is_pure(&init.expr) || text_of(&init.expr) == "vec ! [g . state () . target (item , 0)]"))) { break; }
+            let Stmt::Expr(Expr::If(branch), _) = &mut block.stmts[i] else { continue };
+            if branch.else_branch.is_some() { continue; }
+            // A suspended yes/no decision does not change the target. Recognize
+            // only the generated one-element target -> map(copy values) shape.
+            if text_of(&branch.cond) == "cantrip_mechanics :: effects :: ask_may (g , item . controller , item . object , Purpose :: Optional) ?" {
+                let body = &mut branch.then_branch.stmts;
+                let mut original = None;
+                let mut mapped = None;
+                for (index, stmt) in body.iter().enumerate() {
+                    let Stmt::Local(local) = stmt else { break };
+                    if !local.init.as_ref().is_some_and(|init| is_pure(&init.expr)) { break; }
+                    {
+                        if let (Some(name), Some(init)) = (plain_binding(local), local.init.as_ref()) {
+                            let text = text_of(&init.expr);
+                            if text == "t_0 . get (0) . copied () . and_then (| t : Target | t . object ()) . into_iter () . collect :: < Vec < _ > > ()" {
+                                original = Some(name);
+                            } else if let Some(target) = &original {
+                                let Expr::Block(value) = &*init.expr else { continue };
+                                let Some(Stmt::Expr(Expr::MethodCall(map), _)) = value.block.stmts.last() else { continue };
+                                if map.method == "map" && map.args.len() == 1
+                                    && text_of(&map.receiver) == format!("{target} . first () . copied ()")
+                                { mapped = Some((name, index)); }
+                            }
+                        }
+                    }
+                }
+                if let Some((mapped, index)) = mapped {
+                    for at in index + 1..(index + 2).min(body.len()) {
+                        let Stmt::Expr(Expr::If(inner), _) = &body[at] else { continue };
+                        if inner.else_branch.is_some() { continue; }
+                        let Expr::Let(binding) = &*inner.cond else { continue };
+                        if ident_of(&binding.expr).as_deref() != Some(&mapped) { continue; }
+                        let Pat::TupleStruct(pat) = &*binding.pat else { continue };
+                        let Some(Pat::Ident(bound)) = pat.elems.first() else { continue };
+                        if text_of(&pat.path) != "Some" || pat.elems.len() != 1 { continue; }
+                        let name = &bound.ident;
+                        let value = syn::Ident::new(&mapped, proc_macro2::Span::call_site());
+                        let mut statements = inner.then_branch.stmts.clone();
+                        statements.insert(0, parse_quote!(let #name = #value.expect("a resolving sole required object target");));
+                        body.splice(at..=at, statements);
+                        break;
+                    }
+                }
+                continue;
+            }
+            let Expr::Let(binding) = &*branch.cond else { continue };
+            let Pat::TupleStruct(pat) = &*binding.pat else { continue };
+            if text_of(&pat.path) != "Some" || pat.elems.len() != 1 || text_of(&binding.expr) != pattern { continue; }
+            let Some(Pat::Ident(bound)) = pat.elems.first() else { continue };
+            let name = &bound.ident;
+            let mut statements = branch.then_branch.stmts.clone();
+            statements.insert(0, parse_quote!(let #name = g.state().target(item, 0).object().expect("a resolving sole required object target");));
+            block.stmts.splice(i..=i, statements);
+            if let Some(at) = block.stmts.iter().position(|stmt| matches!(stmt, Stmt::Local(local) if plain_binding(local).as_deref() == Some("t_0"))) {
+                if !block.stmts.iter().enumerate().any(|(index, stmt)| index != at && mentions(stmt, "t_0")) {
+                    block.stmts.remove(at);
+                }
+            }
+            break;
+        }
+    }
 }
 
 /// A target spec whose local predicate duplicates a shared filter.
