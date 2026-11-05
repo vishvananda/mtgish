@@ -85,6 +85,28 @@ pub(super) fn watched_is_event_subject(event: &EventSpec) -> bool {
     }
 }
 
+/// A one-shot watching its own source can carry that same object as the
+/// subject. Restrict this to direct singular event filters: a history query or
+/// a different event participant does not prove the identity.
+fn source_is_event_subject(event: &EventSpec) -> bool {
+    fn direct(filter: &ObjectFilter) -> bool {
+        match filter {
+            ObjectFilter::SameObject(ObjectRef::Source) => true,
+            ObjectFilter::All(filters) => filters.iter().any(direct),
+            _ => false,
+        }
+    }
+    match event {
+        EventSpec::ZoneChange { objects, from: Some(_), to } if *to != EventZone::Battlefield => direct(objects),
+        EventSpec::Object { objects, .. } => direct(objects),
+        EventSpec::Attack { attackers, .. } => direct(attackers),
+        EventSpec::Damage(d) if d.subject == DamageSubject::Source => direct(&d.sources),
+        EventSpec::Damage(d) if d.subject == DamageSubject::Recipient =>
+            matches!(&d.recipients, DamageRecipients::Objects(objects) if direct(objects)),
+        _ => false,
+    }
+}
+
 /// What a delayed ability's body takes along from the instruction making it.
 pub(super) struct Outer {
     /// Only step-delayed closures use the subject plus real-object-list layout.
@@ -950,7 +972,7 @@ impl Compiler {
             }
         };
         let original_event_reads_source = reads_creator(event);
-        let watched_is_subject = watched_is_event_subject(event);
+        let watched_is_subject = watched_is_event_subject(event) || source_is_event_subject(event);
         let (event, source, each) = self.watching_source(event, body)?;
         let (maker, _, _) = self.maker();
         let separate = source != format!("Some({maker})");
@@ -958,6 +980,9 @@ impl Compiler {
             return Err(gap("delayed event reading both its creator and watched object"));
         }
         let indefinite_once = matches!((duration, once), (D::Indefinite, true));
+        if !separate && indefinite_once && !watched_is_subject {
+            return Err(gap("one-shot delayed trigger without a proven event subject"));
+        }
         if separate && !(matches!((duration, once), (D::EndOfTurn, false))
             || (indefinite_once && watched_is_subject && intervening_if.is_none())) {
             return Err(gap("delayed trigger with a separate watched object and unsupported duration"));
@@ -988,11 +1013,11 @@ impl Compiler {
         self.delayed.push(def);
         let index = self.delayed.len() - 1;
         let Some(each) = each else {
-            return self.make_watching(&outer, &when, &source, index, out);
+            return self.make_watching(&outer, &when, &source, index, true, out);
         };
         // One ability on each of them: "whenever either of those creatures ...".
         writeln!(out, "for each in {each} {{").unwrap();
-        self.make_watching(&outer, &when, &source, index, out)?;
+        self.make_watching(&outer, &when, &source, index, true, out)?;
         writeln!(out, "}}").unwrap();
         Ok(())
     }
@@ -1060,6 +1085,7 @@ impl Compiler {
         when: &str,
         source: &str,
         index: usize,
+        trigger_semantics: bool,
         out: &mut String,
     ) -> Result<()> {
         let (_, controller, card) = self.maker();
@@ -1067,6 +1093,10 @@ impl Compiler {
         let objects = outer.objects.borrow();
         let player = outer.player.borrow();
         let subject = outer.subject.as_ref().and_then(|s| s.borrow().clone());
+        if trigger_semantics && !outer.separate_watcher && when == "DelayedWhen::UntilEvent"
+            && (!objects.is_empty() || player.is_some() || subject.is_some()) {
+            return Err(gap("one-shot delayed trigger with independent captured values"));
+        }
         if outer.separate_watcher && (!objects.is_empty() || player.is_some() || subject.is_some()) {
             return Err(gap("delayed ability with separate watched object and additional captured values"));
         }
@@ -1087,7 +1117,8 @@ impl Compiler {
                 }
                 _ => return Err(gap("reflexive ability about an object and a player")),
             };
-            if outer.subject.is_some() || target == "Target::None" {
+            if outer.subject.is_some() || target == "Target::None"
+                || (!trigger_semantics && when == "DelayedWhen::WhenEvent" && player.is_some()) {
                 if outer.separate_watcher {
                     let (maker, _, _) = self.maker();
                     if target != "Target::None" { return Err(gap("delayed ability retaining a separate subject")); }
@@ -1100,6 +1131,9 @@ impl Compiler {
                     let code = format!("if let Some(watched) = {source} {{ g.delayed_trigger({when}, {maker}, {controller}, {ability}, {target}); }}");
                     self.plan_switched("delayed-watched-source", "delayed ability with separate source and watched object", &code, out);
                 } else {
+                    let (when, target) = if trigger_semantics && when == "DelayedWhen::UntilEvent" {
+                        ("DelayedWhen::WhenEvent", "Target::Object(source)")
+                    } else { (when, target.as_str()) };
                     writeln!(out, "if let Some(source) = {source} {{ g.delayed_trigger({when}, source, {controller}, {ability}, {target}); }}").unwrap();
                 }
                 return Ok(());
@@ -1107,6 +1141,11 @@ impl Compiler {
         }
         self.helpers.insert("about");
         let about = self.carried_objects(&objects)?;
+        if !trigger_semantics && !outer.separate_watcher && when == "DelayedWhen::WhenEvent" {
+            if player.is_some() { return Err(gap("one-shot delayed trigger with object and player captures")); }
+            writeln!(out, "if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}").unwrap();
+            return Ok(());
+        }
         match player.as_ref() {
             // Its body reads the list; what its matcher reads is held where it is read.
             None => self.plan_code(

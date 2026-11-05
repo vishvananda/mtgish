@@ -1512,7 +1512,7 @@ impl Compiler {
             {
                 return Err(gap("delayed trigger this turn with no end in the AST"));
             }
-            None => "DelayedWhen::UntilEvent".to_string(),
+            None => "DelayedWhen::WhenEvent".to_string(),
             Some(D::EndOfTurn) => "DelayedWhen::NextThisTurn".to_string(),
             Some(other @ D::UntilStateBasedActionsChecked) => planned::planned_value(
                 &format!("delayed trigger until {}", form(other)),
@@ -1536,8 +1536,9 @@ impl Compiler {
         if !separate { self.watching_for_another(&source, body)?; }
         let saved = self.clone();
         let mark = out.len();
-        // Only what waits for one event keeps a subject (settle's `is_event`).
-        for subject_only in [!separate && when == "DelayedWhen::UntilEvent", false] {
+        // WhenEvent watches an object subject when present. Independent object
+        // captures must instead travel as members so it still watches source.
+        for subject_only in [false] {
             let label = format!("delayed_{}", self.fresh());
             let closed = self.closing_for_matcher(subject_only, |c| {
                 c.reset_results();
@@ -1568,7 +1569,7 @@ impl Compiler {
             let made = closed.and_then(|(outer, def)| {
                 self.delayed.push(def);
                 let index = self.delayed.len() - 1;
-                self.make_watching(&outer, when, &source, index, out)
+                self.make_watching(&outer, when, &source, index, false, out)
             });
             match made {
                 Ok(()) => return Ok(()),

@@ -25,7 +25,12 @@ fn watched_death_keeps_the_spell_source_and_legal_target_and_carries_the_dead_ob
     assert!(d.contains("DelayedWhen::ThisTurnWatching(watched),item.object,item.controller"), "{new}");
     assert!(d.contains("t_0_raw.get(0).copied().filter(|t|t_0.contains(t))"), "{new}");
     assert!(d.contains("Some(asker.source)==Some(id)"), "{new}");
-    assert!(d.contains("item.subject.object().map(|o:ObjectId|q.state().obj(o).owner)"), "{new}");
+    assert!(d.contains("q.state().obj(item.subject.object().expect(\"eventmatcherguaranteesobjectsubject\")).owner"), "{new}");
+    let supported = cantrip::planned::with_additional_features(&[FEATURE], || cantrip::module(&card)).unwrap();
+    let printed = cantrip::pr_form::render(&supported, "Reincarnation", "Return the creature to its owner's hand.", cantrip::pr_form::Characteristics::Inline).unwrap();
+    assert!(printed.contains("event matcher guarantees object subject"), "{printed}");
+    assert!(!printed.contains("let Some(named_1) = item.subject.object()"), "{printed}");
+    if let Ok(path) = std::env::var("CANTRIP_REINCARNATION_PRINTED") { std::fs::write(path, &printed).unwrap(); }
     if let Ok(path) = std::env::var("CANTRIP_WATCHED_GENERATED") {
         let source = source("Reincarnation");
         let unified = mtgish_ast::unified::lower(&source).card;
@@ -100,6 +105,27 @@ fn creator_condition_is_a_source_condition_not_a_watchers_matcher_test() {
     assert!(output.contains(".condition("), "{output}");
     assert!(dense(&output).contains("Some(asker.source)"), "{output}");
     syn::parse_file(&output).unwrap();
+}
+
+#[test]
+fn self_watching_one_shot_carries_its_event_subject_and_uses_trigger_semantics() {
+    let mut c = card("Reincarnation");
+    let Ability::Spell { body, .. } = &mut c.abilities[0] else { panic!() };
+    let Instruction::Effect { operation: Operation::CreateTrigger { event, once, duration, .. }, .. } = &mut body.instructions[0] else { panic!() };
+    let EventSpec::ZoneChange { objects, .. } = event else { panic!() };
+    *objects = ObjectFilter::SameObject(ObjectRef::Source);
+    *once = true;
+    *duration = Duration::Indefinite;
+    let output = code(&c, &[FEATURE]).unwrap();
+    assert!(dense(&output).contains("g.delayed_trigger(DelayedWhen::WhenEvent,source,item.controller,AbilityRef::delayed(item.ability.card,0),Target::Object(source))"), "{output}");
+    assert!(!output.contains("DelayedWhen::UntilEvent"), "{output}");
+    assert!(!output.contains("event matcher guarantees object subject"), "{output}");
+    assert!(output.contains("item.subject.object()"), "{output}");
+    let Ability::Spell { body, .. } = &mut c.abilities[0] else { panic!() };
+    let Instruction::Effect { operation: Operation::CreateTrigger { event: EventSpec::ZoneChange { objects, .. }, .. }, .. } = &mut body.instructions[0] else { panic!() };
+    *objects = ObjectFilter::Any;
+    let gap = code(&c, &[FEATURE]).unwrap_err();
+    assert!(gap.contains("one-shot delayed trigger without a proven event subject"), "{gap}");
 }
 
 #[test]

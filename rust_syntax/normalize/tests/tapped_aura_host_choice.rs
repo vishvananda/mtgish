@@ -21,7 +21,7 @@ fn tapped_aura_references_the_event_land_and_moves_the_source() {
             let module = cantrip::module(&card).unwrap();
             assert!(module.contains("q.can_attach_to("), "{module}");
             assert!(module.contains("item.subject.object()"), "{module}");
-            assert!(module.contains("q.controller(o)"), "{module}");
+            assert!(module.contains("q.controller(item.subject.object().expect(\"event matcher guarantees object subject\"))"), "{module}");
             assert!(module.contains("asker.source"), "{module}");
             assert!(module.contains("q.is_on_battlefield(a)"), "{module}");
             if let Ok(dir) = std::env::var("TAPPED_AURA_PROOF_DIR") {

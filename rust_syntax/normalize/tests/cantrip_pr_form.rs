@@ -931,3 +931,28 @@ pub static CARD: CardDef = CardDef { spell: spell(&[], action), ..CardDef::BLANK
     assert!(output.contains("let _ = g"), "{output}");
     assert!(output.contains("put_into_graveyard") && output.contains("collect::<Vec<ObjectId>>()"), "{output}");
 }
+
+#[test]
+fn nonempty_selection_proves_its_first_host_without_changing_other_cases() {
+    let raw = r#"
+use cantrip_api::*;
+fn resolve(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    let selected = vec![item.object];
+    if !selected.is_empty() {
+        let host_0 = selected.clone().get(0usize).copied();
+        if let Some(host) = host_0 { g.tap(host); }
+    }
+    Ok(())
+}
+pub static CARD: CardDef = CardDef { spell: spell(&[], resolve), ..CardDef::BLANK };
+"#;
+    let render_one = |s: &str| render(s, "Example", "Tap a permanent.", Characteristics::Oracle).unwrap();
+    let good = render_one(raw);
+    assert!(good.contains("selected[0]") && !good.contains("if let Some(host)"), "{good}");
+    let unguarded = render_one(&raw.replace("if !selected.is_empty()", "if item.controller == PlayerId(0)"));
+    assert!(unguarded.contains("if let Some(host)"), "{unguarded}");
+    let changed = render_one(&raw.replace("let host_0 =", "selected.clear(); let host_0 ="));
+    assert!(changed.contains("if let Some(host)"), "{changed}");
+    let borrowed = render_one(&raw.replace("Some(host)", "Some(ref host)"));
+    assert!(borrowed.contains("if let Some(ref host)"), "{borrowed}");
+}

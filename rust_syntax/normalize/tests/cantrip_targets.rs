@@ -73,7 +73,7 @@ const CARDS: &[(&str, &str)] = &[
     // "When you next cast ... this turn" waits for this turn alone.
     ("Repeated Reverberation", "DelayedWhen::NextThisTurn"),
     // "This turn" of Seraph's trigger is no end of the delayed ability's wait.
-    ("Seraph", "DelayedWhen::UntilEvent"),
+    ("Seraph", "DelayedWhen::WhenEvent"),
 ];
 
 #[test]

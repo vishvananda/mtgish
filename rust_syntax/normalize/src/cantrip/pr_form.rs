@@ -1570,7 +1570,11 @@ fn optional_expect(call: &syn::ExprMethodCall) -> bool {
             _ => false,
         }
     }
-    call.method == "expect" && !checked_conversion(&call.receiver)
+    let proven_subject = text_of(&call.receiver) == "item . subject . object ()"
+        && call.args.len() == 1
+        && matches!(call.args.first(), Some(Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }))
+            if s.value() == "event matcher guarantees object subject");
+    call.method == "expect" && !checked_conversion(&call.receiver) && !proven_subject
 }
 
 /// The first `x.expect(..)` a statement evaluates itself, as `named`: the `x` is
@@ -2756,6 +2760,7 @@ fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
     }
     LifeLostTogether.visit_block_mut(&mut function.block);
     AlwaysSome.visit_block_mut(&mut function.block);
+    NonemptyFirst.visit_block_mut(&mut function.block);
     if text_of(&function.sig.output).contains("Result") {
         guard_at_the_end(&mut function.block);
     }
@@ -2773,6 +2778,50 @@ fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
                     *typed.pat = wild();
                 }
             }
+        }
+    }
+}
+
+/// A nonempty selection has a first element, provided nothing between the
+/// check and the read even mentions the selection. Keep the guarded body and
+/// its scope; only eliminate the redundant second optional test.
+struct NonemptyFirst;
+impl VisitMut for NonemptyFirst {
+    fn visit_expr_if_mut(&mut self, branch: &mut syn::ExprIf) {
+        visit_mut::visit_expr_if_mut(self, branch);
+        let Expr::Unary(not) = &*branch.cond else { return };
+        if !matches!(not.op, syn::UnOp::Not(_)) { return }
+        let Expr::MethodCall(empty) = &*not.expr else { return };
+        if empty.method != "is_empty" || !empty.args.is_empty() { return }
+        let Some(list) = ident_of(&empty.receiver) else { return };
+        let statements = &mut branch.then_branch.stmts;
+        for i in 0..statements.len().saturating_sub(1) {
+            if statements[..i].iter().any(|s| mentions(s, &list)) { return }
+            let Stmt::Local(local) = &statements[i] else { continue };
+            let (Some(option), Some(init)) = (plain_binding(local), &local.init) else { continue };
+            let Expr::MethodCall(copied) = &*init.expr else { continue };
+            if copied.method != "copied" || !copied.args.is_empty() { continue }
+            let Expr::MethodCall(get) = &*copied.receiver else { continue };
+            if get.method != "get" || get.args.len() != 1 || eval(&get.args[0]) != Some(0) { continue }
+            let Expr::MethodCall(clone) = &*get.receiver else { continue };
+            if init.diverge.is_some() || clone.method != "clone" || !clone.args.is_empty()
+                || ident_of(&clone.receiver).as_deref() != Some(&list) { continue }
+            let Stmt::Expr(Expr::If(inner), _) = &statements[i + 1] else { continue };
+            if inner.else_branch.is_some() { continue }
+            let Expr::Let(binding) = &*inner.cond else { continue };
+            if ident_of(&binding.expr).as_deref() != Some(&option) { continue }
+            let Pat::TupleStruct(some) = &*binding.pat else { continue };
+            if !some.path.is_ident("Some") || some.elems.len() != 1 { continue }
+            let Some(Pat::Ident(host)) = some.elems.first() else { continue };
+            if host.by_ref.is_some() || host.mutability.is_some() || host.subpat.is_some() { continue }
+            if inner.then_branch.stmts.iter().any(|s| mentions(s, &option))
+                || statements[i + 2..].iter().any(|s| mentions(s, &option)) { continue }
+            let name = &host.ident;
+            let selected = syn::Ident::new(&list, proc_macro2::Span::call_site());
+            let body = &inner.then_branch.stmts;
+            let replacement: Stmt = parse_quote!({ let #name = #selected[0]; #(#body)* });
+            statements.splice(i..i + 2, [replacement]);
+            return;
         }
     }
 }
