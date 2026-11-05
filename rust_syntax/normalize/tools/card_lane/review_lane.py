@@ -855,9 +855,20 @@ def checks(root):
                                      log=proof['broken_log'],proof=proof))
                     rows.append(dict(gate=card+' native mutant restored '+mutant['key'],ok=True,seconds=0,
                                      log=proof['restored_log']))
-        rows.append(dict(gate=card+" mutation", ok=not unresolved and not gates[card].failures(),
+        # A successful summary alone cannot prove which changes were played. Bind the raw run and per-change results
+        # before a later check or a reused worker directory replaces them; freeze_checks snapshots nested log fields.
+        artifacts = []
+        missing = []
+        for filename, kind in [('mutate.txt', 'raw mutation output'), ('mutants.json', 'per-mutant results')]:
+            path = lane.card_dir(card) / filename
+            if path.is_file():
+                artifacts.append(dict(kind=kind, log=str(path), sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
+            else:
+                missing.append(str(path))
+        rows.append(dict(gate=card+" mutation", ok=not unresolved and not gates[card].failures() and not missing,
                          seconds=round(time.monotonic()-at, 2), survivors=survivors, unresolved=unresolved,
-                         native_catches=native_catches,details=gates[card].results))
+                         native_catches=native_catches,details=gates[card].results,
+                         artifacts=artifacts, missing_artifacts=missing))
     shared = [p for p in changed if p.startswith("crates/cantrip-mechanics/")]
     if shared:
         record("shared citations", lambda: lane.tool("cr.py", "check", "--show", *shared))

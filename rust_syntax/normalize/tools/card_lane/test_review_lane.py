@@ -827,6 +827,11 @@ class GitTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def mutation_artifacts(self, directory):
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory/'mutate.txt').write_text('')
+        lane.save(directory/'mutants.json', {})
+
     def test_updated_driver_reloads_only_at_clean_boundary_without_old_resume(self):
         with mock.patch.object(lane,'driver_stamp',return_value=('new',)), \
              mock.patch.object(lane,'clean') as clean,mock.patch.object(lane.os,'execv') as execv:
@@ -890,6 +895,7 @@ class CliTests(unittest.TestCase):
                     tool=lambda *args:(0,'matches Scryfall'),shell=shell,full_environment=lambda:{},
                     Gates=lambda *args:SimpleNamespace(failures=lambda:[],results=[]),
                     mutation_gates=lambda *args:{})
+                self.mutation_artifacts(fake.card_dir('A'))
                 with mock.patch.object(lane,'current',return_value={'tree':str(root),'folder':str(root),'name':'A'}), \
                      mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'git',return_value='head'), \
                      mock.patch.object(lane,'work_digest',return_value='stable'), \
@@ -910,6 +916,7 @@ class CliTests(unittest.TestCase):
             fake=SimpleNamespace(card_dir=lambda _:root/'state'/'cards'/'a',card_file=lambda _:card,
                                  card_scenarios=lambda _:[],focus_cards=lambda _:None,run_corpus=corpus,
                                  tool=tools,Gates=lambda *args:gate,mutation_gates=mutation)
+            self.mutation_artifacts(fake.card_dir('A'))
             with mock.patch.object(lane,'current',return_value={'tree':str(root),'folder':str(root),'name':'A'}), \
                  mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'git',return_value='head'), \
                  mock.patch.object(lane,'work_digest',return_value='stable'), \
@@ -939,6 +946,7 @@ class CliTests(unittest.TestCase):
             fake=SimpleNamespace(card_dir=lambda _:root/'state'/'cards'/'a',card_file=lambda _:card,
                                  card_scenarios=lambda _:[],focus_cards=lambda _:None,run_corpus=corpus,
                                  tool=tool,Gates=lambda *args:SimpleNamespace(results=[],failures=lambda:[]),mutation_gates=mutation)
+            self.mutation_artifacts(fake.card_dir('A'))
             with mock.patch.object(lane,'current',return_value={'tree':str(root),'folder':str(root),'name':'A'}), \
                  mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'git',return_value='head'), \
                  mock.patch.object(lane,'work_digest',return_value='stable'), \
@@ -980,6 +988,7 @@ class CliTests(unittest.TestCase):
                                  run_corpus=lambda _:(0,'1 pass, 0 fail, 0 known bugs, 0 need cards'),
                                  tool=lambda *args:(0,'matches Scryfall'), Gates=lambda *args:gate,
                                  mutation_gates=lambda *args:{})
+            self.mutation_artifacts(fake.card_dir('A'))
             assignment={'tree':str(root),'folder':str(root),'name':'A'}
             with mock.patch.object(lane,'current',return_value=assignment),mock.patch.object(lane,'load_lane',return_value=fake), \
                  mock.patch.object(lane,'allowed_changes',return_value=[]),mock.patch.object(lane,'git',return_value='head'), \
@@ -989,6 +998,35 @@ class CliTests(unittest.TestCase):
             self.assertEqual(result['initial_digest'],'before')
             self.assertEqual(result['diff_digest'],'after')
             self.assertEqual(result['gates'][-1],{'gate':'stable source','ok':False,'seconds':0})
+
+    def test_mutation_gate_binds_raw_results_and_rejects_missing_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);card=root/'a.rs';card.write_text('pub static CARD: X;')
+            state=root/'state/cards/a';self.mutation_artifacts(state)
+            (state/'mutate.txt').write_text('line 1: changed: caught\n')
+            lane.save(state/'mutants.json', {'change':{'verdict':'caught'}})
+            original=(state/'mutants.json').read_bytes()
+            fake=SimpleNamespace(card_dir=lambda _:state,card_file=lambda _:card,
+                card_scenarios=lambda _:[],focus_cards=lambda _:None,
+                run_corpus=lambda _:(0,'1 pass, 0 fail, 0 known bugs, 0 need cards'),
+                tool=lambda *args:(0,'matches Scryfall'),
+                Gates=lambda *args:SimpleNamespace(failures=lambda:[],results=[]),mutation_gates=lambda *args:{})
+            with mock.patch.object(lane,'current',return_value={'tree':str(root),'folder':str(root),'name':'A'}), \
+                 mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'git',return_value='head'), \
+                 mock.patch.object(lane,'work_digest',return_value='stable'), \
+                 mock.patch.object(lane,'allowed_changes',return_value=[]):
+                result=lane.checks(root)
+                mutation=next(g for g in result['gates'] if g['gate']=='A mutation')
+                self.assertTrue(result['ok'])
+                self.assertEqual(len(mutation['artifacts']),2)
+                bound=next(a for a in mutation['artifacts'] if a['kind']=='per-mutant results')
+                self.assertEqual(Path(bound['log']).read_bytes(),original)
+                (state/'mutants.json').unlink()
+                later=lane.checks(root)
+            self.assertEqual(Path(bound['log']).read_bytes(),original)
+            self.assertFalse(later['ok'])
+            mutation=next(g for g in later['gates'] if g['gate']=='A mutation')
+            self.assertEqual(mutation['missing_artifacts'],[str(state/'mutants.json')])
 
     def test_typographic_apostrophe_does_not_hide_a_declared_caller(self):
         self.assertEqual(lane.names('Hawkeye’s Bow'),lane.names("Hawkeye's Bow"))
