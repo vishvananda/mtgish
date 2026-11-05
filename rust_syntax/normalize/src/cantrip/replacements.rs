@@ -598,9 +598,14 @@ impl Compiler {
                 return self.turn_begin_rule(label, arm, frame, &extra, &changes, &rest, hint, parts);
             }
         }
+        let damage = self.replacement_damage(label, &arms, frame, &rest, false)?;
+        let remaining = if damage.is_some() { &[][..] } else { &rest };
         let (kind, applies, apply, then) =
-            self.reshaping(label, &arms, frame, &extra, &changes, &rest, false)?;
+            self.reshaping(label, &arms, frame, &extra, &changes, remaining, false)?;
         let mut def = format!("replacement(ReplacementKind::{kind}, {applies}, {apply}, {hint})");
+        if let Some(damage) = damage {
+            def.push_str(&format!(".with_damage({damage})"));
+        }
         if matches!(active, ReplacementActive::Everywhere) {
             def.push_str(".own_everywhere()");
         }
@@ -677,6 +682,59 @@ impl Compiler {
         };
         let (changes, rest) = self.split_program(program, frame);
         Ok((extra, changes, rest))
+    }
+    /// Damage an effect adds while replacing damage belongs to that same event
+    /// (CR 120.4b-d, 614.6). A mutating `then` would deal a separate event, with
+    /// different life totals, infect rules and replacement eligibility.
+    fn replacement_damage(
+        &mut self,
+        label: &str,
+        arms: &[Watched],
+        frame: Frame,
+        rest: &[Instruction],
+        made: bool,
+    ) -> Result<Option<String>> {
+        if arms[0].kind != "Damage" || rest.is_empty() {
+            return Ok(None);
+        }
+        use mtgish_ir::visit::{Visitor, Walk};
+        struct AddsDamage(bool);
+        impl Visitor for AddsDamage {
+            fn operation(&mut self, operation: &Operation) -> bool {
+                self.0 |= matches!(operation, Operation::DealDamage { .. });
+                // A separately created replacement or delayed ability does not
+                // add damage to this event merely because its future body does.
+                false
+            }
+        }
+        let mut adds_damage = AddsDamage(false);
+        rest.walk(&mut adds_damage);
+        if !adds_damage.0 {
+            return Ok(None);
+        }
+        if !planned::switched_on("simultaneous-replacement-damage") {
+            return Err(gap("simultaneous additional replacement damage"));
+        }
+        let mut out = String::from("let mut components = Vec::new(); ");
+        let mut flat = Vec::new();
+        lane_m::flat_groups(rest, &mut flat);
+        for step in &flat {
+            let Instruction::Effect { operation: Operation::DealDamage {
+                source, recipients, amount, preventable: true,
+            }, .. } = step else {
+                return Err(gap("additional replacement damage mixed with other instructions"));
+            };
+            let (source, recipients, amount) = self.matching(frame, |c| Ok((
+                c.object(source)?, c.recipients(recipients)?,
+                c.number(amount)?.quantity(Quantity::Damage)?,
+            )))?;
+            write!(out, "if let Some(source) = {source} {{ let amount = {amount}; for target in {recipients} {{ components.push(DamageComponent::Additional(DamageEvent {{ source, target, amount, combat: false, heal_marked: false, shielded: None }})); }} }} ").unwrap();
+        }
+        out.push_str("components");
+        let function = format!("{label}_damage");
+        let about = if made { "affected: ObjectId, " } else { "" };
+        writeln!(self.callbacks(), "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, {about}before: &DamageEvent, _: &DamageEvent) -> Vec<DamageComponent> {{ let {} = before; {} {out} }}", arms[0].binding, arms[0].locals).unwrap();
+        Ok(Some(function))
     }
     /// The callbacks of an effect that reshapes its event: `made` for one a
     /// spell or ability made, whose callbacks are told the object it is about.
@@ -1089,10 +1147,15 @@ impl Compiler {
         if once && arms[0].kind == "Damage" && lane_n::parts_alone(event, to) != (true, true) {
             return Err(gap("engine: no once-only replacement of a whole damage event"));
         }
+        let damage = self.replacement_damage(label, &arms, frame, &rest, true)?;
+        let remaining = if damage.is_some() { &[][..] } else { &rest };
         let (kind, applies, apply, then) =
-            self.reshaping(label, &arms, frame, &extra, &changes, &rest, true)?;
+            self.reshaping(label, &arms, frame, &extra, &changes, remaining, true)?;
         let mut def =
             format!("granted_replacement(ReplacementKind::{kind}, {applies}, {apply}, {hint})");
+        if let Some(damage) = damage {
+            def.push_str(&format!(".with_damage({damage})"));
+        }
         if once {
             def.push_str(".once()");
         }
