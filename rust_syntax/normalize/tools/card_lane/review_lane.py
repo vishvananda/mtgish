@@ -1222,6 +1222,10 @@ def main():
             sync(args.root)
             if config(args.root).get('handoff_enabled',True):
                 handoff_verifier_findings(args.root)
+            cfg = config(args.root)
+            if cfg.get('workflow') == 'consolidate_then_publish':
+                import integration_lane
+                integration_lane.snapshot(args.root)
             save(args.root / "status.json", status(args.root))
             time.sleep(config(args.root).get("poll_seconds", 5))
     elif args.command == "check":

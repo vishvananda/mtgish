@@ -104,7 +104,26 @@ def snapshot(root):
         counts = {r['status']: r['n'] for r in db.execute('''SELECT status,COUNT(*) AS n FROM integration_jobs
             WHERE rowid IN (SELECT MAX(rowid) FROM integration_jobs GROUP BY name) GROUP BY status''')}
         held = [dict(r) for r in db.execute("SELECT id,name,candidate,status,detail FROM integration_jobs WHERE status IN ('running','needs_resolution')")]
-    result = dict(at=review.now(), counts=counts, revision_counts=revisions, held=held)
+        # Inventory can retain an older approved version while a replacement is
+        # still being reviewed. Only the latest review revision may advance the
+        # displayed confirmed -> collected pipeline.
+        latest = db.execute('''SELECT name,candidate,status FROM jobs WHERE rowid IN
+            (SELECT MAX(rowid) FROM jobs GROUP BY name)''').fetchall()
+        collected = {(r['name'], r['candidate']): r['status'] for r in db.execute(
+            "SELECT name,candidate,status FROM integration_jobs WHERE status IN ('assembled','integrated','upstream')")}
+        verified = dict(confirmed=0, collected=0, to_collect=0, upstream=0)
+        for job in latest:
+            if job['status'] != 'passed' or not job['candidate']:
+                continue
+            verified['confirmed'] += 1
+            state = collected.get((job['name'], job['candidate']))
+            if state == 'upstream':
+                verified['upstream'] += 1
+            elif state in ('assembled', 'integrated'):
+                verified['collected'] += 1
+            else:
+                verified['to_collect'] += 1
+    result = dict(at=review.now(), counts=counts, revision_counts=revisions, verified=verified, held=held)
     review.save(root/'integration/status.json', result)
     return result
 

@@ -167,3 +167,20 @@ class IntegrationTests(unittest.TestCase):
         state=lane.snapshot(self.root)
         self.assertEqual(state['counts'],dict(assembled=1,pending=1))
         self.assertEqual(state['revision_counts'],dict(assembled=2,pending=1))
+
+    def test_display_counts_only_collected_latest_confirmed_candidates(self):
+        with lane.connect(self.root) as db:
+            for key,name,candidate,status in [('a-old','Alpha','old-a','passed'),
+                    ('a-new','Alpha','new-a','running'), ('b','Beta','new-b','passed'),
+                    ('c','Gamma','new-c','passed'), ('d','Delta','public-d','passed')]:
+                db.execute('INSERT INTO jobs(id,name,source_commit,source,status,enqueued,candidate) VALUES(?,?,?,?,?,?,?)',
+                           (key,name,candidate,'{}',status,'now',candidate))
+            for key,name,candidate,status in [('a-old','Alpha','old-a','assembled'),
+                    ('b-old','Beta','old-b','assembled'), ('c','Gamma','new-c','assembled'),
+                    ('d','Delta','public-d','upstream')]:
+                db.execute('INSERT INTO integration_jobs(id,name,candidate,source,status,steps,created) VALUES(?,?,?,?,?,?,?)',
+                           (key,name,candidate,'{}',status,'[]','now'))
+        state=lane.snapshot(self.root)
+        self.assertEqual(state['verified'],dict(confirmed=3,collected=1,to_collect=1,upstream=1))
+        # Historical inventory stays available to reconciliation, not the TUI.
+        self.assertEqual(state['counts']['assembled'],3)
