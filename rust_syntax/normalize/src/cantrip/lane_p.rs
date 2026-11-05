@@ -803,11 +803,27 @@ impl Compiler {
                 _ => Err(failure()),
             })
             .collect::<Result<Vec<ObjectFilter>>>()?;
-        let labels = filters
+        let mut labels = filters
             .iter()
             .map(filter_word)
             .collect::<Option<Vec<String>>>()
             .ok_or_else(failure)?;
+        // A filter selected solely to decide the immediately following destruction
+        // describes actions, not words to put into the card's text.
+        let destroy_choice = matches!(self.after.first(),
+            Some(Instruction::Effect { operation: Operation::Destroy {
+                objects: crate::battlefield_query!(ObjectFilter::ChosenFilter), ..
+            }, .. })) && filters.iter().all(|filter| match filter {
+                ObjectFilter::CardType(_) => true,
+                ObjectFilter::All(parts) => matches!(parts.last(), Some(ObjectFilter::CardType(_)))
+                    && parts.iter().filter(|p| matches!(p, ObjectFilter::CardType(_))).count() == 1
+                    && parts.iter().all(|p| matches!(p, ObjectFilter::CardType(_) | ObjectFilter::Color(_))
+                        || matches!(p, ObjectFilter::Not(inner) if matches!(inner.as_ref(), ObjectFilter::Color(_)))),
+                _ => false,
+            });
+        if destroy_choice {
+            for label in &mut labels { *label = format!("Destroy all {label}s"); }
+        }
         if !self.stack_item || (self.entering_labels.is_some() && self.choice_labels.is_empty()) {
             return Err(failure());
         }
@@ -816,7 +832,11 @@ impl Compiler {
         self.choice_labels.extend(labels);
         let words: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
         self.entering_labels = Some(format!("&[{}]", words.join(", ")));
-        writeln!(out, "let player_{id} = {player}; let {local} = {M}::choose::option(g, player_{id}, {source}, item.ability.card, {base}..{end})? - {base};").unwrap();
+        if destroy_choice {
+            writeln!(out, "let player_{id} = {player}; let {local} = {M}::choose::one_of(g, player_{id}, {source}, ({base}..{end}).map(|i| Label::Card(item.ability.card, i)).collect())?;").unwrap();
+        } else {
+            writeln!(out, "let player_{id} = {player}; let {local} = {M}::choose::option(g, player_{id}, {source}, item.ability.card, {base}..{end})? - {base};").unwrap();
+        }
         self.notes.filters = Some((local.to_string(), filters));
         Ok(())
     }
