@@ -829,6 +829,8 @@ struct Compiler {
     /// The next closure is the body of a delayed ability asked of another object.
     source_moved: bool,
     watching_object: Option<ObjectRef>,
+    watching_separately: bool,
+    watched_is_event_subject: bool,
     bound_players: BTreeSet<u32>,
     /// A mechanic asks for the first way, so no other way may come before it.
     only_way: bool,
@@ -1281,6 +1283,8 @@ impl Compiler {
             reflexing: false,
             source_moved: false,
             watching_object: None,
+            watching_separately: false,
+            watched_is_event_subject: false,
             bound_players: BTreeSet::new(),
             costing_targets: false,
             stating_cost: false,

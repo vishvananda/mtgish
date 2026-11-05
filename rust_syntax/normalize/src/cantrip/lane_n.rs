@@ -1521,20 +1521,30 @@ impl Compiler {
             ),
             Some(other) => return Err(gap(format!("delayed trigger until {}", form(other)))),
         };
-        let when = when.as_str();
+        let watched_is_subject = super::delayed::watched_is_event_subject(event);
+        let reads_creator = super::delayed::reads_creator(event);
         let (watched, source, each) = self.watching_source(event, body)?;
-        if each.is_some() {
-            return Err(gap("delayed trigger on an event"));
+        let (maker, _, _) = self.maker();
+        let separate = source != format!("Some({maker})");
+        if each.is_some() { return Err(gap("delayed trigger on an event")); }
+        if separate && !(expires.is_none() && intervening_if.is_none() && watched_is_subject && !reads_creator) {
+            return Err(gap("one-shot delayed trigger with a separate watched object"));
         }
-        self.watching_for_another(&source, body)?;
+        let when = if separate { "DelayedWhen::WhenEvent" } else { when.as_str() };
+        self.watching_separately = separate;
+        self.watched_is_event_subject = watched_is_subject;
+        if !separate { self.watching_for_another(&source, body)?; }
         let saved = self.clone();
         let mark = out.len();
         // Only what waits for one event keeps a subject (settle's `is_event`).
-        for subject_only in [when == "DelayedWhen::UntilEvent", false] {
+        for subject_only in [!separate && when == "DelayedWhen::UntilEvent", false] {
             let label = format!("delayed_{}", self.fresh());
             let closed = self.closing_for_matcher(subject_only, |c| {
                 c.reset_results();
                 let matched = c.event(&watched)?;
+                if let Some(outer) = c.outer.as_ref().filter(|outer| outer.separate_watcher) {
+                    if matched.frame.object != Some(Carried::Subject) { outer.watched_is_event_subject.set(false); }
+                }
                 let targets = c.targets_for(
                     &Announcement {
                         targets: Vec::new(),

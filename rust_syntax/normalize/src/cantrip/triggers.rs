@@ -183,6 +183,14 @@ impl Compiler {
         (self.reader, self.event_at, self.frame) = saved;
         compiled
     }
+    /// Remove the one direct watched-object term, leaving all other filters to judge the actual arriving object.
+    fn remove_direct_watch(filter: &mut ObjectFilter) -> bool {
+        match filter {
+            ObjectFilter::SameObject(ObjectRef::Source) => { *filter = ObjectFilter::Any; true }
+            ObjectFilter::All(filters) => filters.iter_mut().any(Self::remove_direct_watch),
+            _ => false,
+        }
+    }
     pub(super) fn zone_change(
         &mut self,
         objects: &ObjectFilter,
@@ -209,7 +217,8 @@ impl Compiler {
             one => is_source(one),
         };
         frame.subject_is_source = own && entering && !controller;
-        let functions_there = own && !entering && from != Some(&EventZone::Battlefield);
+        let separate_watcher = self.outer.as_ref().is_some_and(|outer| outer.separate_watcher);
+        let functions_there = own && !separate_watcher && !entering && from != Some(&EventZone::Battlefield);
         let id = if entering || from.is_none() || functions_there {
             "*new"
         } else {
@@ -219,7 +228,13 @@ impl Compiler {
         if let Some(from) = from {
             tests.push(format!("from.is({})", zone_kind(from)?));
         }
-        tests.push(self.matching(frame, |c| c.filter(objects, &Candidate {
+        // A separate watcher names the pre-move identity even when the trigger event is about the arriving object.
+        // Match that identity against `old`, but judge all other characteristics and the event subject as before.
+        let mut event_filter = objects.clone();
+        if separate_watcher && (entering || from.is_none()) && Self::remove_direct_watch(&mut event_filter) {
+            tests.push("*old == asker.source".into());
+        }
+        tests.push(self.matching(frame, |c| c.filter(&event_filter, &Candidate {
             entry_from: entering,
             ..Candidate::of("id")
         }))?);
@@ -2047,6 +2062,10 @@ impl Compiler {
             )
         };
         let mut matched = matched;
+        if let Some(outer) = self.outer.as_ref().filter(|outer| outer.separate_watcher) {
+            matched.frame.subject_is_source = false;
+            if matched.frame.object != Some(Carried::Subject) { outer.watched_is_event_subject.set(false); }
+        }
         if matched.mana
             && (announcement.modes.is_some()
                 || !announcement.targets.is_empty()
