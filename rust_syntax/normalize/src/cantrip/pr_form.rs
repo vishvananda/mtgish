@@ -3059,7 +3059,7 @@ fn sole_object_guards(file: &mut File, required: &BTreeSet<String>) {
                         let name = &bound.ident;
                         let value = syn::Ident::new(&mapped, proc_macro2::Span::call_site());
                         let mut statements = inner.then_branch.stmts.clone();
-                        statements.insert(0, parse_quote!(let #name = #value.expect("a resolving sole required object target");));
+                        statements.insert(0, parse_quote!(let Some(#name) = #value else { return Ok(()); };));
                         body.splice(at..=at, statements);
                         break;
                     }
@@ -3072,7 +3072,7 @@ fn sole_object_guards(file: &mut File, required: &BTreeSet<String>) {
             let Some(Pat::Ident(bound)) = pat.elems.first() else { continue };
             let name = &bound.ident;
             let mut statements = branch.then_branch.stmts.clone();
-            statements.insert(0, parse_quote!(let #name = g.state().target(item, 0).object().expect("a resolving sole required object target");));
+            statements.insert(0, parse_quote!(let Some(#name) = g.state().target(item, 0).object() else { return Ok(()); };));
             block.stmts.splice(i..=i, statements);
             if let Some(at) = block.stmts.iter().position(|stmt| matches!(stmt, Stmt::Local(local) if plain_binding(local).as_deref() == Some("t_0"))) {
                 if !block.stmts.iter().enumerate().any(|(index, stmt)| index != at && mentions(stmt, "t_0")) {

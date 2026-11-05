@@ -17,6 +17,8 @@ fn sole_required_object_target_does_not_emit_impossible_empty_branch() {
         let printed = cantrip::pr_form::render(&raw, name, text, cantrip::pr_form::Characteristics::Inline).unwrap();
         assert!(!printed.contains("if let Some(object)"), "{name}: {printed}");
         if name == "Vesuvan Doppelganger" { assert!(!printed.contains("if let Some(values)"), "{name}: {printed}"); }
+        assert!(!printed.contains(".expect("), "{name}: {printed}");
+        assert!(!printed.contains(".unwrap("), "{name}: {printed}");
     }
 }
 
