@@ -1118,7 +1118,8 @@ impl Compiler {
                 // enclosing remainder. A Group does not confine its result.
                 self.after.walk(&mut use_later);
                 let attachment = match rest.first() {
-                    Some(Instruction::Effect { operation: op @ Operation::Attach { attachments: ObjectSet::One(object), .. }, .. }) if host_for(op) && matches!(object, ObjectRef::Target { index: 0, .. }) => Some(object),
+                    Some(Instruction::Effect { operation: op @ Operation::Attach { attachments: ObjectSet::One(object), .. }, .. })
+                        if host_for(op) && matches!(object, ObjectRef::Target { index: 0, .. } | ObjectRef::Source) => Some(object),
                     _ => None,
                 };
                 if use_later.count != 0 {
@@ -1133,10 +1134,16 @@ impl Compiler {
                     // Target legality is checked once as resolution starts (CR 608.2b),
                     // not again after earlier instructions such as changing control.
                     // A lone required target makes the initial fizzle check sufficient.
-                    if self.slots.len() != 1 || !self.slots.values().all(|(_, spec)| matches!(spec.count, Count::Exactly(Expr::Constant(1)))) {
+                    if matches!(attachment, ObjectRef::Target { .. }) && (self.slots.len() != 1 || !self.slots.values().all(|(_, spec)| matches!(spec.count, Count::Exactly(Expr::Constant(1))))) {
                         return Err(gap("attachment host choice with multiple or optional targets"));
                     }
-                    let source = self.fetch(self.object(attachment)?);
+                    // The source of a resolving ability can have left and become a different object (CR 400.7).
+                    // It must still be that permanent on the battlefield before it can move to the chosen host.
+                    let source = if matches!(attachment, ObjectRef::Source) {
+                        self.fetch(format!("({}).filter(|&a| q.is_on_battlefield(a))", self.object(attachment)?))
+                    } else {
+                        self.fetch(self.object(attachment)?)
+                    };
                     return self.choose_filtered(player, objects, count, result, "Attach", Some(&source), out);
                 }
                 // The move refuses what can't go there (608.2d); nothing reads

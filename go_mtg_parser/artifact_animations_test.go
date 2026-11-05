@@ -93,3 +93,8 @@ func testSourceReferenceFixtures(t *testing.T, fixtureNames ...string) {
 func TestAuraReturnGraveyardReferences(t *testing.T) {
 	testSourceReferenceFixtures(t, "aura_graveyard_identity.ronl")
 }
+
+// The tapped land is the event's object, not whichever land the Aura enchants later.
+func TestTappedAuraOriginalHostReferences(t *testing.T) {
+	testSourceReferenceFixtures(t, "tapped_aura_references.ronl")
+}
