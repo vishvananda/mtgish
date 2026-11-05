@@ -22,10 +22,10 @@ const CARDS: &[(&str, &str)] = &[
     ("Orgg", "defending_player_of(q.state(), at)"),
     // The attacking player is the active player.
     ("Goblin Goon", "_block("),
-    // What paid for a mana ability, as it last was.
-    ("Priest of Yawgmoth", "Event::ZoneChange { old, from, part: false"),
-    // A token stayed nowhere, so the exiled creature is read as it last was.
-    ("Food Chain", "became.unwrap_or(o)"),
+    // Old native profiles cannot identify a mana ability's paid object safely.
+    ("Priest of Yawgmoth", "cost-object-receipts"),
+    // Exile-cost receipts are outside the supported sacrifice shape.
+    ("Food Chain", "cost objects outside a resolving ability"),
     // Nobody is asked who loses nothing.
     ("Balance", "<= keep_"),
     // The other pile stays in the library for the next step to move.
