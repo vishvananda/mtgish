@@ -536,6 +536,7 @@ impl Compiler {
             Some(change) => gap(beyond_lasting_rules(change)),
             None => failed,
         };
+        *self.captured_rule_targets.borrow_mut() = Some(Vec::new());
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let asked = self.filter(filter, &Candidate::of("id"));
@@ -548,21 +549,13 @@ impl Compiler {
                 if failed.feature == "target reference outside a resolving ability"
                     || failed.feature == "event player this trigger does not bind" =>
             {
-                self.filter(filter, &Candidate::of("id")).map_err(refused)?
+                self.filter(filter, &Candidate::of("id")).map_err(refused)
             }
-            asked => asked.map_err(refused)?,
+            asked => asked.map_err(refused),
         };
-        let (test, mut about) = self.named_as_resolved(&test).map_err(refused)?;
-        // A chosen target must still be legal when this rule is made, even when another target remains legal.
-        if changes.iter().any(|change| matches!(change, Change::Rule(RuleChange::BlockCapacity(_)))) {
-            for slot in 0..8 {
-                for index in 0..8 {
-                    let raw = format!("t_{slot}_raw.get({index}).copied().and_then");
-                    let legal = format!("t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t)).and_then");
-                    about = about.replace(&raw, &legal);
-                }
-            }
-        }
+        let targets = self.captured_rule_targets.borrow_mut().take().unwrap_or_default();
+        let test = test?;
+        let (test, mut about) = self.named_as_resolved_targets(&test, Some(&targets)).map_err(refused)?;
         // (the kind's code, its requirement, whether #897 has it, its words)
         let mut kinds: Vec<(String, String, bool, &str)> = Vec::new();
         for change in changes {
@@ -737,28 +730,29 @@ impl Compiler {
     /// `test` with what it reads of the resolution - one target, a player or an
     /// object - read from `about` instead, and the code of that `about`.
     pub(super) fn named_as_resolved(&self, test: &str) -> Result<(String, String)> {
+        self.named_as_resolved_targets(test, None)
+    }
+
+    fn named_as_resolved_targets(&self, test: &str, typed: Option<&[(usize, u16, &'static str)]>) -> Result<(String, String)> {
         let mut test = test.to_string();
         let mut about: Option<String> = None;
-        for slot in 0..8 {
-            for index in 0..8 {
-                for (what, wrap) in [("player", "Target::Player"), ("object", "Target::Object")] {
-                    // Still a legal target, or as announced: a spell with no
-                    // legal target left does nothing (CR 608.2b), so they agree.
-                    let legal = format!("t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t)).and_then(|t: Target| t.{what}())");
-                    let raw = format!("t_{slot}_raw.get({index}).copied().and_then(|t: Target| t.{what}())");
-                    let read = match (test.contains(&legal), test.contains(&raw)) {
-                        (false, false) => continue,
-                        (true, _) => legal.clone(),
-                        (false, true) => raw.clone(),
-                    };
-                    if about.is_some() {
-                        return Err(gap("a lasting rule reading two things its ability chose"));
-                    }
-                    test = test.replace(&legal, &format!("about.{what}()"));
-                    test = test.replace(&raw, &format!("about.{what}()"));
-                    about = Some(format!("{}.map({wrap}).unwrap_or(Target::None)", self.fetch(&read)));
-                }
-            }
+        // Lasting-rule filters record the actual typed target reads, without a slot or index limit.
+        let reads: Vec<(usize, u16, &str)> = match typed {
+            Some(reads) => reads.to_vec(),
+            None => (0..8).flat_map(|slot| (0..8).flat_map(move |index| [(slot, index, "player"), (slot, index, "object")])).collect(),
+        };
+        for (slot, index, what) in reads {
+            let wrap = if what == "player" { "Target::Player" } else { "Target::Object" };
+            let legal = format!("t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t)).and_then(|t: Target| t.{what}())");
+            let raw = format!("t_{slot}_raw.get({index}).copied().and_then(|t: Target| t.{what}())");
+            let was_legal = test.contains(&legal);
+            if !was_legal && !test.contains(&raw) { continue; }
+            if about.is_some() { return Err(gap("a lasting rule reading two things its ability chose")); }
+            test = test.replace(&legal, &format!("about.{what}()"));
+            test = test.replace(&raw, &format!("about.{what}()"));
+            // Partial legality still permits resolution, but an illegal target selects nothing.
+            let read = if typed.is_some() || was_legal { &legal } else { &raw };
+            about = Some(format!("{}.map({wrap}).unwrap_or(Target::None)", self.fetch(read)));
         }
         // What a trigger's event named ("that player"), as the item holds it.
         for what in ["player", "object"] {
@@ -5030,4 +5024,36 @@ pub(super) fn untaps_by_their_controllers(
 ) -> bool {
     matches!(duration, crate::ir::Duration::DuringControllersNextUntapStep)
         && matches!(affected, EffectSubjects::Objects(crate::battlefield_query!(filter)) if single_controller(filter).is_none())
+}
+
+#[cfg(test)]
+mod lasting_target_capture_tests {
+    use super::*;
+
+    #[test]
+    fn unresolved_target_collections_are_not_silently_captured() {
+        let c = Compiler::new();
+        assert!(c.named_as_resolved_targets("t_9.iter().any(|t| t.object() == Some(id))", Some(&[])).is_err());
+    }
+
+    #[test]
+    fn typed_target_capture_keeps_high_slots_and_indices_legal() {
+        for (slot, index) in [(8, 0), (0, 8), (12, 19)] {
+            let mut c = Compiler::new();
+            c.stack_item = true;
+            let spec = TargetSpec { slot: Slot(slot), kind: TargetKind::Object(ObjectDomain::permanent()),
+                count: Count::AnyNumber, filter: ObjectFilter::Any, players: None,
+                distribute: None, constraints: vec![], chooser: None };
+            c.slots.insert(slot, (slot as usize, spec));
+            *c.captured_rule_targets.borrow_mut() = Some(Vec::new());
+            let filter = ObjectFilter::SameObject(ObjectRef::Target { slot: Slot(slot), index });
+            let test = c.filter(&filter, &Candidate::of("id")).unwrap();
+            let reads = c.captured_rule_targets.borrow_mut().take().unwrap();
+            assert_eq!(reads, [(slot as usize, index, "object")]);
+            let (predicate, about) = c.named_as_resolved_targets(&test, Some(&reads)).unwrap();
+            assert!(predicate.contains("about.object()"), "{predicate}");
+            assert!(about.contains(&format!("t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t))")), "{about}");
+            syn::parse_str::<syn::Expr>(&about).unwrap();
+        }
+    }
 }

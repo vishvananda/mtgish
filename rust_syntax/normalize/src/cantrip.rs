@@ -639,6 +639,8 @@ struct Compiler {
     /// A trigger on damage to a player fires with that player as its subject.
     recipient_subject: bool,
     candidates: std::cell::RefCell<Vec<Candidate>>,
+    /// Typed targets read by a resolving lasting-rule filter.
+    captured_rule_targets: std::cell::RefCell<Option<Vec<(usize, u16, &'static str)>>>,
     /// What this spell keeps of the board as it is cast: `CardDef::cast_fact`.
     cast_fact: std::rc::Rc<std::cell::RefCell<Option<String>>>,
     /// How many instances of an ability a static ability gave with "only once
@@ -1194,6 +1196,7 @@ impl Compiler {
             event_planned: false,
             recipient_subject: false,
             candidates: Default::default(),
+            captured_rule_targets: Default::default(),
             cast_fact: Default::default(),
             granted_once: Default::default(),
             affected_in_scope: false,

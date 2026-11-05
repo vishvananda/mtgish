@@ -547,14 +547,20 @@ impl Compiler {
             ObjectRef::Target { slot, index } if self.costing_targets && slot.0 == 0 => {
                 format!("targets.get({index}).copied().and_then(|t: Target| t.object())")
             }
-            ObjectRef::Target { slot, index } => format!(
-                "t_{}_raw.get({index}).copied().and_then(|t: Target| t.object())",
-                self.slot(slot)?
-            ),
-            ObjectRef::RecipientObject { slot, index } => format!(
-                "t_{}_raw.get({index}).copied().and_then(|t: Target| t.object())",
-                self.slot(slot)?
-            ),
+            ObjectRef::Target { slot, index } => {
+                let i = self.slot(slot)?;
+                if let Some(reads) = self.captured_rule_targets.borrow_mut().as_mut() {
+                    reads.push((i, *index, "object"));
+                }
+                format!("t_{i}_raw.get({index}).copied().and_then(|t: Target| t.object())")
+            },
+            ObjectRef::RecipientObject { slot, index } => {
+                let i = self.slot(slot)?;
+                if let Some(reads) = self.captured_rule_targets.borrow_mut().as_mut() {
+                    reads.push((i, *index, "object"));
+                }
+                format!("t_{i}_raw.get({index}).copied().and_then(|t: Target| t.object())")
+            },
             ObjectRef::EventSubject => self.carried_object(self.frame.object)?,
             ObjectRef::EventDestination if self.reads_replaced_move() => {
                 let (subject, _) = self.carried(Carried::Subject)?;
@@ -670,6 +676,9 @@ impl Compiler {
             // A player no longer a legal target is no one to act on (608.2b).
             PlayerRef::Target { slot, index } => {
                 let i = self.slot(slot)?;
+                if let Some(reads) = self.captured_rule_targets.borrow_mut().as_mut() {
+                    reads.push((i, *index, "player"));
+                }
                 format!("t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.player())")
             }
             PlayerRef::EventSubject => self.carried_player(self.frame.player)?,
