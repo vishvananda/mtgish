@@ -202,3 +202,48 @@ fn an_object_matched_by_a_history_filter_is_not_confused_with_the_watched_source
     let gap = code(&c, &[FEATURE]).unwrap_err();
     assert!(gap.contains("different event subject") || gap == "target reference", "{gap}");
 }
+
+fn damage_with_condition(condition: Condition) -> Card {
+    let mut c = custom("Activated(PayMana([ManaCostGeneric(1)]), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([CreateTriggerUntil(WhenACreatureDealsCombatDamageToAPermanent(SinglePermanent(Ref_TargetPermanent), IsCardtype(Creature)), ActionList([DrawACard]), UntilEndOfTurn)])))");
+    let Ability::Activated { body, .. } = &mut c.abilities[0] else { panic!() };
+    let Instruction::Effect { operation: Operation::CreateTrigger { intervening_if, .. }, .. } = &mut body.instructions[0] else { panic!() };
+    *intervening_if = Some(condition);
+    c
+}
+fn named(object: ObjectRef, name: &str) -> Condition {
+    Condition::ObjectMatches { object, filter: ObjectFilter::Name(name.into()) }
+}
+#[test]
+fn creator_and_event_dependent_conditions_do_not_run_as_watcher() {
+    let creator = named(ObjectRef::Source, "creator");
+    let event_conditions = [
+        named(ObjectRef::Damage(DamageSubject::Source), "creator"),
+        named(ObjectRef::EventSubject, "creator"),
+        Condition::PlayerIsActive(PlayerRef::ControllerOf(Box::new(ObjectRef::Damage(DamageSubject::Source)))),
+        Condition::Compare { left: Expr::EventAmount, comparison: Comparison::Greater, right: Expr::Constant(0) },
+        Condition::ExistsPlayer { players: PlayerSet::All, binding: Binding(0), condition: Box::new(Condition::All(vec![Condition::PlayerIsActive(PlayerRef::Bound(Binding(0))), named(ObjectRef::Damage(DamageSubject::Source), "creator")])) },
+    ];
+    for event_condition in event_conditions {
+        let c = damage_with_condition(Condition::All(vec![creator.clone(), event_condition]));
+        let gap = code(&c, &[FEATURE]).unwrap_err();
+        assert!(gap.contains("condition reading both its creator and event"), "{gap}");
+    }
+    let original_target = damage_with_condition(Condition::All(vec![creator, named(ObjectRef::Target { slot: Slot(0), index: 0 }, "creator")]));
+    let gap = code(&original_target, &[FEATURE]).unwrap_err();
+    assert!(gap.contains("target reference") || gap.contains("condition reading both its creator and event"), "{gap}");
+}
+#[test]
+fn creator_literal_named_event_and_event_only_conditions_keep_their_contexts() {
+    let creator = code(&damage_with_condition(named(ObjectRef::Source, "Event Horizon")), &[FEATURE]).unwrap();
+    assert!(creator.contains(".condition("), "{creator}");
+    syn::parse_file(&creator).unwrap();
+    let bound = Condition::ExistsPlayer { players: PlayerSet::All, binding: Binding(0), condition: Box::new(Condition::PlayerIsActive(PlayerRef::Bound(Binding(0)))) };
+    let bound_creator = code(&damage_with_condition(Condition::All(vec![named(ObjectRef::Source, "creator"), bound])), &[FEATURE]).unwrap();
+    assert!(bound_creator.contains(".condition("), "{bound_creator}");
+    syn::parse_file(&bound_creator).unwrap();
+    let event = code(&damage_with_condition(named(ObjectRef::EventSubject, "victim")), &[FEATURE]).unwrap();
+    assert!(event.contains("subject.object()") && event.contains("item.subject"), "{event}");
+    syn::parse_file(&event).unwrap();
+    let watched = code(&damage_with_condition(named(ObjectRef::Target { slot: Slot(0), index: 0 }, "victim")), &[FEATURE]).unwrap_err();
+    assert!(watched.contains("target reference") || watched.contains("watched object"), "{watched}");
+}

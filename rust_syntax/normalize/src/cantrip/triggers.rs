@@ -2121,8 +2121,13 @@ impl Compiler {
         let looked = done_once.and_then(|_| lane_k::looks_then_may(body));
         let body = looked.as_ref().unwrap_or(body);
         if let Some(intervening) = intervening_if {
+            // The event matcher is asked with the watched object as its source;
+            // only the event-free condition callback sees the true creator.
+            let needs_creator = self.outer.as_ref().is_some_and(|o| o.separate_watcher)
+                && delayed::reads_creator(intervening);
             // The AST has "if it isn't a mana ability" without its "isn't".
             if lane_n::lost_its_negation(intervening, matched.frame) {
+                if needs_creator { return Err(gap("delayed event condition reading both its creator and event")); }
                 if !lane_k::printed_otherwise(self.line_text(), "isn't a mana ability") {
                     self.frame = Frame::default();
                     return Err(gap("a mana ability test that lost its negation"));
@@ -2132,6 +2137,7 @@ impl Compiler {
                     matched.frame,
                 )?);
             } else if lane_n::of_the_activation(intervening, matched.frame) {
+                if needs_creator { return Err(gap("delayed event condition reading both its creator and event")); }
                 // What an ability's cost was does not change: the event's test is all.
                 let Condition::ObjectMatches { filter, .. } = intervening else {
                     unreachable!("of_the_activation asks this");
@@ -2144,6 +2150,10 @@ impl Compiler {
                 };
                 match asked {
                     Ok(function) => condition = Some(function),
+                    Err(_) if needs_creator => {
+                        self.frame = Frame::default();
+                        return Err(gap("delayed event condition reading both its creator and event"));
+                    }
                     Err(gap) if gap.feature.contains("event") => {
                         extra.push(self.matching(matched.frame, |c| c.condition(intervening))?);
                         if !lane_k::cast_history_is_fixed(intervening) {
@@ -2286,12 +2296,15 @@ impl Compiler {
         let mut guard = None;
         let mut condition = None;
         if let Some(intervening) = intervening_if {
+            let needs_creator = self.outer.as_ref().is_some_and(|o| o.separate_watcher)
+                && delayed::reads_creator(intervening);
             let asked = match lane_k::asks_how_it_was_cast(intervening) {
                 true => Err(gap("an event: how the object was cast")),
                 false => self.condition_function(intervening, &format!("{label}_if")),
             };
             match asked {
                 Ok(function) => condition = Some(function),
+                Err(_) if needs_creator => return Err(gap("delayed event condition reading both its creator and event")),
                 // As `triggered` does: asked by the matcher, and by each mode.
                 Err(gap) if gap.feature.contains("event") => {
                     extra.push(self.matching(matched.frame, |c| c.condition(intervening))?);

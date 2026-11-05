@@ -963,11 +963,6 @@ impl Compiler {
             return Err(gap("delayed trigger with a separate watched object and unsupported duration"));
         }
         let when = if separate && indefinite_once { "DelayedWhen::WhenEvent".to_string() } else { when };
-        if separate && intervening_if.as_ref().is_some_and(|c| {
-            reads_creator(c) && format!("{c:?}").contains("Event")
-        }) {
-            return Err(gap("delayed event condition reading both its creator and event"));
-        }
         self.watching_separately = separate;
         self.watched_is_event_subject = watched_is_subject;
         let label = format!("watch_{}", self.fresh());
