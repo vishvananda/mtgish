@@ -175,6 +175,70 @@ class QueueTests(unittest.TestCase):
         with lane.connect(self.root) as db:
             self.assertEqual([dict(r) for r in db.execute("SELECT * FROM jobs")], jobs)
 
+    def confirmation_repair_fixture(self):
+        with lane.connect(self.root) as db:
+            lane.enqueue(db, dict(name='A', commit='author', review_round=2, verifier_rejections=3))
+            db.execute("UPDATE jobs SET status='blocked',stage='confirm',candidate='candidate'")
+            job = dict(db.execute('SELECT * FROM jobs').fetchone())
+        old = lane.job_folder(self.root, job, 'review')
+        lane.save(old/'checks.json', dict(at='2026-01-01'))
+        lane.save(old/'result.json', dict(prepared_parent='parent'))
+        (old/'fixes.diff').write_text('the reviewed code diff\n')
+        lane.save(lane.job_folder(self.root, job, 'confirm')/'review.json',
+                  dict(decision='blocked', findings=[dict(what='missing original evidence')]))
+        repair = self.root/'repair'
+        lane.save(repair/'checks.json', dict(at='2026-01-02', head='candidate', diff_digest='digest',
+                  ok=True, gates=[dict(gate='fresh mutation', ok=True)]))
+        lane.save(repair/'review.json', dict(decision='pass', validation=[dict(agrees=True)],
+                  affected_cards=['A'], client='existing interactions'))
+        (repair/'fixes.diff').write_bytes((old/'fixes.diff').read_bytes())
+        return job, old, repair
+
+    def test_explicit_evidence_repair_preserves_rejection_cap_and_old_evidence(self):
+        job, old, repair = self.confirmation_repair_fixture()
+        old_bytes = (old/'checks.json').read_bytes()
+        with mock.patch.object(lane, 'clean'), mock.patch.object(lane, 'git', return_value='candidate'), \
+             mock.patch.object(lane, 'work_digest', return_value='digest'):
+            lane.repair_confirmation(self.root, job['id'], repair, self.root/'tree', 'Fresh exact-candidate evidence')
+        with lane.connect(self.root) as db:
+            updated = dict(db.execute('SELECT * FROM jobs').fetchone())
+        source = json.loads(updated['source'])
+        self.assertEqual((updated['status'], updated['stage'], updated['candidate']), ('queued','confirm','candidate'))
+        self.assertEqual((source['verifier_rejections'], source['review_round']), (3,3))
+        self.assertEqual(source['evidence_repaired_candidates'], ['candidate'])
+        self.assertEqual((old/'checks.json').read_bytes(), old_bytes)
+        new = lane.job_folder(self.root, updated, 'review')
+        self.assertEqual(lane.read(new/'checks.json')['head'], 'candidate')
+        self.assertTrue((new/'evidence-repair-origin.json').is_file())
+        self.assertTrue((new/'validated-bundle/confirmation-manifest.json').is_file())
+        with lane.connect(self.root) as db:
+            db.execute("UPDATE jobs SET status='blocked'")
+        with self.assertRaisesRegex(ValueError, 'already received'):
+            lane.repair_confirmation(self.root, job['id'], repair, self.root/'tree', 'No repeated bounce')
+
+    def test_evidence_repair_rejects_wrong_candidate_stale_checks_and_failed_gates(self):
+        job, old, repair = self.confirmation_repair_fixture()
+        original = lane.read(repair/'checks.json')
+        for head, changes in [('other', {}), ('candidate', {'at':'2026-01-01'}),
+                              ('candidate', {'diff_digest':'different'}),
+                              ('candidate', {'ok':False}),
+                              ('candidate', {'gates':[dict(gate='mutation',ok=False)]})]:
+            with self.subTest(head=head, changes=changes):
+                lane.save(repair/'checks.json', {**original, **changes})
+                with mock.patch.object(lane,'clean'), mock.patch.object(lane,'git',return_value=head), \
+                     mock.patch.object(lane,'work_digest',return_value='digest'), self.assertRaises(ValueError):
+                    lane.repair_confirmation(self.root, job['id'], repair, self.root/'tree', 'Repair')
+                with lane.connect(self.root) as db:
+                    self.assertEqual(dict(db.execute('SELECT * FROM jobs').fetchone()), job)
+
+    def test_evidence_repair_cannot_change_the_reviewed_diff(self):
+        job, old, repair = self.confirmation_repair_fixture()
+        (repair/'fixes.diff').write_text('unreviewed semantic change\n')
+        with mock.patch.object(lane,'clean'), mock.patch.object(lane,'git',return_value='candidate'), \
+             mock.patch.object(lane,'work_digest',return_value='digest'), \
+             self.assertRaisesRegex(ValueError,'already reviewed code diff'):
+            lane.repair_confirmation(self.root, job['id'], repair, self.root/'tree', 'Repair')
+
     def test_reportless_confirmation_retry_keeps_candidate_review_and_rejection_count(self):
         lane.save(self.root/'config.json', {'max_verifier_rejections':3})
         with lane.connect(self.root) as db:

@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -349,6 +350,67 @@ def retry_stopped(root, job_id, reason, *, new_base=None):
                    "candidate=NULL,worker=NULL,started=NULL,finished=NULL WHERE id=?",
                    (json.dumps(source), json.dumps(retry), max(job["priority"], 1), job_id))
         event(db, job_id, None, "retry_requested", dict(reason=reason, round=round_number, prior=str(prior_folder)))
+        db.commit()
+    return job_id
+
+
+def repair_confirmation(root, job_id, repair_folder, validated_tree, reason):
+    """Explicit coordinator evidence repair, followed by fresh independent confirmation.
+
+    This never resets the rejection counter or participates in automatic retries. A candidate can receive this
+    intervention once; another rejection leaves it blocked. Prior reports and evidence remain untouched.
+    """
+    if not reason.strip():
+        raise ValueError('evidence repair requires a concrete resolution')
+    root, repair_folder, validated_tree = Path(root), Path(repair_folder).resolve(), Path(validated_tree)
+    with connect(root) as db:
+        db.execute('BEGIN IMMEDIATE')
+        row = db.execute('SELECT * FROM jobs WHERE id=?', (job_id,)).fetchone()
+        if not row or row['status'] != 'blocked' or row['stage'] != 'confirm' or not row['candidate']:
+            raise ValueError('evidence repair requires a blocked confirmation candidate')
+        job = dict(row)
+        source = json.loads(job['source'])
+        if job['candidate'] in source.get('evidence_repaired_candidates', []):
+            raise ValueError('this candidate already received its evidence repair confirmation')
+        old_review = job_folder(root, job, 'review')
+        old_confirmation = job_folder(root, job, 'confirm') / 'review.json'
+        rejection = read(old_confirmation)
+        if rejection.get('decision') != 'blocked' or not rejection.get('findings'):
+            raise ValueError('evidence repair must retain a substantive verifier rejection')
+        clean(validated_tree)
+        if git(validated_tree, 'rev-parse', 'HEAD') != job['candidate']:
+            raise ValueError('repair must be checked on the exact unchanged candidate')
+        checks = read(repair_folder / 'checks.json')
+        if (checks.get('head') != job['candidate'] or checks.get('diff_digest') != work_digest(validated_tree)
+                or checks.get('at', '') <= read(old_review / 'checks.json').get('at', '')):
+            raise ValueError('repair needs fresh checks bound to the unchanged candidate')
+        # build_bundle validates every named gate, report validation and required artifacts, and freezes the evidence.
+        report = read(repair_folder / 'review.json')
+        if not report_valid(report, job['name']):
+            raise ValueError('repair report must resolve the findings and pass')
+        if (repair_folder / 'fixes.diff').read_bytes() != (old_review / 'fixes.diff').read_bytes():
+            raise ValueError('evidence repair cannot change the already reviewed code diff')
+        source['review_round'] = source.get('review_round', 0) + 1
+        source.pop('confirmation_attempt', None)
+        source['evidence_repaired_candidates'] = [*source.get('evidence_repaired_candidates', []), job['candidate']]
+        source['evidence_repair_note'] = reason
+        updated = dict(job, source=json.dumps(source))
+        destination = job_folder(root, updated, 'review')
+        if destination.exists():
+            raise ValueError('repair destination already exists; prior evidence cannot be overwritten')
+        from review_confirmation import build_bundle
+        build_bundle(repair_folder / 'validated-bundle', repair_folder, job['name'], job['candidate'],
+                     git(validated_tree, 'rev-parse', 'HEAD^{tree}'), job['source_commit'])
+        shutil.copytree(repair_folder, destination)
+        archive = dict(at=now(), reason=reason, job=job, repair=str(repair_folder),
+                       rejected_report=str(old_confirmation),
+                       rejected_report_sha256=hashlib.sha256(old_confirmation.read_bytes()).hexdigest())
+        save(destination / 'evidence-repair-origin.json', archive)
+        previous = read(old_review / 'result.json')
+        result = dict(prepared_parent=previous['prepared_parent'], evidence_repair=str(destination))
+        db.execute("UPDATE jobs SET status='queued',source=?,result=?,worker=NULL,started=NULL,finished=NULL WHERE id=?",
+                   (json.dumps(source), json.dumps(result), job_id))
+        event(db, job_id, None, 'evidence_repair_requested', archive)
         db.commit()
     return job_id
 
@@ -1199,6 +1261,11 @@ def main():
     p.add_argument("job")
     p.add_argument("--reason", required=True, help="concrete change that resolves the previous blocker")
     p.add_argument("--new-base", help="explicitly migrate parked work to this currently validated local snapshot")
+    p = sub.add_parser("repair-confirmation")
+    p.add_argument("job")
+    p.add_argument("--folder", required=True, type=Path, help="fresh candidate-bound repair report and evidence")
+    p.add_argument("--validated-tree", required=True, type=Path)
+    p.add_argument("--reason", required=True)
     p = sub.add_parser("correct")
     p.add_argument("job")
     p.add_argument("--reason", required=True, help="concrete new finding and tested shared engine fix")
@@ -1219,6 +1286,9 @@ def main():
         worker(args.root, args.slot, args.once, args.resume)
     elif args.command == "retry":
         print("requeued", retry_stopped(args.root, args.job, args.reason, new_base=args.new_base))
+    elif args.command == "repair-confirmation":
+        print("confirmation repair", repair_confirmation(args.root, args.job, args.folder,
+                                                       args.validated_tree, args.reason))
     elif args.command == "correct":
         print("correction", correct_approved(args.root, args.job, args.reason, args.new_base))
     elif args.command == "watch":
