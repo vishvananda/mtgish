@@ -65,6 +65,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("snow-mana", "pub snow: u32,", &[]),
     ("non-target-attachment-hosts", "fn can_attach_to(&self, attachment: ObjectId, host: ObjectId) -> bool;", &[]),
     ("simultaneous-replacement-damage", "pub type GrantedDamage = fn(&dyn Query, &Asker, ObjectId, &DamageEvent, &DamageEvent) -> Vec<DamageComponent>;", &[]),
+    ("target-original-context", "replacing: Option<(u32, Target)>", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";
