@@ -536,7 +536,8 @@ impl Compiler {
             Some(change) => gap(beyond_lasting_rules(change)),
             None => failed,
         };
-        *self.captured_rule_targets.borrow_mut() = Some(Vec::new());
+        let capture_targets = changes.iter().any(|change| matches!(change, Change::Rule(RuleChange::BlockCapacity(_))));
+        if capture_targets { *self.captured_rule_targets.borrow_mut() = Some(Vec::new()); }
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let asked = self.filter(filter, &Candidate::of("id"));
@@ -555,7 +556,7 @@ impl Compiler {
         };
         let targets = self.captured_rule_targets.borrow_mut().take().unwrap_or_default();
         let test = test?;
-        let (test, mut about) = self.named_as_resolved_targets(&test, Some(&targets)).map_err(refused)?;
+        let (test, mut about) = self.named_as_resolved_targets(&test, capture_targets.then_some(targets.as_slice())).map_err(refused)?;
         // (the kind's code, its requirement, whether #897 has it, its words)
         let mut kinds: Vec<(String, String, bool, &str)> = Vec::new();
         for change in changes {
