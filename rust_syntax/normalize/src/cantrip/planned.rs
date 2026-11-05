@@ -107,6 +107,14 @@ pub fn with_additional_features<R>(features: &[&str], f: impl FnOnce() -> R) -> 
     with_features(&combined, f)
 }
 
+/// Use the pinned native profile without selected features, for legacy-target checks.
+#[doc(hidden)]
+pub fn without_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
+    let remaining: Vec<&str> = crate::cantrip_vocab::FEATURES.iter().copied()
+        .filter(|feature| !features.contains(feature)).collect();
+    with_features(&remaining, f)
+}
+
 fn in_features<R>(bits: u32, f: impl FnOnce() -> R) -> R {
     struct Restore(u32);
     impl Drop for Restore {

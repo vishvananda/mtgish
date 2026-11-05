@@ -7,7 +7,7 @@ fn source(name: &str) -> OracleCard {
 fn generate(name: &str, enabled: bool) -> Result<String, String> {
     let card = lower::card(&source(name)).unwrap();
     if enabled { cantrip::planned::with_additional_features(&[FEATURE], || cantrip::module(&card).map_err(|e| e.feature)) }
-    else { cantrip::module(&card).map_err(|e| e.feature) }
+    else { cantrip::planned::without_features(&[FEATURE], || cantrip::module(&card).map_err(|e| e.feature)) }
 }
 #[test]
 fn printed_abilities_and_rules_use_distinct_native_representations() {

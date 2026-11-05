@@ -22,8 +22,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Orgg", "defending_player_of(q.state(), at)"),
     // The attacking player is the active player.
     ("Goblin Goon", "_block("),
-    // Old native profiles cannot identify a mana ability's paid object safely.
-    ("Priest of Yawgmoth", "cost-object-receipts"),
+    // The current native profile identifies the object paid for this mana ability.
+    ("Priest of Yawgmoth", "mana_ability_cost_objects(0, CostPart::Permanents)"),
     // Exile-cost receipts are outside the supported sacrifice shape.
     ("Food Chain", "cost objects outside a resolving ability"),
     // Nobody is asked who loses nothing.
