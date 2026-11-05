@@ -994,7 +994,7 @@ pub(super) fn in_an_order_asked(id: usize, destination: &Destination) -> String 
         Destination::OwnersLibraryTop => ("LibraryTop", "Top"),
         _ => ("LibraryBottom", "Bottom"),
     };
-    format!("{{ let order_{id} = match objects_{id}.iter().all(|&o| g.state().obj(o).owner == asker.controller) {{ true => cantrip_mechanics::library::ask_library_order(g, asker.controller, asker.source, &objects_{id}, DestinationKind::{end})?, false => objects_{id}.clone() }}; g.put_into_library(&order_{id}, LibraryPlace::{place}) }}")
+    format!("{{ let owners_{id}: Vec<PlayerId> = g.state().apnap().collect(); let mut order_{id} = Vec::new(); for owner_{id} in owners_{id} {{ let cards_{id}: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.state().obj(o).owner == owner_{id}).collect(); order_{id}.extend(cantrip_mechanics::library::ask_library_order(g, owner_{id}, asker.source, &cards_{id}, DestinationKind::{end})?); }} g.put_into_library(&order_{id}, LibraryPlace::{place}) }}")
 }
 /// What a choice puts on top of a library: one at a time as chosen, so the last
 /// chosen ends on top (Cantrip's `draw_then_put_two_back`).
