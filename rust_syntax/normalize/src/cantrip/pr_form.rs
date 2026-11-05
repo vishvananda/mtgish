@@ -4229,6 +4229,8 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         ("mill", "701.17a"),
         ("tap", "701.26a"),
         ("untap", "701.26b"),
+        ("may_tap_or_untap_target", "701.26a"),
+        ("may_tap_or_untap_target", "701.26b"),
         ("attach", "701.3a"),
         ("counter", "701.6a"),
         ("fight", "701.14a"),
@@ -4299,6 +4301,14 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
             self.0.insert(call.method.to_string());
             visit::visit_expr_method_call(self, call);
+        }
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            if let Expr::Path(path) = &*call.func {
+                if path.path.segments.last().is_some_and(|segment| segment.ident == "may_tap_or_untap_target") {
+                    self.0.insert("may_tap_or_untap_target".into());
+                }
+            }
+            visit::visit_expr_call(self, call);
         }
     }
     let mut methods = Methods(BTreeSet::new());
@@ -5320,7 +5330,7 @@ mod quantity_reduction_tests {
 
 #[cfg(test)]
 mod shared_tap_untap_tests {
-    use super::*;
+    use super as renderer;
 
     #[test]
     fn only_the_complete_first_target_recipe_is_shared() {
@@ -5341,8 +5351,8 @@ mod shared_tap_untap_tests {
             (original.replace("Label::Card(card, 2)", "Label::Card(card, 3)"), false),
         ] {
             let mut file = syn::parse_file(&source).unwrap();
-            use_shared_effects(&mut file);
-            let actual = text_of(&file);
+            renderer::use_shared_effects(&mut file);
+            let actual = renderer::text_of(&file);
             assert_eq!(actual.contains("may_tap_or_untap_target"), shared, "{actual}");
         }
     }
