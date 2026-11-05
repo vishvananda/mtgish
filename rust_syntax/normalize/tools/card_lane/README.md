@@ -238,8 +238,15 @@ creating local refs; existing different refs remain untouched. Neither command c
 opens PRs. The receipt explicitly requires foundation/group validation before publication. Run both commands with
 `--root "$P"`; a draft plan can be generated while the campaign is unfinished, but cannot be built.
 
+Use `build --foundation-head COMMIT` to retain a prepared series of focused foundation commits in one PR.
+The series must be linear directly above the frozen publication base, change only assigned foundation paths
+at every step, and end at exactly the planned foundation tree. The exporter records the complete ordered series
+and puts every card group above its final commit. Each intermediate foundation commit still needs its own build
+validation; the tree audit is not a build result. This permits coupled API/caller edits to remain atomic while
+independent fixes keep their own commits.
+
 Fork-only publication uses the same prerequisite-commit approach as the shared pin above. Open the foundation PR
-first. Each sibling head contains that identical foundation commit followed by its own card commits, and its
+first. Each sibling head contains that identical foundation series followed by its own card commits, and its
 upstream PR targets `main`. Link the foundation PR and full commit hash in every dependent PR description, together
 with a foundation-to-sibling comparison for reviewing only that group's cards. This does not require creating an
 upstream foundation branch. The maintainer workflow cherry-picks the head's unmerged history and leaves out

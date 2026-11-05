@@ -192,6 +192,49 @@ class ExportTests(unittest.TestCase):
             self.assertIn(f'Closes #{1 if name == "Alpha" else 2}', self.git('show', '-s', '--format=%B', group['head']))
         self.assertEqual(lane.build(self.root, plan, 'publish/test'), result)
 
+    def test_prepared_focused_foundation_is_preserved_as_the_common_sibling_base(self):
+        self.ready()
+        plan = lane.plan(self.root, self.head)
+        author = self.git('show', '-s', '--format=%an%n%ae%n%aI', self.head).splitlines()
+        timestamp = self.git('show', '-s', '--format=%cI', self.head)
+        first_paths = ['helper']
+        first = lane.commit(self.tree, self.base, first_paths, plan['changes'],
+                            'Engine: shared recipe', author, timestamp, plan['committer'])
+        rest = [path for path in plan['foundation_paths'] if path not in first_paths]
+        second = lane.commit(self.tree, first, rest, plan['changes'],
+                             'Engine: supporting fixtures', author, timestamp, plan['committer'])
+        result = lane.build(self.root, plan, 'publish/focused', foundation_head=second)
+        self.assertEqual(result['foundation_commits'], [first, second])
+        self.assertEqual(result['foundation'], second)
+        for group in result['groups']:
+            self.assertEqual(self.git('rev-parse', group['head'] + '^'), second)
+        self.assertEqual(self.git('rev-parse', 'HEAD'), self.head)
+
+    def test_prepared_foundation_cannot_hide_transient_unassigned_paths(self):
+        self.ready()
+        plan = lane.plan(self.root, self.head)
+        objects = dict(plan['changes'])
+        objects['unassigned'] = dict(mode='100644', kind='blob', oid=self.git('rev-parse', self.head + ':helper'))
+        author = self.git('show', '-s', '--format=%an%n%ae%n%aI', self.head).splitlines()
+        timestamp = self.git('show', '-s', '--format=%cI', self.head)
+        first = lane.commit(self.tree, self.base, ['unassigned'], objects,
+                            'Transient unrelated work', author, timestamp, plan['committer'])
+        objects['unassigned'] = None
+        second = lane.commit(self.tree, first, plan['foundation_paths'] + ['unassigned'], objects,
+                             'Final foundation', author, timestamp, plan['committer'])
+        with self.assertRaisesRegex(ValueError, 'unassigned paths'):
+            lane.build(self.root, plan, 'publish/invalid', foundation_head=second)
+
+    def test_prepared_foundation_requires_the_exact_planned_final_tree(self):
+        self.ready()
+        plan = lane.plan(self.root, self.head)
+        author = self.git('show', '-s', '--format=%an%n%ae%n%aI', self.head).splitlines()
+        timestamp = self.git('show', '-s', '--format=%cI', self.head)
+        incomplete = lane.commit(self.tree, self.base, ['helper'], plan['changes'],
+                                 'Incomplete foundation', author, timestamp, plan['committer'])
+        with self.assertRaisesRegex(ValueError, 'final tree differs'):
+            lane.build(self.root, plan, 'publish/incomplete', foundation_head=incomplete)
+
     def test_cross_card_scenarios_force_coherent_groups_and_never_enter_foundation(self):
         self.ready()
         self.write('scenarios/existing-card-with-both.cantrip', '[Bot1 Deck]\nAlpha\nBeta x2\n[Actions]\n')

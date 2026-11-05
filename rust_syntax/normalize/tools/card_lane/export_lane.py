@@ -258,7 +258,27 @@ def commit(tree, parent, paths, objects, message, author, timestamp, committer):
         return publication.git(tree, 'commit-tree', output, '-p', parent, env=env, input=message+'\n')
 
 
-def build(root, manifest, prefix):
+def foundation_chain(tree, base, head, allowed):
+    """Audit every parent and changed path in a prepared, focused foundation series."""
+    head = publication.git(tree, 'rev-parse', head + '^{commit}')
+    publication.git(tree, 'merge-base', '--is-ancestor', base, head)
+    series = publication.git(tree, 'rev-list', '--reverse', base + '..' + head).splitlines()
+    if not series:
+        raise ValueError('Prepared foundation must contain at least one commit')
+    parent = base
+    for commit_id in series:
+        parents = publication.git(tree, 'show', '-s', '--format=%P', commit_id).split()
+        if parents != [parent]:
+            raise ValueError('Prepared foundation must be a linear series directly above the publication base')
+        _, paths = publication.command(tree, 'git', 'diff', '--no-renames', '--name-only', '-z', parent, commit_id)
+        unexpected = set(filter(None, paths.split('\0'))) - allowed
+        if unexpected:
+            raise ValueError('Prepared foundation contains unassigned paths: ' + ', '.join(sorted(unexpected)))
+        parent = commit_id
+    return head, series
+
+
+def build(root, manifest, prefix, *, foundation_head=None):
     if manifest.get('digest') != digest({key: value for key, value in manifest.items() if key != 'digest'}):
         raise ValueError('Export manifest digest does not match')
     fresh = plan(root, manifest['head'],
@@ -280,8 +300,15 @@ def build(root, manifest, prefix):
     message = 'Engine: shared early-set foundation\n\nConsolidated source: '+manifest['head']
     if coauthors:
         message += '\n\n' + '\n'.join(f'Co-authored-by: {name} <{email}>' for name, email in coauthors)
-    foundation = commit(tree, manifest['base'], manifest['foundation_paths'], manifest['changes'],
-                        message, author, timestamp, manifest['committer'])
+    expected_foundation = commit(tree, manifest['base'], manifest['foundation_paths'], manifest['changes'],
+                                 message, author, timestamp, manifest['committer'])
+    if foundation_head is None:
+        foundation, series = expected_foundation, [expected_foundation]
+    else:
+        foundation, series = foundation_chain(tree, manifest['base'], foundation_head,
+                                             set(manifest['foundation_paths']))
+        if files(tree, foundation) != files(tree, expected_foundation):
+            raise ValueError('Prepared foundation final tree differs from the planned foundation')
     refs = {prefix+'/foundation': foundation}
     branches = []
     for number, indices in enumerate(manifest['groups'], 1):
@@ -325,6 +352,7 @@ def build(root, manifest, prefix):
     commands.extend(['prepare', 'commit'])
     publication.git(tree, 'update-ref', '--stdin', input='\n'.join(commands)+'\n')
     return dict(source=manifest['head'], plan_digest=manifest['digest'], foundation=foundation,
+                foundation_commits=series,
                 foundation_branch=prefix+'/foundation', groups=branches, remote_writes=False,
                 validation_required=True)
 
@@ -341,6 +369,7 @@ def main():
     export = commands.add_parser('build')
     export.add_argument('--plan', required=True, type=Path)
     export.add_argument('--prefix', required=True)
+    export.add_argument('--foundation-head', help='Prepared linear foundation series; each intermediate commit needs validation')
     export.add_argument('--out', required=True, type=Path)
     args = parser.parse_args()
     if args.action == 'plan':
@@ -349,7 +378,7 @@ def main():
             raise ValueError('Deferred implementations must be a JSON list of card names')
         result = plan(args.root, args.head, defer_implementations=deferred)
     else:
-        result = build(args.root, review.read(args.plan), args.prefix)
+        result = build(args.root, review.read(args.plan), args.prefix, foundation_head=args.foundation_head)
     review.save(args.out, result)
     print(json.dumps({key: result[key] for key in ('head', 'digest', 'blockers') if key in result}, indent=2))
 
