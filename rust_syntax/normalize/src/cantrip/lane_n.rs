@@ -1531,6 +1531,14 @@ impl Compiler {
             return Err(gap("one-shot delayed trigger with a separate watched object"));
         }
         let when = if separate { "DelayedWhen::WhenEvent" } else { when.as_str() };
+        // A mixed spell/activation matcher carries the spell in Fired.subject.
+        // WhenEvent reserves that field for its stored capture instead, so it
+        // cannot represent this future-event read even with no other captures.
+        if when == "DelayedWhen::WhenEvent" && matches!(event, EventSpec::SpellOrActivation { .. })
+            && (super::delayed::reads_event_stack_object(body)
+                || intervening_if.as_ref().is_some_and(super::delayed::reads_event_stack_object)) {
+            return Err(gap("one-shot delayed trigger reading a mixed future stack subject"));
+        }
         self.watching_separately = separate;
         self.watched_is_event_subject = watched_is_subject;
         if !separate { self.watching_for_another(&source, body)?; }

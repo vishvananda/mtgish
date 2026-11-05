@@ -50,6 +50,22 @@ pub(super) fn reads_creator<T: crate::visit::Walk>(value: &T) -> bool {
     find.0
 }
 
+/// A future stack object is the one exception to CreateDelayedTrigger's
+/// lexical creator frame. Walk typed operands so nested reads are included.
+pub(super) fn reads_event_stack_object<T: crate::visit::Walk>(value: &T) -> bool {
+    use crate::visit::Visitor;
+    struct Find(bool);
+    impl Visitor for Find {
+        fn object_ref(&mut self, object: &ObjectRef) -> bool {
+            self.0 |= matches!(object, ObjectRef::EventStackObject);
+            true
+        }
+    }
+    let mut find = Find(false);
+    value.walk(&mut find);
+    find.0
+}
+
 /// Whether the first watched reference in this filter is the event's object itself, rather than an object read by
 /// a history predicate about that event's object. This follows the same search order as `lane_i::watched`.
 fn direct_watched(filter: &ObjectFilter) -> Option<bool> {
