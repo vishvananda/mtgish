@@ -1116,7 +1116,7 @@ pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String
                 Expr::Constant(n) => *n,
                 _ => 1,
             };
-            format!("!cant_draw(g, decider_{id}, {n}) && ")
+            format!("!{} && ", planned::cant_draw(&format!("decider_{id}"), n))
         }
         // A search that can't be caused isn't offered (Ashiok, Dream Render's ruling).
         // A search of other zones too still searches them (Agency Outfitter).
@@ -1551,7 +1551,7 @@ impl Compiler {
             },
             [CostPart::Draw {
                 count: Expr::Constant(n),
-            }] => format!("!cant_draw(g, payer_{id}, {n}) && "),
+            }] => format!("!{} && ", planned::cant_draw(&format!("payer_{id}"), n)),
             [CostPart::Energy(Expr::Constant(n))] => {
                 format!("g.state().player(payer_{id}).energy() >= {n} && ")
             }

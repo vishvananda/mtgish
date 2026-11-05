@@ -29,7 +29,7 @@ const CARDS: &[(&str, &str, bool)] = &[
     (
         "Orim's Chant",
         "text: \"If this spell was kicked, creatures can't attack this turn.\"",
-        false,
+        true,
     ),
     (
         "Jace, Arcane Strategist",
@@ -42,8 +42,8 @@ const CARDS: &[(&str, &str, bool)] = &[
         false,
     ),
     // "Other creatures": the target creature is the one left out.
-    ("Intimidation Bolt", "!(about.object() == Some(id))", false),
-    ("Festival", "rule: LastingRuleKind::CantAttack", false),
+    ("Intimidation Bolt", "!(about.object() == Some(id))", true),
+    ("Festival", "rule: LastingRuleKind::CantAttack", true),
     // Attacking creatures are the ones attacking as it resolves (Tangle's
     // ruling), each waiting on its own controller's untap step.
     ("Tangle", "EffectKind::DoesntUntap", true),
@@ -185,7 +185,9 @@ fn without_lasting_rules_the_same_code_is_in_holes() {
     }
     // A rule beyond #897's waits on its own requirement with the feature too:
     // its table and its call stay holes.
-    for name in ["Alluring Scent", "Taunt", "Legion Loyalist", "War Tax", "Runesword", "Orim's Chant", "Jace, Arcane Strategist", "Reverse the Polarity", "Intimidation Bolt", "Festival"] {
+    // The current native vocabulary also supports CantAttack. Its cards above
+    // exercise both the enabled form and the legacy feature-disabled holes.
+    for name in ["Alluring Scent", "Taunt", "Legion Loyalist", "War Tax", "Runesword", "Jace, Arcane Strategist", "Reverse the Polarity"] {
         let module = &whole[name];
         assert!(!module.contains("add_open_effect"), "{name}:\n{module}");
         assert!(module.contains("=> g.add_lasting_rule(item, 0, about_0, until_0);)"), "{name}:\n{module}");

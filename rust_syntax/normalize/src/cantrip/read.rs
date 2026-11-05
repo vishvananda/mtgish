@@ -2665,6 +2665,10 @@ impl Compiler {
                 "q.rolled_highest(asker, player)",
             ),
             // A player an effect says can't draw can't (CR 121.3, 101.2).
+            PlayerState::CanDraw if planned::switched_on("game-draw-legality") => {
+                // Query cannot perform Game's merged-text and emblem lookup.
+                planned::planned_value("query-level draw legality", "false", "!q.cant_draw(player, 1)")
+            }
             PlayerState::CanDraw => "!cantrip_api::cant_draw(q, player, 1)".into(),
             PlayerState::CompletedDungeon => {
                 "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"

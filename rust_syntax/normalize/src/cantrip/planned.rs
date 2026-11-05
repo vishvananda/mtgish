@@ -69,6 +69,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("delayed-watched-source", "ThisTurnWatching(ObjectId)", &[]),
     ("multiple-blocks", "pub const fn block_allowance(", &[]),
     ("cost-object-receipts", "fn mana_ability_cost_objects(&self,", &["cost-object-receipts"]),
+    ("game-draw-legality", "fn cant_draw(&self, player: PlayerId, n: u32) -> bool;", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";
@@ -141,6 +142,16 @@ pub(super) fn switched_on(name: &str) -> bool {
     match STAND_IN.with(std::cell::Cell::get) {
         NO_STAND_IN => crate::cantrip_vocab::FEATURES.contains(&name),
         bits => SWITCHED.iter().position(|s| s.0 == name).is_some_and(|at| bits & (1 << at) != 0),
+    }
+}
+
+/// Draw legality moved from the free API helper to Game so it includes every
+/// rules text and emblem. Keep explicit legacy-target generation usable.
+pub(super) fn cant_draw(player: &str, amount: impl std::fmt::Display) -> String {
+    if switched_on("game-draw-legality") {
+        format!("g.cant_draw({player}, {amount})")
+    } else {
+        format!("cant_draw(g, {player}, {amount})")
     }
 }
 /// Whether the requirement `id` has landed in the Cantrip being written for.

@@ -161,7 +161,7 @@ fn creatures_attacked_with_are_counted_once_each() {
 
 #[test]
 fn a_player_who_cant_draw_isnt_offered_a_may_that_draws() {
-    says("Arc of Fortune", &["cant_draw(g, bound_0, 7)"]);
+    says("Arc of Fortune", &["g.cant_draw(bound_0, 7)"]);
 }
 
 #[test]

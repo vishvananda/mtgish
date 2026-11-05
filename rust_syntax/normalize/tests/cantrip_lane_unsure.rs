@@ -26,8 +26,8 @@ const CARDS: &[(&str, &str, bool)] = &[
         "cantrip_mechanics::mana::add_one_mana_of_any_type_that_land_produced(g, item)?; }\n}",
         false,
     ),
-    // A player who can't draw can't take an offer to draw (CR 121.3).
-    ("Tempt with Bunnies", "!cantrip_api::cant_draw(q, player, 1)", true),
+    // The new Game-only legality lookup cannot be called from Query filters.
+    ("Tempt with Bunnies", "planned_value!(\"query-level draw legality\"", false),
     // The defending players of a combat: the active player's opponents (CR 506.2).
     (
         "Stand or Fall",
@@ -35,6 +35,26 @@ const CARDS: &[(&str, &str, bool)] = &[
         false,
     ),
 ];
+
+#[test]
+fn draw_legality_follows_the_target_api_without_assuming_query_can_call_game() {
+    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let (corpus, oracle) = (data.join("mtgish.lines.ron"), data.join("oracle.json"));
+    if !corpus.exists() || !oracle.exists() { return; }
+    let names = vec!["Tempt with Bunnies".to_string(), "Arc of Fortune".to_string()];
+    let generate = |features: &[&str]| -> BTreeMap<String, String> {
+        cantrip::planned::with_features(features, || cantrip::modules_printed(&corpus, &oracle, &names))
+            .unwrap().into_iter().collect()
+    };
+    let legacy = generate(&[]);
+    assert!(legacy["Tempt with Bunnies"].contains("!cantrip_api::cant_draw(q, player, 1)"));
+    assert!(legacy["Arc of Fortune"].contains("cant_draw(g, bound_0, 7)"));
+    let current = generate(&["game-draw-legality"]);
+    assert!(current["Arc of Fortune"].contains("g.cant_draw(bound_0, 7)"));
+    assert!(!current["Arc of Fortune"].contains("cant_draw(g,"));
+    assert!(current["Tempt with Bunnies"].contains("planned_value!(\"query-level draw legality\""));
+    assert!(!current["Tempt with Bunnies"].contains("cantrip_api::cant_draw"));
+}
 
 #[test]
 fn unsure_forms_cantrip_expresses() {

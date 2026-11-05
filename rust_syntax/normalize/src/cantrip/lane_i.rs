@@ -1481,7 +1481,7 @@ impl Compiler {
         let player = format!("bound_{}", each.binding.0);
         let test = match &guards[guard] {
             Guard::May => format!("cantrip_mechanics::effects::ask_may(g, {player}, asker.source, Purpose::Optional)?"),
-            Guard::MayDraw(n) => format!("!cant_draw(g, {player}, {n}) && cantrip_mechanics::effects::ask_may(g, {player}, asker.source, Purpose::Optional)?"),
+            Guard::MayDraw(n) => format!("!{} && cantrip_mechanics::effects::ask_may(g, {player}, asker.source, Purpose::Optional)?", planned::cant_draw(&player, n)),
             Guard::Chooses => {
                 self.may_choose = true;
                 "true".to_string()
