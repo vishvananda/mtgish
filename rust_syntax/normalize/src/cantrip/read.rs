@@ -693,26 +693,6 @@ impl Compiler {
     }
     /// One player, where a card's text leaves no way for there to be none.
     pub(super) fn certain_player(&self, player: &PlayerRef) -> Result<String> {
-        // A resolving event frame proves the subject's variant only when it
-        // binds an object there and does not also allow a player there.
-        // Keep this distinct from target slots, which can be absent or changed.
-        if self.event_at == EventAt::Item
-            // Legacy delayed/reflexive/step carriers may replace Fired.subject
-            // with a captured value or None. The separate watcher contract
-            // carries the event subject (or the watched object for WhenEvent).
-            && self.outer.as_ref().is_none_or(|outer| outer.separate_watcher)
-            && self.frame.object == Some(Carried::Subject)
-            && self.frame.player != Some(Carried::Subject)
-        {
-            let subject = "item.subject.object().expect(\"event matcher guarantees object subject\")";
-            match player {
-                PlayerRef::ControllerOf(object) if matches!(&**object, ObjectRef::EventSubject) =>
-                    return Ok(format!("q.controller({subject})")),
-                PlayerRef::OwnerOf(object) if matches!(&**object, ObjectRef::EventSubject) =>
-                    return Ok(format!("q.state().obj({subject}).owner")),
-                _ => {}
-            }
-        }
         fn certain(c: &Compiler, object: &ObjectRef) -> bool {
             match object {
                 ObjectRef::Source | ObjectRef::Candidate | ObjectRef::Bound(_) => true,
@@ -2861,27 +2841,27 @@ mod subject_provenance_tests {
     use super::*;
 
     #[test]
-    fn only_an_object_only_resolving_subject_proves_controller_or_owner() {
+    fn event_subject_controller_and_owner_remain_optional_reads() {
         let subject = Box::new(ObjectRef::EventSubject);
         let players = [PlayerRef::ControllerOf(subject.clone()), PlayerRef::OwnerOf(subject)];
         let mut compiler = Compiler::new();
         compiler.event_at = EventAt::Item;
         compiler.frame.object = Some(Carried::Subject);
         for player in &players {
-            assert!(compiler.certain_player(player).unwrap().contains("event matcher guarantees object subject"));
+            assert!(compiler.certain_player(player).unwrap().contains("item.subject.object().map"));
             compiler.frame.player = Some(Carried::Subject);
-            assert!(!compiler.certain_player(player).unwrap().contains("event matcher guarantees object subject"));
+            assert!(compiler.certain_player(player).unwrap().contains("item.subject.object().map"));
             compiler.frame.player = None;
         }
         compiler.frame.object = None;
         for player in &players {
-            assert!(!compiler.certain_player(player).map_or(false, |s| s.contains("event matcher guarantees object subject")));
+            assert!(compiler.certain_player(player).is_err());
         }
         let target = PlayerRef::ControllerOf(Box::new(ObjectRef::Target { slot: Slot(0), index: 0 }));
-        assert!(!compiler.certain_player(&target).map_or(false, |s| s.contains("event matcher guarantees object subject")));
+        assert!(compiler.certain_player(&target).is_err());
         let object_frame = Frame { object: Some(Carried::Subject), ..Frame::default() };
         let player_frame = Frame { player: Some(Carried::Subject), ..Frame::default() };
         compiler.frame = object_frame.meet(player_frame);
-        assert!(!compiler.certain_player(&players[0]).map_or(false, |s| s.contains("event matcher guarantees object subject")));
+        assert!(compiler.certain_player(&players[0]).is_err());
     }
 }

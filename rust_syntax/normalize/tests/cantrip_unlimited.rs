@@ -86,10 +86,10 @@ fn earthbind_grants_an_existing_static_ability_definition() {
 fn kudzu_remembers_the_land_that_triggered_it() {
     let module = &modules()["Kudzu"];
     assert!(module.contains("let objects_0 = { let q: &dyn Query = g; item.subject.object()"), "{module}");
-    assert!(module.contains("q.controller(item.subject.object().expect(\"event matcher guarantees object subject\"))"), "{module}");
+    assert!(module.contains("item.subject.object().map(|o: ObjectId| q.controller(o))"), "{module}");
     let printed = cantrip::pr_form::render(module, "Kudzu", "Enchant land. When enchanted land becomes tapped, destroy it. That land's controller may attach this Aura to a land of their choice.", cantrip::pr_form::Characteristics::Inline).unwrap();
-    assert!(printed.contains("event matcher guarantees object subject"), "{printed}");
-    assert!(!printed.contains("let Some(named_1) = item.subject.object()"), "{printed}");
+    assert!(printed.chars().filter(|c| !c.is_whitespace()).collect::<String>().contains("item.subject.object().map"), "{printed}");
+    assert!(!printed.contains(".expect("), "{printed}");
     if let Ok(path) = std::env::var("CANTRIP_KUDZU_PRINTED") { std::fs::write(path, printed).unwrap(); }
 }
 

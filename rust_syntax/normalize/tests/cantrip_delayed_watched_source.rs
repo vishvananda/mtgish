@@ -25,11 +25,11 @@ fn watched_death_keeps_the_spell_source_and_legal_target_and_carries_the_dead_ob
     assert!(d.contains("DelayedWhen::ThisTurnWatching(watched),item.object,item.controller"), "{new}");
     assert!(d.contains("t_0_raw.get(0).copied().filter(|t|t_0.contains(t))"), "{new}");
     assert!(d.contains("Some(asker.source)==Some(id)"), "{new}");
-    assert!(d.contains("q.state().obj(item.subject.object().expect(\"eventmatcherguaranteesobjectsubject\")).owner"), "{new}");
+    assert!(d.contains("item.subject.object().map(|o:ObjectId|q.state().obj(o).owner)"), "{new}");
     let supported = cantrip::planned::with_additional_features(&[FEATURE], || cantrip::module(&card)).unwrap();
     let printed = cantrip::pr_form::render(&supported, "Reincarnation", "Return the creature to its owner's hand.", cantrip::pr_form::Characteristics::Inline).unwrap();
-    assert!(printed.contains("event matcher guarantees object subject"), "{printed}");
-    assert!(!printed.contains("let Some(named_1) = item.subject.object()"), "{printed}");
+    assert!(dense(&printed).contains("item.subject.object().map"), "{printed}");
+    assert!(!printed.contains(".expect("), "{printed}");
     if let Ok(path) = std::env::var("CANTRIP_REINCARNATION_PRINTED") { std::fs::write(path, &printed).unwrap(); }
     if let Ok(path) = std::env::var("CANTRIP_WATCHED_GENERATED") {
         let source = source("Reincarnation");

@@ -1570,11 +1570,7 @@ fn optional_expect(call: &syn::ExprMethodCall) -> bool {
             _ => false,
         }
     }
-    let proven_subject = text_of(&call.receiver) == "item . subject . object ()"
-        && call.args.len() == 1
-        && matches!(call.args.first(), Some(Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }))
-            if s.value() == "event matcher guarantees object subject");
-    call.method == "expect" && !checked_conversion(&call.receiver) && !proven_subject
+    call.method == "expect" && !checked_conversion(&call.receiver)
 }
 
 /// The first `x.expect(..)` a statement evaluates itself, as `named`: the `x` is
