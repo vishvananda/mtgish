@@ -962,8 +962,8 @@ impl Compiler {
         })
     }
     /// `Vec<ObjectId>` of what paid part of a cost, as it was when it did. The
-    /// engine keeps what an activation's cost chose of the battlefield, and
-    /// what a spell sacrificed is in the history ahead of its cast.
+    /// engine identifies what each supported cost component paid, retaining its
+    /// pre-move identity for last-known characteristics and copied spells.
     fn cost_objects(&self, payment: &PaymentRef, component: &[u32]) -> Result<String> {
         // `cost()` combines these parts into one native Cost. Only a single chosen
         // sacrifice has an unambiguous Permanents receipt in that representation.
