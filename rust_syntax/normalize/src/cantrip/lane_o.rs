@@ -553,9 +553,29 @@ impl Compiler {
             asked => asked.map_err(refused)?,
         };
         let (test, mut about) = self.named_as_resolved(&test).map_err(refused)?;
+        // A chosen target must still be legal when this rule is made, even when another target remains legal.
+        if changes.iter().any(|change| matches!(change, Change::Rule(RuleChange::BlockCapacity(_)))) {
+            for slot in 0..8 {
+                for index in 0..8 {
+                    let raw = format!("t_{slot}_raw.get({index}).copied().and_then");
+                    let legal = format!("t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t)).and_then");
+                    about = about.replace(&raw, &legal);
+                }
+            }
+        }
         // (the kind's code, its requirement, whether #897 has it, its words)
         let mut kinds: Vec<(String, String, bool, &str)> = Vec::new();
         for change in changes {
+            if let Change::Rule(RuleChange::BlockCapacity(capacity)) = change {
+                let value = match capacity {
+                    BlockCapacity::Additional(Expr::Constant(n)) if *n >= 0 && *n <= u32::MAX as i64 => n.to_string(),
+                    BlockCapacity::Unlimited => "u32::MAX".to_string(),
+                    _ => return Err(gap("dynamic lasting block allowance")),
+                };
+                let feature = "continuous rule BlockCapacity".to_string();
+                kinds.push((format!("LastingRuleKind::AdditionalBlocks({value})"), feature, !planned::switched_on("multiple-blocks"), "AdditionalBlocks"));
+                continue;
+            }
             if let Some(kind) = lasting_rule_kind(change) {
                 let present = crate::cantrip_vocab::LASTING_RULE_KINDS.contains(&kind);
                 let feature = if present { open_set_feature(change) } else { format!("engine: no lasting rule {kind}") };
@@ -769,6 +789,7 @@ impl Compiler {
             "CantBeBlocked" => &["can't be blocked"],
             "MustAttack" => &["attack"],
             "MustBlock" => &["block"],
+            "AdditionalBlocks" => &["can block"],
             "DoesntUntap" => &["untap"],
             _ => &[],
         };

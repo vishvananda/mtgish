@@ -3924,22 +3924,6 @@ impl Compiler {
         .unwrap();
         Ok(())
     }
-    /// A value of `id` under a rule, for a table Cantrip will have.
-    fn object_value_plan(
-        &mut self,
-        feature: &str,
-        table: &'static str,
-        function: &str,
-        affected: &ObjectSet,
-        value: &str,
-        kind: &str,
-        parts: &mut Parts,
-    ) -> Result<()> {
-        let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
-        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> Option<{kind}> {{ ({guard}{test}).then(|| {value}) }}").unwrap();
-        self.plan_entry(feature, table, function, parts);
-        Ok(())
-    }
     /// Who is being attacked, as `Target` `defender` is asked about.
     pub(super) fn defended(&self, defenders: &AttackDefenders) -> Result<String> {
         let players = |c: &Self, players: &PlayerSet, walkers: bool| -> Result<String> {
@@ -4197,21 +4181,31 @@ impl Compiler {
                 parts,
             )?,
             R::BlockCapacity(capacity) => {
+                let feature = "static rule BlockCapacity";
                 let more = match capacity {
-                    BlockCapacity::Additional(n) => {
-                        self.number(n)?.amount(u32::MAX.into(), "u32")?
-                    }
+                    BlockCapacity::Additional(Expr::Constant(n)) if *n >= 0 && *n <= u32::MAX as i64 => n.to_string(),
                     BlockCapacity::Unlimited => "u32::MAX".to_string(),
+                    BlockCapacity::Additional(n) => self.number(n)?.amount(u32::MAX.into(), "u32")?,
+                    _ => return Err(gap("dynamic or conditional self block allowance")),
                 };
-                self.object_value_plan(
-                    "static rule BlockCapacity",
-                    "additional_blocks",
-                    function,
-                    affected,
-                    &more,
-                    "u32",
-                    parts,
-                )?
+                if matches!(affected, ObjectSet::One(ObjectRef::Source)) {
+                    let text = self.line_text().unwrap_or("Can block additional creatures.").to_string();
+                    let dynamic = self.static_guard.is_some() || matches!(capacity, BlockCapacity::Additional(n) if !matches!(n, Expr::Constant(_)));
+                    let ability = if dynamic {
+                        let guard = self.guard()?;
+                        let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> u32 {{ let source = asker.source; if {guard}true {{ {more} }} else {{ 0 }} }}");
+                        writeln!(self.functions, "{}", planned::switched_item("multiple-blocks", feature, &item)).unwrap();
+                        format!("block_allowance_by({function}, {})", quoted(&text))
+                    } else { format!("block_allowance({more}, {})", quoted(&text)) };
+                    if planned::switched_on("multiple-blocks") { parts.abilities.push(ability); }
+                    else { self.plan_entry(feature, "abilities", &ability, parts); }
+                } else {
+                    let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+                    let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, id: ObjectId) -> u32 {{ let asker = &Asker::new(source, q.controller(source)); if {guard}{test} {{ {more} }} else {{ 0 }} }}");
+                    writeln!(self.functions, "{}", planned::switched_item("multiple-blocks", feature, &item)).unwrap();
+                    if planned::switched_on("multiple-blocks") { parts.table("additional_blocks", function.to_string()); }
+                    else { self.plan_entry(feature, "additional_blocks", function, parts); }
+                }
             }
             R::BlockedAsThoughLacking(_) => self.object_plan(
                 "static rule BlockedAsThoughLacking",

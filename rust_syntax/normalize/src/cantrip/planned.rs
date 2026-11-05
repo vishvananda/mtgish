@@ -67,6 +67,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("simultaneous-replacement-damage", "pub type GrantedDamage = fn(&dyn Query, &Asker, ObjectId, &DamageEvent, &DamageEvent) -> Vec<DamageComponent>;", &[]),
     ("target-original-context", "replacing: Option<(u32, Target)>", &[]),
     ("delayed-watched-source", "ThisTurnWatching(ObjectId)", &[]),
+    ("multiple-blocks", "pub const fn block_allowance(", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

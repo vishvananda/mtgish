@@ -2516,6 +2516,12 @@ impl Compiler {
                 // "That creature attacks this turn if able" is a rule, not
                 // an ability it gains and could lose in layer 6. A lasting
                 // rule can name the original target as its fixed set.
+                if changes.iter().all(|change| matches!(change, Change::Rule(RuleChange::BlockCapacity(_)))) && !changes.is_empty() {
+                    if let EffectSubjects::Objects(ObjectSet::One(object)) = affected {
+                        let set = ObjectSet::battlefield(ObjectFilter::SameObject(object.clone()));
+                        if self.lasting_rules(&set, changes, duration, out)? { return Ok(()); }
+                    }
+                }
                 if matches!(changes.as_slice(), [Change::Rule(RuleChange::RequireCombat {
                     action: ObjectAction::Attack(AttackDefenders::Any),
                     amount: RequirementAmount::AtLeast(Expr::Constant(1)),
