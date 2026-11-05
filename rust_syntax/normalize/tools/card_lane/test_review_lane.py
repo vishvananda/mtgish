@@ -64,6 +64,19 @@ class QueueTests(unittest.TestCase):
         self.assertIn('the consolidator owns campaign-wide duplication', confirmation)
         self.assertIn('never excuses a broken helper or an engine gap', confirmation)
 
+    def test_pipeline_counts_latest_revision_without_erasing_old_rejections(self):
+        with lane.connect(self.root) as db:
+            for key,name,state in [('old-a','Alpha','blocked'),('new-a','Alpha','passed'),
+                    ('old-b','Beta','passed'),('new-b','Beta','queued')]:
+                db.execute('INSERT INTO jobs(id,name,source_commit,source,status,stage,enqueued) VALUES(?,?,?,?,?,?,?)',
+                           (key,name,key,'{}',state,'review','now'))
+            db.commit()
+            flow=lane.pipeline_flow(db,{})
+            self.assertEqual(flow['blocked']['cards'],0)
+            self.assertEqual(flow['ready']['cards'],1)
+            self.assertEqual(flow['review']['cards'],1)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM jobs WHERE status='blocked'").fetchone()[0],1)
+
     def test_lane_creates_state_directory_before_constructing_sandbox_roots(self):
         tree=self.root/'tree';tree.mkdir()
         state=self.root/'packet/state'

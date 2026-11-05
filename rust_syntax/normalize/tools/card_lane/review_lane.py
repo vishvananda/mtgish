@@ -1099,7 +1099,9 @@ def pipeline_flow(db, cfg):
     if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='publish_cards'").fetchone():
         publishing = {r['job']:r['status'] for r in db.execute('SELECT p.job,b.status FROM publish_cards p JOIN publish_batches b ON b.number=p.batch')}
     active = {name:set() for name in flow}
-    for row in db.execute("SELECT id,source,status,stage,worker FROM jobs WHERE status!='superseded'"):
+    for row in db.execute("""SELECT id,source,status,stage,worker FROM jobs
+            WHERE status!='superseded' AND rowid IN
+            (SELECT MAX(rowid) FROM jobs GROUP BY name)"""):
         source=json.loads(row['source']);round_number=source.get('review_round',0)
         completed=round_number+(row['stage']=='confirm' or row['status'] in ('passed','blocked','infrastructure'))
         completed=min(3,max(completed,source.get('verifier_rejections',0)))
