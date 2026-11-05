@@ -10486,7 +10486,7 @@
       57
     ],
     "contains": [
-      "reature), IsCardtype(Land)]), Other(HostPermanentOf(Ref_TargetPermanent)), SharesACardtypeWithPermanent(HostPermanentOf(Ref_TargetPermanent))]))])))])"
+      "reature), IsCardtype(Land)]), Other(HostPermanentOf(Ref_TargetPermanent)), SharesACardtypeWithPermanentFromAmongCardtypes(HostPermanentOf(Ref_TargetPermanent), [Creature, Land])]))])))])"
     ],
     "excludes": [
       "reature), IsCardtype(Land)]), SharesACardtypeWithPermanent(HostPermanent)]))])))])"

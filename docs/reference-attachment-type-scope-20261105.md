@@ -1,0 +1,7 @@
+# Enchantment Alteration's destination type
+
+Enchantment Alteration moves an Aura from a creature or land to another permanent of that type. The former English template allowed any shared card type, so an artifact land could be offered when the original host was an artifact creature. The template now uses the existing `SharesACardtypeWithPermanentFromAmongCardtypes` source form with the creature and land types. Its corresponding mtgish syntax production accepts that existing form; no source type or IR schema changes.
+
+The complete before and after parser passes each contain 33,529 records. Typed binary-to-JSON, pretty RON and unified exports all succeed. Exactly Enchantment Alteration changes; the unified difference is one `Shares(CardTypes)` filter becoming `SharesTypeFrom([Creature, Land])` with the same referenced host. The unrelated broad-sharing Reality Scramble parser control remains broad. All 37 active context-review findings retain their matched usage; all 185 active reviewed usage records and the saved evidence entries are unchanged. Only the applicable grammar input hashes in the audit review were refreshed.
+
+The Go parser suite, the attachment generator tests, and unified and attachment AST tests pass. The parser regression fails on the earlier template and passes on the corrected one. The full comparison and converter receipts are under `integration/non-target-attachment-proof/reference-type-scope` in the card-lane proof directory.

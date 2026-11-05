@@ -6961,6 +6961,7 @@
     "SharesACardtypeWithGraveyardCard({{CARD_IN_GRAVEYARDS}})": "",
     "SharesACardtypeWithPermanent({{PERMANENT}})": "",
     "SharesACardtypeWithPermanentFromAmongCardtypes({{PERMANENT}}, [Artifact, Creature, Land])": "",
+    "SharesACardtypeWithPermanentFromAmongCardtypes({{PERMANENT}}, [Creature, Land])": "",
     "SharesACardtypeWithThatDeadPermanent": "",
     "SharesACardtypeWithTheSacrificedPermanent": "",
     "SharesAPermanentCardtypeWithPermanent({{PERMANENT}})": "",

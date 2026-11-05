@@ -49,7 +49,7 @@ fn final_pr_modules_preserve_caller_filters() {
                 assert!(file.contains("CardType::Creature"), "{file}");
             }
             if name == "Enchantment Alteration" {
-                assert!(file.contains("CardType::Land") && file.contains("a.types.iter()"), "{file}");
+                assert!(file.contains("[CardType::Creature, CardType::Land]") && !file.contains("a.types.iter()"), "{file}");
             }
             if name == "Aura Graft" {
                 assert!(file.find("EffectKind::Control").unwrap() < file.find("q.can_attach_to(").unwrap(), "{file}");

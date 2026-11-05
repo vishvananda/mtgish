@@ -60,6 +60,8 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Reality Scramble", []string{"SharesACardtypeWithPermanent(Ref_TargetPermanent)"}, []string{"SharesACardtypeWithPermanentFromAmongCardtypes"}},
+		{"Enchantment Alteration", []string{"SharesACardtypeWithPermanentFromAmongCardtypes(HostPermanentOf(Ref_TargetPermanent), [Creature, Land])"}, []string{"SharesACardtypeWithPermanent(HostPermanentOf(Ref_TargetPermanent))"}},
 		{"Ageless Sentinels", []string{"SetCreatureTypes([Bird, Giant])"}, []string{"AddCreatureType(Bird)", "AddCreatureType(Giant)"}},
 		{"Ascendant Spirit", []string{"SetCreatureTypes([Spirit, Warrior])", "SetCreatureTypes([Spirit, Warrior, Angel])"}, []string{"AddCreatureType(Spirit)"}},
 		{"Evolved Sleeper", []string{"SetCreatureTypes([Human, Cleric])", "SetCreatureTypes([Phyrexian, Human, Cleric])"}, []string{"AddCreatureType(Human)"}},
