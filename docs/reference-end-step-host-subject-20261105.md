@@ -1,0 +1,9 @@
+# End-step triggers keep the creature and player they refer to
+
+The templates for the end step of an enchanted creature's controller bound “that creature” to the Aura's current host. Moving the Aura after the ability triggered could therefore change the creature whose attack history was checked, or the creature sacrificed or destroyed. They now use the existing captured creature/player source forms. Typed event bindings match the existing backend's object subject and saved triggering player; no source type, IR structure or schema change is needed.
+
+Exactly Aggression, Insubordination and Lingering Death change in the complete 33,529-record parse and unified comparison. The other 33,526 records are identical; all 185 active reviewed usage records remain unchanged. Binary JSON and pretty-RON conversions pass at schema 178. The parser command's token/dungeon input ordering differed from the earlier reference run; the retained raw output is compared by exact record multiset and aligned to the previous order for the typed comparison.
+
+Actual generated modules reproduce the mistakes before the correction: Aggression destroys the Aura's new host, Insubordination checks the new host's attack history, and Lingering Death sacrifices the new host. The corrected modules pass four saved gameplay cases, including the existing Insubordination player-identity control. That player's binding already worked in the old backend; the attack-history case distinguishes the correction. The initial Aggression fixture cast the Aura too early and is explicitly excluded from behavioral evidence.
+
+Full Source and Go tests pass. The final Source profile also pins the independently validated shared-loot and divided-target client checkpoint, with no new capability required. Proof receipts are under `integration/aggression-original-host-proof` in the card-lane workspace. These probes are not card approvals or new claims.

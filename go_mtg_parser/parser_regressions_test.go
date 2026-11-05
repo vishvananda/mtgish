@@ -60,6 +60,9 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Insubordination", []string{"PermanentPassesFilter(Trigger_ThatPermanent, AttackedThisTurn)", "Player(Trigger_ThatPlayer)"}, []string{"PermanentDealsDamage(ThisPermanent, Integer(2), Player(HostController))"}},
+		{"Lingering Death", []string{"PlayerAction(Trigger_ThatPlayer, SacrificePermanent(Trigger_ThatPermanent))"}, []string{"PlayerAction(HostController"}},
+		{"Aggression", []string{"PermanentPassesFilter(Trigger_ThatPermanent, DidntAttackThisTurn)", "DestroyPermanent(Trigger_ThatPermanent)"}, []string{"PermanentPassesFilter(HostPermanent, DidntAttackThisTurn)", "DestroyPermanent(HostPermanent)"}},
 		{"Reality Scramble", []string{"SharesACardtypeWithPermanent(Ref_TargetPermanent)"}, []string{"SharesACardtypeWithPermanentFromAmongCardtypes"}},
 		{"Enchantment Alteration", []string{"SharesACardtypeWithPermanentFromAmongCardtypes(HostPermanentOf(Ref_TargetPermanent), [Creature, Land])"}, []string{"SharesACardtypeWithPermanent(HostPermanentOf(Ref_TargetPermanent))"}},
 		{"Ageless Sentinels", []string{"SetCreatureTypes([Bird, Giant])"}, []string{"AddCreatureType(Bird)", "AddCreatureType(Giant)"}},

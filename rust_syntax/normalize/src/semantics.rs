@@ -5805,7 +5805,11 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             stack_object: true,
             ..EventBindings::default()
         },
-        EventSpec::Turn { .. } => EventBindings {
+        // A step named through an object's controller refers back to that object as well as the triggering player.
+        // This matches the backend's captured subject/data roles; ordinary player steps bind no object.
+        EventSpec::Turn { players, .. } => EventBindings {
+            object: matches!(players, PlayerSet::One(PlayerRef::ControllerOf(_))),
+            permanent: matches!(players, PlayerSet::One(PlayerRef::ControllerOf(_))),
             player: true,
             ..EventBindings::default()
         },
