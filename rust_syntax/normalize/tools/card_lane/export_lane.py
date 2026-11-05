@@ -262,7 +262,7 @@ def build(root, manifest, prefix):
     # commits or closing already-published cards' issues again.
     coauthors = sorted({tuple(card['author'][:2]) for card in manifest['foundation_cards'] if card['paths']}
                        - {tuple(author[:2])})
-    message = 'Engine and mechanics: shared early-set foundation\n\nConsolidated source: '+manifest['head']
+    message = 'Engine: shared early-set foundation\n\nConsolidated source: '+manifest['head']
     if coauthors:
         message += '\n\n' + '\n'.join(f'Co-authored-by: {name} <{email}>' for name, email in coauthors)
     foundation = commit(tree, manifest['base'], manifest['foundation_paths'], manifest['changes'],

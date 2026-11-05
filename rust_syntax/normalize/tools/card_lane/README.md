@@ -200,6 +200,14 @@ creating local refs; existing different refs remain untouched. Neither command c
 opens PRs. The receipt explicitly requires foundation/group validation before publication. Run both commands with
 `--root "$P"`; a draft plan can be generated while the campaign is unfinished, but cannot be built.
 
+Fork-only publication uses the same prerequisite-commit approach as the shared pin above. Open the foundation PR
+first. Each sibling head contains that identical foundation commit followed by its own card commits, and its
+upstream PR targets `main`. Link the foundation PR and full commit hash in every dependent PR description, together
+with a foundation-to-sibling comparison for reviewing only that group's cards. This does not require creating an
+upstream foundation branch. The maintainer workflow cherry-picks the head's unmerged history and leaves out
+prerequisite changes already landed on `main`; it does not parse a special dependency marker. Keep dependent PRs
+draft until the foundation lands if the upstream watcher would otherwise review the shared changes repeatedly.
+
 ### Context and measurements
 
 Both stages measure latest-request context from Codex rollouts, separately from cumulative token usage. They
