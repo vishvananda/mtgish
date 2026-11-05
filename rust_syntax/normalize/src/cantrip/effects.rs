@@ -1098,6 +1098,45 @@ impl Compiler {
                     },
                 result,
             } => {
+                // Only an immediately consumed singleton choice has a stable attachment
+                // to test before asking. Never carry this inference across an instruction.
+                let rest = &body.instructions[i + 1..];
+                let host_for = |op: &Operation| matches!(op,
+                    Operation::Attach { host: ObjectRef::Result { result: r, phase: ObjectPhase::After, index: 0 }, .. } if r.0 == result.0);
+                use mtgish_ir::visit::{Visitor, Walk};
+                struct HostUse<'a> { result: &'a ResultId, found: bool }
+                impl Visitor for HostUse<'_> {
+                    fn operation(&mut self, op: &Operation) -> bool {
+                        if let Operation::Attach { host: ObjectRef::Result { result, .. }, .. } = op {
+                            self.found |= result.0 == self.result.0;
+                        }
+                        matches!(op, Operation::InOrder(_) | Operation::WithSelections { .. })
+                    }
+                }
+                let mut use_later = HostUse { result, found: false };
+                rest.walk(&mut use_later);
+                let attachment = match rest.first() {
+                    Some(Instruction::Effect { operation: op @ Operation::Attach { attachments: ObjectSet::One(object), .. }, .. }) if host_for(op) && matches!(object, ObjectRef::Target { index: 0, .. }) => Some(object),
+                    _ => None,
+                };
+                if use_later.found {
+                    let Some(attachment) = attachment else { return Err(gap("non-adjacent attachment host choice")) };
+                    if !matches!(count, Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1))) || !constraints.is_empty() {
+                        return Err(gap("unsupported attachment host choice"));
+                    }
+                    if !planned::switched_on("non-target-attachment-hosts") {
+                        return Err(gap("non-target attachment host legality"));
+                    }
+                    self.single.insert(result.0);
+                    // Target legality is checked once as resolution starts (CR 608.2b),
+                    // not again after earlier instructions such as changing control.
+                    // A lone required target makes the initial fizzle check sufficient.
+                    if self.slots.len() != 1 || !self.slots.values().all(|(_, spec)| matches!(spec.count, Count::Exactly(Expr::Constant(1)))) {
+                        return Err(gap("attachment host choice with multiple or optional targets"));
+                    }
+                    let source = self.fetch(self.object(attachment)?);
+                    return self.choose_filtered(player, objects, count, result, "Attach", Some(&source), out);
+                }
                 // The move refuses what can't go there (608.2d); nothing reads
                 // that sooner, so such a card can be picked and stays put.
                 let constraint = constraints.iter().find(|c| {
@@ -1626,6 +1665,12 @@ impl Compiler {
         purpose: &str,
         out: &mut String,
     ) -> Result<()> {
+        self.choose_filtered(player, objects, count, result, purpose, None, out)
+    }
+    fn choose_filtered(
+        &mut self, player: &PlayerRef, objects: &ObjectSet, count: &Count,
+        result: &ResultId, purpose: &str, attachment: Option<&str>, out: &mut String,
+    ) -> Result<()> {
         if self.from_outside(objects) {
             self.notes.outside.insert(result.0);
             if matches!(objects, ObjectSet::Union(_)) {
@@ -1633,7 +1678,7 @@ impl Compiler {
             }
         }
         let chooser = self.fetch(self.certain_player(player)?);
-        let local = self.choose_local(&chooser, objects, count, purpose, out)?;
+        let local = self.choose_local_filtered(&chooser, objects, count, purpose, attachment, out)?;
         if matches!(player, PlayerRef::OneOf(_)) {
             self.notes
                 .performers
@@ -1650,6 +1695,12 @@ impl Compiler {
         count: &Count,
         purpose: &str,
         out: &mut String,
+    ) -> Result<String> {
+        self.choose_local_filtered(chooser, objects, count, purpose, None, out)
+    }
+    fn choose_local_filtered(
+        &mut self, chooser: &str, objects: &ObjectSet, count: &Count, purpose: &str,
+        attachment: Option<&str>, out: &mut String,
     ) -> Result<String> {
         let rule = std::mem::take(&mut self.choice_rule);
         if let Count::PerPlayer { players, each } = count {
@@ -1684,7 +1735,12 @@ impl Compiler {
             Some(n) => format!("if ({local}_candidates.len() as i64) < {n} {{ Vec::new() }} else "),
             None => lone,
         };
-        writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = {lone}{{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]){rule})? }};", chooser, self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
+        let candidates = self.fetch(self.objects(objects)?);
+        let candidates = match attachment {
+            Some(attachment) => format!("{{ let attachment = {attachment}; let q: &dyn Query = g; ({candidates}).into_iter().filter(|&host| attachment.is_some_and(|a| cantrip_api::is_live(q, a) && q.can_attach_to(a, host))).collect::<Vec<ObjectId>>() }}"),
+            None => candidates,
+        };
+        writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = {lone}{{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]){rule})? }};", chooser, candidates, self.fetch(count)).unwrap();
         self.open_guard(&local, out);
         if let Some(quality) = lane_n::quality_chosen(objects, self.line_text()) {
             self.damage_sources.insert(local.clone(), quality.clone());

@@ -63,6 +63,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("counter-placement-ceiling", "fn add_counters_with_limit(", &[]),
     ("wide-effect-quantities", "fn damage(&mut self, source: ObjectId, target: Target, amount: i64) -> i64;", &[]),
     ("snow-mana", "pub snow: u32,", &[]),
+    ("non-target-attachment-hosts", "fn can_attach_to(&self, attachment: ObjectId, host: ObjectId) -> bool;", &[]),
     ("simultaneous-replacement-damage", "pub type GrantedDamage = fn(&dyn Query, &Asker, ObjectId, &DamageEvent, &DamageEvent) -> Vec<DamageComponent>;", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
