@@ -2070,7 +2070,7 @@ impl Compiler {
                 self.moved.insert(result.0, format!("destroyed_{id}"));
                 // "If it dies this way": destroyed and sent elsewhere it didn't die (700.4).
                 let died = self.line_text().is_some_and(|line| {
-                    line.contains("dies this way") || line.contains("die this way")
+                    line.contains("dies this way") || line.contains("die this way") || line.contains("died this way")
                         || (line.contains("put into a graveyard") && line.contains("this way"))
                 });
                 self.left_behind(result, match died {
