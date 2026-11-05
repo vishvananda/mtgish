@@ -74,3 +74,24 @@ fn different_owners_are_grouped_before_the_single_simultaneous_move() {
         "{generated}"
     );
 }
+
+#[test]
+fn unconstrained_player_target_reuses_shared_filter() {
+    let source: OracleCard = ron::from_str(include_str!("fixtures/owner_library_order.ronl").lines().next().unwrap()).unwrap();
+    let generated = cantrip::module(&lower::card(&source).unwrap()).unwrap();
+    let printed = cantrip::pr_form::render(&generated, "Drafna's Restoration", "Put any number of target artifact cards from target player's graveyard on top of their library in any order.", cantrip::pr_form::Characteristics::Inline).unwrap();
+    assert!(printed.contains("targets::PLAYER"), "{printed}");
+    assert!(!printed.contains("fn ability_0_target_0"), "{printed}");
+    assert!(printed.contains("chosen_targets()"), "{printed}");
+}
+
+#[test]
+fn constrained_player_target_is_not_replaced_with_any_player() {
+    let source: OracleCard = ron::from_str(include_str!("fixtures/owner_library_order.ronl").lines().next().unwrap()).unwrap();
+    let generated = cantrip::module(&lower::card(&source).unwrap()).unwrap();
+    let constrained = generated.replace("matches!(t, Target::Player(p) if true)", "matches!(t, Target::Player(p) if p != asker.controller)");
+    assert_ne!(generated, constrained);
+    let printed = cantrip::pr_form::render(&constrained, "Drafna's Restoration", "Put any number of target artifact cards from target player's graveyard on top of their library in any order.", cantrip::pr_form::Characteristics::Inline).unwrap();
+    assert!(!printed.contains("targets::PLAYER"), "{printed}");
+    assert!(printed.contains("asker.controller"), "{printed}");
+}

@@ -2983,7 +2983,8 @@ fn use_shared_target_specs(file: &mut File) {
     // local predicates to tell implied modes apart.
     let permanent: Expr = syn::parse_str("matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id))").unwrap();
     let another: Expr = syn::parse_str("(cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE.filter)(q, asker, t)").unwrap();
-    let mut known = vec![(text_of(&permanent), "PERMANENT"), (text_of(&another), "ANOTHER_ATTACKING_CREATURE")];
+    let player: Expr = syn::parse_str("matches!(t, Target::Player(_))").unwrap();
+    let mut known = vec![(text_of(&permanent), "PERMANENT"), (text_of(&another), "ANOTHER_ATTACKING_CREATURE"), (text_of(&player), "PLAYER")];
     for (kind, helper) in [("Creature", "CREATURE"), ("Artifact", "ARTIFACT"),
                            ("Land", "LAND"), ("Enchantment", "ENCHANTMENT")] {
         for test in [format!("(q.chars(id).is(CardType::{kind}))"), format!("q.chars(id).is(CardType::{kind})")] {
