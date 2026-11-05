@@ -938,6 +938,8 @@ def commit_candidate(tree, source, parent, paths):
         parent = git(tree, "commit-tree", shared_tree, "-p", parent, "-m", f"Mechanics: prerequisites for {source['name']} review fixes")
     author = git(tree, "show", "-s", "--format=%an%n%ae%n%aI", source["commit"]).splitlines()
     message = git(tree, "show", "-s", "--format=%B", source["commit"])
+    _, separator, body = message.partition("\n")
+    message = f"Card: {source['name']}" + (separator + body if separator else "")
     if source.get("issue") and f"Closes #{source['issue']}" not in message:
         message += f"\n\nCloses #{source['issue']}"
     env = dict(os.environ, GIT_AUTHOR_NAME=author[0], GIT_AUTHOR_EMAIL=author[1], GIT_AUTHOR_DATE=author[2])

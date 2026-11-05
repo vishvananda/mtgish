@@ -563,6 +563,22 @@ class GitTests(unittest.TestCase):
         self.assertEqual(self.git("show", "--format=", "--name-only", candidate), paths[0])
         self.assertEqual(self.git("status", "--porcelain"), "")
 
+    def test_candidate_normalizes_title_for_publication_without_changing_content(self):
+        import publish_lane
+        self.git('commit', '--amend', '-qm', 'Implement Test Card\n\nRetain the reviewed behavior.')
+        original = self.git('rev-parse', 'HEAD')
+        candidate = lane.commit_candidate(self.repo,
+            dict(name='Test Card', commit=original, issue=42), self.base, [])
+        self.assertEqual(self.git('rev-parse', original+'^{tree}'),
+                         self.git('rev-parse', candidate+'^{tree}'))
+        self.assertEqual(self.git('show', '-s', '--format=%an <%ae>', candidate),
+                         'Original Author <author@example.com>')
+        self.assertIn('Retain the reviewed behavior.', self.git('show', '-s', '--format=%B', candidate))
+        prerequisites, finals = publish_lane.composition(self.repo, self.base,
+            [dict(name='Test Card', candidate=candidate, issue=42)])
+        self.assertEqual(prerequisites, [])
+        self.assertEqual(finals, [candidate])
+
     def test_prepare_rejects_dirty_tree_without_losing_changes(self):
         self.write("untracked", "keep me")
         job = {"id": "1", "stage": "review", "source": json.dumps({"name": "Test Card", "commit": self.source})}
