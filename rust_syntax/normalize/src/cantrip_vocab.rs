@@ -1,6 +1,6 @@
 // Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.
 // These names are inert metadata, never behavior.
-pub const API_FINGERPRINT: &str = "0f5cfaa6bdad8ceb98f16068d8d459f3de415d4dc2df288ee673c9978024b0f4";
+pub const API_FINGERPRINT: &str = "db0f1eea606288b611f8c0cf9565b10b88fe41567da875c2a1208aff8e6e3203";
 pub const SUBTYPES: &[&str] = &[
     "Adventure",
     "Advisor",
@@ -665,4 +665,4 @@ pub const LASTING_RULE_KINDS: &[&str] = &[
     "MustAttack",
     "DoesntUntap",
 ];
-pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "wide-effect-quantities", "snow-mana", "simultaneous-replacement-damage"];
+pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "wide-effect-quantities", "snow-mana", "non-target-attachment-hosts", "simultaneous-replacement-damage"];
