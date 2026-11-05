@@ -24,6 +24,7 @@ import tomllib
 import unicodedata
 
 import context_budget
+import review_evidence
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_ROOT = Path.home() / "card-lane" / "pipeline"
@@ -173,7 +174,7 @@ def clean(tree):
 def driver_stamp():
     paths = [HERE / name for name in (
         'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py', 'card_lane.py',
-        'context_budget.py')]
+        'context_budget.py', 'review_evidence.py')]
     paths.append(HERE.parent / 'cantrip_tree.py')
     return tuple(path.stat().st_mtime_ns for path in paths)
 
@@ -688,6 +689,7 @@ def native_mutant_check(lane, card, mutant, tests, allowed_tests, folder):
 def checks(root):
     assignment = current(root)
     tree, folder = Path(assignment["tree"]), Path(assignment["folder"])
+    review_evidence.archive_previous_checks(folder)
     lane = load_lane(root, tree, folder / "state")
     name = assignment["name"]
     lane.card_dir(name).mkdir(parents=True, exist_ok=True)
@@ -701,6 +703,7 @@ def checks(root):
     if changed_stems - declared:
         result=dict(at=now(),ok=False,seconds=0,diff_digest=work_digest(tree),gates=[dict(gate='affected cards',ok=False,seconds=0,
                     detail="declare every changed card in affected_cards before check: " + str(changed_stems - declared))])
+        result, _ = review_evidence.freeze_checks(folder, result)
         save(folder/'checks.json',result)
         return result
     initial_digest = work_digest(tree)
@@ -804,7 +807,9 @@ def checks(root):
     result = dict(at=now(), head=git(tree, "rev-parse", "HEAD"), diff_digest=final_digest,
                   initial_digest=initial_digest,
                   ok=bool(rows) and all(r["ok"] for r in rows), seconds=round(time.monotonic()-started, 2), gates=rows)
+    result, receipt = review_evidence.freeze_checks(folder, result)
     save(folder / "checks.json", result)
+    print('Immutable check receipt:', receipt, flush=True)
     progress('complete', 'passed' if result['ok'] else 'failed')
     return result
 

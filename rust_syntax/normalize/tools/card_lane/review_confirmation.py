@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
+from review_evidence import freeze
 
 
 def _sha(data):
@@ -70,6 +71,8 @@ def build_bundle(folder, original, card_name, candidate, candidate_tree, source_
     if result_raw is not None:
         files["result"] = result_path
         hashes["result"] = _sha(result_raw)
+    for name, path in list(files.items()):
+        files[name] = freeze(folder / 'evidence/inputs', _read(path), path.suffix)
     evidence = []
     for gate in gates:
         log = gate.get("log")
@@ -80,14 +83,16 @@ def build_bundle(folder, original, card_name, candidate, candidate_tree, source_
             path = path.resolve()
             item = {"gate": gate["gate"], "path": str(path)}
             if path.is_file():
-                item["sha256"] = _sha(path.read_bytes())
+                raw = path.read_bytes()
+                item.update(original=str(path), path=str(freeze(folder / 'evidence/logs', raw, path.suffix)), sha256=_sha(raw))
             else:
                 item["missing"] = True
             evidence.append(item)
     for path in sorted(original.rglob("*")):
-        if path.is_file() and ("manual" in path.name.lower() or "probe" in path.name.lower() or
+        if path.is_file() and ("manual" in path.name.lower() or "probe" in path.name.lower() or "manifest" in path.name.lower() or path.is_relative_to(original / 'evidence') or
                                path.is_relative_to(original / "scratch")):
-            evidence.append({"path": str(path), "sha256": _sha(path.read_bytes())})
+            raw = path.read_bytes()
+            evidence.append({"original": str(path), "path": str(freeze(folder / 'evidence/attachments', raw, path.suffix)), "sha256": _sha(raw)})
     manifest = {"card": card_name, "candidate": candidate, "candidate_tree": candidate_tree,
                 "source_commit": source_commit, "checks_head": checks["head"],
                 "checks_diff_digest": checks["diff_digest"],
@@ -122,6 +127,8 @@ def compact_prompt(folder, card_name):
     return f'''Independently confirm the exact fix for {card_name}. Read {folder / 'confirmation.md'} and its manifest first. Read .claude/skills/add-cards/review.md and the non-negotiables and never list in .claude/skills/add-cards/SKILL.md once per context. The full packet at {folder / 'packet.md'} remains available for targeted expansion.
 
 Verify the exact fix's semantics against Oracle, the relevant code, shared mechanics and changed existing callers. Expand to source, scenarios, evidence and the full packet wherever needed to resolve uncertainty; do not redo the original review wholesale. Check the manifest hashes against evidence you rely on; read the actual referenced logs and manual-break/probe evidence before relying on proof claims. Do not infer semantic equivalence or safety from the diff alone. Do not change source, mutate git, use network, or spawn agents. Do not rerun unchanged gates unless stale, missing, or a specific concern requires it. Block on missing evidence, unresolved uncertainty, or any unverified semantic change.
+
+The manifest points to immutable snapshots. If a historical manifest names a live checks.json or log that has since been overwritten, look for its exact hash in the archived evidence/checks and evidence/maps artifacts included in this bundle. Accept only hash-matching original bytes and their bound logs; a similar candidate, digest or later successful run is not a substitute for missing bytes.
 
 Write {folder / 'review.json'} compatible with report_valid: decision pass or blocked, validation entries with agrees, affected_cards including {card_name}, fixes as an empty list, and a nonempty client field. Include findings and evidence for the decision. Do not make fixes.
 

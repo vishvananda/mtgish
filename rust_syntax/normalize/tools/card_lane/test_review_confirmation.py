@@ -71,6 +71,16 @@ class ConfirmationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "validation"):
             self.build()
 
+    def test_confirmation_inputs_survive_later_live_receipt_and_log_overwrites(self):
+        self.build()
+        manifest = json.loads((self.folder / 'confirmation-manifest.json').read_text())
+        (self.original / 'checks.json').write_text('a later check')
+        (self.original / 'review.json').write_text('a later report')
+        (self.original / 'oracle.log').write_text('a later log')
+        for item in manifest['files'].values():
+            self.assertEqual(hashlib.sha256(Path(item['path']).read_bytes()).hexdigest(), item['sha256'])
+        self.assertEqual(Path(manifest['evidence'][0]['path']).read_text(), 'evidence')
+
 
 if __name__ == "__main__":
     unittest.main()
