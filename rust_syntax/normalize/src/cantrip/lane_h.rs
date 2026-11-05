@@ -4189,8 +4189,15 @@ impl Compiler {
                     _ => return Err(gap("dynamic or conditional self block allowance")),
                 };
                 if matches!(affected, ObjectSet::One(ObjectRef::Source)) {
-                    let text = self.line_text().unwrap_or("Can block additional creatures.").to_string();
                     let dynamic = self.static_guard.is_some() || matches!(capacity, BlockCapacity::Additional(n) if !matches!(n, Expr::Constant(_)));
+                    let fallback = match capacity {
+                        BlockCapacity::Unlimited => "This creature can block any number of creatures.".to_string(),
+                        BlockCapacity::Additional(Expr::Constant(1)) => "This creature can block an additional creature each combat.".to_string(),
+                        BlockCapacity::Additional(Expr::Constant(n)) => format!("This creature can block {n} additional creatures each combat."),
+                        BlockCapacity::Additional(_) => "This creature can block additional creatures as determined by the game state.".to_string(),
+                    };
+                    let fallback = if self.static_guard.is_some() { format!("{fallback} This applies while the ability's condition is met.") } else { fallback };
+                    let text = self.line_text().unwrap_or(&fallback).to_string();
                     let ability = if dynamic {
                         let guard = self.guard()?;
                         let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> u32 {{ let source = asker.source; if {guard}true {{ {more} }} else {{ 0 }} }}");

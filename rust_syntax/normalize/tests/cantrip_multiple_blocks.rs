@@ -27,3 +27,18 @@ fn printed_abilities_and_rules_use_distinct_native_representations() {
         if name == "Hundred-Handed One" { assert!(text.contains("marks.monstrous"), "{text}"); }
     }
 }
+#[test]
+fn full_generator_describes_each_printed_permission() {
+    for name in ["Foriysian Brigade", "Palace Guard", "Brave the Sands", "Valor Made Real", "Kemba's Legion", "Hundred-Handed One", "Yare"] {
+        let source = source(name);
+        let unified = mtgish_ast::unified::lower(&source).card;
+        let output = cantrip::planned::with_additional_features(&[FEATURE], || cantrip::whole_module(&source, &unified)).unwrap_or_else(|e| panic!("{name}: {}", e.feature));
+        syn::parse_file(&output).unwrap();
+        if let Ok(dir) = std::env::var("CANTRIP_MULTI_BLOCK_WHOLE_OUTPUT") {
+            let filename = name.to_lowercase().replace(|c: char| !c.is_ascii_alphanumeric(), "_");
+            std::fs::write(std::path::Path::new(&dir).join(format!("{filename}.rs")), &output).unwrap();
+        }
+        if name == "Foriysian Brigade" { assert!(output.contains("block an additional creature"), "{output}"); }
+        if name == "Palace Guard" { assert!(output.contains("block any number of creatures"), "{output}"); }
+    }
+}
