@@ -71,8 +71,6 @@ const CARDS: &[(&str, &str)] = &[
     ("Korvold, Gleeful Glutton", "history measure Distinct"),
     // The complete native family mask includes snow and qualified landwalks.
     ("Hammerheim", "EffectKind::LoseKeywords(Keywords::LANDWALKS)"),
-    // An event-fired delayed ability keeps no list: this read would be empty.
-    ("Searing Blood", "engine: a delayed ability on an event keeps no list"),
     // The creature enters with the Aura attached, so its enchant ability names it.
     (
         "Necromancy",
@@ -119,4 +117,21 @@ fn modules_say_what_their_cards_say() {
             "{name} should have {says}:\n{module}"
         );
     }
+}
+
+/// Searing Blood's delayed damage comes from its spell, while its recipient is the watched creature's controller.
+#[test]
+fn searing_blood_keeps_the_creating_spell_and_watched_creature_distinct() {
+    let corpus = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgish.lines.ron");
+    if !corpus.exists() { return; }
+    let names = || vec!["Searing Blood".to_string()];
+    let old = cantrip::planned::with_features(&[], || cantrip::modules_named(&corpus, &names())).unwrap();
+    assert!(old[0].1.contains("delayed ability with separate source and watched object"), "{}", old[0].1);
+    let new = cantrip::planned::with_additional_features(&["delayed-watched-source"], || cantrip::modules_named(&corpus, &names())).unwrap();
+    let output = &new[0].1;
+    assert!(output.contains("DelayedWhen::ThisTurnWatching(watched), item.object"), "{output}");
+    assert!(output.contains("item.subject.object().map(|o: ObjectId| q.controller(o))"), "{output}");
+    let effect = output.split("fn watch_3(g:").nth(1).unwrap().split("fn ability_0(").next().unwrap();
+    assert!(effect.contains("Some(asker.source)"), "{effect}");
+    assert!(!output.contains("// gaps:"), "{output}");
 }

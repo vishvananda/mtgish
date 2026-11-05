@@ -35,6 +35,56 @@ impl StepCaptures {
     }
 }
 
+/// Does this IR refer to the creating object, rather than a damage-role named Source?
+pub(super) fn reads_creator<T: crate::visit::Walk>(value: &T) -> bool {
+    use crate::visit::Visitor;
+    struct Find(bool);
+    impl Visitor for Find {
+        fn object_ref(&mut self, object: &ObjectRef) -> bool {
+            self.0 |= matches!(object, ObjectRef::Source);
+            true
+        }
+    }
+    let mut find = Find(false);
+    value.walk(&mut find);
+    find.0
+}
+
+/// Whether the first watched reference in this filter is the event's object itself, rather than an object read by
+/// a history predicate about that event's object. This follows the same search order as `lane_i::watched`.
+fn direct_watched(filter: &ObjectFilter) -> Option<bool> {
+    match filter {
+        ObjectFilter::SameObject(object) if !matches!(object, ObjectRef::Source) => Some(true),
+        ObjectFilter::All(filters) => filters.iter().find_map(direct_watched),
+        ObjectFilter::Condition(condition) => match &**condition {
+            Condition::Compare { left: Expr::EventHistory { event, .. }, .. } => match &**event {
+                EventSpec::Damage(damage) => direct_watched(&damage.sources).map(|_| false),
+                _ => None,
+            },
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Whether the event subject can carry the watched identity (including its last-known identity).
+pub(super) fn watched_is_event_subject(event: &EventSpec) -> bool {
+    match event {
+        EventSpec::ZoneChange { objects, from: Some(_), to } if *to != EventZone::Battlefield => direct_watched(objects) == Some(true),
+        EventSpec::Object { objects, .. } => direct_watched(objects) == Some(true),
+        EventSpec::Attack { attackers, .. } => direct_watched(attackers) == Some(true),
+        EventSpec::Damage(damage) => match direct_watched(&damage.sources) {
+            Some(true) => damage.subject == DamageSubject::Source,
+            Some(false) => false,
+            None => match &damage.recipients {
+                DamageRecipients::Objects(objects) => direct_watched(objects) == Some(true) && damage.subject == DamageSubject::Recipient,
+                _ => false,
+            },
+        },
+        _ => false,
+    }
+}
+
 /// What a delayed ability's body takes along from the instruction making it.
 pub(super) struct Outer {
     /// Only step-delayed closures use the subject plus real-object-list layout.
@@ -54,11 +104,12 @@ pub(super) struct Outer {
     matcher: bool,
     /// `Vec<Target>` code of each part such an effect keeps.
     pub(super) parts: RefCell<Vec<String>>,
-    /// Asked of what it watches, so what made it is not its source: the object
-    /// `Source` says is carried.
+    /// For legacy event captures the maker is carried because the watched object was used as source.
     source_moved: bool,
-    /// What it watches, which is its source and so needs no carrying.
+    /// The object the matcher watches; the new contract retains the creating source separately.
     watches: Option<ObjectRef>,
+    pub(super) separate_watcher: bool,
+    pub(super) watched_is_event_subject: std::cell::Cell<bool>,
     /// A reflexive ability, which is told one number as well as its subject.
     pub(super) reflexive: bool,
     /// `i64` code of the number it is told, worked out as it triggers.
@@ -345,7 +396,17 @@ impl Compiler {
             return Ok(None);
         }
         if Self::watched_by(outer, object) {
-            return Ok(Some("Some(asker.source)".into()));
+            if !outer.separate_watcher || self.event_at == EventAt::Matcher {
+                return Ok(Some("Some(asker.source)".into()));
+            }
+            if !outer.watched_is_event_subject.get() {
+                return Err(gap("delayed ability retaining both watched object and a different event subject"));
+            }
+            return match self.event_at {
+                EventAt::Item => Ok(Some("item.subject.object()".into())),
+                EventAt::TargetFilter => Ok(Some("q.event_subject().object()".into())),
+                _ => Err(gap("delayed condition reading its watched object")),
+            };
         }
         if let Some(step) = &outer.step {
             if self.event_at == EventAt::TargetFilter {
@@ -472,9 +533,18 @@ impl Compiler {
             return Ok(None);
         }
         if Self::watched_list(outer, objects) {
-            return Ok(Some(
-                "Some(asker.source).into_iter().collect::<Vec<ObjectId>>()".into(),
-            ));
+            let watched = if !outer.separate_watcher || self.event_at == EventAt::Matcher {
+                "Some(asker.source)"
+            } else if !outer.watched_is_event_subject.get() {
+                return Err(gap("delayed ability retaining both watched object and a different event subject"));
+            } else {
+                match self.event_at {
+                    EventAt::Item => "item.subject.object()",
+                    EventAt::TargetFilter => "q.event_subject().object()",
+                    _ => return Err(gap("delayed condition reading its watched object")),
+                }
+            };
+            return Ok(Some(format!("{watched}.into_iter().collect::<Vec<ObjectId>>()")));
         }
         if let Some(step) = &outer.step {
             if let ObjectSet::One(object) = objects {
@@ -790,6 +860,8 @@ impl Compiler {
             parts: RefCell::new(Vec::new()),
             source_moved: std::mem::take(&mut self.source_moved),
             watches: self.watching_object.take(),
+            separate_watcher: std::mem::take(&mut self.watching_separately),
+            watched_is_event_subject: std::cell::Cell::new(std::mem::take(&mut self.watched_is_event_subject)),
             reflexive: std::mem::take(&mut self.reflexing),
             count: RefCell::new(None),
         });
@@ -877,10 +949,30 @@ impl Compiler {
                 )
             }
         };
+        let original_event_reads_source = reads_creator(event);
+        let watched_is_subject = watched_is_event_subject(event);
         let (event, source, each) = self.watching_source(event, body)?;
+        let (maker, _, _) = self.maker();
+        let separate = source != format!("Some({maker})");
+        if separate && original_event_reads_source {
+            return Err(gap("delayed event reading both its creator and watched object"));
+        }
+        let indefinite_once = matches!((duration, once), (D::Indefinite, true));
+        if separate && !(matches!((duration, once), (D::EndOfTurn, false))
+            || (indefinite_once && watched_is_subject && intervening_if.is_none())) {
+            return Err(gap("delayed trigger with a separate watched object and unsupported duration"));
+        }
+        let when = if separate && indefinite_once { "DelayedWhen::WhenEvent".to_string() } else { when };
+        if separate && intervening_if.as_ref().is_some_and(|c| {
+            reads_creator(c) && format!("{c:?}").contains("Event")
+        }) {
+            return Err(gap("delayed event condition reading both its creator and event"));
+        }
+        self.watching_separately = separate;
+        self.watched_is_event_subject = watched_is_subject;
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();
-        self.watching_for_another(&source, body)?;
+        if !separate { self.watching_for_another(&source, body)?; }
         let (outer, def) = self.closing_for_matcher(false, |c| {
             // Its matcher is a function of its own: no local reaches it.
             c.reset_results();
@@ -925,6 +1017,16 @@ impl Compiler {
         }
         Ok(())
     }
+    /// The watched target must still be legal as the ability resolves.
+    fn watched_object(&self, object: &ObjectRef) -> Result<String> {
+        if let ObjectRef::Target { slot, index } = object {
+            if self.slots.contains_key(&slot.0) && !self.stack_slot(slot) && self.choosing.is_none() && !self.costing_targets {
+                let i = self.slot(slot)?;
+                return Ok(format!("t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object())"));
+            }
+        }
+        Ok(self.fetch(self.object(object)?))
+    }
     /// What a delayed ability on an event is asked of, and the event as that
     /// object watches it.
     pub(super) fn watching_source(
@@ -940,14 +1042,14 @@ impl Compiler {
         {
             if let ObjectFilter::SameObject(object) = objects {
                 if !matches!(object, ObjectRef::Source) {
-                    source = self.fetch(self.object(object)?);
+                    source = self.watched_object(object)?;
                     self.watching_object = Some(object.clone());
                     *objects = ObjectFilter::SameObject(ObjectRef::Source);
                 }
             }
         }
         if let Some(object) = lane_i::watched(&mut event) {
-            source = self.fetch(self.object(&object)?);
+            source = self.watched_object(&object)?;
             self.watching_object = Some(object);
         } else if let Some(list) = lane_i::watched_each(&mut event) {
             source = "Some(each)".to_string();
@@ -970,6 +1072,9 @@ impl Compiler {
         let objects = outer.objects.borrow();
         let player = outer.player.borrow();
         let subject = outer.subject.as_ref().and_then(|s| s.borrow().clone());
+        if outer.separate_watcher && (!objects.is_empty() || player.is_some() || subject.is_some()) {
+            return Err(gap("delayed ability with separate watched object and additional captured values"));
+        }
         if objects.is_empty() {
             let target = match (subject, player.as_ref()) {
                 (None, None) => "Target::None".to_string(),
@@ -988,7 +1093,20 @@ impl Compiler {
                 _ => return Err(gap("reflexive ability about an object and a player")),
             };
             if outer.subject.is_some() || target == "Target::None" {
-                writeln!(out, "if let Some(source) = {source} {{ g.delayed_trigger({when}, source, {controller}, {ability}, {target}); }}").unwrap();
+                if outer.separate_watcher {
+                    let (maker, _, _) = self.maker();
+                    if target != "Target::None" { return Err(gap("delayed ability retaining a separate subject")); }
+                    let (when, target) = if when == "DelayedWhen::WhenEvent" {
+                        if !outer.watched_is_event_subject.get() {
+                            return Err(gap("one-shot delayed trigger retaining a different event subject"));
+                        }
+                        ("DelayedWhen::WhenEvent", "Target::Object(watched)")
+                    } else { ("DelayedWhen::ThisTurnWatching(watched)", "Target::None") };
+                    let code = format!("if let Some(watched) = {source} {{ g.delayed_trigger({when}, {maker}, {controller}, {ability}, {target}); }}");
+                    self.plan_switched("delayed-watched-source", "delayed ability with separate source and watched object", &code, out);
+                } else {
+                    writeln!(out, "if let Some(source) = {source} {{ g.delayed_trigger({when}, source, {controller}, {ability}, {target}); }}").unwrap();
+                }
                 return Ok(());
             }
         }

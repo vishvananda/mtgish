@@ -66,6 +66,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("non-target-attachment-hosts", "fn can_attach_to(&self, attachment: ObjectId, host: ObjectId) -> bool;", &[]),
     ("simultaneous-replacement-damage", "pub type GrantedDamage = fn(&dyn Query, &Asker, ObjectId, &DamageEvent, &DamageEvent) -> Vec<DamageComponent>;", &[]),
     ("target-original-context", "replacing: Option<(u32, Target)>", &[]),
+    ("delayed-watched-source", "ThisTurnWatching(ObjectId)", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";
@@ -91,6 +92,17 @@ pub fn with_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
         bits |= 1 << at.unwrap_or_else(|| panic!("{feature:?} is no feature of SWITCHED"));
     }
     in_features(bits, f)
+}
+
+/// Use the pinned native profile plus additional features, for checking a candidate native foundation.
+/// Unlike `with_features`, this never drops capabilities already present in the pinned profile.
+#[doc(hidden)]
+pub fn with_additional_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
+    let mut combined = crate::cantrip_vocab::FEATURES.to_vec();
+    for feature in features {
+        if !combined.contains(feature) { combined.push(feature); }
+    }
+    with_features(&combined, f)
 }
 
 fn in_features<R>(bits: u32, f: impl FnOnce() -> R) -> R {
@@ -830,7 +842,7 @@ pub fn lane_rows(input: &Path, oracle: &Path, output: &Path, cache: Option<&Path
 
 #[cfg(test)]
 mod tests {
-    use super::{planned_value, switched_on, with_features, LASTING_RULES, SWITCHED};
+    use super::{planned_value, switched_on, with_additional_features, with_features, LASTING_RULES, SWITCHED};
 
     /// The snapshot names only features the generator writes for, and the names
     /// the generator asks for are the table's.
@@ -852,6 +864,18 @@ mod tests {
             assert!(value(word).starts_with("planned_value!"), "{word}");
         }
     }
+    #[test]
+    fn an_additional_profile_keeps_the_pin_and_is_thread_local() {
+        const EXTRA: &str = "delayed-watched-source";
+        let pinned = crate::cantrip_vocab::FEATURES.contains(&EXTRA);
+        with_additional_features(&[EXTRA, EXTRA], || {
+            assert!(switched_on(EXTRA));
+            for name in crate::cantrip_vocab::FEATURES { assert!(switched_on(name), "{name}"); }
+            assert_eq!(std::thread::spawn(|| switched_on(EXTRA)).join().unwrap(), pinned);
+        });
+        assert_eq!(switched_on(EXTRA), pinned);
+    }
+
     #[test]
     fn a_profile_override_does_not_leak_to_other_generator_threads() {
         const FEATURE: &str = "wide-effect-quantities";

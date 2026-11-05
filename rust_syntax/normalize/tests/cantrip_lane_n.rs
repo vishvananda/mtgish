@@ -47,11 +47,6 @@ const CARDS: &[(&str, &str)] = &[
         "Divine Deflection",
         "target reference outside a resolving ability",
     ),
-    // "Each other creature and each player" (#156): creatures, not every permanent.
-    (
-        "Arcbond",
-        "q.chars(id).is(CardType::Creature) && !(Some(asker.source) == Some(id))",
-    ),
     (
         "Undiscovered Paradise",
         "replacement made outside a resolving ability",
@@ -135,4 +130,18 @@ fn excess_trigger_payload_is_not_confused_with_the_damage_amount() {
             assert!(module.contains("// gaps:"), "exact excess payload capture is not claimed implemented: {module}");
         }
     }
+}
+
+/// Arcbond's damage source and "other creature" are the watched creature, not the creating instant.
+#[test]
+fn arcbond_keeps_watched_recipient_separate_from_the_creating_spell() {
+    let names = || vec!["Arcbond".to_string()];
+    let old = cantrip::planned::with_features(&[], || modules(names()));
+    let Some(old) = old else { return };
+    assert!(old["Arcbond"].contains("delayed ability with separate source and watched object"), "{}", old["Arcbond"]);
+    let new = cantrip::planned::with_additional_features(&["delayed-watched-source"], || modules(names())).unwrap();
+    let output = &new["Arcbond"];
+    assert!(output.contains("DelayedWhen::ThisTurnWatching(watched), item.object"), "{output}");
+    assert!(output.contains("q.chars(id).is(CardType::Creature) && !(item.subject.object() == Some(id))"), "{output}");
+    assert!(output.contains("let source_2 = { let q: &dyn Query = g; item.subject.object() }"), "{output}");
 }
