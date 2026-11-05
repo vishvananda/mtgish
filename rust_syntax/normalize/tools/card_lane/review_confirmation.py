@@ -75,15 +75,21 @@ def build_bundle(folder, original, card_name, candidate, candidate_tree, source_
         files[name] = freeze(folder / 'evidence/inputs', _read(path), path.suffix)
     evidence = []
     for gate in gates:
-        log = gate.get("log")
-        if log:
+        for artifact in [gate, *gate.get('artifacts', [])]:
+            log = artifact.get("log")
+            if not log:
+                continue
             path = Path(log)
             if not path.is_absolute():
                 path = original / path
             path = path.resolve()
             item = {"gate": gate["gate"], "path": str(path)}
+            if artifact.get('kind'):
+                item['kind'] = artifact['kind']
             if path.is_file():
                 raw = path.read_bytes()
+                if artifact.get('sha256') and artifact['sha256'] != _sha(raw):
+                    raise ValueError(f'mutation artifact hash mismatch: {path}')
                 item.update(original=str(path), path=str(freeze(folder / 'evidence/logs', raw, path.suffix)), sha256=_sha(raw))
             else:
                 item["missing"] = True

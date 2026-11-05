@@ -71,6 +71,23 @@ class ConfirmationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "validation"):
             self.build()
 
+    def test_raw_mutation_artifacts_are_individually_bound_and_checked(self):
+        output=self.original/'mutate.txt';output.write_text('line 1: caught\n')
+        results=self.original/'mutants.json';results.write_text('{"one":"caught"}')
+        self.checks['gates'].append(dict(gate='mutation',ok=True,artifacts=[
+            dict(kind='raw mutation output',log=str(output),sha256=hashlib.sha256(output.read_bytes()).hexdigest()),
+            dict(kind='per-mutant results',log=str(results),sha256=hashlib.sha256(results.read_bytes()).hexdigest())]))
+        self.write_json('checks.json',self.checks)
+        self.build()
+        manifest=json.loads((self.folder/'confirmation-manifest.json').read_text())
+        bound=[x for x in manifest['evidence'] if x['gate']=='mutation']
+        self.assertEqual([x['kind'] for x in bound],['raw mutation output','per-mutant results'])
+        self.assertEqual(Path(bound[1]['path']).read_bytes(),results.read_bytes())
+        results.write_text('overwritten')
+        self.assertEqual(Path(bound[1]['path']).read_text(),'{"one":"caught"}')
+        with self.assertRaisesRegex(ValueError,'mutation artifact hash mismatch'):
+            self.build()
+
     def test_confirmation_inputs_survive_later_live_receipt_and_log_overwrites(self):
         self.build()
         manifest = json.loads((self.folder / 'confirmation-manifest.json').read_text())
