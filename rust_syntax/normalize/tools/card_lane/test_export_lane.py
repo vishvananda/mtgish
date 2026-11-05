@@ -139,6 +139,78 @@ class ExportTests(unittest.TestCase):
         self.assertTrue(any('validated local checkpoint' in blocker for blocker in lane.plan(self.root, self.head)['blockers']))
         self.assertEqual(self.git('for-each-ref', '--format=%(refname)', 'refs/heads/publish/'), '')
 
+    def test_approved_upstream_revision_is_in_every_siblings_foundation(self):
+        self.write('content/mtg/cards/alpha.json', json.dumps(dict(name='Alpha')))
+        self.write('crates/cantrip-cards/src/cards/alpha.rs', 'upstream Alpha')
+        self.base = self.save('Upstream implements Alpha')
+        self.cfg['base'] = self.base
+        self.cfg['integration']['base'] = self.base
+        self.card('Alpha', 1)
+        self.card('Beta', 2)
+        self.write('scenarios/beta-works.cantrip', '[Bot1 Deck]\nAlpha\nBeta\n[Actions]\n')
+        self.finish()
+        plan = lane.plan(self.root, self.head)
+        self.assertEqual(plan['blockers'], [])
+        self.assertEqual([card['name'] for card in plan['cards']], ['Beta'])
+        self.assertEqual([card['name'] for card in plan['foundation_cards']], ['Alpha'])
+        self.assertEqual(plan['groups'], [[0]])
+        result = lane.build(self.root, plan, 'publish/upstream-reference')
+        beta = result['groups'][0]['head']
+        self.assertEqual(self.git('show', beta+':crates/cantrip-cards/src/cards/alpha.rs'), 'final canonical caller alpha')
+        self.assertEqual(self.git('show', result['foundation']+':crates/cantrip-cards/src/cards/alpha.rs'),
+                         'final canonical caller alpha')
+        self.assertEqual(plan['foundation_cards'][0]['author'][0], 'Alpha Author')
+        self.assertIn('Co-authored-by: Alpha Author <alpha@example.com>',
+                      self.git('show', '-s', '--format=%B', result['foundation']))
+        self.assertNotIn('Closes', self.git('show', '-s', '--format=%B', result['foundation']))
+        self.assertEqual(self.git('show', beta+':scenarios/beta-works.cantrip'),
+                         '[Bot1 Deck]\nAlpha\nBeta\n[Actions]')
+
+    def test_upstream_cards_new_scenario_travels_with_the_new_card_it_uses(self):
+        self.write('content/mtg/cards/alpha.json', json.dumps(dict(name='Alpha')))
+        self.base = self.save('Upstream implements Alpha')
+        self.cfg['base'] = self.base
+        self.cfg['integration']['base'] = self.base
+        self.card('Alpha', 1)
+        self.card('Beta', 2)
+        self.write('scenarios/alpha-new-interaction.cantrip', '[Bot1 Deck]\nAlpha\nBeta\n[Actions]\n')
+        self.finish()
+        plan = lane.plan(self.root, self.head)
+        self.assertEqual(plan['groups'], [[0]])
+        self.assertEqual(plan['blockers'], [])
+        self.assertIn('scenarios/alpha-new-interaction.cantrip', plan['cards'][0]['paths'])
+        self.assertNotIn('scenarios/alpha-new-interaction.cantrip', plan['foundation_paths'])
+        result = lane.build(self.root, plan, 'publish/upstream-new-scenario')
+        self.assertNotIn('scenarios/alpha-new-interaction.cantrip', lane.files(self.tree, result['foundation']))
+        self.assertIn('scenarios/alpha-new-interaction.cantrip', lane.files(self.tree, result['groups'][0]['head']))
+        # Alpha's metadata alone existed upstream; its approved behavior must
+        # still reach the foundation, covering the review's missing-module case.
+        self.assertEqual(self.git('show', result['foundation']+':crates/cantrip-cards/src/cards/alpha.rs'),
+                         'final canonical caller alpha')
+
+    def existing_name_overlap(self, existing, new):
+        stem, slug = review_lane.names(existing)
+        self.write(f'content/mtg/cards/{slug}.json', json.dumps(dict(name=existing)))
+        self.write(f'crates/cantrip-cards/src/cards/{stem}.rs', 'upstream '+existing)
+        self.base = self.save('Upstream implements '+existing)
+        self.cfg['base'] = self.base
+        self.cfg['integration']['base'] = self.base
+        self.card(existing, 1)
+        self.card(new, 2)
+        self.finish()
+        plan = lane.plan(self.root, self.head)
+        self.assertEqual(plan['blockers'], [])
+        self.assertIn(f'scenarios/{slug}-works.cantrip', plan['foundation_paths'])
+        _, new_slug = review_lane.names(new)
+        self.assertIn(f'scenarios/{new_slug}-works.cantrip', plan['cards'][0]['paths'])
+        self.assertNotIn(f'scenarios/{slug}-works.cantrip', plan['cards'][0]['paths'])
+
+    def test_longer_existing_card_name_wins_over_new_prefix(self):
+        self.existing_name_overlap('Desert Twister', 'Desert')
+
+    def test_longer_new_card_name_wins_over_existing_prefix(self):
+        self.existing_name_overlap('Desert', 'Desert Twister')
+
     def test_existing_different_branch_is_preserved_without_creating_other_refs(self):
         self.ready()
         self.git('branch', 'publish/collision/cards-002', self.base)

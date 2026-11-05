@@ -72,7 +72,7 @@ def plan(root, head):
     publication.git(tree, 'merge-base', '--is-ancestor', head, settings['branch'])
     before, after = files(tree, base), files(tree, head)
     changed = sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path))
-    blockers, cards = [], []
+    blockers, cards, foundation_cards = [], [], []
     with sqlite3.connect((root/'queue.sqlite').as_uri() + '?mode=ro', uri=True) as db:
         db.row_factory = sqlite3.Row
         jobs = latest(db, 'jobs')
@@ -105,10 +105,16 @@ def plan(root, head):
             raise ValueError('Invalid issue for ' + row['name'])
         author = publication.git(tree, 'show', '-s', '--format=%an%n%ae%n%aI', row['candidate']).splitlines()
         stem, slug = review.names(row['name'])
-        cards.append(dict(name=row['name'], issue=issue, job=row['id'], candidate=row['candidate'],
-                          integration_job=imported['id'], author=author,
-                          stem=stem, slug=slug, extra_tests=source.get('card_test_paths', []), paths=[]))
+        card = dict(name=row['name'], issue=issue, job=row['id'], candidate=row['candidate'],
+                    integration_job=imported['id'], author=author,
+                    stem=stem, slug=slug, extra_tests=source.get('card_test_paths', []), paths=[])
+        # Already published cards receive their approved reconciliation changes
+        # in the common foundation. Every sibling then gets their final behavior
+        # and API compatibility, rather than depending on a separate card PR.
+        destination = foundation_cards if f'content/mtg/cards/{slug}.json' in before else cards
+        destination.append(card)
     cards.sort(key=lambda card: (card['issue'], card['name']))
+    foundation_cards.sort(key=lambda card: (card['issue'], card['name']))
     by_name = {review.canonical_typography(card['name']): index for index, card in enumerate(cards)}
     parents = list(range(len(cards)))
 
@@ -124,21 +130,23 @@ def plan(root, head):
                 parents[find(index)] = first
 
     foundation = []
+    all_cards = cards + foundation_cards
     for path in changed:
-        owners = [index for index, card in enumerate(cards) if owns(card, path)]
+        owners = [index for index, card in enumerate(all_cards) if owns(card, path)]
         if len(owners) > 1:
             # Desert and Desert Twister, for example, have overlapping scenario
             # prefixes. The complete longest name owns its own scenarios/tests.
             key = 'slug' if path.startswith('scenarios/') else 'stem'
-            longest = max(len(cards[index][key]) for index in owners)
-            owners = [index for index in owners if len(cards[index][key]) == longest]
+            longest = max(len(all_cards[index][key]) for index in owners)
+            owners = [index for index in owners if len(all_cards[index][key]) == longest]
         if len(owners) > 1:
             raise ValueError('Ambiguous file ownership: ' + path)
         required = set()
         if path.startswith('scenarios/') and path.endswith('.cantrip') and path in after:
             text = publication.git(tree, 'show', head + ':' + path)
             required = {by_name[name] for name in scenario_cards(text) if name in by_name}
-        if owners:
+        reconciled = all_cards[owners[0]] if owners and owners[0] >= len(cards) else None
+        if owners and owners[0] < len(cards):
             owner = owners[0]
         elif required:
             owner = min(required)
@@ -146,9 +154,11 @@ def plan(root, head):
             owner = None
         if owner is None:
             foundation.append(path)
+            if reconciled is not None:
+                reconciled['paths'].append(path)
             if path not in before and (path.startswith('content/') and path.endswith('.json')
                                       or path.startswith('crates/cantrip-cards/src/cards/') and path.endswith('.rs')):
-                if path not in settings.get('foundation_new_card_paths', []):
+                if reconciled is None and path not in settings.get('foundation_new_card_paths', []):
                     blockers.append('Unassigned new card or token needs explicit foundation ownership: ' + path)
         else:
             cards[owner]['paths'].append(path)
@@ -177,8 +187,8 @@ def plan(root, head):
     if queue_path and any(card.get('status') == 'pending' for card in review.read(queue_path)['cards']):
         blockers.append('Implementation intake queue is not empty')
     committer = publication.git(tree, 'show', '-s', '--format=%cn%n%ce', head).splitlines()
-    result = dict(version=1, root=str(root.resolve()), tree=str(tree), base=base, head=head, committer=committer,
-                  snapshot=snapshot, cards=cards, foundation_paths=foundation, groups=groups,
+    result = dict(version=2, root=str(root.resolve()), tree=str(tree), base=base, head=head, committer=committer,
+                  snapshot=snapshot, cards=cards, foundation_cards=foundation_cards, foundation_paths=foundation, groups=groups,
                   changes={path: after.get(path) for path in changed}, blockers=sorted(set(blockers)))
     result['digest'] = digest(result)
     return result
@@ -214,8 +224,17 @@ def build(root, manifest, prefix):
     publication.git(tree, 'check-ref-format', '--branch', prefix+'/foundation')
     timestamp = publication.git(tree, 'show', '-s', '--format=%cI', manifest['head'])
     author = publication.git(tree, 'show', '-s', '--format=%an%n%ae%n%aI', manifest['head']).splitlines()
+    # An API change and its existing callers must remain atomic. Keep each
+    # original review/candidate/author in foundation_cards and credit authors
+    # in the combined commit instead of creating unbuildable intermediate
+    # commits or closing already-published cards' issues again.
+    coauthors = sorted({tuple(card['author'][:2]) for card in manifest['foundation_cards'] if card['paths']}
+                       - {tuple(author[:2])})
+    message = 'Engine and mechanics: shared early-set foundation\n\nConsolidated source: '+manifest['head']
+    if coauthors:
+        message += '\n\n' + '\n'.join(f'Co-authored-by: {name} <{email}>' for name, email in coauthors)
     foundation = commit(tree, manifest['base'], manifest['foundation_paths'], manifest['changes'],
-                        'Engine and mechanics: shared early-set foundation\n\nConsolidated source: '+manifest['head'], author, timestamp, manifest['committer'])
+                        message, author, timestamp, manifest['committer'])
     refs = {prefix+'/foundation': foundation}
     branches = []
     for number, indices in enumerate(manifest['groups'], 1):
