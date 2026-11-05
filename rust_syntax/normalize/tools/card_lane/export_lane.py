@@ -55,7 +55,7 @@ def scenario_cards(text):
 def owns(card, path):
     own, slug = card['stem'], card['slug']
     return (path in (f'content/mtg/cards/{slug}.json', f'crates/cantrip-cards/src/cards/{own}.rs')
-            or path.startswith(f'scenarios/{slug}-')
+            or path == f'scenarios/{slug}.cantrip' or path.startswith(f'scenarios/{slug}-')
             or path in card['extra_tests']
             or any(path == f'crates/{package}/tests/{own}.rs'
                    or path.startswith(f'crates/{package}/tests/{own}_')
@@ -63,7 +63,7 @@ def owns(card, path):
             or path == f'crates/cantrip-cards/src/cards/tests/{own}.rs')
 
 
-def plan(root, head):
+def plan(root, head, *, defer_implementations=()):
     root = Path(root).resolve()
     cfg, settings, tree = integration.settings(root)
     head = publication.git(tree, 'rev-parse', head + '^{commit}')
@@ -82,8 +82,16 @@ def plan(root, head):
         if db.execute("SELECT 1 FROM jobs WHERE status IN ('queued','running') LIMIT 1").fetchone():
             blockers.append('Review or verification work is still active')
     approved = {row['name'] for row in jobs if row['status'] == 'passed'}
+    deferred_names = set(defer_implementations)
+    unfinished = {row['name']: row for row in implementations
+                  if row['name'] not in approved and imports.get(row['name'], {}).get('status') != 'upstream'}
+    unknown = deferred_names - unfinished.keys()
+    if unknown:
+        raise ValueError('Only unfinished implementations may be deferred: ' + ', '.join(sorted(unknown)))
+    deferred = [dict(name=name, id=unfinished[name]['id'], status=unfinished[name]['status'])
+                for name in sorted(deferred_names)]
     for row in implementations:
-        if row['name'] not in approved and imports.get(row['name'], {}).get('status') != 'upstream':
+        if row['name'] in unfinished and row['name'] not in deferred_names:
             blockers.append(f"Unfinished implementation: {row['name']} ({row['status']})")
     for row in jobs:
         if row['status'] != 'passed':
@@ -131,8 +139,23 @@ def plan(root, head):
 
     foundation = []
     all_cards = cards + foundation_cards
+    deferred_cards = []
+    for name in sorted(deferred_names):
+        stem, slug = review.names(name)
+        extra_tests = json.loads(unfinished[name].get('card', '{}')).get('card_test_paths', [])
+        deferred_cards.append(dict(name=name, stem=stem, slug=slug, extra_tests=extra_tests))
     for path in changed:
+        # An explicit backlog deferral never permits its unreviewed file objects
+        # into the foundation. Compare longest owners to avoid prefix collisions
+        # such as Desert and Desert Twister.
+        deferred_owners = [owner for owner in deferred_cards if owns(owner, path)]
         owners = [index for index, card in enumerate(all_cards) if owns(card, path)]
+        if deferred_owners:
+            key = 'slug' if path.startswith('scenarios/') else 'stem'
+            longest_approved = max((len(all_cards[index][key]) for index in owners), default=0)
+            for owner in deferred_owners:
+                if path in owner['extra_tests'] or len(owner[key]) >= longest_approved:
+                    blockers.append(f"Deferred implementation has changes in finished source: {owner['name']}: {path}")
         if len(owners) > 1:
             # Desert and Desert Twister, for example, have overlapping scenario
             # prefixes. The complete longest name owns its own scenarios/tests.
@@ -190,6 +213,8 @@ def plan(root, head):
     result = dict(version=2, root=str(root.resolve()), tree=str(tree), base=base, head=head, committer=committer,
                   snapshot=snapshot, cards=cards, foundation_cards=foundation_cards, foundation_paths=foundation, groups=groups,
                   changes={path: after.get(path) for path in changed}, blockers=sorted(set(blockers)))
+    if deferred:
+        result['deferred_implementations'] = deferred
     result['digest'] = digest(result)
     return result
 
@@ -215,7 +240,8 @@ def commit(tree, parent, paths, objects, message, author, timestamp, committer):
 def build(root, manifest, prefix):
     if manifest.get('digest') != digest({key: value for key, value in manifest.items() if key != 'digest'}):
         raise ValueError('Export manifest digest does not match')
-    fresh = plan(root, manifest['head'])
+    fresh = plan(root, manifest['head'],
+                 defer_implementations=[row['name'] for row in manifest.get('deferred_implementations', [])])
     if fresh != manifest:
         raise ValueError('Source or queue receipts changed; create a fresh export plan')
     if manifest['blockers']:
@@ -289,12 +315,20 @@ def main():
     draft = commands.add_parser('plan')
     draft.add_argument('--head', required=True)
     draft.add_argument('--out', required=True, type=Path)
+    draft.add_argument('--defer-implementations', type=Path,
+                       help='JSON list of unfinished card names to retain in the backlog; their changed files block export')
     export = commands.add_parser('build')
     export.add_argument('--plan', required=True, type=Path)
     export.add_argument('--prefix', required=True)
     export.add_argument('--out', required=True, type=Path)
     args = parser.parse_args()
-    result = plan(args.root, args.head) if args.action == 'plan' else build(args.root, review.read(args.plan), args.prefix)
+    if args.action == 'plan':
+        deferred = review.read(args.defer_implementations) if args.defer_implementations else []
+        if not isinstance(deferred, list) or any(not isinstance(name, str) for name in deferred):
+            raise ValueError('Deferred implementations must be a JSON list of card names')
+        result = plan(args.root, args.head, defer_implementations=deferred)
+    else:
+        result = build(args.root, review.read(args.plan), args.prefix)
     review.save(args.out, result)
     print(json.dumps({key: result[key] for key in ('head', 'digest', 'blockers') if key in result}, indent=2))
 

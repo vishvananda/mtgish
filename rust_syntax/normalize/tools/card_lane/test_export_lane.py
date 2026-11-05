@@ -86,6 +86,79 @@ class ExportTests(unittest.TestCase):
         self.card('Beta', 2)
         self.finish()
 
+    def unfinished(self, name, status='generator_bug'):
+        with integration_lane.connect(self.root) as db:
+            db.execute('CREATE TABLE IF NOT EXISTS implementation_jobs(id TEXT, name TEXT, status TEXT)')
+            db.execute('INSERT INTO implementation_jobs VALUES(?,?,?)', ('impl-'+name, name, status))
+            db.commit()
+
+    def test_explicit_backlog_deferral_preserves_work_and_binds_its_identity(self):
+        self.ready()
+        self.unfinished('Gamma')
+        strict = lane.plan(self.root, self.head)
+        self.assertIn('Unfinished implementation: Gamma (generator_bug)', strict['blockers'])
+        plan = lane.plan(self.root, self.head, defer_implementations=['Gamma'])
+        self.assertEqual(plan['blockers'], [])
+        self.assertEqual(plan['deferred_implementations'],
+                         [dict(name='Gamma', id='impl-Gamma', status='generator_bug')])
+        lane.build(self.root, plan, 'publish/approved')
+        with integration_lane.connect(self.root) as db:
+            self.assertEqual(db.execute('SELECT status FROM implementation_jobs').fetchone()[0], 'generator_bug')
+            db.execute("UPDATE implementation_jobs SET status='needs_review'")
+            db.commit()
+        with self.assertRaisesRegex(ValueError, 'receipts changed'):
+            lane.build(self.root, plan, 'publish/stale-backlog')
+        with self.assertRaisesRegex(ValueError, 'Only unfinished'):
+            lane.plan(self.root, self.head, defer_implementations=['Alpha'])
+
+    def test_deferral_cannot_export_unreviewed_card_changes_or_bypass_a_blocked_review(self):
+        self.ready()
+        self.unfinished('Gamma')
+        self.write('crates/cantrip-cards/src/cards/gamma.rs', 'unreviewed')
+        self.finish()
+        plan = lane.plan(self.root, self.head, defer_implementations=['Gamma'])
+        self.assertTrue(any('Deferred implementation has changes' in item for item in plan['blockers']))
+        with self.assertRaisesRegex(ValueError, 'Export is held'):
+            lane.build(self.root, plan, 'publish/unreviewed')
+        self.unfinished('Beta', 'committed')
+        with integration_lane.connect(self.root) as db:
+            db.execute("UPDATE jobs SET status='blocked' WHERE name='Beta'")
+            db.commit()
+        plan = lane.plan(self.root, self.head, defer_implementations=['Gamma', 'Beta'])
+        self.assertIn('Unfinished review: Beta (blocked)', plan['blockers'])
+
+    def test_deferred_shorter_name_does_not_own_approved_longer_names_scenarios(self):
+        self.card('Desert Twister', 1)
+        self.unfinished('Desert')
+        self.finish()
+        plan = lane.plan(self.root, self.head, defer_implementations=['Desert'])
+        self.assertEqual(plan['blockers'], [])
+
+    def test_exact_deferred_test_ownership_is_not_overridden_by_a_longer_card_name(self):
+        self.card('Desert Twister', 1)
+        self.unfinished('Desert')
+        with integration_lane.connect(self.root) as db:
+            db.execute("ALTER TABLE implementation_jobs ADD COLUMN card TEXT DEFAULT '{}'")
+            db.execute('UPDATE implementation_jobs SET card=?',
+                       (json.dumps(dict(card_test_paths=['scenarios/desert-twister-works.cantrip'])),))
+            db.commit()
+        self.finish()
+        plan = lane.plan(self.root, self.head, defer_implementations=['Desert'])
+        self.assertTrue(any('Deferred implementation has changes' in item for item in plan['blockers']))
+        with self.assertRaisesRegex(ValueError, 'Export is held'):
+            lane.build(self.root, plan, 'publish/overlapping-exact-owner')
+
+    def test_exact_scenario_names_cannot_hide_deferred_work_in_the_foundation(self):
+        self.ready()
+        self.unfinished('Gamma')
+        self.write('scenarios/gamma.cantrip', '# unreviewed scenario')
+        self.finish()
+        plan = lane.plan(self.root, self.head, defer_implementations=['Gamma'])
+        self.assertIn('Deferred implementation has changes in finished source: Gamma: scenarios/gamma.cantrip',
+                      plan['blockers'])
+        with self.assertRaisesRegex(ValueError, 'Export is held'):
+            lane.build(self.root, plan, 'publish/exact-scenario')
+
     def test_builds_final_file_objects_with_original_authors_and_independent_sibling_parents(self):
         self.ready()
         plan = lane.plan(self.root, self.head)
