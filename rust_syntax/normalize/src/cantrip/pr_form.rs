@@ -4490,6 +4490,19 @@ fn without_numbers(text: &str) -> String {
 /// A function that is a shared effect over again, as the shared effect.
 fn use_shared_effects(file: &mut File) {
     let mut named: BTreeMap<String, Expr> = BTreeMap::new();
+    let tap_or_untap: Block = parse_quote!({
+        let Some(object) = g.state().target(item, 0).object() else { return Ok(()); };
+        let card = g.card_id(&CARD);
+        match cantrip_mechanics::choose::one_of(
+            g, item.controller, item.object,
+            vec![Label::Card(card, 0), Label::Card(card, 1), Label::Card(card, 2)]
+        )? {
+            0 => g.tap(object),
+            1 => g.untap(object),
+            _ => {}
+        };
+        Ok(())
+    });
     let regenerate: Block = parse_quote!({
         let Some(target) = cantrip_mechanics::targets::object(g, item, 0) else { return Ok(()); };
         cantrip_api::instruction(g, |g| {
@@ -4506,6 +4519,11 @@ fn use_shared_effects(file: &mut File) {
         if let Some((_, effect)) = SHARED_EFFECTS.iter().find(|(shared, _)| *shared == body) {
             let path = format!("cantrip_mechanics::effects::{effect}");
             named.insert(function.sig.ident.to_string(), syn::parse_str(&path).expect("a path"));
+        } else if body == body_text(&tap_or_untap) {
+            function.block = Box::new(parse_quote!({
+                let card = g.card_id(&CARD);
+                cantrip_mechanics::choose::may_tap_or_untap_target(g, item, card)
+            }));
         } else if body == body_text(&regenerate) {
             function.block = Box::new(parse_quote!({
                 cantrip_mechanics::regenerate::target(g, item, 0);
@@ -5299,3 +5317,34 @@ mod quantity_reduction_tests {
         assert!(code.contains("saturating_add"), "{code}");
     }
 }
+
+#[cfg(test)]
+mod shared_tap_untap_tests {
+    use super::*;
+
+    #[test]
+    fn only_the_complete_first_target_recipe_is_shared() {
+        let original = r#"fn effect(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+            let Some(object) = g.state().target(item, 0).object() else { return Ok(()); };
+            let card = g.card_id(&CARD);
+            match cantrip_mechanics::choose::one_of(g, item.controller, item.object,
+                vec![Label::Card(card, 0), Label::Card(card, 1), Label::Card(card, 2)])? {
+                0 => g.tap(object), 1 => g.untap(object), _ => {}
+            };
+            Ok(())
+        }"#;
+        for (source, shared) in [
+            (original.to_string(), true),
+            (original.replace("target(item, 0)", "target(item, 1)"), false),
+            (original.replace("        Ok(())", "        g.end_sentence(); Ok(())"), false),
+            (original.replace("g.card_id(&CARD)", "item.ability.card"), false),
+            (original.replace("Label::Card(card, 2)", "Label::Card(card, 3)"), false),
+        ] {
+            let mut file = syn::parse_file(&source).unwrap();
+            use_shared_effects(&mut file);
+            let actual = text_of(&file);
+            assert_eq!(actual.contains("may_tap_or_untap_target"), shared, "{actual}");
+        }
+    }
+}
+

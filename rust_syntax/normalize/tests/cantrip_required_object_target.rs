@@ -19,6 +19,11 @@ fn sole_required_object_target_does_not_emit_impossible_empty_branch() {
         if name == "Vesuvan Doppelganger" { assert!(!printed.contains("if let Some(values)"), "{name}: {printed}"); }
         assert!(!printed.contains(".expect("), "{name}: {printed}");
         assert!(!printed.contains(".unwrap("), "{name}: {printed}");
+        if name != "Vesuvan Doppelganger" {
+            assert!(printed.contains("choose::may_tap_or_untap_target(g, item, card)"), "{name}: {printed}");
+            assert!(printed.contains("labels: choose::TAP_OR_UNTAP"), "{name}: {printed}");
+            assert!(!printed.contains("choose::one_of("), "{name}: {printed}");
+        }
     }
 }
 
