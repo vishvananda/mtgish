@@ -313,6 +313,37 @@ class ExportTests(unittest.TestCase):
         self.assertIn('scenarios/desert-twister-works.cantrip', plan['cards'][1]['paths'])
         self.assertNotIn('scenarios/desert-twister-works.cantrip', plan['cards'][0]['paths'])
 
+    def test_existing_fixtures_keep_shared_repairs_despite_new_card_prefixes(self):
+        paths = ['scenarios/desert-were-worm-works.cantrip', 'crates/cantrip-script/tests/fork.rs']
+        for path in paths:
+            self.write(path, '# baseline fixture')
+        self.base = self.save('Existing unrelated fixtures')
+        self.cfg['base'] = self.cfg['integration']['base'] = self.base
+        self.card('Desert', 1)
+        self.card('Fork', 2)
+        for path in paths:
+            self.write(path, '# repaired shared payment protocol')
+        self.finish()
+        plan = lane.plan(self.root, self.head)
+        self.assertEqual(plan['blockers'], [])
+        self.assertTrue(set(paths).issubset(plan['foundation_paths']))
+        result = lane.build(self.root, plan, 'publish/baseline-fixtures')
+        for path in paths:
+            self.assertEqual(self.git('show', result['foundation'] + ':' + path), '# repaired shared payment protocol')
+
+    def test_existing_scenario_cannot_acquire_an_unpublished_card_dependency(self):
+        path = 'scenarios/old-fixture.cantrip'
+        self.write(path, '# baseline fixture')
+        self.base = self.save('Existing fixture')
+        self.cfg['base'] = self.cfg['integration']['base'] = self.base
+        self.card('Alpha', 1)
+        self.write(path, '[Bot1 Deck]\nAlpha\n[Actions]\n')
+        self.finish()
+        plan = lane.plan(self.root, self.head)
+        self.assertTrue(any('Existing scenario depends on new cards' in x for x in plan['blockers']))
+        with self.assertRaisesRegex(ValueError, 'Export is held'):
+            lane.build(self.root, plan, 'publish/mixed-existing')
+
     def test_coherent_components_are_packed_without_avoidable_tiny_groups(self):
         names = ['A1', 'A2', 'A3', 'B1', 'B2', 'C1', 'C2', 'C3']
         for issue, name in enumerate(names, 1):

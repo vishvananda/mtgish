@@ -175,7 +175,22 @@ def plan(root, head, *, defer_implementations=()):
                 if f"content/mtg/cards/{card['slug']}.json" not in before:
                     blockers.append(f"Scenario depends on deferred new card: {card['name']}: {path}")
         reconciled = all_cards[owners[0]] if owners and owners[0] >= len(cards) else None
-        if owners and owners[0] < len(cards):
+        # A pre-existing fixture remains in the foundation: even without this
+        # campaign's cards it is still discovered by Cargo/the scenario runner.
+        # Prefixes such as Desert/Desert Were-Worm, Terror/Terror of the Peaks,
+        # and Fork/the script fork API must not move its compatibility repairs
+        # into a new-card commit. New assertions requiring a new card belong in
+        # a separate, new focused test file.
+        if path in before:
+            owner = None
+            if required:
+                blockers.append('Existing scenario depends on new cards; split its new-card coverage: '
+                                + path + ': ' + ', '.join(cards[i]['name'] for i in sorted(required)))
+            for card in cards:
+                if path in card['extra_tests']:
+                    blockers.append('Existing test cannot belong to a new card; split its new-card coverage: '
+                                    + card['name'] + ': ' + path)
+        elif owners and owners[0] < len(cards):
             owner = owners[0]
         elif required:
             owner = min(required)
