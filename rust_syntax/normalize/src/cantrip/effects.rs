@@ -1104,23 +1104,25 @@ impl Compiler {
                 let host_for = |op: &Operation| matches!(op,
                     Operation::Attach { host: ObjectRef::Result { result: r, phase: ObjectPhase::After, index: 0 }, .. } if r.0 == result.0);
                 use mtgish_ir::visit::{Visitor, Walk};
-                struct HostUse<'a> { result: &'a ResultId, found: bool }
+                struct HostUse<'a> { result: &'a ResultId, count: usize }
                 impl Visitor for HostUse<'_> {
                     fn operation(&mut self, op: &Operation) -> bool {
                         if let Operation::Attach { host: ObjectRef::Result { result, .. }, .. } = op {
-                            self.found |= result.0 == self.result.0;
+                            if result.0 == self.result.0 { self.count += 1; }
                         }
                         matches!(op, Operation::InOrder(_) | Operation::WithSelections { .. })
                     }
                 }
-                let mut use_later = HostUse { result, found: false };
-                rest.walk(&mut use_later);
+                let mut use_later = HostUse { result, count: 0 };
+                // step() includes the local remainder followed by every visible
+                // enclosing remainder. A Group does not confine its result.
+                self.after.walk(&mut use_later);
                 let attachment = match rest.first() {
                     Some(Instruction::Effect { operation: op @ Operation::Attach { attachments: ObjectSet::One(object), .. }, .. }) if host_for(op) && matches!(object, ObjectRef::Target { index: 0, .. }) => Some(object),
                     _ => None,
                 };
-                if use_later.found {
-                    let Some(attachment) = attachment else { return Err(gap("non-adjacent attachment host choice")) };
+                if use_later.count != 0 {
+                    let Some(attachment) = attachment.filter(|_| use_later.count == 1) else { return Err(gap("non-adjacent attachment host choice")) };
                     if !matches!(count, Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1))) || !constraints.is_empty() {
                         return Err(gap("unsupported attachment host choice"));
                     }

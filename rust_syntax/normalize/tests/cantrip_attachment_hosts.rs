@@ -87,3 +87,48 @@ fn multiple_targets_are_not_rechecked_mid_resolution() {
         assert_eq!(cantrip::module(&card).unwrap_err().feature, "attachment host choice with multiple or optional targets");
     });
 }
+
+#[test]
+fn group_choice_used_by_enclosing_attachment_is_a_gap() {
+    let mut card = cards().remove(1);
+    let Ability::Activated { body, .. } = &mut card.abilities[0] else { panic!() };
+    let Instruction::Group(group) = &mut body.instructions[0] else { panic!() };
+    let attach = group.instructions.pop().unwrap();
+    body.instructions.push(attach);
+    mtgish_ast::validate::card(&card).unwrap();
+    cantrip::planned::with_features(&["non-target-attachment-hosts"], || {
+        let error = cantrip::module(&card).unwrap_err();
+        assert_eq!(error.feature, "non-adjacent attachment host choice");
+    });
+}
+
+#[test]
+fn group_choice_used_inside_later_in_order_is_a_gap() {
+    let mut card = cards().remove(1);
+    let Ability::Activated { body, .. } = &mut card.abilities[0] else { panic!() };
+    let Instruction::Group(group) = &mut body.instructions[0] else { panic!() };
+    let Instruction::Effect { result, operation } = group.instructions.pop().unwrap() else { panic!() };
+    body.instructions.push(Instruction::Effect { result, operation: Operation::InOrder(vec![operation]) });
+    mtgish_ast::validate::card(&card).unwrap();
+    cantrip::planned::with_features(&["non-target-attachment-hosts"], || {
+        assert_eq!(cantrip::module(&card).unwrap_err().feature, "non-adjacent attachment host choice");
+    });
+}
+
+#[test]
+fn group_choice_used_inside_later_prepared_selection_is_a_gap() {
+    let mut card = cards().remove(1);
+    let Ability::Activated { body, .. } = &mut card.abilities[0] else { panic!() };
+    let Instruction::Group(group) = &mut body.instructions[0] else { panic!() };
+    let Instruction::Effect { operation: Operation::ChooseObjects { objects, .. }, .. } = &group.instructions[0] else { panic!() };
+    let pool = objects.clone();
+    let Instruction::Effect { result, operation } = group.instructions.pop().unwrap() else { panic!() };
+    body.instructions.push(Instruction::Effect { result, operation: Operation::WithSelections {
+        steps: vec![SelectionStep { binding: SelectionId(99), chooser: SelectionChooser::Players(PlayerSet::One(PlayerRef::AbilityController)), objects: pool, count: Count::Exactly(Expr::Constant(1)), constraints: vec![] }],
+        action: Box::new(operation),
+    }});
+    mtgish_ast::validate::card(&card).unwrap();
+    cantrip::planned::with_features(&["non-target-attachment-hosts"], || {
+        assert_eq!(cantrip::module(&card).unwrap_err().feature, "non-adjacent attachment host choice");
+    });
+}
