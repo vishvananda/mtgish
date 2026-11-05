@@ -3,6 +3,18 @@
 use super::*;
 
 pub(super) const FEATURE: &str = "wide-effect-quantities";
+pub(super) const BOUNDED_32: &str = "32-bit-effect-quantities";
+
+pub(super) fn count_kind() -> &'static str { if planned::switched_on(BOUNDED_32) { "u32" } else { "u16" } }
+
+pub(super) fn pt_kind() -> (&'static str, i128, i128) {
+    if planned::switched_on(BOUNDED_32) { ("i32", i32::MIN.into(), i32::MAX.into()) }
+    else { ("i16", i16::MIN.into(), i16::MAX.into()) }
+}
+
+pub(super) fn x_max() -> i128 {
+    if planned::switched_on(BOUNDED_32) { u32::MAX.into() } else { u16::MAX.into() }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Domain {
@@ -31,6 +43,12 @@ impl Domain {
                 Self::ShieldCapacity | Self::SmallPlayerCounter => "u16",
                 Self::StoredCounter => "i16",
                 _ => "i64",
+            }
+        } else if planned::switched_on(BOUNDED_32) {
+            match self {
+                Self::CounterPlacement | Self::StoredCounter | Self::LifeEffect | Self::LifeTotal => "i32",
+                Self::PoisonProposal | Self::SmallPlayerCounter => "u16",
+                _ => "u32",
             }
         } else {
             match self {
@@ -165,6 +183,38 @@ const WIDE_CONTRACT: &[(&str, &str)] = &[
     ("cantrip-api/src/replace.rs", "pub type PreventionAmountFn = fn(&dyn Query, &Asker, &DamageEvent) -> i64;"),
 ];
 
+// A separate complete contract for upstream's bounded 32-bit API.
+#[allow(dead_code)]
+const BOUNDED_32_CONTRACT: &[(&str, &str)] = &[
+    ("cantrip-api/src/game.rs", "fn damage(&mut self, source: ObjectId, target: Target, amount: u32) -> u32;"),
+    ("cantrip-api/src/game.rs", "fn damage_result(&mut self, source: ObjectId, target: Target, amount: u32) -> Option<DamageResult>;"),
+    ("cantrip-api/src/game.rs", "fn damage_together(&mut self, damage: &[(ObjectId, Target, u32)]) -> Vec<u32>;"),
+    ("cantrip-api/src/game.rs", "fn gain_life(&mut self, player: PlayerId, amount: i32);"),
+    ("cantrip-api/src/game.rs", "fn lose_life(&mut self, player: PlayerId, amount: i32);"),
+    ("cantrip-api/src/game.rs", "fn give_poison(&mut self, player: PlayerId, amount: u32);"),
+    ("cantrip-api/src/game.rs", "fn add_counters(&mut self, object: ObjectId, kind: CounterKind, amount: i32);"),
+    ("cantrip-api/src/game.rs", "fn add_counters_together(&mut self, counters: &[(ObjectId, CounterKind, i32)]);"),
+    ("cantrip-api/src/game.rs", "fn add_counters_by(&mut self, by: PlayerId, object: ObjectId, kind: CounterKind, amount: i32);"),
+    ("cantrip-api/src/game.rs", "fn add_counters_together_by(&mut self, counters: &[(PlayerId, ObjectId, CounterKind, i32)]);"),
+    ("cantrip-api/src/game.rs", "fn set_life_total(&mut self, player: PlayerId, total: i32);"),
+    ("cantrip-api/src/game.rs", "fn move_counters(&mut self, from: ObjectId, to: ObjectId, kind: CounterKind, amount: i32) -> i32;"),
+    ("cantrip-api/src/game.rs", "fn remove_counters(&mut self, object: ObjectId, kind: CounterKind, amount: i32) -> i32;"),
+    ("cantrip-api/src/card.rs", "pub counters: [i32; CounterKind::COUNT],"),
+    ("cantrip-api/src/replace.rs", "pub counts: [i32; CounterKind::COUNT],"),
+    ("cantrip-api/src/replace.rs", "pub poison: u16,"),
+    ("cantrip-api/src/replace.rs", "pub energy: u16,"),
+    ("cantrip-api/src/replace.rs", "pub experience: u16,"),
+    ("cantrip-api/src/event.rs", "recipient_excess: u32,"),
+    ("cantrip-state/src/object.rs", "pub fn counters(&self, kind: CounterKind) -> i32"),
+    ("cantrip-state/src/object.rs", "pub damage: u32,"),
+    ("cantrip-api/src/chars.rs", "pub power: Option<i32>,"),
+    ("cantrip-api/src/chars.rs", "pub toughness: Option<i32>,"),
+    ("cantrip-state/src/object.rs", "pub x: u32,"),
+    ("cantrip-state/src/object.rs", "Next(u32),"),
+    ("cantrip-api/src/ability.rs", "pub const fn counted_by(self, count: fn(&dyn crate::Query, &Asker) -> u32) -> AbilityDef"),
+    ("cantrip-api/src/game.rs", "fn reflexive_trigger_counted(&mut self, source: ObjectId, controller: PlayerId, ability: AbilityRef, subject: Target, count: u32);"),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -232,6 +282,85 @@ mod tests {
                 selection: None,
             }],
         }
+    }
+
+    #[test]
+    fn bounded_32_profile_preserves_native_domains_and_emits_printed_effects() {
+        planned::with_features(&[BOUNDED_32], || {
+            for domain in [Domain::Damage, Domain::Prevention, Domain::DamageExcess, Domain::DamagePrevented, Domain::ShieldCapacity, Domain::LifeChangeMagnitude, Domain::PoisonEffect] {
+                assert_eq!(domain.kind(), "u32", "{domain:?}");
+            }
+            for domain in [Domain::CounterPlacement, Domain::StoredCounter, Domain::LifeEffect, Domain::LifeTotal] {
+                assert_eq!(domain.kind(), "i32", "{domain:?}");
+            }
+            assert_eq!(Domain::PoisonProposal.kind(), "u16");
+            assert_eq!(Domain::SmallPlayerCounter.kind(), "u16");
+            assert!(Number::integer(i64::from(u32::MAX)).quantity(Domain::Damage).is_ok());
+            assert!(Number::integer(i64::from(u32::MAX) + 1).quantity(Domain::Damage).is_err());
+            assert!(Number::integer(i64::from(i32::MAX)).quantity(Domain::CounterPlacement).is_ok());
+            assert!(Number::integer(i64::from(i32::MAX) + 1).quantity(Domain::CounterPlacement).is_err());
+            let dealt = operation(damage(65_536)).unwrap();
+            let puts = operation(counters(32_768)).unwrap();
+            assert!(dealt.contains("Vec<(ObjectId, Target, u32)>"), "{dealt}");
+            assert!(puts.contains("Vec<(ObjectId, CounterKind, i32)>"), "{puts}");
+        });
+    }
+
+    #[test]
+    fn x_readers_keep_profile_specific_native_bounds() {
+        for (features, expected) in [(&[][..], i128::from(u16::MAX)), (&[BOUNDED_32][..], i128::from(u32::MAX))] {
+            planned::with_features(features, || {
+                let mut compiler = Compiler::new();
+                let value = compiler.number(&Expr::CastX(ObjectRef::Source)).unwrap();
+                assert_eq!(value.max, expected);
+                assert_eq!(x_max(), expected);
+            });
+        }
+    }
+
+    #[test]
+    fn bounded_32_generated_effects_typecheck_and_run_at_old_width_boundaries() {
+        let bodies = planned::with_features(&[BOUNDED_32], || {
+            [damage(65_536), counters(32_768)].map(|op| operation(op).unwrap())
+        });
+        let functions = bodies.iter().enumerate().map(|(i, body)|
+            format!("fn run_{i}(g: &mut dyn Game, asker: &Asker) -> Result<(), ()> {{ {body} Ok(()) }}"))
+            .collect::<Vec<_>>().join("\n");
+        let source = format!(r#"
+            #![allow(unused_variables, unused_mut, unused_assignments, dead_code)]
+            #[derive(Clone, Copy)] struct ObjectId(u32);
+            type PlayerId = u8;
+            #[derive(Clone, Copy)] enum Target {{ Player(PlayerId), Object(ObjectId) }}
+            #[derive(Clone, Copy)] enum CounterKind {{ PlusOne }}
+            struct Asker {{ source: ObjectId, controller: PlayerId }}
+            struct Obj;
+            impl Obj {{ fn counters(&self, _: CounterKind) -> i32 {{ 0 }} }}
+            struct State;
+            impl State {{ fn obj(&self, _: ObjectId) -> &Obj {{ &Obj }} }}
+            trait Query {{ fn state(&self) -> &State {{ &State }} }}
+            trait Game: Query {{
+                fn damage_together(&mut self, rows: &[(ObjectId, Target, u32)]) -> Vec<u32>;
+                fn add_counters_together(&mut self, rows: &[(ObjectId, CounterKind, i32)]);
+            }}
+            fn is_live(_: &dyn Query, _: ObjectId) -> bool {{ true }}
+            #[derive(Default)] struct Mock {{ damage: Vec<u32>, counters: Vec<i32> }}
+            impl Query for Mock {{}}
+            impl Game for Mock {{
+                fn damage_together(&mut self, rows: &[(ObjectId, Target, u32)]) -> Vec<u32> {{ self.damage.extend(rows.iter().map(|r| r.2)); rows.iter().map(|r| r.2).collect() }}
+                fn add_counters_together(&mut self, rows: &[(ObjectId, CounterKind, i32)]) {{ self.counters.extend(rows.iter().map(|r| r.2)); }}
+            }}
+            {functions}
+            fn main() {{ let mut g = Mock::default(); let asker = Asker {{ source: ObjectId(1), controller: 0 }};
+                run_0(&mut g, &asker).unwrap(); run_1(&mut g, &asker).unwrap();
+                assert_eq!(g.damage, [65536]); assert_eq!(g.counters, [32768]);
+            }}"#);
+        let dir = std::env::temp_dir().join(format!("mtgish-bounded-32-contract-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("main.rs"), &source).unwrap();
+        let compiled = Command::new("rustc").args(["--edition=2021", "-Dwarnings"]).arg(dir.join("main.rs")).arg("-o").arg(dir.join("witness")).output().unwrap();
+        assert!(compiled.status.success(), "{}\n{source}", String::from_utf8_lossy(&compiled.stderr));
+        assert!(Command::new(dir.join("witness")).status().unwrap().success());
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

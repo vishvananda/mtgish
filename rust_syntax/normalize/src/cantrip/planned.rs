@@ -61,6 +61,9 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("aura-graveyard-identity", "fn found_aura_after_enchanted_left(", &[]),
     ("delayed-subject-members", "fn delayed_trigger_with(", &[]),
     ("counter-placement-ceiling", "fn add_counters_with_limit(", &[]),
+    ("divide-reads-context", "pub reads: Option<fn(&dyn crate::Query, &Asker, u32) -> u32>,", &[]),
+    ("typed-prevention-amount", "pub enum PreventionAmount {", &[]),
+    ("32-bit-effect-quantities", "fn damage(&mut self, source: ObjectId, target: Target, amount: u32) -> u32;", &[]),
     ("wide-effect-quantities", "fn damage(&mut self, source: ObjectId, target: Target, amount: i64) -> i64;", &[]),
     ("snow-mana", "pub snow: u32,", &[]),
     ("non-target-attachment-hosts", "fn can_attach_to(&self, attachment: ObjectId, host: ObjectId) -> bool;", &[]),
@@ -89,6 +92,7 @@ const NO_STAND_IN: u32 = u32::MAX;
 pub fn with_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
     static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _held = ONE_AT_A_TIME.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    assert!(!(features.contains(&"wide-effect-quantities") && features.contains(&"32-bit-effect-quantities")), "conflicting quantity profiles");
     let mut bits = 0;
     for feature in features {
         let at = SWITCHED.iter().position(|s| s.0 == *feature);
@@ -98,10 +102,14 @@ pub fn with_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
 }
 
 /// Use the pinned native profile plus additional features, for checking a candidate native foundation.
-/// Unlike `with_features`, this never drops capabilities already present in the pinned profile.
+/// Unlike `with_features`, this retains pinned capabilities except that an explicitly
+/// selected quantity profile replaces the mutually exclusive pinned quantity profile.
 #[doc(hidden)]
 pub fn with_additional_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
+    assert!(!(features.contains(&"wide-effect-quantities") && features.contains(&"32-bit-effect-quantities")), "conflicting quantity profiles");
     let mut combined = crate::cantrip_vocab::FEATURES.to_vec();
+    if features.contains(&"32-bit-effect-quantities") { combined.retain(|f| *f != "wide-effect-quantities"); }
+    if features.contains(&"wide-effect-quantities") { combined.retain(|f| *f != "32-bit-effect-quantities"); }
     for feature in features {
         if !combined.contains(feature) { combined.push(feature); }
     }
@@ -895,6 +903,17 @@ mod tests {
             assert_eq!(std::thread::spawn(|| switched_on(EXTRA)).join().unwrap(), pinned);
         });
         assert_eq!(switched_on(EXTRA), pinned);
+    }
+
+    #[test]
+    fn adding_bounded_32_replaces_only_the_incompatible_pinned_quantity_profile() {
+        with_additional_features(&["32-bit-effect-quantities"], || {
+            assert!(switched_on("32-bit-effect-quantities"));
+            assert!(!switched_on("wide-effect-quantities"));
+            for name in crate::cantrip_vocab::FEATURES {
+                if *name != "wide-effect-quantities" { assert!(switched_on(name), "{name}"); }
+            }
+        });
     }
 
     #[test]

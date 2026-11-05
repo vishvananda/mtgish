@@ -539,7 +539,13 @@ impl Compiler {
         };
         let code = match copies {
             C::All if same => format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().flat_map(|&o| {{ let have = g.obj(o).counter_array(); kinds_{id}.iter().copied().filter(move |&kind| have[kind as usize] > 0).map(move |kind| (o, kind, {counter_read})).collect::<Vec<_>>() }}).collect(); g.add_counters_together(&puts);", counter_ty = Quantity::CounterPlacement.kind(), counter_read = Quantity::CounterPlacement.from_stored("have[kind as usize]")),
-            C::All => format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(|&kind| (o, kind, from_{id}.iter().map(|&f| {copy_counter_read}).sum::<{counter_ty}>())).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);", counter_ty = Quantity::CounterPlacement.kind(), copy_counter_read = Quantity::CounterPlacement.from_stored("g.obj(f).counter_array()[kind as usize]")),
+            C::All => {
+                let counter_ty = Quantity::CounterPlacement.kind();
+                let sum = if planned::switched_on(quantity::BOUNDED_32) {
+                    "fold(0i32, i32::saturating_add)".to_string()
+                } else { format!("sum::<{counter_ty}>()") };
+                format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(|&kind| (o, kind, from_{id}.iter().map(|&f| {copy_counter_read}).{sum})).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);", copy_counter_read = Quantity::CounterPlacement.from_stored("g.obj(f).counter_array()[kind as usize]"))
+            },
             C::OneOfEachKind => format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(move |&kind| (o, kind, 1{counter_ty})).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);", counter_ty = Quantity::CounterPlacement.kind()),
             C::OneOfEachKindDistributed => format!("for kind in kinds_{id}.clone() {{ if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::ChooseAsEnters, to_{id}.clone())? {{ g.add_counters(object, kind, 1); }} }}"),
             C::One => format!("if !kinds_{id}.is_empty() {{ let kind = {chosen}; {} }}", each(false)),
@@ -1674,7 +1680,7 @@ impl Compiler {
                     // time: the creature is never dealt the excess.
                     DamageRider::ExcessTo(player) => {
                         let player = self.fetch(self.certain_player(player)?);
-                        writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: {damage_ty} = {amount}; let player_{id} = {player}; if let (Some(source), Some(&target)) = (source_{id}, targets_{id}.first()) {{ let lethal_{id} = {{ let q: &dyn Query = g; target.object().map_or(amount_{id}, |o: ObjectId| {{ let chars = q.chars(o); let left = {lethal_left}; match q.chars(source).has(Keyword::Deathtouch) {{ true => left.min(1), false => left }} }}) }}; let dealt_{id} = amount_{id}.min(lethal_{id}); g.damage_together(&[(source, target, dealt_{id}), (source, Target::Player(player_{id}), amount_{id} - dealt_{id})]); }}", damage_ty = Quantity::Damage.kind(), lethal_left = if planned::switched_on(quantity::FEATURE) { "i64::from(chars.toughness.unwrap_or(0).max(0)).saturating_sub(i64::from(q.state().obj(o).damage)).max(0)" } else { "u16::try_from(chars.toughness.unwrap_or(0).max(0)).unwrap_or(0).saturating_sub(q.state().obj(o).damage)" }).unwrap();
+                        writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: {damage_ty} = {amount}; let player_{id} = {player}; if let (Some(source), Some(&target)) = (source_{id}, targets_{id}.first()) {{ let lethal_{id} = {{ let q: &dyn Query = g; target.object().map_or(amount_{id}, |o: ObjectId| {{ let chars = q.chars(o); let left = {lethal_left}; match q.chars(source).has(Keyword::Deathtouch) {{ true => left.min(1), false => left }} }}) }}; let dealt_{id} = amount_{id}.min(lethal_{id}); g.damage_together(&[(source, target, dealt_{id}), (source, Target::Player(player_{id}), amount_{id} - dealt_{id})]); }}", damage_ty = Quantity::Damage.kind(), lethal_left = if planned::switched_on(quantity::FEATURE) { "i64::from(chars.toughness.unwrap_or(0).max(0)).saturating_sub(i64::from(q.state().obj(o).damage)).max(0)" } else if planned::switched_on(quantity::BOUNDED_32) { "(chars.toughness.unwrap_or(0).max(0) as u32).saturating_sub(q.state().obj(o).damage)" } else { "u16::try_from(chars.toughness.unwrap_or(0).max(0)).unwrap_or(0).saturating_sub(q.state().obj(o).damage)" }).unwrap();
                     }
                     DamageRider::Prevented(prevented) => {
                         let prevented =
@@ -1808,7 +1814,7 @@ impl Compiler {
             // changes are one instruction (CR 119.5).
             Operation::RedistributeLife(players) => {
                 let players = self.fetch(self.players(players)?);
-                writeln!(out, "let players_{id}: Vec<PlayerId> = {players}; let totals_{id}: Vec<i32> = players_{id}.iter().map(|&p| g.state().player(p).life).collect(); let mut open_{id} = players_{id}.clone(); let mut sets_{id}: Vec<(PlayerId, i32)> = Vec::new(); for &total in &totals_{id} {{ let who = match open_{id}.as_slice() {{ [one] => Some(*one), _ => {M}::choose::player(g, asker.controller, asker.source, open_{id}.clone(), \"GetLifeTotal\", total.clamp(0, 65535) as u16)? }}; if let Some(who) = who {{ open_{id}.retain(|&p| p != who); sets_{id}.push((who, total)); }} }} cantrip_api::instruction(g, |g| {{ for &(who, total) in &sets_{id} {{ g.set_life_total(who, total); }} }});").unwrap();
+                writeln!(out, "let players_{id}: Vec<PlayerId> = {players}; let totals_{id}: Vec<i32> = players_{id}.iter().map(|&p| g.state().player(p).life).collect(); let mut open_{id} = players_{id}.clone(); let mut sets_{id}: Vec<(PlayerId, i32)> = Vec::new(); for &total in &totals_{id} {{ let who = match open_{id}.as_slice() {{ [one] => Some(*one), _ => {M}::choose::player(g, asker.controller, asker.source, open_{id}.clone(), \"GetLifeTotal\", total.clamp(0, {prompt_max}) as {prompt_ty})? }}; if let Some(who) = who {{ open_{id}.retain(|&p| p != who); sets_{id}.push((who, total)); }} }} cantrip_api::instruction(g, |g| {{ for &(who, total) in &sets_{id} {{ g.set_life_total(who, total); }} }});", prompt_ty = quantity::count_kind(), prompt_max = if planned::switched_on(quantity::BOUNDED_32) { "i32::MAX" } else { "65535" }).unwrap();
             }
             Operation::ReduceSpeed {
                 player,
@@ -2495,15 +2501,16 @@ impl Compiler {
                 cost,
                 at_most,
             } if pays_by_the_time(cost) => {
-                let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
+                let count_ty = quantity::count_kind();
+                let most = self.fetch(self.number(at_most)?.amount(quantity::x_max(), count_ty)?);
                 if let [CostPart::Mana(symbols)] = cost.parts.as_slice() {
                     self.helpers.insert("pay_question");
                     let payer = self.fetch(self.certain_player(player)?);
                     let mana = mana(symbols)?;
-                    writeln!(out, "let payer_{id} = {payer}; let most_{id}: u16 = {most}; let bound_{id}: i64 = if most_{id} == 0 {{ 0 }} else {{ i64::from(g.may_pay_times(payer_{id}, asker.source, asker.source, {mana}, most_{id}, &PAY_QUESTION)?) }}; let done_{id}: i64 = bound_{id};").unwrap();
+                    writeln!(out, "let payer_{id} = {payer}; let most_{id}: {count_ty} = {most}; let bound_{id}: i64 = if most_{id} == 0 {{ 0 }} else {{ i64::from(g.may_pay_times(payer_{id}, asker.source, asker.source, {mana}, most_{id}, &PAY_QUESTION)?) }}; let done_{id}: i64 = bound_{id};").unwrap();
                 } else {
                     let ask = self.ask_to_pay(id, player, cost)?;
-                    writeln!(out, "let most_{id}: u16 = {most}; let mut bound_{id}: i64 = 0; for _ in 0..most_{id} {{ {ask} if paid_{id} {{ bound_{id} += 1; }} else {{ break; }} }} let done_{id}: i64 = bound_{id};").unwrap();
+                    writeln!(out, "let most_{id}: {count_ty} = {most}; let mut bound_{id}: i64 = 0; for _ in 0..most_{id} {{ {ask} if paid_{id} {{ bound_{id} += 1; }} else {{ break; }} }} let done_{id}: i64 = bound_{id};").unwrap();
                 }
                 self.performed.insert(result.0, format!("done_{id}"));
                 self.values.insert(result.0, format!("bound_{id}"));
@@ -2514,7 +2521,8 @@ impl Compiler {
                 at_most,
             } => {
                 let player = self.fetch(self.certain_player(player)?);
-                let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
+                let count_ty = quantity::count_kind();
+                let most = self.fetch(self.number(at_most)?.amount(quantity::x_max(), count_ty)?);
                 let cost = quoted(&format!("{cost:?}"));
                 let times = planned::planned_value(
                     &feature,
@@ -2543,9 +2551,10 @@ impl Compiler {
             {
                 self.helpers.insert("pay_question");
                 let player = self.fetch(self.certain_player(player)?);
-                let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
+                let count_ty = quantity::count_kind();
+                let most = self.fetch(self.number(at_most)?.amount(quantity::x_max(), count_ty)?);
                 let one = self.cost(cost, super::lane_g::PAID)?;
-                writeln!(out, "let payer_{id} = {player}; let most_{id}: u16 = {most}; let paid_{id} = if most_{id} == 0 {{ 0 }} else {{ g.may_pay_times(payer_{id}, asker.source, asker.source, ({one}).mana, most_{id}, &PAY_QUESTION)? }}; unpaid_{}.extend(std::iter::repeat(payer_{id}).take(usize::from(most_{id}.saturating_sub(paid_{id}))));", result.0).unwrap();
+                writeln!(out, "let payer_{id} = {player}; let most_{id}: {count_ty} = {most}; let paid_{id} = if most_{id} == 0 {{ 0 }} else {{ g.may_pay_times(payer_{id}, asker.source, asker.source, ({one}).mana, most_{id}, &PAY_QUESTION)? }}; unpaid_{}.extend(std::iter::repeat(payer_{id}).take(most_{id}.saturating_sub(paid_{id}) as usize));", result.0).unwrap();
             }
             Operation::PlayersPayRepeatedly {
                 players,
@@ -2553,7 +2562,8 @@ impl Compiler {
                 at_most,
             } => {
                 let players = self.fetch(self.players(players)?);
-                let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
+                let count_ty = quantity::count_kind();
+                let most = self.fetch(self.number(at_most)?.amount(quantity::x_max(), count_ty)?);
                 let cost = quoted(&format!("{cost:?}"));
                 self.plan_code(&feature, &format!("{M}::players::each_pays_repeatedly(g, {players}, asker.source, {cost}, {most})?"), out);
             }
@@ -2664,7 +2674,7 @@ impl Compiler {
                         format!("g.choose_counter_kind(player_{id}, asker.source, holder)?"),
                     ),
                 };
-                writeln!(out, "let player_{id} = {player}; let from_{id}: Vec<ObjectId> = {from}; let to_{id}: Vec<ObjectId> = {to}; let mut moved_{id}: i64 = 0; loop {{ let holders: Vec<ObjectId> = from_{id}.iter().copied().filter(|&o| to_{id}.iter().any(|&t| t != o) && {holds}).collect(); let holder = match holders.as_slice() {{ [] => None, [one] => Some(*one), _ => {M}::choose::cards(g, player_{id}, asker.source, Purpose::Choose, holders.clone(), 1, true)?.first().copied() }}; let Some(holder) = holder else {{ break; }}; let Some(kind) = {read_kind} else {{ break; }}; let hosts: Vec<ObjectId> = to_{id}.iter().copied().filter(|&t| t != holder).collect(); let host = match hosts.as_slice() {{ [one] => Some(*one), _ => {M}::choose::cards(g, player_{id}, asker.source, Purpose::PutCounters(kind, 1), hosts.clone(), 1, true)?.first().copied() }}; let Some(host) = host else {{ break; }}; let most = g.state().obj(holder).counters(kind).max(0) as u32; let many = {M}::choose::number(g, player_{id}, asker.source, 0, most, \"Move how many counters\")?; if many == 0 {{ break; }} let done = g.move_counters(holder, host, kind, many as i16); moved_{id} += i64::from(done); if done == 0 {{ break; }} }}").unwrap();
+                writeln!(out, "let player_{id} = {player}; let from_{id}: Vec<ObjectId> = {from}; let to_{id}: Vec<ObjectId> = {to}; let mut moved_{id}: i64 = 0; loop {{ let holders: Vec<ObjectId> = from_{id}.iter().copied().filter(|&o| to_{id}.iter().any(|&t| t != o) && {holds}).collect(); let holder = match holders.as_slice() {{ [] => None, [one] => Some(*one), _ => {M}::choose::cards(g, player_{id}, asker.source, Purpose::Choose, holders.clone(), 1, true)?.first().copied() }}; let Some(holder) = holder else {{ break; }}; let Some(kind) = {read_kind} else {{ break; }}; let hosts: Vec<ObjectId> = to_{id}.iter().copied().filter(|&t| t != holder).collect(); let host = match hosts.as_slice() {{ [one] => Some(*one), _ => {M}::choose::cards(g, player_{id}, asker.source, Purpose::PutCounters(kind, 1), hosts.clone(), 1, true)?.first().copied() }}; let Some(host) = host else {{ break; }}; let most = g.state().obj(holder).counters(kind).max(0) as u32; let many = {M}::choose::number(g, player_{id}, asker.source, 0, most, \"Move how many counters\")?; if many == 0 {{ break; }} let done = g.move_counters(holder, host, kind, many as {counter_ty}); moved_{id} += i64::from(done); if done == 0 {{ break; }} }}", counter_ty = Quantity::StoredCounter.kind()).unwrap();
                 self.performed.insert(result.0, format!("moved_{id}"));
             }
             // "Exiles cards from the top until they have exiled cards with total
@@ -3160,7 +3170,7 @@ impl Compiler {
             SelectionConstraint::DifferentProperty(Property::Power) => distinct_rule(
                 &mut self.functions,
                 "different_powers",
-                "i16",
+                if planned::switched_on(quantity::BOUNDED_32) { "i32" } else { "i16" },
                 "q.chars(id).power.unwrap_or(0)",
                 "with different powers",
             ),
@@ -3504,7 +3514,7 @@ impl Compiler {
             CounterChoice::OneOf(_) => return Ok(false),
             CounterChoice::OnePerColor(kind) => {
                 let kind = counter_kind(kind)?;
-                writeln!(out, "let objects_{id} = {objects}; let mut rows_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = Vec::new(); for color in Color::ALL {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.chars(o).colors.has(color)).collect(); if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::PutCounters({kind}, 1), eligible)? {{ rows_{id}.push((object, {kind}, 1)); }} }} let mut before_{id}: Vec<(ObjectId, i16)> = rows_{id}.iter().map(|row| (row.0, g.state().obj(row.0).counters({kind}))).collect(); before_{id}.sort(); before_{id}.dedup(); g.add_counters_together(&rows_{id}); let placed_{id}: Vec<ObjectId> = before_{id}.iter().filter(|row| g.state().obj(row.0).counters({kind}) > row.1).map(|row| row.0).collect();", counter_ty = Quantity::CounterPlacement.kind()).unwrap();
+                writeln!(out, "let objects_{id} = {objects}; let mut rows_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = Vec::new(); for color in Color::ALL {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.chars(o).colors.has(color)).collect(); if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::PutCounters({kind}, 1), eligible)? {{ rows_{id}.push((object, {kind}, 1)); }} }} let mut before_{id}: Vec<(ObjectId, {stored_ty})> = rows_{id}.iter().map(|row| (row.0, g.state().obj(row.0).counters({kind}))).collect(); before_{id}.sort(); before_{id}.dedup(); g.add_counters_together(&rows_{id}); let placed_{id}: Vec<ObjectId> = before_{id}.iter().filter(|row| g.state().obj(row.0).counters({kind}) > row.1).map(|row| row.0).collect();", counter_ty = Quantity::CounterPlacement.kind(), stored_ty = Quantity::StoredCounter.kind()).unwrap();
                 self.selections.insert(result.0, format!("placed_{id}"));
             }
             CounterChoice::PerAbility {

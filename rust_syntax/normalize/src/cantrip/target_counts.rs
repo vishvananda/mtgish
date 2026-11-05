@@ -324,7 +324,8 @@ impl Compiler {
     pub(super) fn count_of_trigger(&mut self, n: &Expr, enters_itself: bool, label: &str) -> Option<()> {
         let number = self.number(n).ok()?;
         let amount = number.code == format!("i64::from({AMOUNT_READ}[0])");
-        let code = number.amount(u16::MAX.into(), "u16").ok()?;
+        let kind = quantity::count_kind();
+        let code = number.amount(quantity::x_max(), kind).ok()?;
         let code = match enters_itself {
             true => code.replace("q.event_subject().object()", "Some(asker.source)"),
             false => code,
@@ -342,7 +343,7 @@ impl Compiler {
             let function = format!("{label}_count");
             writeln!(
                 self.functions,
-                "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> u16 {{ {code} }}"
+                "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> {kind} {{ {code} }}"
             )
             .unwrap();
             format!(".counted_by({function})")
@@ -421,7 +422,9 @@ impl Compiler {
             return None;
         }
         let name = format!("{label}_divided_total");
-        writeln!(self.functions, "fn {name}(x: u16) -> u16 {{ let x = i64::from(x); ({code}).clamp(0, i64::from(u16::MAX)) as u16 }}").unwrap();
+        let kind = if planned::switched_on("divide-reads-context") { "u32" } else { quantity::count_kind() };
+        let context = if planned::switched_on("divide-reads-context") { "_: &dyn Query, _: &Asker, " } else { "" };
+        writeln!(self.functions, "fn {name}({context}x: {kind}) -> {kind} {{ let x = i64::from(x); ({code}).clamp(0, i64::from({kind}::MAX)) as {kind} }}").unwrap();
         Some(name)
     }
     /// "When you do, put target creature card with mana value less than or equal

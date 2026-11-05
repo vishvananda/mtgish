@@ -286,6 +286,8 @@ impl Compiler {
                 let plus = number(self, plus)?.code;
                 if planned::switched_on(quantity::FEATURE) {
                     format!("e.amount = ({amount}).saturating_add(({plus}).max(0)).max(0);")
+                } else if planned::switched_on(quantity::BOUNDED_32) {
+                    format!("e.amount = (({amount}) as i64).saturating_add(i64::from(({plus}).max(0))).clamp(0, i64::from(u32::MAX)) as u32;")
                 } else {
                     format!("e.amount = (({amount}) + ({plus}).max(0)).clamp(0, 65535) as u16;")
                 }
@@ -1201,12 +1203,12 @@ impl Compiler {
             true,
         );
         let amount = match amount {
-            None if planned::switched_on(quantity::FEATURE) => "PreventionAmount::All".into(),
+            None if planned::switched_on(quantity::FEATURE) || planned::switched_on("typed-prevention-amount") => "PreventionAmount::All".into(),
             None => "None".to_string(),
             Some(code) => {
                 let function = format!("{label}_amount");
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, e: &cantrip_api::DamageEvent) -> {prevention_ty} {{ {} {code} }}", arms[0].locals, prevention_ty = Quantity::Prevention.kind()).unwrap();
-                if planned::switched_on(quantity::FEATURE) {
+                if planned::switched_on(quantity::FEATURE) || planned::switched_on("typed-prevention-amount") {
                     let kind = if relative { "Relative" } else { "Specific" };
                     format!("PreventionAmount::{kind}({function})")
                 } else { format!("Some({function})") }

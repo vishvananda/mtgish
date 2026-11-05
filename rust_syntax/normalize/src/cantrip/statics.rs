@@ -276,7 +276,7 @@ impl Compiler {
     }
     fn change_in_layer(&mut self, change: &Change) -> Result<LayerChange> {
         let i16_of = |c: &Self, n: &Expr| -> Result<String> {
-            c.number(n)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")
+            { let (kind, low, high) = quantity::pt_kind(); c.number(n)?.fit(low, high, kind) }
         };
         Ok(match change {
             Change::Primitive { name, .. } => {

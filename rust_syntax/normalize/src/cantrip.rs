@@ -1706,7 +1706,7 @@ impl Compiler {
                     .map_err(|e| e.at(&at))?;
                 self.dividing = Some(planned::planned_value(
                     "target with a divided amount",
-                    "Divide { total: 1, of_x: None }",
+                    if planned::switched_on("divide-reads-context") { "Divide { total: 1, reads: None }" } else { "Divide { total: 1, of_x: None }" },
                     &format!("Divide::of_slot({i}, {total})"),
                 ));
             } else if let Some(total) = &spec.distribute {
@@ -1765,7 +1765,8 @@ impl Compiler {
                     _ => return Err(gap("target with a divided amount").at(at)),
                 };
                 let of_x = of_x.map_or_else(|| "None".to_string(), |f| format!("Some({f})"));
-                self.dividing = Some(format!("Divide {{ total: {total}, of_x: {of_x} }}"));
+                let field = if planned::switched_on("divide-reads-context") { "reads" } else { "of_x" };
+                self.dividing = Some(format!("Divide {{ total: {total}, {field}: {of_x} }}"));
             }
             self.choosing = Some(i);
             let chosen_by = match &spec.chooser {

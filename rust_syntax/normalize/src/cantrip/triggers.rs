@@ -83,7 +83,7 @@ fn damage_pattern(damage: &DamageEvent) -> &'static str {
 fn damage_values(damage: &DamageEvent) -> &'static str {
     match damage.kind {
         DamageKind::Prevented => "let (source, amount, combat) = (*source, *amount, *combat);",
-        DamageKind::Excess | DamageKind::ExcessNoncombat if planned::switched_on(quantity::FEATURE) => {
+        DamageKind::Excess | DamageKind::ExcessNoncombat if planned::switched_on(quantity::FEATURE) || planned::switched_on(quantity::BOUNDED_32) => {
             "let (source, amount, combat) = (*source, *recipient_excess, kind.is_combat());"
         }
         DamageKind::Excess | DamageKind::ExcessNoncombat => {

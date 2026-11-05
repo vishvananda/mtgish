@@ -977,7 +977,9 @@ impl Compiler {
         label: &str,
         parts: &mut Parts,
     ) -> Result<()> {
-        let n = i16::try_from(amount).map_err(|_| gap("backup beyond i16"))?;
+        let (_, low, high) = quantity::pt_kind();
+        if !(low..=high).contains(&i128::from(amount)) { return Err(gap("backup beyond counter domain")); }
+        let n = amount;
         let mut keywords = Vec::new();
         let mut granted = None;
         let mut stated = Vec::new();

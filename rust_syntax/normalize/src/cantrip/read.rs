@@ -1176,8 +1176,8 @@ impl Compiler {
     pub(super) fn property(&self, id: &str, property: &Property) -> Result<Number> {
         let pt = |field: &str| Number {
             code: format!("i64::from(q.chars({id}).{field}.unwrap_or(0))"),
-            min: i16::MIN.into(),
-            max: i16::MAX.into(),
+            min: if planned::switched_on(quantity::BOUNDED_32) { i32::MIN.into() } else { i16::MIN.into() },
+            max: if planned::switched_on(quantity::BOUNDED_32) { i32::MAX.into() } else { i16::MAX.into() },
             dynamic: true,
         };
         Ok(match property {
@@ -1192,19 +1192,19 @@ impl Compiler {
                     _ => format!("i64::from(q.mana_value({id}))"),
                 },
                 min: 0,
-                max: 255 * (1 + 6 + 10 + 5) + 6 + 255 * i128::from(u16::MAX),
+                max: if planned::switched_on(quantity::BOUNDED_32) { u32::MAX.into() } else { 255 * (1 + 6 + 10 + 5) + 6 + 255 * i128::from(u16::MAX) },
                 dynamic: true,
             },
             Property::Loyalty => Number {
                 code: format!("i64::from(q.state().obj({id}).counters(CounterKind::Loyalty))"),
-                min: i16::MIN.into(),
-                max: i16::MAX.into(),
+                min: if planned::switched_on(quantity::BOUNDED_32) { i32::MIN.into() } else { i16::MIN.into() },
+                max: if planned::switched_on(quantity::BOUNDED_32) { i32::MAX.into() } else { i16::MAX.into() },
                 dynamic: true,
             },
             Property::SpellX => Number {
                 code: format!("i64::from(q.state().obj({id}).x)"),
                 min: 0,
-                max: u16::MAX.into(),
+                max: quantity::x_max(),
                 dynamic: true,
             },
             Property::ColorCount => Number {
@@ -1269,14 +1269,14 @@ impl Compiler {
                         "i64::from(q.announced_x().unwrap_or(0))",
                     ),
                     min: 0,
-                    max: u16::MAX.into(),
+                    max: quantity::x_max(),
                     dynamic: true,
                 }
             }
             Expr::AnnouncedX if self.stating_cost => Number {
                 code: "i64::from(q.announced_x().unwrap_or(0))".into(),
                 min: 0,
-                max: u16::MAX.into(),
+                max: quantity::x_max(),
                 dynamic: true,
             },
             Expr::AnnouncedX if self.notes.paid_x.is_some() => Number {
@@ -1293,7 +1293,7 @@ impl Compiler {
                 Number {
                     code: "i64::from(item.x)".into(),
                     min: 0,
-                    max: u16::MAX.into(),
+                    max: quantity::x_max(),
                     dynamic: true,
                 }
             }
@@ -1308,7 +1308,7 @@ impl Compiler {
                     code: "i64::from(q.state().left_stack(item.object).map_or(0, |made| made.x))"
                         .into(),
                     min: 0,
-                    max: u16::MAX.into(),
+                    max: quantity::x_max(),
                     dynamic: true,
                 }
             }
@@ -1322,7 +1322,7 @@ impl Compiler {
                         "i64::from(q.mana_ability_x().unwrap_or(0))".into()
                     } else { "i64::from(q.obj(asker.source).x)".into() },
                     min: 0,
-                    max: u16::MAX.into(),
+                    max: quantity::x_max(),
                     dynamic: true,
                 }
             }
@@ -1336,7 +1336,7 @@ impl Compiler {
             {
                 let removes = self.activation_cost.as_ref().is_some_and(target_counts::removes_x_counters);
                 if removes && planned::switched_on("mana-counter-costs") {
-                    return Ok(Number { code: "i64::from(q.mana_ability_x().unwrap_or(0))".into(), min: 0, max: u16::MAX.into(), dynamic: true });
+                    return Ok(Number { code: "i64::from(q.mana_ability_x().unwrap_or(0))".into(), min: 0, max: quantity::x_max(), dynamic: true });
                 }
                 Number {
                     code: planned::planned_value(
@@ -1345,14 +1345,14 @@ impl Compiler {
                         "i64::from(q.obj(asker.source).x)",
                     ),
                     min: 0,
-                    max: u16::MAX.into(),
+                    max: quantity::x_max(),
                     dynamic: true,
                 }
             }
             Expr::AnnouncedX if self.pending == Pending::Entering => Number {
                 code: "i64::from(entering.x)".into(),
                 min: 0,
-                max: u16::MAX.into(),
+                max: quantity::x_max(),
                 dynamic: true,
             },
             Expr::CountManaSymbols { objects, colors }
@@ -1381,7 +1381,7 @@ impl Compiler {
                 Number {
                     code: "i64::from(entering.x)".into(),
                     min: 0,
-                    max: u16::MAX.into(),
+                    max: quantity::x_max(),
                     dynamic: true,
                 }
             }
@@ -1391,7 +1391,7 @@ impl Compiler {
                     self.object(object)?
                 ),
                 min: 0,
-                max: u16::MAX.into(),
+                max: quantity::x_max(),
                 dynamic: true,
             },
             Expr::EventAmount
@@ -1827,7 +1827,7 @@ impl Compiler {
                         _ => "i64::from(item.x)".into(),
                     },
                     min: 0,
-                    max: u16::MAX.into(),
+                    max: quantity::x_max(),
                     dynamic: true,
                 }
             }

@@ -288,9 +288,11 @@ impl Gathered {
             | Gathered::SacrificeEach { .. }
             | Gathered::SacrificeRest { .. } => "(PlayerId, ObjectId)",
             Gathered::Counters { .. } if planned::switched_on(quantity::FEATURE) => "(PlayerId, ObjectId, CounterKind, i64)",
+            Gathered::Counters { .. } if planned::switched_on(quantity::BOUNDED_32) => "(PlayerId, ObjectId, CounterKind, i32)",
             Gathered::Counters { .. } => "(PlayerId, ObjectId, CounterKind, i16)",
             Gathered::Mill { .. } => "(PlayerId, u32)",
             Gathered::Damage { .. } if planned::switched_on(quantity::FEATURE) => "(ObjectId, Target, i64)",
+            Gathered::Damage { .. } if planned::switched_on(quantity::BOUNDED_32) => "(ObjectId, Target, u32)",
             Gathered::Damage { .. } => "(ObjectId, Target, u16)",
             Gathered::Tokens { .. } => "(CardId, PlayerId)",
             Gathered::TokensAt { .. } => "(CardId, PlayerId, Target)",
@@ -2536,22 +2538,24 @@ impl Compiler {
         let actor = self.fetch(self.certain_player(player)?);
         let sources = self.acted_on(from)?;
         let recipient = self.acted_on(to)?;
+        let stored = Quantity::StoredCounter.kind();
+        let most_read = if planned::switched_on(quantity::BOUNDED_32) { "max(0)" } else { "clamp(0, 255)" };
         let moving = format!("done_{id} += i64::from(g.move_counters(from, to, kind, amount));");
         let step = match (amount, kind) {
-            (MovedCounters::One, Some(_)) => format!("let amount = 1i16; {moving}"),
+            (MovedCounters::One, Some(_)) => format!("let amount = 1{stored}; {moving}"),
             (MovedCounters::Exactly(n), Some(_)) => {
-                let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
-                writeln!(out, "let amount_{id}: i16 = {};", self.fetch(n)).unwrap();
+                let n = self.number(n)?.quantity(Quantity::StoredCounter)?;
+                writeln!(out, "let amount_{id}: {stored} = {};", self.fetch(n)).unwrap();
                 format!("let amount = amount_{id}; {moving}")
             }
-            (MovedCounters::All, _) => format!("let amount = i16::MAX; {moving}"),
-            (MovedCounters::AnyNumber, Some(_)) => format!("let most = g.state().obj(from).counters(kind).clamp(0, 255) as u32; if most > 0 {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, 0, most, \"Move counters\")? as i16; {moving} }}"),
-            (MovedCounters::OneOfEachKindMissing, _) => format!("if g.state().obj(to).counters(kind) == 0 {{ let amount = 1i16; {moving} }}"),
+            (MovedCounters::All, _) => format!("let amount = {stored}::MAX; {moving}"),
+            (MovedCounters::AnyNumber, Some(_)) => format!("let most = g.state().obj(from).counters(kind).{most_read} as u32; if most > 0 {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, 0, most, \"Move counters\")? as {stored}; {moving} }}"),
+            (MovedCounters::OneOfEachKindMissing, _) => format!("if g.state().obj(to).counters(kind) == 0 {{ let amount = 1{stored}; {moving} }}"),
             // One question for each kind, as much of it as the mover likes.
-            (MovedCounters::AnyNumber, None) => format!("let most = g.state().obj(from).counters(kind).clamp(0, 255) as u32; if most > 0 {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, 0, most, \"Move counters\")? as i16; {moving} }}"),
+            (MovedCounters::AnyNumber, None) => format!("let most = g.state().obj(from).counters(kind).{most_read} as u32; if most > 0 {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, 0, most, \"Move counters\")? as {stored}; {moving} }}"),
             // The kind is chosen as this resolves (608.2d), among those it has.
             (MovedCounters::One, None) => {
-                writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let sources_{id} = {sources}; let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let (Some(&from), Some(to)) = (sources_{id}.first(), to_{id}) {{ if let Some(kind) = g.choose_counter_kind(actor_{id}, asker.source, from)? {{ let amount = 1i16; {moving} }} }}").unwrap();
+                writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let sources_{id} = {sources}; let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let (Some(&from), Some(to)) = (sources_{id}.first(), to_{id}) {{ if let Some(kind) = g.choose_counter_kind(actor_{id}, asker.source, from)? {{ let amount = 1{stored}; {moving} }} }}").unwrap();
                 if self.read_later(result) {
                     self.performed.insert(result.0, format!("done_{id}"));
                 }
@@ -2560,10 +2564,10 @@ impl Compiler {
             _ => {
                 let least = match amount {
                     MovedCounters::One => "1".to_string(),
-                    MovedCounters::AtLeast(n) => self.fetch(self.number(n)?.amount(i16::MAX.into(), "i16")?),
+                    MovedCounters::AtLeast(n) => self.fetch(self.number(n)?.quantity(Quantity::StoredCounter)?),
                     _ => "0".to_string(),
                 };
-                let most = if matches!(amount, MovedCounters::One) { "1" } else { "i16::MAX" };
+                let most = if matches!(amount, MovedCounters::One) { "1".to_string() } else { format!("{stored}::MAX") };
                 writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let sources_{id} = {sources}; let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let (Some(&from), Some(to)) = (sources_{id}.first(), to_{id}) {{").unwrap();
                 self.plan_code(
                     "move counters of kinds the mover chooses",
@@ -2599,7 +2603,7 @@ impl Compiler {
             Some(kind) => format!(".filter(|put| put.1 == {})", read::counter_kind(kind)?),
             None => String::new(),
         };
-        writeln!(out, "let sources_{id}: Vec<[i16; CounterKind::COUNT]> = ({sources}).iter().map(|&from| g.obj(from).counter_array()).collect(); let recipients_{id}: Vec<ObjectId> = {recipients}; let puts_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = recipients_{id}.iter().flat_map(|&to| sources_{id}.iter().flat_map(move |counts| CounterKind::ALL.into_iter().map(move |kind| (to, kind, {copied_counter_read})))){only}.collect(); g.add_counters_together(&puts_{id});", counter_ty = Quantity::CounterPlacement.kind(), copied_counter_read = Quantity::CounterPlacement.from_stored("counts[kind as usize]")).unwrap();
+        writeln!(out, "let sources_{id}: Vec<[{stored_ty}; CounterKind::COUNT]> = ({sources}).iter().map(|&from| g.obj(from).counter_array()).collect(); let recipients_{id}: Vec<ObjectId> = {recipients}; let puts_{id}: Vec<(ObjectId, CounterKind, {counter_ty})> = recipients_{id}.iter().flat_map(|&to| sources_{id}.iter().flat_map(move |counts| CounterKind::ALL.into_iter().map(move |kind| (to, kind, {copied_counter_read})))){only}.collect(); g.add_counters_together(&puts_{id});", stored_ty = Quantity::StoredCounter.kind(), counter_ty = Quantity::CounterPlacement.kind(), copied_counter_read = Quantity::CounterPlacement.from_stored("counts[kind as usize]")).unwrap();
         Ok(())
     }
     /// "Copy it" (CR 707.10), a spell's copy with what it is excepted in

@@ -2707,7 +2707,8 @@ impl Compiler {
         if let Some((p, t)) = &definition.power_toughness {
             if !matches!((p, t), (Expr::Constant(_), Expr::Constant(_))) {
                 let (p, t) = (self.fetch(self.number(p)?.code), self.fetch(self.number(t)?.code));
-                values.push_str(&format!(".sized(({p}).clamp(0, i64::from(i16::MAX)) as i16, ({t}).clamp(0, i64::from(i16::MAX)) as i16)"));
+                let (pt, _, _) = quantity::pt_kind();
+                values.push_str(&format!(".sized(({p}).clamp(0, i64::from({pt}::MAX)) as {pt}, ({t}).clamp(0, i64::from({pt}::MAX)) as {pt})"));
                 plain.power_toughness = None;
             }
         }

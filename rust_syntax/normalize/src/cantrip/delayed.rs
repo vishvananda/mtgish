@@ -1323,7 +1323,7 @@ impl Compiler {
         };
         let lists = outer.objects.borrow();
         match (amount, lists.as_slice()) {
-            (Some(amount), _) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger_counted({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, ({amount}).clamp(0, i64::from(u16::MAX)) as u16); }}").unwrap(),
+            (Some(amount), _) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger_counted({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, ({amount}).clamp(0, i64::from({kind}::MAX)) as {kind}); }}", kind = quantity::count_kind()).unwrap(),
             (None, []) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}); }}").unwrap(),
             (None, lists) => {
                 self.helpers.insert("about");

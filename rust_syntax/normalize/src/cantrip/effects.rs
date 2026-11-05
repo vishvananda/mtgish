@@ -3893,8 +3893,8 @@ impl Compiler {
             match (&removal.kind, &removal.amount) {
                 (Some(kind), amount) => {
                     let amount = match amount {
-                        _ if shares.is_some() => "1i16".to_string(),
-                        CounterAmount::All => "i16::MAX".to_string(),
+                        _ if shares.is_some() => format!("1{}", Quantity::StoredCounter.kind()),
+                        CounterAmount::All => format!("{}::MAX", Quantity::StoredCounter.kind()),
                         CounterAmount::Count(Count::Exactly(n)) => {
                             self.fetch(self.number(n)?.quantity(Quantity::StoredCounter)?)
                         }
@@ -3905,7 +3905,7 @@ impl Compiler {
                             let n = self.fetch(self.number(n)?.quantity(Quantity::StoredCounter)?);
                             let kind = counter_kind(kind)?;
                             let player = self.fetch(self.certain_player(&removal.player)?);
-                            writeln!(out, "let player_{id}_{i} = {player}; let most_{id}_{i} = {n}; for object in objects_{id}_{i} {{ let most = g.state().obj(object).counters({kind}).min(most_{id}_{i}); let amount = cantrip_mechanics::choose::number(g, player_{id}_{i}, asker.source, 0, most.max(0) as u32, \"Remove\")?; removed_{id} += i64::from(g.remove_counters(object, {kind}, amount as i16)); }}").unwrap();
+                            writeln!(out, "let player_{id}_{i} = {player}; let most_{id}_{i} = {n}; for object in objects_{id}_{i} {{ let most = g.state().obj(object).counters({kind}).min(most_{id}_{i}); let amount = cantrip_mechanics::choose::number(g, player_{id}_{i}, asker.source, 0, most.max(0) as u32, \"Remove\")?; removed_{id} += i64::from(g.remove_counters(object, {kind}, amount as {stored_ty})); }}", stored_ty = Quantity::StoredCounter.kind()).unwrap();
                             continue;
                         }
                         _ => {
@@ -4292,7 +4292,7 @@ impl Compiler {
             return self.grant_kinds(ability);
         }
         let i16_of = |n: &Expr| -> Result<String> {
-            self.number(n)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")
+            { let (kind, low, high) = quantity::pt_kind(); self.number(n)?.fit(low, high, kind) }
         };
         Ok(match change {
             Change::Primitive { name, .. } => {

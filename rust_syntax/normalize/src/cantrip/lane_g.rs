@@ -1426,7 +1426,8 @@ impl Compiler {
             // paid only with as many to remove.
             CostPart::Loyalty(n) => {
                 let delta = self.fetch(self.number(n)?.code);
-                writeln!(out, "let delta_{id}: i64 = {delta}; let paid_{id} = if delta_{id} >= 0 {{ g.add_counters(asker.source, CounterKind::Loyalty, delta_{id}.min(i64::from(i16::MAX)) as i16); true }} else {{ let owed = (-delta_{id}).min(i64::from(i16::MAX)) as i16; g.remove_counters(asker.source, CounterKind::Loyalty, owed) == owed }};").unwrap();
+                let stored = Quantity::StoredCounter.kind();
+                writeln!(out, "let delta_{id}: i64 = {delta}; let paid_{id} = if delta_{id} >= 0 {{ g.add_counters(asker.source, CounterKind::Loyalty, delta_{id}.min(i64::from({stored}::MAX)) as {stored}); true }} else {{ let owed = delta_{id}.saturating_neg().min(i64::from({stored}::MAX)) as {stored}; g.remove_counters(asker.source, CounterKind::Loyalty, owed) == owed }};").unwrap();
             }
             // "Exile it and the top six cards of your library in a face-down pile.
             // If you do" (Triumph of Saint Katherine): fixed objects, no choice
@@ -1568,7 +1569,9 @@ impl Compiler {
                 let actor = self.fetch(self.certain_player(player)?);
                 let sources = self.acted_on(from)?;
                 let recipient = self.acted_on(to)?;
-                writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let from_{id}: Option<ObjectId> = ({sources}).first().copied(); let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let (Some(from), Some(to)) = (from_{id}, to_{id}) {{ let kinds: Vec<CounterKind> = CounterKind::ALL.into_iter().filter(|&kind| g.state().obj(from).counters(kind) > 0).collect(); let last = kinds.len(); for (i, kind) in kinds.into_iter().enumerate() {{ let most = g.state().obj(from).counters(kind).clamp(0, 255) as u32; let least = u32::from(done_{id} == 0 && i + 1 == last); if most >= least {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, least, most, \"Move counters\")? as i16; done_{id} += i64::from(g.move_counters(from, to, kind, amount)); }} }} }} let paid_{id} = done_{id} > 0;").unwrap();
+                let stored = Quantity::StoredCounter.kind();
+                let most_read = if planned::switched_on(quantity::BOUNDED_32) { "max(0)" } else { "clamp(0, 255)" };
+                writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let from_{id}: Option<ObjectId> = ({sources}).first().copied(); let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let (Some(from), Some(to)) = (from_{id}, to_{id}) {{ let kinds: Vec<CounterKind> = CounterKind::ALL.into_iter().filter(|&kind| g.state().obj(from).counters(kind) > 0).collect(); let last = kinds.len(); for (i, kind) in kinds.into_iter().enumerate() {{ let most = g.state().obj(from).counters(kind).{most_read} as u32; let least = u32::from(done_{id} == 0 && i + 1 == last); if most >= least {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, least, most, \"Move counters\")? as {stored}; done_{id} += i64::from(g.move_counters(from, to, kind, amount)); }} }} }} let paid_{id} = done_{id} > 0;").unwrap();
             }
             other => {
                 let feature = format!("resolution cost {}", form(other));

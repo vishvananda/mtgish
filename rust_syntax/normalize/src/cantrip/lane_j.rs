@@ -2218,7 +2218,7 @@ impl Compiler {
                 if self.mana_body && planned::switched_on("mana-counter-costs")
                     && self.activation_cost.as_ref().is_some_and(|cost| lane_g::mana_counter_component(cost, payment, component)) =>
             {
-                Number { code: "i64::from(q.mana_ability_x().unwrap_or(0))".into(), min: 0, max: u16::MAX.into(), dynamic: true }
+                Number { code: "i64::from(q.mana_ability_x().unwrap_or(0))".into(), min: 0, max: quantity::x_max(), dynamic: true }
             }
             Expr::PaidCountersRemoved { .. } if self.mana_body => {
                 held_number(feature, "i64::from(q.obj(asker.source).x)")
@@ -3100,8 +3100,9 @@ impl Compiler {
             return Ok(false);
         }
         let count = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
-        let power = self.number(power)?.amount(i16::MAX.into(), "i16")?;
-        let toughness = self.number(toughness)?.amount(i16::MAX.into(), "i16")?;
+        let (pt, _, max) = quantity::pt_kind();
+        let power = self.number(power)?.amount(max, pt)?;
+        let toughness = self.number(toughness)?.amount(max, pt)?;
         let mut base = definition.clone();
         base.power_toughness = Some((Expr::Constant(0), Expr::Constant(0)));
         let definition = self.token_definition(&base)?;
@@ -3396,7 +3397,7 @@ pub(super) fn chosen_counter_cost<'a>(player: &PlayerRef, cost: &'a Cost) -> Opt
         selection: Some(SelectionChoice { player: chooser, count: Count::Exactly(Expr::Constant(1)) }),
         ..
     }] = placements.as_slice() else { return None };
-    (format!("{chooser:?}") == format!("{player:?}") && i16::try_from(*n).is_ok_and(|n| n >= 0))
+    (format!("{chooser:?}") == format!("{player:?}") && *n >= 0 && i128::from(*n) <= Quantity::StoredCounter.max())
         .then_some(&placements[0])
 }
 /// "You may put a stun counter on it. If you do, ...": no cost Cantrip can pay, but

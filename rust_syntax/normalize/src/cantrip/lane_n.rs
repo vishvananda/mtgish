@@ -1638,7 +1638,7 @@ impl Compiler {
         self.restore_results(results);
         let (_, effect) = made?;
         let effect = effect.replace("DURATION", &duration);
-        writeln!(out, "for slot in 0..item.target_count as usize {{ let to = g.state().target(item, slot); let shield = u16::try_from(g.state().share(item, slot)).unwrap_or(u16::MAX); if shield > 0 && g.target_legal(item, slot) {{ let about = to.object().unwrap_or(item.object); {effect} }} }}").unwrap();
+        writeln!(out, "for slot in 0..item.target_count as usize {{ let to = g.state().target(item, slot); let shield = {shield_ty}::try_from(g.state().share(item, slot)).unwrap_or({shield_ty}::MAX); if shield > 0 && g.target_legal(item, slot) {{ let about = to.object().unwrap_or(item.object); {effect} }} }}", shield_ty = Quantity::ShieldCapacity.kind()).unwrap();
         Ok(true)
     }
     /// A made effect that reads the ability making it, closed over those

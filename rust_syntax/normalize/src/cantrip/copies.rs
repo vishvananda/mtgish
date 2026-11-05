@@ -119,7 +119,7 @@ impl Compiler {
             }
             ("SetName", [Operand::Text(text)]) => format!("{values}.named({})", quoted(text)),
             ("SetLoyalty", [Operand::Integer(n)]) => format!("{values}.with_loyalty({n})"),
-            ("SetLoyalty", [Operand::Number(Expr::Constant(n))]) if i16::try_from(*n).is_ok() => {
+            ("SetLoyalty", [Operand::Number(Expr::Constant(n))]) if { let (_, low, high) = quantity::pt_kind(); (low..=high).contains(&i128::from(*n)) } => {
                 format!("{values}.with_loyalty({n})")
             }
             ("HasNoManaCost", []) => format!("{values}.costless()"),

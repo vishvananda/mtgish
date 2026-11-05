@@ -1077,7 +1077,9 @@ impl Compiler {
                     ),
                     None => (
                         "c.counts.iter().any(|&n| n > 0)".to_string(),
-                        "c.counts.iter().map(|&n| n.max(0) as u32).sum::<u32>()".to_string(),
+                        if planned::switched_on(quantity::BOUNDED_32) {
+                            "c.counts.iter().fold(0u32, |total, &n| total.saturating_add(n.max(0) as u32))".to_string()
+                        } else { "c.counts.iter().map(|&n| n.max(0) as u32).sum::<u32>()".to_string() },
                     ),
                 };
                 let entering = Candidate {
@@ -3822,12 +3824,11 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         if let [Change::SetPower(power), Change::SetToughness(toughness)] = changes {
-            let power = self
-                .number(power)?
-                .fit(i16::MIN.into(), i16::MAX.into(), "i16")?;
-            let toughness = self
-                .number(toughness)?
-                .fit(i16::MIN.into(), i16::MAX.into(), "i16")?;
+            let (minimum, maximum, size_type) = if planned::switched_on(quantity::BOUNDED_32) {
+                (i32::MIN.into(), i32::MAX.into(), "i32")
+            } else { (i16::MIN.into(), i16::MAX.into(), "i16") };
+            let power = self.number(power)?.fit(minimum, maximum, size_type)?;
+            let toughness = self.number(toughness)?.fit(minimum, maximum, size_type)?;
             self.plan_code(
                 "event change as it enters a power and toughness read then",
                 &format!(

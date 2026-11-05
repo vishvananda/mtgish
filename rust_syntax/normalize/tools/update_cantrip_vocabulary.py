@@ -56,12 +56,18 @@ def switched_features():
     if not entries:
         raise ValueError('cannot locate SWITCHED in planned.rs')
     api = '\n'.join(p.read_text() for p in inputs)
-    from native_quantity_contract import FEATURE, present, ceiling_present
+    from native_quantity_contract import FEATURE, BOUNDED_32, present, ceiling_present, typed_prevention_present
     quantity_source = Path(__file__).resolve().parents[1].joinpath('src/cantrip/quantity.rs').read_text()
     wide = present(checkout, quantity_source)
+    bounded_32 = present(checkout, quantity_source, "BOUNDED_32")
+    if wide and bounded_32:
+        raise ValueError("conflicting native quantity profiles")
+    typed_prevention = typed_prevention_present(checkout, wide=wide, bounded_32=bounded_32)
     return [name for name, shown in entries
             if (wide if name == FEATURE else
-                ceiling_present(checkout, wide=wide) if name == 'counter-placement-ceiling' else
+                bounded_32 if name == BOUNDED_32 else
+                typed_prevention if name == 'typed-prevention-amount' else
+                ceiling_present(checkout, wide=wide, bounded_32=bounded_32) if name == 'counter-placement-ceiling' else
                 json.loads(f'"{shown}"') in api)]
 
 features = switched_features()

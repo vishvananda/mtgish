@@ -3498,7 +3498,7 @@ impl Compiler {
                 self.moved.insert(result.0, format!("entered_{id}"));
             }
             K::Skip(SkippedPart::Turn) => {
-                let n = self.action_amount(&action, i16::MAX.into(), "u32")?;
+                let n = self.action_amount(&action, if planned::switched_on(quantity::BOUNDED_32) { u32::MAX.into() } else { i16::MAX.into() }, "u32")?;
                 let player = self.actor(&action)?;
                 writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; g.skip_next_turns(asker.source, player_{id}, amount_{id} as _);").unwrap();
             }
@@ -4366,7 +4366,8 @@ impl Compiler {
         // and from then on what the copy is (CR 707.9b).
         if let [Operand::Number(power), Operand::Number(toughness)] = operands {
             let size = |c: &Self, n: &Expr| -> Result<String> {
-                Ok(format!("({}).clamp(i16::MIN.into(), i16::MAX.into()) as i16", c.number(n)?.code))
+                let (pt, _, _) = quantity::pt_kind();
+                Ok(format!("({}).clamp({pt}::MIN.into(), {pt}::MAX.into()) as {pt}", c.number(n)?.code))
             };
             return Ok(format!("{values}.sized({}, {})", size(self, power)?, size(self, toughness)?));
         }

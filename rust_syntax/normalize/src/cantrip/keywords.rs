@@ -76,7 +76,9 @@ impl Compiler {
             None => self.delayed.push(EARTHBEND_RETURN.into()),
             Some(_) => return Err(gap("earthbend beside another first delayed ability")),
         }
-        let n = i16::try_from(*n).map_err(|_| gap("earthbend exceeds i16"))?;
+        let (_, low, high) = quantity::pt_kind();
+        if !(low..=high).contains(&i128::from(*n)) { return Err(gap("earthbend exceeds counter domain")); }
+        let n = *n;
         writeln!(out, "{M}::earthbend::effect::<{n}>(g, item)?;").unwrap();
         Ok(())
     }
@@ -194,7 +196,7 @@ impl Compiler {
                         self.extras.push(token);
                     }
                 }
-                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                let n = self.action_amount(&action, Quantity::StoredCounter.max() as i64, Quantity::StoredCounter.kind())?;
                 let call = format!("let amount = {n}; {M}::tokens::incubate(g, player, amount)?");
                 self.actor_action(&action, &call, out)?;
             }
@@ -203,7 +205,7 @@ impl Compiler {
                 if !self.extras.contains(&token) {
                     self.extras.push(token);
                 }
-                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                let n = self.action_amount(&action, Quantity::StoredCounter.max() as i64, Quantity::StoredCounter.kind())?;
                 let call = format!(
                     "let amount = {n}; {M}::empower::jace(g, player, asker.source, amount)?"
                 );
@@ -213,7 +215,7 @@ impl Compiler {
                 if action.object.is_some() {
                     return Err(gap("adapt of another object"));
                 }
-                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                let n = self.action_amount(&action, Quantity::StoredCounter.max() as i64, Quantity::StoredCounter.kind())?;
                 writeln!(
                     out,
                     "{{ let amount_{id} = {n}; {M}::adapt::adapt(g, asker.source, amount_{id}); }}"
@@ -221,7 +223,7 @@ impl Compiler {
                 .unwrap();
             }
             K::Bolster => {
-                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                let n = self.action_amount(&action, Quantity::StoredCounter.max() as i64, Quantity::StoredCounter.kind())?;
                 writeln!(out, "let mut bolstered_{id}: Vec<ObjectId> = Vec::new();").unwrap();
                 let call = format!("let amount = {n}; let creatures: Vec<ObjectId> = g.permanents_of(player).into_iter().filter(|&o| g.chars(o).is(CardType::Creature)).collect(); let least = creatures.iter().map(|&o| g.chars(o).toughness.unwrap_or(0)).min(); let fewest: Vec<ObjectId> = creatures.into_iter().filter(|&o| Some(g.chars(o).toughness.unwrap_or(0)) == least).collect(); if let Some(creature) = {M}::choose::card(g, player, asker.source, Purpose::ChooseAsEnters, fewest)? {{ g.add_counters(creature, CounterKind::PlusOne, amount); bolstered_{id}.push(creature); }}");
                 self.actor_action(&action, &call, out)?;
@@ -290,7 +292,7 @@ impl Compiler {
                     abilities: Vec::new(),
                     abilities_of: None,
                 })?;
-                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                let n = self.action_amount(&action, Quantity::StoredCounter.max() as i64, Quantity::StoredCounter.kind())?;
                 let player = self.actor(&action)?;
                 writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; let army_{id}: Vec<ObjectId> = {M}::amass::amass_army(g, player_{id}, asker.source, &{token}, Subtype::{word}, amount_{id})?.into_iter().collect();").unwrap();
                 self.moved.insert(result.0, format!("army_{id}"));
@@ -326,7 +328,7 @@ impl Compiler {
                 if action.object.is_some() {
                     return Err(gap("monstrosity of another object"));
                 }
-                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                let n = self.action_amount(&action, Quantity::StoredCounter.max() as i64, Quantity::StoredCounter.kind())?;
                 writeln!(
                     out,
                     "let amount_{id} = {n}; g.monstrosity(asker.source, amount_{id});"
