@@ -19,6 +19,32 @@ class QueueTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_prepare_applies_nonstandard_card_tip_only_once(self):
+        tree = self.root/'tree'
+        tree.mkdir()
+        lane.git(tree, 'init', '--quiet')
+        lane.git(tree, 'config', 'user.name', 'Test Author')
+        lane.git(tree, 'config', 'user.email', 'test@example.invalid')
+        commits = []
+        for filename, title in [('base', 'Initial state'), ('helper', 'Share an effect'),
+                                ('card', 'Implement Example')]:
+            (tree/filename).write_text(filename)
+            lane.git(tree, 'add', filename)
+            lane.git(tree, 'commit', '--quiet', '-m', title, env=dict(
+                os.environ, GIT_AUTHOR_DATE='2001-01-01T00:00:00Z',
+                GIT_COMMITTER_DATE='2001-01-01T00:00:00Z'))
+            commits.append(lane.git(tree, 'rev-parse', 'HEAD'))
+        base, helper, card = commits
+        lane.save(self.root/'config.json', dict(base=base))
+        source = dict(name='Example', commit=card, source_base=base, publication_base=base)
+        job = dict(id='example', stage='review', source=json.dumps(source), result=None)
+        _, parent, _ = lane.prepare(self.root, tree, job)
+        self.assertEqual(lane.git(tree, 'show', f'{parent}:helper'), 'helper')
+        self.assertNotEqual(parent, lane.git(tree, 'rev-parse', 'HEAD'))
+        self.assertEqual(lane.git(tree, 'show', 'HEAD:card'), 'card')
+        self.assertEqual(lane.git(tree, 'rev-list', '--count', f'{base}..HEAD'), '2')
+        self.assertEqual(lane.git(tree, 'status', '--porcelain'), '')
+
     def test_pipeline_counts_exclude_superseded_approvals_and_keep_live_verification(self):
         cfg = dict(reviewers={'v1': {'role': 'confirm'}, 'v2': {'role': 'confirm'}})
         with lane.connect(self.root) as db:

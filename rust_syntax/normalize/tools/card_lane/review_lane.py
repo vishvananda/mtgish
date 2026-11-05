@@ -215,7 +215,11 @@ def prerequisite_commits(tree, source):
     rows = git(tree, "log", "--reverse", "--first-parent", "--format=%H %s", f"{base}..{source['commit']}").splitlines()
     if len(rows) > 100:
         raise RuntimeError("unexpected producer ancestry: refusing a broad cherry-pick")
-    return [line.split(" ", 1)[0] for line in rows if not line.split(" ", 1)[1].startswith("Card:")]
+    # The requested card is applied separately below. Its title is a convention,
+    # not evidence that the tip is a shared prerequisite.
+    return [line.split(" ", 1)[0] for line in rows
+            if line.split(" ", 1)[0] != source['commit']
+            and not line.split(" ", 1)[1].startswith("Card:")]
 
 
 def job_folder(root, job, stage):
