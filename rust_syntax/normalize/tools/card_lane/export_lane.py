@@ -267,14 +267,17 @@ def commit(tree, parent, paths, objects, message, author, timestamp, committer):
                    GIT_COMMITTER_NAME=committer[0], GIT_COMMITTER_EMAIL=committer[1],
                    GIT_AUTHOR_NAME=author[0], GIT_AUTHOR_EMAIL=author[1], GIT_AUTHOR_DATE=author[2])
         publication.git(tree, 'read-tree', parent, env=env)
+        entries = []
         for path in paths:
             obj = objects[path]
             if obj is None:
-                publication.git(tree, 'update-index', '--force-remove', '--', path, env=env)
+                entries.append('0 ' + '0' * 40 + '\t' + path + '\0')
             else:
                 if obj['kind'] != 'blob':
                     raise ValueError('Only file objects may be exported: ' + path)
-                publication.git(tree, 'update-index', '--add', '--cacheinfo', obj['mode'], obj['oid'], path, env=env)
+                entries.append(obj['mode'] + ' ' + obj['oid'] + '\t' + path + '\0')
+        if entries:
+            publication.git(tree, 'update-index', '-z', '--index-info', env=env, input=''.join(entries))
         output = publication.git(tree, 'write-tree', env=env)
         return publication.git(tree, 'commit-tree', output, '-p', parent, env=env, input=message+'\n')
 

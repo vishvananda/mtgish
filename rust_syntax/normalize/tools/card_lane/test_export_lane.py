@@ -237,6 +237,20 @@ class ExportTests(unittest.TestCase):
             self.assertIn(f'Closes #{1 if name == "Alpha" else 2}', self.git('show', '-s', '--format=%B', group['head']))
         self.assertEqual(lane.build(self.root, plan, 'publish/test'), result)
 
+    def test_export_preserves_binary_mode_and_whitespace_in_paths(self):
+        self.ready()
+        name = 'shared café\tlayout\n.bin'
+        artifact = self.tree/name
+        artifact.write_bytes(b'\x00\xffbinary\n')
+        artifact.chmod(0o755)
+        self.finish()
+        plan = lane.plan(self.root, self.head)
+        self.assertEqual(plan['blockers'], [])
+        result = lane.build(self.root, plan, 'publish/unusual-path')
+        actual = subprocess.check_output(['git', 'show', result['foundation']+':'+name], cwd=self.tree)
+        self.assertEqual(actual, b'\x00\xffbinary\n')
+        self.assertEqual(lane.files(self.tree, result['foundation'])[name]['mode'], '100755')
+
     def test_prepared_focused_foundation_is_preserved_as_the_common_sibling_base(self):
         self.ready()
         plan = lane.plan(self.root, self.head)
