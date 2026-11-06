@@ -22,3 +22,7 @@ The independent Oracle grammar corrects its grammar/binding producers and expect
 Grant, protection, perpetual, combat and shared-count witnesses that could not execute remain separate investigations. A backend refusal establishes neither a reference error nor semantic agreement. The earlier report and pinned reproduction remain historical before-fix evidence.
 
 Local logs/generated artifacts: `/mnt/vizier/reference-contract-fixes-20261106`. Historical packet: `/mnt/vizier/reference-contract-investigations-20261106`.
+
+## Upstream reports
+
+The English-template defects remain present on upstream `bdac5ca64c01f1acb02405839e3633c98c48bcf3` and are reported as [Laquatus #217](https://github.com/i5jb/mtgish/issues/217) and [Ambergris #218](https://github.com/i5jb/mtgish/issues/218). Canonicalizer, generator and Missy/reflexive lowering fixes are in the fork’s Rust implementation; they are not reported as additional upstream English bugs.

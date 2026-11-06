@@ -445,7 +445,8 @@
       "summary": "Capture the requested draw amount before drawing and use it for both actions. Recounting the hand or counting actual drawn cards fails replacement/prohibition/partial-draw controls.",
       "evidence": "reference-audit/batch-011.json",
       "validation": "Full corpus preservation with exactly two Source records changed; native normal, forbidden, replaced and partial draw controls.",
-      "fix_notes": "See reference-investigations-20261106.md. No reference gold or equality alias changes."
+      "fix_notes": "See reference-investigations-20261106.md. No reference gold or equality alias changes.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/217"
     },
     {
       "name": "Kozilek, Butcher of Truth",
@@ -1181,7 +1182,8 @@
       "summary": "Discard hand and draw is one resolving cost. Check draw affordability before discarding; followups observe the chosen compound payment even if its draws are replaced.",
       "producer_cause": "Law template omitted the explicit receipt; generator omitted draw prohibition; reflexive lowering used actual Draw completion.",
       "validation": "Receipt regressions for all three; native prohibition, replacement and decline controls including a When-you-do witness.",
-      "fix_notes": "See reference-investigations-20261106.md. No engine or public schema change."
+      "fix_notes": "See reference-investigations-20261106.md. No engine or public schema change.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/218"
     },
     {
       "name": "Ambergris, Agent of Balance",
