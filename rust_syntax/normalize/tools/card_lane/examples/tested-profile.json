@@ -1,0 +1,15 @@
+{
+  "generator_revision": "c0c78ba8f3775a8a79b8f581b61cacc647ce21c4",
+  "native_revision": "27690f3fb867737b346c0df275c6ddf34121ff17",
+  "native_pr": "https://github.com/cantrip-rs/cantrip-rs/pull/2594",
+  "api_fingerprint": "c00a0b9a4edcbeba8fff086c0cb3f5a8292d77f5fe0c93e4673a4365dfc9c792",
+  "model": "gpt-6.1-terra",
+  "effort": "medium",
+  "implementers": 6,
+  "reviewers": 5,
+  "verifiers": 2,
+  "cards_per_context": 20,
+  "context_tokens": 300000,
+  "idle_context_seconds": 3600,
+  "note": "The current packaging commit is a descendant of this generator revision. Revalidate compatibility when selecting newer revisions."
+}

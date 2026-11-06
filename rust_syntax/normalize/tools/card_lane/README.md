@@ -3,6 +3,11 @@
 Turns cards the mtgish generator writes whole into `Card:` commits on a local Cantrip branch. One worktree, one card at a
 time, one commit per card. It replaces nothing in vizier, and it pushes and posts nothing.
 
+For a portable multi-worker setup, start with [SETUP.md](SETUP.md). `control.py init` creates a disabled
+campaign with configurable prepared slots; `control.py start --dry-run` prints its service plan. The
+versioned `status.sh` provides the live pipeline dashboard, and `export_validation/` contains the final
+foundation/sibling validation and aggregation tools. Runtime databases and caches remain outside this checkout.
+
 Only cards with no gap come here. `ast cantrip-files` writes a card from its closed table of recipes
 (`src/cantrip/card_file.rs`), or, for a card no recipe covers, from the whole generated card put in the form a person would
 leave it (`src/cantrip/pr_form.rs`: shared triggers, mana, targets and effects, names and quotes from the printed text,
@@ -51,16 +56,16 @@ paying for another complete original review. Allowed partial fixes on a blocked 
 unpublished `Review WIP:` commit on that card's own branch, freeing the slot for another card. Unexpected edits
 stop the slot for inspection. Leases are never silently expired and reassigned.
 
-The current campaign configuration is `~/card-lane/pipeline-unlimited-20261103/config.json`:
+An example campaign configuration is `~/card-lane/pipeline-example/config.json`:
 
 ```sh
 R=rust_syntax/normalize/tools/card_lane/review_lane.py
-python3 "$R" --root ~/card-lane/pipeline-unlimited-20261103 sync
-python3 "$R" --root ~/card-lane/pipeline-unlimited-20261103 worker r1
-python3 "$R" --root ~/card-lane/pipeline-unlimited-20261103 watch
-python3 "$R" --root ~/card-lane/pipeline-unlimited-20261103 status
+python3 "$R" --root ~/card-lane/pipeline-example sync
+python3 "$R" --root ~/card-lane/pipeline-example worker r1
+python3 "$R" --root ~/card-lane/pipeline-example watch
+python3 "$R" --root ~/card-lane/pipeline-example status
 ~/card-lane/status.sh
-python3 rust_syntax/normalize/tools/card_lane/implementation_lane.py --root ~/card-lane/pipeline-unlimited-20261103 worker i1
+python3 rust_syntax/normalize/tools/card_lane/implementation_lane.py --root ~/card-lane/pipeline-example worker i1
 ```
 
 The watcher continuously imports committed producer cards, including future workers in the manifest. Worker slots
@@ -70,8 +75,8 @@ explicitly `gpt-6.1-terra`; `cards_per_context` defaults to **20**, independentl
 `implementation_cards_per_context` also defaults to 20. `implementers` maps implementation slot names to
 prepared trees. The previous batch dispatcher is disabled once this consumer owns the shared queue.
 
-`reviewers.<slot>.role` selects `review`, `confirm`, or `all`. The current pool has four shared review/fix
-workers and one verifier. Verification findings return the card to fix work with immutable per-round artifacts.
+`reviewers.<slot>.role` selects `review`, `confirm`, or `all`. Pool sizes come from the campaign configuration.
+Verification findings return the card to fix work with immutable per-round artifacts.
 `max_verifier_rejections` defaults to **3**: the third rejection leaves the card blocked. There is no fourth
 automatic cycle. Cards without code changes skip confirmation. Full machine gates run after the review worker
 returns its report; only failures resume the model. Source must remain unchanged throughout those checks.
@@ -99,7 +104,7 @@ from both new plans and frozen-plan replay, including `--reserve-gaps`. Their ar
 reintroducing one requires deliberately clearing its campaign exclusion before reserving it again.
 
 ```sh
-P=~/card-lane/pipeline-unlimited-20261103
+P=~/card-lane/pipeline-example
 T=rust_syntax/normalize/tools/card_lane
 python3 "$T/intake_lane.py" --root "$P" plan --set 2ED --color blue
 python3 "$T/intake_lane.py" --root "$P" add --card "Card Name"
@@ -513,8 +518,8 @@ worktrees with a copied target: a snapshot takes about a second and about 300 MB
 `CARD_LANE_CANTRIP`, `CARD_LANE_TARGET`, `CARD_LANE_STATE` and `CARD_LANE_BRANCH`.
 
 ```sh
-COW_WORKTREE_CONFIG=/mnt/vizier/cow-cantrip.conf ~/.local/bin/cow-git -C /mnt/vizier/base/cantrip \
-    worktree add -q -b card-lane/NAME /mnt/vizier/card-lane/NAME card-lane/pioneer-pilot
+COW_WORKTREE_CONFIG=/path/to/cow-cantrip.conf cow-git -C /path/to/base/cantrip \
+    worktree add -q -b card-lane/NAME /path/to/worker-pool/NAME YOUR_COMPATIBLE_BASE
 ```
 
 ## Counters a card brings
