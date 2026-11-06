@@ -10160,6 +10160,9 @@ pub enum Action {
   WouldDealExcessDamage_DealExcessToPlayerInstead(Box<Player>),
   RevealHandAndPlayerChoosesNumberCardsOfTypeToDiscard(Box<Player>, Box<GameNumber>, Box<Cards>),
   ChooseOneOfNumberRandomActions(Box<GameNumber>, Vec<Vec<Action>>),
+  // The matched event's first public-zone card, including replaced sacrifices.
+  PutTriggeredCardOntoBattlefield(Vec<EnterFlag>),
+  ExileTriggeredCard(Vec<ExileFlag>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]

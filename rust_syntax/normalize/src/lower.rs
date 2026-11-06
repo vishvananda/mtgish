@@ -2837,6 +2837,43 @@ impl Context {
     }
 
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        if let source::Action::PutTriggeredCardOntoBattlefield(flags) = value {
+            let object = if self.event.discarded {
+                ObjectRef::Discarded
+            } else if self.event.moved {
+                ObjectRef::EventDestination
+            } else {
+                return Err(invalid("this event produces no moved card"));
+            };
+            let PlayerSet::One(player) = actor else {
+                return Err(invalid("putting this card requires one player"));
+            };
+            let (destination, entry) = self.move_entry(flags, player.clone())?;
+            return Ok(self.effect(Operation::Move {
+                objects: ObjectSet::One(object),
+                destination,
+                entry,
+                face_down: false,
+                terms: crate::ir::MovementTerms::default(),
+            }));
+        }
+        if let source::Action::ExileTriggeredCard(flags) = value {
+            let object = if self.event.discarded {
+                ObjectRef::Discarded
+            } else if self.event.moved {
+                ObjectRef::EventDestination
+            } else {
+                return Err(invalid("this event produces no moved card"));
+            };
+            let (entry, face_down) = self.exile_entry(flags)?;
+            return Ok(self.effect(Operation::Move {
+                objects: ObjectSet::One(object),
+                destination: Destination::Exile,
+                entry,
+                face_down,
+                terms: crate::ir::MovementTerms::default(),
+            }));
+        }
         if let source::Action::ReturnDiscardedCardToHand = value {
             if !self.event.discarded {
                 return Err(invalid("this event discards no card"));

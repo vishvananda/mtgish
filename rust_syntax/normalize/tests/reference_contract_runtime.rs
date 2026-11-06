@@ -29,11 +29,13 @@ fn generated_reference_contracts_execute_in_cantrip() {
     fs::write(root.join("Cargo.toml"), manifest).unwrap();
     let sources: Vec<OracleCard> = include_str!("fixtures/reference_investigations.ronl")
         .lines()
+        .chain(include_str!("fixtures/sacrifice_public_destinations.ronl").lines())
         .map(|s| ron::from_str(s).unwrap())
         .collect();
     let mut lib = String::new();
     for (module, name) in [
         ("abstract_performance", "Abstract Performance"),
+        ("it_that_betrays", "It That Betrays"),
         ("ambergris_balance", "Ambergris, Agent of Balance"),
         ("ambergris__agent_of_law", "Ambergris, Agent of Law"),
         ("arcane_artisan", "Arcane Artisan"),
@@ -70,6 +72,14 @@ fn generated_reference_contracts_execute_in_cantrip() {
         "mod ambergris_legacy {{\n{}\n{CALLBACK}\n}}\n",
         cantrip::module(&legacy).unwrap()
     ));
+    let legacy_sacrifice = lower::card(
+        &ron::from_str(include_str!("fixtures/legacy_sacrifice_graveyard.ronl").trim()).unwrap(),
+    )
+    .unwrap();
+    lib.push_str(&format!(
+        "mod it_that_betrays_legacy {{\n{}\n}}\n",
+        cantrip::module(&legacy_sacrifice).unwrap()
+    ));
     lib.push_str(include_str!("fixtures/reference_contract_scenarios.rs"));
     fs::write(root.join("src/lib.rs"), lib).unwrap();
     let target = std::env::var_os("MTGISH_CANTRIP_TARGET")
@@ -90,4 +100,4 @@ fn generated_reference_contracts_execute_in_cantrip() {
     );
     println!("{}", String::from_utf8_lossy(&result.stdout));
 }
-const CALLBACK:&str="pub fn contract_callback(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> { match CARD.abilities[0] { AbilityDef::Triggered(def) => (def.effect)(g,item), _ => panic!(\"expected attack trigger\") } }\n";
+const CALLBACK: &str = "pub fn contract_callback(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> { match CARD.abilities[0] { AbilityDef::Triggered(def) => (def.effect)(g,item), _ => panic!(\"expected attack trigger\") } }\n";

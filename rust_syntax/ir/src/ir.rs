@@ -4631,8 +4631,10 @@ pub enum ObjectRef {
     EventSubject,
     /// A creature of the attacker and blocker paired by a block event.
     BlockPair(BlockRole),
-    /// The new object a matched zone change put in its destination (CR 400.7).
-    /// Selects nothing once that object leaves the zone.
+    /// The first public-zone incarnation produced by the matched zone-changing
+    /// event (CR 400.7e), including a sacrifice whose destination was replaced.
+    /// Selects nothing once that incarnation leaves its destination; never
+    /// follows a second zone change or a move into a hidden zone.
     EventDestination,
     /// The object chosen by this ability, or by a linked ability of this source.
     Chosen,

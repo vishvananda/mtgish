@@ -92753,12 +92753,7 @@ Card(
         ]),
       ),
       ActionList([
-        Exile(
-          [
-            CardInGraveyards(Trigger_ThatGraveyardCard),
-          ],
-          [],
-        ),
+        ExileTriggeredCard([]),
       ]),
     ),
     Activated(
@@ -121889,13 +121884,10 @@ Transforming(
           CreateFutureTrigger(
             AtTheBeginningOfTheNextEndStep,
             ActionList([
-              PutGraveyardCardOntoBattlefield(
-                Trigger_ThatGraveyardCard,
-                [
-                  EntersTransformed,
-                  EntersUnderOwnersControl,
-                ],
-              ),
+              PutTriggeredCardOntoBattlefield([
+                EntersTransformed,
+                EntersUnderOwnersControl,
+              ]),
             ]),
           ),
         ]),
@@ -671496,21 +671488,12 @@ Card(
     TriggerA(
       WhenAPlayerSacrificesAPermanent(
         Opponent,
-        And([
-          Other(ThisPermanent),
-          And([
-            IsNonToken,
-            IsPermanent,
-          ]),
-        ]),
+        IsNonToken,
       ),
       ActionList([
-        PutGraveyardCardOntoBattlefield(
-          Trigger_ThatGraveyardCard,
-          [
-            EntersUnderPlayersControl(You),
-          ],
-        ),
+        PutTriggeredCardOntoBattlefield([
+          EntersUnderPlayersControl(You),
+        ]),
       ]),
     ),
   ],
@@ -885678,12 +885661,9 @@ Card(
               Unless(
                 CostWasPaid,
                 [
-                  PutGraveyardCardOntoBattlefield(
-                    Trigger_ThatGraveyardCard,
-                    [
-                      EntersUnderPlayersControl(You),
-                    ],
-                  ),
+                  PutTriggeredCardOntoBattlefield([
+                    EntersUnderPlayersControl(You),
+                  ]),
                 ],
               ),
             ]),

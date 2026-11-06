@@ -5,3 +5,7 @@ import "testing"
 func TestInvestigatedReferencePaymentsAndDrawCapture(t *testing.T) {
 	testSourceReferenceFixtures(t, "reference_investigations.ronl")
 }
+
+func TestSacrificeTriggersKeepPublicDestinations(t *testing.T) {
+	testSourceReferenceFixtures(t, "sacrifice_public_destinations.ronl")
+}

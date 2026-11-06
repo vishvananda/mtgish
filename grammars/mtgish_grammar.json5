@@ -1345,6 +1345,8 @@
     "ReturnEnchantingGraveyardCardToBattlefield({{ENTER_FLAGS}})": "",
     "ReturnEnchantingGraveyardCardToHand": "",
     "ReturnDiscardedCardToHand": "",
+    "PutTriggeredCardOntoBattlefield({{ENTER_FLAGS}})": "",
+    "ExileTriggeredCard({{EXILE_FLAGS}})": "",
     "ReturnGraveyardCardToHand({{CARD_IN_GRAVEYARDS}})": "",
     "ReturnGraveyardCardToTopOrBottomOfLibrary({{CARD_IN_GRAVEYARDS}})": "",
     "ReturnGraveyardCardsToHand({{GRAVEYARD_CARDS}})": "",
