@@ -352,45 +352,8 @@
       "source": "IsPermanent",
       "arity": 0,
       "predicate": {
-        "kind": "Either",
-        "predicates": [
-          {
-            "kind": "Vocabulary",
-            "vocabulary": "CardType",
-            "argument": null,
-            "value": "Artifact"
-          },
-          {
-            "kind": "Vocabulary",
-            "vocabulary": "CardType",
-            "argument": null,
-            "value": "Battle"
-          },
-          {
-            "kind": "Vocabulary",
-            "vocabulary": "CardType",
-            "argument": null,
-            "value": "Creature"
-          },
-          {
-            "kind": "Vocabulary",
-            "vocabulary": "CardType",
-            "argument": null,
-            "value": "Enchantment"
-          },
-          {
-            "kind": "Vocabulary",
-            "vocabulary": "CardType",
-            "argument": null,
-            "value": "Land"
-          },
-          {
-            "kind": "Vocabulary",
-            "vocabulary": "CardType",
-            "argument": null,
-            "value": "Planeswalker"
-          }
-        ]
+        "kind": "Literal",
+        "value": "PermanentDomain"
       }
     },
     {

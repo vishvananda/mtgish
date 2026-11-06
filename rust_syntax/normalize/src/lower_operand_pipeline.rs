@@ -287,6 +287,9 @@ impl Context {
             } => {
                 let object = self.pipeline_number_object(object)?;
                 let mut context = self.clone();
+                // A raw matches predicate has no independent battlefield
+                // membership check, unlike a permanent target or zone query.
+                context.retain_permanent_type_guard |= matches!(domain, MatchDomain::Permanents);
                 if matches!(domain, MatchDomain::Permanents | MatchDomain::Spells) {
                     context.candidate = true;
                 }

@@ -515,6 +515,15 @@ impl Context {
         }
         // What the row binds, or the trigger it holds, names things for its operands.
         let mut scoped = self.clone();
+        // These adapters can reduce ObjectSet::Zone to a bare ObjectFilter.
+        // Preserve IsPermanent's old qualification until their event contracts
+        // carry the permanent domain independently. This deliberately withholds
+        // the typeless correction here instead of widening unrelated zones.
+        scoped.retain_permanent_type_guard |= family == "Trigger"
+            || family == "Condition"
+            || family == "GameNumber" && name.ends_with("ThisTurn")
+            || family.starts_with("ReplacableEvent")
+            || family.starts_with("FutureReplacableEvent");
         if !row.binds.is_empty() {
             scoped.event = crate::semantics::with_row(&self.event, &name);
         }

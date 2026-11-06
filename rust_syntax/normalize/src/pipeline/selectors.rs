@@ -38,6 +38,7 @@ pub enum Predicate {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum PredicateLiteral {
     Any,
+    PermanentDomain,
     Colorless,
     Token,
     Tapped,

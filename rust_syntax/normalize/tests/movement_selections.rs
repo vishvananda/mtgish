@@ -286,7 +286,7 @@ fn generated_choices_stay_inside_repetitions_and_after_prior_sibling_effects() {
     assert!(!code.contains("1000000"));
 }
 #[test]
-fn complete_captured_old_records_migrate_only_by_lexical_selection_elaboration_and_schema() {
+fn complete_captured_old_records_keep_all_operands_except_reviewed_domain_corrections() {
     let old = include_str!("fixtures/movement_selections_before.ronl").lines();
     let source = include_str!("fixtures/movement_selections.ronl").lines();
     for (before, line) in old.zip(source) {
@@ -296,13 +296,40 @@ fn complete_captured_old_records_migrate_only_by_lexical_selection_elaboration_a
             f.schema_version = SCHEMA_VERSION;
         }
         movement::normalize_unified(&mut expected);
+        // Preserve the captured historical IR. These exact filters were emitted
+        // by the old Permanents::IsPermanent rule; its six-type restriction
+        // excluded typeless battlefield permanents. Every other field must
+        // still agree with the captured migration expectation.
+        let corrections: &[&str] = match expected.faces[0].name.as_str() {
+            "Chaos Defiler" => &[
+                "/faces/0/abilities/1/args/body/instructions/0/args/body/instructions/0/args/operation/args/objects/args/filter/args/1",
+                "/faces/0/abilities/2/args/body/instructions/0/args/body/instructions/0/args/operation/args/objects/args/filter/args/1",
+            ],
+            "Descent into Madness" => &[
+                "/faces/0/abilities/0/args/body/instructions/1/args/body/instructions/0/args/operation/args/steps/0/objects/args/0/args/filter/args/0",
+            ],
+            _ => &[],
+        };
+        let mut expected = serde_json::to_value(expected).unwrap();
+        for pointer in corrections {
+            let old_filter = expected.pointer_mut(pointer).unwrap();
+            assert_eq!(
+                *old_filter,
+                serde_json::json!({"kind":"Either","args":[
+                    {"kind":"CardType","args":"Artifact"},
+                    {"kind":"CardType","args":"Battle"},
+                    {"kind":"CardType","args":"Creature"},
+                    {"kind":"CardType","args":"Enchantment"},
+                    {"kind":"CardType","args":"Land"},
+                    {"kind":"CardType","args":"Planeswalker"}
+                ]})
+            );
+            *old_filter = serde_json::json!({"kind":"Any"});
+        }
         let source: OracleCard = ron::from_str(line).unwrap();
         let actual = mtgish_ast::unified::lower(&source);
         assert!(actual.diagnostics.is_empty());
-        assert_eq!(
-            serde_json::to_value(expected).unwrap(),
-            serde_json::to_value(actual.card).unwrap()
-        );
+        assert_eq!(expected, serde_json::to_value(actual.card).unwrap());
     }
 }
 #[test]

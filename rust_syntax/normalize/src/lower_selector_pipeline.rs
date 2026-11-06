@@ -50,6 +50,18 @@ impl Context {
             }
             P::Literal(value) => match value {
                 L::Any => ObjectFilter::Any,
+                L::PermanentDomain if self.retain_permanent_type_guard => {
+                    use source::CardType::{
+                        Artifact, Battle, Creature, Enchantment, Land, Planeswalker,
+                    };
+                    ObjectFilter::Either(
+                        [Artifact, Battle, Creature, Enchantment, Land, Planeswalker]
+                            .into_iter()
+                            .map(ObjectFilter::CardType)
+                            .collect(),
+                    )
+                }
+                L::PermanentDomain => ObjectFilter::Any,
                 L::Colorless => ObjectFilter::Colorless,
                 L::Token => ObjectFilter::Token,
                 L::Tapped => ObjectFilter::Tapped,

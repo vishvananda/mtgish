@@ -67,7 +67,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native damages the target creature’s controller instead of the target creature; parser recipient is correct.",
+      "summary": "Native damages the target creature\u2019s controller instead of the target creature; parser recipient is correct.",
       "evidence": "reference-audit/batch-004.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -89,7 +89,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native Ionize damages its own controller instead of countered spell’s controller.",
+      "summary": "Native Ionize damages its own controller instead of countered spell\u2019s controller.",
       "evidence": "reference-audit/batch-010.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -154,49 +154,73 @@
       "name": "Black Bolt, Inhuman King",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference adds a six-card-type enumeration to nonland permanent. It excludes legal typeless permanents; the saved grammar correctly uses permanent domain plus Not(Land). Flying, noncreature-cast pump, opponent targeting trigger and target controller were reviewed.",
-      "evidence": "reference-audit/batch-003.json"
+      "evidence": "reference-audit/batch-003.json",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Deputy of Detention",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native target filter wrongly requires one of six permanent card types; parser correctly allows typeless nonland permanents but both readings use Source controller for other same-name objects.",
-      "evidence": "reference-audit/batch-005.json"
+      "evidence": "reference-audit/batch-005.json",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Fractured Realm",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native permanent-source trigger modifier retains a six-card-type conjunction in canonical gold, excluding typeless permanents. Current lacks the guard and retains permanent source scope through TriggerRule AbilityOf context.",
-      "evidence": "reference-audit/batch-012.json"
+      "evidence": "reference-audit/batch-012.json",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Mirrorform",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Copy target, all controlled nonland recipients, indefinite snapshot copying and no-copy-adjustments term reviewed. Canonical native target predicate unnecessarily requires one of six card types, excluding legal typeless non-Aura permanent targets. Current Not(Aura) is correct within the explicit Permanent/Battlefield target domain.",
-      "evidence": "reference-audit/batch-012.json"
+      "evidence": "reference-audit/batch-012.json",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Press the Enemy",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Both sides overrestrict the nonland-permanent target with six current card types, excluding typeless permanents. Grammar additionally drops opposing-controller restriction on that branch. Spell alternative, bounce, hand casting filter, last-known mana value and free optional cast were reviewed.",
-      "evidence": "reference-audit/batch-014.json"
+      "evidence": "reference-audit/batch-014.json",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Sink into Stupor",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Both canonical programs exclude typeless nonland permanent targets; parser additionally drops opponent controller restriction in permanent arm.",
-      "evidence": "reference-audit/batch-016.json"
+      "evidence": "reference-audit/batch-016.json",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Solid Ground",
@@ -204,7 +228,8 @@
       "reported_classification": "reference_error",
       "review_status": "pending_current_producer_review",
       "summary": "Native six-type guard excludes typeless controlled permanents from counter replacement; parser does not impose this extra guard.",
-      "evidence": "reference-audit/batch-016.json"
+      "evidence": "reference-audit/batch-016.json",
+      "fix_notes": "Withheld: counter replacement collapses the permanent selector to a raw ObjectFilter without independent Battlefield scope. Keep the prior six-type guard until that domain contract is repaired; do not broaden to instant/sorcery cards. See reference-permanent-domains-20261106.md."
     },
     {
       "name": "Bathe in Light",
@@ -592,29 +617,45 @@
       "name": "Shivan Sand-Mage",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Timebender",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Wanderwine Farewell",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Eventide's Shadow",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "producer_cause": "selector.Permanents.IsPermanent expands an already-battlefield permanent domain into six current card types, incorrectly excluding typeless permanents.",
+      "fix_notes": "Only the redundant type-domain guard is corrected. All other operands are byte-for-byte identical in full-record IR comparison; independent reported card issues remain separate. See reference-permanent-domains-20261106.md.",
+      "upstream_report": "Fork Rust selector lowering only; upstream typed English Permanents::IsPermanent is valid. No duplicate English-parser issue filed.",
+      "validation": "All225 typed caller records reviewed; scoped correction changes196 records through226 exact six-type-to-Any filter replacements.33 filters in32 raw-event contexts retain their old type guard; no other IR or source-record changes. Negative controls preserve those event guards, explicit type disjunctions and five non-battlefield IsPermanent domains."
     },
     {
       "name": "Sami, Wildcat Captain",
@@ -738,6 +779,16 @@
       "summary": "Shares Toralf's Hammer's granted damage template. The equipped creature deals the damage; the Equipment remains the source of the unattach/return operations.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
       "validation": "Dedicated Go parser and Rust operand assertions; included in exact10 source/11 IR record deltas."
+    },
+    {
+      "name": "Etched Slith",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "mixed-counter-targets/reference-issue.json; reference-fix-followup.md",
+      "summary": "Reflexive another-target-permanent branch incorrectly adds six current card types. Generic typed-domain correction removes only that guard, retaining Damage(Source) exclusion, optional removal, independent implied target modes and opponent alternative.",
+      "upstream_report": "Fork Rust selector lowering only.",
+      "validation": "Included in exact196-record/226-filter full-corpus delta; every other operand is unchanged."
     }
   ],
   "normalization_questions": [
@@ -756,6 +807,7 @@
     "Crypsis protection-domain contract",
     "Missy villainous-choice hook",
     "Six invariant shared-X shapes",
-    "Hatchery Sliver typed grant"
+    "Hatchery Sliver typed grant",
+    "Raw event permanent-domain contract: counter replacements, counter/targeting triggers and other event adapters can erase ObjectSet zones. Scoped selector correction retains their prior six-type guards; no domain is silently widened."
   ]
 }

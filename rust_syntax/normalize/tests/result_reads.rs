@@ -261,7 +261,7 @@ fn surveil_can_report_graveyard_and_kept_cards_independently() {
 }
 
 #[test]
-fn whole_membership_records_change_only_declared_aliases_and_schema_stamps() {
+fn whole_membership_records_preserve_operands_with_the_reviewed_permanent_domain_fix() {
     fn migrate(value: &mut serde_json::Value) {
         if value.get("kind").and_then(serde_json::Value::as_str) == Some("InResult") {
             let result = value["args"].clone();
@@ -294,6 +294,24 @@ fn whole_membership_records_change_only_declared_aliases_and_schema_stamps() {
         query_aliases::value_choices(&mut expected);
         let actual = serde_json::to_value(unified::lower(&source).card).unwrap();
         query_aliases::movement_defaults(&mut expected);
+        // This historical capture contains the old type-based expansion of
+        // Permanents::IsPermanent. Correct only its documented filter path;
+        // retain the capture and compare every other field unchanged.
+        if expected["faces"][0]["name"] == "Mutational Advantage" {
+            let filter = expected.pointer_mut("/faces/0/abilities/0/args/body/instructions/0/args/operation/args/affected/Objects/args/filter/args/0").unwrap();
+            assert_eq!(
+                *filter,
+                serde_json::json!({"kind":"Either","args":[
+                    {"kind":"CardType","args":"Artifact"},
+                    {"kind":"CardType","args":"Battle"},
+                    {"kind":"CardType","args":"Creature"},
+                    {"kind":"CardType","args":"Enchantment"},
+                    {"kind":"CardType","args":"Land"},
+                    {"kind":"CardType","args":"Planeswalker"}
+                ]})
+            );
+            *filter = serde_json::json!({"kind":"Any"});
+        }
         assert_eq!(actual, expected, "{line}");
     }
 }
@@ -338,9 +356,9 @@ fn named_membership_preserves_availability_and_does_not_become_a_selected_view()
     let Ability::Spell { body, .. } = &mut card.abilities[0] else {
         panic!()
     };
-    body.instructions[1] = consume(mtgish_ast::battlefield_query!(ObjectFilter::InSet(Box::new(
-        ObjectSet::Selected(ResultId(0)),
-    ))));
+    body.instructions[1] = consume(mtgish_ast::battlefield_query!(ObjectFilter::InSet(
+        Box::new(ObjectSet::Selected(ResultId(0)),)
+    )));
     assert!(
         validate::card(&card).is_err(),
         "a draw transition is not a selection"

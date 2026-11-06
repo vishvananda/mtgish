@@ -113,6 +113,9 @@ struct Context {
     affected: bool,
     keyword_host: bool,
     candidate: bool,
+    /// Raw event operands can erase their ObjectSet domain. Until the event
+    /// contract preserves it, retain the old IsPermanent type qualification.
+    retain_permanent_type_guard: bool,
     event: crate::semantics::EventBindings,
     created_tokens: Option<ResultId>,
     /// The original host named by an attachment action or attached-token entry.

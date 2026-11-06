@@ -193,10 +193,12 @@ impl Context {
     }
 
     fn trigger(&self, value: &source::Trigger) -> Result<EventSpec> {
-        self.reduced_trigger(value).or_else(|error| {
-            self.rescue(error, || {
-                self.first_each_turn(value)
-                    .or_else(|| self.primitive_trigger(value))
+        let mut context = self.clone();
+        context.retain_permanent_type_guard = true;
+        context.reduced_trigger(value).or_else(|error| {
+            context.rescue(error, || {
+                context.first_each_turn(value)
+                    .or_else(|| context.primitive_trigger(value))
             })
         })
     }
