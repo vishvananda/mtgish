@@ -21,7 +21,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "a69b159197999903c1a327e6d42f45d11c209eccf9f06e633dd1da0536c49390"
+    "grammars/english_grammar.json5": "e61e7a60b98c5157b54fd0777ad3c3c7224d7c7afd010cbd3be3425f03c2057b"
   },
   "original_findings": 365,
   "resolved_findings": 170,
@@ -53,7 +53,8 @@
     "reference_groups_20261104": "Fresh33529card parse; eight source changes (Gyruda, Diregraf Horde, Glissa Retriever and five any-player cast triggers including Vision); all37 guarded context usage hashes unchanged; unchanged parser-code input hashes verified separately.",
     "awesome_presence_20261106": "Fresh33529card parse; same185 findings (37 contextual +148 automatic), identical complete usage records. Plain per-declared-blocker PayMana follows upstream issue33 maintainer clarification; no source/IR schema changes.",
     "counter_followups_20261106": "Fresh33529card parse changes exactly Offering to Asha, Stymied Hopes, Frightful Delusion and Sage Dousing. All185 findings and complete usage records match the prior fresh pass. Independent followups no longer depend on payment rejection; upstream issue204.",
-    "reference_recipients_20261106": "Fresh33529card parse changes exactly ten recipient/payer/source records, including additional shared caller Razor Boomerang. All185 findings and full usage records remain equal; ten template outputs corrected, including both Toralf Hammer variants. Upstream205."
+    "reference_recipients_20261106": "Fresh33529card parse changes exactly ten recipient/payer/source records, including additional shared caller Razor Boomerang. All185 findings and full usage records remain equal; ten template outputs corrected, including both Toralf Hammer variants. Upstream205.",
+    "reference_damage_parts_20261106": "Fresh 33,529-record parse: three exact unused Digits[1] findings resolved by independent damage-part captures; all182 remaining finding usages identical; zero new findings. Prior review history retained. See reference-damage-and-types-20261106.md."
   },
   "resolved": [
     {
@@ -5419,7 +5420,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "a69b159197999903c1a327e6d42f45d11c209eccf9f06e633dd1da0536c49390",
+    "grammars/english_grammar.json5": "e61e7a60b98c5157b54fd0777ad3c3c7224d7c7afd010cbd3be3425f03c2057b",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
@@ -7947,5 +7948,101 @@
     "normalized_input_fingerprints": 81,
     "normalized_coverage_report": "/tmp/mtgish-double-kicker-coverage.json",
     "upstream_report_policy": "Only the specific problem and affected examples; omit port, local implementation, and validation details."
+  },
+  "reference_damage_parts_20261106": {
+    "previous_findings": 185,
+    "current_findings": 182,
+    "new_findings": 0,
+    "remaining_findings_and_complete_usages_identical": true,
+    "resolved_findings": [
+      {
+        "id": "0d6249ea5adaafc4a6a06668e15c9dcae05dba2c6004203464f1ebd67a2aae45",
+        "file": "grammars/english_grammar.json5",
+        "line": 23813,
+        "rule": "TriggerActions(~Permanent,ThatCreature)",
+        "kind": "unused_semantic_capture",
+        "severity": "error",
+        "capture": "Digits[1]",
+        "input": "this creature deals {{Digits}} damage to that creature's controller and {{Digits}} damage to you",
+        "output": "ActionList([PermanentDealsDamage(ThisPermanent, {{Digits[0]}}, Player(ControllerOfPermanent({{ThatCreature}}))), PermanentDealsDamage(ThisPermanent, {{Digits[0]}}, Player(You))])",
+        "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
+        "usage": [
+          {
+            "card": "Bellowing Fiend",
+            "matched_text": "this creature deals 3 damage to that creature's controller and 3 damage to you",
+            "captures": {
+              "Digits": [
+                "3",
+                "3"
+              ]
+            }
+          }
+        ],
+        "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
+      },
+      {
+        "id": "655c6348c7ecef9eafa2f0898137dcba33aac73db27427a86b33a6729a3564e2",
+        "file": "grammars/english_grammar.json5",
+        "line": 14291,
+        "rule": "SpellActions(~Spell)",
+        "kind": "unused_semantic_capture",
+        "severity": "error",
+        "capture": "Digits[1]",
+        "input": "{{~Spell}} deals {{Digits}} damage to target {{PlayerOrPlaneswalker}} and {{Digits}} damage to target {{Creature}}",
+        "output": "Targeted([TargetPlayerOrPermanent({{PlayerOrPlaneswalker[0]}}), TargetPermanent({{Creature[0]}})], ActionList([SpellDealsDamage({{~Spell}}, {{Digits[0]}}, MultipleRecipients([Ref_TargetPlayerOrPermanent, Permanent(Ref_TargetPermanent)]))]))",
+        "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
+        "usage": [
+          {
+            "card": "Punish the Enemy",
+            "matched_text": "Punish the Enemy deals 3 damage to target player or planeswalker and 3 damage to target creature",
+            "captures": {
+              "Creature": [
+                "creature"
+              ],
+              "Digits": [
+                "3",
+                "3"
+              ],
+              "PlayerOrPlaneswalker": [
+                "player or planeswalker"
+              ],
+              "~Spell": [
+                "Punish the Enemy"
+              ]
+            }
+          }
+        ],
+        "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
+      },
+      {
+        "id": "9f2443616795d001809076bb32854159647d398135e16fa8c515945f438e0613",
+        "file": "grammars/english_grammar.json5",
+        "line": 21511,
+        "rule": "TriggerActions(ThatPermanent)",
+        "kind": "unused_semantic_capture",
+        "severity": "error",
+        "capture": "Digits[1]",
+        "input": "it deals {{Digits}} damage to target opponent or planeswalker and {{Digits}} damage to up to one target {{Creature}}",
+        "output": "Targeted([TargetPlayerOrPermanent(Opponent, IsCardtype(Planeswalker)), UptoOneTargetPermanent({{Creature[0]}})], ActionList([PermanentDealsDamage({{ThatPermanent}}, {{Digits[0]}}, MultipleRecipients([Ref_TargetPlayerOrPermanent, Permanent(Ref_TargetPermanent)]))]))",
+        "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
+        "usage": [
+          {
+            "card": "Burning Sun's Avatar",
+            "matched_text": "it deals 3 damage to target opponent or planeswalker and 3 damage to up to one target creature",
+            "captures": {
+              "Creature": [
+                "creature"
+              ],
+              "Digits": [
+                "3",
+                "3"
+              ]
+            }
+          }
+        ],
+        "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
+      }
+    ],
+    "reason": "All three damage templates now bind the second printed amount to its own part. Equal actual amounts no longer rely on automatic scalar equivalence; unequal-amount parser controls pass."
   }
 }

@@ -55,6 +55,18 @@ func TestParserSemanticRegressions(t *testing.T) {
 		control.Cards[0].Text = text.cost + ": Draw a card."
 		cards[text.name] = control
 	}
+	// Unequal printed damage amounts must keep their separate capture indices.
+	for _, name := range []string{"Bellowing Fiend", "Burning Sun's Avatar", "Punish the Enemy"} {
+		control := cards[name]
+		control.Cards = append([]MtgJsonAtomic(nil), control.Cards...)
+		text := control.Cards[0].Text
+		index := strings.LastIndex(text, "3 damage")
+		if index < 0 {
+			t.Fatalf("missing second damage amount for %s", name)
+		}
+		control.Cards[0].Text = text[:index] + strings.Replace(text[index:], "3 damage", "5 damage", 1)
+		cards[name+" unequal amounts"] = control
+	}
 	control := cards["Ashling, the Limitless"]
 	control.Cards = append([]MtgJsonAtomic(nil), control.Cards...)
 	control.Cards[0].Text = "Whenever you sacrifice a nontoken Elemental, this creature gets +1/+1 until end of turn."
@@ -68,6 +80,16 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Bellowing Fiend", []string{"PermanentDealsMultipleDamage(ThisPermanent, [DamageToRecipients(Integer(3), Player(ControllerOfPermanent(Trigger_ThatOtherPermanent))), DamageToRecipients(Integer(3), Player(You))])"}, nil},
+		{"Bellowing Fiend unequal amounts", []string{"DamageToRecipients(Integer(5), Player(You))"}, nil},
+		{"Burning Sun's Avatar", []string{"PermanentDealsMultipleDamage(ThatEnteringPermanent, [DamageToRecipients(Integer(3), Ref_TargetPlayerOrPermanent), DamageToRecipients(Integer(3), Permanent(Ref_TargetPermanent))])"}, nil},
+		{"Burning Sun's Avatar unequal amounts", []string{"DamageToRecipients(Integer(5), Permanent(Ref_TargetPermanent))"}, nil},
+		{"Punish the Enemy", []string{"SpellDealsMultipleDamage(ThisSpell, [DamageToRecipients(Integer(3), Ref_TargetPlayerOrPermanent), DamageToRecipients(Integer(3), Permanent(Ref_TargetPermanent))])"}, nil},
+		{"Punish the Enemy unequal amounts", []string{"DamageToRecipients(Integer(5), Permanent(Ref_TargetPermanent))"}, nil},
+		{"Garruk, Apex Predator", []string{"GainLife(ToughnessOfPermanent(Ref_TargetPermanent))"}, []string{"ToughnessOfCreatureDestroyedThisWay"}},
+		{"Make Yourself Useful", []string{"If(APermanentWasDestroyedThisWay(IsCardtype(Creature)), [GainLife(ToughnessOfCreatureDestroyedThisWay)])"}, nil},
+		{"Nogi, Draco-Zealot", []string{"SetCreatureType(Dragon), SetPT(PT(5, 5))"}, []string{"AddCreatureType(Dragon)"}},
+		{"Reptil, Dinomorpher", []string{"SetCreatureTypes([Dinosaur, Hero]), SetPT(PT(3, 5))", "SetCreatureTypes([Dinosaur, Hero]), SetPT(PT(6, 6))"}, []string{"AddCreatureType(Dinosaur)"}},
 		{"Soul Diviner", []string{"ACounterFromAPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Creature), IsCardtype(Land), IsCardtype(Planeswalker)]), ControlledByAPlayer(SinglePlayer(You))]))"}, nil},
 		{"Tranquil Domain", []string{"DestroyEachPermanent(And([IsNonEnchantmentType(Aura), IsCardtype(Enchantment)]))"}, nil},
 		{"Bathe in Light", []string{"And([Other(Ref_TargetPermanent), IsCardtype(Creature), SharesAColorWithPermanent(Ref_TargetPermanent)])"}, nil},

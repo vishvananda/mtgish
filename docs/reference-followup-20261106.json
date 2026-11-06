@@ -407,9 +407,13 @@
       "name": "Garruk, Apex Predator",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference makes life gain depend on a successful destruction transition. Oracle independently gains the targeted creature toughness even if destruction fails. Other loyalty actions, token attributes and opponent emblem were reviewed; saved grammar uses target CurrentOrLastKnown toughness correctly.",
-      "evidence": "reference-audit/batch-008.json"
+      "evidence": "reference-audit/batch-008.json",
+      "producer_cause": "English independent gain-life instruction reads the successful destruction receipt instead of the named target's toughness.",
+      "fix_notes": "See reference-damage-and-types-20261106.md. Existing source constructors preserve the complete remaining operands; no lowering, public schema or backend changes.",
+      "validation": "Before/after parser and normalized-IR regressions; three unequal-amount parser controls; explicit subtype-addition and conditional-destruction controls; exact whole-corpus preservation proof.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/213"
     },
     {
       "name": "God-Eternal Rhonas",
@@ -537,25 +541,37 @@
       "name": "Bellowing Fiend",
       "family": "damage-events",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference splits the two damage amounts into sequential effects; the saved grammar uses one simultaneous DealDamageParts batch. Flying, source/recipient event identity and both recipients/amounts were reviewed.",
-      "evidence": "reference-audit/batch-003.json"
+      "evidence": "reference-audit/batch-003.json",
+      "producer_cause": "English action sequences two damage instructions and also reuses the first amount capture for the second part.",
+      "fix_notes": "See reference-damage-and-types-20261106.md. Existing source constructors preserve the complete remaining operands; no lowering, public schema or backend changes.",
+      "validation": "Before/after parser and normalized-IR regressions; three unequal-amount parser controls; explicit subtype-addition and conditional-destruction controls; exact whole-corpus preservation proof.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/212"
     },
     {
       "name": "Burning Sun's Avatar",
       "family": "damage-events",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference unions the two target recipient sets before applying a single3-damage amount. Union removes a duplicate object, so choosing one creature-planeswalker in both slots loses one3-damage part. Grammar retains both simultaneous parts; source, event and target cardinalities were reviewed.",
-      "evidence": "reference-audit/batch-003.json"
+      "evidence": "reference-audit/batch-003.json",
+      "producer_cause": "English action unions overlapping recipient sets and drops the second independent amount capture.",
+      "fix_notes": "See reference-damage-and-types-20261106.md. Existing source constructors preserve the complete remaining operands; no lowering, public schema or backend changes.",
+      "validation": "Before/after parser and normalized-IR regressions; three unequal-amount parser controls; explicit subtype-addition and conditional-destruction controls; exact whole-corpus preservation proof.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/212"
     },
     {
       "name": "Punish the Enemy",
       "family": "damage-events",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference deduplicates the two targets before applying one3-damage amount, losing a second damage part when the same creature-planeswalker is chosen twice. Saved grammar correctly retains two simultaneous parts; both mandatory slots were reviewed.",
-      "evidence": "reference-audit/batch-014.json"
+      "evidence": "reference-audit/batch-014.json",
+      "producer_cause": "English action unions overlapping recipient sets and drops the second independent amount capture.",
+      "fix_notes": "See reference-damage-and-types-20261106.md. Existing source constructors preserve the complete remaining operands; no lowering, public schema or backend changes.",
+      "validation": "Before/after parser and normalized-IR regressions; three unequal-amount parser controls; explicit subtype-addition and conditional-destruction controls; exact whole-corpus preservation proof.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/212"
     },
     {
       "name": "Deification",
@@ -809,9 +825,13 @@
       "name": "Nogi, Draco-Zealot",
       "family": "followup-candidates",
       "reported_classification": "candidate",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "evidence": "mtgish-reference-review-candidates.json",
-      "summary": "An ordinary becomes-a-Dragon subtype change replaces prior creature types. This text contains no retention phrase. The new owned base-characteristic production yields Set; the old literal template still yields the matching Add reading, so reference agreement is retained without a uniqueness claim."
+      "summary": "An ordinary becomes-a-Dragon subtype change replaces prior creature types. This text contains no retention phrase. The new owned base-characteristic production yields Set; the old literal template still yields the matching Add reading, so reference agreement is retained without a uniqueness claim.",
+      "producer_cause": "English becomes-a-type template emits AddCreatureType despite no in-addition retention wording.",
+      "fix_notes": "See reference-damage-and-types-20261106.md. Existing source constructors preserve the complete remaining operands; no lowering, public schema or backend changes.",
+      "validation": "Before/after parser and normalized-IR regressions; three unequal-amount parser controls; explicit subtype-addition and conditional-destruction controls; exact whole-corpus preservation proof.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/214"
     },
     {
       "name": "Frightful Delusion",
@@ -1081,6 +1101,18 @@
       "fix_notes": "See reference-permanent-events-20261106.md. Both history queries change identically; controller, turn window, threshold, damage source, target and other abilities remain unchanged.",
       "upstream_report": "Fork Rust lowering only; not an upstream English-parser defect.",
       "validation": "Actual-card regression for matching condition/damage history plus complete six-site preservation proof."
+    },
+    {
+      "name": "Reptil, Dinomorpher",
+      "family": "subtype-replacement",
+      "reported_classification": "independently_confirmed_reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Both printed temporary Dinosaur Hero transformations replace prior creature types, but producer adds Dinosaur and Hero separately, retaining Human.",
+      "evidence": "Independent full caller audit of becomes-a-type templates while reviewing Nogi, Draco-Zealot.",
+      "producer_cause": "Two two-subtype English templates emit two additions rather than the existing SetCreatureTypes constructor.",
+      "fix_notes": "See reference-damage-and-types-20261106.md. Keep Dinosaur and Hero together in one Set operation; preserve mana costs, power/toughness, keywords and duration.",
+      "validation": "Two actual forms tested, with explicit Add source preserved as an independent negative control.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/214"
     }
   ],
   "normalization_questions": [

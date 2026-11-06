@@ -114478,15 +114478,18 @@ Card(
         IsCardtype(Creature),
       ),
       ActionList([
-        PermanentDealsDamage(
+        PermanentDealsMultipleDamage(
           ThisPermanent,
-          Integer(3),
-          Player(ControllerOfPermanent(Trigger_ThatOtherPermanent)),
-        ),
-        PermanentDealsDamage(
-          ThisPermanent,
-          Integer(3),
-          Player(You),
+          [
+            DamageToRecipients(
+              Integer(3),
+              Player(ControllerOfPermanent(Trigger_ThatOtherPermanent)),
+            ),
+            DamageToRecipients(
+              Integer(3),
+              Player(You),
+            ),
+          ],
         ),
       ]),
     ),
@@ -176047,13 +176050,18 @@ Card(
           UptoOneTargetPermanent(IsCardtype(Creature)),
         ],
         ActionList([
-          PermanentDealsDamage(
+          PermanentDealsMultipleDamage(
             ThatEnteringPermanent,
-            Integer(3),
-            MultipleRecipients([
-              Ref_TargetPlayerOrPermanent,
-              Permanent(Ref_TargetPermanent),
-            ]),
+            [
+              DamageToRecipients(
+                Integer(3),
+                Ref_TargetPlayerOrPermanent,
+              ),
+              DamageToRecipients(
+                Integer(3),
+                Permanent(Ref_TargetPermanent),
+              ),
+            ],
           ),
         ]),
       ),
@@ -498729,7 +498737,7 @@ Card(
         ],
         ActionList([
           DestroyPermanent(Ref_TargetPermanent),
-          GainLife(ToughnessOfCreatureDestroyedThisWay),
+          GainLife(ToughnessOfPermanent(Ref_TargetPermanent)),
         ]),
       ),
     ),
@@ -907174,7 +907182,7 @@ Card(
         CreatePermanentLayerEffectUntil(
           ThisPermanent,
           [
-            AddCreatureType(Dragon),
+            SetCreatureType(Dragon),
             SetPT(PT(
               5,
               5,
@@ -1010742,13 +1010750,18 @@ Card(
         TargetPermanent(IsCardtype(Creature)),
       ],
       ActionList([
-        SpellDealsDamage(
+        SpellDealsMultipleDamage(
           ThisSpell,
-          Integer(3),
-          MultipleRecipients([
-            Ref_TargetPlayerOrPermanent,
-            Permanent(Ref_TargetPermanent),
-          ]),
+          [
+            DamageToRecipients(
+              Integer(3),
+              Ref_TargetPlayerOrPermanent,
+            ),
+            DamageToRecipients(
+              Integer(3),
+              Permanent(Ref_TargetPermanent),
+            ),
+          ],
         ),
       ]),
     )),
@@ -1061441,8 +1061454,10 @@ Card(
         CreatePermanentLayerEffectUntil(
           ThisPermanent,
           [
-            AddCreatureType(Dinosaur),
-            AddCreatureType(Hero),
+            SetCreatureTypes([
+              Dinosaur,
+              Hero,
+            ]),
             SetPT(PT(
               3,
               5,
@@ -1061466,8 +1061481,10 @@ Card(
         CreatePermanentLayerEffectUntil(
           ThisPermanent,
           [
-            AddCreatureType(Dinosaur),
-            AddCreatureType(Hero),
+            SetCreatureTypes([
+              Dinosaur,
+              Hero,
+            ]),
             SetPT(PT(
               6,
               6,
