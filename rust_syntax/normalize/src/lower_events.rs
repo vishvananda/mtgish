@@ -212,6 +212,14 @@ impl Context {
         Ok(ObjectFilter::All(filters))
     }
 
+    // Use only when the event contract independently identifies a permanent,
+    // including its pre-departure view. Raw counter/targeting events do not.
+    fn permanent_event_filter(&self, objects: &source::Permanents) -> Result<ObjectFilter> {
+        let mut context = self.clone();
+        context.retain_permanent_type_guard = false;
+        context.filter(objects)
+    }
+
     fn trigger(&self, value: &source::Trigger) -> Result<EventSpec> {
         let mut context = self.clone();
         context.retain_permanent_type_guard = true;
@@ -298,6 +306,15 @@ impl Context {
                     },
                 }
             }
+            S::WhenAPermanentExplores(objects) => EventSpec::Object {
+                event: ObjectEvent::Explores,
+                objects: self.permanent_event_filter(objects)?,
+            },
+            S::WhenAPlayerSacrificesAPermanent(players, objects) => EventSpec::Player {
+                event: PlayerEvent::Sacrifices,
+                players: self.players(players)?,
+                objects: Some(self.permanent_event_filter(objects)?),
+            },
             S::WhenAPermanentEntersTheBattlefield(objects) => EventSpec::ZoneChange {
                 objects: self.filter(objects)?,
                 from: None,
@@ -313,7 +330,7 @@ impl Context {
                     // A permanent is put into its owner's graveyard (CR 400.3).
                     // This is a battlefield departure, not a card's "from anywhere" trigger.
                     objects: ObjectFilter::All(vec![
-                        self.filter(objects)?,
+                        self.permanent_event_filter(objects)?,
                         ObjectFilter::OwnedBy(self.players(players)?),
                     ]),
                     from: Some(EventZone::Battlefield),

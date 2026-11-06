@@ -4,7 +4,8 @@
     "reference-audit/fix-groups.json": "c5d396941641c67c1f4ef922d2638efcba1e06fc53ea0904619b7740160fb442",
     "reference-fix-followup.md": "674db82b0a7daefa774d36b2ab3fa59481b05c0a8fed363dba4ebc1b42c2badb",
     "mtgish-reference-review-candidates.json": "0b19a127afd77e729f091c14228db32e8a4539a41548d5a35b8fcc3e94f4cc85",
-    "qualified-keyword-source/reference-issues.json": "1499532cb0954a03c3b6168628fd057b43411718cbff237ac9147a7930bfebc2"
+    "qualified-keyword-source/reference-issues.json": "1499532cb0954a03c3b6168628fd057b43411718cbff237ac9147a7930bfebc2",
+    "permanent-domains/reference-issues.json": "ab61b05aca8e3fe51b4af479b45de61109a6b9027140c22ccc2cb2a8201dbecf"
   },
   "scope_note": "Worker classifications are reports awaiting independent current-producer review. No reference gold, equality aliases, pins or oracle-grammar files are modified. Representation questions are tracked separately from behavioral fixes.",
   "cards": [
@@ -1020,6 +1021,66 @@
       "fix_notes": "Preserves the announced target once, per-recipient one-damage limit, this-turn duration, tap cost and unrestricted damage sources. See reference-selector-domains-20261106.md.",
       "validation": "New source and IR regressions fail before/pass after; all eight other local Radiance cards inspected and seven remain byte-identical.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/211"
+    },
+    {
+      "name": "Herald's Reveille",
+      "family": "permanent-event-domains",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Exploration history retests six current card types despite the independent permanent-exploration event domain.",
+      "evidence": "permanent-domains/reference-issues.json",
+      "producer_cause": "Conservative erased-domain binding guard is retained even where the selected event contract independently guarantees the permanent domain.",
+      "fix_notes": "See reference-permanent-events-20261106.md. Exact three event constructors use internal permanent-domain selector binding; all other raw callers remain guarded.",
+      "upstream_report": "Fork Rust lowering only; not an upstream English-parser defect.",
+      "validation": "Five exact card regressions fail before/pass after; explicit six-type restrictions and permanent-card from-anywhere triggers remain restricted."
+    },
+    {
+      "name": "The Balrog, Durin's Bane",
+      "family": "permanent-event-domains",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Sacrifice history retests six current card types despite the independent battlefield-sacrifice event domain.",
+      "evidence": "permanent-domains/reference-issues.json",
+      "producer_cause": "Conservative erased-domain binding guard is retained even where the selected event contract independently guarantees the permanent domain.",
+      "fix_notes": "See reference-permanent-events-20261106.md. Exact three event constructors use internal permanent-domain selector binding; all other raw callers remain guarded.",
+      "upstream_report": "Fork Rust lowering only; not an upstream English-parser defect.",
+      "validation": "Five exact card regressions fail before/pass after; explicit six-type restrictions and permanent-card from-anywhere triggers remain restricted."
+    },
+    {
+      "name": "Yuna, Grand Summoner",
+      "family": "permanent-event-domains",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Battlefield-to-graveyard trigger retests six current card types despite its explicit battlefield origin.",
+      "evidence": "permanent-domains/reference-issues.json",
+      "producer_cause": "Conservative erased-domain binding guard is retained even where the selected event contract independently guarantees the permanent domain.",
+      "fix_notes": "See reference-permanent-events-20261106.md. Exact three event constructors use internal permanent-domain selector binding; all other raw callers remain guarded.",
+      "upstream_report": "Fork Rust lowering only; not an upstream English-parser defect.",
+      "validation": "Five exact card regressions fail before/pass after; explicit six-type restrictions and permanent-card from-anywhere triggers remain restricted."
+    },
+    {
+      "name": "It That Betrays",
+      "family": "permanent-event-domains",
+      "reported_classification": "independently_confirmed_reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Full caller audit finds the same six-type restriction on the independently permanent sacrifice event; opponent, nontoken and existing source exclusion remain unchanged.",
+      "evidence": "Independent full typed caller audit of permanent exploration, sacrifice and battlefield-to-graveyard events.",
+      "producer_cause": "Conservative erased-domain binding guard is retained even where the selected event contract independently guarantees the permanent domain.",
+      "fix_notes": "See reference-permanent-events-20261106.md. Exact three event constructors use internal permanent-domain selector binding; all other raw callers remain guarded.",
+      "upstream_report": "Fork Rust lowering only; not an upstream English-parser defect.",
+      "validation": "Five exact card regressions fail before/pass after; explicit six-type restrictions and permanent-card from-anywhere triggers remain restricted."
+    },
+    {
+      "name": "Sawblade Skinripper",
+      "family": "permanent-event-domains",
+      "reported_classification": "independently_confirmed_reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Condition and damage history queries both retest six current card types on the same independently permanent sacrifice event.",
+      "evidence": "Independent full-corpus comparison of all callers of permanent sacrifice events, checked against complete local Oracle text.",
+      "producer_cause": "Conservative erased-domain binding guard remains on the sacrifice history event despite that event's independent battlefield domain.",
+      "fix_notes": "See reference-permanent-events-20261106.md. Both history queries change identically; controller, turn window, threshold, damage source, target and other abilities remain unchanged.",
+      "upstream_report": "Fork Rust lowering only; not an upstream English-parser defect.",
+      "validation": "Actual-card regression for matching condition/damage history plus complete six-site preservation proof."
     }
   ],
   "normalization_questions": [
