@@ -11,25 +11,34 @@
       "name": "Rethink",
       "family": "computed-payment-values",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference computed X is a dead BindValue and never reaches the plain Mana[X] payment. Grammar ManaWithX explicitly supplies target mana value. Target spell, payer controller, unpaid condition and counter destination were reviewed.",
-      "evidence": "reference-audit/batch-015.json"
+      "evidence": "reference-audit/batch-015.json",
+      "producer_cause": "lower_operand_pipeline::bind_cost_recipe(ManaX) discards ValueX expression and emits plain Mana([X]) despite an available bound value.",
+      "upstream_report": "Fork Rust lowering only; not an upstream English-parser defect.",
+      "validation": "Full33529record semantic/structural check; exact eight-card IR delta; full1223 AST tests and185 unchanged audit usage records; focused four-test suite including additional upkeep caller."
     },
     {
       "name": "Spell Rupture",
       "family": "computed-payment-values",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native captures greatest power but never connects captured result to X payment. Parser explicitly binds ManaWithX to greatest power.",
-      "evidence": "reference-audit/batch-017.json"
+      "evidence": "reference-audit/batch-017.json",
+      "producer_cause": "lower_operand_pipeline::bind_cost_recipe(ManaX) discards ValueX expression and emits plain Mana([X]) despite an available bound value.",
+      "upstream_report": "Fork Rust lowering only; not an upstream English-parser defect.",
+      "validation": "Full33529record semantic/structural check; exact eight-card IR delta; full1223 AST tests and185 unchanged audit usage records; focused four-test suite including additional upkeep caller."
     },
     {
       "name": "Thassa's Rebuff",
       "family": "computed-payment-values",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Target controller, devotion-to-blue expression and conditional counter reviewed. Native computes devotion into an unused BindValue, but PayCost has plain Mana[X] with no operand reference to it. Current explicitly supplies the computed devotion through ManaWithX.",
-      "evidence": "reference-audit/batch-018.json"
+      "evidence": "reference-audit/batch-018.json",
+      "producer_cause": "lower_operand_pipeline::bind_cost_recipe(ManaX) discards ValueX expression and emits plain Mana([X]) despite an available bound value.",
+      "upstream_report": "Fork Rust lowering only; not an upstream English-parser defect.",
+      "validation": "Full33529record semantic/structural check; exact eight-card IR delta; full1223 AST tests and185 unchanged audit usage records; focused four-test suite including additional upkeep caller."
     },
     {
       "name": "Arcane Artisan",
@@ -451,17 +460,23 @@
       "name": "Offering to Asha",
       "family": "control-flow",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Counter target, target-controller four-mana offer and failure counter condition agree. Native wrongly puts the independent four-life gain inside the nonpayment branch; current leaves it unconditional.",
-      "evidence": "reference-audit/batch-013.json"
+      "evidence": "reference-audit/batch-013.json",
+      "upstream_verification": "Same incorrect Unless branch confirmed on i5jb/mtgish main bdac5ca.",
+      "validation": "Full33529record semantic/structural check; exact eight-card IR delta; full1223 AST tests and185 unchanged audit usage records; focused four-test suite including additional upkeep caller.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/204"
     },
     {
       "name": "Stymied Hopes",
       "family": "control-flow",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native Scry1 is wrongly inside unpaid branch; parser places it unconditionally after conditional counter.",
-      "evidence": "reference-audit/batch-017.json"
+      "evidence": "reference-audit/batch-017.json",
+      "upstream_verification": "Same incorrect Unless branch confirmed on i5jb/mtgish main bdac5ca.",
+      "validation": "Full33529record semantic/structural check; exact eight-card IR delta; full1223 AST tests and185 unchanged audit usage records; focused four-test suite including additional upkeep caller.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/204"
     },
     {
       "name": "Satya, Aetherflux Genius",
@@ -657,6 +672,33 @@
       "review_status": "pending_current_producer_review",
       "evidence": "mtgish-reference-review-candidates.json",
       "summary": "An ordinary becomes-a-Dragon subtype change replaces prior creature types. This text contains no retention phrase. The new owned base-characteristic production yields Set; the old literal template still yields the matching Add reading, so reference agreement is retained without a uniqueness claim."
+    },
+    {
+      "name": "Frightful Delusion",
+      "family": "control-flow",
+      "reported_classification": "additional_current_template_caller",
+      "review_status": "fixed_current_producer",
+      "evidence": "Local Oracle text and failing real English parser regression; same incorrect template in i5jb main bdac5ca.",
+      "validation": "Full33529record semantic/structural check; exact eight-card IR delta; full1223 AST tests and185 unchanged audit usage records; focused four-test suite including additional upkeep caller.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/204"
+    },
+    {
+      "name": "Sage's Dousing",
+      "family": "control-flow",
+      "reported_classification": "additional_current_template_caller",
+      "review_status": "fixed_current_producer",
+      "evidence": "Local Oracle text and failing real English parser regression; same incorrect template in i5jb main bdac5ca.",
+      "validation": "Full33529record semantic/structural check; exact eight-card IR delta; full1223 AST tests and185 unchanged audit usage records; focused four-test suite including additional upkeep caller.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/204"
+    },
+    {
+      "name": "Primordial Ooze",
+      "family": "computed-payment-values",
+      "reported_classification": "additional_current_lowerer_caller",
+      "review_status": "fixed_current_producer",
+      "summary": "The upkeep payment must use the same pre-payment counter-count binding as the nonpayment damage. Discovered in complete export delta; every other operand preserved.",
+      "upstream_report": "Fork Rust lowering only; source English already connects PayManaX(ValueX).",
+      "validation": "Dedicated upkeep cost/damage snapshot regression passes."
     }
   ],
   "normalization_questions": [

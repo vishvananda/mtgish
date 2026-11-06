@@ -60,6 +60,10 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Offering to Asha", []string{"Unless(CostWasPaid, [CounterSpell(Ref_TargetSpell)]), GainLife(Integer(4))"}, nil},
+		{"Stymied Hopes", []string{"Unless(CostWasPaid, [CounterSpell(Ref_TargetSpell)]), Scry(Integer(1))"}, nil},
+		{"Frightful Delusion", []string{"Unless(CostWasPaid, [CounterSpell(Ref_TargetSpell)]), PlayerAction(ControllerOfSpell(Ref_TargetSpell), DiscardACard)"}, nil},
+		{"Sage's Dousing", []string{"Unless(CostWasPaid, [CounterSpell(Ref_TargetSpell)]), If("}, nil},
 		{"Insubordination", []string{"PermanentPassesFilter(Trigger_ThatPermanent, AttackedThisTurn)", "Player(Trigger_ThatPlayer)"}, []string{"PermanentDealsDamage(ThisPermanent, Integer(2), Player(HostController))"}},
 		{"Lingering Death", []string{"PlayerAction(Trigger_ThatPlayer, SacrificePermanent(Trigger_ThatPermanent))"}, []string{"PlayerAction(HostController"}},
 		{"Aggression", []string{"PermanentPassesFilter(Trigger_ThatPermanent, DidntAttackThisTurn)", "DestroyPermanent(Trigger_ThatPermanent)"}, []string{"PermanentPassesFilter(HostPermanent, DidntAttackThisTurn)", "DestroyPermanent(HostPermanent)"}},

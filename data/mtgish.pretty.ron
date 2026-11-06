@@ -483135,11 +483135,11 @@ Card(
           CostWasPaid,
           [
             CounterSpell(Ref_TargetSpell),
-            PlayerAction(
-              ControllerOfSpell(Ref_TargetSpell),
-              DiscardACard,
-            ),
           ],
+        ),
+        PlayerAction(
+          ControllerOfSpell(Ref_TargetSpell),
+          DiscardACard,
         ),
       ]),
     )),
@@ -920669,9 +920669,9 @@ Card(
           CostWasPaid,
           [
             CounterSpell(Ref_TargetSpell),
-            GainLife(Integer(4)),
           ],
         ),
+        GainLife(Integer(4)),
       ]),
     )),
   ],
@@ -1109022,15 +1109022,15 @@ Card(
           CostWasPaid,
           [
             CounterSpell(Ref_TargetSpell),
-            If(
-              PlayerPassesFilter(
-                You,
-                ControlsA(IsCreatureType(Wizard)),
-              ),
-              [
-                DrawACard,
-              ],
-            ),
+          ],
+        ),
+        If(
+          PlayerPassesFilter(
+            You,
+            ControlsA(IsCreatureType(Wizard)),
+          ),
+          [
+            DrawACard,
           ],
         ),
       ]),
@@ -1282589,9 +1282589,9 @@ Card(
           CostWasPaid,
           [
             CounterSpell(Ref_TargetSpell),
-            Scry(Integer(1)),
           ],
         ),
+        Scry(Integer(1)),
       ]),
     )),
   ],

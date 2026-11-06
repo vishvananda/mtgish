@@ -69,9 +69,15 @@ impl Context {
                     let cost = source::Cost::PayManaX(mana.clone(), Box::new(variable.clone()));
                     return self.primitive_cost(&cost).ok_or_else(|| unsupported(&cost));
                 }
-                vec![CostPart::Mana(
-                    mana.iter().map(mana_symbol_x).collect::<Result<_>>()?,
-                )]
+                let mana = mana.iter().map(mana_symbol_x).collect::<Result<_>>()?;
+                if self.value_x.is_some() || self.event.activation_x {
+                    vec![CostPart::ManaWithX {
+                        mana,
+                        x: Some(self.number(variable)?),
+                    }]
+                } else {
+                    vec![CostPart::Mana(mana)]
+                }
             }
             R::TapPermanent { object, tapped } => {
                 if matches!(object, source::Permanent::ThisPermanent) && *tapped {
