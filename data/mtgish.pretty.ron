@@ -377331,52 +377331,49 @@ Card(
         ),
       ]),
       ActionList([
-        CreatePerpetualGraveyardCardEffect(
-          Trigger_ThatGraveyardCard,
-          [
-            AddAbility([
-              FromGraveyard(ActivatedWithModifiers(
-                And([
-                  PayMana([
-                    ManaCostGeneric(2),
-                  ]),
-                  Exile(
-                    [
-                      CardInGraveyards(ThisGraveyardCard),
-                    ],
-                    [],
-                  ),
+        CreatePerpetualTriggeredCardEffect([
+          AddAbility([
+            FromGraveyard(ActivatedWithModifiers(
+              And([
+                PayMana([
+                  ManaCostGeneric(2),
                 ]),
-                ActionList([
-                  CreateTokens(
-                    [
-                      TokenWithPT(
-                        PTX(
-                          X,
-                          X,
-                          PowerOfTheExiledCreature,
-                        ),
-                        Colors([
-                          Green,
-                        ]),
-                        [],
-                        [
-                          Creature,
-                        ],
-                        SubtypesList([
-                          Ooze,
-                        ]),
-                        [],
+                Exile(
+                  [
+                    CardInGraveyards(ThisGraveyardCard),
+                  ],
+                  [],
+                ),
+              ]),
+              ActionList([
+                CreateTokens(
+                  [
+                    TokenWithPT(
+                      PTX(
+                        X,
+                        X,
+                        PowerOfTheExiledCreature,
                       ),
-                    ],
-                    [],
-                  ),
-                ]),
-                ActivateOnlyAsASorcery,
-              )),
-            ]),
-          ],
-        ),
+                      Colors([
+                        Green,
+                      ]),
+                      [],
+                      [
+                        Creature,
+                      ],
+                      SubtypesList([
+                        Ooze,
+                      ]),
+                      [],
+                    ),
+                  ],
+                  [],
+                ),
+              ]),
+              ActivateOnlyAsASorcery,
+            )),
+          ]),
+        ]),
       ]),
     ),
     Blitz(PayMana([
@@ -654750,28 +654747,31 @@ Card(
             TargetPlayer(AnyPlayer),
           ],
           ActionList([
-            CreateTokens(
-              [
-                TokenWithPT(
-                  PTX(
-                    X,
-                    X,
-                    TheNumberOfCardsInPlayersHand(Ref_TargetPlayer),
+            PlayerAction(
+              Ref_TargetPlayer,
+              CreateTokens(
+                [
+                  TokenWithPT(
+                    PTX(
+                      X,
+                      X,
+                      TheNumberOfCardsInPlayersHand(Ref_TargetPlayer),
+                    ),
+                    Colors([
+                      Blue,
+                    ]),
+                    [],
+                    [
+                      Creature,
+                    ],
+                    SubtypesList([
+                      Illusion,
+                    ]),
+                    [],
                   ),
-                  Colors([
-                    Blue,
-                  ]),
-                  [],
-                  [
-                    Creature,
-                  ],
-                  SubtypesList([
-                    Illusion,
-                  ]),
-                  [],
-                ),
-              ],
-              [],
+                ],
+                [],
+              ),
             ),
           ]),
         ),
@@ -654797,28 +654797,31 @@ Card(
             TargetPlayer(AnyPlayer),
           ],
           ActionList([
-            CreateTokens(
-              [
-                TokenWithPT(
-                  PTX(
-                    X,
-                    X,
-                    TheNumberOfCardsInPlayersHand(Ref_TargetPlayer),
+            PlayerAction(
+              Ref_TargetPlayer,
+              CreateTokens(
+                [
+                  TokenWithPT(
+                    PTX(
+                      X,
+                      X,
+                      TheNumberOfCardsInPlayersHand(Ref_TargetPlayer),
+                    ),
+                    Colors([
+                      Blue,
+                    ]),
+                    [],
+                    [
+                      Creature,
+                    ],
+                    SubtypesList([
+                      Illusion,
+                    ]),
+                    [],
                   ),
-                  Colors([
-                    Blue,
-                  ]),
-                  [],
-                  [
-                    Creature,
-                  ],
-                  SubtypesList([
-                    Illusion,
-                  ]),
-                  [],
-                ),
-              ],
-              [],
+                ],
+                [],
+              ),
             ),
           ]),
         ),
@@ -1006763,12 +1006766,7 @@ Card(
         ]),
       ),
       ActionList([
-        Exile(
-          [
-            CardInGraveyards(Trigger_ThatSacrificedPermanent),
-          ],
-          [],
-        ),
+        ExileTriggeredCard([]),
         If(
           PermanentPassesFilter(
             Trigger_ThatSacrificedPermanent,
@@ -1030054,7 +1030052,10 @@ Card(
       ActionList([
         PlayerAction(
           Trigger_ThatPlayer,
-          SacrificeHalfOfThePermanentsRoundedUp(IsNonCreatureType(Demon)),
+          SacrificeHalfOfThePermanentsRoundedUp(And([
+            IsNonCreatureType(Demon),
+            ControlledByAPlayer(SinglePlayer(Trigger_ThatPlayer)),
+          ])),
         ),
       ]),
     ),

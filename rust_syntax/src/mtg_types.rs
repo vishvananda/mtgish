@@ -10163,6 +10163,7 @@ pub enum Action {
   // The matched event's first public-zone card, including replaced sacrifices.
   PutTriggeredCardOntoBattlefield(Vec<EnterFlag>),
   ExileTriggeredCard(Vec<ExileFlag>),
+  CreatePerpetualTriggeredCardEffect(Vec<PerpetualEffect>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]

@@ -650,10 +650,15 @@ impl Context {
 
     /// A perpetual effect is an ordinary layer change that outlives its zone.
     /// Whichever objects it names, the row has already bound them.
-    fn perpetual(&self, value: &source::Action, subject: Option<&Operand>) -> Option<Operation> {
+    pub(super) fn perpetual(
+        &self,
+        value: &source::Action,
+        subject: Option<&Operand>,
+    ) -> Option<Operation> {
         use source::Action as S;
         let effects = match value {
-            S::CreatePerpetualCardsInHandEffect(_, effects)
+            S::CreatePerpetualTriggeredCardEffect(effects)
+            | S::CreatePerpetualCardsInHandEffect(_, effects)
             | S::CreatePerpetualPermanentEffect(_, effects)
             | S::CreatePerpetualCardInHandEffect(_, effects)
             | S::CreatePerpetualCardInLibraryEffect(_, effects)
@@ -674,6 +679,9 @@ impl Context {
             Some(self.private_cards(EventZone::Hand, you, filter))
         };
         let objects = match (value, subject) {
+            (S::CreatePerpetualTriggeredCardEffect(_), _) if self.event.moved => {
+                ObjectSet::One(ObjectRef::EventDestination)
+            }
             (S::CreatePerpetualCardInHandEffect(card, _), _) => {
                 ObjectSet::One(self.hand_card(card).ok()?)
             }

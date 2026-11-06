@@ -2837,6 +2837,12 @@ impl Context {
     }
 
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        if let source::Action::CreatePerpetualTriggeredCardEffect(_) = value {
+            let operation = self
+                .perpetual(value, None)
+                .ok_or_else(|| invalid("a perpetual triggered-card effect requires a moved card"))?;
+            return Ok(self.effect(operation));
+        }
         if let source::Action::PutTriggeredCardOntoBattlefield(flags) = value {
             let object = if self.event.discarded {
                 ObjectRef::Discarded

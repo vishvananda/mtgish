@@ -1347,6 +1347,7 @@
     "ReturnDiscardedCardToHand": "",
     "PutTriggeredCardOntoBattlefield({{ENTER_FLAGS}})": "",
     "ExileTriggeredCard({{EXILE_FLAGS}})": "",
+    "CreatePerpetualTriggeredCardEffect({{PERPETUAL_EFFECT_LIST}})": "",
     "ReturnGraveyardCardToHand({{CARD_IN_GRAVEYARDS}})": "",
     "ReturnGraveyardCardToTopOrBottomOfLibrary({{CARD_IN_GRAVEYARDS}})": "",
     "ReturnGraveyardCardsToHand({{GRAVEYARD_CARDS}})": "",
