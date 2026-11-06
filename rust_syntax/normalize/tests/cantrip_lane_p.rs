@@ -15,7 +15,7 @@ const CARDS: &[(&str, &str)] = &[
     // A saga's chapter divides as any triggered ability does.
     (
         "Revival of the Ancestors",
-        ".divide(Divide { total: 3, of_x: None })",
+        ".divide(Divide { total: 3, reads: None })",
     ),
     // Every spell is of a type a spell can be.
     (

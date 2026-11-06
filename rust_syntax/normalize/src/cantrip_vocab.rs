@@ -1,6 +1,6 @@
 // Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.
 // These names are inert metadata, never behavior.
-pub const API_FINGERPRINT: &str = "048a526b73cbce98e2422f3ae78ef61547f2b0b55bbee8f5552315820c2e37fa";
+pub const API_FINGERPRINT: &str = "a083d3ad2e01e10a0ade92d525cce3e37df0553c3a040f12fc3ce9e94565aea1";
 pub const SUBTYPES: &[&str] = &[
     "Adventure",
     "Advisor",
@@ -563,6 +563,7 @@ pub const KEYWORDS: &[&str] = &[
     "CantBeCopied",
     "Mutate",
     "ReadAhead",
+    "AssignsDamageByToughness",
     "SnowPlainswalk",
     "SnowIslandwalk",
     "SnowSwampwalk",
@@ -570,7 +571,6 @@ pub const KEYWORDS: &[&str] = &[
     "SnowForestwalk",
     "SnowLandwalk",
     "Desertwalk",
-    "AssignsDamageByToughness",
 ];
 pub const COUNTERS: &[&str] = &[
     "PlusOne",
@@ -637,6 +637,8 @@ pub const COUNTERS: &[&str] = &[
     "Vitality",
     "Fire",
     "Conqueror",
+    "Film",
+    "Peace",
     "Wind",
     "Hatchling",
     "Sleep",
@@ -661,8 +663,6 @@ pub const COUNTERS: &[&str] = &[
     "Storage",
     "Tide",
     "Music",
-    "Film",
-    "Peace",
 ];
 pub const LASTING_RULE_KINDS: &[&str] = &[
     "CantAttack",
@@ -671,4 +671,4 @@ pub const LASTING_RULE_KINDS: &[&str] = &[
     "MustAttackPlayerOtherThanYou",
     "DoesntUntap",
 ];
-pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "wide-effect-quantities", "snow-mana", "non-target-attachment-hosts", "simultaneous-replacement-damage", "target-original-context", "delayed-watched-source", "multiple-blocks", "cost-object-receipts", "game-draw-legality"];
+pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "divide-reads-context", "typed-prevention-amount", "32-bit-effect-quantities", "snow-mana", "non-target-attachment-hosts", "simultaneous-replacement-damage", "target-original-context", "delayed-watched-source", "multiple-blocks", "cost-object-receipts", "game-draw-legality"];

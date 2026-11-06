@@ -15,9 +15,9 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Aurelia's Vindicator", ".counted_by(", true),
     ("Aurelia's Vindicator", ".x)", true),
     // "X plus one damage divided as you choose among any number of targets".
-    ("Meteor Shower", "of_x: Some(", true),
+    ("Meteor Shower", "reads: Some(", true),
     ("Meteor Shower", "TargetSpec::ANY_NUMBER", true),
-    ("Shatterskull Smashing", "of_x: Some(", true),
+    ("Shatterskull Smashing", "reads: Some(", true),
     // A planeswalker with loyalty X enters with X loyalty counters (CR 306.5b).
     ("Nissa, Steward of Elements", "enters_with_x_loyalty", true),
     // Removing X counters now announces and reads the mana activation's own X.
