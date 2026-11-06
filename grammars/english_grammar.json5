@@ -19259,7 +19259,7 @@
     "Enchanted creature can't be blocked by {{Creatures}}": "PermanentRuleEffect(HostPermanent, [CantBeBlockedByDefenders({{Creatures[0]}})])",
     "Enchanted creature can't be blocked except by {{Creatures}}": "PermanentRuleEffect(HostPermanent, [CantBeBlockedExceptByDefenders({{Creatures[0]}})])",
     "Enchanted creature can't be blocked except by {{Creatures}} and/or {{Creatures}}": "PermanentRuleEffect(HostPermanent, [CantBeBlockedExceptByDefenders(Or([{{Creatures[0]}}, {{Creatures[1]}}]))])",
-    "Enchanted creature can't be blocked unless defending player pays {{ManaCost}} for each creature they control that's blocking it": "PermanentRuleEffect(HostPermanent, [CantBeBlockedUnlessCost(PayManaForEach({{ManaCost[0]}}, TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(DefendingPlayer)), IsBlockingAttacker(HostPermanent)]))))])",
+    "Enchanted creature can't be blocked unless defending player pays {{ManaCost}} for each creature they control that's blocking it": "PermanentRuleEffect(HostPermanent, [CantBeBlockedUnlessCost(PayMana({{ManaCost[0]}}))])",
     "Enchanted creature can't block": "PermanentRuleEffect(HostPermanent, [CantBlock])",
     "Enchanted creature can't block creatures with power equal to or greater than the enchanted creature's toughness": "PermanentRuleEffect(HostPermanent, [CantBlockAttackers(And([IsCardtype(Creature), PowerIs(GreaterThanOrEqualTo(ToughnessOfPermanent(HostPermanent)))]))])",
     "Enchanted creature can't block {{Creatures}}": "PermanentRuleEffect(HostPermanent, [CantBlockAttackers({{Creatures[0]}})])",

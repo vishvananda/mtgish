@@ -179,8 +179,9 @@ fn declaration_costs_belong_to_the_declaring_player_and_remain_separate_from_req
         [Change::Rule(RuleChange::CombatCost {
             action: ObjectAction::BeBlocked(_),
             payer: PlayerRef::DeclaringPlayer,
-            ..
-        })]
+            cost: Cost { parts },
+        })] if matches!(parts.as_slice(), [CostPart::Mana(mana)]
+            if matches!(mana.as_slice(), [ManaSymbol::Generic(3)]))
     ));
     let c = card("Courtly Provocateur");
     assert!(

@@ -50,7 +50,7 @@ Word-token mining over every template, then a rule table, found more wrong liter
 - [#24](https://github.com/i5jb/mtgish/issues/24): Eight cards encode upkeep as end step.
 - [#25](https://github.com/i5jb/mtgish/issues/25): Twenty-six cards have another wrong literal.
 
-Requiring one output token per English occurrence, for phrases that must survive into the encoding, then found clauses dropped from single templates. These were filed the same day and repaired locally, except Awesome Presence, whose per-blocker cost has no source form yet:
+Requiring one output token per English occurrence, for phrases that must survive into the encoding, then found clauses dropped from single templates. These were filed the same day and repaired locally. Awesome Presence was subsequently corrected following the [maintainer's clarification](https://github.com/i5jb/mtgish/issues/33#issuecomment-6658070401): `CantBeBlockedUnlessCost` already applies its cost per declared blocker, so it takes plain `PayMana`, without another blocker-count multiplier. Creatures created blocking do not pay this declaration cost.
 
 - [#26](https://github.com/i5jb/mtgish/issues/26): Thirteen cards lose "tapped".
 - [#27](https://github.com/i5jb/mtgish/issues/27): Five cards encode "in a random order" as any order.

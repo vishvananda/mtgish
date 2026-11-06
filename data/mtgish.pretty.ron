@@ -19285,11 +19285,11 @@ Card(
       ActionList([
         If(
           PermanentPassesFilter(
-            HostPermanent,
+            Trigger_ThatPermanent,
             DidntAttackThisTurn,
           ),
           [
-            DestroyPermanent(HostPermanent),
+            DestroyPermanent(Trigger_ThatPermanent),
           ],
         ),
       ]),
@@ -49035,13 +49035,13 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerMayCost(
-          HostController,
+          Trigger_ThatPlayer,
           DiscardACardAtRandom,
         ),
         If(
           CostWasPaid,
           [
-            UntapPermanent(HostPermanent),
+            UntapPermanent(Trigger_ThatPermanent),
           ],
         ),
       ]),
@@ -88047,16 +88047,9 @@ Card(
     PermanentRuleEffect(
       HostPermanent,
       [
-        CantBeBlockedUnlessCost(PayManaForEach(
-          [
-            ManaCostGeneric(3),
-          ],
-          TheNumberOfPermanentsOnTheBattlefield(And([
-            IsCardtype(Creature),
-            ControlledByAPlayer(SinglePlayer(DefendingPlayer)),
-            IsBlockingAttacker(HostPermanent),
-          ])),
-        )),
+        CantBeBlockedUnlessCost(PayMana([
+          ManaCostGeneric(3),
+        ])),
       ],
     ),
   ],
@@ -280399,8 +280392,8 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerMayCost(
-          HostController,
-          SacrificePermanent(HostPermanent),
+          Trigger_ThatPlayer,
+          SacrificePermanent(Trigger_ThatPermanent),
         ),
         Unless(
           CostWasPaid,
@@ -280408,7 +280401,7 @@ Card(
             PermanentDealsDamage(
               ThisPermanent,
               Integer(2),
-              Player(HostController),
+              Player(Trigger_ThatPlayer),
             ),
           ],
         ),
@@ -288245,7 +288238,7 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerMayCost(
-          HostController,
+          Trigger_ThatPlayer,
           PayMana([
             ManaCostGeneric(1),
             ManaCostB,
@@ -288254,7 +288247,7 @@ Card(
         If(
           CostWasPaid,
           [
-            UntapPermanent(HostPermanent),
+            UntapPermanent(Trigger_ThatPermanent),
           ],
         ),
       ]),
@@ -397045,7 +397038,13 @@ Card(
               IsCardtype(Land),
             ]),
             Other(HostPermanentOf(Ref_TargetPermanent)),
-            SharesACardtypeWithPermanent(HostPermanentOf(Ref_TargetPermanent)),
+            SharesACardtypeWithPermanentFromAmongCardtypes(
+              HostPermanentOf(Ref_TargetPermanent),
+              [
+                Creature,
+                Land,
+              ],
+            ),
           ]),
         ),
       ]),
@@ -406415,7 +406414,7 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerMayCost(
-          HostController,
+          Trigger_ThatPlayer,
           Or([
             PayMana([
               ManaCostGeneric(1),
@@ -406426,7 +406425,7 @@ Card(
         Unless(
           CostWasPaid,
           [
-            DestroyPermanent(HostPermanent),
+            DestroyPermanent(Trigger_ThatPermanent),
           ],
         ),
       ]),
@@ -409886,7 +409885,7 @@ Card(
               0,
               -1,
             ),
-            HostPermanent,
+            Trigger_ThatPermanent,
           ),
         ]),
       ]),
@@ -657388,14 +657387,14 @@ Card(
       ActionList([
         Unless(
           PermanentPassesFilter(
-            HostPermanent,
+            Trigger_ThatPermanent,
             AttackedThisTurn,
           ),
           [
             PermanentDealsDamage(
               ThisPermanent,
               Integer(2),
-              Player(HostController),
+              Player(Trigger_ThatPlayer),
             ),
           ],
         ),
@@ -736224,9 +736223,9 @@ Card(
     TriggerA(
       WhenAPermanentBecomesTapped(SinglePermanent(HostPermanent)),
       ActionList([
-        DestroyPermanent(HostPermanent),
+        DestroyPermanent(Trigger_ThatPermanent),
         PlayerMayAction(
-          ControllerOfPermanent(HostPermanent),
+          ControllerOfPermanent(Trigger_ThatPermanent),
           AttachPermanentToAPermanent(
             ThisPermanent,
             IsCardtype(Land),
@@ -766327,8 +766326,8 @@ Card(
       AtTheBeginningOfAPlayersEndStep(SinglePlayer(HostController)),
       ActionList([
         PlayerAction(
-          HostController,
-          SacrificePermanent(HostPermanent),
+          Trigger_ThatPlayer,
+          SacrificePermanent(Trigger_ThatPermanent),
         ),
       ]),
     ),
@@ -836064,7 +836063,7 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerMayCost(
-          HostController,
+          Trigger_ThatPlayer,
           PayMana([
             ManaCostGeneric(3),
           ]),
@@ -836075,9 +836074,9 @@ Card(
             PermanentDealsDamage(
               ThisPermanent,
               Integer(2),
-              Player(HostController),
+              Player(Trigger_ThatPlayer),
             ),
-            TapPermanent(HostPermanent),
+            TapPermanent(Trigger_ThatPermanent),
           ],
         ),
       ]),
@@ -953875,7 +953874,7 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerMayCost(
-          HostController,
+          Trigger_ThatPlayer,
           PayMana([
             ManaCostGeneric(4),
           ]),
@@ -953883,7 +953882,7 @@ Card(
         If(
           CostWasPaid,
           [
-            UntapPermanent(HostPermanent),
+            UntapPermanent(Trigger_ThatPermanent),
           ],
         ),
       ]),
@@ -955378,17 +955377,17 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerAction(
-          HostController,
+          Trigger_ThatPlayer,
           RevealTopCardOfLibrary,
         ),
         IfElse(
           ACardWasRevealedThisWay(IsCardtype(Land)),
           [
-            DestroyPermanent(HostPermanent),
+            DestroyPermanent(Trigger_ThatPermanent),
           ],
           [
             CreatePermanentLayerEffectUntil(
-              HostPermanent,
+              Trigger_ThatPermanent,
               [
                 AdjustPT(
                   3,
@@ -1210217,7 +1210216,7 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerMayCost(
-          HostController,
+          Trigger_ThatPlayer,
           PayMana([
             ManaCostGeneric(2),
           ]),
@@ -1210226,8 +1210225,8 @@ Card(
           CostWasPaid,
           [
             PlayerAction(
-              HostController,
-              SacrificePermanent(HostPermanent),
+              Trigger_ThatPlayer,
+              SacrificePermanent(Trigger_ThatPermanent),
             ),
           ],
         ),
@@ -1226753,20 +1226752,20 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerMayCost(
-          HostController,
+          Trigger_ThatPlayer,
           PayManaX(
             [
               ManaCostX,
             ],
-            ManaValueOfPermanent(HostPermanent),
+            ManaValueOfPermanent(Trigger_ThatPermanent),
           ),
         ),
         Unless(
           CostWasPaid,
           [
             PlayerAction(
-              HostController,
-              SacrificePermanent(HostPermanent),
+              Trigger_ThatPlayer,
+              SacrificePermanent(Trigger_ThatPermanent),
             ),
           ],
         ),
@@ -1262865,7 +1262864,7 @@ Card(
           Player(ControllerOfPermanent(Trigger_ThatPermanent)),
         ),
         PlayerAction(
-          ControllerOfPermanent(HostPermanent),
+          ControllerOfPermanent(Trigger_ThatPermanent),
           AttachPermanentToAPermanent(
             ThisPermanent,
             IsCardtype(Land),
@@ -1312797,7 +1312796,7 @@ Card(
               0,
               -1,
             ),
-            HostPermanent,
+            Trigger_ThatPermanent,
           ),
         ]),
       ]),
@@ -1436007,9 +1436006,9 @@ Card(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostController)),
       ActionList([
         PlayerMayCost(
-          HostController,
+          Trigger_ThatPlayer,
           SacrificeAPermanent(And([
-            Other(HostPermanent),
+            Other(Trigger_ThatPermanent),
             IsCardtype(Creature),
           ])),
         ),
@@ -1436018,8 +1436017,8 @@ Card(
           [
             PermanentDealsDamage(
               ThisPermanent,
-              PowerOfPermanent(HostPermanent),
-              Player(HostController),
+              PowerOfPermanent(Trigger_ThatPermanent),
+              Player(Trigger_ThatPlayer),
             ),
           ],
         ),
@@ -1437783,7 +1437782,7 @@ Card(
               -1,
               -1,
             ),
-            HostPermanent,
+            Trigger_ThatPermanent,
           ),
         ]),
       ]),
@@ -1455992,7 +1455991,7 @@ Card(
         RemoveCounters([
           ACounterOfTypeFromPermanent(
             SleepCounter,
-            HostPermanent,
+            Trigger_ThatPermanent,
           ),
         ]),
       ]),

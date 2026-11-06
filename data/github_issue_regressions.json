@@ -10245,10 +10245,11 @@
       33
     ],
     "contains": [
-      "antBeBlockedUnlessCost(PayManaForEach([ManaCostGeneric(3)], TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(DefendingPlayer)), IsBlockingAttacker(HostPermanent)]))))])])"
+      "CantBeBlockedUnlessCost(PayMana([ManaCostGeneric(3)]))"
     ],
     "excludes": [
-      "antBeBlockedUnlessCost(PayMana([ManaCostGeneric(3)]))])])"
+      "PayManaForEach",
+      "IsBlockingAttacker"
     ]
   },
   {
