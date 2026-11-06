@@ -229,6 +229,8 @@ card files and focused tests to their cards, and shared code plus existing-calle
 Scenario deck dependencies keep interacting new cards together; oversized connected groups remain blocked for
 coordinator resolution. Complete names take precedence over shorter prefixes such as Desert/Desert Twister.
 Components are packed deterministically into the configured group size.
+Literal Rust `include!`, `include_str!`, and `include_bytes!` dependencies also keep card-owned files together.
+A shared Rust test embedding a new card's file blocks the plan so its regression can use a baseline fixture.
 
 Use `plan --hold-publications FILE` with a JSON list of approved new cards that must remain local,
 for example because another worker now holds their upstream claims. The plan retains their candidate,

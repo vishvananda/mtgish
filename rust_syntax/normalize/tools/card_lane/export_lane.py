@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import posixpath
 import re
 import sqlite3
 import tempfile
@@ -227,6 +228,24 @@ def plan(root, head, *, defer_implementations=(), hold_publications=()):
             cards[owner]['paths'].append(path)
             join(required | {owner})
     components = {}
+    # Literal Rust embeds are compile-time dependencies too. Shared tests must
+    # not pull a new card's fixture out of a sibling PR; card-owned embeds keep
+    # their providers in the same group.
+    new_file_owner = {path: index for index, card in enumerate(cards) for path in card['paths']}
+    rust_inputs = [(path, None) for path in foundation]
+    rust_inputs += [(path, index) for index, card in enumerate(cards) for path in card['paths']]
+    for path, owner in rust_inputs:
+        if not path.endswith('.rs') or path not in after:
+            continue
+        text = publication.git(tree, 'show', head + ':' + path)
+        for relative in re.findall(r'include(?:_str|_bytes)?!\s*\(\s*"([^"\n]+)"', text):
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(path), relative))
+            required_owner = new_file_owner.get(target)
+            if required_owner is not None:
+                if owner is None:
+                    blockers.append('Foundation Rust input embeds a new-card file: ' + path + ': ' + target)
+                else:
+                    join({owner, required_owner})
     for index in range(len(cards)):
         components.setdefault(find(index), []).append(index)
     size = int(settings.get('card_group_size', 20))

@@ -251,6 +251,30 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(actual, b'\x00\xffbinary\n')
         self.assertEqual(lane.files(self.tree, result['foundation'])[name]['mode'], '100755')
 
+    def test_foundation_rust_cannot_embed_a_new_cards_scenario(self):
+        self.ready()
+        self.write('crates/cantrip-script/tests/shared.rs',
+                   'const CASE: &str = include_str!("../../../scenarios/beta-works.cantrip");')
+        self.finish()
+        plan = lane.plan(self.root, self.head)
+        self.assertIn('Foundation Rust input embeds a new-card file: crates/cantrip-script/tests/shared.rs: scenarios/beta-works.cantrip',
+                      plan['blockers'])
+        with self.assertRaisesRegex(ValueError, 'Export is held'):
+            lane.build(self.root, plan, 'publish/hidden-embed')
+
+    def test_card_owned_rust_embeds_keep_the_provider_in_the_same_group(self):
+        self.ready()
+        self.write('crates/cantrip-cards/tests/alpha.rs',
+                   'const CASE: &str = include_str!("../../../scenarios/beta-works.cantrip");')
+        self.finish()
+        self.cfg['integration']['card_group_size'] = 2
+        review_lane.save(self.root/'config.json', self.cfg)
+        plan = lane.plan(self.root, self.head)
+        self.assertEqual(plan['blockers'], [])
+        self.assertEqual(plan['groups'], [[0, 1]])
+        result = lane.build(self.root, plan, 'publish/embedded-card')
+        self.assertEqual(result['groups'][0]['cards'], ['Alpha', 'Beta'])
+
     def test_prepared_focused_foundation_is_preserved_as_the_common_sibling_base(self):
         self.ready()
         plan = lane.plan(self.root, self.head)
