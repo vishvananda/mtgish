@@ -115,6 +115,8 @@ struct Context {
     candidate: bool,
     event: crate::semantics::EventBindings,
     created_tokens: Option<ResultId>,
+    /// The original host named by an attachment action or attached-token entry.
+    attachment_host: Option<ObjectRef>,
     payment: Option<ResultId>,
     required_effect_outcomes: std::collections::BTreeMap<u32, RequiredEffectOutcome>,
     paid: std::collections::BTreeMap<crate::number_spec::PaymentAction, Option<PaidBinding>>,
@@ -466,6 +468,24 @@ impl Context {
         }
     }
 
+    fn note_attachment_host(&mut self, operation: &Operation) {
+        match operation {
+            Operation::Attach { host, .. } => self.attachment_host = Some(host.clone()),
+            Operation::CreateTokens { entry, .. } => {
+                for state in &entry.states {
+                    match state {
+                        EntryState::AttachedTo(host) => self.attachment_host = Some(host.clone()),
+                        EntryState::AttachedToChosen(_) | EntryState::AttachedToPlayer(_) => {
+                            self.attachment_host = None;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
     /// A later ordinary action of the same kind shadows the shorthand.
     /// Until its own event-history binder exists, fail rather than silently
     /// referring back to an unrelated activation/payment component.
@@ -547,6 +567,7 @@ impl Context {
         if matches!(operation, Operation::CreateTokens { .. }) {
             self.created_tokens = Some(ResultId(self.result));
         }
+        self.note_attachment_host(&operation);
         self.note_done(&operation, &ResultId(self.result));
         self.note_move(&operation, ResultId(self.result));
         if let Operation::PayRepeatedly { at_most, .. } = &operation {
@@ -571,6 +592,11 @@ impl Context {
     }
 
     fn invalidate_child_bindings(&mut self, child: &Self) {
+        if serde_json::to_value(&self.attachment_host).unwrap()
+            != serde_json::to_value(&child.attachment_host).unwrap()
+        {
+            self.attachment_host = None;
+        }
         self.forgotten |=
             child.forgotten || child.entered.is_some() || child.created_tokens.is_some();
         for (action, binding) in &child.paid {
@@ -678,6 +704,11 @@ impl Context {
 
     fn reduced_object(&self, value: &source::Permanent) -> Result<ObjectRef> {
         use source::Permanent as S;
+        if matches!(value, S::ThePermanentAttachedToThisWay) {
+            return self.attachment_host.clone().ok_or_else(|| {
+                invalid("no explicit attachment host is available in this scope")
+            });
+        }
         if let S::ThePermanentDestroyedThisWay = value {
             return Ok(ObjectRef::Result {
                 result: self.done(Done::Destroyed)?,

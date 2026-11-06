@@ -3131,7 +3131,6 @@
     {"source": "CardsInHand::TheChosenCardsInHand", "text": "chosen|choose", "cards": ["Extortion"]},
     {"source": "CardInGraveyards::TheLastGraveyardCardChosenThisWay", "text": "last", "cards": ["Forgotten Lore", "Shrouded Lore"]},
     {"source": "CardInGraveyards::TheChosenGraveyardCard", "text": "chosen"},
-    {"source": "Permanent::ThePermanentAttachedToThisWay", "text": "attached|enchanted", "cards": ["Curse of the Werefox"]},
     {"source": "Permanent::ThePermanentPutOnTheBattlefieldByPlayerThisWay", "text": "battlefield", "cards": ["Guild Feud"]},
         {"source": "GameNumber::AmountOfManaPaidThisWay", "text": "mana", "cards": ["Chorus of the Conclave"]},
     {"source": "GameNumber::Trigger_ThatMuch", "text": "much|equal|many", "cards": ["Seasoned Cryomancer"]},

@@ -60,6 +60,16 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Arcane Artisan", []string{"PlayerAction(Ref_TargetPlayer, CreateTokens([TokenCopyOfExiledCard"}, nil},
+		{"Basilica Bell-Haunt", []string{"EachPlayerAction(Opponent, DiscardACard), GainLife(Integer(3))"}, []string{"EachPlayerAction(Opponent, GainLife"}},
+		{"Crash Landing", []string{"Permanent(Ref_TargetPermanent))"}, []string{"Player(ControllerOfPermanent(Ref_TargetPermanent))"}},
+		{"Essence Backlash", []string{"Player(ControllerOfSpell(Ref_TargetSpell))"}, []string{"Player(ControllerOfSpell(ThisSpell))"}},
+		{"Ionize", []string{"Player(ControllerOfSpell(Ref_TargetSpell))"}, []string{"Player(ControllerOfSpell(ThisSpell))"}},
+		{"Mindswipe", []string{"PlayerMayCost(ControllerOfSpell(Ref_TargetSpell),"}, []string{"PlayerMayCost(ControllerOfSpell(ThisSpell),"}},
+		{"Gutter Grime", nil, []string{"SinglePermanent(ThisPermanent)), TheTotalNumberOfCountersOfTypeAmongPermanents(SlimeCounter, SinglePermanent(ThePermanentThatCreatedIt))"}},
+		{"The Master, Gallifrey's End", []string{"PlayerAction(You, CreateTokens([TokenCopyOfExiledCard"}, nil},
+		{"Toralf, God of Fury // Toralf's Hammer", []string{"PermanentDealsDamage(ThisPermanent, Integer(3), Ref_AnyTarget)"}, []string{"PermanentDealsDamage(ThisGuest, Integer(3), Ref_AnyTarget)"}},
+		{"Razor Boomerang", []string{"PermanentDealsDamage(ThisPermanent, Integer(1), Ref_AnyTarget)"}, []string{"PermanentDealsDamage(ThisGuest, Integer(1), Ref_AnyTarget)"}},
 		{"Offering to Asha", []string{"Unless(CostWasPaid, [CounterSpell(Ref_TargetSpell)]), GainLife(Integer(4))"}, nil},
 		{"Stymied Hopes", []string{"Unless(CostWasPaid, [CounterSpell(Ref_TargetSpell)]), Scry(Integer(1))"}, nil},
 		{"Frightful Delusion", []string{"Unless(CostWasPaid, [CounterSpell(Ref_TargetSpell)]), PlayerAction(ControllerOfSpell(Ref_TargetSpell), DiscardACard)"}, nil},

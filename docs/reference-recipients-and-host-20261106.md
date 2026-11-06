@@ -1,0 +1,11 @@
+# Reference recipients, damage sources, and the original attachment host
+
+Ten English outputs assigned a recipient, payer, or damage source to the wrong role. Arcane Artisan now creates the token for its targeted player; Basilica Bell-Haunt gives its controller the life; Crash Landing damages the targeted creature; Essence Backlash and Ionize damage the targeted spell’s controller; Mindswipe asks that controller to pay; Gutter Grime reads the granting enchantment’s counters for both token stats; The Master, Gallifrey’s End lets the opponent choose while its controller creates the token; Toralf’s Hammer and the additional shared caller Razor Boomerang have the equipped creature deal the damage. Equipment operations still name the Equipment.
+
+These are parser output corrections, reported as [upstream issue #205](https://github.com/i5jb/mtgish/issues/205). The current upstream productions were checked directly before reporting. The fork does not change reference gold, scoring aliases, schema 178, or the public source/IR types.
+
+Curse of the Werefox’s English already names the permanent attached to this way. The Rust lowerer previously confused that host with the created Role token. An internal scoped attachment-host binding now remembers the original object through token creation and the reflexive fight trigger. Missing hosts are refused; a quoted token ability cannot inherit an outer attachment host. Separate target slots preserve the original host when the fight target is selected. This is a fork lowering fix, not another upstream English defect.
+
+Validation: all 33,529 corpus records remain structurally valid and semantically complete. Exactly 10 source records and 11 unified IR records change. Twelve focused Rust tests cover the corrected roles and host-scope controls; the full AST suite passes 1,236 tests (three ignored), and the full Go parser suite passes. All 185 existing grammar audit findings retain identical usage. Arcane Artisan’s changed exact output required one new literal-review entry for the existing creates/create stemming mismatch; prior review history is preserved.
+
+The follow-up catalog now has 87 entries, 19 fixed in the current producer. Other report families remain pending independent review.

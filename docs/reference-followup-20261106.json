@@ -44,81 +44,111 @@
       "name": "Arcane Artisan",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "The complete activation has correct target player, draw, hand chooser, exile transition and creature condition, but both gold and current give the copy token to the activation controller rather than that target player. The separate leave-trigger link differs Source/EventSubject and is not independently called erroneous.",
-      "evidence": "reference-audit/batch-002.json"
+      "evidence": "reference-audit/batch-002.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "Basilica Bell-Haunt",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference assigns the 3 life to opponents instead of you. The discard, ETB event, amount and saved grammar recipient are otherwise consistent with the sentence.",
-      "evidence": "reference-audit/batch-003.json"
+      "evidence": "reference-audit/batch-003.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "Crash Landing",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native damages the target creature’s controller instead of the target creature; parser recipient is correct.",
-      "evidence": "reference-audit/batch-004.json"
+      "evidence": "reference-audit/batch-004.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "Essence Backlash",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Creature spell target, counter attempt, spell power/LKI and damage source agree. Gold sends the damage to Essence Backlash's controller, while Oracle/current send it to the targeted spell's controller.",
-      "evidence": "reference-audit/batch-006.json"
+      "evidence": "reference-audit/batch-006.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "Ionize",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native Ionize damages its own controller instead of countered spell’s controller.",
-      "evidence": "reference-audit/batch-010.json"
+      "evidence": "reference-audit/batch-010.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "Mindswipe",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Gold counter tax payer is the source spell's controller, not target spell's controller. Both current readings fix payer; reading1 preserves cast X in payment/damage, but reading0 retains an incorrect fresh payer-chosen X alternative. The latter is not endorsed as legitimate.",
-      "evidence": "reference-audit/batch-012.json"
+      "evidence": "reference-audit/batch-012.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "Gutter Grime",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference token power counts slime counters on the token Source, while toughness correctly counts Gutter Grime Granter. Saved grammar uses Granter for both. Death filter, prior counter addition, color and token type were reviewed.",
-      "evidence": "reference-audit/batch-009.json"
+      "evidence": "reference-audit/batch-009.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "The Master, Gallifrey's End",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Death domain, optional exile, greatest-life opponent choice, villainous options and copy recipe reviewed. Both gold and current incorrectly create the token for the chosen opponent, although the text says you. Current additionally pays exile using old EventSubject rather than the graveyard EventDestination.",
-      "evidence": "reference-audit/batch-019.json"
+      "evidence": "reference-audit/batch-019.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "Toralf's Hammer",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Granted activated ability cost correctly unattaches Granter and return correctly names Granter. Damage must come from equipped creature, the granted ability's Source; native instead names Granter. Legendary equipped boost and Equip action reviewed.",
-      "evidence": "reference-audit/batch-019.json"
+      "evidence": "reference-audit/batch-019.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "Curse of the Werefox",
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native fight actor is Named(0), the created Monster Role, rather than original target creature. Parser uses Target slot 0.",
-      "evidence": "reference-audit/batch-005.json"
+      "evidence": "reference-audit/batch-005.json",
+      "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
+      "upstream_report": "Fork Rust lowering only; the English form correctly names the original attachment host.",
+      "validation": "12 focused recipient/host tests; full1236 AST tests; full Go parser suite; all33529 records structurally and semantically complete; exactly11 changed IR records (10 English outputs plus attachment-host lowering)."
     },
     {
       "name": "Black Bolt, Inhuman King",
@@ -699,6 +729,15 @@
       "summary": "The upkeep payment must use the same pre-payment counter-count binding as the nonpayment damage. Discovered in complete export delta; every other operand preserved.",
       "upstream_report": "Fork Rust lowering only; source English already connects PayManaX(ValueX).",
       "validation": "Dedicated upkeep cost/damage snapshot regression passes."
+    },
+    {
+      "name": "Razor Boomerang",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "additional_shared_caller",
+      "review_status": "fixed_current_producer",
+      "summary": "Shares Toralf's Hammer's granted damage template. The equipped creature deals the damage; the Equipment remains the source of the unattach/return operations.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
+      "validation": "Dedicated Go parser and Rust operand assertions; included in exact10 source/11 IR record deltas."
     }
   ],
   "normalization_questions": [

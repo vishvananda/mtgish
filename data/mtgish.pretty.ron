@@ -54897,14 +54897,17 @@ Card(
           If(
             ACardWasExiledThisWay(IsCardtype(Creature)),
             [
-              CreateTokens(
-                [
-                  TokenCopyOfExiledCard(
-                    TheCardExiledThisWay,
-                    NoTokenCopyEffects,
-                  ),
-                ],
-                [],
+              PlayerAction(
+                Ref_TargetPlayer,
+                CreateTokens(
+                  [
+                    TokenCopyOfExiledCard(
+                      TheCardExiledThisWay,
+                      NoTokenCopyEffects,
+                    ),
+                  ],
+                  [],
+                ),
               ),
             ],
           ),
@@ -103978,10 +103981,7 @@ Card(
           Opponent,
           DiscardACard,
         ),
-        EachPlayerAction(
-          Opponent,
-          GainLife(Integer(3)),
-        ),
+        GainLife(Integer(3)),
       ]),
     ),
   ],
@@ -265541,7 +265541,7 @@ Card(
             IsLandType(Forest),
             ControlledByAPlayer(SinglePlayer(You)),
           ])),
-          Player(ControllerOfPermanent(Ref_TargetPermanent)),
+          Permanent(Ref_TargetPermanent),
         ),
       ]),
     )),
@@ -409444,7 +409444,7 @@ Card(
         SpellDealsDamage(
           ThisSpell,
           PowerOfSpell(Ref_TargetSpell),
-          Player(ControllerOfSpell(ThisSpell)),
+          Player(ControllerOfSpell(Ref_TargetSpell)),
         ),
       ]),
     )),
@@ -572665,7 +572665,7 @@ Card(
                 CDA_PowerToughness(
                   TheTotalNumberOfCountersOfTypeAmongPermanents(
                     SlimeCounter,
-                    SinglePermanent(ThisPermanent),
+                    SinglePermanent(ThePermanentThatCreatedIt),
                   ),
                   TheTotalNumberOfCountersOfTypeAmongPermanents(
                     SlimeCounter,
@@ -665999,7 +665999,7 @@ Card(
         SpellDealsDamage(
           ThisSpell,
           Integer(2),
-          Player(ControllerOfSpell(ThisSpell)),
+          Player(ControllerOfSpell(Ref_TargetSpell)),
         ),
       ]),
     )),
@@ -837684,7 +837684,7 @@ Card(
       ],
       ActionList([
         PlayerMayCost(
-          ControllerOfSpell(ThisSpell),
+          ControllerOfSpell(Ref_TargetSpell),
           PayManaX(
             [
               ManaCostX,
@@ -1043787,7 +1043787,7 @@ Card(
               ],
               ActionList([
                 PermanentDealsDamage(
-                  ThisGuest,
+                  ThisPermanent,
                   Integer(1),
                   Ref_AnyTarget,
                 ),
@@ -1352912,14 +1352912,17 @@ Card(
                   ),
                 ],
                 [
-                  CreateTokens(
-                    [
-                      TokenCopyOfExiledCard(
-                        TheCardExiledThisWay,
-                        NoTokenCopyEffects,
-                      ),
-                    ],
-                    [],
+                  PlayerAction(
+                    You,
+                    CreateTokens(
+                      [
+                        TokenCopyOfExiledCard(
+                          TheCardExiledThisWay,
+                          NoTokenCopyEffects,
+                        ),
+                      ],
+                      [],
+                    ),
                   ),
                 ],
               ]),
@@ -1394127,7 +1394130,7 @@ ModalDFC(
                 ],
                 ActionList([
                   PermanentDealsDamage(
-                    ThisGuest,
+                    ThisPermanent,
                     Integer(3),
                     Ref_AnyTarget,
                   ),

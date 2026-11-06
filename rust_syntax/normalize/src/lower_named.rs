@@ -1276,6 +1276,7 @@ impl Context {
     fn forget_results(&mut self) {
         self.forgotten = true;
         self.created_tokens = None;
+        self.attachment_host = None;
         self.amassed = None;
         self.seeked.clear();
         self.conjured = None;

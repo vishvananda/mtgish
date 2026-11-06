@@ -9717,6 +9717,17 @@
     "template": "return target creature or Vehicle an opponent controls to its owner's hand. If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1. This effect can't reduce their speed below 1",
     "result": "Targeted([TargetPermanent(And([Or([IsCardtype(Creature), IsArtifactType(Vehicle)]), ControlledByAPlayer(Opponent)]))], ActionList([PutPermanentIntoItsOwnersHand(Ref_TargetPermanent), If(PlayerPassesFilter(ControllerOfPermanent(Ref_TargetPermanent), SpeedIs(GreaterThan(TheHighestSpeedAmongPlayers(Other(ControllerOfPermanent(Ref_TargetPermanent)))))), [ReducePlayersSpeedToNoLessThan(ControllerOfPermanent(Ref_TargetPermanent), Integer(1), Integer(1))])]))",
     "reason": "Reviewed 2026-11-04 after Highway Reaver added a MaxSpeed wrapper and shifted the mining threshold: SpeedIs and ReducePlayersSpeedToNoLessThan implement the printed comparison and reduction; this text has no max-speed prerequisite."
+  },
+  {
+   "id": "076583ec9d64da848802f2e73546214b672d8959bd97e5b23f1cbf2bd1c1d34e",
+   "kind": "mined_token",
+   "rule": "MultilinePermanent(~Permanent)",
+   "token": "TokenCopyOfExiledCard",
+   "word": "create",
+   "support": "27/29",
+   "template": "{{ManaCost}}, {{TapSelfCost}}: Target player draws a card, then exiles a card from their hand. If {{a}} {{SpecificCard}} is exiled this way, that player creates a token that's a copy of that card.\nWhen {{ThisPermanent}} leaves the battlefield, exile all tokens created with it at the beginning of the next end step",
+   "result": "Activated(And([PayMana({{ManaCost[0]}}), {{TapSelfCost[0]}}]), Targeted([TargetPlayer(AnyPlayer)], ActionList([PlayerActions(Ref_TargetPlayer, [DrawACard, Exile([ACardFromHand], [])]), If(ACardWasExiledThisWay({{SpecificCard[0]}}), [PlayerAction(Ref_TargetPlayer, CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, NoTokenCopyEffects)], []))])]))), TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheCreatedTokens)], [])]))]))",
+   "reason": "Re-reviewed 2026-11-06 after correcting Arcane Artisan token ownership: English says that player creates, and the explicit PlayerAction(Ref_TargetPlayer, CreateTokens(...)) matches it. The miner stems creates to creat but leaves create unchanged. Real parser and typed-IR target-player regressions pass; no create instruction is missing."
   }
 ]
 }

@@ -21,7 +21,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "509a04f7a7507d59cdda6e1235f6246ef876f1f9d3b8857e1c815d306fbbe24d"
+    "grammars/english_grammar.json5": "b1859735cd7b1755d0ba3934586d61f5a04d7dc097663cdb49b5a15e84cc03f4"
   },
   "original_findings": 365,
   "resolved_findings": 170,
@@ -52,7 +52,8 @@
     "blockers_beyond_first_20261104": "Fresh33529card parse; only Johtull Wurm and Jungle Wurm source changes; all37 context evidence hashes unchanged.",
     "reference_groups_20261104": "Fresh33529card parse; eight source changes (Gyruda, Diregraf Horde, Glissa Retriever and five any-player cast triggers including Vision); all37 guarded context usage hashes unchanged; unchanged parser-code input hashes verified separately.",
     "awesome_presence_20261106": "Fresh33529card parse; same185 findings (37 contextual +148 automatic), identical complete usage records. Plain per-declared-blocker PayMana follows upstream issue33 maintainer clarification; no source/IR schema changes.",
-    "counter_followups_20261106": "Fresh33529card parse changes exactly Offering to Asha, Stymied Hopes, Frightful Delusion and Sage Dousing. All185 findings and complete usage records match the prior fresh pass. Independent followups no longer depend on payment rejection; upstream issue204."
+    "counter_followups_20261106": "Fresh33529card parse changes exactly Offering to Asha, Stymied Hopes, Frightful Delusion and Sage Dousing. All185 findings and complete usage records match the prior fresh pass. Independent followups no longer depend on payment rejection; upstream issue204.",
+    "reference_recipients_20261106": "Fresh33529card parse changes exactly ten recipient/payer/source records, including additional shared caller Razor Boomerang. All185 findings and full usage records remain equal; ten template outputs corrected, including both Toralf Hammer variants. Upstream205."
   },
   "resolved": [
     {
@@ -5418,7 +5419,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "509a04f7a7507d59cdda6e1235f6246ef876f1f9d3b8857e1c815d306fbbe24d",
+    "grammars/english_grammar.json5": "b1859735cd7b1755d0ba3934586d61f5a04d7dc097663cdb49b5a15e84cc03f4",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
