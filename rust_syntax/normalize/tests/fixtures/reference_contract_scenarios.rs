@@ -520,14 +520,25 @@ static SACRIFICE_EXILE: CardDef = CardDef {
     ..CardDef::BLANK
 };
 
+fn sacrifice_to_hand(_: &dyn Query, _: &Asker, proposal: &mut Proposal) {
+    if let Proposal::ZoneChange(z) = proposal { z.to = Zone::hand(z.to.player); }
+}
+static SACRIFICE_HAND: CardDef = CardDef {
+    name: "Sacrifice hidden destination fixture",
+    types: TypeSet::of(&[CardType::Enchantment]),
+    replacements: &[replacement(ReplacementKind::ZoneChange, replaced_sacrifice, sacrifice_to_hand, "Return sacrificed cards to hand instead.")],
+    ..CardDef::BLANK
+};
+
 static RETURN_AFTER_SACRIFICE: CardDef = CardDef { name: "Move the sacrificed card again", types: TypeSet::of(&[CardType::Artifact]), ..CardDef::BLANK };
 fn perform_sacrifice(g: &mut dyn Game, _: &StackItem) -> Result<(), Suspend> {
     let victim = g.state().battlefield().iter().copied().find(|&id| g.chars(id).name == BEAR.name).unwrap();
     let replaced = g.state().battlefield().iter().any(|&id| g.chars(id).name == SACRIFICE_EXILE.name);
+    let hidden = g.state().battlefield().iter().any(|&id| g.chars(id).name == SACRIFICE_HAND.name);
     let leave_again = g.state().battlefield().iter().any(|&id| g.chars(id).name == RETURN_AFTER_SACRIFICE.name);
     g.sacrifice(B, &[victim]);
     let arrived = g.state().obj(victim).became.expect("sacrificed incarnation");
-    assert_eq!(g.state().obj(arrived).zone.kind(), if replaced {ZoneKind::Exile} else {ZoneKind::Graveyard});
+    assert_eq!(g.state().obj(arrived).zone.kind(), if hidden {ZoneKind::Hand} else if replaced {ZoneKind::Exile} else {ZoneKind::Graveyard});
     if leave_again { g.return_to_hand(&[arrived]); }
     Ok(())
 }
@@ -535,17 +546,19 @@ static SACRIFICE_SPELL: CardDef = CardDef { name: "Perform the sacrifice", types
 #[test]
 fn sacrifice_trigger_follows_graveyard_or_replaced_exile_but_not_a_second_move() {
     for (watcher, modern) in [(&it_that_betrays::CARD, true), (&it_that_betrays_legacy::CARD, false)] {
-      for replaced in [false, true] {
+      for replacement in [None, Some(&SACRIFICE_EXILE), Some(&SACRIFICE_HAND)] {
+        let replaced = replacement.is_some();
+        let hidden = replacement.is_some_and(|c| c.name == SACRIFICE_HAND.name);
         for leave_again in [false, true] {
-            let (mut g, spell) = game(&SACRIFICE_SPELL, &[&SACRIFICE_EXILE, &RETURN_AFTER_SACRIFICE, watcher]);
+            let (mut g, spell) = game(&SACRIFICE_SPELL, &[&SACRIFICE_EXILE, &SACRIFICE_HAND, &RETURN_AFTER_SACRIFICE, watcher]);
             put(&mut g, watcher, A, Zone::BATTLEFIELD);
-            if replaced { put(&mut g, &SACRIFICE_EXILE, A, Zone::BATTLEFIELD); }
+            if let Some(replacement) = replacement { put(&mut g, replacement, A, Zone::BATTLEFIELD); }
             if leave_again { put(&mut g, &RETURN_AFTER_SACRIFICE, A, Zone::BATTLEFIELD); }
             put(&mut g, &BEAR, B, Zone::BATTLEFIELD);
             announce(&mut g, spell, ActionKind::CastSpell, 0, vec![]);
             finish(&mut g, true);
             let bears: Vec<_> = g.state.battlefield().iter().copied().filter(|&id| g.chars(id).name == BEAR.name).collect();
-            assert_eq!(bears.len(), usize::from(!leave_again && (!replaced || modern)), "modern={modern} replaced={replaced} later_move={leave_again}");
+            assert_eq!(bears.len(), usize::from(!leave_again && !hidden && (!replaced || modern)), "modern={modern} replaced={replaced} hidden={hidden} later_move={leave_again}");
             if let Some(&bear) = bears.first() { assert_eq!(g.controller(bear), A); }
         }
     }

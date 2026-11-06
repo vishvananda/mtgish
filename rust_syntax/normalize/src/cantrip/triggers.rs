@@ -596,8 +596,10 @@ impl Compiler {
             ),
             PlayerEvent::Sacrifices => (
                 "ZONE_CHANGE",
-                "Event::ZoneChange { old, new, from, reason: ZoneReason::Sacrifice, .. }",
-                "let id = *old; let player = q.controller(id); let subject = Target::Object(id); let data = [new.0, u32::from(player.0)];",
+                "Event::ZoneChange { old, new, from, to, reason: ZoneReason::Sacrifice, .. }",
+                // CR 400.7e: the trigger can find only a first public-zone arrival.
+                // Keep the event and its LKI subject even when the destination is hidden.
+                "let id = *old; let player = q.controller(id); let subject = Target::Object(id); let destination = if to.kind().is_hidden() { ObjectId::NONE.0 } else { new.0 }; let data = [destination, u32::from(player.0)];",
                 "player",
                 Frame {
                     object: Some(Carried::Subject),

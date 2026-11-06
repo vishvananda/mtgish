@@ -29,3 +29,14 @@ explicit Cantrip gate passes 12 gameplay scenarios. Its new sacrifice scenario
 covers normal graveyard arrival, replacement exile, and a second move before
 resolution, comparing the corrected AST against the historical graveyard-only
 AST. The existing Cantrip engine executes the corrected generator output.
+
+## Generator public-zone guard
+
+A negative gameplay test replacing sacrifice with a direct move to hand failed:
+the generated trigger retained that hidden-zone card and returned it to the
+battlefield. The generator now preserves the sacrifice event and its last-known
+subject, while withholding EventDestination when the first arrival is hidden.
+The existing ZoneKind API provides this distinction; no engine changes are needed.
+The scenario now covers twelve modern/legacy destination-and-later-move cases,
+including replacement to hand. All four corrected records pass the explicit
+Cantrip capability check.
