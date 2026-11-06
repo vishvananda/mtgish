@@ -1,0 +1,11 @@
+# Random returns use the acting player's graveyard
+
+Haunted Fengraf and Surreal Memoir previously selected a random qualifying card from all graveyards. Their complete Oracle instructions say “your graveyard.” The English output correctly names the actor-relative random-return action, but its fork lowering recipe used unrestricted `GraveCards`. Changing that subject to the existing `GraveCardsOf` supplies the default `Owners::Actor` scope without a new public source/IR type.
+
+All five callers were reviewed against complete local Oracle text: Fossil Find, Haunted Fengraf, Surreal Memoir, The Deck of Many Things and Trash Bin. Each printed return uses the acting player's graveyard. Fossil Find, Deck and Trash Bin already carried an explicit own-graveyard filter; those filters remain intact, so the additional outer scope is redundant there. Haunted Fengraf and Surreal Memoir lacked that compensating filter and are the two reported behavioral corrections.
+
+The exact full-record IR comparison changes only the random query's outer graveyard scope in those five records, from all players to the ability controller. Card-type restrictions, random selection, count, actual selected-card receipt and owner-hand destination are identical. Source data and grammar are unchanged. This is a fork operation-recipe correction, rather than an upstream English-parser defect.
+
+Focused regressions fail before and pass after for the two reported cards and for a random-return instruction performed by a different explicitly named actor. The unrestricted return recipe remains unchanged. All 1,253 AST tests pass with three existing ignored tests; the unchanged Go suite also passes. All 33,529 records remain structurally preserved and semantically complete. All parser-input hashes remain unchanged, retaining the existing 185 audit usages. Full corpus and test receipts are in `/mnt/vizier/reference-random-graveyards-20261106`. None of the five callers overlaps the 601 pending publication cards at `4a007d87`.
+
+The catalog has 89 entries: 38 reported corrections fixed and 51 pending. The independently questioned Zask creature-domain claim remains pending and its producer is unchanged; see the [rules review](reference-zask-review-20261106.md).

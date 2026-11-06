@@ -1568,7 +1568,7 @@
       "arity": 1,
       "family": "Move",
       "subjects": {
-        "kind": "GraveCards",
+        "kind": "GraveCardsOf",
         "argument": 0
       },
       "duration": null,

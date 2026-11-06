@@ -259,9 +259,13 @@
       "name": "Haunted Fengraf",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference random selection ranges over every graveyard rather than your graveyard. Saved grammar uses the correct controller graveyard with Chance selection. Mana ability and activation costs were reviewed.",
-      "evidence": "reference-audit/batch-009.json"
+      "evidence": "reference-audit/batch-009.json",
+      "producer_cause": "The shared action.PutACardFromGraveyardIntoHandAtRandom recipe uses unowned GraveCards despite the action meaning your graveyard. It now uses existing GraveCardsOf with default Owners::Actor.",
+      "upstream_report": "Fork Rust operation recipe only; the English source already encodes the correct actor-relative random-return action.",
+      "fix_notes": "All five real callers reviewed against complete local Oracle text. Only graveyard query scope changes; type, chance selection, count, actual selection receipt and owner-hand destination are preserved. See reference-random-graveyards-20261106.md.",
+      "validation": "Focused default-actor and explicit-other-actor regressions fail before and pass after. The unrestricted return recipe remains unchanged. Full export changes exactly five query scopes; three existing explicit own-graveyard filters remain intact."
     },
     {
       "name": "Kharasha Foothills",
@@ -307,9 +311,13 @@
       "name": "Surreal Memoir",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Instant/random/single-card return and Rebound reviewed. Native chooses from all players' graveyards instead of your graveyard; current correctly limits it to AbilityController.",
-      "evidence": "reference-audit/batch-018.json"
+      "evidence": "reference-audit/batch-018.json",
+      "producer_cause": "The shared action.PutACardFromGraveyardIntoHandAtRandom recipe uses unowned GraveCards despite the action meaning your graveyard. It now uses existing GraveCardsOf with default Owners::Actor.",
+      "upstream_report": "Fork Rust operation recipe only; the English source already encodes the correct actor-relative random-return action.",
+      "fix_notes": "All five real callers reviewed against complete local Oracle text. Only graveyard query scope changes; type, chance selection, count, actual selection receipt and owner-hand destination are preserved. See reference-random-graveyards-20261106.md.",
+      "validation": "Focused default-actor and explicit-other-actor regressions fail before and pass after. The unrestricted return recipe remains unchanged. Full export changes exactly five query scopes; three existing explicit own-graveyard filters remain intact."
     },
     {
       "name": "Tarrian's Soulcleaver",
@@ -349,7 +357,9 @@
       "reported_classification": "reference_error",
       "review_status": "pending_current_producer_review",
       "summary": "Both death-event filters omit Creature. Native departing EventSubject versus parser guarded graveyard incarnation is an additional identity question requiring move-context review.",
-      "evidence": "reference-audit/batch-021.json"
+      "evidence": "reference-audit/batch-021.json",
+      "independent_review": "The reported missing-Creature restriction is not established by the printed Insect noun and CR109.2/700.4. Keep current producer unchanged pending rules review; the report witness assumes without establishing that a noncreature kindred Insect did not die. The separate moving-incarnation question remains pending.",
+      "review_notes": "See reference-zask-review-20261106.md. This is not a confirmed correction or rejected entire card; no Creature predicate or equality alias is added."
     },
     {
       "name": "Abstract Performance",
@@ -848,6 +858,7 @@
     "Hatchery Sliver typed grant",
     "Raw event permanent-domain contract: counter replacements, counter/targeting triggers and other event adapters can erase ObjectSet zones. Scoped selector correction retains their prior six-type guards; no domain is silently widened.",
     "Ambergris, Agent of Law compound optional discard/draw payment feasibility and draw-completion contract: reported as unresolved, with no established behavioral reference defect or executed witness.",
-    "Satya, Aetherflux Genius energy amount with multiple tokens created by replacement effects: aggregate-versus-indexed contract remains unresolved; the current fix changes only payment polarity."
+    "Satya, Aetherflux Genius energy amount with multiple tokens created by replacement effects: aggregate-versus-indexed contract remains unresolved; the current fix changes only payment polarity.",
+    "Zask dies/subtype domain review: the reported Creature restriction is not established by the printed unqualified Insect noun plus CR109.2/700.4. Preserve current producer and separately review the moving-incarnation question."
   ]
 }

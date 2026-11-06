@@ -1,0 +1,7 @@
+# Zask's reported creature-domain restriction needs review
+
+The worker report claims that Zask, Skittering Swarmlord's death trigger must add a Creature predicate because a noncreature kindred Insect did not die. That premise is not established by the complete local Oracle text or the cited rules, so no such restriction is added to the producer.
+
+The printed trigger says “Whenever another Insect you control dies,” with no creature word. In the [2026-09-25 Comprehensive Rules](https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt), CR 109.2 makes an unqualified subtype description refer to battlefield permanents of that subtype. CR 700.4 defines dies as “is put into a graveyard from the battlefield.” That definition does not itself add a Creature predicate. The glossary's creature/planeswalker wording does not establish the report's stronger exclusion. This is a reason to withhold the proposed correction, not a claim of an executed game witness.
+
+The exact primary rules text was downloaded and retained as `comp-rules-20260925.txt` under `/mnt/vizier/reference-random-graveyards-20261106`. Local Oracle and the current source/IR were checked directly. The original report and its classification remain in the catalog as historical evidence, with an independent-review note. Zask remains pending while the alleged type-domain defect is reconsidered; its separate original-object versus graveyard-incarnation question also remains unresolved. No source record, scoring alias, grammar-worker file or reference gold is changed for Zask.
