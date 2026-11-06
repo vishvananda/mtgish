@@ -63,7 +63,7 @@ def owns(card, path):
             or path == f'crates/cantrip-cards/src/cards/tests/{own}.rs')
 
 
-def plan(root, head, *, defer_implementations=()):
+def plan(root, head, *, defer_implementations=(), hold_publications=()):
     root = Path(root).resolve()
     cfg, settings, tree = integration.settings(root)
     head = publication.git(tree, 'rev-parse', head + '^{commit}')
@@ -73,6 +73,7 @@ def plan(root, head, *, defer_implementations=()):
     before, after = files(tree, base), files(tree, head)
     changed = sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path))
     blockers, cards, foundation_cards = [], [], []
+    held_names, held_cards = set(hold_publications), []
     with sqlite3.connect((root/'queue.sqlite').as_uri() + '?mode=ro', uri=True) as db:
         db.row_factory = sqlite3.Row
         jobs = latest(db, 'jobs')
@@ -116,11 +117,20 @@ def plan(root, head, *, defer_implementations=()):
         card = dict(name=row['name'], issue=issue, job=row['id'], candidate=row['candidate'],
                     integration_job=imported['id'], author=author,
                     stem=stem, slug=slug, extra_tests=source.get('card_test_paths', []), paths=[])
+        if row['name'] in held_names:
+            if f'content/mtg/cards/{slug}.json' in before:
+                raise ValueError('Published cards cannot be held from the foundation: ' + row['name'])
+            held_cards.append(card)
+            continue
         # Already published cards receive their approved reconciliation changes
         # in the common foundation. Every sibling then gets their final behavior
         # and API compatibility, rather than depending on a separate card PR.
         destination = foundation_cards if f'content/mtg/cards/{slug}.json' in before else cards
         destination.append(card)
+    unknown_held = held_names - {card['name'] for card in held_cards}
+    if unknown_held:
+        raise ValueError('Only collected approved new cards may be held: ' + ', '.join(sorted(unknown_held)))
+    held_cards.sort(key=lambda card: (card['issue'], card['name']))
     cards.sort(key=lambda card: (card['issue'], card['name']))
     foundation_cards.sort(key=lambda card: (card['issue'], card['name']))
     by_name = {review.canonical_typography(card['name']): index for index, card in enumerate(cards)}
@@ -145,12 +155,19 @@ def plan(root, head, *, defer_implementations=()):
         extra_tests = json.loads(unfinished[name].get('card', '{}')).get('card_test_paths', [])
         deferred_cards.append(dict(name=name, stem=stem, slug=slug, extra_tests=extra_tests))
     deferred_by_name = {review.canonical_typography(card['name']): card for card in deferred_cards}
+    held_by_name = {review.canonical_typography(card['name']): card for card in held_cards}
     for path in changed:
         # An explicit backlog deferral never permits its unreviewed file objects
         # into the foundation. Compare longest owners to avoid prefix collisions
         # such as Desert and Desert Twister.
         deferred_owners = [owner for owner in deferred_cards if owns(owner, path)]
         owners = [index for index, card in enumerate(all_cards) if owns(card, path)]
+        for owner in held_cards:
+            if owns(owner, path):
+                key = 'slug' if path.startswith('scenarios/') else 'stem'
+                longest = max((len(all_cards[index][key]) for index in owners), default=0)
+                if path in owner['extra_tests'] or len(owner[key]) >= longest:
+                    blockers.append(f"Held publication has changes in finished source: {owner['name']}: {path}")
         if deferred_owners:
             key = 'slug' if path.startswith('scenarios/') else 'stem'
             longest_approved = max((len(all_cards[index][key]) for index in owners), default=0)
@@ -170,6 +187,8 @@ def plan(root, head, *, defer_implementations=()):
             text = publication.git(tree, 'show', head + ':' + path)
             deck_names = set(scenario_cards(text))
             required = {by_name[name] for name in deck_names if name in by_name}
+            for name in deck_names & held_by_name.keys():
+                blockers.append(f"Scenario depends on held new card: {held_by_name[name]['name']}: {path}")
             for name in deck_names & deferred_by_name.keys():
                 card = deferred_by_name[name]
                 if f"content/mtg/cards/{card['slug']}.json" not in before:
@@ -236,6 +255,8 @@ def plan(root, head, *, defer_implementations=()):
                   changes={path: after.get(path) for path in changed}, blockers=sorted(set(blockers)))
     if deferred:
         result['deferred_implementations'] = deferred
+    if held_cards:
+        result['held_publications'] = held_cards
     result['digest'] = digest(result)
     return result
 
@@ -282,7 +303,8 @@ def build(root, manifest, prefix, *, foundation_head=None):
     if manifest.get('digest') != digest({key: value for key, value in manifest.items() if key != 'digest'}):
         raise ValueError('Export manifest digest does not match')
     fresh = plan(root, manifest['head'],
-                 defer_implementations=[row['name'] for row in manifest.get('deferred_implementations', [])])
+                 defer_implementations=[row['name'] for row in manifest.get('deferred_implementations', [])],
+                 hold_publications=[row['name'] for row in manifest.get('held_publications', [])])
     if fresh != manifest:
         raise ValueError('Source or queue receipts changed; create a fresh export plan')
     if manifest['blockers']:
@@ -366,6 +388,8 @@ def main():
     draft.add_argument('--out', required=True, type=Path)
     draft.add_argument('--defer-implementations', type=Path,
                        help='JSON list of unfinished card names to retain in the backlog; their changed files block export')
+    draft.add_argument('--hold-publications', type=Path,
+                       help='JSON list of approved new cards to retain locally; their changed files and dependencies block export')
     export = commands.add_parser('build')
     export.add_argument('--plan', required=True, type=Path)
     export.add_argument('--prefix', required=True)
@@ -376,7 +400,10 @@ def main():
         deferred = review.read(args.defer_implementations) if args.defer_implementations else []
         if not isinstance(deferred, list) or any(not isinstance(name, str) for name in deferred):
             raise ValueError('Deferred implementations must be a JSON list of card names')
-        result = plan(args.root, args.head, defer_implementations=deferred)
+        held = review.read(args.hold_publications) if args.hold_publications else []
+        if not isinstance(held, list) or any(not isinstance(name, str) for name in held):
+            raise ValueError('Held publications must be a JSON list of card names')
+        result = plan(args.root, args.head, defer_implementations=deferred, hold_publications=held)
     else:
         result = build(args.root, review.read(args.plan), args.prefix, foundation_head=args.foundation_head)
     review.save(args.out, result)

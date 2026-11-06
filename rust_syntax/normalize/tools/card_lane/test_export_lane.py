@@ -111,6 +111,51 @@ class ExportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Only unfinished'):
             lane.plan(self.root, self.head, defer_implementations=['Alpha'])
 
+    def park_beta(self):
+        self.card_names.remove('Beta')
+        for path in ('content/mtg/cards/beta.json', 'crates/cantrip-cards/src/cards/beta.rs',
+                     'scenarios/beta-works.cantrip'):
+            (self.tree/path).unlink()
+        self.finish()
+
+    def test_publication_hold_preserves_approval_and_exports_only_remaining_cards(self):
+        self.ready()
+        self.park_beta()
+        plan = lane.plan(self.root, self.head, hold_publications=['Beta'])
+        self.assertEqual(plan['blockers'], [])
+        self.assertEqual([c['name'] for c in plan['cards']], ['Alpha'])
+        self.assertEqual(plan['held_publications'][0]['issue'], 2)
+        result = lane.build(self.root, plan, 'publish/held')
+        self.assertEqual(result['groups'][0]['cards'], ['Alpha'])
+        with integration_lane.connect(self.root) as db:
+            self.assertEqual(db.execute("SELECT status FROM jobs WHERE name='Beta'").fetchone()[0], 'passed')
+            db.execute("UPDATE jobs SET candidate=? WHERE name='Beta'", (self.head,))
+            db.commit()
+        with self.assertRaisesRegex(ValueError, 'Only collected|receipts changed'):
+            lane.build(self.root, plan, 'publish/stale-held')
+
+    def test_hold_cannot_smuggle_a_cards_files_or_dependencies_into_foundation(self):
+        self.ready()
+        plan = lane.plan(self.root, self.head, hold_publications=['Beta'])
+        self.assertTrue(any('Held publication has changes' in b for b in plan['blockers']))
+        self.park_beta()
+        self.write('scenarios/alpha-needs-beta.cantrip', '[Bot1 Deck]\nAlpha\nBeta\n[Actions]\n')
+        self.finish()
+        plan = lane.plan(self.root, self.head, hold_publications=['Beta'])
+        self.assertIn('Scenario depends on held new card: Beta: scenarios/alpha-needs-beta.cantrip', plan['blockers'])
+        with self.assertRaisesRegex(ValueError, 'Export is held'):
+            lane.build(self.root, plan, 'publish/hidden-held-dependency')
+
+    def test_hold_requires_a_collected_approved_new_card(self):
+        self.ready()
+        with self.assertRaisesRegex(ValueError, 'Only collected'):
+            lane.plan(self.root, self.head, hold_publications=['Unknown'])
+        with integration_lane.connect(self.root) as db:
+            db.execute("UPDATE jobs SET status='blocked' WHERE name='Beta'")
+            db.commit()
+        with self.assertRaisesRegex(ValueError, 'Only collected'):
+            lane.plan(self.root, self.head, hold_publications=['Beta'])
+
     def test_deferral_cannot_export_unreviewed_card_changes_or_bypass_a_blocked_review(self):
         self.ready()
         self.unfinished('Gamma')

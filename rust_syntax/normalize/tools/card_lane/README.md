@@ -230,6 +230,12 @@ Scenario deck dependencies keep interacting new cards together; oversized connec
 coordinator resolution. Complete names take precedence over shorter prefixes such as Desert/Desert Twister.
 Components are packed deterministically into the configured group size.
 
+Use `plan --hold-publications FILE` with a JSON list of approved new cards that must remain local,
+for example because another worker now holds their upstream claims. The plan retains their candidate,
+author and issue receipts without changing queue statuses. Their files and any scenarios depending on
+them must be parked outside the finished source tree; otherwise export stays blocked. This is distinct
+from `--defer-implementations`, which retains unfinished implementation work in the backlog.
+
 `export_lane.py build --plan FILE --prefix BRANCH_PREFIX --out RECEIPT` reconstructs local commits directly from
 the final file objects, preserving each card's author and issue. It requires an unchanged manifest, no unfinished
 work, and the exact validated final checkpoint. Every group starts at the same shared-only foundation. It checks
