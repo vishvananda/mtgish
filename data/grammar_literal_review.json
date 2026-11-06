@@ -9739,6 +9739,17 @@
    "template": "create a tapped and attacking token that's a copy of up to one other target {{Permanent}}. You get {{Energy}}. At the beginning of the next end step, sacrifice that token unless you pay an amount of {{EnergyCounters}} equal to its mana value",
    "result": "Targeted([UptoOneTargetPermanent(And([Other({{ThatPermanent}}), {{Permanent[0]}}]))], ActionList([CreateTokens([TokenCopyOfPermanent(Ref_TargetPermanent, NoTokenCopyEffects)], [EntersTapped, EntersAttacking]), GetEnergy(Integer({{Energy[0]}})), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([MayCost(PayEnergy(TotalManaValueOfPermanents(TheTokensCreatedThisWay))), Unless(CostWasPaid, [SacrificeEachPermanent(TheTokensCreatedThisWay)])]))]))",
    "reason": "Reviewed 2026-11-06: exact prior TotalManaValueOfPermanents operand retained; the sole source/IR change is Unless payment polarity. This carries forward only the unchanged mined total-token pairing, verified by complete operand comparison. It does not certify the separately recorded multiple-created-token mana-value contract. Prior review history is preserved."
+  },
+  {
+   "id": "42903a4252fa6ba0cc029f3c9db4223792c200b07154a56c75c8b4504d873446",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "MultipleRecipients",
+   "word": "deal",
+   "support": "90/92",
+   "template": "Prevent the next {{Digits}} damage that would be dealt to target creature and each other creature that shares a color with it this turn",
+   "result": "Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([CreateFuturePreventDamage(NextAmountOfDamageThatWouldBeDealtThisTurnToEachRecipient({{Digits[0]}}, MultipleRecipients([Permanent(Ref_TargetPermanent), EachPermanent(And([Other(Ref_TargetPermanent), IsCardtype(Creature), SharesAColorWithPermanent(Ref_TargetPermanent)]))])), [PreventThatDamage])]))",
+   "reason": "Reviewed 2026-11-06 against full Wojek Apothecary Oracle text and before/after source plus normalized IR regressions: MultipleRecipients names the printed target creature and each other creature sharing a color in a damage-prevention event. The printed word is dealt, whereas the mining pair searches deal. This exact entry covers only that lexical pairing; the two missing recipient restrictions are fixed in this template. Prior review history is retained."
   }
 ]
 }

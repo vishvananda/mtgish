@@ -68,6 +68,13 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Soul Diviner", []string{"ACounterFromAPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Creature), IsCardtype(Land), IsCardtype(Planeswalker)]), ControlledByAPlayer(SinglePlayer(You))]))"}, nil},
+		{"Tranquil Domain", []string{"DestroyEachPermanent(And([IsNonEnchantmentType(Aura), IsCardtype(Enchantment)]))"}, nil},
+		{"Bathe in Light", []string{"And([Other(Ref_TargetPermanent), IsCardtype(Creature), SharesAColorWithPermanent(Ref_TargetPermanent)])"}, nil},
+		{"Wojek Apothecary", []string{"EachPermanent(And([Other(Ref_TargetPermanent), IsCardtype(Creature), SharesAColorWithPermanent(Ref_TargetPermanent)]))"}, nil},
+		{"Fated Clash", []string{"CreateEachPermanentLayerEffectUntil(Or([SinglePermanent(Ref_TargetPermanent1), SinglePermanent(Ref_TargetPermanent2)])"}, nil},
+		{"Rukarumel, Biologist", []string{"StackSpellsEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])"}, nil},
+		{"Tarrian's Soulcleaver", []string{"WhenAPermanentIsPutIntoAPlayersGraveyard(And([Other(ThisPermanent), Or([IsCardtype(Artifact), IsCardtype(Creature)])]), AnyPlayer)", "PTCounter(+1, +1), HostPermanent"}, []string{"Other(HostPermanent)"}},
 		{"Emrakul, the Aeons Torn", []string{"Protection(FromSpells(IsColored))", "PlayerAction(OwnerOfGraveyrdCard(Trigger_ThatGraveyardCard), ShuffleGraveyardIntoLibrary)"}, []string{"Protection(FromColor(Colored))"}},
 		{"Kozilek, Butcher of Truth", []string{"PlayerAction(OwnerOfGraveyrdCard(Trigger_ThatGraveyardCard), ShuffleGraveyardIntoLibrary)"}, nil},
 		{"Ulamog, the Infinite Gyre", []string{"PlayerAction(OwnerOfGraveyrdCard(Trigger_ThatGraveyardCard), ShuffleGraveyardIntoLibrary)"}, nil},

@@ -105574,6 +105574,7 @@ Card(
             SinglePermanent(Ref_TargetPermanent),
             And([
               Other(Ref_TargetPermanent),
+              IsCardtype(Creature),
               SharesAColorWithPermanent(Ref_TargetPermanent),
             ]),
           ]),
@@ -436354,7 +436355,7 @@ Card(
       ],
       ActionList([
         CreateEachPermanentLayerEffectUntil(
-          And([
+          Or([
             SinglePermanent(Ref_TargetPermanent1),
             SinglePermanent(Ref_TargetPermanent2),
           ]),
@@ -1099246,7 +1099247,10 @@ Card(
       ],
     ),
     StackSpellsEffect(
-      IsCardtype(Creature),
+      And([
+        IsCardtype(Creature),
+        ControlledByAPlayer(SinglePlayer(You)),
+      ]),
       [
         AddCreatureTypeVariable(TheChosenCreatureType),
       ],
@@ -1225047,11 +1225051,14 @@ Card(
       And([
         TapPermanent(ThisPermanent),
         RemoveCounters([
-          ACounterFromAPermanent(Or([
-            IsCardtype(Artifact),
-            IsCardtype(Creature),
-            IsCardtype(Land),
-            IsCardtype(Planeswalker),
+          ACounterFromAPermanent(And([
+            Or([
+              IsCardtype(Artifact),
+              IsCardtype(Creature),
+              IsCardtype(Land),
+              IsCardtype(Planeswalker),
+            ]),
+            ControlledByAPlayer(SinglePlayer(You)),
           ])),
         ]),
       ]),
@@ -1318498,7 +1318505,6 @@ Card(
       WhenAPermanentIsPutIntoAPlayersGraveyard(
         And([
           Other(ThisPermanent),
-          Other(HostPermanent),
           Or([
             IsCardtype(Artifact),
             IsCardtype(Creature),
@@ -1401812,7 +1401818,7 @@ Card(
   Rules: [
     SpellActions(ActionList([
       DestroyEachPermanent(And([
-        IsEnchantmentType(Aura),
+        IsNonEnchantmentType(Aura),
         IsCardtype(Enchantment),
       ])),
     ])),
@@ -1529626,7 +1529632,11 @@ Card(
               Integer(1),
               MultipleRecipients([
                 Permanent(Ref_TargetPermanent),
-                EachPermanent(SharesAColorWithPermanent(Ref_TargetPermanent)),
+                EachPermanent(And([
+                  Other(Ref_TargetPermanent),
+                  IsCardtype(Creature),
+                  SharesAColorWithPermanent(Ref_TargetPermanent),
+                ])),
               ]),
             ),
             [

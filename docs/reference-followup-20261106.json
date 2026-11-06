@@ -68,7 +68,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native damages the target creature\u2019s controller instead of the target creature; parser recipient is correct.",
+      "summary": "Native damages the target creature’s controller instead of the target creature; parser recipient is correct.",
       "evidence": "reference-audit/batch-004.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -90,7 +90,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native Ionize damages its own controller instead of countered spell\u2019s controller.",
+      "summary": "Native Ionize damages its own controller instead of countered spell’s controller.",
       "evidence": "reference-audit/batch-010.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -236,9 +236,13 @@
       "name": "Bathe in Light",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference omits the creature requirement from the other shared-color recipients. Color choice, announced target, protection quality, duration and saved grammar reading were reviewed; grammar supplies the missing filter.",
-      "evidence": "reference-audit/batch-003.json"
+      "evidence": "reference-audit/batch-003.json",
+      "producer_cause": "Specific color-choice Radiance action discards its captured second Permanent selector.",
+      "fix_notes": "See reference-selector-domains-20261106.md. All targets, costs, durations, unrelated domains and complete remaining operands are preserved.",
+      "validation": "Seven new source and IR regression cases fail before/pass after, with exact whole-corpus preservation proof and separate unchanged Radiance callers.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/211"
     },
     {
       "name": "Beamsplitter Mage",
@@ -252,9 +256,13 @@
       "name": "Fated Clash",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Conditional flash, two opposing-control targets, end-of-turn duration and subsequent destroy-all match. Gold intersects both distinct target identities for the indestructible recipient set; current correctly unions them.",
-      "evidence": "reference-audit/batch-007.json"
+      "evidence": "reference-audit/batch-007.json",
+      "producer_cause": "Dual-target layer action intersects distinct target identities instead of forming their union.",
+      "fix_notes": "See reference-selector-domains-20261106.md. All targets, costs, durations, unrelated domains and complete remaining operands are preserved.",
+      "validation": "Seven new source and IR regression cases fail before/pass after, with exact whole-corpus preservation proof and separate unchanged Radiance callers.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/211"
     },
     {
       "name": "Haunted Fengraf",
@@ -288,9 +296,13 @@
       "name": "Rukarumel, Biologist",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference stack static gives the chosen creature type to every creature spell, omitting you control. Grammar includes the controller restriction. The enter choice, battlefield Sliver/nontoken union, owned nonbattlefield cards and token activation were reviewed.",
-      "evidence": "reference-audit/batch-015.json"
+      "evidence": "reference-audit/batch-015.json",
+      "producer_cause": "Chosen-type static template drops you-control only from its creature-spell branch.",
+      "fix_notes": "See reference-selector-domains-20261106.md. All targets, costs, durations, unrelated domains and complete remaining operands are preserved.",
+      "validation": "Seven new source and IR regression cases fail before/pass after, with exact whole-corpus preservation proof and separate unchanged Radiance callers.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/211"
     },
     {
       "name": "Skulking Killer",
@@ -304,9 +316,13 @@
       "name": "Soul Diviner",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native eligible counter-removal permanents omit you-control; parser supplies that restriction.",
-      "evidence": "reference-audit/batch-017.json"
+      "evidence": "reference-audit/batch-017.json",
+      "producer_cause": "English permanent descriptor drops the printed you-control restriction from the four-type selector.",
+      "fix_notes": "See reference-selector-domains-20261106.md. All targets, costs, durations, unrelated domains and complete remaining operands are preserved.",
+      "validation": "Seven new source and IR regression cases fail before/pass after, with exact whole-corpus preservation proof and separate unchanged Radiance callers.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/211"
     },
     {
       "name": "Surreal Memoir",
@@ -324,9 +340,13 @@
       "name": "Tarrian's Soulcleaver",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Vigilance grant, Equipment cost/attachment and creature counter recipient reviewed. Native excludes both the source Equipment and its equipped creature from the death event; Oracle another excludes the source, not the equipped creature introduced only in the effect body.",
-      "evidence": "reference-audit/batch-018.json"
+      "evidence": "reference-audit/batch-018.json",
+      "producer_cause": "Equipment trigger adds an unprinted Other(HostPermanent) restriction in addition to the printed Other(ThisPermanent).",
+      "fix_notes": "See reference-selector-domains-20261106.md. All targets, costs, durations, unrelated domains and complete remaining operands are preserved.",
+      "validation": "Seven new source and IR regression cases fail before/pass after, with exact whole-corpus preservation proof and separate unchanged Radiance callers.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/211"
     },
     {
       "name": "Tezzeret, Master of the Bridge",
@@ -340,9 +360,13 @@
       "name": "Tranquil Domain",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Spell scope and destruction reviewed. Native filter is Enchantment AND Aura, whereas Oracle and current specify Enchantment AND NOT Aura.",
-      "evidence": "reference-audit/batch-019.json"
+      "evidence": "reference-audit/batch-019.json",
+      "producer_cause": "English non-Aura-enchantment descriptor uses positive Aura instead of existing IsNonEnchantmentType(Aura).",
+      "fix_notes": "See reference-selector-domains-20261106.md. All targets, costs, durations, unrelated domains and complete remaining operands are preserved.",
+      "validation": "Seven new source and IR regression cases fail before/pass after, with exact whole-corpus preservation proof and separate unchanged Radiance callers.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/211"
     },
     {
       "name": "Vanille, Cheerful l'Cie",
@@ -984,6 +1008,18 @@
       "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
       "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
       "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies."
+    },
+    {
+      "name": "Wojek Apothecary",
+      "family": "selector-domains",
+      "reported_classification": "independently_confirmed_reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Printed Radiance prevention applies to target creature and each other creature sharing a color; producer omits Creature and Other from the second recipient branch.",
+      "evidence": "Independent full audit of all nine local Oracle Radiance color-sharing callers while reviewing Bathe in Light.",
+      "producer_cause": "Specific prevention template emits SharesAColorWithPermanent alone instead of And(Other, Creature, Shares).",
+      "fix_notes": "Preserves the announced target once, per-recipient one-damage limit, this-turn duration, tap cost and unrestricted damage sources. See reference-selector-domains-20261106.md.",
+      "validation": "New source and IR regressions fail before/pass after; all eight other local Radiance cards inspected and seven remain byte-identical.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/211"
     }
   ],
   "normalization_questions": [
