@@ -14,6 +14,8 @@ use std::sync::OnceLock;
 mod entry;
 mod events;
 mod movement;
+#[cfg(test)]
+mod result_scopes;
 use movement::groups as movement_groups;
 #[cfg(test)]
 mod tests;
@@ -43,6 +45,11 @@ struct Ids {
     /// Unread definitions still need distinct ids for executable, valid IR.
     unread: u64,
     selections: u64,
+    /// Definition identities, distinct from the numeric labels a future local
+    /// invocation may reuse. Allocation counters survive a closure's scope.
+    result_definitions: HashMap<u64, u64>,
+    results: u64,
+    live_results: u64,
 }
 
 /// Used results count up from zero; unread definitions count down in lexical
@@ -60,9 +67,26 @@ impl Ids {
             *value = Value::from(new);
             return;
         }
-        if kind == "result" && read.is_some_and(|read| !read.contains(&old)) {
-            *value = Value::from(UNUSED_START - self.unread);
-            self.unread += 1;
+        if kind == "result" {
+            let definition = self.results;
+            self.results += 1;
+            // Preserve invalid duplicate definitions for validation to reject.
+            if let Some(new) = self.maps.get(kind).and_then(|map| map.get(&old)) {
+                *value = Value::from(*new);
+                return;
+            }
+            self.result_definitions.insert(old, definition);
+            let new = if read.is_some_and(|read| !read.contains(&definition)) {
+                let new = UNUSED_START - self.unread;
+                self.unread += 1;
+                new
+            } else {
+                let new = self.live_results;
+                self.live_results += 1;
+                new
+            };
+            self.maps.entry(kind).or_default().insert(old, new);
+            *value = Value::from(new);
             return;
         }
         let map = self.maps.entry(kind).or_default();
@@ -111,7 +135,7 @@ struct Walker {
     reference_reductions: bool,
     /// Keep ids and list order, for callers that read the text back out.
     keep_order: bool,
-    /// The results each ability reads, by visiting order. The first of the two
+    /// The definitions each ability reads, by visiting order. The first of the two
     /// passes fills this; the second consults it.
     read: Vec<HashSet<u64>>,
     /// Whether this is the pass that fills `read`.
@@ -138,18 +162,41 @@ fn id_kind(name: &str) -> Option<&'static str> {
 }
 
 impl Walker {
+    fn result_scope(&self) -> Option<(Option<HashMap<u64, u64>>, HashMap<u64, u64>)> {
+        self.scopes
+            .last()
+            .map(|s| (s.maps.get("result").cloned(), s.result_definitions.clone()))
+    }
+
+    fn restore_result_scope(
+        &mut self,
+        saved: Option<(Option<HashMap<u64, u64>>, HashMap<u64, u64>)>,
+    ) {
+        if let (Some((map, definitions)), Some(scope)) = (saved, self.scopes.last_mut()) {
+            match map {
+                Some(map) => {
+                    scope.maps.insert("result", map);
+                }
+                None => {
+                    scope.maps.remove("result");
+                }
+            }
+            scope.result_definitions = definitions;
+        }
+    }
+
     fn use_id(&mut self, kind: &'static str, value: &mut Value) {
         let Some(old) = value.as_u64() else { return };
         if self.keep_order {
             return;
         }
-        if self.reading && kind == "result" {
-            for scope in &self.scopes {
-                self.read[scope.visit].insert(old);
-            }
-        }
         for scope in self.scopes.iter().rev() {
             if let Some(new) = scope.maps.get(kind).and_then(|m| m.get(&old)) {
+                if self.reading && kind == "result" {
+                    if let Some(definition) = scope.result_definitions.get(&old) {
+                        self.read[scope.visit].insert(*definition);
+                    }
+                }
                 *value = Value::from(*new);
                 return;
             }
@@ -162,7 +209,12 @@ impl Walker {
             Ty::Vec(inner) => {
                 if let Value::Array(items) = value {
                     for item in items.iter_mut() {
+                        let local =
+                            (**inner == Ty::Named("Program".into())).then(|| self.result_scope());
                         self.walk(item, inner, false);
+                        if let Some(local) = local {
+                            self.restore_result_scope(local);
+                        }
                     }
                     if **inner == Ty::Named("Instruction".into()) {
                         splice_groups(items);
@@ -212,6 +264,9 @@ impl Walker {
             }
             return;
         }
+        let local_results = (name == "Operand" && value["kind"] == "Program"
+            || name == "Instruction" && value["kind"] == "Repeatable")
+            .then(|| self.result_scope());
         let scoped = name == "Ability";
         if scoped {
             if !self.keep_order && value["kind"] == "Triggered" {
@@ -246,6 +301,9 @@ impl Walker {
             self.scopes.pop();
             self.damage_subjects.pop();
             self.subjects.pop();
+        }
+        if let Some(saved) = local_results {
+            self.restore_result_scope(saved);
         }
     }
 
@@ -428,14 +486,14 @@ impl Walker {
                 // A preparation step's inputs see the earlier bindings. Its
                 // own binding starts only after those inputs have been read.
                 let selection = owner == "SelectionStep";
+                let late = |field: &str| {
+                    selection && field == "binding"
+                        || owner == "Instruction::Effect" && field == "result"
+                };
                 let ordered = types
                     .iter()
-                    .filter(|(field, _)| !selection || field != "binding")
-                    .chain(
-                        types
-                            .iter()
-                            .filter(|(field, _)| selection && field == "binding"),
-                    );
+                    .filter(|(field, _)| !late(field))
+                    .chain(types.iter().filter(|(field, _)| late(field)));
                 for (field, ty) in ordered {
                     if let Some(item) = value.get_mut(field) {
                         if owner == "Ability::Saga" && field == "chapters" {
@@ -450,12 +508,33 @@ impl Walker {
                         if field == "event" {
                             self.event_header = true;
                         }
+                        // Delayed/replacement/reflexive bodies inherit earlier
+                        // definitions, but do not define results in the creator.
+                        let local_results = ((field == "body"
+                            && matches!(
+                                owner,
+                                "Operation::CreateDelayedTrigger"
+                                    | "Operation::CreateReplacement"
+                                    | "Operation::ReflexiveTrigger"
+                                    | "Operation::CreateTrigger"
+                                    | "Instruction::Optional"
+                                    | "CostPart::PlayerAction"
+                                    | "Instruction::ForEachPlayer"
+                                    | "Instruction::ForEachObject"
+                                    | "Instruction::Times"
+                            ))
+                            || owner == "Instruction::If"
+                                && matches!(field.as_str(), "then" | "otherwise"))
+                        .then(|| self.result_scope());
                         if let Some(frame) = created.as_ref().filter(|_| {
                             matches!(field.as_str(), "body" | "announcement" | "intervening_if")
                         }) {
                             self.walk_created(item, ty, frame);
                         } else {
                             self.walk(item, ty, defines(owner, field));
+                        }
+                        if let Some(saved) = local_results {
+                            self.restore_result_scope(saved);
                         }
                         self.event_header = old_header;
                     }
@@ -484,8 +563,8 @@ impl Walker {
     }
 
     /// Created trigger bodies have their own matched event. Their matcher and
-    /// duration still capture the creator's context; result ids keep the
-    /// surrounding lexical allocation namespace.
+    /// duration still capture the creator's context. Their invocation's local
+    /// results cannot escape into the creator; allocation remains deterministic.
     fn walk_created(&mut self, value: &mut Value, ty: &Ty, frame: &events::Frame) {
         let old_header = self.event_header;
         let old_reductions = self.reference_reductions;
