@@ -443,9 +443,14 @@
       "name": "Bridgeworks Battle",
       "family": "target-cardinalities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference reverses the mandatory and optional target cardinalities. Pump, fight operands, control filters and duration otherwise agree; grammar cardinalities match Oracle.",
-      "evidence": "reference-audit/batch-003.json"
+      "evidence": "reference-audit/batch-003.json",
+      "producer_cause": "The English pump/fight template reverses the first mandatory and second optional target constructors.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/209",
+      "upstream_verification": "Same source template independently confirmed on i5jb main bdac5ca64c01f1acb02405839e3633c98c48bcf3.",
+      "fix_notes": "See reference-control-flow-20261106.md. Exact full-record delta preserves all other operands.",
+      "validation": "All four actual English-parser and typed-IR regressions fail before the repairs. Fresh corpus changes exactly these four records; all185 audit findings/usages are identical. No public schema/source variant added."
     },
     {
       "name": "Timecrafting",
@@ -542,17 +547,27 @@
       "name": "Satya, Aetherflux Genius",
       "family": "control-flow",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference double-negates PaymentChosen and sacrifices tokens when payment was made, reversing unless. Grammar single Not has the right polarity. Menace/haste, target exclusions, tapped attacking copy and energy2 were reviewed; Aggregate(Created) versus indexed value under multiple-token replacements remains a separate unresolved amount-contract detail.",
-      "evidence": "reference-audit/batch-015.json"
+      "evidence": "reference-audit/batch-015.json",
+      "producer_cause": "The English delayed sacrifice-unless template uses Unless(CostWasntPaid), introducing a double negation and sacrificing when payment is chosen.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/208",
+      "upstream_verification": "Same source template independently confirmed on i5jb main bdac5ca64c01f1acb02405839e3633c98c48bcf3.",
+      "fix_notes": "See reference-control-flow-20261106.md. Exact full-record delta preserves all other operands. Multiple-created-token amount semantics remain a separate unresolved contract.",
+      "validation": "All four actual English-parser and typed-IR regressions fail before the repairs. Fresh corpus changes exactly these four records; all185 audit findings/usages are identical. No public schema/source variant added."
     },
     {
       "name": "Titan Hunter",
       "family": "control-flow",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "End-step event, event-player damage and separate sacrifice-for-life activation reviewed. Native intervening-if is deaths>=1, exactly the opposite of no creatures died; current wraps it in Not.",
-      "evidence": "reference-audit/batch-019.json"
+      "evidence": "reference-audit/batch-019.json",
+      "producer_cause": "The no-creatures-died condition emits positive death existence. Use the existing ANumberOfPermanentsDiedThisTurn with EqualTo0; no source negation variant is added.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/208",
+      "upstream_verification": "Same source template independently confirmed on i5jb main bdac5ca64c01f1acb02405839e3633c98c48bcf3.",
+      "fix_notes": "See reference-control-flow-20261106.md. Exact full-record delta preserves all other operands.",
+      "validation": "All four actual English-parser and typed-IR regressions fail before the repairs. Fresh corpus changes exactly these four records; all185 audit findings/usages are identical. No public schema/source variant added."
     },
     {
       "name": "Time to Feed",
@@ -598,9 +613,14 @@
       "name": "Resurgence",
       "family": "timing-and-limits",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference adds Combat only, omitting the explicitly requested following Main phase. Grammar selects the distinct CombatAndMain enum. Creature buffs, first strike/vigilance, source controller and EndOfTurn Snapshot were reviewed.",
-      "evidence": "reference-audit/batch-015.json"
+      "evidence": "reference-audit/batch-015.json",
+      "producer_cause": "The English grant-two-keywords/add-phases template emits only ThereIsAnAdditionalCombatPhase despite the printed following main phase.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/210",
+      "upstream_verification": "Same source template independently confirmed on i5jb main bdac5ca64c01f1acb02405839e3633c98c48bcf3.",
+      "fix_notes": "See reference-control-flow-20261106.md. Exact full-record delta preserves all other operands.",
+      "validation": "All four actual English-parser and typed-IR regressions fail before the repairs. Fresh corpus changes exactly these four records; all185 audit findings/usages are identical. No public schema/source variant added."
     },
     {
       "name": "Taii Wakeen, Perfect Shot",
@@ -827,6 +847,7 @@
     "Six invariant shared-X shapes",
     "Hatchery Sliver typed grant",
     "Raw event permanent-domain contract: counter replacements, counter/targeting triggers and other event adapters can erase ObjectSet zones. Scoped selector correction retains their prior six-type guards; no domain is silently widened.",
-    "Ambergris, Agent of Law compound optional discard/draw payment feasibility and draw-completion contract: reported as unresolved, with no established behavioral reference defect or executed witness."
+    "Ambergris, Agent of Law compound optional discard/draw payment feasibility and draw-completion contract: reported as unresolved, with no established behavioral reference defect or executed witness.",
+    "Satya, Aetherflux Genius energy amount with multiple tokens created by replacement effects: aggregate-versus-indexed contract remains unresolved; the current fix changes only payment polarity."
   ]
 }

@@ -9728,6 +9728,17 @@
    "template": "{{ManaCost}}, {{TapSelfCost}}: Target player draws a card, then exiles a card from their hand. If {{a}} {{SpecificCard}} is exiled this way, that player creates a token that's a copy of that card.\nWhen {{ThisPermanent}} leaves the battlefield, exile all tokens created with it at the beginning of the next end step",
    "result": "Activated(And([PayMana({{ManaCost[0]}}), {{TapSelfCost[0]}}]), Targeted([TargetPlayer(AnyPlayer)], ActionList([PlayerActions(Ref_TargetPlayer, [DrawACard, Exile([ACardFromHand], [])]), If(ACardWasExiledThisWay({{SpecificCard[0]}}), [PlayerAction(Ref_TargetPlayer, CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, NoTokenCopyEffects)], []))])]))), TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheCreatedTokens)], [])]))]))",
    "reason": "Re-reviewed 2026-11-06 after correcting Arcane Artisan token ownership: English says that player creates, and the explicit PlayerAction(Ref_TargetPlayer, CreateTokens(...)) matches it. The miner stems creates to creat but leaves create unchanged. Real parser and typed-IR target-player regressions pass; no create instruction is missing."
+  },
+  {
+   "id": "423abfcc5cad48fec13b26c861cbf2476232a350738f2aead0110779544cc410",
+   "kind": "mined_token",
+   "rule": "TriggerActions(ThatPermanent)",
+   "token": "TotalManaValueOfPermanents",
+   "word": "total",
+   "support": "6/7",
+   "template": "create a tapped and attacking token that's a copy of up to one other target {{Permanent}}. You get {{Energy}}. At the beginning of the next end step, sacrifice that token unless you pay an amount of {{EnergyCounters}} equal to its mana value",
+   "result": "Targeted([UptoOneTargetPermanent(And([Other({{ThatPermanent}}), {{Permanent[0]}}]))], ActionList([CreateTokens([TokenCopyOfPermanent(Ref_TargetPermanent, NoTokenCopyEffects)], [EntersTapped, EntersAttacking]), GetEnergy(Integer({{Energy[0]}})), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([MayCost(PayEnergy(TotalManaValueOfPermanents(TheTokensCreatedThisWay))), Unless(CostWasPaid, [SacrificeEachPermanent(TheTokensCreatedThisWay)])]))]))",
+   "reason": "Reviewed 2026-11-06: exact prior TotalManaValueOfPermanents operand retained; the sole source/IR change is Unless payment polarity. This carries forward only the unchanged mined total-token pairing, verified by complete operand comparison. It does not certify the separately recorded multiple-created-token mana-value contract. Prior review history is preserved."
   }
 ]
 }

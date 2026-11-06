@@ -59,11 +59,20 @@ func TestParserSemanticRegressions(t *testing.T) {
 	control.Cards = append([]MtgJsonAtomic(nil), control.Cards...)
 	control.Cards[0].Text = "Whenever you sacrifice a nontoken Elemental, this creature gets +1/+1 until end of turn."
 	cards["Sacrifice Trigger Holder Control"] = control
+	deathControl := cards["Titan Hunter"]
+	deathControl.Cards = append([]MtgJsonAtomic(nil), deathControl.Cards...)
+	deathControl.Cards[0].Text = strings.ReplaceAll(deathControl.Cards[0].Text, "if no creatures died this turn", "if a creature died this turn")
+	cards["Positive Death Trigger Control"] = deathControl
 	cases := []struct {
 		name     string
 		contains []string
 		excludes []string
 	}{
+		{"Satya, Aetherflux Genius", []string{"Unless(CostWasPaid, [SacrificeEachPermanent(TheTokensCreatedThisWay)])"}, []string{"Unless(CostWasntPaid,"}},
+		{"Titan Hunter", []string{"ANumberOfPermanentsDiedThisTurn(EqualTo(Integer(0)), IsCardtype(Creature))"}, nil},
+		{"Positive Death Trigger Control", []string{"ACreatureOrPlaneswalkerDiedThisTurn(IsCardtype(Creature))"}, []string{"Not(ACreatureOrPlaneswalkerDiedThisTurn"}},
+		{"Bridgeworks Battle // Tanglespan Bridgeworks", []string{"Targeted([TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), UptoOneTargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Other(You))]))]"}, nil},
+		{"Response // Resurgence", []string{"ThereIsAnAdditionalCombatPhaseAndAnAdditionalMainPhase"}, []string{"ThereIsAnAdditionalCombatPhase])"}},
 		{"Ashling, the Limitless", []string{"TokenCopyOfPermanent(Trigger_ThatSacrificedPermanent, NoTokenCopyEffects)"}, []string{"TokenCopyOfPermanent(ThisPermanent, NoTokenCopyEffects)"}},
 		{"Jenny Flint", []string{"TargetPermanent(And([Other(ThisPermanent),"}, []string{"Other(Trigger_ThatPermanent)", "Other(Trigger_ThatSacrificedPermanent)"}},
 		{"Lonis, Genetics Expert", []string{"TargetPermanent(And([Other(ThisPermanent),"}, []string{"Other(Trigger_ThatPermanent)", "Other(Trigger_ThatSacrificedPermanent)"}},

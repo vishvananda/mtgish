@@ -164130,11 +164130,11 @@ ModalDFC(
     Rules: [
       SpellActions(Targeted(
         [
-          UptoOneTargetPermanent(And([
+          TargetPermanent(And([
             IsCardtype(Creature),
             ControlledByAPlayer(SinglePlayer(You)),
           ])),
-          TargetPermanent(And([
+          UptoOneTargetPermanent(And([
             IsCardtype(Creature),
             ControlledByAPlayer(Other(You)),
           ])),
@@ -1064927,7 +1064927,7 @@ Split(
             ],
             UntilEndOfTurn,
           ),
-          ThereIsAnAdditionalCombatPhase,
+          ThereIsAnAdditionalCombatPhaseAndAnAdditionalMainPhase,
         ])),
       ],
     ),
@@ -1123107,7 +1123107,7 @@ Card(
             ActionList([
               MayCost(PayEnergy(TotalManaValueOfPermanents(TheTokensCreatedThisWay))),
               Unless(
-                CostWasntPaid,
+                CostWasPaid,
                 [
                   SacrificeEachPermanent(TheTokensCreatedThisWay),
                 ],
@@ -1386954,7 +1386954,10 @@ Card(
   Rules: [
     TriggerI(
       AtTheBeginningOfAPlayersEndStep(AnyPlayer),
-      ACreatureOrPlaneswalkerDiedThisTurn(IsCardtype(Creature)),
+      ANumberOfPermanentsDiedThisTurn(
+        EqualTo(Integer(0)),
+        IsCardtype(Creature),
+      ),
       ActionList([
         PermanentDealsDamage(
           ThisPermanent,
