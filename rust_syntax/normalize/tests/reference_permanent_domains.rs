@@ -164,3 +164,40 @@ fn raw_counter_and_targeting_events_keep_their_previous_type_domain() {
         assert!(!types.contains(&"Instant") && !types.contains(&"Sorcery"));
     }
 }
+
+#[test]
+fn timecrafting_requires_a_time_counter_only_for_its_put_permanent_target() {
+    let card = serde_json::to_value(fixtures::card("Timecrafting")).unwrap();
+    let modes = &card["abilities"][0]["args"]["announcement"]["modes"]["modes"];
+    let permanent =
+        |mode| &modes[mode]["announcement"]["modes"]["modes"][0]["announcement"]["targets"][0];
+    assert_eq!(permanent(0)["filter"], json!({"kind":"Any"}));
+    assert_eq!(
+        permanent(1)["filter"],
+        json!({"kind":"Counters","args":{
+            "kind":{"Named":"TimeCounter"},"comparison":"Greater",
+            "value":{"kind":"Constant","args":0}
+        }})
+    );
+    for mode in 0..2 {
+        let alternatives = &modes[mode]["announcement"]["modes"]["modes"];
+        assert_eq!(alternatives.as_array().unwrap().len(), 2);
+        let suspended = &alternatives[1]["announcement"]["targets"][0];
+        assert_eq!(
+            permanent(mode)["kind"],
+            json!({"Object":{"kind":"Permanent","zones":["Battlefield"]}})
+        );
+        assert_eq!(
+            permanent(mode)["count"],
+            json!({"Exactly":{"kind":"Constant","args":1}})
+        );
+        assert_eq!(
+            suspended["kind"],
+            json!({"Object":{"kind":"Card","zones":["Exile"]}})
+        );
+        assert_eq!(
+            suspended["filter"],
+            json!({"kind":"State","args":"Suspended"})
+        );
+    }
+}

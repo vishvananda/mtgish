@@ -60,6 +60,7 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Timecrafting", []string{"TargetPermanent(HasACounterOfType(TimeCounter))", "TargetPermanent(AnyPermanent)", "NumberCountersOfTypeOnPermanent(ValueX, TimeCounter, Ref_TargetPermanent)", "NumberCountersOfTypeOnCardInExile(ValueX, TimeCounter, Ref_TargetExiledCard)"}, nil},
 		{"Arcane Artisan", []string{"PlayerAction(Ref_TargetPlayer, CreateTokens([TokenCopyOfExiledCard"}, nil},
 		{"Basilica Bell-Haunt", []string{"EachPlayerAction(Opponent, DiscardACard), GainLife(Integer(3))"}, []string{"EachPlayerAction(Opponent, GainLife"}},
 		{"Crash Landing", []string{"Permanent(Ref_TargetPermanent))"}, []string{"Player(ControllerOfPermanent(Ref_TargetPermanent))"}},

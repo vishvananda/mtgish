@@ -451,9 +451,14 @@
       "name": "Timecrafting",
       "family": "target-cardinalities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Both outer modes and permanent/suspended-card inner alternatives, X quantities and counter actions reviewed. Native put-permanent branch omits the printed existing-time-counter requirement. Current restores it but adds an unnecessary six-type target guard that excludes eligible typeless permanents.",
-      "evidence": "reference-audit/batch-019.json"
+      "evidence": "reference-audit/batch-019.json",
+      "producer_cause": "The English put-X-counter template hardcodes TargetPermanent(AnyPermanent), discarding the captured Permanent predicate HasACounterOfType(TimeCounter).",
+      "fix_notes": "Use the captured permanent predicate. Exact single source/IR record delta changes only the put-mode permanent filter. Both modes, both suspended-card alternatives, X amounts, counter kinds, targets and cardinalities remain unchanged. See reference-timecrafting-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/206",
+      "upstream_verification": "Same hardcoded AnyPermanent confirmed directly on i5jb main bdac5ca64c01f1acb02405839e3633c98c48bcf3.",
+      "validation": "Actual English parser and typed-IR regressions fail before the correction. Fresh full parser corpus changes only Timecrafting; all185 complete audit usages are identical. All33529 records remain structurally and semantically complete."
     },
     {
       "name": "Gustcloak Cavalier",

@@ -1384851,7 +1384851,7 @@ Card(
       Targeted_Modal([
         Targeted(
           [
-            TargetPermanent(AnyPermanent),
+            TargetPermanent(HasACounterOfType(TimeCounter)),
           ],
           ActionList([
             PutCounters([
