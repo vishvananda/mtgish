@@ -1,0 +1,680 @@
+{
+  "fork_base": "45b2bbf47d4547ddf266d5f5aa97cf2bbcbd6516",
+  "source_reports": {
+    "reference-audit/fix-groups.json": "c5d396941641c67c1f4ef922d2638efcba1e06fc53ea0904619b7740160fb442",
+    "reference-fix-followup.md": "674db82b0a7daefa774d36b2ab3fa59481b05c0a8fed363dba4ebc1b42c2badb",
+    "mtgish-reference-review-candidates.json": "0b19a127afd77e729f091c14228db32e8a4539a41548d5a35b8fcc3e94f4cc85"
+  },
+  "scope_note": "Worker classifications are reports awaiting independent current-producer review. No reference gold, equality aliases, pins or oracle-grammar files are modified. Representation questions are tracked separately from behavioral fixes.",
+  "cards": [
+    {
+      "name": "Rethink",
+      "family": "computed-payment-values",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference computed X is a dead BindValue and never reaches the plain Mana[X] payment. Grammar ManaWithX explicitly supplies target mana value. Target spell, payer controller, unpaid condition and counter destination were reviewed.",
+      "evidence": "reference-audit/batch-015.json"
+    },
+    {
+      "name": "Spell Rupture",
+      "family": "computed-payment-values",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native captures greatest power but never connects captured result to X payment. Parser explicitly binds ManaWithX to greatest power.",
+      "evidence": "reference-audit/batch-017.json"
+    },
+    {
+      "name": "Thassa's Rebuff",
+      "family": "computed-payment-values",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Target controller, devotion-to-blue expression and conditional counter reviewed. Native computes devotion into an unused BindValue, but PayCost has plain Mana[X] with no operand reference to it. Current explicitly supplies the computed devotion through ManaWithX.",
+      "evidence": "reference-audit/batch-018.json"
+    },
+    {
+      "name": "Arcane Artisan",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "The complete activation has correct target player, draw, hand chooser, exile transition and creature condition, but both gold and current give the copy token to the activation controller rather than that target player. The separate leave-trigger link differs Source/EventSubject and is not independently called erroneous.",
+      "evidence": "reference-audit/batch-002.json"
+    },
+    {
+      "name": "Basilica Bell-Haunt",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference assigns the 3 life to opponents instead of you. The discard, ETB event, amount and saved grammar recipient are otherwise consistent with the sentence.",
+      "evidence": "reference-audit/batch-003.json"
+    },
+    {
+      "name": "Crash Landing",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native damages the target creature’s controller instead of the target creature; parser recipient is correct.",
+      "evidence": "reference-audit/batch-004.json"
+    },
+    {
+      "name": "Essence Backlash",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Creature spell target, counter attempt, spell power/LKI and damage source agree. Gold sends the damage to Essence Backlash's controller, while Oracle/current send it to the targeted spell's controller.",
+      "evidence": "reference-audit/batch-006.json"
+    },
+    {
+      "name": "Ionize",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native Ionize damages its own controller instead of countered spell’s controller.",
+      "evidence": "reference-audit/batch-010.json"
+    },
+    {
+      "name": "Mindswipe",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Gold counter tax payer is the source spell's controller, not target spell's controller. Both current readings fix payer; reading1 preserves cast X in payment/damage, but reading0 retains an incorrect fresh payer-chosen X alternative. The latter is not endorsed as legitimate.",
+      "evidence": "reference-audit/batch-012.json"
+    },
+    {
+      "name": "Gutter Grime",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference token power counts slime counters on the token Source, while toughness correctly counts Gutter Grime Granter. Saved grammar uses Granter for both. Death filter, prior counter addition, color and token type were reviewed.",
+      "evidence": "reference-audit/batch-009.json"
+    },
+    {
+      "name": "The Master, Gallifrey's End",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Death domain, optional exile, greatest-life opponent choice, villainous options and copy recipe reviewed. Both gold and current incorrectly create the token for the chosen opponent, although the text says you. Current additionally pays exile using old EventSubject rather than the graveyard EventDestination.",
+      "evidence": "reference-audit/batch-019.json"
+    },
+    {
+      "name": "Toralf's Hammer",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Granted activated ability cost correctly unattaches Granter and return correctly names Granter. Damage must come from equipped creature, the granted ability's Source; native instead names Granter. Legendary equipped boost and Equip action reviewed.",
+      "evidence": "reference-audit/batch-019.json"
+    },
+    {
+      "name": "Curse of the Werefox",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native fight actor is Named(0), the created Monster Role, rather than original target creature. Parser uses Target slot 0.",
+      "evidence": "reference-audit/batch-005.json"
+    },
+    {
+      "name": "Black Bolt, Inhuman King",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference adds a six-card-type enumeration to nonland permanent. It excludes legal typeless permanents; the saved grammar correctly uses permanent domain plus Not(Land). Flying, noncreature-cast pump, opponent targeting trigger and target controller were reviewed.",
+      "evidence": "reference-audit/batch-003.json"
+    },
+    {
+      "name": "Deputy of Detention",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native target filter wrongly requires one of six permanent card types; parser correctly allows typeless nonland permanents but both readings use Source controller for other same-name objects.",
+      "evidence": "reference-audit/batch-005.json"
+    },
+    {
+      "name": "Fractured Realm",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native permanent-source trigger modifier retains a six-card-type conjunction in canonical gold, excluding typeless permanents. Current lacks the guard and retains permanent source scope through TriggerRule AbilityOf context.",
+      "evidence": "reference-audit/batch-012.json"
+    },
+    {
+      "name": "Mirrorform",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Copy target, all controlled nonland recipients, indefinite snapshot copying and no-copy-adjustments term reviewed. Canonical native target predicate unnecessarily requires one of six card types, excluding legal typeless non-Aura permanent targets. Current Not(Aura) is correct within the explicit Permanent/Battlefield target domain.",
+      "evidence": "reference-audit/batch-012.json"
+    },
+    {
+      "name": "Press the Enemy",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Both sides overrestrict the nonland-permanent target with six current card types, excluding typeless permanents. Grammar additionally drops opposing-controller restriction on that branch. Spell alternative, bounce, hand casting filter, last-known mana value and free optional cast were reviewed.",
+      "evidence": "reference-audit/batch-014.json"
+    },
+    {
+      "name": "Sink into Stupor",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Both canonical programs exclude typeless nonland permanent targets; parser additionally drops opponent controller restriction in permanent arm.",
+      "evidence": "reference-audit/batch-016.json"
+    },
+    {
+      "name": "Solid Ground",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native six-type guard excludes typeless controlled permanents from counter replacement; parser does not impose this extra guard.",
+      "evidence": "reference-audit/batch-016.json"
+    },
+    {
+      "name": "Bathe in Light",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference omits the creature requirement from the other shared-color recipients. Color choice, announced target, protection quality, duration and saved grammar reading were reviewed; grammar supplies the missing filter.",
+      "evidence": "reference-audit/batch-003.json"
+    },
+    {
+      "name": "Beamsplitter Mage",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Both sides omit an explicit creature restriction in the intervening condition. Reference also omits it in the choice; grammar additionally loses controller/source restrictions and replaces the event spell with a Scoped placeholder. The cast-event instant/sorcery and only-source target tests, copy count and chosen-target receipt were also reviewed.",
+      "evidence": "reference-audit/batch-003.json"
+    },
+    {
+      "name": "Fated Clash",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Conditional flash, two opposing-control targets, end-of-turn duration and subsequent destroy-all match. Gold intersects both distinct target identities for the indestructible recipient set; current correctly unions them.",
+      "evidence": "reference-audit/batch-007.json"
+    },
+    {
+      "name": "Haunted Fengraf",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference random selection ranges over every graveyard rather than your graveyard. Saved grammar uses the correct controller graveyard with Chance selection. Mana ability and activation costs were reviewed.",
+      "evidence": "reference-audit/batch-009.json"
+    },
+    {
+      "name": "Kharasha Foothills",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native loop includes attacked opponent instead of only each other opponent. Parser shares that error and additionally makes tokens attack AbilityController.",
+      "evidence": "reference-audit/batch-010.json"
+    },
+    {
+      "name": "Mire's Toll",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Target player, Swamp count, revealing player and final discard reviewed. Native discarding choice is over the entire target hand, not the revealed subset. Current explicitly chooses/reveals a subset then chooses only from Selected0.",
+      "evidence": "reference-audit/batch-012.json"
+    },
+    {
+      "name": "Rukarumel, Biologist",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference stack static gives the chosen creature type to every creature spell, omitting you control. Grammar includes the controller restriction. The enter choice, battlefield Sliver/nontoken union, owned nonbattlefield cards and token activation were reviewed.",
+      "evidence": "reference-audit/batch-015.json"
+    },
+    {
+      "name": "Skulking Killer",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native no-other-creatures condition omits Creature, counting every other permanent. Parser includes Creature but tests source controller instead of target controller.",
+      "evidence": "reference-audit/batch-016.json"
+    },
+    {
+      "name": "Soul Diviner",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native eligible counter-removal permanents omit you-control; parser supplies that restriction.",
+      "evidence": "reference-audit/batch-017.json"
+    },
+    {
+      "name": "Surreal Memoir",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Instant/random/single-card return and Rebound reviewed. Native chooses from all players' graveyards instead of your graveyard; current correctly limits it to AbilityController.",
+      "evidence": "reference-audit/batch-018.json"
+    },
+    {
+      "name": "Tarrian's Soulcleaver",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Vigilance grant, Equipment cost/attachment and creature counter recipient reviewed. Native excludes both the source Equipment and its equipped creature from the death event; Oracle another excludes the source, not the equipped creature introduced only in the effect body.",
+      "evidence": "reference-audit/batch-018.json"
+    },
+    {
+      "name": "Tezzeret, Master of the Bridge",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "All loyalty costs, target artifact return and top-ten artifact movement reviewed. Both native/current static grant omit you-cast controller restriction. Current also loses +2's captured X, an independent grammar error.",
+      "evidence": "reference-audit/batch-018.json"
+    },
+    {
+      "name": "Tranquil Domain",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Spell scope and destruction reviewed. Native filter is Enchantment AND Aura, whereas Oracle and current specify Enchantment AND NOT Aura.",
+      "evidence": "reference-audit/batch-019.json"
+    },
+    {
+      "name": "Vanille, Cheerful l'Cie",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "The meld selection is not restricted to the Fang owned and controlled by the ability controller; both sides share this defect.",
+      "evidence": "reference-audit/batch-020.json"
+    },
+    {
+      "name": "Zask, Skittering Swarmlord",
+      "family": "selector-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Both death-event filters omit Creature. Native departing EventSubject versus parser guarded graveyard incarnation is an additional identity question requiring move-context review.",
+      "evidence": "reference-audit/batch-021.json"
+    },
+    {
+      "name": "Abstract Performance",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Confirmed gold domain error: the other-pile operations query all shared exile minus the chosen pile, rather than the two piles this spell exiled. Grammar independently drifts from the ChoosePile result to Move/LookAt handles. Whole program reviewed; no runtime execution performed.",
+      "evidence": "reference-audit/batch-001.json"
+    },
+    {
+      "name": "Aragorn, Company Leader",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Both gold and current first trigger replace the historical chosen-Ring-bearer fact with a current RingBearer query. Current second trigger also loses explicit CountersTheEventPut provenance; its Scoped object interpretation needs clarification. Counter options, source exclusion, batch event and optional target otherwise agree.",
+      "evidence": "reference-audit/batch-002.json"
+    },
+    {
+      "name": "Garruk, Apex Predator",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference makes life gain depend on a successful destruction transition. Oracle independently gains the targeted creature toughness even if destruction fails. Other loyalty actions, token attributes and opponent emblem were reviewed; saved grammar uses target CurrentOrLastKnown toughness correctly.",
+      "evidence": "reference-audit/batch-008.json"
+    },
+    {
+      "name": "God-Eternal Rhonas",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference reevaluates the controlled-creature set for vigilance after doubling power. Both saved readings correctly NoteObjects first and use Selected for both effects. Deathtouch and the separate-versus-combined disjoint graveyard/exile return triggers were reviewed.",
+      "evidence": "reference-audit/batch-008.json"
+    },
+    {
+      "name": "Nalia de'Arnise",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Top-library visibility/casting filters and full-party intervening-if reviewed. Native repeats a controlled-creature query after counter placement instead of preserving those creatures; current NoteObjects captures the correct original set. A previously verified legal continuous-control-duration witness establishes the native difference.",
+      "evidence": "reference-audit/batch-012.json"
+    },
+    {
+      "name": "Laquatus's Creativity",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native re-counts the larger hand after drawing for discard rather than retaining that many. Parser uses draw transition count; replacement-draw equivalence remains pending.",
+      "evidence": "reference-audit/batch-011.json"
+    },
+    {
+      "name": "Kozilek, Butcher of Truth",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native guarded graveyard destination lookup is re-used after moving that very card to library, so final shuffle loses its player. Parser owner-from-departing-subject is stable. Both programs also wrongly exclude a token copy from the graveyard trigger.",
+      "evidence": "reference-audit/batch-010.json"
+    },
+    {
+      "name": "Prowling Geistcatcher",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference exiles the old sacrificed EventSubject instead of its new public destination. Saved grammar uses guarded graveyard EventDestination on the ordinary path; alternate sacrifice destinations need further parser coverage review. Token test and later linked-card return were also inspected.",
+      "evidence": "reference-audit/batch-014.json"
+    },
+    {
+      "name": "Starving Revenant",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native loss amount reads SurveilKeptOnTop from Draw result1 rather than Surveil result0. Parser uses Named0 count whose exact surveil view also needs checking.",
+      "evidence": "reference-audit/batch-017.json"
+    },
+    {
+      "name": "Veteran Ghoulcaller",
+      "family": "snapshot-and-result-identities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "The native duplicate operand requires the hand destination to be in the graveyard, so it cannot identify the moved card.",
+      "evidence": "reference-audit/batch-020.json"
+    },
+    {
+      "name": "Back for More",
+      "family": "target-cardinalities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Gold correctly uses the return's After result as the fighting creature, but makes the reflexive target mandatory. Current fixes UpTo1 but uses the original graveyard target rather than returned incarnation for the fight. Both kinds of errors are retained separately.",
+      "evidence": "reference-audit/batch-002.json"
+    },
+    {
+      "name": "Bridgeworks Battle",
+      "family": "target-cardinalities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference reverses the mandatory and optional target cardinalities. Pump, fight operands, control filters and duration otherwise agree; grammar cardinalities match Oracle.",
+      "evidence": "reference-audit/batch-003.json"
+    },
+    {
+      "name": "Timecrafting",
+      "family": "target-cardinalities",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Both outer modes and permanent/suspended-card inner alternatives, X quantities and counter actions reviewed. Native put-permanent branch omits the printed existing-time-counter requirement. Current restores it but adds an unnecessary six-type target guard that excludes eligible typeless permanents.",
+      "evidence": "reference-audit/batch-019.json"
+    },
+    {
+      "name": "Gustcloak Cavalier",
+      "family": "optional-actions",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference turns optional untapping into a strict untap-symbol payment before removing from combat. An already-untapped vigilant attacker can still choose the whole Oracle effect. Reading0 is the correct Optional(two effects); reading1 incorrectly removes from combat even when untapping is declined. Flanking and the attack-tap trigger were reviewed.",
+      "evidence": "reference-audit/batch-009.json"
+    },
+    {
+      "name": "Kroxa and Kunoros",
+      "family": "optional-actions",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native optional exile-five uses AsManyAsCan, allowing partial performance; parser exact payment matches required five cards.",
+      "evidence": "reference-audit/batch-010.json"
+    },
+    {
+      "name": "Young Necromancer",
+      "family": "optional-actions",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native optional exile-two permits partial action through AsManyAsCan2; parser exact payment preserves required two.",
+      "evidence": "reference-audit/batch-021.json"
+    },
+    {
+      "name": "Bellowing Fiend",
+      "family": "damage-events",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference splits the two damage amounts into sequential effects; the saved grammar uses one simultaneous DealDamageParts batch. Flying, source/recipient event identity and both recipients/amounts were reviewed.",
+      "evidence": "reference-audit/batch-003.json"
+    },
+    {
+      "name": "Burning Sun's Avatar",
+      "family": "damage-events",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference unions the two target recipient sets before applying a single3-damage amount. Union removes a duplicate object, so choosing one creature-planeswalker in both slots loses one3-damage part. Grammar retains both simultaneous parts; source, event and target cardinalities were reviewed.",
+      "evidence": "reference-audit/batch-003.json"
+    },
+    {
+      "name": "Punish the Enemy",
+      "family": "damage-events",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference deduplicates the two targets before applying one3-damage amount, losing a second damage part when the same creature-planeswalker is chosen twice. Saved grammar correctly retains two simultaneous parts; both mandatory slots were reviewed.",
+      "evidence": "reference-audit/batch-014.json"
+    },
+    {
+      "name": "Deification",
+      "family": "damage-events",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Both programs cancel the damage event and separately remove loyalty, losing damage consequences. Parser also uses chosen CreatureType for hexproof and omits controller restriction from replacement recipient.",
+      "evidence": "reference-audit/batch-005.json"
+    },
+    {
+      "name": "Offering to Asha",
+      "family": "control-flow",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Counter target, target-controller four-mana offer and failure counter condition agree. Native wrongly puts the independent four-life gain inside the nonpayment branch; current leaves it unconditional.",
+      "evidence": "reference-audit/batch-013.json"
+    },
+    {
+      "name": "Stymied Hopes",
+      "family": "control-flow",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native Scry1 is wrongly inside unpaid branch; parser places it unconditionally after conditional counter.",
+      "evidence": "reference-audit/batch-017.json"
+    },
+    {
+      "name": "Satya, Aetherflux Genius",
+      "family": "control-flow",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference double-negates PaymentChosen and sacrifices tokens when payment was made, reversing unless. Grammar single Not has the right polarity. Menace/haste, target exclusions, tapped attacking copy and energy2 were reviewed; Aggregate(Created) versus indexed value under multiple-token replacements remains a separate unresolved amount-contract detail.",
+      "evidence": "reference-audit/batch-015.json"
+    },
+    {
+      "name": "Titan Hunter",
+      "family": "control-flow",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "End-step event, event-player damage and separate sacrifice-for-life activation reviewed. Native intervening-if is deaths>=1, exactly the opposite of no creatures died; current wraps it in Not.",
+      "evidence": "reference-audit/batch-019.json"
+    },
+    {
+      "name": "Time to Feed",
+      "family": "control-flow",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native places the second target and fight inside the delayed death trigger, although the fight is a separate immediate spell instruction and must target your creature. Current fixes scope/target restriction but incorrectly fights Target1 against itself.",
+      "evidence": "reference-audit/batch-019.json"
+    },
+    {
+      "name": "Fear of Infinity",
+      "family": "timing-and-limits",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Flying, lifelink, cannot-block and the enchantment/Room event alternatives agree. Gold fails to retain the graveyard-only functioning zone and no move operand restores the printed from-graveyard condition. Current explicitly supplies Scoped(Graveyard).",
+      "evidence": "reference-audit/batch-007.json"
+    },
+    {
+      "name": "Irreverent Gremlin",
+      "family": "timing-and-limits",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Both programs restrict trigger frequency rather than restricting performance of the optional loot to once per turn. Optional payment encodings otherwise equivalent.",
+      "evidence": "reference-audit/batch-010.json"
+    },
+    {
+      "name": "Legolas, Counter of Kills",
+      "family": "timing-and-limits",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Both restrict triggering to once per turn rather than optional untap performance; parser additionally removes may.",
+      "evidence": "reference-audit/batch-011.json"
+    },
+    {
+      "name": "Lukamina, Crocodile Form",
+      "family": "timing-and-limits",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Native untap lock lasts while Lukamina remains on battlefield rather than while you control it.",
+      "evidence": "reference-audit/batch-011.json"
+    },
+    {
+      "name": "Resurgence",
+      "family": "timing-and-limits",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Reference adds Combat only, omitting the explicitly requested following Main phase. Grammar selects the distinct CombatAndMain enum. Creature buffs, first strike/vigilance, source controller and EndOfTurn Snapshot were reviewed.",
+      "evidence": "reference-audit/batch-015.json"
+    },
+    {
+      "name": "Taii Wakeen, Perfect Shot",
+      "family": "timing-and-limits",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Source-control/noncombat/creature damage roles and activation's X-tap replacement reviewed. Both gold and current encode the trigger's equality as intervening_if, incorrectly rechecking live toughness at resolution. Current additionally replaces explicit Damage Recipient with Scoped.",
+      "evidence": "reference-audit/batch-018.json"
+    },
+    {
+      "name": "True Identity",
+      "family": "timing-and-limits",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "summary": "Splitting the disjunctive trigger loses the shared once-per-turn limit: the second native trigger has no limit.",
+      "evidence": "reference-audit/batch-020.json"
+    },
+    {
+      "name": "Shivan Sand-Mage",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Timebender",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Wanderwine Farewell",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Eventide's Shadow",
+      "family": "permanent-domains",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Sami, Wildcat Captain",
+      "family": "controller-filters",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Simic Guildmage",
+      "family": "attachment-host-controller",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Sunflare Shaman",
+      "family": "simultaneous-damage",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Commodore Guff",
+      "family": "shared-value-snapshots",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Zenith Flare",
+      "family": "shared-value-snapshots",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Harsh Sustenance",
+      "family": "shared-value-snapshots",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Profane Prayers",
+      "family": "shared-value-snapshots",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "The Dalek Emperor",
+      "family": "choice-recipient",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Portal to Phyrexia",
+      "family": "entry-subtype-timing",
+      "reported_classification": "reference_error",
+      "review_status": "pending_current_producer_review",
+      "evidence": "reference-fix-followup.md"
+    },
+    {
+      "name": "Hit",
+      "family": "followup-candidates",
+      "reported_classification": "candidate",
+      "review_status": "pending_current_producer_review",
+      "evidence": "mtgish-reference-review-candidates.json",
+      "summary": "Review lowering the printed resolving sacrifice as Operation::Sacrifice with AsManyAsCan, followed by the independent damage operation reading the actual sacrifice Transition.Before. Oracle does not say pay or if you do."
+    },
+    {
+      "name": "Myriad Construct",
+      "family": "followup-candidates",
+      "reported_classification": "candidate",
+      "review_status": "pending_current_producer_review",
+      "evidence": "mtgish-reference-review-candidates.json",
+      "summary": "Preserve the original explicitly named creature reference (EventSubject here) for its power, using CurrentOrLastKnown, instead of an actual sacrifice-transition query. The create-tokens instruction is independent of whether the preceding mandatory sacrifice succeeds."
+    },
+    {
+      "name": "Nogi, Draco-Zealot",
+      "family": "followup-candidates",
+      "reported_classification": "candidate",
+      "review_status": "pending_current_producer_review",
+      "evidence": "mtgish-reference-review-candidates.json",
+      "summary": "An ordinary becomes-a-Dragon subtype change replaces prior creature types. This text contains no retention phrase. The new owned base-characteristic production yields Set; the old literal template still yields the matching Add reading, so reference agreement is retained without a uniqueness claim."
+    }
+  ],
+  "normalization_questions": [
+    "NORM-001",
+    "NORM-002",
+    "NORM-003",
+    "NORM-004",
+    "NORM-005",
+    "NORM-007",
+    "NORM-008",
+    "Sycorax Commander sibling-result definitions",
+    "Nested delayed-trigger result namespace",
+    "Sundering Sentinel unused results"
+  ],
+  "unresolved_contract_questions": [
+    "Crypsis protection-domain contract",
+    "Missy villainous-choice hook",
+    "Six invariant shared-X shapes",
+    "Hatchery Sliver typed grant"
+  ]
+}
