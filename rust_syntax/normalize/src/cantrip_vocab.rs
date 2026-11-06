@@ -1,6 +1,6 @@
 // Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.
 // These names are inert metadata, never behavior.
-pub const API_FINGERPRINT: &str = "a083d3ad2e01e10a0ade92d525cce3e37df0553c3a040f12fc3ce9e94565aea1";
+pub const API_FINGERPRINT: &str = "c00a0b9a4edcbeba8fff086c0cb3f5a8292d77f5fe0c93e4673a4365dfc9c792";
 pub const SUBTYPES: &[&str] = &[
     "Adventure",
     "Advisor",
