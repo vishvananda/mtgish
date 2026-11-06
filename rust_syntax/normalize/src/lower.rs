@@ -1089,6 +1089,17 @@ impl Context {
             S::OwnerOfTheCardReturnedToHandThisWay => PlayerRef::OwnerOf(Box::new(
                 self.hand_card(&source::CardInHand::TheCardReturnedToHandThisWay)?,
             )),
+            S::OwnerOfGraveyrdCard(card)
+                if self.event.moved_owner
+                    && matches!(
+                        card.as_ref(),
+                        source::CardInGraveyards::Trigger_ThatGraveyardCard
+                    ) =>
+            {
+                // Ownership survives the destination object leaving its zone.
+                // Moving that object still uses grave_card's live-zone guard.
+                PlayerRef::OwnerOf(Box::new(ObjectRef::EventSubject))
+            }
             S::OwnerOfGraveyrdCard(card) => PlayerRef::OwnerOf(Box::new(self.grave_card(card)?)),
             S::ControllerOfSpellOrAbility(object) if self.stack_object(object).is_ok() => {
                 PlayerRef::ControllerOf(Box::new(self.stack_object(object)?))

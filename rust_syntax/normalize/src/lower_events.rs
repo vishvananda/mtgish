@@ -192,6 +192,26 @@ impl Context {
         self.trigger(&trigger)
     }
 
+    fn from_anywhere_graveyard_objects(
+        &self,
+        cards: &source::Cards,
+        owners: &source::Players,
+    ) -> Result<ObjectFilter> {
+        let mut filters = vec![
+            self.card_filter(cards)?,
+            ObjectFilter::OwnedBy(self.players(owners)?),
+        ];
+        // A named self-reference denotes the source object, including a token
+        // copy (CR 201.5, 111.7). Ordinary descriptions explicitly name cards.
+        if !matches!(
+            cards,
+            source::Cards::SingleCard(source::SingleCard::ThisCard)
+        ) {
+            filters.push(ObjectFilter::Not(Box::new(ObjectFilter::Token)));
+        }
+        Ok(ObjectFilter::All(filters))
+    }
+
     fn trigger(&self, value: &source::Trigger) -> Result<EventSpec> {
         let mut context = self.clone();
         context.retain_permanent_type_guard = true;
@@ -302,11 +322,7 @@ impl Context {
             }
             S::WhenACardIsPutIntoAPlayersGraveyardFromAnywhere(cards, owners) => {
                 EventSpec::ZoneChange {
-                    objects: ObjectFilter::All(vec![
-                        self.card_filter(cards)?,
-                        ObjectFilter::OwnedBy(self.players(owners)?),
-                        ObjectFilter::Not(Box::new(ObjectFilter::Token)),
-                    ]),
+                    objects: self.from_anywhere_graveyard_objects(cards, owners)?,
                     from: None,
                     to: EventZone::Graveyard,
                 }

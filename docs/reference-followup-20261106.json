@@ -3,7 +3,8 @@
   "source_reports": {
     "reference-audit/fix-groups.json": "c5d396941641c67c1f4ef922d2638efcba1e06fc53ea0904619b7740160fb442",
     "reference-fix-followup.md": "674db82b0a7daefa774d36b2ab3fa59481b05c0a8fed363dba4ebc1b42c2badb",
-    "mtgish-reference-review-candidates.json": "0b19a127afd77e729f091c14228db32e8a4539a41548d5a35b8fcc3e94f4cc85"
+    "mtgish-reference-review-candidates.json": "0b19a127afd77e729f091c14228db32e8a4539a41548d5a35b8fcc3e94f4cc85",
+    "qualified-keyword-source/reference-issues.json": "1499532cb0954a03c3b6168628fd057b43411718cbff237ac9147a7930bfebc2"
   },
   "scope_note": "Worker classifications are reports awaiting independent current-producer review. No reference gold, equality aliases, pins or oracle-grammar files are modified. Representation questions are tracked separately from behavioral fixes.",
   "cards": [
@@ -413,9 +414,17 @@
       "name": "Kozilek, Butcher of Truth",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native guarded graveyard destination lookup is re-used after moving that very card to library, so final shuffle loses its player. Parser owner-from-departing-subject is stable. Both programs also wrongly exclude a token copy from the graveyard trigger.",
-      "evidence": "reference-audit/batch-010.json"
+      "evidence": "qualified-keyword-source/reference-issues.json; reference-audit/batch-010.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion",
+        "whole-graveyard-owner-query-retention"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference. The event-card owner query also inherits a live graveyard-membership guard that fails after the first shuffle step moves the card.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178."
     },
     {
       "name": "Prowling Geistcatcher",
@@ -837,6 +846,144 @@
       "upstream_report": "https://github.com/i5jb/mtgish/issues/207",
       "upstream_verification": "The same holder-bound source composition was checked directly on i5jb main bdac5ca64c01f1acb02405839e3633c98c48bcf3.",
       "validation": "Actual English parser and typed-IR regression fail before the correction. Fresh full source output changes only Ashling; Jenny Flint, Lonis and an explicit this-creature control remain unchanged. All185 audit findings retain identical complete usage; six diagnostic line positions move."
+    },
+    {
+      "name": "Dread",
+      "family": "self-graveyard-triggers",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "qualified-keyword-source/reference-issues.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
+      "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies."
+    },
+    {
+      "name": "Emrakul, the Aeons Torn",
+      "family": "self-graveyard-triggers",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "qualified-keyword-source/reference-issues.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion",
+        "whole-graveyard-owner-query-retention",
+        "colored-spell-protection-kind"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference. The event-card owner query also inherits a live graveyard-membership guard that fails after the first shuffle step moves the card. English maps printed colored-spell protection to unqualified colored-object protection.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/129",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
+      "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies. The owner query must remain valid after moving the entire graveyard. Its printed protection is restricted to colored spells."
+    },
+    {
+      "name": "Guile",
+      "family": "self-graveyard-triggers",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "qualified-keyword-source/reference-issues.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
+      "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies."
+    },
+    {
+      "name": "Hostility",
+      "family": "self-graveyard-triggers",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "qualified-keyword-source/reference-issues.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
+      "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies."
+    },
+    {
+      "name": "Purity",
+      "family": "self-graveyard-triggers",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "qualified-keyword-source/reference-issues.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
+      "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies."
+    },
+    {
+      "name": "Serra Avatar",
+      "family": "self-graveyard-triggers",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "qualified-keyword-source/reference-issues.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
+      "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies."
+    },
+    {
+      "name": "Ulamog, the Infinite Gyre",
+      "family": "self-graveyard-triggers",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "qualified-keyword-source/reference-issues.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion",
+        "whole-graveyard-owner-query-retention"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference. The event-card owner query also inherits a live graveyard-membership guard that fails after the first shuffle step moves the card.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
+      "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies. The owner query must remain valid after moving the entire graveyard."
+    },
+    {
+      "name": "Vigor",
+      "family": "self-graveyard-triggers",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "qualified-keyword-source/reference-issues.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
+      "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies."
+    },
+    {
+      "name": "Worldspine Wurm",
+      "family": "self-graveyard-triggers",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "evidence": "qualified-keyword-source/reference-issues.json",
+      "corrected_findings": [
+        "self-graveyard-token-copy-exclusion"
+      ],
+      "producer_cause": "Fork from-anywhere card-event binding appends Not(Token) even for exact SingleCard(ThisCard) self-reference.",
+      "fix_notes": "See reference-self-graveyard-20261106.md. Ordinary/named-card triggers retain their token exclusion, seven atomic self-movement guards remain intact, and unbound event-owner references are refused. Every unlisted operand is identical.",
+      "upstream_report": "Fork Rust binding only; source self/owner operands already express the intended references.",
+      "validation": "Six focused regression/control tests; full ten-record/17-site IR preservation proof. Only Emrakul protection changes the source corpus; existing typed constructor accepted through the generic SPELLS validator. Public schema remains178.",
+      "summary": "Named self-reference from-anywhere graveyard trigger incorrectly excludes token copies."
     }
   ],
   "normalization_questions": [

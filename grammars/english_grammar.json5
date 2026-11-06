@@ -11656,7 +11656,7 @@
   },
   "{{Protectable[Spells]}}": {
     "spells": "FromSpells(AnySpell)",
-    "spells that are one or more colors": "FromColor(Colored)"
+    "spells that are one or more colors": "FromSpells(IsColored)"
   },
   "{{Protectable[Types]}}": {
     "Arcane": "FromTypes(IsSpellType(Arcane))",

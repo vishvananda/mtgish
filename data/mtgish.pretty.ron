@@ -396426,7 +396426,7 @@ Card(
       ]),
     )),
     Flying,
-    Protection(FromColor(Colored)),
+    Protection(FromSpells(IsColored)),
     Annihilator(6),
     FromGraveyard(TriggerA(
       WhenACardIsPutIntoAPlayersGraveyardFromAnywhere(

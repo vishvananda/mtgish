@@ -4778,8 +4778,7 @@
     "FromManaValue({{COMPARISON}})": "",
     "FromPermanents({{PERMANENTS}})": "",
     "FromPlayers({{PLAYERS}})": "",
-    "FromSpells(AnySpell)": "",
-    "FromSpells(Or([IsCardtype(Instant), IsCardtype(Sorcery)]))": "",
+    "FromSpells({{SPELLS}})": "",
     "FromTypes({{CARDS}})": ""
   },
   "{{PTModXY}}": {

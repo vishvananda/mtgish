@@ -68,6 +68,9 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Emrakul, the Aeons Torn", []string{"Protection(FromSpells(IsColored))", "PlayerAction(OwnerOfGraveyrdCard(Trigger_ThatGraveyardCard), ShuffleGraveyardIntoLibrary)"}, []string{"Protection(FromColor(Colored))"}},
+		{"Kozilek, Butcher of Truth", []string{"PlayerAction(OwnerOfGraveyrdCard(Trigger_ThatGraveyardCard), ShuffleGraveyardIntoLibrary)"}, nil},
+		{"Ulamog, the Infinite Gyre", []string{"PlayerAction(OwnerOfGraveyrdCard(Trigger_ThatGraveyardCard), ShuffleGraveyardIntoLibrary)"}, nil},
 		{"Satya, Aetherflux Genius", []string{"Unless(CostWasPaid, [SacrificeEachPermanent(TheTokensCreatedThisWay)])"}, []string{"Unless(CostWasntPaid,"}},
 		{"Titan Hunter", []string{"ANumberOfPermanentsDiedThisTurn(EqualTo(Integer(0)), IsCardtype(Creature))"}, nil},
 		{"Positive Death Trigger Control", []string{"ACreatureOrPlaneswalkerDiedThisTurn(IsCardtype(Creature))"}, []string{"Not(ACreatureOrPlaneswalkerDiedThisTurn"}},
