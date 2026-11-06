@@ -7,7 +7,7 @@
 //! `InSet`, an open count bounded by the total divided) reduce to one form.
 use crate::ir::Card;
 use crate::ir_schema::{Fields, Schema, Ty, TypeDef};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
@@ -16,6 +16,7 @@ mod events;
 mod movement;
 #[cfg(test)]
 mod result_scopes;
+mod visibility;
 use movement::groups as movement_groups;
 #[cfg(test)]
 mod tests;
@@ -140,6 +141,10 @@ struct Walker {
     read: Vec<HashSet<u64>>,
     /// Whether this is the pass that fills `read`.
     reading: bool,
+    /// Only resolution-time PayCost exports receipts from its player actions.
+    paying_cost: bool,
+    /// A surrounding immediate loop gathers optional outcomes as receipts too.
+    gathering_results: bool,
     visits: usize,
 }
 
@@ -182,6 +187,34 @@ impl Walker {
                 }
             }
             scope.result_definitions = definitions;
+        }
+    }
+
+    fn restore_with_exports(
+        &mut self,
+        saved: Option<(Option<HashMap<u64, u64>>, HashMap<u64, u64>)>,
+        exports: &HashSet<u64>,
+    ) {
+        let kept: Vec<_> = self
+            .scopes
+            .last()
+            .into_iter()
+            .flat_map(|s| {
+                exports.iter().filter_map(|old| {
+                    Some((
+                        *old,
+                        *s.maps.get("result")?.get(old)?,
+                        *s.result_definitions.get(old)?,
+                    ))
+                })
+            })
+            .collect();
+        self.restore_result_scope(saved);
+        if let Some(scope) = self.scopes.last_mut() {
+            for (old, new, definition) in kept {
+                scope.maps.entry("result").or_default().insert(old, new);
+                scope.result_definitions.insert(old, definition);
+            }
         }
     }
 
@@ -267,7 +300,19 @@ impl Walker {
         let local_results = (name == "Operand" && value["kind"] == "Program"
             || name == "Instruction" && value["kind"] == "Repeatable")
             .then(|| self.result_scope());
+        let exported = if name == "Instruction" && value["kind"] == "Repeatable" {
+            visibility::exports(&value["args"], true)
+        } else {
+            HashSet::new()
+        };
+        let previous_gathering = self.gathering_results;
+        if name == "Instruction" && value["kind"] == "Repeatable" {
+            self.gathering_results = true;
+        }
         let scoped = name == "Ability";
+        if scoped {
+            self.gathering_results = false;
+        }
         if scoped {
             if !self.keep_order && value["kind"] == "Triggered" {
                 if let Some((_, fields)) = self.schema.variant("Ability", "Triggered") {
@@ -303,8 +348,9 @@ impl Walker {
             self.subjects.pop();
         }
         if let Some(saved) = local_results {
-            self.restore_result_scope(saved);
+            self.restore_with_exports(saved, &exported);
         }
+        self.gathering_results = previous_gathering;
     }
 
     fn variant(&mut self, value: &mut Value, name: &str, adjacent: bool) {
@@ -526,6 +572,44 @@ impl Walker {
                             || owner == "Instruction::If"
                                 && matches!(field.as_str(), "then" | "otherwise"))
                         .then(|| self.result_scope());
+                        let exported = if field == "body" {
+                            match owner {
+                                "Instruction::ForEachPlayer" | "Instruction::ForEachObject" => {
+                                    visibility::exports(item, true)
+                                }
+                                "Instruction::Optional" => {
+                                    visibility::exports(item, self.gathering_results)
+                                }
+                                "CostPart::PlayerAction" if self.paying_cost => {
+                                    visibility::exports(item, false)
+                                }
+                                _ => HashSet::new(),
+                            }
+                        } else {
+                            HashSet::new()
+                        };
+                        let old_gathering = self.gathering_results;
+                        if field == "body" {
+                            match owner {
+                                "Instruction::ForEachPlayer" | "Instruction::ForEachObject" => {
+                                    self.gathering_results = true
+                                }
+                                "Operation::CreateDelayedTrigger"
+                                | "Operation::CreateReplacement"
+                                | "Operation::ReflexiveTrigger"
+                                | "Operation::CreateTrigger"
+                                | "Instruction::Times"
+                                | "CostPart::PlayerAction" => self.gathering_results = false,
+                                _ => {}
+                            }
+                        } else if owner == "Instruction::If"
+                            && matches!(field.as_str(), "then" | "otherwise")
+                        {
+                            self.gathering_results = false;
+                        }
+                        let old_cost = self.paying_cost;
+                        self.paying_cost = owner == "Operation::PayCost" && field == "cost"
+                            || self.paying_cost && owner == "Cost" && field == "parts";
                         if let Some(frame) = created.as_ref().filter(|_| {
                             matches!(field.as_str(), "body" | "announcement" | "intervening_if")
                         }) {
@@ -533,8 +617,10 @@ impl Walker {
                         } else {
                             self.walk(item, ty, defines(owner, field));
                         }
+                        self.paying_cost = old_cost;
+                        self.gathering_results = old_gathering;
                         if let Some(saved) = local_results {
-                            self.restore_result_scope(saved);
+                            self.restore_with_exports(saved, &exported);
                         }
                         self.event_header = old_header;
                     }
@@ -823,6 +909,8 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
         keep_order,
         read: Vec::new(),
         reading: !keep_order,
+        paying_cost: false,
+        gathering_results: false,
         visits: 0,
     };
     let abilities = Ty::Vec(Box::new(Ty::Named("Ability".into())));

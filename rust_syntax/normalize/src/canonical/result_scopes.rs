@@ -1,5 +1,5 @@
 use crate::{canonical, ir::Ability, validate};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 fn norm(mut v: Value) -> Value {
     let a: Vec<Ability> = serde_json::from_value(v.clone()).unwrap();
     validate::abilities(&a).unwrap();
@@ -64,4 +64,23 @@ fn sibling_branches_resolve_their_own_definitions() {
     p[0]["args"]["body"]["instructions"][0]["args"]["then"]["instructions"][0]["args"]["result"] =
         json!(99);
     assert_eq!(first, norm(p));
+}
+#[test]
+fn optional_numeric_locals_do_not_shadow_a_later_payment_receipt() {
+    let mut p = pair()["collision_input"].clone();
+    p[0]["args"]["body"]["instructions"] = json!([
+        {"kind":"Optional","args":{"decider":{"kind":"AbilityController"},"body":{"instructions":[effect(9,json!({"kind":"BindValue","args":{"value":{"kind":"Constant","args":2}}}))]}}},
+        effect(9,json!({"kind":"PayCost","args":{"player":{"kind":"AbilityController"},"cost":{"parts":[{"Life":{"kind":"Constant","args":1}}]},"optional":true}})),
+        {"kind":"If","args":{"condition":{"kind":"PaymentChosen","args":9},"then":{"instructions":[]},"otherwise":{"instructions":[]}}}
+    ]);
+    let normal = norm(p);
+    let instructions = &normal[0]["args"]["body"]["instructions"];
+    assert_ne!(
+        instructions[0]["args"]["body"]["instructions"][0]["args"]["result"],
+        instructions[1]["args"]["result"]
+    );
+    assert_eq!(
+        instructions[1]["args"]["result"],
+        instructions[2]["args"]["condition"]["args"]
+    );
 }
