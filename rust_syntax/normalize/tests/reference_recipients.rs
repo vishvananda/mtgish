@@ -44,6 +44,20 @@ fn arcane_artisan_gives_the_copy_to_its_target_player() {
 }
 
 #[test]
+fn ashling_copies_the_sacrificed_elemental_instead_of_itself() {
+    let c = serde_json::to_value(card("Ashling, the Limitless")).unwrap();
+    let create = operation(&c, "CreateTokens");
+    assert_eq!(
+        create["tokens"][0]["recipe"]["Copy"]["object"],
+        json!({"kind":"EventSubject"})
+    );
+    assert_eq!(
+        create["players"],
+        json!({"kind":"One","args":{"kind":"AbilityController"}})
+    );
+}
+
+#[test]
 fn basilica_bell_haunt_discards_opponents_cards_but_gains_its_controllers_life() {
     let c = serde_json::to_value(card("Basilica Bell-Haunt")).unwrap();
     assert_eq!(

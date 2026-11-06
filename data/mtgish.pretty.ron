@@ -72510,7 +72510,7 @@ Card(
         CreateTokens(
           [
             TokenCopyOfPermanent(
-              ThisPermanent,
+              Trigger_ThatSacrificedPermanent,
               NoTokenCopyEffects,
             ),
           ],

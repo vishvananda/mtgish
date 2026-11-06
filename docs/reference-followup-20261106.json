@@ -794,6 +794,19 @@
       "summary": "Reflexive another-target-permanent branch incorrectly adds six current card types. Generic typed-domain correction removes only that guard, retaining Damage(Source) exclusion, optional removal, independent implied target modes and opponent alternative.",
       "upstream_report": "Fork Rust selector lowering only.",
       "validation": "Included in exact196-record/226-filter full-corpus delta; every other operand is unchanged."
+    },
+    {
+      "name": "Ashling, the Limitless",
+      "family": "recipients-and-source-roles",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "The sacrifice trigger copies Source/Ashling instead of the sacrificed Elemental. The corrected source names Trigger_ThatSacrificedPermanent and lowers to EventSubject, preserving token creator, haste grant, delayed payment and actual-created-token sacrifice receipt.",
+      "evidence": "ashling-worker-note.md; ashling-reference-repro.json; created-token-grants-review.json",
+      "producer_cause": "The generic ThatPermanent trigger-action parameter is bound to the holder because other actions need it for another-target exclusions. The copy-of-it phrase needs a separate sacrificed-object parameter.",
+      "fix_notes": "Route the copy phrase through the existing (~Permanent,ThatSacrificedPermanent) family. Keep Jenny Flint and Lonis holder exclusions unchanged; see reference-ashling-20261106.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/207",
+      "upstream_verification": "The same holder-bound source composition was checked directly on i5jb main bdac5ca64c01f1acb02405839e3633c98c48bcf3.",
+      "validation": "Actual English parser and typed-IR regression fail before the correction. Fresh full source output changes only Ashling; Jenny Flint, Lonis and an explicit this-creature control remain unchanged. All185 audit findings retain identical complete usage; six diagnostic line positions move."
     }
   ],
   "normalization_questions": [
@@ -813,6 +826,7 @@
     "Missy villainous-choice hook",
     "Six invariant shared-X shapes",
     "Hatchery Sliver typed grant",
-    "Raw event permanent-domain contract: counter replacements, counter/targeting triggers and other event adapters can erase ObjectSet zones. Scoped selector correction retains their prior six-type guards; no domain is silently widened."
+    "Raw event permanent-domain contract: counter replacements, counter/targeting triggers and other event adapters can erase ObjectSet zones. Scoped selector correction retains their prior six-type guards; no domain is silently widened.",
+    "Ambergris, Agent of Law compound optional discard/draw payment feasibility and draw-completion contract: reported as unresolved, with no established behavioral reference defect or executed witness."
   ]
 }

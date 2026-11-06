@@ -55,11 +55,19 @@ func TestParserSemanticRegressions(t *testing.T) {
 		control.Cards[0].Text = text.cost + ": Draw a card."
 		cards[text.name] = control
 	}
+	control := cards["Ashling, the Limitless"]
+	control.Cards = append([]MtgJsonAtomic(nil), control.Cards...)
+	control.Cards[0].Text = "Whenever you sacrifice a nontoken Elemental, this creature gets +1/+1 until end of turn."
+	cards["Sacrifice Trigger Holder Control"] = control
 	cases := []struct {
 		name     string
 		contains []string
 		excludes []string
 	}{
+		{"Ashling, the Limitless", []string{"TokenCopyOfPermanent(Trigger_ThatSacrificedPermanent, NoTokenCopyEffects)"}, []string{"TokenCopyOfPermanent(ThisPermanent, NoTokenCopyEffects)"}},
+		{"Jenny Flint", []string{"TargetPermanent(And([Other(ThisPermanent),"}, []string{"Other(Trigger_ThatPermanent)", "Other(Trigger_ThatSacrificedPermanent)"}},
+		{"Lonis, Genetics Expert", []string{"TargetPermanent(And([Other(ThisPermanent),"}, []string{"Other(Trigger_ThatPermanent)", "Other(Trigger_ThatSacrificedPermanent)"}},
+		{"Sacrifice Trigger Holder Control", []string{"CreatePermanentLayerEffectUntil(ThisPermanent, [AdjustPT(+1, +1)], UntilEndOfTurn)"}, []string{"CreatePermanentLayerEffectUntil(Trigger_ThatPermanent,"}},
 		{"Timecrafting", []string{"TargetPermanent(HasACounterOfType(TimeCounter))", "TargetPermanent(AnyPermanent)", "NumberCountersOfTypeOnPermanent(ValueX, TimeCounter, Ref_TargetPermanent)", "NumberCountersOfTypeOnCardInExile(ValueX, TimeCounter, Ref_TargetExiledCard)"}, nil},
 		{"Arcane Artisan", []string{"PlayerAction(Ref_TargetPlayer, CreateTokens([TokenCopyOfExiledCard"}, nil},
 		{"Basilica Bell-Haunt", []string{"EachPlayerAction(Opponent, DiscardACard), GainLife(Integer(3))"}, []string{"EachPlayerAction(Opponent, GainLife"}},
