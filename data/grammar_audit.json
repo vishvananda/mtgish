@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "rules": 33192,
+  "rules": 33193,
   "sources": {
     "grammars/english_grammar-INPUT.json5": "9bf36603040f3eb3018a65f8520554300a6307cda98bb1df3034f454adafdbe6",
     "grammars/english_grammar-ability_word.json5": "bd1eb337e7a29f7f27e2124944c6ac3ebfa545bac51d65faba595de71063d3fb",
@@ -10,7 +10,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "168b8d8a121104e70f0973deb4c4095ae70f4cf501156c561a20af954e497a04"
+    "grammars/english_grammar.json5": "7c0a8cb99e6e7b2ec13e26775a7e2ae3d3917ce697248d07fc66d609abd02b27"
   },
   "source_order": [
     "grammars/english_grammar-INPUT.json5",
@@ -28,12 +28,6 @@
     "data/dungeons.json": "c1d3a4c227e235822d1ec77720c74213aa3f10f1a3c46530fa88b74ae217dc52",
     "data/oracle.json": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
     "data/tokens.json": "39b9e5606cbba2db52c6cb43d7e7f0cb9e7877a80e5234b0fd6a8e510f183151",
-    "go_mtg_parser/clean_rules_text.go": "ea8917bf330d361afffa43c56340a8746f6cbe8c994aeb2c9789b6e6d1c6ab40",
-    "go_mtg_parser/go.mod": "8e1f33bbe2be97798fd7b5e2df7da71eadd97ef37d7ecf9cbba89df076769993",
-    "go_mtg_parser/jsonc.go": "271decc6b1b04aa723450401a66be83ccbc5e6d4b329dc26ca3da03562cd5332",
-    "go_mtg_parser/main.go": "ada21a5a310f5fa7bf952ba5e9eb98f19c4d7f9a594fff933395db6991d8f00d",
-    "go_mtg_parser/prefix_tree.go": "d8b6a1b5f8d8c4e602e451cd289bd0143e9877a639845c48c153ff28342e1d2b",
-    "go_mtg_parser/serialize.go": "fb654cb71be04c4dff500ae4efe5f976fa3c0a3a948c013fb9fa76a26c848b05",
     "grammars/english_grammar-INPUT.json5": "9bf36603040f3eb3018a65f8520554300a6307cda98bb1df3034f454adafdbe6",
     "grammars/english_grammar-ability_word.json5": "bd1eb337e7a29f7f27e2124944c6ac3ebfa545bac51d65faba595de71063d3fb",
     "grammars/english_grammar-counters.json5": "a49a6dec59e2cca4162f286f6eb8ac523133ef0f584c4000b78b04d809ea5aa2",
@@ -42,7 +36,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "168b8d8a121104e70f0973deb4c4095ae70f4cf501156c561a20af954e497a04",
+    "grammars/english_grammar.json5": "7c0a8cb99e6e7b2ec13e26775a7e2ae3d3917ce697248d07fc66d609abd02b27",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
@@ -55,7 +49,7 @@
     "grammars/mtgish_grammar-triggers.json5": "96b070faa84d9a5cad36071d156a01e6139a8590a57f3b51a9b94fca9c1dff24",
     "grammars/mtgish_grammar-type_line.json5": "27f424e58808988f4317eacf3f6aee9ace7d360ca886e034f099e7e1c10a81ae",
     "grammars/mtgish_grammar-vote_option.json5": "93e2f2472543b1a6865d80c7d45032788759dfc365c41d5dfb0a424cd65587e3",
-    "grammars/mtgish_grammar.json5": "cdecacef7bbaf54a95540b7bac47b2e574aa57ecd8f94adb8537670a558c882c",
+    "grammars/mtgish_grammar.json5": "8726ad5bfb2b8ebb042510c20359da0e8a02f862a5acaee67b5860ae77c1e6c6",
     "grammars/short_names.json5": "dd44ee8da0d0546722fa3b83de3d042c5f147cbe7553ad8e200c3b572b2c76a3"
   },
   "parsed_cards": 33529,
@@ -1226,40 +1220,6 @@
             ],
             "~Spell": [
               "Vampiric Touch"
-            ]
-          }
-        }
-      ],
-      "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
-    },
-    {
-      "id": "655c6348c7ecef9eafa2f0898137dcba33aac73db27427a86b33a6729a3564e2",
-      "file": "grammars/english_grammar.json5",
-      "line": 14291,
-      "rule": "SpellActions(~Spell)",
-      "kind": "unused_semantic_capture",
-      "severity": "error",
-      "capture": "Digits[1]",
-      "input": "{{~Spell}} deals {{Digits}} damage to target {{PlayerOrPlaneswalker}} and {{Digits}} damage to target {{Creature}}",
-      "output": "Targeted([TargetPlayerOrPermanent({{PlayerOrPlaneswalker[0]}}), TargetPermanent({{Creature[0]}})], ActionList([SpellDealsDamage({{~Spell}}, {{Digits[0]}}, MultipleRecipients([Ref_TargetPlayerOrPermanent, Permanent(Ref_TargetPermanent)]))]))",
-      "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
-      "usage": [
-        {
-          "card": "Punish the Enemy",
-          "matched_text": "Punish the Enemy deals 3 damage to target player or planeswalker and 3 damage to target creature",
-          "captures": {
-            "Creature": [
-              "creature"
-            ],
-            "Digits": [
-              "3",
-              "3"
-            ],
-            "PlayerOrPlaneswalker": [
-              "player or planeswalker"
-            ],
-            "~Spell": [
-              "Punish the Enemy"
             ]
           }
         }
@@ -3454,37 +3414,9 @@
       "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
     },
     {
-      "id": "9f2443616795d001809076bb32854159647d398135e16fa8c515945f438e0613",
-      "file": "grammars/english_grammar.json5",
-      "line": 21512,
-      "rule": "TriggerActions(ThatPermanent)",
-      "kind": "unused_semantic_capture",
-      "severity": "error",
-      "capture": "Digits[1]",
-      "input": "it deals {{Digits}} damage to target opponent or planeswalker and {{Digits}} damage to up to one target {{Creature}}",
-      "output": "Targeted([TargetPlayerOrPermanent(Opponent, IsCardtype(Planeswalker)), UptoOneTargetPermanent({{Creature[0]}})], ActionList([PermanentDealsDamage({{ThatPermanent}}, {{Digits[0]}}, MultipleRecipients([Ref_TargetPlayerOrPermanent, Permanent(Ref_TargetPermanent)]))]))",
-      "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
-      "usage": [
-        {
-          "card": "Burning Sun's Avatar",
-          "matched_text": "it deals 3 damage to target opponent or planeswalker and 3 damage to up to one target creature",
-          "captures": {
-            "Creature": [
-              "creature"
-            ],
-            "Digits": [
-              "3",
-              "3"
-            ]
-          }
-        }
-      ],
-      "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
-    },
-    {
       "id": "3da7970e29918bdfabc42074e7a56b9dd0a25f9fb92ba544d0d24045a4fe63ea",
       "file": "grammars/english_grammar.json5",
-      "line": 21585,
+      "line": 21584,
       "rule": "TriggerActions(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3519,7 +3451,7 @@
     {
       "id": "e10a3d0631b3b85d6f1641bfd92638c75431851c2f72e583db0c6b27352e7a3f",
       "file": "grammars/english_grammar.json5",
-      "line": 21666,
+      "line": 21665,
       "rule": "TriggerActions(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3550,7 +3482,7 @@
     {
       "id": "72f8cc05d30481a3cd8e3331b4ba132fe808d386c24c550170a922b5902df2f2",
       "file": "grammars/english_grammar.json5",
-      "line": 21668,
+      "line": 21667,
       "rule": "TriggerActions(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3578,7 +3510,7 @@
     {
       "id": "b2bf573ef4a3f0a8921e96c263fd181409e01508867fd11991f9a706e050f08b",
       "file": "grammars/english_grammar.json5",
-      "line": 21741,
+      "line": 21740,
       "rule": "TriggerActions(ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3606,7 +3538,7 @@
     {
       "id": "492192e776bc803fce8b7aad11117c342d9c2ab60a376eacb6616e0c55fa8bb9",
       "file": "grammars/english_grammar.json5",
-      "line": 22227,
+      "line": 22226,
       "rule": "TriggerActions(ThatPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3631,7 +3563,7 @@
     {
       "id": "56adc5b40b31521a2388c486fe71585def588298f78b540b1e4d8e51efae43ee",
       "file": "grammars/english_grammar.json5",
-      "line": 22744,
+      "line": 22743,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3666,7 +3598,7 @@
     {
       "id": "4d39c3c1ef6076690f9b766a2a01234be40e65c1df7c951c028e01033097574f",
       "file": "grammars/english_grammar.json5",
-      "line": 22780,
+      "line": 22779,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3701,7 +3633,7 @@
     {
       "id": "fcfdb014e7a0e7040781641ab9c704a727af8b7d3958530642ea535c570d9bff",
       "file": "grammars/english_grammar.json5",
-      "line": 22883,
+      "line": 22882,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3739,7 +3671,7 @@
     {
       "id": "d84a7d557ac5d079bbbe8b9a4500eaa16cffe7e5e9744d2963c503947952be37",
       "file": "grammars/english_grammar.json5",
-      "line": 23012,
+      "line": 23011,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3771,7 +3703,7 @@
     {
       "id": "c1f56f31ec5bc924b44e4f7ea2f7394d69c85907897ff05e5c98c3a2de7daa03",
       "file": "grammars/english_grammar.json5",
-      "line": 23039,
+      "line": 23038,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3808,7 +3740,7 @@
     {
       "id": "58570a7864ecd817d2dbf972dba032f280a3c1341666ba486cd45ae4521a7e43",
       "file": "grammars/english_grammar.json5",
-      "line": 23085,
+      "line": 23084,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3833,7 +3765,7 @@
     {
       "id": "3cd6125eb3d4f2cde7f919d9cd1b184e37a35918a3be3b6d59f9c1d85fde55fd",
       "file": "grammars/english_grammar.json5",
-      "line": 23088,
+      "line": 23087,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3864,7 +3796,7 @@
     {
       "id": "dd778be58445e2f426144780a3ccab1456724c3c596e0b272364eebcd9002fb5",
       "file": "grammars/english_grammar.json5",
-      "line": 23138,
+      "line": 23137,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3903,7 +3835,7 @@
     {
       "id": "c0ad5bb7824098f8214432077b8b63dac031e476c15712529311a1134912af1f",
       "file": "grammars/english_grammar.json5",
-      "line": 23260,
+      "line": 23259,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3928,7 +3860,7 @@
     {
       "id": "732855bf58ae59778967adee5512aa5d4b2b424f7f2a4110fb182240ce06c4e8",
       "file": "grammars/english_grammar.json5",
-      "line": 23316,
+      "line": 23315,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3959,7 +3891,7 @@
     {
       "id": "719604a1be1b11a03836b6fea7a3727878539552e711f770e2603e31c71ceab6",
       "file": "grammars/english_grammar.json5",
-      "line": 23319,
+      "line": 23318,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -3996,7 +3928,7 @@
     {
       "id": "cda2f563787612d6bb4b374947590ef497120d02c6432523e9d69f795424a296",
       "file": "grammars/english_grammar.json5",
-      "line": 23320,
+      "line": 23319,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4033,7 +3965,7 @@
     {
       "id": "b81fbae42bdda53524e30b6cf699eb11c09a8cb0a322dba8ac8e0ee07fa12d4d",
       "file": "grammars/english_grammar.json5",
-      "line": 23329,
+      "line": 23328,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4064,7 +3996,7 @@
     {
       "id": "2090b91717c634a02edd2d704aa41cf15f6236084da69e79d671170925c6d7a7",
       "file": "grammars/english_grammar.json5",
-      "line": 23519,
+      "line": 23518,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4098,34 +4030,9 @@
       "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
     },
     {
-      "id": "0d6249ea5adaafc4a6a06668e15c9dcae05dba2c6004203464f1ebd67a2aae45",
-      "file": "grammars/english_grammar.json5",
-      "line": 23814,
-      "rule": "TriggerActions(~Permanent,ThatCreature)",
-      "kind": "unused_semantic_capture",
-      "severity": "error",
-      "capture": "Digits[1]",
-      "input": "this creature deals {{Digits}} damage to that creature's controller and {{Digits}} damage to you",
-      "output": "ActionList([PermanentDealsDamage(ThisPermanent, {{Digits[0]}}, Player(ControllerOfPermanent({{ThatCreature}}))), PermanentDealsDamage(ThisPermanent, {{Digits[0]}}, Player(You))])",
-      "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
-      "usage": [
-        {
-          "card": "Bellowing Fiend",
-          "matched_text": "this creature deals 3 damage to that creature's controller and 3 damage to you",
-          "captures": {
-            "Digits": [
-              "3",
-              "3"
-            ]
-          }
-        }
-      ],
-      "review_reason": "every freshly matched occurrence equals an output-referenced scalar capture"
-    },
-    {
       "id": "0846fc6880a9758b1567ec16b600c059bfd7eb764cf95a625dcd9cfd2135d765",
       "file": "grammars/english_grammar.json5",
-      "line": 23956,
+      "line": 23955,
       "rule": "TriggerActions(~Permanent,ThatPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -4167,7 +4074,7 @@
     {
       "id": "4b52d780207396369d07bd22949b12f81302932069c06ea3a0326300efdfb2cb",
       "file": "grammars/english_grammar.json5",
-      "line": 23958,
+      "line": 23957,
       "rule": "TriggerActions(~Permanent,ThatPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6068,7 +5975,7 @@
     {
       "id": "41a78480262938c6013844612ea55ba4f9c32aec367a38a05d69da8a142b9860",
       "file": "grammars/english_grammar.json5",
-      "line": 23740,
+      "line": 23739,
       "rule": "TriggerActions(~Permanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6109,7 +6016,7 @@
     {
       "id": "f5fd9bb07a746ad36561290258ded4de169be0364901e1d0372501ad43a53528",
       "file": "grammars/english_grammar.json5",
-      "line": 23760,
+      "line": 23759,
       "rule": "TriggerActions(~Permanent,DefendingPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6142,7 +6049,7 @@
     {
       "id": "fe4e34460f8c367463cb44e07b548de74c997a32be84574fcf5d194950bf50c3",
       "file": "grammars/english_grammar.json5",
-      "line": 23760,
+      "line": 23759,
       "rule": "TriggerActions(~Permanent,DefendingPlayer)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6175,7 +6082,7 @@
     {
       "id": "c89a6485c7e7bbd487fcf5cec44b91104263e8de8168bde6ab4a1544da567c59",
       "file": "grammars/english_grammar.json5",
-      "line": 23881,
+      "line": 23880,
       "rule": "TriggerActions(~Permanent,ThatPermanent)",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6340,7 +6247,7 @@
     {
       "id": "1aec6a833b7ea475d04fba3a6ac375b7d28a541e8ed4ebbaacd72c878889a8b3",
       "file": "grammars/english_grammar.json5",
-      "line": 30377,
+      "line": 30378,
       "rule": "TriggerEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",
@@ -6370,7 +6277,7 @@
     {
       "id": "02cf1818684b9be8c7476d5c28d5c9215028911102fdeead7481cc10e2eaa6e0",
       "file": "grammars/english_grammar.json5",
-      "line": 30975,
+      "line": 30976,
       "rule": "TriggerEffect",
       "kind": "unused_semantic_capture",
       "severity": "error",

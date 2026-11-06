@@ -1088,19 +1088,34 @@ pub(super) fn spends_once(key: u8) -> String {
 
 /// What must hold for a "may" to be asked at all, as the start of a test: no one
 /// is asked to pay energy they haven't got, or to draw when they can't (121.3).
-pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String {
+pub(super) fn asked_if(decider: &PlayerRef, local: &str, body: &Program) -> String {
     let mut first = body;
     while let [Instruction::Group(group), ..] = first.instructions.as_slice() {
         first = group;
     }
     let same = |player: &PlayerRef| format!("{player:?}") == format!("{decider:?}");
+    // Legacy compound optional actions can begin with a hand discard. A draw
+    // prohibition still rules out choosing the entire conjunction (121.3).
+    // Read this before discarding anything; replacement is not prohibition.
+    if let [Instruction::Effect { operation: Operation::Discard { players: PlayerSet::One(discarder),
+        amount: Expr::CountObjects(hand), random: false }, .. },
+        Instruction::Effect { operation: Operation::Draw { players: PlayerSet::One(drawer),
+            amount: Expr::Constant(n) }, .. }, ..] = first.instructions.as_slice()
+    {
+        if same(discarder) && same(drawer) && matches!(hand.as_ref(), ObjectSet::Zone {
+            scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(owner) },
+            kind: ObjectKind::Card, filter: ObjectFilter::Any
+        } if same(owner)) {
+            return format!("!{} && ", planned::cant_draw(local, *n));
+        }
+    }
     match first.instructions.first() {
         Some(Instruction::Effect {
             operation: Operation::PayCost { player, cost, .. },
             ..
         }) if same(player) => match cost.parts.as_slice() {
             [CostPart::Energy(Expr::Constant(n))] => {
-                format!("g.state().player(decider_{id}).energy() >= {n} && ")
+                format!("g.state().player({local}).energy() >= {n} && ")
             }
             _ => String::new(),
         },
@@ -1116,7 +1131,7 @@ pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String
                 Expr::Constant(n) => *n,
                 _ => 1,
             };
-            format!("!{} && ", planned::cant_draw(&format!("decider_{id}"), n))
+            format!("!{} && ", planned::cant_draw(local, n))
         }
         // A search that can't be caused isn't offered (Ashiok, Dream Render's ruling).
         // A search of other zones too still searches them (Agency Outfitter).
@@ -1124,7 +1139,7 @@ pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String
             operation: Operation::Search { player, library, also, .. },
             ..
         }) if same(player) && same(library) && also.is_empty() => {
-            format!("g.may_search(decider_{id}, decider_{id}) && ")
+            format!("g.may_search({local}, {local}) && ")
         }
         // Moving the source: it's a new object once it has moved (400.7).
         Some(Instruction::Effect {

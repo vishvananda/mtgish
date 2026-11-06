@@ -7,7 +7,7 @@
     "qualified-keyword-source/reference-issues.json": "1499532cb0954a03c3b6168628fd057b43411718cbff237ac9147a7930bfebc2",
     "permanent-domains/reference-issues.json": "ab61b05aca8e3fe51b4af479b45de61109a6b9027140c22ccc2cb2a8201dbecf"
   },
-  "scope_note": "Worker classifications are reports awaiting independent current-producer review. No reference gold, equality aliases, pins or oracle-grammar files are modified. Representation questions are tracked separately from behavioral fixes.",
+  "scope_note": "Worker classifications are reports awaiting independent current-producer review. No reference gold, equality aliases, pins or oracle-grammar files are modified. Representation questions are tracked separately from behavioral fixes. Executed Cantrip followup fixes are recorded in reference-investigations-20261106.md; independent Oracle grammar corrections are separate from reference-gold preservation.",
   "cards": [
     {
       "name": "Rethink",
@@ -69,7 +69,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native damages the target creature’s controller instead of the target creature; parser recipient is correct.",
+      "summary": "Native damages the target creature\u2019s controller instead of the target creature; parser recipient is correct.",
       "evidence": "reference-audit/batch-004.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -91,7 +91,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native Ionize damages its own controller instead of countered spell’s controller.",
+      "summary": "Native Ionize damages its own controller instead of countered spell\u2019s controller.",
       "evidence": "reference-audit/batch-010.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -395,9 +395,11 @@
       "name": "Abstract Performance",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "summary": "Confirmed gold domain error: the other-pile operations query all shared exile minus the chosen pile, rather than the two piles this spell exiled. Grammar independently drifts from the ChoosePile result to Move/LookAt handles. Whole program reviewed; no runtime execution performed.",
-      "evidence": "reference-audit/batch-001.json"
+      "review_status": "fixed_current_producer",
+      "summary": "Generator failed to carry the unchosen pile out of the player-choice closure. Both piles now survive that closure. Native execution leaves unrelated exile untouched; the earlier unproven gold-domain-error claim is withdrawn. Independent grammar separately used drifting result addresses and now marks the pile choice.",
+      "evidence": "reference-audit/batch-001.json",
+      "validation": "Native compilation and unrelated opponent-owned exile witness; final hand/graveyard counts checked.",
+      "fix_notes": "See reference-investigations-20261106.md. No reference gold or equality alias changes."
     },
     {
       "name": "Aragorn, Company Leader",
@@ -439,9 +441,11 @@
       "name": "Laquatus's Creativity",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "summary": "Native re-counts the larger hand after drawing for discard rather than retaining that many. Parser uses draw transition count; replacement-draw equivalence remains pending.",
-      "evidence": "reference-audit/batch-011.json"
+      "review_status": "fixed_current_producer",
+      "summary": "Capture the requested draw amount before drawing and use it for both actions. Recounting the hand or counting actual drawn cards fails replacement/prohibition/partial-draw controls.",
+      "evidence": "reference-audit/batch-011.json",
+      "validation": "Full corpus preservation with exactly two Source records changed; native normal, forbidden, replaced and partial draw controls.",
+      "fix_notes": "See reference-investigations-20261106.md. No reference gold or equality alias changes."
     },
     {
       "name": "Kozilek, Butcher of Truth",
@@ -1168,6 +1172,45 @@
       "fix_notes": "See reference-caster-host-self-damage-20261106.md. Other abilities and eligible-type/affinity filters remain identical.",
       "validation": "Actual-card source and IR regression, exact full-corpus preservation proof and unrestricted-source negative control.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/215"
+    },
+    {
+      "name": "Ambergris, Agent of Law",
+      "family": "compound-resolving-payments",
+      "reported_classification": "independently_confirmed_reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Discard hand and draw is one resolving cost. Check draw affordability before discarding; followups observe the chosen compound payment even if its draws are replaced.",
+      "producer_cause": "Law template omitted the explicit receipt; generator omitted draw prohibition; reflexive lowering used actual Draw completion.",
+      "validation": "Receipt regressions for all three; native prohibition, replacement and decline controls including a When-you-do witness.",
+      "fix_notes": "See reference-investigations-20261106.md. No engine or public schema change."
+    },
+    {
+      "name": "Ambergris, Agent of Balance",
+      "family": "compound-resolving-payments",
+      "reported_classification": "fork_lowering_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Discard hand and draw is one resolving cost. Check draw affordability before discarding; followups observe the chosen compound payment even if its draws are replaced.",
+      "producer_cause": "Law template omitted the explicit receipt; generator omitted draw prohibition; reflexive lowering used actual Draw completion.",
+      "validation": "Receipt regressions for all three; native prohibition, replacement and decline controls including a When-you-do witness.",
+      "fix_notes": "See reference-investigations-20261106.md. No engine or public schema change."
+    },
+    {
+      "name": "Ambergris, Agent of Tyranny",
+      "family": "compound-resolving-payments",
+      "reported_classification": "fork_lowering_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Discard hand and draw is one resolving cost. Check draw affordability before discarding; followups observe the chosen compound payment even if its draws are replaced.",
+      "producer_cause": "Law template omitted the explicit receipt; generator omitted draw prohibition; reflexive lowering used actual Draw completion.",
+      "validation": "Receipt regressions for all three; native prohibition, replacement and decline controls including a When-you-do witness.",
+      "fix_notes": "See reference-investigations-20261106.md. No engine or public schema change."
+    },
+    {
+      "name": "Missy",
+      "family": "villainous-choice-provenance",
+      "reported_classification": "fork_lowering_error",
+      "review_status": "fixed_ir_lowering_backend_gap_remains",
+      "summary": "Preserve the villainous marker and both option programs inside its player loop. Full native generation still refuses other unsupported operations.",
+      "validation": "Source and IR regression checks marker, options and absence of ordinary ChooseOne.",
+      "fix_notes": "See reference-investigations-20261106.md. Backend support is not claimed."
     }
   ],
   "normalization_questions": [
@@ -1179,16 +1222,14 @@
     "NORM-007",
     "NORM-008",
     "Sycorax Commander sibling-result definitions",
-    "Nested delayed-trigger result namespace",
     "Sundering Sentinel unused results"
   ],
   "unresolved_contract_questions": [
     "Crypsis protection-domain contract",
-    "Missy villainous-choice hook",
+    "Missy native backend gaps; villainous-choice IR marker is now preserved",
     "Six invariant shared-X shapes",
     "Hatchery Sliver typed grant",
     "Raw event permanent-domain contract: counter replacements, counter/targeting triggers and other event adapters can erase ObjectSet zones. Scoped selector correction retains their prior six-type guards; no domain is silently widened.",
-    "Ambergris, Agent of Law compound optional discard/draw payment feasibility and draw-completion contract: reported as unresolved, with no established behavioral reference defect or executed witness.",
     "Satya, Aetherflux Genius energy amount with multiple tokens created by replacement effects: aggregate-versus-indexed contract remains unresolved; the current fix changes only payment polarity.",
     "Zask dies/subtype domain review: the reported Creature restriction is not established by the printed unqualified Insect noun plus CR109.2/700.4. Preserve current producer and separately review the moving-incarnation question."
   ]

@@ -128,6 +128,69 @@ fn last_result(instruction: &Instruction) -> Option<ResultId> {
 }
 
 impl Context {
+    fn optional_reflexive_payment(body: &mut Program, decider: &PlayerRef) -> bool {
+        if let [Instruction::Group(group)] = body.instructions.as_mut_slice() {
+            return Self::optional_reflexive_payment(group, decider);
+        }
+        let [Instruction::Effect {
+            result,
+            operation: Operation::PayCost { player, cost, optional },
+        }, Instruction::Effect {
+            operation: Operation::ReflexiveTrigger { performed: Some(paid), .. },
+            ..
+        }] = body.instructions.as_mut_slice() else {
+            return false;
+        };
+        if !matches!(cost.parts.as_slice(), [CostPart::PlayerAction { .. }, CostPart::Draw { .. }])
+            || result.0 != paid.0
+            || !crate::semantics::same_player(player, decider)
+        {
+            return false;
+        }
+        *optional = true;
+        true
+    }
+
+    /// Discarding a hand and drawing is one resolving cost, with one receipt.
+    fn compound_hand_draw_reflexive(
+        &mut self,
+        value: &source::Action,
+        actor: &PlayerSet,
+        optional: bool,
+    ) -> Option<Result<Instruction>> {
+        // "Discard your hand and draw ... When you do": the entire action is
+        // one resolving cost (118.12), including when its draws are replaced.
+        if let source::Action::Reflexive_Discard_Draw_WhenYouDo(discard, draw, actions) = value {
+            if let (source::Discardable::Hand, source::Drawable::NumberCards(count)) =
+                (discard.as_ref(), draw.as_ref())
+            {
+                return Some((|| {
+                    let PlayerSet::One(player) = actor else {
+                        return Err(invalid("compound payment requires one payer"));
+                    };
+                    let mut child = self.clone();
+                    child.result = self.result.saturating_add(1 << 20);
+                    let discard = child.action(&source::Action::DiscardHand, actor)?;
+                    let payment = self.effect(Operation::PayCost {
+                        player: player.clone(),
+                        optional,
+                        cost: Cost {
+                            parts: vec![
+                                CostPart::PlayerAction {
+                                    player: player.clone(),
+                                    body: Program { instructions: vec![discard] },
+                                },
+                                CostPart::Draw { count: self.number(count)? },
+                            ],
+                        },
+                    });
+                    self.reflexive_after(vec![payment], None, actions)
+                })());
+            }
+        }
+        None
+    }
+
     /// `Reflexive_<Base>_When<Event>` is the action or cost `Base` with the same
     /// operands, then a reflexive trigger. The variant name says all of that, so
     /// no form needs its own code. `None` means this is not such a form.
@@ -136,6 +199,9 @@ impl Context {
         value: &source::Action,
         actor: &PlayerSet,
     ) -> Option<Result<Instruction>> {
+        if let Some(compound) = self.compound_hand_draw_reflexive(value, actor, false) {
+            return Some(compound);
+        }
         use crate::pipeline::source_tree::decode;
         let inspected = crate::inspect::value(value).ok()?;
         let variant = inspected["variant"].as_str()?.strip_prefix("Reflexive_")?;

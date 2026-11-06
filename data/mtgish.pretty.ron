@@ -34913,27 +34913,32 @@ Card(
     TriggerA(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       ActionList([
-        MayActions([
+        MayCost(And([
           DiscardHand,
           DrawNumberCards(Integer(2)),
-          CreateEachPermanentLayerEffectUntil(
-            And([
-              Other(Trigger_ThatCreature),
+        ])),
+        If(
+          CostWasPaid,
+          [
+            CreateEachPermanentLayerEffectUntil(
               And([
-                IsCardtype(Creature),
-                ControlledByAPlayer(SinglePlayer(You)),
+                Other(Trigger_ThatCreature),
+                And([
+                  IsCardtype(Creature),
+                  ControlledByAPlayer(SinglePlayer(You)),
+                ]),
               ]),
-            ]),
-            [
-              AdjustPTX(
-                PlusX,
-                PlusX,
-                NumCardsPlayerDiscardedThisTurn(You),
-              ),
-            ],
-            UntilEndOfTurn,
-          ),
-        ]),
+              [
+                AdjustPTX(
+                  PlusX,
+                  PlusX,
+                  NumCardsPlayerDiscardedThisTurn(You),
+                ),
+              ],
+              UntilEndOfTurn,
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -744095,11 +744100,12 @@ Card(
         TargetPlayer(AnyPlayer),
       ],
       ActionList([
+        CreateValueX(TheNumberOfCardsInPlayersHand(Ref_TargetPlayer)),
         PlayerActions(
           Ref_TargetPlayer,
           [
-            DrawNumberCards(TheNumberOfCardsInPlayersHand(ActionPlayer)),
-            DiscardNumberCards(TheNumberOfCardsInPlayersHand(ActionPlayer)),
+            DrawNumberCards(ValueX),
+            DiscardNumberCards(ValueX),
           ],
         ),
       ]),

@@ -472,6 +472,7 @@ pub(super) fn plain_entry(entry: &EntrySpec) -> bool {
 /// The locals earlier instructions bound, keyed by the result that names them.
 pub(super) struct Results {
     pub(super) selections: BTreeMap<u32, String>,
+    pub(super) pile_not_chosen: BTreeMap<u32, String>,
     pub(super) implicit_selections: BTreeMap<u32, String>,
     prepared_selections: Vec<BTreeMap<u32, super::selections::PreparedSelection>>,
     pub(super) unchosen: BTreeMap<u32, String>,
@@ -495,6 +496,7 @@ pub(super) struct Results {
 enum Hoist {
     Moved,
     Selected,
+    NotChosen,
     Implicit,
     Created,
     Before,
@@ -912,6 +914,7 @@ impl Compiler {
     pub(super) fn results(&self) -> Results {
         Results {
             selections: self.selections.clone(),
+            pile_not_chosen: self.pile_not_chosen.clone(),
             implicit_selections: self.implicit_selections.clone(),
             prepared_selections: self.prepared_selections.clone(),
             unchosen: self.unchosen.clone(),
@@ -933,6 +936,7 @@ impl Compiler {
     pub(super) fn restore_results(&mut self, results: Results) {
         let Results {
             selections,
+            pile_not_chosen,
             implicit_selections,
             prepared_selections,
             unchosen,
@@ -951,6 +955,7 @@ impl Compiler {
             notes,
         } = results;
         self.selections = selections;
+        self.pile_not_chosen = pile_not_chosen;
         self.implicit_selections = implicit_selections;
         self.prepared_selections = prepared_selections;
         self.unchosen = unchosen;
@@ -987,6 +992,7 @@ impl Compiler {
         self.notes.implicit_each=inner.notes.implicit_each.clone();
         self.hoist(&inner.moved, Hoist::Moved, out);
         self.hoist(&inner.selections, Hoist::Selected, out);
+        self.hoist(&inner.pile_not_chosen, Hoist::NotChosen, out);
         self.hoist(&inner.implicit_selections, Hoist::Implicit, out);
         self.hoist(&inner.creations, Hoist::Created, out);
         self.hoist(&inner.before, Hoist::Before, out);
@@ -1025,6 +1031,7 @@ impl Compiler {
             let known = match kind {
                 Hoist::Moved => &self.moved,
                 Hoist::Selected => &self.selections,
+                Hoist::NotChosen => &self.pile_not_chosen,
                 Hoist::Implicit => &self.implicit_selections,
                 Hoist::Created => &self.creations,
                 Hoist::Before => &self.before,
@@ -1043,6 +1050,7 @@ impl Compiler {
             let (known, local) = match kind {
                 Hoist::Moved => (&mut self.moved, local),
                 Hoist::Selected => (&mut self.selections, local),
+                Hoist::NotChosen => (&mut self.pile_not_chosen, local),
                 Hoist::Implicit => (&mut self.implicit_selections, local),
                 Hoist::Created => (&mut self.creations, local),
                 Hoist::Before => (&mut self.before, format!("{local}.clone()")),
@@ -1529,7 +1537,7 @@ impl Compiler {
                 let id = self.fresh();
                 let (open, spent) = lane_k::once_a_turn(self.do_once.take(), id);
                 let open = open
-                    + &lane_k::asked_if(player_ref, id, body)
+                    + &lane_k::asked_if(player_ref, &format!("decider_{id}"), body)
                     + &self.asked_if_there(body)
                     + &self.top_card_offered(id, body, out)?;
                 writeln!(out, "let decider_{id} = {decider}; if {open}cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{{spent}").unwrap();
@@ -2980,7 +2988,8 @@ impl Compiler {
                 optional: false,
             } => {
                 if let Some(scope) = self.asking.take() {
-                    if cost.parts.iter().any(lane_g::payer_sets_the_size) {
+                    if cost.parts.iter().any(lane_g::payer_sets_the_size)
+                        || lane_g::discards_hand_and_draws(cost) {
                         let chosen = Operation::PayCost {
                             player: player.clone(),
                             cost: cost.clone(),
@@ -3225,7 +3234,7 @@ impl Compiler {
                 self.fetch(self.certain_player(player)?)
             )
             .unwrap();
-            let offered = self.asked_if_there(body) + &self.top_card_offered(id, body, out)? + &faces::reveal_offered(self, body);
+            let offered = lane_k::asked_if(player, &format!("payer_{id}"), body) + &self.asked_if_there(body) + &self.top_card_offered(id, body, out)? + &faces::reveal_offered(self, body);
             let purpose = match body.instructions.as_slice() {
                 [Instruction::Effect { operation: Operation::Draw {
                     players: PlayerSet::One(PlayerRef::Target { .. }), amount: Expr::Constant(n),

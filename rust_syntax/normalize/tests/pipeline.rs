@@ -2960,7 +2960,8 @@ fn a_loop_keeps_what_it_made_and_a_payment_reads_its_amount() {
     assert!(found.contains("Compare"), "{found}");
     let choice = ability_json("SpellActions(ActionList([EachPlayerMakesAVillainousChoice(Opponent,[[DrawACard],[PlayerAction(EachablePlayer,DiscardACard)]])]))");
     assert!(choice.contains("ForEachPlayer"), "{choice}");
-    assert!(choice.contains("ChooseOne"), "{choice}");
+    assert!(choice.contains("ChooseAction"), "{choice}");
+    assert!(choice.contains("\"villainous\":true"), "{choice}");
     assert!(!choice.contains("Primitive"), "{choice}");
 }
 

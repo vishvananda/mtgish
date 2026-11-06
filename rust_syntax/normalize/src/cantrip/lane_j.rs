@@ -5255,6 +5255,7 @@ impl Compiler {
         let mut reads = Vec::new();
         for map in [
             &mut self.selections,
+            &mut self.pile_not_chosen,
             &mut self.moved,
             &mut self.creations,
             &mut self.performed,

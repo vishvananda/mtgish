@@ -3045,7 +3045,10 @@ pub enum Change {
     AddSupertype(SuperType),
     AddLandType(crate::mtg_types::LandType),
     AddArtifactType(crate::mtg_types::ArtifactType),
-    /// Replaces every card type; supertypes stay and subtypes follow 205.1a.
+    /// Sets card types; supertypes stay and subtypes follow 205.1a. The exact
+    /// Artifact+Creature pair retains prior card types under 205.1b, as in
+    /// "becomes an artifact creature". Creature-type replacement is a separate
+    /// CreatureTypes change. Other type lists replace the prior card types.
     SetCardTypes(Vec<CardType>),
     GrantKeyword(Keyword),
     GrantAbility(Box<Ability>),

@@ -2872,7 +2872,14 @@ impl Context {
             }
             return Ok(choice);
         }
-        self.acted_by(actor, |context| context.acted_action(value, actor))
+        self.acted_by(actor, |context| {
+            if let source::Action::MayAction(inner) = value {
+                if let Some(payment) = context.compound_hand_draw_reflexive(inner, actor, true) {
+                    return payment;
+                }
+            }
+            context.acted_action(value, actor)
+        })
     }
 
     fn acted_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
@@ -4201,11 +4208,11 @@ impl Context {
                         context.invalidate_child_bindings(&child);
                         programs.push(Program { instructions });
                     }
-                    Ok(Instruction::ChooseOne {
-                        decider: decider.clone(),
-                        options: programs,
-                        offered: None,
-                    })
+                    Ok(context.effect(Operation::ChooseAction {
+                        actor: PlayerSet::One(decider.clone()),
+                        options: programs.into_iter().map(Operand::Program).collect(),
+                        villainous: true,
+                    }))
                 });
             }
             S::EachPlayerCreatesTokens(players, tokens, flags) => {

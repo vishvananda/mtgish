@@ -954,13 +954,13 @@ impl Compiler {
             return Err(gap("cost part PlayerAction"));
         };
         let payer = self.fetch(self.certain_player(player)?);
-        writeln!(out, "let payer_{id} = {payer}; let paid_{id} = {M}::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?; if paid_{id} {{").unwrap();
+        let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "u32")?);
+        // A prohibited draw cannot be offered as part of a resolving cost
+        // (118.3, 121.3). Replacement and an empty library do not prohibit it.
+        // Determine the whole cost before any component changes the state.
+        writeln!(out, "let payer_{id} = {payer}; let draw_count_{id} = {count}; let paid_{id} = !g.cant_draw(payer_{id}, draw_count_{id}) && {M}::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?; if paid_{id} {{").unwrap();
         self.block(body, out, true)?;
-        let draw = Operation::Draw {
-            players: PlayerSet::One(player.clone()),
-            amount: count.clone(),
-        };
-        self.operation(&draw, result, out)?;
+        writeln!(out, "g.draw(payer_{id}, draw_count_{id}); g.end_sentence();").unwrap();
         writeln!(out, "}}").unwrap();
         self.moved.remove(&result.0);
         self.performed.insert(result.0, format!("paid_{id}"));

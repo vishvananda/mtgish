@@ -32,7 +32,7 @@ const CARDS: &[(&str, &str, bool)] = &[
     // A face-down and a face-up pile exiled whole, an opponent chooses one
     // (CR 700.3b-d), and "the other pile" is the one not chosen.
     ("Abstract Performance", "choose::face_down_or_face_up_pile(g, chooser_3, asker.source, moved_0.clone(), moved_1.clone())", true),
-    ("Abstract Performance", "other_3.contains(&id)", true),
+    ("Abstract Performance", "chosen_3.clone(), other_3.clone()", true),
 ];
 
 /// Forms these cards no longer hold.

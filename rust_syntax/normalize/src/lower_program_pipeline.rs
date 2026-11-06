@@ -225,13 +225,19 @@ impl Context {
                     let shadowing = context.created_tokens.is_some();
                     let body = context.nested_program_recipe(body, players);
                     context.iterated = outer;
-                    let body = body?;
+                    let mut body = body?;
                     context.note_moves(&body);
                     if shadowing {
                         context.created_tokens = None;
                         context.forgotten = true;
                     }
                     context.took = last_effect(&body).or(context.took.take());
+                    // A chosen resolving payment already records the may.
+                    // Its reflexive trigger observes that choice, including
+                    // replacement, and does nothing when payment is declined.
+                    if Self::optional_reflexive_payment(&mut body, decider) {
+                        return Ok(Instruction::Group(body));
+                    }
                     Ok(Instruction::Optional {
                         decider: decider.clone(),
                         body,
