@@ -353,9 +353,13 @@
       "name": "Tezzeret, Master of the Bridge",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "summary": "All loyalty costs, target artifact return and top-ten artifact movement reviewed. Both native/current static grant omit you-cast controller restriction. Current also loses +2's captured X, an independent grammar error.",
-      "evidence": "reference-audit/batch-018.json"
+      "review_status": "fixed_current_producer",
+      "summary": "The same affinity static template preserves creature-or-planeswalker types but drops CastByPlayer(You). Native +2 CreateValueX binding is already preserved.",
+      "evidence": "reference-audit/batch-018.json",
+      "producer_cause": "The same affinity static template preserves creature-or-planeswalker types but drops CastByPlayer(You). Native +2 CreateValueX binding is already preserved.",
+      "fix_notes": "See reference-caster-host-self-damage-20261106.md. Complete other costs, filters, abilities and all remaining operands are preserved.",
+      "validation": "Seven actual-card parser/IR regressions fail before/pass after; explicit unrestricted affinity and Self-Destruct disjoint-recipient controls remain unchanged.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/215"
     },
     {
       "name": "Tranquil Domain",
@@ -746,22 +750,37 @@
       "name": "Sami, Wildcat Captain",
       "family": "controller-filters",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "summary": "Affinity static English template drops printed CastByPlayer(You) from the eligible stack spells.",
+      "producer_cause": "Affinity static English template drops printed CastByPlayer(You) from the eligible stack spells.",
+      "fix_notes": "See reference-caster-host-self-damage-20261106.md. Complete other costs, filters, abilities and all remaining operands are preserved.",
+      "validation": "Seven actual-card parser/IR regressions fail before/pass after; explicit unrestricted affinity and Self-Destruct disjoint-recipient controls remain unchanged.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/215"
     },
     {
       "name": "Simic Guildmage",
       "family": "attachment-host-controller",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "summary": "Aura relocation takes the Aura target's controller rather than the controller of the Aura's current attachment host.",
+      "producer_cause": "Aura relocation takes the Aura target's controller rather than the controller of the Aura's current attachment host.",
+      "fix_notes": "See reference-caster-host-self-damage-20261106.md. Complete other costs, filters, abilities and all remaining operands are preserved.",
+      "validation": "Seven actual-card parser/IR regressions fail before/pass after; explicit unrestricted affinity and Self-Destruct disjoint-recipient controls remain unchanged.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/216"
     },
     {
       "name": "Sunflare Shaman",
       "family": "simultaneous-damage",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "summary": "Any-target and self damage recipients are unioned, dropping the second damage part when the Shaman itself is targeted.",
+      "producer_cause": "Any-target and self damage recipients are unioned, dropping the second damage part when the Shaman itself is targeted.",
+      "fix_notes": "See reference-caster-host-self-damage-20261106.md. Complete other costs, filters, abilities and all remaining operands are preserved.",
+      "validation": "Seven actual-card parser/IR regressions fail before/pass after; explicit unrestricted affinity and Self-Destruct disjoint-recipient controls remain unchanged.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/212 (additional fourth caller follow-up)"
     },
     {
       "name": "Commodore Guff",
@@ -1113,6 +1132,42 @@
       "fix_notes": "See reference-damage-and-types-20261106.md. Keep Dinosaur and Hero together in one Set operation; preserve mana costs, power/toughness, keywords and duration.",
       "validation": "Two actual forms tested, with explicit Add source preserved as an independent negative control.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/214"
+    },
+    {
+      "name": "Mycosynth Golem",
+      "family": "affinity-caster-filters",
+      "reported_classification": "independently_confirmed_reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Affinity grant keeps the artifact-creature selector but omits the printed restriction to spells you cast.",
+      "evidence": "Independent full local Oracle and producer caller audit of all three you-cast affinity templates.",
+      "producer_cause": "English static template drops CastByPlayer(You) while retaining the captured eligible spell-type filter.",
+      "fix_notes": "See reference-caster-host-self-damage-20261106.md. Other abilities and eligible-type/affinity filters remain identical.",
+      "validation": "Actual-card source and IR regression, exact full-corpus preservation proof and unrestricted-source negative control.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/215"
+    },
+    {
+      "name": "Pearl-Ear, Imperial Advisor",
+      "family": "affinity-caster-filters",
+      "reported_classification": "independently_confirmed_reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Affinity grant keeps the enchantment selector but omits the printed restriction to spells you cast.",
+      "evidence": "Independent full local Oracle and producer caller audit of all three you-cast affinity templates.",
+      "producer_cause": "English static template drops CastByPlayer(You) while retaining the captured eligible spell-type filter.",
+      "fix_notes": "See reference-caster-host-self-damage-20261106.md. Other abilities and eligible-type/affinity filters remain identical.",
+      "validation": "Actual-card source and IR regression, exact full-corpus preservation proof and unrestricted-source negative control.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/215"
+    },
+    {
+      "name": "Witherbloom, the Balancer",
+      "family": "affinity-caster-filters",
+      "reported_classification": "independently_confirmed_reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Affinity grant keeps the instant-or-sorcery selector but omits the printed restriction to spells you cast.",
+      "evidence": "Independent full local Oracle and producer caller audit of all three you-cast affinity templates.",
+      "producer_cause": "English static template drops CastByPlayer(You) while retaining the captured eligible spell-type filter.",
+      "fix_notes": "See reference-caster-host-self-damage-20261106.md. Other abilities and eligible-type/affinity filters remain identical.",
+      "validation": "Actual-card source and IR regression, exact full-corpus preservation proof and unrestricted-source negative control.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/215"
     }
   ],
   "normalization_questions": [

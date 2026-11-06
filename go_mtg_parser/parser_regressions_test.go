@@ -80,6 +80,14 @@ func TestParserSemanticRegressions(t *testing.T) {
 		contains []string
 		excludes []string
 	}{
+		{"Sami, Wildcat Captain", []string{"StackSpellsEffect(And([AnySpell, CastByPlayer(You)]), [Affinity(IsCardtype(Artifact))])"}, nil},
+		{"Tezzeret, Master of the Bridge", []string{"StackSpellsEffect(And([Or([IsCardtype(Creature), IsCardtype(Planeswalker)]), CastByPlayer(You)]), [Affinity(IsCardtype(Artifact))])", "CreateValueX("}, nil},
+		{"Mycosynth Golem", []string{"StackSpellsEffect(And([And([IsCardtype(Artifact), IsCardtype(Creature)]), CastByPlayer(You)]), [Affinity(IsCardtype(Artifact))])"}, nil},
+		{"Pearl-Ear, Imperial Advisor", []string{"StackSpellsEffect(And([IsCardtype(Enchantment), CastByPlayer(You)]), [Affinity(IsEnchantmentType(Aura))])"}, nil},
+		{"Witherbloom, the Balancer", []string{"StackSpellsEffect(And([Or([IsCardtype(Instant), IsCardtype(Sorcery)]), CastByPlayer(You)]), [Affinity(IsCardtype(Creature))])"}, nil},
+		{"Simic Guildmage", []string{"ControllerOfPermanent(HostPermanentOf(Ref_TargetPermanent))"}, []string{"SinglePlayer(ControllerOfTargetPermanent)"}},
+		{"Sunflare Shaman", []string{"PermanentDealsMultipleDamage(ThisPermanent, [DamageToRecipients(TheNumberOfGraveyardCards(And([IsCreatureType(Elemental), InAPlayersGraveyard(SinglePlayer(You))])), Ref_AnyTarget), DamageToRecipients(TheNumberOfGraveyardCards(And([IsCreatureType(Elemental), InAPlayersGraveyard(SinglePlayer(You))])), Permanent(ThisPermanent))])"}, nil},
+		{"Self-Destruct", []string{"AnyOtherTarget(Ref_TargetPermanent)", "MultipleRecipients([Ref_AnyTarget, Permanent(Ref_TargetPermanent)])"}, nil},
 		{"Bellowing Fiend", []string{"PermanentDealsMultipleDamage(ThisPermanent, [DamageToRecipients(Integer(3), Player(ControllerOfPermanent(Trigger_ThatOtherPermanent))), DamageToRecipients(Integer(3), Player(You))])"}, nil},
 		{"Bellowing Fiend unequal amounts", []string{"DamageToRecipients(Integer(5), Player(You))"}, nil},
 		{"Burning Sun's Avatar", []string{"PermanentDealsMultipleDamage(ThatEnteringPermanent, [DamageToRecipients(Integer(3), Ref_TargetPlayerOrPermanent), DamageToRecipients(Integer(3), Permanent(Ref_TargetPermanent))])"}, nil},

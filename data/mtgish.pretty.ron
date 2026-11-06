@@ -873122,8 +873122,11 @@ Card(
     Affinity(IsCardtype(Artifact)),
     StackSpellsEffect(
       And([
-        IsCardtype(Artifact),
-        IsCardtype(Creature),
+        And([
+          IsCardtype(Artifact),
+          IsCardtype(Creature),
+        ]),
+        CastByPlayer(You),
       ]),
       [
         Affinity(IsCardtype(Artifact)),
@@ -960136,7 +960139,10 @@ Card(
   Rules: [
     Lifelink,
     StackSpellsEffect(
-      IsCardtype(Enchantment),
+      And([
+        IsCardtype(Enchantment),
+        CastByPlayer(You),
+      ]),
       [
         Affinity(IsEnchantmentType(Aura)),
       ],
@@ -1113351,7 +1113357,10 @@ Card(
     DoubleStrike,
     Vigilance,
     StackSpellsEffect(
-      AnySpell,
+      And([
+        AnySpell,
+        CastByPlayer(You),
+      ]),
       [
         Affinity(IsCardtype(Artifact)),
       ],
@@ -1189938,7 +1189947,7 @@ Card(
             Ref_TargetPermanent,
             And([
               Other(HostPermanentOf(Ref_TargetPermanent)),
-              ControlledByAPlayer(SinglePlayer(ControllerOfTargetPermanent)),
+              ControlledByAPlayer(SinglePlayer(ControllerOfPermanent(HostPermanentOf(Ref_TargetPermanent)))),
             ]),
           ),
         ]),
@@ -1290743,16 +1290752,24 @@ Card(
           AnyTarget,
         ],
         ActionList([
-          PermanentDealsDamage(
+          PermanentDealsMultipleDamage(
             ThisPermanent,
-            TheNumberOfGraveyardCards(And([
-              IsCreatureType(Elemental),
-              InAPlayersGraveyard(SinglePlayer(You)),
-            ])),
-            MultipleRecipients([
-              Ref_AnyTarget,
-              Permanent(ThisPermanent),
-            ]),
+            [
+              DamageToRecipients(
+                TheNumberOfGraveyardCards(And([
+                  IsCreatureType(Elemental),
+                  InAPlayersGraveyard(SinglePlayer(You)),
+                ])),
+                Ref_AnyTarget,
+              ),
+              DamageToRecipients(
+                TheNumberOfGraveyardCards(And([
+                  IsCreatureType(Elemental),
+                  InAPlayersGraveyard(SinglePlayer(You)),
+                ])),
+                Permanent(ThisPermanent),
+              ),
+            ],
           ),
         ]),
       ),
@@ -1337213,9 +1337230,12 @@ Card(
   ],
   Rules: [
     StackSpellsEffect(
-      Or([
-        IsCardtype(Creature),
-        IsCardtype(Planeswalker),
+      And([
+        Or([
+          IsCardtype(Creature),
+          IsCardtype(Planeswalker),
+        ]),
+        CastByPlayer(You),
       ]),
       [
         Affinity(IsCardtype(Artifact)),
@@ -1527921,9 +1527941,12 @@ Card(
     Flying,
     Deathtouch,
     StackSpellsEffect(
-      Or([
-        IsCardtype(Instant),
-        IsCardtype(Sorcery),
+      And([
+        Or([
+          IsCardtype(Instant),
+          IsCardtype(Sorcery),
+        ]),
+        CastByPlayer(You),
       ]),
       [
         Affinity(IsCardtype(Creature)),
