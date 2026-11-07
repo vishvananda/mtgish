@@ -13,6 +13,7 @@ use std::sync::OnceLock;
 
 mod entry;
 mod events;
+mod joins;
 #[cfg(test)]
 mod mode_results;
 mod movement;
@@ -39,6 +40,14 @@ fn commutative(ty: &str, variant: &str) -> bool {
     )
 }
 
+type JoinGroup = HashMap<u64, Vec<(u64, u64)>>;
+#[derive(Clone)]
+struct ResultScope {
+    map: Option<HashMap<u64, u64>>,
+    definitions: HashMap<u64, u64>,
+    joins: Vec<JoinGroup>,
+    floor: u64,
+}
 #[derive(Default)]
 struct Ids {
     /// Old id to new id, per id type, in this ability's scope.
@@ -51,6 +60,7 @@ struct Ids {
     /// Definition identities, distinct from the numeric labels a future local
     /// invocation may reuse. Allocation counters survive a closure's scope.
     result_definitions: HashMap<u64, u64>,
+    join_groups: Vec<JoinGroup>,
     results: u64,
     live_results: u64,
 }
@@ -169,34 +179,27 @@ fn id_kind(name: &str) -> Option<&'static str> {
 }
 
 impl Walker {
-    fn result_scope(&self) -> Option<(Option<HashMap<u64, u64>>, HashMap<u64, u64>)> {
-        self.scopes
-            .last()
-            .map(|s| (s.maps.get("result").cloned(), s.result_definitions.clone()))
+    fn result_scope(&self) -> Option<ResultScope> {
+        self.scopes.last().map(|s| ResultScope {
+            map: s.maps.get("result").cloned(),
+            definitions: s.result_definitions.clone(),
+            joins: s.join_groups.clone(),
+            floor: s.results,
+        })
     }
-
-    fn restore_result_scope(
-        &mut self,
-        saved: Option<(Option<HashMap<u64, u64>>, HashMap<u64, u64>)>,
-    ) {
-        if let (Some((map, definitions)), Some(scope)) = (saved, self.scopes.last_mut()) {
-            match map {
-                Some(map) => {
-                    scope.maps.insert("result", map);
-                }
-                None => {
-                    scope.maps.remove("result");
-                }
+    fn restore_result_scope(&mut self, saved: Option<ResultScope>) {
+        if let (Some(saved), Some(scope)) = (saved, self.scopes.last_mut()) {
+            if let Some(map) = saved.map {
+                scope.maps.insert("result", map);
+            } else {
+                scope.maps.remove("result");
             }
-            scope.result_definitions = definitions;
+            scope.result_definitions = saved.definitions;
+            scope.join_groups = saved.joins;
         }
     }
 
-    fn restore_with_exports(
-        &mut self,
-        saved: Option<(Option<HashMap<u64, u64>>, HashMap<u64, u64>)>,
-        exports: &HashSet<u64>,
-    ) {
+    fn restore_with_exports(&mut self, saved: Option<ResultScope>, exports: &HashSet<u64>) {
         let kept: Vec<_> = self
             .scopes
             .last()
@@ -515,6 +518,7 @@ impl Walker {
                 }
             }
             Fields::Named(types) => {
+                let mut branch_joins = JoinGroup::new();
                 // A loop or predicate binds only its own body. Keeping those
                 // ids in the ability-wide map makes a later sibling depend on
                 // traversal order, including when commutative events move.
@@ -556,6 +560,17 @@ impl Walker {
                     .chain(types.iter().filter(|(field, _)| late(field)));
                 for (field, ty) in ordered {
                     if let Some(item) = value.get_mut(field) {
+                        if owner == "Operation::JoinResults" && field == "results" {
+                            self.join_ids(item);
+                            continue;
+                        }
+                        if owner == "Instruction::ChooseOne" && field == "options" {
+                            if let (Value::Array(items), Ty::Vec(inner)) = (item, ty) {
+                                self.choice_branches(items, inner);
+                            }
+                            continue;
+                        }
+
                         if owner == "Ability::Saga" && field == "chapters" {
                             if let (Value::Array(items), Ty::Vec(inner)) = (item, ty) {
                                 for chapter in items {
@@ -634,9 +649,19 @@ impl Walker {
                         self.paying_cost = old_cost;
                         self.gathering_results = old_gathering;
                         if let Some(saved) = local_results {
+                            if owner == "Instruction::If" {
+                                if let Some(saved) = &saved {
+                                    self.collect_join_branch(saved.floor, &mut branch_joins);
+                                }
+                            }
                             self.restore_with_exports(saved, &exported);
                         }
                         self.event_header = old_header;
+                    }
+                }
+                if owner == "Instruction::If" {
+                    if let Some(scope) = self.scopes.last_mut() {
+                        scope.join_groups.push(branch_joins);
                     }
                 }
                 self.reference_reductions = old_reductions;

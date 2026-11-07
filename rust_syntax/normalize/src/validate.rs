@@ -25,6 +25,8 @@ struct Scope<'a> {
     slots: BTreeMap<u16, &'a TargetSpec>,
     prepared: BTreeMap<u32, Option<Vec<EventZone>>>,
     results: BTreeMap<u32, ResultKind>,
+    /// Receipts visible only to an explicit join after mutually exclusive branches.
+    join_groups: Vec<BTreeSet<u32>>,
     result_zones: BTreeMap<u32, Vec<EventZone>>,
     activation_cost: Option<Cost>,
     announcing: bool,
@@ -2686,6 +2688,7 @@ impl<'a> Scope<'a> {
                     let mut child = self.clone();
                     child.replacement = false;
                     child.open_searches.clear();
+                    child.join_groups.clear();
                     child.announcement(announcement)?;
                     child.program(body)
                 }
@@ -2697,6 +2700,7 @@ impl<'a> Scope<'a> {
             Operand::Program(program) => {
                 let mut child = self.clone();
                 child.open_searches.clear();
+                child.join_groups.clear();
                 child.program(program)
             }
         }
@@ -3128,6 +3132,7 @@ impl<'a> Scope<'a> {
                 let mut child = self.clone();
                 child.replacement = false;
                 child.open_searches.clear();
+                child.join_groups.clear();
                 child.event = crate::semantics::event_bindings(event);
                 condition.iter().try_for_each(|c| child.condition(c))?;
                 child.operand(body)
@@ -3259,6 +3264,7 @@ impl<'a> Scope<'a> {
                 self.players(opponents)?;
                 let mut child = self.clone();
                 child.open_searches.clear();
+                child.join_groups.clear();
                 child.clashing = true;
                 won.iter()
                     .chain(lost)
@@ -3427,6 +3433,7 @@ impl<'a> Scope<'a> {
                 let mut child = self.clone();
                 child.replacement = false;
                 child.open_searches.clear();
+                child.join_groups.clear();
                 // A row's event says what it binds, as a typed one's creator did.
                 if crate::semantics::delayed_reads_event(event) {
                     child.event = crate::semantics::with_event(&child.event, event);
@@ -3521,7 +3528,18 @@ impl<'a> Scope<'a> {
             Operation::JoinResults { results } if results.len() < 2 => {
                 Err("a join needs at least two branches".into())
             }
-            Operation::JoinResults { .. } => Ok(()),
+            Operation::JoinResults { results } => {
+                if self
+                    .join_groups
+                    .iter()
+                    .rev()
+                    .any(|group| results.iter().all(|r| group.contains(&r.0)))
+                {
+                    Ok(())
+                } else {
+                    Err("a join references unavailable or unrelated branch receipts".into())
+                }
+            }
             Operation::ChoosePowerToughness { player, .. } => self.player(player),
             Operation::Counter {
                 objects,
@@ -3635,6 +3653,7 @@ impl<'a> Scope<'a> {
                 let mut child = self.clone();
                 child.replacement = false;
                 child.open_searches.clear();
+                child.join_groups.clear();
                 child.event = crate::semantics::event_bindings(event);
                 intervening_if
                     .iter()
@@ -3669,6 +3688,7 @@ impl<'a> Scope<'a> {
                 let mut child = self.clone();
                 child.replacement = false;
                 child.open_searches.clear();
+                child.join_groups.clear();
                 child.announcement(announcement)?;
                 child.program(body)
             }
@@ -3692,6 +3712,7 @@ impl<'a> Scope<'a> {
                 let mut child = self.clone();
                 child.replacement = true;
                 child.open_searches.clear();
+                child.join_groups.clear();
                 child.event = crate::semantics::replacement_bindings(event);
                 child.program(body)
             }
@@ -4157,6 +4178,23 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn branch_receipts(&self, child: &Self) -> BTreeSet<u32> {
+        child
+            .results
+            .keys()
+            .copied()
+            .filter(|id| !self.results.contains_key(id))
+            .chain(
+                child
+                    .join_groups
+                    .iter()
+                    .skip(self.join_groups.len())
+                    .flatten()
+                    .copied(),
+            )
+            .collect()
+    }
+
     fn program(&mut self, program: &Program) -> Result {
         for (i, instruction) in program.instructions.iter().enumerate() {
             let checked: Result = (|| {
@@ -4275,6 +4313,10 @@ impl<'a> Scope<'a> {
                         yes.program(then)?;
                         let mut no = self.clone();
                         no.program(otherwise)?;
+                        let mut joined = self.branch_receipts(&yes);
+                        joined.extend(self.branch_receipts(&no));
+                        self.join_groups.push(joined);
+
                         self.open_searches = yes.open_searches;
                         for p in no.open_searches {
                             if !self
@@ -4364,9 +4406,13 @@ impl<'a> Scope<'a> {
                         if let Some(offered) = offered {
                             self.count(&Count::Exactly(offered.clone()))?;
                         }
+                        let mut joined = BTreeSet::new();
                         for option in options {
-                            self.clone().program(option)?;
+                            let mut child = self.clone();
+                            child.program(option)?;
+                            joined.extend(self.branch_receipts(&child));
                         }
+                        self.join_groups.push(joined);
                     }
                     Instruction::Optional { decider, body } => {
                         self.player(decider)?;
@@ -4452,6 +4498,7 @@ impl<'a> Scope<'a> {
                     proposal.condition(condition)?;
                 }
                 let mut scope = self.clone();
+                scope.join_groups.clear();
                 scope
                     .announcement(&mode.announcement)
                     .map_err(|e| format!("modes[{i}]: {e}"))?;

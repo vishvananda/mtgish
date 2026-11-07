@@ -1,0 +1,1787 @@
+[
+  {
+    "name": "Synthetic joins",
+    "a": [
+      {
+        "args": {
+          "announcement": {
+            "modes": null,
+            "targets": []
+          },
+          "body": {
+            "instructions": [
+              {
+                "args": {
+                  "decider": {
+                    "kind": "AbilityController"
+                  },
+                  "offered": null,
+                  "options": [
+                    {
+                      "instructions": [
+                        {
+                          "args": {
+                            "operation": {
+                              "args": {
+                                "destination": "Exile",
+                                "entry": {
+                                  "counters": [],
+                                  "states": [],
+                                  "tapped": false
+                                },
+                                "face_down": false,
+                                "objects": {
+                                  "args": {
+                                    "filter": {
+                                      "kind": "Any"
+                                    },
+                                    "kind": "Card",
+                                    "scope": {
+                                      "Players": {
+                                        "players": {
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          },
+                                          "kind": "One"
+                                        },
+                                        "zone": "Graveyard"
+                                      }
+                                    }
+                                  },
+                                  "kind": "Zone"
+                                },
+                                "terms": {
+                                  "order": "DestinationDefault",
+                                  "placement": "DestinationDefault",
+                                  "qualifiers": []
+                                }
+                              },
+                              "kind": "Move"
+                            },
+                            "result": 11
+                          },
+                          "kind": "Effect"
+                        }
+                      ]
+                    },
+                    {
+                      "instructions": [
+                        {
+                          "args": {
+                            "operation": {
+                              "args": {
+                                "destination": "Exile",
+                                "entry": {
+                                  "counters": [],
+                                  "states": [],
+                                  "tapped": false
+                                },
+                                "face_down": false,
+                                "objects": {
+                                  "args": {
+                                    "filter": {
+                                      "kind": "Any"
+                                    },
+                                    "kind": "Card",
+                                    "scope": {
+                                      "Players": {
+                                        "players": {
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          },
+                                          "kind": "One"
+                                        },
+                                        "zone": "Graveyard"
+                                      }
+                                    }
+                                  },
+                                  "kind": "Zone"
+                                },
+                                "terms": {
+                                  "order": "DestinationDefault",
+                                  "placement": "DestinationDefault",
+                                  "qualifiers": []
+                                }
+                              },
+                              "kind": "Move"
+                            },
+                            "result": 22
+                          },
+                          "kind": "Effect"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "kind": "ChooseOne"
+              },
+              {
+                "args": {
+                  "operation": {
+                    "args": {
+                      "results": [
+                        11,
+                        22
+                      ]
+                    },
+                    "kind": "JoinResults"
+                  },
+                  "result": 33
+                },
+                "kind": "Effect"
+              },
+              {
+                "args": {
+                  "operation": {
+                    "args": {
+                      "objects": {
+                        "args": {
+                          "phase": "After",
+                          "result": 33
+                        },
+                        "kind": "Transition"
+                      }
+                    },
+                    "kind": "Reveal"
+                  },
+                  "result": 34
+                },
+                "kind": "Effect"
+              }
+            ]
+          }
+        },
+        "kind": "Spell"
+      }
+    ],
+    "b": [
+      {
+        "args": {
+          "announcement": {
+            "modes": null,
+            "targets": []
+          },
+          "body": {
+            "instructions": [
+              {
+                "args": {
+                  "decider": {
+                    "kind": "AbilityController"
+                  },
+                  "offered": null,
+                  "options": [
+                    {
+                      "instructions": [
+                        {
+                          "args": {
+                            "operation": {
+                              "args": {
+                                "destination": "Exile",
+                                "entry": {
+                                  "counters": [],
+                                  "states": [],
+                                  "tapped": false
+                                },
+                                "face_down": false,
+                                "objects": {
+                                  "args": {
+                                    "filter": {
+                                      "kind": "Any"
+                                    },
+                                    "kind": "Card",
+                                    "scope": {
+                                      "Players": {
+                                        "players": {
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          },
+                                          "kind": "One"
+                                        },
+                                        "zone": "Graveyard"
+                                      }
+                                    }
+                                  },
+                                  "kind": "Zone"
+                                },
+                                "terms": {
+                                  "order": "DestinationDefault",
+                                  "placement": "DestinationDefault",
+                                  "qualifiers": []
+                                }
+                              },
+                              "kind": "Move"
+                            },
+                            "result": 111
+                          },
+                          "kind": "Effect"
+                        }
+                      ]
+                    },
+                    {
+                      "instructions": [
+                        {
+                          "args": {
+                            "operation": {
+                              "args": {
+                                "destination": "Exile",
+                                "entry": {
+                                  "counters": [],
+                                  "states": [],
+                                  "tapped": false
+                                },
+                                "face_down": false,
+                                "objects": {
+                                  "args": {
+                                    "filter": {
+                                      "kind": "Any"
+                                    },
+                                    "kind": "Card",
+                                    "scope": {
+                                      "Players": {
+                                        "players": {
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          },
+                                          "kind": "One"
+                                        },
+                                        "zone": "Graveyard"
+                                      }
+                                    }
+                                  },
+                                  "kind": "Zone"
+                                },
+                                "terms": {
+                                  "order": "DestinationDefault",
+                                  "placement": "DestinationDefault",
+                                  "qualifiers": []
+                                }
+                              },
+                              "kind": "Move"
+                            },
+                            "result": 222
+                          },
+                          "kind": "Effect"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "kind": "ChooseOne"
+              },
+              {
+                "args": {
+                  "operation": {
+                    "args": {
+                      "results": [
+                        111,
+                        222
+                      ]
+                    },
+                    "kind": "JoinResults"
+                  },
+                  "result": 333
+                },
+                "kind": "Effect"
+              },
+              {
+                "args": {
+                  "operation": {
+                    "args": {
+                      "objects": {
+                        "args": {
+                          "phase": "After",
+                          "result": 333
+                        },
+                        "kind": "Transition"
+                      }
+                    },
+                    "kind": "Reveal"
+                  },
+                  "result": 334
+                },
+                "kind": "Effect"
+              }
+            ]
+          }
+        },
+        "kind": "Spell"
+      }
+    ]
+  },
+  {
+    "name": "Covetous Urge",
+    "a": [
+      {
+        "kind": "Spell",
+        "args": {
+          "announcement": {
+            "targets": [
+              {
+                "slot": 0,
+                "kind": "Player",
+                "count": {
+                  "Exactly": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                },
+                "filter": {
+                  "kind": "Any"
+                },
+                "players": {
+                  "kind": "OpponentsOf",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "distribute": null,
+                "constraints": [],
+                "chooser": null
+              }
+            ],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 0,
+                  "operation": {
+                    "kind": "Reveal",
+                    "args": {
+                      "objects": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Players": {
+                              "zone": "Hand",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "kind": "Card",
+                          "filter": {
+                            "kind": "Any"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Group",
+                "args": {
+                  "instructions": [
+                    {
+                      "kind": "ChooseOne",
+                      "args": {
+                        "decider": {
+                          "kind": "AbilityController"
+                        },
+                        "options": [
+                          {
+                            "instructions": [
+                              {
+                                "kind": "Group",
+                                "args": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 1,
+                                        "operation": {
+                                          "kind": "ChooseObjects",
+                                          "args": {
+                                            "player": {
+                                              "kind": "AbilityController"
+                                            },
+                                            "objects": {
+                                              "kind": "Zone",
+                                              "args": {
+                                                "scope": {
+                                                  "Players": {
+                                                    "zone": "Hand",
+                                                    "players": {
+                                                      "kind": "One",
+                                                      "args": {
+                                                        "kind": "Target",
+                                                        "args": {
+                                                          "slot": 0,
+                                                          "index": 0
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "Card",
+                                                "filter": {
+                                                  "kind": "Not",
+                                                  "args": {
+                                                    "kind": "CardType",
+                                                    "args": "Land"
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "count": {
+                                              "AsManyAsCan": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              }
+                                            },
+                                            "constraints": []
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 2,
+                                        "operation": {
+                                          "kind": "Move",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Selected",
+                                              "args": 1
+                                            },
+                                            "destination": "Exile",
+                                            "entry": {
+                                              "tapped": false,
+                                              "counters": [],
+                                              "states": []
+                                            },
+                                            "face_down": false,
+                                            "terms": {
+                                              "order": "DestinationDefault",
+                                              "placement": "DestinationDefault",
+                                              "qualifiers": []
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "instructions": [
+                              {
+                                "kind": "Group",
+                                "args": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 3,
+                                        "operation": {
+                                          "kind": "ChooseObjects",
+                                          "args": {
+                                            "player": {
+                                              "kind": "AbilityController"
+                                            },
+                                            "objects": {
+                                              "kind": "Zone",
+                                              "args": {
+                                                "scope": {
+                                                  "Players": {
+                                                    "zone": "Graveyard",
+                                                    "players": {
+                                                      "kind": "All"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "Card",
+                                                "filter": {
+                                                  "kind": "All",
+                                                  "args": [
+                                                    {
+                                                      "kind": "Not",
+                                                      "args": {
+                                                        "kind": "CardType",
+                                                        "args": "Land"
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "InZone",
+                                                      "args": {
+                                                        "Players": {
+                                                          "zone": "Graveyard",
+                                                          "players": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "Target",
+                                                              "args": {
+                                                                "slot": 0,
+                                                                "index": 0
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  ]
+                                                }
+                                              }
+                                            },
+                                            "count": {
+                                              "AsManyAsCan": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              }
+                                            },
+                                            "constraints": []
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 4,
+                                        "operation": {
+                                          "kind": "Move",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Selected",
+                                              "args": 3
+                                            },
+                                            "destination": "Exile",
+                                            "entry": {
+                                              "tapped": false,
+                                              "counters": [],
+                                              "states": []
+                                            },
+                                            "face_down": false,
+                                            "terms": {
+                                              "order": "DestinationDefault",
+                                              "placement": "DestinationDefault",
+                                              "qualifiers": []
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "offered": null
+                      }
+                    },
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 5,
+                        "operation": {
+                          "kind": "JoinResults",
+                          "args": {
+                            "results": [
+                              2,
+                              4
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 6,
+                        "operation": {
+                          "kind": "JoinResults",
+                          "args": {
+                            "results": [
+                              2,
+                              4
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 7,
+                  "operation": {
+                    "kind": "CreateContinuousEffect",
+                    "args": {
+                      "source": {
+                        "kind": "Source"
+                      },
+                      "affected": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "changes": [
+                        {
+                          "kind": "PlayerRule",
+                          "args": {
+                            "PlayPermissionWith": {
+                              "permission": {
+                                "PlayPermission": {
+                                  "cards": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Result",
+                                      "args": {
+                                        "result": 5,
+                                        "phase": "After",
+                                        "index": 0
+                                      }
+                                    }
+                                  },
+                                  "from": "Exile",
+                                  "action": "CastSpell",
+                                  "filter": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Normal",
+                                "spend_as": "AnyColor",
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "duration": {
+                        "WhileExiled": {
+                          "kind": "Result",
+                          "args": {
+                            "result": 5,
+                            "phase": "After",
+                            "index": 0
+                          }
+                        }
+                      },
+                      "evaluation": "LiveObjects"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "b": [
+      {
+        "kind": "Spell",
+        "args": {
+          "announcement": {
+            "targets": [
+              {
+                "slot": 0,
+                "kind": "Player",
+                "count": {
+                  "Exactly": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                },
+                "filter": {
+                  "kind": "Any"
+                },
+                "players": {
+                  "kind": "OpponentsOf",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "distribute": null,
+                "constraints": [],
+                "chooser": null
+              }
+            ],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 4294967295,
+                  "operation": {
+                    "kind": "Reveal",
+                    "args": {
+                      "objects": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Players": {
+                              "zone": "Hand",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "kind": "Card",
+                          "filter": {
+                            "kind": "Any"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "ChooseOne",
+                "args": {
+                  "decider": {
+                    "kind": "AbilityController"
+                  },
+                  "options": [
+                    {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ChooseObjects",
+                              "args": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "objects": {
+                                  "kind": "Zone",
+                                  "args": {
+                                    "scope": {
+                                      "Players": {
+                                        "zone": "Hand",
+                                        "players": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Target",
+                                            "args": {
+                                              "slot": 0,
+                                              "index": 0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "kind": "Card",
+                                    "filter": {
+                                      "kind": "Not",
+                                      "args": {
+                                        "kind": "CardType",
+                                        "args": "Land"
+                                      }
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "AsManyAsCan": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "constraints": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Selected",
+                                  "args": 0
+                                },
+                                "destination": "Exile",
+                                "entry": {
+                                  "tapped": false,
+                                  "counters": [],
+                                  "states": []
+                                },
+                                "face_down": false,
+                                "terms": {
+                                  "order": "DestinationDefault",
+                                  "placement": "DestinationDefault",
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "ChooseObjects",
+                              "args": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "objects": {
+                                  "kind": "Zone",
+                                  "args": {
+                                    "scope": {
+                                      "Players": {
+                                        "zone": "Graveyard",
+                                        "players": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Target",
+                                            "args": {
+                                              "slot": 0,
+                                              "index": 0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "kind": "Card",
+                                    "filter": {
+                                      "kind": "Not",
+                                      "args": {
+                                        "kind": "CardType",
+                                        "args": "Land"
+                                      }
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "AsManyAsCan": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "constraints": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Selected",
+                                  "args": 2
+                                },
+                                "destination": "Exile",
+                                "entry": {
+                                  "tapped": false,
+                                  "counters": [],
+                                  "states": []
+                                },
+                                "face_down": false,
+                                "terms": {
+                                  "order": "DestinationDefault",
+                                  "placement": "DestinationDefault",
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "offered": null
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 4,
+                  "operation": {
+                    "kind": "JoinResults",
+                    "args": {
+                      "results": [
+                        1,
+                        3
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 4294967294,
+                  "operation": {
+                    "kind": "JoinResults",
+                    "args": {
+                      "results": [
+                        1,
+                        3
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 4294967293,
+                  "operation": {
+                    "kind": "CreateContinuousEffect",
+                    "args": {
+                      "source": {
+                        "kind": "Source"
+                      },
+                      "affected": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "changes": [
+                        {
+                          "kind": "PlayerRule",
+                          "args": {
+                            "PlayPermissionWith": {
+                              "permission": {
+                                "PlayPermission": {
+                                  "cards": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Result",
+                                      "args": {
+                                        "result": 4,
+                                        "phase": "After",
+                                        "index": 0
+                                      }
+                                    }
+                                  },
+                                  "from": "Exile",
+                                  "action": "CastSpell",
+                                  "filter": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Normal",
+                                "spend_as": "AnyColor",
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "duration": {
+                        "WhileExiled": {
+                          "kind": "Result",
+                          "args": {
+                            "result": 4,
+                            "phase": "After",
+                            "index": 0
+                          }
+                        }
+                      },
+                      "evaluation": "LiveObjects"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Psychic Intrusion",
+    "a": [
+      {
+        "kind": "Spell",
+        "args": {
+          "announcement": {
+            "targets": [
+              {
+                "slot": 0,
+                "kind": "Player",
+                "count": {
+                  "Exactly": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                },
+                "filter": {
+                  "kind": "Any"
+                },
+                "players": {
+                  "kind": "OpponentsOf",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "distribute": null,
+                "constraints": [],
+                "chooser": null
+              }
+            ],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 0,
+                  "operation": {
+                    "kind": "Reveal",
+                    "args": {
+                      "objects": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Players": {
+                              "zone": "Hand",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "kind": "Card",
+                          "filter": {
+                            "kind": "Any"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Group",
+                "args": {
+                  "instructions": [
+                    {
+                      "kind": "ChooseOne",
+                      "args": {
+                        "decider": {
+                          "kind": "AbilityController"
+                        },
+                        "options": [
+                          {
+                            "instructions": [
+                              {
+                                "kind": "Group",
+                                "args": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 1,
+                                        "operation": {
+                                          "kind": "ChooseObjects",
+                                          "args": {
+                                            "player": {
+                                              "kind": "AbilityController"
+                                            },
+                                            "objects": {
+                                              "kind": "Zone",
+                                              "args": {
+                                                "scope": {
+                                                  "Players": {
+                                                    "zone": "Hand",
+                                                    "players": {
+                                                      "kind": "One",
+                                                      "args": {
+                                                        "kind": "Target",
+                                                        "args": {
+                                                          "slot": 0,
+                                                          "index": 0
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "Card",
+                                                "filter": {
+                                                  "kind": "Not",
+                                                  "args": {
+                                                    "kind": "CardType",
+                                                    "args": "Land"
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "count": {
+                                              "AsManyAsCan": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              }
+                                            },
+                                            "constraints": []
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 2,
+                                        "operation": {
+                                          "kind": "Move",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Selected",
+                                              "args": 1
+                                            },
+                                            "destination": "Exile",
+                                            "entry": {
+                                              "tapped": false,
+                                              "counters": [],
+                                              "states": []
+                                            },
+                                            "face_down": false,
+                                            "terms": {
+                                              "order": "DestinationDefault",
+                                              "placement": "DestinationDefault",
+                                              "qualifiers": []
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "instructions": [
+                              {
+                                "kind": "Group",
+                                "args": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 3,
+                                        "operation": {
+                                          "kind": "ChooseObjects",
+                                          "args": {
+                                            "player": {
+                                              "kind": "AbilityController"
+                                            },
+                                            "objects": {
+                                              "kind": "Zone",
+                                              "args": {
+                                                "scope": {
+                                                  "Players": {
+                                                    "zone": "Graveyard",
+                                                    "players": {
+                                                      "kind": "All"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": "Card",
+                                                "filter": {
+                                                  "kind": "All",
+                                                  "args": [
+                                                    {
+                                                      "kind": "Not",
+                                                      "args": {
+                                                        "kind": "CardType",
+                                                        "args": "Land"
+                                                      }
+                                                    },
+                                                    {
+                                                      "kind": "InZone",
+                                                      "args": {
+                                                        "Players": {
+                                                          "zone": "Graveyard",
+                                                          "players": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "Target",
+                                                              "args": {
+                                                                "slot": 0,
+                                                                "index": 0
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  ]
+                                                }
+                                              }
+                                            },
+                                            "count": {
+                                              "AsManyAsCan": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              }
+                                            },
+                                            "constraints": []
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 4,
+                                        "operation": {
+                                          "kind": "Move",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Selected",
+                                              "args": 3
+                                            },
+                                            "destination": "Exile",
+                                            "entry": {
+                                              "tapped": false,
+                                              "counters": [],
+                                              "states": []
+                                            },
+                                            "face_down": false,
+                                            "terms": {
+                                              "order": "DestinationDefault",
+                                              "placement": "DestinationDefault",
+                                              "qualifiers": []
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "offered": null
+                      }
+                    },
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 5,
+                        "operation": {
+                          "kind": "JoinResults",
+                          "args": {
+                            "results": [
+                              2,
+                              4
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 6,
+                        "operation": {
+                          "kind": "JoinResults",
+                          "args": {
+                            "results": [
+                              2,
+                              4
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 7,
+                  "operation": {
+                    "kind": "CreateContinuousEffect",
+                    "args": {
+                      "source": {
+                        "kind": "Source"
+                      },
+                      "affected": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "changes": [
+                        {
+                          "kind": "PlayerRule",
+                          "args": {
+                            "PlayPermissionWith": {
+                              "permission": {
+                                "PlayPermission": {
+                                  "cards": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Result",
+                                      "args": {
+                                        "result": 5,
+                                        "phase": "After",
+                                        "index": 0
+                                      }
+                                    }
+                                  },
+                                  "from": "Exile",
+                                  "action": "CastSpell",
+                                  "filter": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Normal",
+                                "spend_as": "AnyColor",
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "duration": {
+                        "WhileExiled": {
+                          "kind": "Result",
+                          "args": {
+                            "result": 5,
+                            "phase": "After",
+                            "index": 0
+                          }
+                        }
+                      },
+                      "evaluation": "LiveObjects"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "b": [
+      {
+        "kind": "Spell",
+        "args": {
+          "announcement": {
+            "targets": [
+              {
+                "slot": 0,
+                "kind": "Player",
+                "count": {
+                  "Exactly": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                },
+                "filter": {
+                  "kind": "Any"
+                },
+                "players": {
+                  "kind": "OpponentsOf",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "distribute": null,
+                "constraints": [],
+                "chooser": null
+              }
+            ],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 4294967295,
+                  "operation": {
+                    "kind": "Reveal",
+                    "args": {
+                      "objects": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Players": {
+                              "zone": "Hand",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "kind": "Card",
+                          "filter": {
+                            "kind": "Any"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "ChooseOne",
+                "args": {
+                  "decider": {
+                    "kind": "AbilityController"
+                  },
+                  "options": [
+                    {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ChooseObjects",
+                              "args": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "objects": {
+                                  "kind": "Zone",
+                                  "args": {
+                                    "scope": {
+                                      "Players": {
+                                        "zone": "Hand",
+                                        "players": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Target",
+                                            "args": {
+                                              "slot": 0,
+                                              "index": 0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "kind": "Card",
+                                    "filter": {
+                                      "kind": "Not",
+                                      "args": {
+                                        "kind": "CardType",
+                                        "args": "Land"
+                                      }
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "AsManyAsCan": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "constraints": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Selected",
+                                  "args": 0
+                                },
+                                "destination": "Exile",
+                                "entry": {
+                                  "tapped": false,
+                                  "counters": [],
+                                  "states": []
+                                },
+                                "face_down": false,
+                                "terms": {
+                                  "order": "DestinationDefault",
+                                  "placement": "DestinationDefault",
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "ChooseObjects",
+                              "args": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "objects": {
+                                  "kind": "Zone",
+                                  "args": {
+                                    "scope": {
+                                      "Players": {
+                                        "zone": "Graveyard",
+                                        "players": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Target",
+                                            "args": {
+                                              "slot": 0,
+                                              "index": 0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "kind": "Card",
+                                    "filter": {
+                                      "kind": "Not",
+                                      "args": {
+                                        "kind": "CardType",
+                                        "args": "Land"
+                                      }
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "AsManyAsCan": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "constraints": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Selected",
+                                  "args": 2
+                                },
+                                "destination": "Exile",
+                                "entry": {
+                                  "tapped": false,
+                                  "counters": [],
+                                  "states": []
+                                },
+                                "face_down": false,
+                                "terms": {
+                                  "order": "DestinationDefault",
+                                  "placement": "DestinationDefault",
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "offered": null
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 4,
+                  "operation": {
+                    "kind": "JoinResults",
+                    "args": {
+                      "results": [
+                        1,
+                        3
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 4294967294,
+                  "operation": {
+                    "kind": "JoinResults",
+                    "args": {
+                      "results": [
+                        1,
+                        3
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 4294967293,
+                  "operation": {
+                    "kind": "CreateContinuousEffect",
+                    "args": {
+                      "source": {
+                        "kind": "Source"
+                      },
+                      "affected": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "changes": [
+                        {
+                          "kind": "PlayerRule",
+                          "args": {
+                            "PlayPermissionWith": {
+                              "permission": {
+                                "PlayPermission": {
+                                  "cards": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Result",
+                                      "args": {
+                                        "result": 4,
+                                        "phase": "After",
+                                        "index": 0
+                                      }
+                                    }
+                                  },
+                                  "from": "Exile",
+                                  "action": "CastSpell",
+                                  "filter": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Normal",
+                                "spend_as": "AnyColor",
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "duration": {
+                        "WhileExiled": {
+                          "kind": "Result",
+                          "args": {
+                            "result": 4,
+                            "phase": "After",
+                            "index": 0
+                          }
+                        }
+                      },
+                      "evaluation": "LiveObjects"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+]
