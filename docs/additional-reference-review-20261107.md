@@ -5,7 +5,10 @@
 Reviewed Oracle's committed batches after runtime adoption 9c30e74 through d5db464:
 attached static conditions, optional other-target antecedents, private graveyard
 card filters, receipt-sized callback targets, and distributed counter targets.
-Their reports distinguish frontend corrections from reference errors. The newer
+Their reports distinguish frontend corrections from reference errors. The final
+read-only check also covers callback-target scopes 4fd948b and checkpoint 42
+report 0e55435: those add a frontend named-source correction and preserve all
+34,201 reviewed readings, with no additional confirmed producer error. The newer
 batch declares no new confirmed reference error. Oracle has adopted fork 4bf84f0
 with all 34,187 prior saved readings retained after its two documented old-graph
 repairs; do not describe runtime adoption as still pending at that revision.

@@ -156,14 +156,13 @@ numeric-label lookup or output deduplication changes that meaning. Seven focused
 join tests cover these contracts, canonical validity and idempotence, including
 a granted ability whose local branches must beat an outer ordinary label.
 
-Halfdane remains a separate exact-duration representation gap, reported as
-[#229](https://github.com/i5jb/mtgish/issues/229). The printed effect lasts to the
-end of the next upkeep, while UntilNextUpkeep currently lowers to UpkeepBegins.
-Other callers correctly need the beginning, so changing that existing form
-universally would introduce new errors. A distinct Source expiration and exact
-normalized Duration are needed. No approximation, gold edit or new schema-valid
-frame is claimed here; adding/skipping steps makes a next-draw-step substitute
-unsafe. This follow-up does not alter Source/IR schema178 or quantity limits.
+Halfdane's Source and AST duration gap was subsequently corrected in
+`f1faa1c`, with schema178 advancing to179. Its exact end-of-next-upkeep duration
+is distinct from the old beginning deadline; eight other callers retain their
+original semantics. Engine support remains absent and the generator explicitly
+refuses this duration. See the [additional review](additional-reference-review-20261107.md)
+for the full model contract, current tests and four further Source fixes, and
+[upstream229](https://github.com/i5jb/mtgish/issues/229) for the Source report.
 
 Final follow-up gates: 1,322 AST tests pass (four opt-in gates ignored); all
 32,755 unsealed native frames validate before and after canonicalization and
