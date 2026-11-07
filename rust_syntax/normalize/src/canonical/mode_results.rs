@@ -181,3 +181,73 @@ fn mode_bearing_created_trigger_retains_genuine_outer_capture() {
         0
     );
 }
+
+fn targeted_modal(slots: [u32; 2]) -> Value {
+    let mut value = modal(vec![vec![], vec![]], vec![]);
+    for (mode, slot) in value[0]["args"]["announcement"]["modes"]["modes"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .zip(slots)
+    {
+        mode["announcement"]["targets"] = json!([player_target(slot)]);
+        mode["body"]["instructions"] = json!([target_life(slot)]);
+    }
+    value
+}
+fn player_target(slot: u32) -> Value {
+    json!({"slot":slot,"kind":"Player","count":{"Exactly":{"kind":"Constant","args":1}},
+        "filter":{"kind":"Any"},"players":{"kind":"All"},"distribute":null,
+        "constraints":[],"chooser":null})
+}
+fn target_life(slot: u32) -> Value {
+    effect(
+        0,
+        json!({"kind":"GainLife","args":{
+            "players":{"kind":"One","args":{"kind":"Target","args":{"slot":slot,"index":0}}},
+            "amount":{"kind":"Constant","args":3}
+        }}),
+    )
+}
+#[test]
+fn independent_mode_target_slots_are_alpha_equivalent() {
+    assert_eq!(norm(targeted_modal([7, 7])), norm(targeted_modal([7, 29])));
+}
+#[test]
+fn mode_target_definitions_cannot_supply_sibling_reads_or_hide_duplicates() {
+    let mut leaking = targeted_modal([7, 7]);
+    leaking[0]["args"]["announcement"]["modes"]["modes"][1]["announcement"]["targets"] = json!([]);
+    assert!(valid(&leaking).is_err());
+    canonical::abilities(&mut leaking).unwrap();
+    assert!(valid(&leaking).is_err());
+    let mut duplicate = targeted_modal([7, 7]);
+    duplicate[0]["args"]["announcement"]["modes"]["modes"][0]["announcement"]["targets"] =
+        json!([player_target(7), player_target(7)]);
+    assert!(valid(&duplicate).is_err());
+    canonical::abilities(&mut duplicate).unwrap();
+    assert!(valid(&duplicate).is_err());
+}
+#[test]
+fn mode_target_scopes_preserve_genuine_outer_targets() {
+    let captured = |outer: u32, locals: [u32; 2]| {
+        let mut nested = targeted_modal(locals);
+        for mode in nested[0]["args"]["announcement"]["modes"]["modes"]
+            .as_array_mut()
+            .unwrap()
+        {
+            mode["body"]["instructions"] = json!([target_life(outer)]);
+        }
+        let mut value = modal(vec![], vec![]);
+        value[0]["args"]["announcement"] = json!({"targets":[player_target(outer)],"modes":null});
+        value[0]["args"]["body"]["instructions"] = json!([effect(
+            0,
+            json!({"kind":"CreateTrigger","args":{
+                "event":{"Turn":{"point":"UpkeepBegins","players":{"kind":"One","args":{"kind":"AbilityController"}}}},
+                "duration":"EndOfTurn","once":false,"intervening_if":null,
+                "announcement":nested[0]["args"]["announcement"],"body":{"instructions":[]}
+            }})
+        )]);
+        value
+    };
+    assert_eq!(norm(captured(7, [23, 23])), norm(captured(41, [59, 61])));
+}
