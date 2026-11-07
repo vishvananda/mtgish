@@ -11,6 +11,9 @@ use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
+mod choice_results;
+#[cfg(test)]
+mod choice_results_tests;
 mod entry;
 mod events;
 #[cfg(test)]
@@ -51,9 +54,14 @@ struct Ids {
     /// Definition identities, distinct from the numeric labels a future local
     /// invocation may reuse. Allocation counters survive a closure's scope.
     result_definitions: HashMap<u64, u64>,
+    /// Branch outcomes are readable only by JoinResults, not ordinary operands.
+    branch_receipts: BranchReceipts,
     results: u64,
     live_results: u64,
 }
+
+type BranchReceipts = HashMap<u64, Vec<(u64, u64)>>;
+type ResultScope = (Option<HashMap<u64, u64>>, HashMap<u64, u64>, BranchReceipts);
 
 /// Used results count up from zero; unread definitions count down in lexical
 /// order. Their original lowering ids have no meaning, but aliasing them all
@@ -148,6 +156,8 @@ struct Walker {
     /// A surrounding immediate loop gathers optional outcomes as receipts too.
     gathering_results: bool,
     visits: usize,
+    join_work: usize,
+    failure: Option<String>,
 }
 
 /// The role a damage event's own subject plays, through a `Filtered` wrapper.
@@ -169,17 +179,18 @@ fn id_kind(name: &str) -> Option<&'static str> {
 }
 
 impl Walker {
-    fn result_scope(&self) -> Option<(Option<HashMap<u64, u64>>, HashMap<u64, u64>)> {
-        self.scopes
-            .last()
-            .map(|s| (s.maps.get("result").cloned(), s.result_definitions.clone()))
+    fn result_scope(&self) -> Option<ResultScope> {
+        self.scopes.last().map(|s| {
+            (
+                s.maps.get("result").cloned(),
+                s.result_definitions.clone(),
+                s.branch_receipts.clone(),
+            )
+        })
     }
 
-    fn restore_result_scope(
-        &mut self,
-        saved: Option<(Option<HashMap<u64, u64>>, HashMap<u64, u64>)>,
-    ) {
-        if let (Some((map, definitions)), Some(scope)) = (saved, self.scopes.last_mut()) {
+    fn restore_result_scope(&mut self, saved: Option<ResultScope>) {
+        if let (Some((map, definitions, branches)), Some(scope)) = (saved, self.scopes.last_mut()) {
             match map {
                 Some(map) => {
                     scope.maps.insert("result", map);
@@ -189,14 +200,11 @@ impl Walker {
                 }
             }
             scope.result_definitions = definitions;
+            scope.branch_receipts = branches;
         }
     }
 
-    fn restore_with_exports(
-        &mut self,
-        saved: Option<(Option<HashMap<u64, u64>>, HashMap<u64, u64>)>,
-        exports: &HashSet<u64>,
-    ) {
+    fn restore_with_exports(&mut self, saved: Option<ResultScope>, exports: &HashSet<u64>) {
         let kept: Vec<_> = self
             .scopes
             .last()
@@ -239,6 +247,9 @@ impl Walker {
     }
 
     fn walk(&mut self, value: &mut Value, ty: &Ty, defining: bool) {
+        if self.failure.is_some() {
+            return;
+        }
         match ty {
             Ty::Opaque => {}
             Ty::Vec(inner) => {
@@ -547,6 +558,14 @@ impl Walker {
                     .chain(types.iter().filter(|(field, _)| late(field)));
                 for (field, ty) in ordered {
                     if let Some(item) = value.get_mut(field) {
+                        if owner == "Instruction::ChooseOne" && field == "options" {
+                            self.choice_options(item, ty);
+                            continue;
+                        }
+                        if owner == "Operation::JoinResults" && field == "results" {
+                            self.join_results(item);
+                            continue;
+                        }
                         if owner == "Ability::Saga" && field == "chapters" {
                             if let (Value::Array(items), Ty::Vec(inner)) = (item, ty) {
                                 for chapter in items {
@@ -917,15 +936,24 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
         paying_cost: false,
         gathering_results: false,
         visits: 0,
+        join_work: 0,
+        failure: None,
     };
     let abilities = Ty::Vec(Box::new(Ty::Named("Ability".into())));
     if !keep_order {
         walker.walk(&mut value.clone(), &abilities, false);
+        if let Some(why) = walker.failure.take() {
+            return Err(why);
+        }
         walker.reading = false;
         walker.visits = 0;
+        walker.join_work = 0;
     }
     walker.walk(value, &abilities, false);
-    Ok(())
+    match walker.failure {
+        Some(why) => Err(why),
+        None => Ok(()),
+    }
 }
 
 /// The canonical form of serialized abilities, in place.
