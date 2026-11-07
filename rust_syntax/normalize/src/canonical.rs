@@ -158,6 +158,8 @@ struct Walker {
     /// A surrounding immediate loop gathers optional outcomes as receipts too.
     gathering_results: bool,
     visits: usize,
+    join_work: usize,
+    failure: Option<String>,
 }
 
 /// The role a damage event's own subject plays, through a `Filtered` wrapper.
@@ -242,6 +244,9 @@ impl Walker {
     }
 
     fn walk(&mut self, value: &mut Value, ty: &Ty, defining: bool) {
+        if self.failure.is_some() {
+            return;
+        }
         match ty {
             Ty::Opaque => {}
             Ty::Vec(inner) => {
@@ -951,15 +956,24 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
         paying_cost: false,
         gathering_results: false,
         visits: 0,
+        join_work: 0,
+        failure: None,
     };
     let abilities = Ty::Vec(Box::new(Ty::Named("Ability".into())));
     if !keep_order {
         walker.walk(&mut value.clone(), &abilities, false);
+        if let Some(error) = walker.failure.take() {
+            return Err(error);
+        }
         walker.reading = false;
         walker.visits = 0;
+        walker.join_work = 0;
     }
     walker.walk(value, &abilities, false);
-    Ok(())
+    match walker.failure {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }
 
 /// The canonical form of serialized abilities, in place.

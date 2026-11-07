@@ -37,7 +37,8 @@ filing; the issue list was searched for prior card-specific reports.
 | Lukamina, Crocodile Form | Its duration survives a control change. | [#227](https://github.com/i5jb/mtgish/issues/227) |
 | Myojin of Towering Might | Only the first announced creature gets trample. | [#228](https://github.com/i5jb/mtgish/issues/228) |
 
-These issues are reported, not implemented in this review. The Gustcloak
+These issues were reported during the first review and subsequently fixed by
+`e954881`, as recorded below. The Gustcloak
 classification is also supported by Wizards' [Gustcloak ruling](https://magic.wizards.com/en/news/feature/saturday-school-2-2002-11-02):
 untapping is an effect, so an already-untapped blocked creature can still be
 removed from combat. No new gameplay execution is claimed for these reports.
@@ -125,3 +126,47 @@ not semantic adjudications. That batch needs a separate semantic integration
 review; replacing fork records wholesale would discard reviewed local edits.
 
 The separate upstream update remains excluded, as requested.
+
+## Additional report review
+
+The later Oracle packet confirms [Distracted Botanist’s population error](https://github.com/i5jb/mtgish/issues/230): its perpetual grant selects
+only creature cards. The printed population is permanent cards in your graveyard.
+The producing template now uses IsPermanent, preserving the controller's
+private graveyard, death trigger, granted enters trigger, draw and life gain.
+Only this Source record changes in a fresh 33,529-record parser pass. Its
+complete Source regression fails before the edit and passes after; the complete
+corrected ability validates and canonically matches the worker's minimal
+proposal. This brings the batch fixtures to 15 complete Source records and 16
+complete ability lists. No perpetual-effect engine support was added.
+
+The newer canonical-73e review also correctly identified two regressions in
+our explicit-join patch. Executed regressions show that an ordinary enclosing
+definition made after a choice must shadow that choice's older numeric label,
+and a 300-branch/256-operand expansion must refuse above the existing bounded
+work policy. Both failed on73e. Ordinary definitions now take priority within
+the lexical scope, mixed ordinary/branch joins validate, and the 65,536-unit
+per-pass limit charges namespace probes and receipt visits. A refusal occurs
+in the reading pass without replacing the caller's join list. The existing
+negative controls still reject future/dangling reads and unrelated choices.
+
+Repeated operands retain their occurrence multiplicity, matching retained607
+and the current Cantrip consumer's append behavior. Reused branch labels expand
+to their separate definitions for each explicit operand occurrence; no global
+numeric-label lookup or output deduplication changes that meaning. Seven focused
+join tests cover these contracts, canonical validity and idempotence, including
+a granted ability whose local branches must beat an outer ordinary label.
+
+Halfdane remains a separate exact-duration representation gap, reported as
+[#229](https://github.com/i5jb/mtgish/issues/229). The printed effect lasts to the
+end of the next upkeep, while UntilNextUpkeep currently lowers to UpkeepBegins.
+Other callers correctly need the beginning, so changing that existing form
+universally would introduce new errors. A distinct Source expiration and exact
+normalized Duration are needed. No approximation, gold edit or new schema-valid
+frame is claimed here; adding/skipping steps makes a next-draw-step substitute
+unsafe. This follow-up does not alter Source/IR schema178 or quantity limits.
+
+Final follow-up gates: 1,322 AST tests pass (four opt-in gates ignored); all
+32,755 unsealed native frames validate before and after canonicalization and
+remain idempotent. The uncached full Go suite passes. Evidence and the failing
+before-fix join/parser logs are retained under
+`/mnt/vizier/oracle-botanist-20261107/`.

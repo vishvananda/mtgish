@@ -3529,12 +3529,11 @@ impl<'a> Scope<'a> {
                 Err("a join needs at least two branches".into())
             }
             Operation::JoinResults { results } => {
-                if self
-                    .join_groups
-                    .iter()
-                    .rev()
-                    .any(|group| results.iter().all(|r| group.contains(&r.0)))
-                {
+                if self.join_groups.iter().rev().any(|group| {
+                    results
+                        .iter()
+                        .all(|r| self.results.contains_key(&r.0) || group.contains(&r.0))
+                }) {
                     Ok(())
                 } else {
                     Err("a join references unavailable or unrelated branch receipts".into())
