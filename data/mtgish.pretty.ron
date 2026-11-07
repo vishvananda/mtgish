@@ -577150,7 +577150,7 @@ Card(
                 ToughnessOfPermanent(Ref_TargetPermanent),
               )),
             ],
-            UntilNextUpkeep(You),
+            UntilEndOfNextUpkeep(You),
           ),
         ]),
       ),

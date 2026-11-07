@@ -2912,6 +2912,7 @@ impl Inventory<'_> {
             | Duration::DuringControllersNextUntapStep => {}
             Duration::UntilNextTurn(p)
             | Duration::UntilEndOfNextTurn(p)
+            | Duration::UntilEndOfNextUpkeep(p)
             | Duration::DuringNextUntapStep(p)
             | Duration::DuringNextTurn(p) => self.player(p),
             Duration::WhileOnBattlefield(object) | Duration::WhileExiled(object) => {

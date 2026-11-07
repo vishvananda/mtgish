@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 178;
+pub const SCHEMA_VERSION: u32 = 179;
 
 /// Typed pattern for the permanent query of the shared battlefield. Card-only,
 /// player-scoped and other-zone queries deliberately do not match.
@@ -5677,6 +5677,10 @@ pub enum Duration {
     /// Ends the next time state-based actions are checked, as Forge's
     /// `UntilStateBasedActionChecked`.
     UntilStateBasedActionsChecked,
+    /// Through the end of this player's next upkeep that begins after the
+    /// effect is created. An upkeep already in progress is not that next
+    /// upkeep; skipped upkeeps do not consume it. Additional upkeeps count.
+    UntilEndOfNextUpkeep(PlayerRef),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.

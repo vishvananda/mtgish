@@ -797,6 +797,7 @@ impl<'a> Scope<'a> {
             | Duration::DuringControllersNextUntapStep => Ok(()),
             Duration::UntilNextTurn(player)
             | Duration::UntilEndOfNextTurn(player)
+            | Duration::UntilEndOfNextUpkeep(player)
             | Duration::DuringNextUntapStep(player)
             | Duration::DuringNextTurn(player) => self.player(player),
             Duration::WhileOnBattlefield(object) | Duration::WhileExiled(object) => {

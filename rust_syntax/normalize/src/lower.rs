@@ -2376,6 +2376,9 @@ impl Context {
                 point: TurnPoint::EndStepBegins,
                 players: PlayerSet::All,
             },
+            source::Expiration::UntilEndOfNextUpkeep(p) => {
+                Duration::UntilEndOfNextUpkeep(self.player(p)?)
+            }
             source::Expiration::UntilNextUpkeep(p)
             | source::Expiration::UntilTheBeginningOfPlayersNextUpkeep(p) => Duration::UntilNext {
                 point: TurnPoint::UpkeepBegins,

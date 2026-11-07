@@ -1628,6 +1628,7 @@ pub enum Expiration {
   UntilTheEndOfPlayersNextTurn(Box<Player>),
   UntilTopCardOfPlayersLibraryChanges(Box<Player>),
   ForAsLongAsPlayerControlsPermanent(Box<Player>, Box<Permanent>),
+  UntilEndOfNextUpkeep(Box<Player>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]

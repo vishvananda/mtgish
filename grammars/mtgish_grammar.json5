@@ -2802,6 +2802,7 @@
     "UntilItIsNoLongerEnchanted": "",
     "UntilItLeavesTheBattlefield": "",
     "UntilNextUpkeep({{PLAYER}})": "",
+    "UntilEndOfNextUpkeep({{PLAYER}})": "",
     "UntilPermanentChangesControl({{PLAYER}}, {{PERMANENT}})": "",
     "UntilPermanentIsTurnedFaceDown({{PERMANENT}})": "",
     "UntilPermanentIsTurnedFaceUp({{PERMANENT}})": "",
