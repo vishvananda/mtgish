@@ -334369,7 +334369,7 @@ Card(
       ActionList([
         CreatePerpetualEachGraveyardCardEffect(
           And([
-            IsCardtype(Creature),
+            IsPermanent,
             InAPlayersGraveyard(SinglePlayer(You)),
           ]),
           [

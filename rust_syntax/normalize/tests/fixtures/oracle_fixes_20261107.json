@@ -3329,5 +3329,200 @@
         }
       }
     }
+  ],
+  "Distracted Botanist": [
+    {
+      "kind": "Keyword",
+      "args": {
+        "kind": "Deathtouch"
+      }
+    },
+    {
+      "kind": "Keyword",
+      "args": {
+        "kind": "Lifelink"
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "ZoneChange": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            },
+            "from": "Battlefield",
+            "to": "Graveyard"
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "EffectOn",
+                  "args": {
+                    "subject": {
+                      "Objects": {
+                        "kind": "AnyZone",
+                        "args": {
+                          "kind": "All",
+                          "args": [
+                            {
+                              "kind": "Either",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Artifact"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Battle"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Enchantment"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Planeswalker"
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "InZone",
+                              "args": {
+                                "Players": {
+                                  "zone": "Graveyard",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "effects": [
+                      {
+                        "kind": "Term",
+                        "args": {
+                          "family": "PerpetualEffect",
+                          "form": "AddAbility",
+                          "operands": [
+                            {
+                              "kind": "Ability",
+                              "args": {
+                                "kind": "Triggered",
+                                "args": {
+                                  "event": {
+                                    "ZoneChange": {
+                                      "objects": {
+                                        "kind": "SameObject",
+                                        "args": {
+                                          "kind": "Source"
+                                        }
+                                      },
+                                      "from": null,
+                                      "to": "Battlefield"
+                                    }
+                                  },
+                                  "intervening_if": null,
+                                  "limits": {
+                                    "per_turn": null,
+                                    "total": null
+                                  },
+                                  "announcement": {
+                                    "targets": [],
+                                    "modes": null
+                                  },
+                                  "body": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 0,
+                                          "operation": {
+                                            "kind": "Draw",
+                                            "args": {
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              },
+                                              "amount": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 1,
+                                          "operation": {
+                                            "kind": "GainLife",
+                                            "args": {
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              },
+                                              "amount": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "until": null
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
   ]
 }
