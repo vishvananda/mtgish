@@ -7,12 +7,14 @@
 //! `InSet`, an open count bounded by the total divided) reduce to one form.
 use crate::ir::Card;
 use crate::ir_schema::{Fields, Schema, Ty, TypeDef};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 mod entry;
 mod events;
+#[cfg(test)]
+mod mode_results;
 mod movement;
 #[cfg(test)]
 mod result_scopes;
@@ -297,7 +299,10 @@ impl Walker {
             }
             return;
         }
-        let local_results = (name == "Operand" && value["kind"] == "Program"
+        // Modes inherit enclosing receipts, but their definitions cannot escape
+        // into sibling modes or the common ability body (see validator).
+        let local_results = (name == "Mode"
+            || name == "Operand" && value["kind"] == "Program"
             || name == "Instruction" && value["kind"] == "Repeatable")
             .then(|| self.result_scope());
         let exported = if name == "Instruction" && value["kind"] == "Repeatable" {
