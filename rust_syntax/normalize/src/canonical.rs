@@ -310,8 +310,10 @@ impl Walker {
             }
             return;
         }
-        // Modes inherit enclosing receipts, but their definitions cannot escape
-        // into sibling modes or the common ability body (see validator).
+        // Modes inherit enclosing receipts and targets, but local definitions
+        // cannot escape into sibling modes or the common ability body.
+        let mode_slots =
+            (name == "Mode").then(|| self.scopes.last().and_then(|s| s.maps.get("slot").cloned()));
         let local_results = (name == "Mode"
             || name == "Operand" && value["kind"] == "Program"
             || name == "Instruction" && value["kind"] == "Repeatable")
@@ -365,6 +367,13 @@ impl Walker {
         }
         if let Some(saved) = local_results {
             self.restore_with_exports(saved, &exported);
+        }
+        if let (Some(previous), Some(scope)) = (mode_slots, self.scopes.last_mut()) {
+            if let Some(previous) = previous {
+                scope.maps.insert("slot", previous);
+            } else {
+                scope.maps.remove("slot");
+            }
         }
         self.gathering_results = previous_gathering;
     }
