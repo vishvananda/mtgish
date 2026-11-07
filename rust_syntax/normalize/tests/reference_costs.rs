@@ -184,6 +184,16 @@ fn all_three_reflexive_x_cards_only_change_the_amount_binding() {
             .find(|line| line.contains(&format!("Name: {name:?}")))
             .unwrap();
         query_aliases::movement_defaults(&mut expected);
+        // The unrelated Saga face also receives the reviewed meld-followup fix.
+        // Keep the historical snapshot, adapting this exact operand only.
+        if name == "Remnant of the Rising Star" {
+            let objects = expected.pointer_mut("/faces/1/abilities/0/args/chapters/2/args/body/instructions/1/args/operation/args/objects/args/objects").unwrap();
+            assert_eq!(
+                *objects,
+                json!({"kind":"One","args":{"kind":"Result","args":{"result":0,"phase":"After","index":0}}})
+            );
+            *objects = json!({"kind":"Transition","args":{"result":0,"phase":"After"}});
+        }
         assert_eq!(replace_announced_x(&mut expected, &json!(0)), 1);
         assert_eq!(lowered(line), expected, "{name}");
     }

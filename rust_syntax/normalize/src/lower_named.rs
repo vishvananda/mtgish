@@ -678,7 +678,12 @@ impl Context {
             let you = PlayerSet::One(self.player(&source::Player::You).ok()?);
             Some(self.private_cards(EventZone::Hand, you, filter))
         };
+        let exiled_followup = match value {
+            S::CreatePerpetualExiledCardEffect(card, _) => self.exiled_followup_group(card),
+            _ => None,
+        };
         let objects = match (value, subject) {
+            _ if exiled_followup.is_some() => self.still_exiled(exiled_followup?),
             (S::CreatePerpetualTriggeredCardEffect(_), _) if self.event.moved => {
                 ObjectSet::One(ObjectRef::EventDestination)
             }
@@ -1309,6 +1314,7 @@ impl Context {
         self.did.clear();
         self.payment = None;
         self.exiled = None;
+        self.exiled_one_input = None;
         self.exiled_permanents = false;
         self.entered = None;
         self.inspection_hand = None;

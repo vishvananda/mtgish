@@ -2875,7 +2875,7 @@ fn a_populated_token_and_an_investigation_leave_their_antecedents_readable() {
     let populated = ability_json("SpellActions(ActionList([Populate,CreateEachPermanentRuleEffectUntil(TheTokensCreatedThisWay,[CantBlock],UntilEndOfTurn)]))");
     assert!(populated.contains("Created"), "{populated}");
     let kept = ability_json("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))],ActionList([Exile([Permanent(Ref_TargetPermanent)],[]),Investigate,PutExiledCardOntoBattlefield(TheCardExiledThisWay,[EntersNormally])])))");
-    assert!(kept.contains("\"kind\":\"Result\""), "{kept}");
+    assert!(kept.contains("\"kind\":\"Transition\",\"args\":{\"result\":0,\"phase\":\"After\"}"), "{kept}");
 }
 
 #[test]

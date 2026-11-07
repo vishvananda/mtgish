@@ -96,3 +96,6 @@ edit or new confirmed-error claim is made for it. The remaining snapshot,
 incarnation and representation questions are retained separately; absence of a
 new confirmed error in the latest grammar batch is not certification of every
 older pending item.
+
+The subsequent Ambergris/Basalt Source corrections and shared meld/blink lowering
+review are recorded in [joint-blink-reference-review-20261107.md](joint-blink-reference-review-20261107.md).

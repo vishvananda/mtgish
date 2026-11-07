@@ -29,7 +29,10 @@ impl Context {
             S::Permanents(p) => self.objects(p)?,
             S::GraveCard(c) => ObjectSet::One(self.grave_card(c)?),
             S::GraveCards(c) => self.grave_cards(c)?,
-            S::ExiledCard(c) => self.still_exiled(ObjectSet::One(self.exiled_card(c)?)),
+            S::ExiledCard(c) => self.still_exiled(match self.exiled_followup_group(c) {
+                Some(objects) => objects,
+                None => ObjectSet::One(self.exiled_card(c)?),
+            }),
             S::ExiledCards(c) => self.still_exiled(self.exile_cards(c)?),
             S::Spell(s) => ObjectSet::One(self.spell(s)?),
             S::HandCard(c) => ObjectSet::One(self.hand_card(c)?),

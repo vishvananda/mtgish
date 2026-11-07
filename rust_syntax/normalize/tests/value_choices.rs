@@ -82,6 +82,16 @@ fn full_producer_records_keep_every_operand_except_declared_choice_schema() {
         expected["schema_version"] = json!(SCHEMA_VERSION);
         let actual = pipeline::finalize(&source).unwrap();
         query_aliases::movement_defaults(&mut expected);
+        // Preserve the old snapshot while accounting for this exact, separately
+        // reviewed single-input exile followup; choices stay fully compared.
+        if actual.name == "Stenn, Paranoid Partisan" {
+            let objects = expected.pointer_mut("/abilities/2/args/body/instructions/1/args/operation/args/body/instructions/0/args/operation/args/objects/args/objects").unwrap();
+            assert_eq!(
+                *objects,
+                json!({"kind":"One","args":{"kind":"Result","args":{"result":0,"phase":"After","index":0}}})
+            );
+            *objects = json!({"kind":"Transition","args":{"result":0,"phase":"After"}});
+        }
         assert_eq!(
             serde_json::to_value(&actual).unwrap(),
             expected,

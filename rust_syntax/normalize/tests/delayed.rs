@@ -189,7 +189,7 @@ fn returned_objects_use_exact_captured_post_exile_incarnations() {
         panic!()
     };
     assert!(
-        matches!(objects.as_ref(),ObjectSet::One(ObjectRef::Result {result,phase:ObjectPhase::After,index:0}) if result.0==exile.0)
+        matches!(objects.as_ref(),ObjectSet::Transition {result,phase:ObjectPhase::After} if result.0==exile.0)
     );
     let c = card("Ghostway");
     let Operation::CreateDelayedTrigger { body, .. } = delayed(program(&c)) else {

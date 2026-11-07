@@ -31,6 +31,7 @@ fn generated_reference_contracts_execute_in_cantrip() {
         .lines()
         .chain(include_str!("fixtures/sacrifice_public_destinations.ronl").lines())
         .chain(include_str!("fixtures/oracle_fixes_20261107.ronl").lines())
+        .chain(include_str!("fixtures/joint_blink_reference_fixes.ronl").lines())
         .map(|s| ron::from_str(s).unwrap())
         .collect();
     let mut lib = String::new();
@@ -50,6 +51,11 @@ fn generated_reference_contracts_execute_in_cantrip() {
         ("kroxa_and_kunoros", "Kroxa and Kunoros"),
         ("arashin_sovereign", "Arashin Sovereign"),
         ("avenging_angel", "Avenging Angel"),
+        ("ambergris_progress", "Ambergris, Agent of Progress"),
+        ("cloudshift", "Cloudshift"),
+        ("conjurers_closet", "Conjurer's Closet"),
+        ("restoration_angel", "Restoration Angel"),
+        ("basalt_golem", "Basalt Golem"),
     ] {
         let source = sources
             .iter()
@@ -89,6 +95,7 @@ fn generated_reference_contracts_execute_in_cantrip() {
     ));
     lib.push_str(include_str!("fixtures/reference_contract_scenarios.rs"));
     lib.push_str(include_str!("fixtures/oracle_fixes_20261107_scenarios.rs"));
+    lib.push_str(include_str!("fixtures/joint_blink_reference_scenarios.rs"));
     fs::write(root.join("src/lib.rs"), lib).unwrap();
     let target = std::env::var_os("MTGISH_CANTRIP_TARGET")
         .map(PathBuf::from)

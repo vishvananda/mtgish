@@ -183,6 +183,29 @@ impl Context {
         };
         self.object_target(ObjectDomain::card(EventZone::Graveyard), n)
     }
+    /// A follow-up action on "that card" finds every incarnation produced by
+    /// the one original object (CR 712.21c). Explicit first/second/choice reads
+    /// stay scalar. Callers retain the current-zone guard on this group.
+    fn exiled_followup_group(&self, value: &source::CardInExile) -> Option<ObjectSet> {
+        if !matches!(
+            value,
+            source::CardInExile::TheCardExiledThisWay | source::CardInExile::TheExiledCard
+        ) {
+            return None;
+        }
+        match &self.exiled {
+            Some(result)
+                if self.exiled_one_input.as_ref().is_some_and(|one| one.0 == result.0) =>
+            {
+                Some(ObjectSet::Transition {
+                    result: result.clone(),
+                    phase: ObjectPhase::After,
+                })
+            }
+            None => self.paid_exile().filter(|(_, one)| *one).map(|(objects, _)| objects),
+            _ => None,
+        }
+    }
     fn exiled_card(&self, value: &source::CardInExile) -> Result<ObjectRef> {
         use source::CardInExile as S;
         match value {

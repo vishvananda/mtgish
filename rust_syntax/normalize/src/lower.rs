@@ -203,6 +203,8 @@ struct Context {
     binding_depth: u32,
     state_subject: Option<ObjectRef>,
     exiled: Option<ResultId>,
+    /// One pre-exile object can become multiple cards (a melded permanent).
+    exiled_one_input: Option<ResultId>,
     /// The latest instruction of each kind a "this way" history can name.
     did: std::collections::BTreeMap<Done, ResultId>,
     exiled_permanents: bool,
@@ -411,13 +413,14 @@ impl Context {
 
     /// What a move leaves for a later "this way" to name.
     fn note_move(&mut self, operation: &Operation, result: ResultId) {
-        let (Operation::Move { destination, .. } | Operation::Counter { destination, .. }) =
-            operation
+        let (Operation::Move { destination, objects, .. }
+        | Operation::Counter { destination, objects, .. }) = operation
         else {
             return;
         };
         match destination {
             Destination::Exile => {
+                self.exiled_one_input = matches!(objects, ObjectSet::One(_)).then(|| result.clone());
                 self.exiled = Some(result);
                 self.exiled_permanents = false;
             }
@@ -651,6 +654,7 @@ impl Context {
         }
         if self.exiled.as_ref().map(|r| r.0) != child.exiled.as_ref().map(|r| r.0) {
             self.exiled = None;
+            self.exiled_one_input = None;
             self.exile_found = None;
             self.exiled_permanents = false;
         }

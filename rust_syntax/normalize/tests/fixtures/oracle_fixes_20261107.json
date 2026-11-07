@@ -635,14 +635,16 @@
                   "kind": "CreatePerpetualEffect",
                   "args": {
                     "objects": {
-                      "kind": "One",
+                      "kind": "InZone",
                       "args": {
-                        "kind": "Result",
-                        "args": {
-                          "result": 0,
-                          "phase": "After",
-                          "index": 0
-                        }
+                        "objects": {
+                          "kind": "Transition",
+                          "args": {
+                            "result": 0,
+                            "phase": "After"
+                          }
+                        },
+                        "zone": "Exile"
                       }
                     },
                     "changes": [
@@ -707,14 +709,10 @@
                       "kind": "InZone",
                       "args": {
                         "objects": {
-                          "kind": "One",
+                          "kind": "Transition",
                           "args": {
-                            "kind": "Result",
-                            "args": {
-                              "result": 0,
-                              "phase": "After",
-                              "index": 0
-                            }
+                            "result": 0,
+                            "phase": "After"
                           }
                         },
                         "zone": "Exile"
