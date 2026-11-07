@@ -34972,13 +34972,10 @@ Card(
     TriggerA(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       ActionList([
-        MayCost(DiscardHand),
-        If(
-          CostWasPaid,
-          [
-            DrawNumberCards(Integer(3)),
-          ],
-        ),
+        MayActions([
+          DiscardHand,
+          DrawNumberCards(Integer(3)),
+        ]),
       ]),
     ),
   ],
@@ -35072,13 +35069,10 @@ Card(
     TriggerA(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       ActionList([
-        MayCost(DiscardHand),
-        If(
-          CostWasPaid,
-          [
-            DrawNumberCards(Integer(2)),
-          ],
-        ),
+        MayActions([
+          DiscardHand,
+          DrawNumberCards(Integer(2)),
+        ]),
       ]),
     ),
   ],
@@ -103583,28 +103577,31 @@ Card(
             If(
               CostWasPaid,
               [
-                CreateTokens(
-                  [
-                    TokenWithPT(
-                      PT(
-                        0,
-                        2,
+                PlayerAction(
+                  ControllerOfPermanent(Trigger_TheBlockingCreature),
+                  CreateTokens(
+                    [
+                      TokenWithPT(
+                        PT(
+                          0,
+                          2,
+                        ),
+                        Colorless,
+                        [],
+                        [
+                          Artifact,
+                          Creature,
+                        ],
+                        SubtypesList([
+                          Wall,
+                        ]),
+                        [
+                          Defender,
+                        ],
                       ),
-                      Colorless,
-                      [],
-                      [
-                        Artifact,
-                        Creature,
-                      ],
-                      SubtypesList([
-                        Wall,
-                      ]),
-                      [
-                        Defender,
-                      ],
-                    ),
-                  ],
-                  [],
+                    ],
+                    [],
+                  ),
                 ),
               ],
             ),
