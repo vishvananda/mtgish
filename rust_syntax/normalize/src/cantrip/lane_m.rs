@@ -251,6 +251,8 @@ impl Compiler {
 /// What later reads ask of the instructions before them.
 #[derive(Clone, Debug, Default)]
 pub(super) struct Notes {
+    /// Bound values proved nonnegative, eligible for the engine's count carrier.
+    pub nonnegative_values: BTreeSet<u32>,
     /// The players this body chose, in order: "the second player".
     pub named_players: Vec<String>,
     /// Who each of these results ended up with: "the player who did", "that opponent".

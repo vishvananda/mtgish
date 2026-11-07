@@ -238,9 +238,15 @@ impl Context {
                     if Self::optional_reflexive_payment(&mut body, decider) {
                         return Ok(Instruction::Group(body));
                     }
-                    Ok(Instruction::Optional {
-                        decider: decider.clone(),
-                        body,
+                    let guard = Self::optional_fixed_exile_guard(&body);
+                    let optional = Instruction::Optional { decider: decider.clone(), body };
+                    Ok(match guard {
+                        Some(condition) => Instruction::If {
+                            condition,
+                            then: Program { instructions: vec![optional] },
+                            otherwise: Program { instructions: vec![] },
+                        },
+                        None => optional,
                     })
                 };
                 match input {

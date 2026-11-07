@@ -79,6 +79,7 @@ impl Context {
         found: Option<ObjectFilter>,
         actions: &[source::RevealTheTopNumberCardsOfLibraryAction],
     ) -> Result<Instruction> {
+        self.reveal_reflexive_mana = None;
         self.inspection_hand = Some(vec![]);
         let reveal = self.effect(reveal);
         let Instruction::Effect { result, .. } = &reveal else {

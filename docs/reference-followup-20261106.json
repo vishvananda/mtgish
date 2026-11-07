@@ -69,7 +69,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native damages the target creature\u2019s controller instead of the target creature; parser recipient is correct.",
+      "summary": "Native damages the target creature’s controller instead of the target creature; parser recipient is correct.",
       "evidence": "reference-audit/batch-004.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -91,7 +91,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native Ionize damages its own controller instead of countered spell\u2019s controller.",
+      "summary": "Native Ionize damages its own controller instead of countered spell’s controller.",
       "evidence": "reference-audit/batch-010.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -534,17 +534,25 @@
       "name": "Kroxa and Kunoros",
       "family": "optional-actions",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native optional exile-five uses AsManyAsCan, allowing partial performance; parser exact payment matches required five cards.",
-      "evidence": "reference-audit/batch-010.json"
+      "evidence": "reference-audit/batch-010.json",
+      "producer_cause": "The optional fixed-count exile inherited partial-selection semantics without checking that the complete action was initially possible.",
+      "fix_notes": "The complete optional action is guarded by the eligible population, retaining the actual exile receipt and reflexive target timing. Replacement-sensitive completion remains separately unresolved; see oracle-fix-review-20261107.md.",
+      "upstream_report": "Fork lowering only; upstream typed Source already expresses the fixed-count optional action correctly.",
+      "validation": "Complete ability comparison and native execution for every undersized graveyard population pass; unchanged Dokuchi Silencer and Sutina controls pass."
     },
     {
       "name": "Young Necromancer",
       "family": "optional-actions",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native optional exile-two permits partial action through AsManyAsCan2; parser exact payment preserves required two.",
-      "evidence": "reference-audit/batch-021.json"
+      "evidence": "reference-audit/batch-021.json",
+      "producer_cause": "The optional fixed-count exile inherited partial-selection semantics without checking that the complete action was initially possible.",
+      "fix_notes": "The complete optional action is guarded by the eligible population, retaining the actual exile receipt and reflexive target timing. Replacement-sensitive completion remains separately unresolved; see oracle-fix-review-20261107.md.",
+      "upstream_report": "Fork lowering only; upstream typed Source already expresses the fixed-count optional action correctly.",
+      "validation": "Complete ability comparison and native execution for every undersized graveyard population pass; unchanged Dokuchi Silencer and Sutina controls pass."
     },
     {
       "name": "Bellowing Fiend",

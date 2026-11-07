@@ -111,6 +111,9 @@ fn announce(g: &mut RulesGame, id: ObjectId, kind: ActionKind, index: u8, target
     g.answer(r.id, r.player, Answer::Act(a)).unwrap();
 }
 fn finish(g: &mut RulesGame, yes: bool) {
+    finish_with_target(g, yes, None)
+}
+fn finish_with_target(g: &mut RulesGame, yes: bool, preferred: Option<Target>) {
     for _ in 0..200 {
         g.run();
         let Some(r) = g.pending().cloned() else {
@@ -132,7 +135,9 @@ fn finish(g: &mut RulesGame, yes: bool) {
                     .expect("payment option");
                 Answer::Act(Action::of(o))
             }
-            RequestKind::ChooseTarget { candidates, .. } => Answer::Targets(vec![candidates[0]]),
+            RequestKind::ChooseTarget { candidates, .. } => Answer::Targets(vec![
+                preferred.filter(|t| candidates.contains(t)).unwrap_or(candidates[0]),
+            ]),
             RequestKind::ChooseModes { .. } => Answer::Modes(vec![0]),
             RequestKind::ChooseCostPayment { .. } => Answer::CostPayment(0),
             RequestKind::May { .. } => {

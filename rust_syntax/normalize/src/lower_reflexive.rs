@@ -373,7 +373,14 @@ impl Context {
                 }
             });
         }
+        let is_reveal = matches!(condition, Some(source::Condition::ACardWasRevealedThisWay(_)));
         let condition = condition.map(|c| self.condition(c)).transpose()?;
+        if is_reveal {
+            if let Some(condition) = condition {
+                return self.reveal_reflexive(instructions, condition, actions);
+            }
+        }
+
         self.reflexive_after(instructions, condition, actions)
     }
 

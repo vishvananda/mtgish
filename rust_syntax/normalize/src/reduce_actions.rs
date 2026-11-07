@@ -232,6 +232,18 @@ fn hand_filter(operand: &Operand) -> Option<ObjectFilter> {
     }
 }
 
+// A death trigger can use the first graveyard incarnation, never the departed
+// battlefield object or an incarnation produced by a subsequent zone change.
+fn dead_graveyard_card() -> ObjectSet {
+    ObjectSet::One(ObjectRef::Query {
+        objects: Box::new(ObjectSet::InZone {
+            objects: Box::new(ObjectSet::One(ObjectRef::EventDestination)),
+            zone: EventZone::Graveyard,
+        }),
+        index: 0,
+    })
+}
+
 /// Cards that change zones, as Forge's `ChangeZone` with `Origin$` and `Destination$`.
 fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Operation> {
     use Destination as D;
@@ -433,15 +445,14 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             ZoneMove::new(cards.clone(), D::CommandZone)
         }
         ("PutDeadPermanentOnTopOfLibrary", []) => {
-            ZoneMove::new(ObjectSet::One(ObjectRef::EventSubject), D::OwnersLibraryTop)
+            ZoneMove::new(dead_graveyard_card(), D::OwnersLibraryTop)
         }
         ("PutDeadPermanentOnBottomOfLibrary", []) => {
-            ZoneMove::new(ObjectSet::One(ObjectRef::EventSubject), D::OwnersLibraryBottom)
+            ZoneMove::new(dead_graveyard_card(), D::OwnersLibraryBottom)
         }
-        ("PutDeadPermanentOnTopOfLibraryOrOnBottomOfLibrary", []) => ZoneMove::new(
-            ObjectSet::One(ObjectRef::EventSubject),
-            D::OwnersLibraryTopOrBottom,
-        ),
+        ("PutDeadPermanentOnTopOfLibraryOrOnBottomOfLibrary", []) => {
+            ZoneMove::new(dead_graveyard_card(), D::OwnersLibraryTopOrBottom)
+        }
         (
             "PutEachExiledCardOntoTheBattlefieldFaceDownAsAnArtifactCreature",
             [Objects(cards), pt, kind],

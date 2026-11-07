@@ -30,6 +30,7 @@ fn generated_reference_contracts_execute_in_cantrip() {
     let sources: Vec<OracleCard> = include_str!("fixtures/reference_investigations.ronl")
         .lines()
         .chain(include_str!("fixtures/sacrifice_public_destinations.ronl").lines())
+        .chain(include_str!("fixtures/oracle_fixes_20261107.ronl").lines())
         .map(|s| ron::from_str(s).unwrap())
         .collect();
     let mut lib = String::new();
@@ -43,6 +44,12 @@ fn generated_reference_contracts_execute_in_cantrip() {
         ("haunted_fengraf", "Haunted Fengraf"),
         ("karn_s_touch", "Karn's Touch"),
         ("laquatus_s_creativity", "Laquatus's Creativity"),
+        ("calibrated_blast", "Calibrated Blast"),
+        ("yuna_s_whistle", "Yuna's Whistle"),
+        ("young_necromancer", "Young Necromancer"),
+        ("kroxa_and_kunoros", "Kroxa and Kunoros"),
+        ("arashin_sovereign", "Arashin Sovereign"),
+        ("avenging_angel", "Avenging Angel"),
     ] {
         let source = sources
             .iter()
@@ -81,6 +88,7 @@ fn generated_reference_contracts_execute_in_cantrip() {
         cantrip::module(&legacy_sacrifice).unwrap()
     ));
     lib.push_str(include_str!("fixtures/reference_contract_scenarios.rs"));
+    lib.push_str(include_str!("fixtures/oracle_fixes_20261107_scenarios.rs"));
     fs::write(root.join("src/lib.rs"), lib).unwrap();
     let target = std::env::var_os("MTGISH_CANTRIP_TARGET")
         .map(PathBuf::from)

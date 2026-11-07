@@ -175,6 +175,8 @@ struct Context {
     tapped: Option<ObjectSet>,
     /// How many a filtered reflexive trigger counted, as its "that many".
     reflexive_count: Option<Expr>,
+    /// The found card value sampled while the reveal is still in scope.
+    reveal_reflexive_mana: Option<Expr>,
     /// What a separation split and who split it, until a player picks a pile.
     pile: Option<(PlayerRef, ObjectSet)>,
     /// The picked pile; the other pile is what it left unselected.
@@ -1646,6 +1648,17 @@ impl Context {
     }
 
     fn number(&self, value: &source::GameNumber) -> Result<Expr> {
+        if matches!(
+            value,
+            source::GameNumber::ManaValueOfTheCardFoundThisWay
+                | source::GameNumber::ManaValueOfTheFoundCard
+                | source::GameNumber::ManaValueOfTheCardRevealedThisWay
+        ) {
+            if let Some(value) = &self.reveal_reflexive_mana {
+                return Ok(value.clone());
+            }
+        }
+
         self.reduced_number(value).or_else(|error| {
             if let Some(number) = self.this_way_number(value) {
                 return number.or_else(|error| self.rescue(error, || self.primitive_number(value)));
@@ -6790,6 +6803,7 @@ include!("lower_hand.rs");
 include!("lower_named.rs");
 include!("lower_took.rs");
 include!("lower_reflexive.rs");
+include!("lower_reveal_reflexive.rs");
 include!("lower_reveal.rs");
 include!("lower_search.rs");
 include!("lower_replace.rs");

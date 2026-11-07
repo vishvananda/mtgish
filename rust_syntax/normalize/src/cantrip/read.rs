@@ -1870,6 +1870,18 @@ impl Compiler {
                         max: i64::MAX.into(),
                         dynamic: true,
                     },
+                    // A reflexive trigger retains a value already sampled by
+                    // its maker, rather than reading the moved card again.
+                    None if self.carrying().is_some_and(|outer| {
+                        outer.reflexive
+                            && outer.compiler.values.contains_key(&result.0)
+                            && outer.compiler.notes.nonnegative_values.contains(&result.0)
+                    }) => Number {
+                        code: self.told_event_amount(n)?,
+                        min: i64::MIN.into(),
+                        max: i64::MAX.into(),
+                        dynamic: true,
+                    },
                     None => return Err(gap("value outside generated scope")),
                 }
             }

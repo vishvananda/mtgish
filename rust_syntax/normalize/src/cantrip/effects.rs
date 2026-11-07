@@ -2589,6 +2589,9 @@ impl Compiler {
             }
             Operation::BindValue { value } => {
                 let value = self.number(value)?;
+                if value.min >= 0 {
+                    self.notes.nonnegative_values.insert(result.0);
+                }
                 writeln!(out, "let value_{id}: i64 = {};", self.fetch(value.code)).unwrap();
                 self.values.insert(result.0, format!("value_{id}"));
             }

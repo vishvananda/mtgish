@@ -42,44 +42,79 @@ classification is also supported by Wizards' [Gustcloak ruling](https://magic.wi
 untapping is an effect, so an already-untapped blocked creature can still be
 removed from combat. No new gameplay execution is claimed for these reports.
 
-## Fork lowering and generation queue
+## Fork lowering and generation corrections
 
 The upstream typed source already expresses these five cards correctly. Their
-reported failures originate in our normalized lowering or generation, so they
-were not filed as upstream source errors:
+reported failures originated in our normalized lowering or generation, so they
+were not filed as upstream source errors. These corrections are now implemented:
 
-| Cards | Fork correction needed |
+| Cards | Fork correction |
 |---|---|
-| Arashin Sovereign; Avenging Angel | Dead-permanent library primitives use the departed battlefield object. Use the first graveyard incarnation, retaining the graveyard guard. |
-| Kroxa and Kunoros; Young Necromancer | Their fixed-number optional exile can partially execute with too few cards. Add correct eligibility before the optional action; preserve reflexive receipt and announcement timing. Replacement-sensitive completion remains a separate question. |
-| Yuna's Whistle | The reflexive gate and value read use the reorder receipt instead of the reveal/found-card receipt. Coordinate explicit found-card value capture and consumer semantics; the worker's ID-only edit is not a complete fix. |
+| Arashin Sovereign; Avenging Angel | Dead-permanent library primitives use the first graveyard incarnation and retain the graveyard guard. |
+| Kroxa and Kunoros; Young Necromancer | Guard eligibility before the fixed-number optional exile; preserve its actual receipt and reflexive announcement timing. Replacement-sensitive completion remains a separate question. |
+| Yuna's Whistle | The reflexive gate uses the reveal receipt, and its amount is captured explicitly from the unique found creature before movement. |
 
-Calibrated Blast's declared ordered-query contract versus the emitter's matching
-substitution remains a contract question, as do the other bounded questions in
-Oracle's investigation index. They are not additional proved upstream errors.
+Calibrated Blast now explicitly samples the mana value of the unique matching
+nonland immediately after RevealUntil, before reordering, and its reflexive
+trigger refers to the reveal receipt. Yuna's Whistle similarly samples the
+matching creature before moving it into hand. Both use BindValue/BoundValue;
+the generator carries that nonnegative value using Cantrip's existing counted
+reflexive API. A signed-value control still reports a backend gap rather than
+silently converting a negative number into an unsigned count. Existing engine
+quantity limits remain in force. No engine types or schema versions changed.
+The broader legacy Query(Observed) matching substitution remains in place for
+callers outside these explicit captures; this is not a global query-contract
+change.
 
-## Current runtime migration blocker: explicit joins
+The other bounded questions in Oracle's investigation index remain separate.
+They are not additional proved upstream errors.
 
-The mode worker's historical packet recovers all eight modal matches and all 47
-old alternatives. Its current full saved-IR audit still loses Covetous Urge and
-Psychic Intrusion. Both join results produced in mutually exclusive branches.
-The canonicalizer restores those branch-local maps before visiting JoinResults,
-so the explicit join retains original numeric labels instead of the renamed
-branch receipts. The validator currently checks only that a join has two inputs;
-it does not catch these dangling references.
+## Explicit joins and Oracle runtime adoption
 
-An independent synthetic probe against this checkout confirms the defect:
-branch results 11/22 are renamed to unused canonical IDs, while the join still
-reads 11/22. Consistently alpha-renaming the input to 111/222 changes canonical
-equality. Both input/output pairs pass the existing validator. This is a fork
-canonicalizer/validation defect, separate from the mode repair; no gameplay
-failure was executed.
+Commit `afeb03f` repairs the branch-receipt migration blocker. JoinResults now
+retains the actual renamed definitions from If/ChooseOne branches, including
+reused numeric labels in independent branches. Ordinary reads still cannot
+reach sibling-branch locals. The validator rejects dangling, future, and
+unrelated-branch joins; deferred contexts do not inherit the enclosing join
+candidates. Covetous Urge and Psychic Intrusion now canonically match their
+saved expected programs. Four focused tests cover full programs, consistent
+renaming, reused labels, invalid direct reads and unrelated branch groups.
 
-Keep the stable Oracle runtime pin until explicit branch-receipt joins are
-handled without exporting unrelated branch locals and the full migration
-preservation checks pass. The native validity/idempotence audit alone does not
-settle this. Evidence and the probe source are retained in
-`/mnt/vizier/oracle-fix-review-20261107/`.
+"Oracle runtime adoption" means moving oracle-grammar's pinned MTGish AST,
+validator and canonicalizer dependencies to this fork revision and rerunning
+its migration checks. This repository's repairs remove the identified join
+blocker; they do not update that external project's pins or imply its complete
+migration suite has passed. Keep the stable runtime pin until that separate
+preservation check passes.
+
+## Source repairs and validation
+
+Commit `e954881` applies the seven reported upstream source corrections above.
+The shared another-target rule also updates seven callers whose attacking or
+entering creature is the source: Cunning Coyote, Eel-Hounds, Flensing Raptor,
+Foot Elite, Hardened Escort, Imperial Aerosaur and Oliphaunt. Complete-record
+comparison verifies that each additional caller changes only its exclusion
+reference. Fourteen parser fixtures check the complete Source records, and all
+three checked-in Source formats are regenerated without reordering the corpus.
+
+The full Cantrip-enabled AST suite passes 1,319 tests, with four opt-in gates
+ignored by default. The invoked unsealed native audit validates all 32,755 faces
+before and after canonicalization and checks idempotence.
+
+The fresh parser pass succeeds for all 33,529 records. All records also lower
+and validate, with no unsupported Source forms. The grammar audit retains the
+same 182 findings and exact matched-use evidence, including 145 scalar and 37
+context reviews; only the grammar fingerprints changed. Go tests pass.
+
+Fifteen complete corrected ability fixtures cover the seven Source reports,
+two death returns, two fixed optional exiles, Yuna and Calibrated Blast, plus
+unchanged Dokuchi Silencer and Sutina controls. The generated native gate runs
+16 tests against Cantrip `a2aabdfa6`, including found-card-at-top and lands-first
+reveals, Yuna with no reorder remainder, all undersized graveyard populations,
+and both death returns with and without another zone change before resolution.
+All 16 pass. Evidence is retained under
+`/mnt/vizier/oracle-fixes-20261107/`; the tests are reproducible from
+`reference_contract_runtime.rs` with its documented environment variables.
 
 ## Separate upstream update
 
@@ -88,3 +123,5 @@ comparison finds 31 identical to our fork, 11 still identical to their prior
 upstream versions, and 73 independently modified in our fork. Those counts are
 not semantic adjudications. That batch needs a separate semantic integration
 review; replacing fork records wholesale would discard reviewed local edits.
+
+The separate upstream update remains excluded, as requested.
