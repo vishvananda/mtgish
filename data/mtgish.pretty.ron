@@ -168603,7 +168603,7 @@ Card(
         PutExiledCardOntoBattlefield(
           TheCardExiledThisWay,
           [
-            EntersNormally,
+            EntersUnderOwnersControl,
           ],
         ),
       ]),
@@ -278844,7 +278844,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(ThatEnteringPermanent),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -376838,7 +376838,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatCreature),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -464303,7 +464303,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(ThatEnteringPermanent),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -471786,7 +471786,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatCreature),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -522784,7 +522784,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -568940,7 +568940,7 @@ Card(
       ),
       ActionList([
         CreatePermanentLayerEffect(
-          Trigger_ThatCreature,
+          ThisPermanent,
           [
             LosesAbility(Defender),
             AddAbility([
@@ -571652,13 +571652,10 @@ Card(
     TriggerA(
       WhenACreatureBecomesBlocked(SinglePermanent(ThisPermanent)),
       ActionList([
-        MayCost(UntapPermanent(ThisPermanent)),
-        If(
-          CostWasPaid,
-          [
-            RemoveCreatureFromCombat(ThisPermanent),
-          ],
-        ),
+        MayActions([
+          UntapPermanent(ThisPermanent),
+          RemoveCreatureFromCombat(ThisPermanent),
+        ]),
       ]),
     ),
   ],
@@ -583200,7 +583197,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatCreature),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -641406,7 +641403,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(ThatEnteringPermanent),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -782633,7 +782630,10 @@ Card(
             [
               DoesntUntapDuringControllersUntap,
             ],
-            UntilPermanentLeavesBattlefield(ThisPermanent),
+            ForAsLongAsPlayerControlsPermanent(
+              You,
+              ThisPermanent,
+            ),
           ),
         ]),
       ),
@@ -873890,8 +873890,8 @@ Card(
               1,
             )),
           ]),
-          CreatePermanentLayerEffectUntil(
-            Ref_TargetPermanent,
+          CreateEachPermanentLayerEffectUntil(
+            Ref_TargetPermanents,
             [
               AddAbility([
                 Trample,
@@ -925551,7 +925551,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatCreature),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -1083611,14 +1083611,14 @@ Card(
       Or([
         WhenAPermanentEntersTheBattlefieldFromAPlayersGraveyard(
           SinglePermanent(ThisPermanent),
-          SinglePlayer(You),
+          AnyPlayer,
         ),
         WhenAPermanentEntersTheBattlefieldFromAPlayersGraveyard(
           And([
             Other(ThisPermanent),
             AnyPermanent,
           ]),
-          SinglePlayer(You),
+          AnyPlayer,
         ),
       ]),
       ActionList([
