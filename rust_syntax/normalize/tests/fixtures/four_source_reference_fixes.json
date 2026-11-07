@@ -1,0 +1,681 @@
+{
+  "Back for More": [
+    {
+      "kind": "Spell",
+      "args": {
+        "announcement": {
+          "targets": [
+            {
+              "slot": 0,
+              "kind": {
+                "Object": {
+                  "kind": "Card",
+                  "zones": [
+                    "Graveyard"
+                  ]
+                }
+              },
+              "count": {
+                "Exactly": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "All",
+                "args": [
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "InZone",
+                    "args": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            }
+          ],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Group",
+              "args": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          },
+                          "destination": {
+                            "Battlefield": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "entry": {
+                            "tapped": false,
+                            "counters": [],
+                            "states": []
+                          },
+                          "face_down": false,
+                          "terms": {
+                            "order": "DestinationDefault",
+                            "placement": "DestinationDefault",
+                            "qualifiers": []
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 2,
+                      "operation": {
+                        "kind": "ReflexiveTrigger",
+                        "args": {
+                          "performed": 0,
+                          "condition": null,
+                          "announcement": {
+                            "targets": [
+                              {
+                                "slot": 1,
+                                "kind": {
+                                  "Object": {
+                                    "kind": "Permanent",
+                                    "zones": [
+                                      "Battlefield"
+                                    ]
+                                  }
+                                },
+                                "count": {
+                                  "UpTo": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "filter": {
+                                  "kind": "All",
+                                  "args": [
+                                    {
+                                      "kind": "CardType",
+                                      "args": "Creature"
+                                    },
+                                    {
+                                      "kind": "ControlledBy",
+                                      "args": {
+                                        "kind": "OthersThan",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "players": null,
+                                "distribute": null,
+                                "constraints": [],
+                                "chooser": null
+                              }
+                            ],
+                            "modes": null
+                          },
+                          "body": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "Keyword",
+                                    "args": {
+                                      "actor": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      },
+                                      "action": "Fight",
+                                      "object": {
+                                        "kind": "Result",
+                                        "args": {
+                                          "result": 0,
+                                          "phase": "After",
+                                          "index": 0
+                                        }
+                                      },
+                                      "other": {
+                                        "kind": "Target",
+                                        "args": {
+                                          "slot": 1,
+                                          "index": 0
+                                        }
+                                      },
+                                      "amount": null,
+                                      "subtype": null
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Skulking Killer": [
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "ZoneChange": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            },
+            "from": null,
+            "to": "Battlefield"
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [
+            {
+              "slot": 0,
+              "kind": {
+                "Object": {
+                  "kind": "Permanent",
+                  "zones": [
+                    "Battlefield"
+                  ]
+                }
+              },
+              "count": {
+                "Exactly": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "All",
+                "args": [
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "ControlledBy",
+                    "args": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                ]
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            }
+          ],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "If",
+              "args": {
+                "condition": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "Controls",
+                    "args": {
+                      "player": {
+                        "kind": "ControllerOf",
+                        "args": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        }
+                      },
+                      "filter": {
+                        "kind": "All",
+                        "args": [
+                          {
+                            "kind": "Not",
+                            "args": {
+                              "kind": "SameObject",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        ]
+                      },
+                      "minimum": 1
+                    }
+                  }
+                },
+                "then": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 0,
+                        "operation": {
+                          "kind": "CreateContinuousEffect",
+                          "args": {
+                            "source": {
+                              "kind": "Source"
+                            },
+                            "affected": {
+                              "Objects": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            },
+                            "changes": [
+                              {
+                                "kind": "Pump",
+                                "args": {
+                                  "power": {
+                                    "kind": "Constant",
+                                    "args": -2
+                                  },
+                                  "toughness": {
+                                    "kind": "Constant",
+                                    "args": -2
+                                  }
+                                }
+                              }
+                            ],
+                            "duration": "EndOfTurn",
+                            "evaluation": "Snapshot"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "otherwise": {
+                  "instructions": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Time to Feed": [
+    {
+      "kind": "Spell",
+      "args": {
+        "announcement": {
+          "targets": [
+            {
+              "slot": 0,
+              "kind": {
+                "Object": {
+                  "kind": "Permanent",
+                  "zones": [
+                    "Battlefield"
+                  ]
+                }
+              },
+              "count": {
+                "Exactly": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "All",
+                "args": [
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "ControlledBy",
+                    "args": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                ]
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            },
+            {
+              "slot": 1,
+              "kind": {
+                "Object": {
+                  "kind": "Permanent",
+                  "zones": [
+                    "Battlefield"
+                  ]
+                }
+              },
+              "count": {
+                "Exactly": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "All",
+                "args": [
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "ControlledBy",
+                    "args": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                ]
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            }
+          ],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateTrigger",
+                  "args": {
+                    "event": {
+                      "ZoneChange": {
+                        "objects": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "from": "Battlefield",
+                        "to": "Graveyard"
+                      }
+                    },
+                    "duration": "EndOfTurn",
+                    "announcement": {
+                      "targets": [],
+                      "modes": null
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "GainLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 3
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "once": false,
+                    "intervening_if": null
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "Keyword",
+                  "args": {
+                    "actor": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "action": "Fight",
+                    "object": {
+                      "kind": "Target",
+                      "args": {
+                        "slot": 1,
+                        "index": 0
+                      }
+                    },
+                    "other": {
+                      "kind": "Target",
+                      "args": {
+                        "slot": 0,
+                        "index": 0
+                      }
+                    },
+                    "amount": null,
+                    "subtype": null
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "True Identity": [
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Either": [
+            {
+              "Object": {
+                "event": "TurnsFaceUp",
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            {
+              "Object": {
+                "event": "TurnsFaceUp",
+                "objects": {
+                  "kind": "All",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": 1,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "Scry",
+                  "args": {
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "Draw",
+                  "args": {
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Mechanic",
+      "args": {
+        "mechanic": "Disguise",
+        "cost": {
+          "parts": [
+            {
+              "Mana": [
+                {
+                  "Color": "White"
+                }
+              ]
+            }
+          ]
+        },
+        "amount": null,
+        "filter": null
+      }
+    }
+  ]
+}

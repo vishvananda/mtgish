@@ -309,9 +309,12 @@
       "name": "Skulking Killer",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native no-other-creatures condition omits Creature, counting every other permanent. Parser includes Creature but tests source controller instead of target controller.",
-      "evidence": "reference-audit/batch-016.json"
+      "evidence": "reference-audit/batch-016.json",
+      "fix_notes": "Conjoin Creature with the other-target exclusion in the no-other-creatures condition. Preserve the target controller and the full ETB/-2/-2/EOT frame.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/231",
+      "validation": "Full corrected program fixtures, native validation and idempotent canonicalization pass. The four new Source cases also generate Cantrip code; no new gameplay execution is claimed."
     },
     {
       "name": "Soul Diviner",
@@ -468,9 +471,12 @@
       "name": "Prowling Geistcatcher",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference exiles the old sacrificed EventSubject instead of its new public destination. Saved grammar uses guarded graveyard EventDestination on the ordinary path; alternate sacrifice destinations need further parser coverage review. Token test and later linked-card return were also inspected.",
-      "evidence": "reference-audit/batch-014.json"
+      "evidence": "reference-audit/batch-014.json",
+      "fix_notes": "Already fixed by 0274d8f: ExileTriggeredCard uses the first sacrificed-card destination. Hidden-zone and subsequent-move guards remain in force.",
+      "upstream_report": "Fork lowering/source correction 0274d8f; see oracle-fix-review-20261107.md.",
+      "validation": "Previously published Source corrections are retained; this review updates only the stale pending status."
     },
     {
       "name": "Starving Revenant",
@@ -492,9 +498,12 @@
       "name": "Back for More",
       "family": "target-cardinalities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Gold correctly uses the return's After result as the fighting creature, but makes the reflexive target mandatory. Current fixes UpTo1 but uses the original graveyard target rather than returned incarnation for the fight. Both kinds of errors are retained separately.",
-      "evidence": "reference-audit/batch-002.json"
+      "evidence": "reference-audit/batch-002.json",
+      "fix_notes": "Make the reflexive fight target UpTo(1). Preserve the actual returned After incarnation and its separate announcement timing.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/3",
+      "validation": "Full corrected program fixtures, native validation and idempotent canonicalization pass. The four new Source cases also generate Cantrip code; no new gameplay execution is claimed."
     },
     {
       "name": "Bridgeworks Battle",
@@ -526,9 +535,12 @@
       "name": "Gustcloak Cavalier",
       "family": "optional-actions",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference turns optional untapping into a strict untap-symbol payment before removing from combat. An already-untapped vigilant attacker can still choose the whole Oracle effect. Reading0 is the correct Optional(two effects); reading1 incorrectly removes from combat even when untapping is declined. Flanking and the attack-tap trigger were reviewed.",
-      "evidence": "reference-audit/batch-009.json"
+      "evidence": "reference-audit/batch-009.json",
+      "fix_notes": "Already fixed by e954881: untap and removal are one optional effect rather than a strict untap cost.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/226",
+      "validation": "Previously published Source corrections are retained; this review updates only the stale pending status."
     },
     {
       "name": "Kroxa and Kunoros",
@@ -650,9 +662,12 @@
       "name": "Time to Feed",
       "family": "control-flow",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native places the second target and fight inside the delayed death trigger, although the fight is a separate immediate spell instruction and must target your creature. Current fixes scope/target restriction but incorrectly fights Target1 against itself.",
-      "evidence": "reference-audit/batch-019.json"
+      "evidence": "reference-audit/batch-019.json",
+      "fix_notes": "Both targets belong to the spell, with your-control restriction on the fighting creature. Only gain-life remains delayed; the fight executes immediately between the two correct target slots.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/233",
+      "validation": "Full corrected program fixtures, native validation and idempotent canonicalization pass. The four new Source cases also generate Cantrip code; no new gameplay execution is claimed."
     },
     {
       "name": "Fear of Infinity",
@@ -682,9 +697,12 @@
       "name": "Lukamina, Crocodile Form",
       "family": "timing-and-limits",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native untap lock lasts while Lukamina remains on battlefield rather than while you control it.",
-      "evidence": "reference-audit/batch-011.json"
+      "evidence": "reference-audit/batch-011.json",
+      "fix_notes": "Already fixed by e954881: WhileControlled replaces the battlefield-only duration.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/227",
+      "validation": "Previously published Source corrections are retained; this review updates only the stale pending status."
     },
     {
       "name": "Resurgence",
@@ -711,9 +729,12 @@
       "name": "True Identity",
       "family": "timing-and-limits",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Splitting the disjunctive trigger loses the shared once-per-turn limit: the second native trigger has no limit.",
-      "evidence": "reference-audit/batch-020.json"
+      "evidence": "reference-audit/batch-020.json",
+      "fix_notes": "Use one disjunctive event with one shared once-per-turn limit; retain scry, draw and Disguise.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/232",
+      "validation": "Full corrected program fixtures, native validation and idempotent canonicalization pass. The four new Source cases also generate Cantrip code; no new gameplay execution is claimed."
     },
     {
       "name": "Shivan Sand-Mage",

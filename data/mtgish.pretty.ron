@@ -91532,7 +91532,7 @@ Card(
           ],
           Targeted(
             [
-              TargetPermanent(And([
+              UptoOneTargetPermanent(And([
                 IsCardtype(Creature),
                 ControlledByAPlayer(Other(You)),
               ])),
@@ -1198593,7 +1198593,10 @@ Card(
           If(
             PlayerPassesFilter(
               ControllerOfPermanent(Ref_TargetPermanent),
-              ControlsNo(Other(Ref_TargetPermanent)),
+              ControlsNo(And([
+                Other(Ref_TargetPermanent),
+                IsCardtype(Creature),
+              ])),
             ),
             [
               CreatePermanentLayerEffectUntil(
@@ -1384681,23 +1384684,22 @@ Card(
           IsCardtype(Creature),
           ControlledByAPlayer(Opponent),
         ])),
+        TargetPermanent(And([
+          IsCardtype(Creature),
+          ControlledByAPlayer(SinglePlayer(You)),
+        ])),
       ],
       ActionList([
         CreateTriggerUntil(
           WhenAPermanentDies(SinglePermanent(Ref_TargetPermanent1)),
-          Targeted(
-            [
-              TargetPermanent(IsCardtype(Creature)),
-            ],
-            ActionList([
-              GainLife(Integer(3)),
-              Fight(
-                RefOuter_TargetPermanent,
-                Ref_TargetPermanent,
-              ),
-            ]),
-          ),
+          ActionList([
+            GainLife(Integer(3)),
+          ]),
           UntilEndOfTurn,
+        ),
+        Fight(
+          Ref_TargetPermanent2,
+          Ref_TargetPermanent1,
         ),
       ]),
     )),
@@ -1413097,17 +1413099,13 @@ Card(
   ],
   Rules: [
     TriggerOnceEachTurn(
-      WhenAPermanentIsTurnedFaceUp(SinglePermanent(ThisPermanent)),
-      ActionList([
-        Scry(Integer(1)),
-        DrawACard,
+      Or([
+        WhenAPermanentIsTurnedFaceUp(SinglePermanent(ThisPermanent)),
+        WhenAPermanentIsTurnedFaceUp(And([
+          Other(ThisPermanent),
+          ControlledByAPlayer(SinglePlayer(You)),
+        ])),
       ]),
-    ),
-    TriggerA(
-      WhenAPermanentIsTurnedFaceUp(And([
-        Other(ThisPermanent),
-        ControlledByAPlayer(SinglePlayer(You)),
-      ])),
       ActionList([
         Scry(Integer(1)),
         DrawACard,
