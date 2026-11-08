@@ -3,10 +3,11 @@ const assert = require('node:assert/strict');
 const {pathToFileURL} = require('node:url');
 const path = require('node:path');
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+let browser;
 (async () => {
   const input=process.argv[2] || '__build/card-blocks.html';
   const target=/^https?:/.test(input)?input:pathToFileURL(path.resolve(input)).href;
-  const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});
+  browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});
   const page=await browser.newPage({viewport:{width:1580,height:1000},acceptDownloads:true});
   const errors=[],network=[];
   page.on('pageerror',e=>errors.push(e.message));
@@ -78,4 +79,4 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   assert.deepEqual(errors,[],'Browser errors');
   console.log(JSON.stringify({offline:target.startsWith('file:'),noExternalAssets:true,wasm:true,cardRoundtrips:roundtrips,editing:true,download:true,invalidScopeRejected:true,exactI64:true,workspaceRoundtrip:true,errors},null,2));
   await browser.close();
-})().catch(e=>{console.error(e);process.exitCode=1;});
+})().catch(async e=>{console.error(e);if(browser)await browser.close();process.exitCode=1;});

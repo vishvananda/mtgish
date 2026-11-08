@@ -2,8 +2,9 @@
 const assert=require('node:assert/strict');
 const {pathToFileURL}=require('node:url');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+let browser;
 (async()=>{
- const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});
+ browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});
  const page=await browser.newPage();
  page.on('console',m=>{if(m.text().startsWith('Catalog:'))console.log(m.text());});
  await page.goto(pathToFileURL(require('node:path').resolve(process.argv[2]||'__build/card-blocks.html')).href,{timeout:120000});
@@ -31,4 +32,4 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
  console.log(JSON.stringify(report,null,2));
  assert.ok(Number.isInteger(report.expected));assert.equal(report.records,report.expected);assert.equal(report.blockRoundtrips,report.records);assert.equal(report.wasmValid,report.records);assert.deepEqual(report.failures,[]);
  await browser.close();
-})().catch(e=>{console.error(e);process.exitCode=1;});
+})().catch(async e=>{console.error(e);if(browser)await browser.close();process.exitCode=1;});
