@@ -6,12 +6,30 @@ checked-in card corpus, inspect/edit the blocks, start a blank creature or draw
 spell, and export validated normalized IR JSON. No server, CDN, network service,
 Oracle-text reconstruction or Cantrip runtime is involved.
 
-The Blocks tab adds constructors. Typed sockets accept only the expected Rust
-IR type. The plus button fills an empty socket, adds a list item or enables an
-optional value. A variant dropdown changes the constructor. Unused blocks stay
-visible; attach or remove them before exporting. Save workspace preserves the
-block layout; Export valid IR saves the actual IR. Import accepts either file.
-Edits are also saved to browser-local storage. Undo and redo use complete workspace snapshots so constructor/list edits include their nested blocks.
+The **Build** view is a Scratch-style authoring workspace. Drag an ability from
+Abilities into the card, then drag actions from Actions into its `do` slot. Actions
+connect vertically and can be reordered by dragging. Numbers and common player
+choices are editable directly inside the action. Keywords are small stackable
+blocks. **Library** opens card search without discarding the workspace.
+
+Empty optional fields and default modifiers are hidden. The **⋯** menu adds them
+on demand, including targeting. **IR details** exposes bookkeeping/default fields
+and the AST inspector. The normal view combines Effect/Operation and handles
+Program/ability/action arrays as statement stacks, so the user does not have to
+assemble serialization wrappers. New actions receive fresh result IDs; imported
+result IDs remain untouched. Power/toughness use two inline fields.
+
+The default **Readable** AST dump omits null/empty entries inside characteristics
+and preserves actual zero values, including 0/0. Select **Complete IR** for the
+exact wire representation. Export always writes the complete Rust-validated IR,
+regardless of the display format.
+
+Save workspace preserves the block layout; Export valid IR saves the actual IR.
+Import accepts either file. Edits are also saved to browser-local storage. Undo
+and redo use complete workspace snapshots so structural edits include their
+nested blocks. Connected v1 workspaces are migrated through the lossless IR
+codec, with the original workspace backed up locally; incomplete drafts remain
+available in their original representation.
 
 ## Build
 
@@ -70,6 +88,7 @@ npm ci
 npx playwright install chromium
 npm test -- /tmp/card-blocks.html
 npm run test:catalog -- /tmp/card-blocks.html
+npm run test:authoring -- /tmp/card-blocks.html
 ```
 
 Primary Blockly documentation: [connection checks](https://docs.blockly.com/guides/create-custom-blocks/inputs/connection-checks/),
@@ -119,3 +138,16 @@ Rebuild the HTML, copy it into a new release directory as `index.html`, and move
 `current` atomically. Each deployed release includes a SHA-256 manifest. The
 initial Caddy configuration was validated before reload and its previous file
 was retained as `/etc/caddy/Caddyfile.before-blocks-20261108`.
+
+Authoring update (2026-11-08): all 33,529 records still round-trip and validate
+unchanged through the projected presentation. A browser test performs real mouse
+drags from the category flyout, attaches a spell ability, stacks Draw and Gain
+Life, edits an inline amount, adds targeting on demand, toggles detail mode and
+downloads complete valid IR. Readable-dump tests verify omitted empty fields,
+preserved 0/0, and the full wire representation. The updated toolbox/menu sprite
+is embedded so the standalone file still has no runtime network dependency.
+
+Workspace migration preserves Blockly's serialized checkbox booleans as well as
+the live `TRUE`/`FALSE` field representation. The full-corpus codec test exercises
+this serialized form, preventing a saved `preventable: true` (or other boolean)
+from silently changing during an authoring-view upgrade.

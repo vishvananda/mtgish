@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "scripts": {
     "test": "node test_browser.cjs",
-    "test:catalog": "node test_catalog.cjs"
+    "test:catalog": "node test_catalog.cjs",
+    "test:authoring": "node test_authoring.cjs"
   },
   "devDependencies": {
     "playwright": "1.65.0"

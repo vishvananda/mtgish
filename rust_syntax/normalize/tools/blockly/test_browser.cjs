@@ -30,12 +30,14 @@ let browser;
     return out;
   },names);
   // Search UI, including Enter-to-load and names containing apostrophes.
+  await page.locator('#cards-tab').click();
   await page.locator('#search').fill("Conjurer's Closet");await page.locator('#search').press('Enter');
   await page.waitForFunction(()=>document.getElementById('card-title').textContent==="Conjurer's Closet" && window.cardBlocks.valid());
+  await page.locator('#blocks-tab').click();
   // Build a card, then edit the actual numeric block field.
   await page.locator('#starter').selectOption('draw');await page.locator('#new-card').click();
   await page.waitForFunction(()=>window.cardBlocks.valid() && document.getElementById('card-title').textContent==='New draw spell');
-  await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.ty.named==='Expr'&&b.state.variant==='Constant').getField('_ARG_0').setValue('2'));
+  await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.pr==='effect'&&b.state.op==='Draw').getField('_O_amount').setValue('2'));
   await page.waitForFunction(()=>window.cardBlocks.valid()?.includes('"args": 2'));
   const downloadPromise=page.waitForEvent('download');await page.locator('#export').click();const download=await downloadPromise;
   assert.equal(download.suggestedFilename(),'New_draw_spell.ir.json');
@@ -50,26 +52,36 @@ let browser;
   await page.evaluate(()=>{const d=window.cardBlocks,v=d.blank(true);v.faces[0].abilities[0].args.body.instructions[0].args.operation.args.amount.args=9223372036854775807n;d.loadIR(v,false);});
   await page.waitForFunction(()=>window.cardBlocks.valid()?.includes('9223372036854775807'));
   assert.match(await page.locator('#ir').textContent(),/9223372036854775807/);
+  await page.evaluate(()=>{const d=window.cardBlocks,v=d.blank();v.faces[0].characteristics.power_toughness=[0,0];d.loadIR(v,false);});
+  await page.waitForFunction(()=>window.cardBlocks.valid());
+  const readable=await page.locator('#ir').textContent();
+  const readableChars=JSON.parse(readable).faces[0].characteristics;
+  assert.deepEqual(readableChars.power_toughness,[0,0]);
+  assert.equal('loyalty' in readableChars,false);assert.equal('subtypes' in readableChars,false);
+  await page.locator('#details').click();await page.locator('#dump-format').selectOption('complete');
+  const fullChars=JSON.parse(await page.locator('#ir').textContent()).faces[0].characteristics;
+  assert.equal(fullChars.loyalty,null);assert.deepEqual(fullChars.subtypes,[]);
+  await page.locator('#dump-format').selectOption('readable');await page.locator('#details').click();
   // Workspace serialization, type compatibility and live list mutations.
   await page.evaluate(()=>{const d=window.cardBlocks;d.loadIR(d.blank(),false);const saved=d.savedWorkspace(),expected=d.encode(d.generated());d.restore(saved);if(d.encode(d.generated())!==expected)throw Error('Workspace save/restore changed IR');});
   await page.waitForFunction(()=>window.cardBlocks.valid());
   await page.evaluate(()=>{
-    const d=window.cardBlocks,list=d.workspace.getAllBlocks(false).find(b=>b.state.ty.vec?.named==='Ability');list.resize(1);
+    const d=window.cardBlocks,root=d.workspace.getTopBlocks(false)[0];d.addToFlow(root,d.parts(root.state).find(p=>p.key==='F_abilities'),d.abilityValue('Spell'));
     if(d.generated().faces[0].abilities.length!==1)throw Error('List plus did not add an ability');
   });
   await page.waitForFunction(()=>window.cardBlocks.valid());
   await page.locator('#undo').click();
-  await page.waitForFunction(()=>window.cardBlocks.generated().faces[0].abilities.length===0 && window.cardBlocks.valid());
+  await page.waitForFunction(()=>window.cardBlocks.valid() && window.cardBlocks.generated().faces[0].abilities.length===0);
   await page.locator('#redo').click();
-  await page.waitForFunction(()=>window.cardBlocks.generated().faces[0].abilities.length===1 && window.cardBlocks.valid());
+  await page.waitForFunction(()=>window.cardBlocks.valid() && window.cardBlocks.generated().faces[0].abilities.length===1);
   await page.evaluate(()=>{
-    const d=window.cardBlocks,list=d.workspace.getAllBlocks(false).find(b=>b.state.ty.vec?.named==='Instruction');list.resize(1);
-    const op=d.workspace.getAllBlocks(false).find(b=>b.state.ty.named==='Operation'&&b.state.variant==='Draw');
+    const d=window.cardBlocks,opValue={kind:'Draw',args:{players:{kind:'One',args:{kind:'AbilityController'}},amount:{kind:'Constant',args:1}}};
+    const op=Blockly.serialization.blocks.append(d.blockState({named:'Operation'},opValue,false,{noInline:['F_players','F_amount']}),d.workspace);
     const expr=Blockly.serialization.blocks.append(d.blockState({named:'Expr'},{kind:'Constant',args:1}),d.workspace);
     const players=op.getInputTargetBlock('F_players'),socket=op.getInput('F_players').connection;
     if(d.workspace.connectionChecker.doTypeChecks(expr.outputConnection,socket))throw Error('An Expr was accepted in a PlayerSet socket');
     if(!d.workspace.connectionChecker.doTypeChecks(players.outputConnection,socket))throw Error('A PlayerSet was rejected in its own socket');
-    expr.dispose(false);
+    expr.dispose(false);op.dispose(false);
   });
   // Finish on a normal card for the screenshot / resumed workspace.
   await page.evaluate(async()=>{const d=window.cardBlocks;await d.loadCard(d.payload.cards.find(c=>c.name==='Cloudshift'));});
@@ -77,6 +89,6 @@ let browser;
   const unexpected=network.filter(url=>url!==target && (!/^https?:/.test(target)||url!==new URL('/favicon.ico',target).href));
   assert.deepEqual(unexpected,[],'The demo fetched a runtime dependency');
   assert.deepEqual(errors,[],'Browser errors');
-  console.log(JSON.stringify({offline:target.startsWith('file:'),noExternalAssets:true,wasm:true,cardRoundtrips:roundtrips,editing:true,download:true,invalidScopeRejected:true,exactI64:true,workspaceRoundtrip:true,errors},null,2));
+  console.log(JSON.stringify({offline:target.startsWith('file:'),noExternalAssets:true,wasm:true,cardRoundtrips:roundtrips,editing:true,download:true,invalidScopeRejected:true,exactI64:true,workspaceRoundtrip:true,readableDump:true,zeroStatsPreserved:true,errors},null,2));
   await browser.close();
 })().catch(async e=>{console.error(e);if(browser)await browser.close();process.exitCode=1;});

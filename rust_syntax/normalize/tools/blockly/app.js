@@ -28,6 +28,13 @@
     if (!parts.length) return Array.isArray(v) ? '[]' : '{}';
     return `${Array.isArray(v)?'[':'{'}\n${next}${parts.join(',\n'+next)}\n${pad}${Array.isArray(v)?']':'}'}`;
   }
+  function dump(value) {
+    if($('dump-format').value==='complete')return encode(value);
+    const readable=clone(value);
+    for(const face of readable.faces||[])for(const [key,v] of Object.entries(face.characteristics||{}))
+      if(v===null || (Array.isArray(v)&&v.length===0) || (v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===0))delete face.characteristics[key];
+    return encode(readable);
+  }
   function fieldValue(t,value) {
     if(newtype(t))return fieldValue(newtype(t),value);
     if (t.named === 'bool') return value ? 'TRUE':'FALSE';
@@ -36,7 +43,7 @@
   function readScalar(t,text) {
     if(newtype(t))return readScalar(newtype(t),text);
     if (t.named === 'String') return text;
-    if (t.named === 'bool') return text === 'TRUE';
+    if (t.named === 'bool') return text === true || text === 'TRUE';
     if (types[t.named]) {
       if (!types[t.named].variants.some(v => v.wire === text)) throw Error(`Unknown ${t.named}: ${text}`);
       return text;
@@ -66,6 +73,7 @@
     if (!d) return t.named === 'String' ? '' : t.named === 'bool' ? false : 0;
     if (d.kind === 'struct') {
       if (t.named === 'ResultId') return 4294967295;
+      if (t.named === 'TargetSpec') return {slot:0,kind:{Object:{kind:'Permanent',zones:['Battlefield']}},count:{Exactly:{kind:'Constant',args:1}},filter:{kind:'CardType',args:'Creature'},players:null,distribute:null,constraints:[],chooser:null};
       return fieldsDefault(d.fields,path);
     }
     const v = pickVariant(d,t.named), args = fieldsDefault(v.fields,path);
@@ -85,41 +93,111 @@
     const v=d.variants.find(v => v.wire === wire); if (!v) throw Error(`Unknown ${t.named} variant ${wire}`);
     return v;
   }
+  const SELF={kind:'AbilityController'};
+  const choices={
+    PlayerSet:[['you',{kind:'One',args:SELF}],['each player',{kind:'All'}],['your opponents',{kind:'OpponentsOf',args:SELF}]],
+    PlayerRef:[['you',SELF],['the active player',{kind:'Active'}]],
+    ObjectRef:[['this card',{kind:'Source'}]],
+    Recipients:[['target 1',{kind:'Targets',args:0}],['you',{kind:'Players',args:{kind:'One',args:SELF}}]],
+    EventSpec:[['this card enters',{ZoneChange:{objects:{kind:'SameObject',args:{kind:'Source'}},from:null,to:'Battlefield'}}]],
+  };
+  const same=(a,b)=>encode(a)===encode(b);
+  const viewVariant = state => state.pr==='effect'?types.Operation.variants.find(v=>v.wire===state.op):state.pr==='keyword'?types.Keyword.variants.find(v=>v.wire===state.keyword):descriptor(state.ty)?.variants?.find(v=>v.wire===state.variant);
+  function fieldParts(f,prefix='F_') {
+    if(f.kind==='unit')return [];
+    if(f.kind==='record')return f.fields.map(f=>({key:prefix+f.name,label:pretty(f.name),ty:f.ty}));
+    return f.items.map((ty,i)=>({key:`${prefix}ARG_${i}`,label:f.items.length===1?'value':String(i+1),ty}));
+  }
   function parts(state) {
-    const t=state.ty,d=descriptor(t);
-    if (scalar(t)) return [{key:'VALUE',label:t.named,ty:t}];
-    if (t.vec) return Array.from({length:state.count},(_,i) => ({key:`ITEM_${i}`,label:`${i+1}`,ty:t.vec,statement:!scalar(t.vec)}));
-    if (t.option) return state.present ? [{key:'SOME',label:'value',ty:t.option}] : [];
-    const f=t.tuple ? {kind:'tuple',items:t.tuple} : d.kind==='struct' ? d.fields : d.variants.find(v => v.wire===state.variant).fields;
-    if (f.kind==='unit') return [];
-    if (f.kind==='record') return f.fields.map(f => ({key:`F_${f.name}`,label:pretty(f.name),ty:f.ty}));
-    return f.items.map((ty,i) => ({key:`ARG_${i}`,label:f.items.length===1?'value':String(i+1),ty}));
+    const t=state.ty,d=descriptor(t);let result;
+    if(state.pr==='single') {
+      result=[{key:'ROOT_schema',label:'schema version',ty:{named:'u32'}},{key:'ROOT_layout',label:'layout',ty:{named:'String'}},{key:'ROOT_data',label:'layout data',ty:{vec:{named:'Field'}}},
+        ...fieldParts(types.Card.fields)];
+    } else if(state.pr==='effect') {
+      result=[{key:'RESULT',label:'save result as',ty:{named:'ResultId'}},...fieldParts(viewVariant(state).fields,'O_')];
+      if(['Draw','GainLife','LoseLife','DealDamage'].includes(state.op))result.sort((a,b)=>(a.key==='O_amount'?-2:a.key==='RESULT'?2:0)-(b.key==='O_amount'?-2:b.key==='RESULT'?2:0));
+    } else if(state.pr==='keyword') result=fieldParts(viewVariant(state).fields,'K_');
+    else if(scalar(t))result=[{key:'VALUE',label:t.named,ty:t}];
+    else if(t.vec)result=Array.from({length:state.count},(_,i)=>({key:`ITEM_${i}`,label:`${i+1}`,ty:t.vec,statement:!scalar(t.vec)}));
+    else if(t.option)result=state.present?[{key:'SOME',label:'value',ty:t.option}]:[];
+    else {
+      const f=t.tuple?{kind:'tuple',items:t.tuple}:d.kind==='struct'?d.fields:viewVariant(state).fields;
+      result=fieldParts(f,f.kind==='tuple'?'':'F_');
+    }
+    return result.map(p=>{
+      const inline=state.inline?.[p.key];
+      if(inline && !state.noInline?.includes(p.key))p={...p,inline,editTy:inline==='constant'?{named:'i64'}:p.ty};
+      if(state.ui===2 && !p.inline) {
+        if(p.ty.named==='Program')p={...p,flow:'program',socketTy:{named:'Instruction'},statement:true};
+        else if(p.ty.vec && ['Ability','Instruction'].includes(p.ty.vec.named))p={...p,flow:'array',socketTy:p.ty.vec,statement:true};
+      }
+      if(p.label==='characteristics')p.label='properties';
+      if(p.label==='announcement')p.label='targets';
+      if(p.flow)p.label=p.ty.named==='Program'?(p.label==='otherwise'?'otherwise':'do'):p.ty.vec.named==='Ability'?'abilities':'do';
+      if(state.pr==='effect') {
+        if(p.key==='O_amount') {p.label='';p.suffix=state.op==='Draw'?'cards':['GainLife','LoseLife'].includes(state.op)?'life':'damage';}
+        if(p.key==='O_players')p.label='for';
+        if(p.key==='O_recipients')p.label='to';
+        if(p.key==='O_source')p.label='from';
+      }
+      return p;
+    });
   }
   function stateFor(t,value) {
-    if (t.vec) return {ty:t,count:value.length};
-    if (t.option) return {ty:t,present:value!==null};
-    const v=variantFor(t,value); return {ty:t,...(v?{variant:v.wire}:{})};
+    if(t.vec)return {ty:t,count:value.length,ui:2};
+    if(t.option)return {ty:t,present:value!==null,ui:2};
+    const variant=variantFor(t,value),s={ty:t,ui:2,...(variant?{variant:variant.wire}:{})};
+    if(t.named==='UnifiedCard' && value.faces.length===1)s.pr='single';
+    if(t.named==='Instruction' && value.kind==='Effect'){s.pr='effect';s.op=value.args.operation.kind;}
+    if(t.named==='Ability' && value.kind==='Keyword'){s.pr='keyword';s.keyword=value.args.kind;}
+    return s;
+  }
+  function fieldValues(f,a,prefix='F_') {
+    if(f.kind==='unit')return {};
+    if(f.kind==='record')return Object.fromEntries(f.fields.map(f=>[prefix+f.name,a[f.name]]));
+    return Object.fromEntries(f.items.map((_,i)=>[`${prefix}ARG_${i}`,f.items.length===1?a:a[i]]));
   }
   function childValues(t,value,state) {
-    if (scalar(t)) return {VALUE:value};
-    if (t.vec) return Object.fromEntries(value.map((v,i) => [`ITEM_${i}`,v]));
-    if (t.option) return value===null ? {} : {SOME:value};
-    const d=descriptor(t),v=variantFor(t,value);
-    const f=t.tuple ? {kind:'tuple',items:t.tuple} : v ? v.fields : d.fields;
-    const a=v ? (d.adjacent ? value.args : value[v.wire]) : value;
-    if (f.kind==='unit') return {};
-    if (f.kind==='record') return Object.fromEntries(f.fields.map(f => [`F_${f.name}`,a[f.name]]));
-    return Object.fromEntries(f.items.map((_,i) => [`ARG_${i}`,f.items.length===1 ? a : a[i]]));
+    if(state.pr==='single')return {ROOT_schema:value.schema_version,ROOT_layout:value.layout,ROOT_data:value.data,...fieldValues(types.Card.fields,value.faces[0])};
+    if(state.pr==='effect')return {RESULT:value.args.result,...fieldValues(viewVariant(state).fields,value.args.operation.args,'O_')};
+    if(state.pr==='keyword')return fieldValues(viewVariant(state).fields,value.args.args,'K_');
+    if(scalar(t))return {VALUE:value};
+    if(t.vec)return Object.fromEntries(value.map((v,i)=>[`ITEM_${i}`,v]));
+    if(t.option)return value===null?{}:{SOME:value};
+    const d=descriptor(t),v=variantFor(t,value),f=t.tuple?{kind:'tuple',items:t.tuple}:v?v.fields:d.fields;
+    return fieldValues(f,v?(d.adjacent?value.args:value[v.wire]):value,f.kind==='tuple'?'':'F_');
   }
-  function toBlock(t,value,outline = false) {
-    const state=stateFor(t,value), values=childValues(t,value,state), result={type:'ir_value',extraState:state,fields:{},inputs:{}};
-    for (const p of parts(state)) {
-      if (values[p.key] === undefined) throw Error(`Missing ${typeName(t)}.${p.label}`);
-      if (scalar(p.ty)) result.fields[p.key]=fieldValue(p.ty,values[p.key]);
-      else {const child=toBlock(p.ty,values[p.key],outline);if(p.statement)child.extraState.statement=true;result.inputs[p.key]={block:child};}
+  function chainState(ty,values,outline) {
+    let head=null,last=null;
+    for(const value of values) {
+      const next=toBlock(ty,value,outline);next.extraState.statement=true;
+      if(last)last.next={block:next};else head=next;last=next;
     }
-    if (descriptor(t)?.kind==='enum' && !scalar(t)) result.fields.VARIANT=state.variant;
-    if (outline && ['Characteristics','Announcement','EntryProperties','MoveTerms','TargetSpec'].includes(t.named)) result.collapsed=true;
+    return head;
+  }
+  function toBlock(t,value,outline=false,override={}) {
+    const state=stateFor(t,value),values=childValues(t,value,state);
+    state.inline={};
+    for(const p of parts(state)) {
+      const v=values[p.key];
+      if(p.ty.option?.tuple?.length===2&&p.ty.option.tuple.every(t=>t.named==='i32')&&Array.isArray(v))state.inline[p.key]='pt';
+      else if(p.ty.named==='Expr' && v?.kind==='Constant')state.inline[p.key]='constant';
+      else if(choices[p.ty.named]?.some(([,c])=>same(c,v)))state.inline[p.key]='choice';
+    }
+    Object.assign(state,override);
+    const result={type:'ir_value',extraState:state,fields:{},inputs:{}};
+    for(const p of parts(state)) {
+      const v=values[p.key];if(v===undefined)throw Error(`Missing ${typeName(t)}.${p.label}`);
+      if(p.inline==='pt'){result.fields[p.key+'_P']=String(v[0]);result.fields[p.key+'_T']=String(v[1]);}
+      else if(p.inline==='constant')result.fields[p.key]=String(v.args);
+      else if(p.inline==='choice')result.fields[p.key]=String(choices[p.ty.named].findIndex(([,c])=>same(c,v)));
+      else if(scalar(p.ty))result.fields[p.key]=fieldValue(p.ty,v);
+      else if(p.flow) {const chain=chainState(p.socketTy,p.flow==='program'?v.instructions:v,outline);if(chain)result.inputs[p.key]={block:chain};}
+      else {const child=toBlock(p.ty,v,outline);if(p.statement)child.extraState.statement=true;result.inputs[p.key]={block:child};}
+    }
+    const variant=viewVariant(state);
+    if(variant && !scalar(t))result.fields.VARIANT=variant.wire;
+    if(outline && ['Characteristics','Announcement','EntrySpec','MovementTerms','TargetSpec'].includes(t.named))result.collapsed=true;
     return result;
   }
   function colour(t) {
@@ -137,119 +215,301 @@
   function button(symbol,label,fn) { return new Blockly.FieldImage(icon(symbol),22,22,label,fn); }
   let workspace, suppress=false, revision=0, timer, lastValid=null, lastSubmittedIR=null, workerReady=false;
   let history=[],historyIndex=-1;
-  function insertDefault(parent,p) {
-    try {
-      const state=blockState(p.ty,defaultValue(p.ty));if(p.statement)state.extraState.statement=true;
-      const b=Blockly.serialization.blocks.append(state,workspace);
-      parent.getInput(p.key).connection.connect(p.statement?b.previousConnection:b.outputConnection);
-      b.select();
-    } catch(e) { notice(e.message); }
+  let detailMode=false;
+  function scalarType(p){return p.inline==='pt'?{named:'i32'}:p.inline==='constant'?{named:'i64'}:p.inline==='choice'?{named:'String'}:scalar(p.ty)?p.ty:null;}
+  function valueField(p,value){return p.inline==='choice'?new Blockly.FieldDropdown(choices[p.ty.named].map(([label],i)=>[label,String(i)])):field(scalarType(p),value);}
+  function isMetadataEmpty(v) {
+    if(v===null || v===false || v==='DestinationDefault')return true;
+    if(Array.isArray(v))return v.length===0;
+    return !!v && typeof v==='object' && Object.values(v).every(isMetadataEmpty);
   }
-  Blockly.Blocks.ir_value = {
+  const defaultStructures=new Set(['Announcement','TriggerLimits','ActivationLimits','EntrySpec','MovementTerms']);
+  function hiddenReason(b,p) {
+    if(detailMode || b.state.shown?.includes(p.key))return false;
+    if(['ROOT_schema','ROOT_layout','F_schema_version','RESULT'].includes(p.key))return true;
+    if(b.state.ty.named==='TargetSpec'&&p.key==='F_slot')return true;
+    if(p.flow)return p.label==='otherwise'&&!b.getInputTargetBlock(p.key);
+    const st=scalarType(p);
+    if(st) {
+      if(st.named==='bool') {
+        const value=b.getFieldValue('_'+p.key)==='TRUE';
+        return p.key.endsWith('preventable')?value:!value;
+      }
+      return false;
+    }
+    const child=b.getInputTargetBlock(p.key);if(!child)return false;
+    if(b.state.ty.named==='TargetSpec'&&['F_kind','F_count'].includes(p.key)){try{if(same(fromBlock(child),defaultValue({named:'TargetSpec'})[p.key.slice(2)]))return true;}catch(_){}}
+    if(child.state.ty.vec)return child.state.count===0;
+    if(child.state.ty.option)return !child.state.present;
+    if(defaultStructures.has(child.state.ty.named)){try{return isMetadataEmpty(fromBlock(child));}catch(_){return false;}}
+    return false;
+  }
+  function optionsFor(b) {
+    const out=[['⋯','NONE']];
+    for(const p of parts(b.state)) {
+      if(!detailMode && (p.key.startsWith('ROOT_')||['F_schema_version','RESULT'].includes(p.key)))continue;
+      if(hiddenReason(b,p))out.push([p.ty.named==='Announcement'?'Add a target':p.ty.vec?'Add '+p.label.replace(/ies$/,'y').replace(/s$/,''):p.flow?'Add otherwise':pretty(p.label||p.key),'SHOW:'+p.key]);
+      if(p.inline)out.push(['Use a block for '+pretty(p.key.replace(/^(F_|O_|K_)/,'')),'BLOCK:'+p.key]);
+    }
+    return out;
+  }
+  function applyPresentation() {
+    if(!workspace)return;
+    const all=[...workspace.getAllBlocks(false),...(workspace.getFlyout()?.getWorkspace().getAllBlocks(false)||[])];
+    for(const b of all) {
+      if(!b.state)continue;
+      if(b.isCollapsed()) {
+        try {
+          const v=fromBlock(b);let summary;
+          if(b.state.ty.named==='Characteristics')summary=[...v.supertypes,...v.card_types,...v.subtypes,v.power_toughness?.join('/')].filter(Boolean).join(' · ');
+          if(b.state.ty.named==='Announcement')summary=[v.targets.length?`${v.targets.length} target${v.targets.length===1?'':'s'}`:'',v.modes?'mode choices':''].filter(Boolean).join(' · ')||'No targets';
+          if(summary)b.getField('_TEMP_COLLAPSED_FIELD')?.setValue(summary);
+        }catch(_){}
+        continue;
+      }
+      let child=b,hiddenAncestor=false;
+      for(let parent=b.getParent();parent;child=parent,parent=parent.getParent()){
+        const input=parent.inputList.find(i=>i.connection?.targetBlock()===child);
+        if(input && (!input.isVisible() || parent.isCollapsed())){hiddenAncestor=true;break;}
+      }
+      if(hiddenAncestor)continue;
+      b.getField('COST_ZERO')?.setValue(b.state.present&&b.getInputTargetBlock('SOME')?.state.count===0?'0':'');
+      let rerender=false;
+      for(const p of parts(b.state)) {
+        const input=b.getInput(p.key),hidden=hiddenReason(b,p);
+        if(input && input.isVisible()===hidden){input.setVisible(!hidden);rerender=true;}
+        b.getField('FILL_'+p.key)?.setVisible(!hidden && (p.flow || !b.getInputTargetBlock(p.key)));
+      }
+      const menu=b.getField('MORE');if(menu)menu.setVisible(optionsFor(b).length>1);
+      b.getField('TYPE_LABEL')?.setVisible(detailMode);
+      if(rerender && b.rendered)b.render();
+    }
+    Blockly.renderManagement.finishQueuedRenders();
+  }
+  function replaceView(b,patch) {
+    const value=fromBlock(b),old=Blockly.serialization.blocks.save(b),next=old.next;
+    const fresh=blockState(b.state.ty,value,b.isCollapsed(),{...b.state,...patch});
+    fresh.id=b.id;fresh.x=old.x;fresh.y=old.y;if(next)fresh.next=next;
+    const saved=Blockly.serialization.workspaces.save(workspace);
+    function find(holder) {
+      if(holder.block?.id===b.id){holder.block={...fresh};return true;}
+      const n=holder.block;if(!n)return false;
+      return Object.values(n.inputs||{}).some(find)||(n.next?find(n.next):false);
+    }
+    for(let i=0;i<saved.blocks.blocks.length;i++){
+      if(saved.blocks.blocks[i].id===b.id){saved.blocks.blocks[i]=fresh;break;}
+      const n=saved.blocks.blocks[i];if(Object.values(n.inputs||{}).some(find)||(n.next&&find(n.next)))break;
+    }
+    remember();install(saved,false);
+  }
+  function revealOption(b,key) {
+    if(b.isInFlyout)return;
+    const p=parts(b.state).find(p=>p.key===key);if(!p)return;
+    b.state.shown=[...new Set([...(b.state.shown||[]),key])];
+    const child=b.getInputTargetBlock(key);
+    child?.setCollapsed(false);
+    if(p.ty.named==='Announcement' && child)child.getInputTargetBlock('F_targets')?.resize(1);
+    else if(child?.state.ty.vec)child.resize(1);
+    else if(child?.state.ty.option && !child.state.present)child.resize(0);
+    else if(scalarType(p)?.named==='bool')b.setFieldValue(b.getFieldValue('_'+key)==='TRUE'?'FALSE':'TRUE','_'+key);
+    applyPresentation();b.render();changed();
+  }
+  function addToFlow(parent,p,value) {
+    if(parent.isInFlyout)return;
+    const t=p.socketTy,state=blockState(t,value??defaultValue(t));state.extraState.statement=true;if(state.extraState.pr==='effect')state.extraState.autoResult=true;
+    const b=Blockly.serialization.blocks.append(state,workspace);
+    let last=parent.getInputTargetBlock(p.key);
+    if(!last)parent.getInput(p.key).connection.connect(b.previousConnection);
+    else {while(last.getNextBlock())last=last.getNextBlock();last.nextConnection.connect(b.previousConnection);}
+    b.select();changed();
+  }
+  function insertDefault(parent,p) {
+    if(parent.isInFlyout)return;
+    try {
+      if(p.flow){addToFlow(parent,p);return;}
+      const value=defaultValue(p.ty);
+      if(p.ty.named==='TargetSpec'&&parent.state.ty.vec?.named==='TargetSpec'){const slots=parent.getChildren(false).filter(b=>b.state.ty.named==='TargetSpec').map(b=>Number(b.getFieldValue('_F_slot')));value.slot=slots.length?Math.max(...slots)+1:0;}
+      const state=blockState(p.ty,value);if(p.statement)state.extraState.statement=true;
+      const b=Blockly.serialization.blocks.append(state,workspace);
+      parent.getInput(p.key).connection.connect(p.statement?b.previousConnection:b.outputConnection);b.select();
+    }catch(e){notice(e.message);}
+  }
+  function caption(state) {
+    if(state.pr==='single')return 'Card';
+    if(state.ty.named==='Characteristics')return 'Properties';
+    if(state.ty.named==='TargetSpec')return 'Target';
+    if(state.ty.named==='Announcement')return 'Targets & choices';
+    return typeName(state.ty);
+  }
+  Blockly.Blocks.ir_value={
     init() {
-      this.state={ty:{named:'String'}}; this.setOutput(true,typeKey(this.state.ty)); this.setInputsInline(false);
-      this.appendDummyInput('HEADER').appendField('IR value');
-      this.setOnChange(e => {
-        if (e.type===Blockly.Events.BLOCK_CHANGE && e.blockId===this.id && e.name==='VARIANT') {
-          const v=this.getFieldValue('VARIANT'); if (v && v!==this.state.variant) { this.state.variant=v; this.rebuild(); }
+      this.state={ty:{named:'String'}};this.setOutput(true,typeKey(this.state.ty));this.setInputsInline(false);
+      this.appendDummyInput('HEADER').appendField('Value');
+      this.setOnChange(e=>{
+        if(e.type===Blockly.Events.BLOCK_CHANGE && e.blockId===this.id && e.name==='VARIANT') {
+          const v=this.getFieldValue('VARIANT'),key=this.state.pr==='effect'?'op':this.state.pr==='keyword'?'keyword':'variant';
+          if(v && v!==this.state[key]){this.state[key]=v;this.rebuild();}
         }
       });
     },
-    saveExtraState() { return clone(this.state); },
+    saveExtraState(){return clone(this.state);},
     loadExtraState(state) {
-      if (!state || !state.ty || !Number.isInteger(state.count??0) || (state.count??0)<0 || (state.count??0)>2048) throw Error('Invalid block state or a list longer than 2,048 items.');
-      this.state=clone(state); this.rebuild();
+      if(!state?.ty || !Number.isInteger(state.count??0) || (state.count??0)<0 || (state.count??0)>2048)throw Error('Invalid block state or a list longer than 2,048 items.');
+      this.state=clone(state);this.rebuild();
     },
     rebuild() {
-      const attached={}, values={};
-      for (const input of this.inputList) {
-        const child=input.connection?.targetBlock(); if (child) { attached[input.name]=child; child.unplug(false); }
-        for (const f of input.fieldRow) if (f.name) values[f.name]=f.getValue();
-      }
+      const attached={},values={};
+      for(const input of this.inputList){const child=input.connection?.targetBlock();if(child){attached[input.name]=child;child.unplug(false);}for(const f of input.fieldRow)if(f.name)values[f.name]=f.getValue();}
       Blockly.Events.disable();
       try {
-        for (const input of [...this.inputList]) this.removeInput(input.name);
-        const t=this.state.ty,d=descriptor(t),header=this.appendDummyInput('HEADER');
-        if(this.state.statement){this.setOutput(false);this.setPreviousStatement(true,typeKey(t));}
-        else {this.setPreviousStatement(false);this.setOutput(true,typeKey(t));}
-        this.setColour(colour(t));
-        if (t.vec) {
-          header.appendField(`${typeName(t.vec)} list · ${this.state.count}`);
-          header.appendField(button('+','Add list item',()=>this.resize(1)));
-          if (this.state.count) header.appendField(button('−','Remove last list item',()=>this.resize(-1)));
-        } else if (t.option) {
-          header.appendField(`${typeName(t.option)} · ${this.state.present?'some':'none'}`);
-          header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));
-        } else if (d?.kind==='enum' && !scalar(t)) {
-          header.appendField(new Blockly.FieldDropdown(d.variants.map(v=>[pretty(v.name),v.wire])),'VARIANT');
-          this.setFieldValue(this.state.variant,'VARIANT'); header.appendField(`· ${t.named}`);
-        } else header.appendField(typeName(t));
-        for (const p of parts(this.state)) {
-          if (scalar(p.ty)) {
-            const v=values['_'+p.key] ?? fieldValue(p.ty,defaultValue(p.ty));
-            this.appendDummyInput(p.key).appendField(p.label).appendField(field(p.ty,v),'_'+p.key);
-            this.getField('_'+p.key).setValue(v);
-          } else {
-            (p.statement?this.appendStatementInput(p.key):this.appendValueInput(p.key)).setCheck(typeKey(p.ty)).appendField(p.label)
-              .appendField(button('+',`Fill ${p.label}`,()=>{if(!this.getInputTargetBlock(p.key)) insertDefault(this,p);}));
+        for(const i of [...this.inputList])this.removeInput(i.name);
+        const t=this.state.ty,d=descriptor(t),header=this.appendDummyInput('HEADER'),variant=viewVariant(this.state);
+        if(this.state.statement){this.setOutput(false);this.setPreviousStatement(true,typeKey(t));this.setNextStatement(['Instruction','Ability'].includes(t.named),typeKey(t));}
+        else {this.setNextStatement(false);this.setPreviousStatement(false);this.setOutput(true,typeKey(t));}
+        this.setColour(colour(this.state.pr==='effect'?{named:'Operation'}:t));
+        if(t.vec){header.appendField(typeName(t.vec)+' items');header.appendField(button('+','Add an item',()=>this.resize(1)));if(this.state.count)header.appendField(button('−','Remove last item',()=>this.resize(-1)));}
+        else if(t.option){header.appendField(t.option.vec?.named==='ManaSymbol'?(this.state.present?'Mana cost':'No mana cost'):(this.state.present?'Value':'Not set'));if(t.option.vec?.named==='ManaSymbol')header.appendField('','COST_ZERO');header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));}
+        else if(variant && !scalar(t)) {
+          const vd=this.state.pr==='effect'?types.Operation:this.state.pr==='keyword'?types.Keyword:d;
+          header.appendField(new Blockly.FieldDropdown(vd.variants.map(v=>[this.state.pr==='effect'?({GainLife:'Gain',LoseLife:'Lose',DealDamage:'Deal'}[v.name]||pretty(v.name)):pretty(v.name),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
+          header.appendField('· '+t.named,'TYPE_LABEL');
+        }else header.appendField(caption(this.state));
+        header.appendField(new Blockly.FieldDropdown(()=>optionsFor(this),v=>{
+          if(v==='NONE')return null;
+          setTimeout(()=>{if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
+        }),'MORE');
+        for(const p of parts(this.state)) {
+          if(p.inline==='pt') {
+            const input=this.appendDummyInput(p.key).appendField('power / toughness');
+            for(const [i,suffix] of ['P','T'].entries()){if(i)input.appendField('/');input.appendField(new Blockly.FieldTextInput(values['_'+p.key+'_'+suffix]||'0'),'_'+p.key+'_'+suffix);}
+          }else if(scalarType(p)) {
+            const v=values['_'+p.key]??(p.inline==='choice'?'0':fieldValue(scalarType(p),defaultValue(scalarType(p))));
+            const input=this.appendDummyInput(p.key);if(p.label)input.appendField(p.label);input.appendField(valueField(p,v),'_'+p.key);this.getField('_'+p.key).setValue(v);if(p.suffix)input.appendField(p.suffix);
+          }else {
+            const ty=p.socketTy||p.ty;
+            (p.statement?this.appendStatementInput(p.key):this.appendValueInput(p.key)).setCheck(typeKey(ty)).appendField(p.label)
+              .appendField(button('+',p.flow?'Add a block':`Fill ${p.label}`,()=>insertDefault(this,p)),'FILL_'+p.key);
             const old=attached[p.key];
-            if (old && typeKey(old.state.ty)===typeKey(p.ty)) this.getInput(p.key).connection.connect(p.statement?old.previousConnection:old.outputConnection);
+            if(old && typeKey(old.state.ty)===typeKey(ty))this.getInput(p.key).connection.connect(p.statement?old.previousConnection:old.outputConnection);
           }
         }
-        const variant=d?.variants?.find(v=>v.wire===this.state.variant);
-        this.setTooltip(`${typeName(t)}${variant ? '::'+variant.name : ''}\n${variant?.doc||''}`);
-        this.setInputsInline(scalar(t) || (d?.kind==='struct' && d.fields.kind==='tuple' && d.fields.items.every(scalar)));
-      } finally { Blockly.Events.enable(); }
-      if (this.rendered) this.render();
+        this.setTooltip(`${typeName(t)}${variant?'::'+variant.name:''}\n${variant?.doc||''}`);
+        this.setInputsInline(this.state.pr==='effect'||this.state.pr==='keyword'||scalar(t)||(d?.kind==='struct'&&d.fields.kind==='tuple'&&d.fields.items.every(scalar)));
+      }finally{Blockly.Events.enable();}
+      if(this.rendered)this.render();
     },
     resize(delta) {
-      if(this.state.ty.vec && delta>0 && this.state.count>=2048){notice('This demo allows up to 2,048 items in one list.');return;}
+      if(this.isInFlyout)return;
+      if(this.state.ty.vec&&delta>0&&this.state.count>=2048){notice('This demo allows up to 2,048 items in one list.');return;}
       Blockly.Events.setGroup(true);
       try {
-        if (this.state.ty.vec) {
-          if (delta<0) this.getInputTargetBlock(`ITEM_${this.state.count-1}`)?.dispose(false);
-          this.state.count=Math.max(0,this.state.count+delta);
-        } else {
-          if (this.state.present) this.getInputTargetBlock('SOME')?.dispose(false);
-          this.state.present=!this.state.present;
-        }
-        this.rebuild();
-        const p=parts(this.state).at(-1); if (p && !scalar(p.ty) && !this.getInputTargetBlock(p.key)) insertDefault(this,p);
-      } finally { Blockly.Events.setGroup(false); }
+        if(this.state.ty.vec){if(delta<0)this.getInputTargetBlock(`ITEM_${this.state.count-1}`)?.dispose(false);this.state.count=Math.max(0,this.state.count+delta);}
+        else {if(this.state.present)this.getInputTargetBlock('SOME')?.dispose(false);this.state.present=!this.state.present;}
+        this.rebuild();const p=parts(this.state).at(-1);if(p&&!scalarType(p)&&!this.getInputTargetBlock(p.key))insertDefault(this,p);
+      }finally{Blockly.Events.setGroup(false);}
       changed();
-    },
+    }
   };
+  function chainValues(head) {
+    const values=[],seen=new Set();
+    for(let b=head;b;b=b.getNextBlock?.()) {if(seen.has(b))throw Error('A block stack contains a cycle.');seen.add(b);values.push(fromBlock(b));}
+    return values;
+  }
+  function fieldsResult(f,values,prefix='F_') {
+    if(f.kind==='unit')return null;
+    if(f.kind==='record')return Object.fromEntries(f.fields.map(f=>[f.name,values[prefix+f.name]]));
+    const a=f.items.map((_,i)=>values[`${prefix}ARG_${i}`]);return a.length===1?a[0]:a;
+  }
   function fromBlock(b) {
-    if (!b || b.type!=='ir_value') throw Error('A required block is missing. Fill the empty socket with ＋.');
-    if (!b.isEnabled()) throw Error('Re-enable or remove disabled blocks before exporting IR.');
-    const state=b.state,t=state.ty,d=descriptor(t), values={};
-    for (const p of parts(state)) {
-      if (scalar(p.ty)) values[p.key]=readScalar(p.ty,b.getFieldValue('_'+p.key));
+    if(!b || b.type!=='ir_value')throw Error('Fill the missing block before exporting.');
+    if(!b.isEnabled())throw Error('Re-enable or remove disabled blocks before exporting IR.');
+    const state=b.state,t=state.ty,d=descriptor(t),values={};
+    for(const p of parts(state)) {
+      if(p.inline==='pt')values[p.key]=[readScalar({named:'i32'},b.getFieldValue('_'+p.key+'_P')),readScalar({named:'i32'},b.getFieldValue('_'+p.key+'_T'))];
+      else if(p.inline==='constant')values[p.key]={kind:'Constant',args:readScalar({named:'i64'},b.getFieldValue('_'+p.key))};
+      else if(p.inline==='choice') {
+        const choice=choices[p.ty.named]?.[Number(b.getFieldValue('_'+p.key))];if(!choice)throw Error('Choose a valid '+p.label);values[p.key]=clone(choice[1]);
+      } else if(scalar(p.ty))values[p.key]=readScalar(p.ty,b.getFieldValue('_'+p.key));
+      else if(p.flow) {const list=chainValues(b.getInputTargetBlock(p.key));values[p.key]=p.flow==='program'?{instructions:list}:list;}
       else {
-        const child=b.getInputTargetBlock(p.key);
-        if (!child) throw Error(`${typeName(t)}: fill the ${p.label} socket.`);
-        if (typeKey(child.state.ty)!==typeKey(p.ty)) throw Error(`Wrong type in ${p.label}`);
+        const child=b.getInputTargetBlock(p.key);if(!child)throw Error(`${typeName(t)}: fill the ${p.label} socket.`);
+        if(typeKey(child.state.ty)!==typeKey(p.ty))throw Error(`Wrong type in ${p.label}`);
         values[p.key]=fromBlock(child);
       }
     }
-    if (scalar(t)) return values.VALUE;
-    if (t.vec) return parts(state).map(p=>values[p.key]);
-    if (t.option) return state.present ? values.SOME:null;
-    const v=d?.kind==='enum' ? d.variants.find(v=>v.wire===state.variant) : null;
-    const f=t.tuple ? {kind:'tuple',items:t.tuple} : v ? v.fields : d.fields;
-    let a=null;
-    if (f.kind==='record') a=Object.fromEntries(f.fields.map(f=>[f.name,values['F_'+f.name]]));
-    if (f.kind==='tuple') { a=f.items.map((_,i)=>values['ARG_'+i]); if(a.length===1) a=a[0]; }
-    return v ? packEnum(d,v,a):a;
+    if(state.pr==='single')return {schema_version:values.ROOT_schema,layout:values.ROOT_layout,data:values.ROOT_data,faces:[fieldsResult(types.Card.fields,values)]};
+    if(state.pr==='effect')return {kind:'Effect',args:{result:values.RESULT,operation:packEnum(types.Operation,viewVariant(state),fieldsResult(viewVariant(state).fields,values,'O_'))}};
+    if(state.pr==='keyword')return {kind:'Keyword',args:packEnum(types.Keyword,viewVariant(state),fieldsResult(viewVariant(state).fields,values,'K_'))};
+    if(scalar(t))return values.VALUE;
+    if(t.vec) {
+      if(['Instruction','Ability'].includes(t.vec.named))return parts(state).flatMap(p=>chainValues(b.getInputTargetBlock(p.key)));
+      return parts(state).map(p=>values[p.key]);
+    }
+    if(t.option)return state.present?values.SOME:null;
+    const v=viewVariant(state),f=t.tuple?{kind:'tuple',items:t.tuple}:v?v.fields:d.fields;
+    const a=fieldsResult(f,values,f.kind==='tuple'?'':'F_');return v?packEnum(d,v,a):a;
   }
   // Blockly serializes field names separately from state; use those exact names.
   function fixFieldNames(s) {
     s.fields=Object.fromEntries(Object.entries(s.fields).map(([k,v])=>[k==='VARIANT'?k:'_'+k,v]));
-    Object.values(s.inputs||{}).forEach(i=>fixFieldNames(i.block)); return s;
+    Object.values(s.inputs||{}).forEach(i=>fixFieldNames(i.block));if(s.next?.block)fixFieldNames(s.next.block);return s;
   }
-  const blockState=(t,v,outline=false)=>fixFieldNames(toBlock(t,v,outline));
+  const blockState=(t,v,outline=false,override={})=>fixFieldNames(toBlock(t,v,outline,override));
+  function actionValue(name,values={}) {
+    const v=types.Operation.variants.find(v=>v.wire===name),args=fieldsDefault(v.fields,[]);
+    Object.assign(args,values);
+    return {kind:'Effect',args:{result:4294967295,operation:packEnum(types.Operation,v,args)}};
+  }
+  function abilityValue(name) {
+    const v=types.Ability.variants.find(v=>v.wire===name),args=fieldsDefault(v.fields,[]);
+    if(name==='Triggered')args.event=clone(choices.EventSpec[0][1]);
+    return packEnum(types.Ability,v,args);
+  }
+  function flyoutBlock(type,value) {
+    const state=blockState({named:type},value);
+    if(['Ability','Instruction'].includes(type))state.extraState.statement=true;
+    if(state.extraState.pr==='effect')state.extraState.autoResult=true;
+    return {kind:'block',...state};
+  }
+  function variantBlock(type,name) {
+    const d=types[type],v=d.variants.find(v=>v.wire===name);
+    return flyoutBlock(type,packEnum(d,v,fieldsDefault(v.fields,[])));
+  }
+  const toolboxDefinition={kind:'categoryToolbox',contents:[
+    {kind:'category',name:'Abilities',colour:'#477d70',contents:[
+      {kind:'label',text:'Drag an ability into your card'},
+      ...['Spell','Triggered','Activated'].map(n=>flyoutBlock('Ability',abilityValue(n))),
+      {kind:'label',text:'Keywords'},
+      ...['Flying','Deathtouch','Haste','Vigilance','Lifelink','Trample'].map(n=>flyoutBlock('Ability',{kind:'Keyword',args:{kind:n}}))
+    ]},
+    {kind:'category',name:'Actions',colour:'#b46b4f',contents:[
+      {kind:'label',text:'Stack actions inside an ability'},
+      ...['Draw','GainLife','LoseLife'].map(n=>flyoutBlock('Instruction',actionValue(n,{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}}))),
+      flyoutBlock('Instruction',actionValue('DealDamage',{source:{kind:'Source'},recipients:{kind:'Targets',args:0},amount:{kind:'Constant',args:3},preventable:true})),
+      flyoutBlock('Instruction',actionValue('Move',{objects:{kind:'One',args:{kind:'Source'}},destination:'Exile'}))
+    ]},
+    {kind:'category',name:'Control',colour:'#9b7a42',contents:[
+      ...['If','Optional','Repeatable','ForEachPlayer'].map(n=>variantBlock('Instruction',n))
+    ]},
+    {kind:'category',name:'Events',colour:'#508d88',contents:[
+      flyoutBlock('EventSpec',choices.EventSpec[0][1]),
+      flyoutBlock('EventSpec',{Turn:{point:'UpkeepBegins',players:{kind:'One',args:SELF}}})
+    ]},
+    {kind:'category',name:'Targets',colour:'#5a7f9e',contents:[
+      flyoutBlock('TargetSpec',defaultValue({named:'TargetSpec'})),
+      ...['Target','Source'].map(n=>variantBlock('ObjectRef',n)),
+      variantBlock('ObjectSet','Targets')
+    ]},
+    {kind:'category',name:'Values',colour:'#ac8730',contents:[
+      flyoutBlock('Expr',{kind:'Constant',args:1}),
+      ...choices.PlayerSet.map(([,v])=>flyoutBlock('PlayerSet',v)),
+      ...['Compare','Not','All','Any'].filter(n=>types.Condition.variants.some(v=>v.wire===n)).map(n=>variantBlock('Condition',n))
+    ]},
+    {kind:'category',name:'Advanced',colour:'#86739a',contents:
+      ['Operation','Expr','Condition','ObjectFilter','ObjectRef','ObjectSet','CostPart','Duration','EventSpec'].map(type=>({kind:'category',name:type,colour:colour({named:type}),contents:types[type].variants.filter(v=>!excluded(v)).flatMap(v=>{try{return [variantBlock(type,v.wire)];}catch(_){return [];}})}))}
+  ]};
   const theme=Blockly.Theme.defineTheme('cardBlocks',{base:Blockly.Themes.Classic,fontStyle:{family:'system-ui, sans-serif',size:11},componentStyles:{workspaceBackgroundColour:'#f4f6f1',scrollbarColour:'#a8b5a4',scrollbarOpacity:.6,insertionMarkerColour:'#52794c',insertionMarkerOpacity:.4}});
-  workspace=Blockly.inject('workspace',{renderer:'geras',theme,toolbox:null,trashcan:false,sounds:false,zoom:{controls:false,wheel:true,startScale:.75,maxScale:1.6,minScale:.12,scaleSpeed:1.16},move:{scrollbars:true,drag:true,wheel:true},grid:{spacing:22,length:1,colour:'#d6dfd1',snap:false}});
+  workspace=Blockly.inject('workspace',{renderer:'zelos',theme,toolbox:toolboxDefinition,trashcan:false,sounds:false,zoom:{controls:false,wheel:true,startScale:.75,maxScale:1.6,minScale:.12,scaleSpeed:1.16},move:{scrollbars:true,drag:true,wheel:true},grid:{spacing:22,length:1,colour:'#d6dfd1',snap:false}});
   new ResizeObserver(()=>Blockly.svgResize(workspace)).observe($('workspace'));
   // Complete workspace snapshots make structural edits (lists and constructor
   // switches) atomic, including any detached children and their field values.
@@ -288,15 +548,27 @@
     if(roots.length!==1 || roots[0].state.ty.named!=='UnifiedCard') throw Error('Keep exactly one card record, with all other blocks connected. Delete or attach the loose blocks.');
     return fromBlock(roots[0]);
   }
+  function allocateFreshResults() {
+    const blocks=workspace.getAllBlocks(false),used=new Set();
+    for(const b of blocks){
+      if(b.state?.pr==='effect'&&!b.state.autoResult)used.add(Number(b.getFieldValue('_RESULT')));
+      else if(b.state?.ty.named==='Instruction'&&b.state.variant==='Effect')used.add(Number(b.getFieldValue('_F_result')));
+    }
+    for(const b of blocks)if(b.state?.pr==='effect'&&b.state.autoResult) {
+      let n=0;while(used.has(n))++n;used.add(n);b.state.autoResult=false;b.setFieldValue(String(n),'_RESULT');
+    }
+  }
   function changed() {
     if(suppress) return;
     ++revision; clearTimeout(timer); invalid('Changes are checked with the native Rust validation rules.',true);
     timer=setTimeout(()=>{
+      allocateFreshResults();
+      applyPresentation();
       remember();
       try {
-        const value=generated(),ir=encode(value); $('ir').textContent=ir;
+        const value=generated(),ir=encode(value); $('ir').textContent=dump(value);
         $('card-title').textContent=value.faces.map(f=>f.name).join(' // ')||'New card';
-        $('workspace-meta').textContent=`${workspace.getAllBlocks(false).length} blocks · schema ${schema.version} · saved locally`;
+        $('workspace-meta').textContent=`Saved locally${detailMode?' · schema '+schema.version:''} · drag blocks from the left to build`;
         try {localStorage.setItem('mtgish.blockly.v1',JSON.stringify(savedWorkspace()));}catch(_){$('workspace-meta').textContent+=' · local save unavailable';}
         if(workerReady) {lastSubmittedIR=ir;worker.postMessage({id:revision,ir});}
       } catch(e) { $('ir').textContent=''; invalid(e.message); }
@@ -313,7 +585,7 @@
       throw e;
     } finally {Blockly.Events.enable();suppress=false;changed();}
     if(resetHistory){history=[];historyIndex=-1;remember();}
-    workspace.render();
+    applyPresentation();workspace.render();
     Blockly.renderManagement.finishQueuedRenders().then(()=>workspace.zoomToFit());
   }
   function loadIR(value,outline=true) {
@@ -323,9 +595,15 @@
   function savedWorkspace() { return {format:'mtgish.blockly.workspace.v1',schema:schema.version,model:payload.model,workspace:Blockly.serialization.workspaces.save(workspace)}; }
   function restore(value) {
     if(value.schema!==schema.version || value.model!==payload.model) throw Error('This workspace was saved against a different Rust model. Import its IR instead.');
+    const nodes=value.workspace?.blocks?.blocks;
+    if(nodes?.length===1 && !nodes[0].extraState.ui) {
+      const fake=s=>({type:s.type,state:s.extraState,isEnabled:()=>!s.disabled&&!s.disabledReasons?.length,getFieldValue:n=>s.fields?.[n],getInputTargetBlock:n=>s.inputs?.[n]?.block?fake(s.inputs[n].block):null,getNextBlock:()=>s.next?.block?fake(s.next.block):null});
+      try {const ir=fromBlock(fake(nodes[0]));localStorage.setItem('mtgish.blockly.before-authoring-v2',JSON.stringify(value));loadIR(ir);return;}catch(_){}
+    }
     install(value.workspace);
   }
   workspace.addChangeListener(e=>{
+    if(e.isUiEvent && e.type!==Blockly.Events.SELECTED)setTimeout(applyPresentation,0);
     if(e.type===Blockly.Events.SELECTED){ const b=workspace.getBlockById(e.newElementId); if(b){ const d=descriptor(b.state.ty),v=d?.variants?.find(v=>v.wire===b.state.variant); $('selection').replaceChildren(); const title=document.createElement('strong');title.textContent=typeName(b.state.ty)+(v?'::'+v.name:'');$('selection').append(title,document.createTextNode('  '+(v?.doc||'Connect a value of this type to a matching socket.'))); } }
     if(!e.isUiEvent && e.type!==Blockly.Events.FINISHED_LOADING) changed();
   });
@@ -351,30 +629,25 @@
       const b=document.createElement('button');b.className='result';const title=document.createElement('strong');title.textContent=c.name;const small=document.createElement('small');small.textContent=c.types||'Card';b.append(title,small);b.onclick=()=>loadCard(c);return b;
     }));
   }
-  const common=['Ability','Instruction','Operation','Expr','PlayerSet','PlayerRef','ObjectSet','ObjectRef','TargetSpec','ObjectFilter','Count','CostPart','EventSpec','Duration'];
-  const palette=Object.entries(types).flatMap(([n,d])=> d.kind==='enum' ? d.variants.filter(v=>!excluded(v)).map(v=>({type:n,variant:v.wire,label:pretty(v.name),doc:v.doc})):[{type:n,label:pretty(n),doc:''}]);
-  function searchBlocks() {
-    const q=$('block-search').value.toLowerCase(), matches=palette.filter(p=>q ? `${p.type} ${p.label} ${p.doc}`.toLowerCase().includes(q) : common.includes(p.type));
-    const shown=matches.slice(0,50);$('block-count').textContent=`${matches.length} constructors · showing ${shown.length}`;
-    $('block-results').replaceChildren(...shown.map(p=>{
-      const b=document.createElement('button');b.className='result';const strong=document.createElement('strong');strong.textContent=p.label;const small=document.createElement('small');small.textContent=p.type;b.append(strong,small);b.title=p.doc;
-      b.onclick=()=>{try{
-        const t={named:p.type},d=types[p.type];let value;
-        if(p.variant){const v=d.variants.find(v=>v.wire===p.variant);value=packEnum(d,v,fieldsDefault(v.fields,[]));}else value=defaultValue(t);
-        const state=blockState(t,value);if(['Card','Ability','Instruction','CostPart'].includes(p.type))state.extraState.statement=true;
-        const node=Blockly.serialization.blocks.append(state,workspace);node.moveBy(60,60);node.select();workspace.centerOnBlock(node.id);changed();
-      }catch(e){notice(e.message);}};return b;
-    }));
-  }
   function blank(draw=false) {
     const v={schema_version:schema.version,layout:'Card',faces:[{schema_version:schema.version,name:draw?'New draw spell':'New creature',characteristics:{supertypes:[],card_types:[draw?'Instant':'Creature'],subtypes:[],mana_cost:[],color_indicator:[],power_toughness:draw?null:[1,1],loyalty:null,defense:null},abilities:[]}],data:[]};
     if(draw) v.faces[0].abilities=[{kind:'Spell',args:{announcement:{targets:[],modes:null},body:{instructions:[{kind:'Effect',args:{result:4294967295,operation:{kind:'Draw',args:{players:{kind:'One',args:{kind:'AbilityController'}},amount:{kind:'Constant',args:1}}}}}]}}}];
     return v;
   }
   function download(name,text) { const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000); }
-  $('search').oninput=searchCards;$('search').onkeydown=e=>{if(e.key==='Enter')$('card-results').querySelector('button')?.click();};$('block-search').oninput=searchBlocks;
-  for(const tab of ['cards','blocks']) $(tab+'-tab').onclick=()=>{for(const t of ['cards','blocks']){$(t+'-panel').classList.toggle('hidden',t!==tab);$(t+'-tab').classList.toggle('active',t===tab);$(t+'-tab').setAttribute('aria-selected',String(t===tab));}};
-  $('new-card').onclick=()=>{++loadSequence;loadIR(blank($('starter').value==='draw'),false);};
+  $('dump-format').onchange=()=>{try{$('ir').textContent=dump(generated());}catch(_){}};
+  $('search').oninput=searchCards;$('search').onkeydown=e=>{if(e.key==='Enter')$('card-results').querySelector('button')?.click();};
+  function setMode(mode) {
+    $('studio').classList.toggle('build-mode',mode==='blocks');
+    workspace.getToolbox().setVisible(mode==='blocks');
+    if(mode!=='blocks')workspace.getFlyout().hide();
+    for(const tab of ['cards','blocks']){$(tab+'-tab').classList.toggle('active',tab===mode);$(tab+'-tab').setAttribute('aria-selected',String(tab===mode));}
+    Blockly.svgResize(workspace);
+  }
+  $('cards-tab').onclick=()=>setMode('cards');$('blocks-tab').onclick=()=>setMode('blocks');
+  $('details').onclick=()=>{detailMode=!detailMode;$('details').setAttribute('aria-pressed',String(detailMode));$('studio').classList.toggle('hide-inspector',!detailMode);applyPresentation();workspace.render();Blockly.svgResize(workspace);Blockly.renderManagement.finishQueuedRenders().then(()=>workspace.zoomToFit());};
+  setMode('blocks');
+  $('new-card').onclick=()=>{++loadSequence;const kind=$('starter').value,v=blank(kind!=='creature');if(kind==='spell'){v.faces[0].abilities=[];v.faces[0].name='New spell';}loadIR(v,false);};
   $('fit').onclick=()=>workspace.zoomToFit();$('zoom-in').onclick=()=>workspace.zoomCenter(1);$('zoom-out').onclick=()=>workspace.zoomCenter(-1);
   $('undo').onclick=()=>workspace.undo(false);$('redo').onclick=()=>workspace.undo(true);
   $('expand').onclick=()=>{workspace.getAllBlocks(false).forEach(b=>b.setCollapsed(false));workspace.zoomToFit();};
@@ -390,11 +663,11 @@
     const f=$('file').files[0];if(!f)return;++loadSequence;
     try {const text=await f.text(),value=parseExact(text);if(value.format==='mtgish.blockly.workspace.v1')restore(value);else loadIR(value);notice('Imported '+f.name);}catch(e){notice('Import failed: '+e.message);}finally{$('file').value='';}
   };
-  searchCards();searchBlocks();
+  searchCards();
   let restored=false;
   try {const saved=JSON.parse(localStorage.getItem('mtgish.blockly.v1'));if(saved){restore(saved);restored=true;}}catch(_){}
   if(!restored) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={workspace,schema,parseExact,encode,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,defaultValue,ready:()=>workerReady,valid:()=>lastValid,savedWorkspace,restore,validateTexts};
+  window.cardBlocks={workspace,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:()=>lastValid,savedWorkspace,restore,validateTexts};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

@@ -49,6 +49,7 @@ def main():
         'BLOCKLY': re.sub(r'//# sourceMappingURL=.*', '', core + '\n' + messages).replace('</script', '<\\/script'),
         'GLUE': json.dumps((args.build / 'wasm/validator.js').read_text()).replace('<', '\\u003c'),
         'APP': (source / 'app.js').read_text().replace('</script', '<\\/script'),
+        'SPRITE': 'data:image/svg+xml;base64,' + base64.b64encode((source / 'vendor/media/sprites.svg').read_bytes()).decode(),
         'LICENSE': (source / 'vendor/LICENSE.blockly').read_text().replace('--', '—'),
     }
     html = (source / 'index.html').read_text()
