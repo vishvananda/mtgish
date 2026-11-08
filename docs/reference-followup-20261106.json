@@ -1308,6 +1308,29 @@
       "producer_cause": "Scalar result index zero retained after the exile-to-return operand was corrected for melded permanents.",
       "upstream_report": "Fork Rust lowering only; no upstream English-parser or Source-data correction is needed.",
       "validation": "All six complete programs match reviewed repairs, validate and canonically normalize idempotently; exact six-record delta in 33529 records. Four complete modules generate; digital Intensity backend gaps remain separate. See reference-return-followups-20261108.md."
+    },
+    {
+      "name": "Rolling Hamsphere",
+      "family": "source-actor-references",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "The attacking Vehicle deals damage once; the existing all-controlled-Hamsters count remains live after token creation. Created tokens are not damage sources.",
+      "evidence": "reference-issues/rolling-hamsphere/reference-packet.json",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/236",
+      "fix_notes": "Source templates and all three data formats corrected in 160d35d. See reference-actors-20261108.md.",
+      "validation": "Full Go suite; 1335 AST tests; 24 native runtime tests; 33529 complete records with exactly these two changed; 182 unchanged audit findings and use evidence."
+    },
+    {
+      "name": "Knowledge Pool",
+      "family": "source-actor-references",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Actor-only repair: the cast-event player pays exile, makes the optional decision and casts the linked card. The triggering spell ObjectRef and all other operands are retained.",
+      "evidence": "reference-issues/knowledge-pool-actor/actor-only-review.json",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/237",
+      "fix_notes": "Source templates and all three data formats corrected in 160d35d. See reference-actors-20261108.md.",
+      "validation": "Full Go suite; 1335 AST tests; 24 native runtime tests; 33529 complete records with exactly these two changed; 182 unchanged audit findings and use evidence.",
+      "remaining_question": "The linked-set exclusion for other cards is unchanged and unresolved. Actor correctness does not certify the whole card."
     }
   ],
   "normalization_questions": [
