@@ -1317,6 +1317,7 @@ impl Context {
         self.exiled_one_input = None;
         self.exiled_permanents = false;
         self.entered = None;
+        self.entered_from_one = None;
         self.inspection_hand = None;
         self.paid.values_mut().for_each(|binding| *binding = None);
         self.acted.clear();

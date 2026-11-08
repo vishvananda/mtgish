@@ -35,13 +35,18 @@ impl Context {
         otherwise: impl FnOnce(&mut Self) -> Result<Program>,
     ) -> Result<Instruction> {
         let mut then_context = self.clone();
+        then_context.entered_from_one = None;
         let then = then(&mut then_context)?;
         let mut other_context = self.clone();
+        other_context.entered_from_one = None;
         other_context.result = then_context.result;
         let otherwise = otherwise(&mut other_context)?;
         self.result = other_context.result;
         self.invalidate_child_bindings(&then_context);
         self.invalidate_child_bindings(&other_context);
+        if let Some(group) = self.returned_conditional(&condition, &then, &otherwise) {
+            return Ok(group);
+        }
         let branch = Instruction::If {
             condition,
             then,

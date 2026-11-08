@@ -31,6 +31,7 @@ impl Context {
     ) -> Result<Instruction> {
         let binding = Binding(self.binding_depth);
         let mut child = self.clone();
+        child.entered_from_one = None;
         child.binding_depth = self
             .binding_depth
             .checked_add(1)
@@ -90,6 +91,7 @@ impl Context {
     ) -> Result<Instruction> {
         let binding = Binding(self.binding_depth);
         let mut child = self.clone();
+        child.entered_from_one = None;
         child.binding_depth = self
             .binding_depth
             .checked_add(1)
@@ -112,6 +114,7 @@ impl Context {
         actor: &PlayerSet,
     ) -> Result<Program> {
         let mut child = self.clone();
+        child.entered_from_one = None;
         let result = child.bind_program_recipe(recipe, actor)?;
         self.result = child.result;
         self.invalidate_child_bindings(&child);

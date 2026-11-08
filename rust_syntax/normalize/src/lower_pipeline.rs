@@ -156,6 +156,14 @@ impl Context {
                 choose: selection,
             }));
         }
+        let returned_group = if selection.is_none() {
+            match subjects {
+                crate::pipeline::Subjects::Permanent(p) => self.returned_followup_group(p),
+                _ => None,
+            }
+        } else {
+            None
+        };
         let mut instructions = vec![];
         if let Some(count) = selection {
             let PlayerSet::One(player) = actor else {
@@ -205,6 +213,16 @@ impl Context {
                         self.duration(&duration).map_err(|e| e.at("duration"))?
                     }
                 };
+                // A single pre-exile permanent may return as several cards.
+                // An unconditional keyword grant applies to every actual return.
+                if matches!(evaluation, EffectEvaluation::Snapshot)
+                    && !changes.is_empty()
+                    && changes.iter().all(|c| matches!(c, Change::GrantKeyword(_)))
+                {
+                    if let Some(group) = returned_group {
+                        objects = group;
+                    }
+                }
                 Operation::CreateContinuousEffect {
                     source: ObjectRef::Source,
                     affected: EffectSubjects::Objects(objects),

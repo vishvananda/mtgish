@@ -1242,6 +1242,72 @@
       "summary": "Preserve the villainous marker and both option programs inside its player loop. Full native generation still refuses other unsupported operations.",
       "validation": "Source and IR regression checks marker, options and absence of ordinary ChooseOne.",
       "fix_notes": "See reference-investigations-20261106.md. Backend support is not claimed."
+    },
+    {
+      "name": "Essence Flux",
+      "family": "post-return-action-cardinality",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Followup action applies to every actual card returned from one pre-exile permanent. Snapshot per-object predicate partitions before counter/tap actions.",
+      "evidence": "post-return-action-cardinality-review.json",
+      "producer_cause": "Scalar result index zero retained after the exile-to-return operand was corrected for melded permanents.",
+      "upstream_report": "Fork Rust lowering only; no upstream English-parser or Source-data correction is needed.",
+      "validation": "All six complete programs match reviewed repairs, validate and canonically normalize idempotently; exact six-record delta in 33529 records. Four complete modules generate; digital Intensity backend gaps remain separate. See reference-return-followups-20261108.md."
+    },
+    {
+      "name": "Hallowed Respite",
+      "family": "post-return-action-cardinality",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Followup action applies to every actual card returned from one pre-exile permanent. Snapshot per-object predicate partitions before counter/tap actions.",
+      "evidence": "post-return-action-cardinality-review.json",
+      "producer_cause": "Scalar result index zero retained after the exile-to-return operand was corrected for melded permanents.",
+      "upstream_report": "Fork Rust lowering only; no upstream English-parser or Source-data correction is needed.",
+      "validation": "All six complete programs match reviewed repairs, validate and canonically normalize idempotently; exact six-record delta in 33529 records. Four complete modules generate; digital Intensity backend gaps remain separate. See reference-return-followups-20261108.md."
+    },
+    {
+      "name": "Justiciar's Portal",
+      "family": "post-return-action-cardinality",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Followup action applies to every actual card returned from one pre-exile permanent. Unconditional keyword grant uses the full return Transition After receipt.",
+      "evidence": "post-return-action-cardinality-review.json",
+      "producer_cause": "Scalar result index zero retained after the exile-to-return operand was corrected for melded permanents.",
+      "upstream_report": "Fork Rust lowering only; no upstream English-parser or Source-data correction is needed.",
+      "validation": "All six complete programs match reviewed repairs, validate and canonically normalize idempotently; exact six-record delta in 33529 records. Four complete modules generate; digital Intensity backend gaps remain separate. See reference-return-followups-20261108.md."
+    },
+    {
+      "name": "Obzedat, Ghost Council",
+      "family": "post-return-action-cardinality",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Followup action applies to every actual card returned from one pre-exile permanent. Unconditional keyword grant uses the full return Transition After receipt.",
+      "evidence": "post-return-action-cardinality-review.json",
+      "producer_cause": "Scalar result index zero retained after the exile-to-return operand was corrected for melded permanents.",
+      "upstream_report": "Fork Rust lowering only; no upstream English-parser or Source-data correction is needed.",
+      "validation": "All six complete programs match reviewed repairs, validate and canonically normalize idempotently; exact six-record delta in 33529 records. Four complete modules generate; digital Intensity backend gaps remain separate. See reference-return-followups-20261108.md."
+    },
+    {
+      "name": "Sundering Sentinel",
+      "family": "post-return-action-cardinality",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Followup action applies to every actual card returned from one pre-exile permanent. Unconditional keyword grant uses the full return Transition After receipt.",
+      "evidence": "post-return-action-cardinality-review.json",
+      "producer_cause": "Scalar result index zero retained after the exile-to-return operand was corrected for melded permanents.",
+      "upstream_report": "Fork Rust lowering only; no upstream English-parser or Source-data correction is needed.",
+      "validation": "All six complete programs match reviewed repairs, validate and canonically normalize idempotently; exact six-record delta in 33529 records. Four complete modules generate; digital Intensity backend gaps remain separate. See reference-return-followups-20261108.md."
+    },
+    {
+      "name": "Teysa of the Ghost Council",
+      "family": "post-return-action-cardinality",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Followup action applies to every actual card returned from one pre-exile permanent. Unconditional keyword grant uses the full return Transition After receipt.",
+      "evidence": "post-return-action-cardinality-review.json",
+      "producer_cause": "Scalar result index zero retained after the exile-to-return operand was corrected for melded permanents.",
+      "upstream_report": "Fork Rust lowering only; no upstream English-parser or Source-data correction is needed.",
+      "validation": "All six complete programs match reviewed repairs, validate and canonically normalize idempotently; exact six-record delta in 33529 records. Four complete modules generate; digital Intensity backend gaps remain separate. See reference-return-followups-20261108.md."
     }
   ],
   "normalization_questions": [

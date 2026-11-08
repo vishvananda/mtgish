@@ -212,6 +212,8 @@ struct Context {
     damage_permanent_recipient: bool,
     chosen_damage_source: Option<ResultId>,
     entered: Option<ResultId>,
+    /// A return of every card produced by one pre-exile object.
+    entered_from_one: Option<ResultId>,
     open_searches: Vec<PlayerRef>,
     inspection_hand: Option<Vec<ResultId>>,
     /// What stopped the last "exile until": only the final card matches it.
@@ -425,6 +427,13 @@ impl Context {
                 self.exiled_permanents = false;
             }
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
+                self.entered_from_one = self
+                    .exiled_followup_group(&source::CardInExile::TheCardExiledThisWay)
+                    .filter(|group| {
+                        serde_json::to_value(self.still_exiled(group.clone())).unwrap()
+                            == serde_json::to_value(objects).unwrap()
+                    })
+                    .map(|_| result.clone());
                 self.entered = Some(result)
             }
             _ => {}
@@ -681,6 +690,7 @@ impl Context {
         }
         if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0) {
             self.entered = None;
+            self.entered_from_one = None;
         }
         if self.took.as_ref().map(|r| r.0) != child.took.as_ref().map(|r| r.0) {
             self.took = None;
@@ -6817,3 +6827,5 @@ include!("lower_replace.rs");
 include!("lower_play.rs");
 include!("lower_card_actions.rs");
 include!("lower_last_cards.rs");
+
+include!("lower_return_followups.rs");
