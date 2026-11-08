@@ -4,7 +4,7 @@ version = "0.0.1"
 edition = "2021"
 
 [workspace]
-members = ["normalize", "ir"]
+members = ["normalize", "ir", "blockly-wasm"]
 resolver = "2"
 
 [dependencies]

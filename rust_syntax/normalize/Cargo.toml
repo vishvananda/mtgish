@@ -32,3 +32,8 @@ syn = { version = "2", features = ["full"] }
 name = "ast"
 path = "src/bin/ast.rs"
 required-features = ["legacy"]
+
+[[bin]]
+name = "blockly_catalog"
+path = "src/bin/blockly_catalog.rs"
+required-features = ["legacy"]

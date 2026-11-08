@@ -1,0 +1,12 @@
+{
+  "name": "mtgish-card-blocks-demo-tests",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "test": "node test_browser.cjs",
+    "test:catalog": "node test_catalog.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.65.0"
+  }
+}

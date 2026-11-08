@@ -1,0 +1,13 @@
+[package]
+name = "mtgish-blockly-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mtgish-ast = { path = "../normalize", default-features = false }
+serde = "1"
+serde_json = { version = "1", features = ["unbounded_depth"] }
+wasm-bindgen = "=0.2.127"
