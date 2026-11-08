@@ -33,6 +33,7 @@ fn generated_reference_contracts_execute_in_cantrip() {
         .chain(include_str!("fixtures/oracle_fixes_20261107.ronl").lines())
         .chain(include_str!("fixtures/joint_blink_reference_fixes.ronl").lines())
         .chain(include_str!("fixtures/return_followup_reference_fixes.ronl").lines())
+        .chain(include_str!("fixtures/reference_actors_20261108.ronl").lines())
         .map(|s| ron::from_str(s).unwrap())
         .collect();
     let mut lib = String::new();
@@ -61,6 +62,8 @@ fn generated_reference_contracts_execute_in_cantrip() {
         ("flux", "Essence Flux"),
         ("respite", "Hallowed Respite"),
         ("obzedat", "Obzedat, Ghost Council"),
+        ("rolling_hamsphere", "Rolling Hamsphere"),
+        ("knowledge_pool", "Knowledge Pool"),
     ] {
         let source = sources
             .iter()
@@ -104,6 +107,7 @@ fn generated_reference_contracts_execute_in_cantrip() {
     lib.push_str(include_str!(
         "fixtures/return_followup_reference_scenarios.rs"
     ));
+    lib.push_str(include_str!("fixtures/reference_actor_scenarios.rs"));
     fs::write(root.join("src/lib.rs"), lib).unwrap();
     let target = std::env::var_os("MTGISH_CANTRIP_TARGET")
         .map(PathBuf::from)

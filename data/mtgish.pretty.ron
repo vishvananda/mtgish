@@ -726535,19 +726535,25 @@ Card(
         ]),
       ),
       ActionList([
-        MustCost(Exile(
-          [
-            Spell(Trigger_ThatSpell),
-          ],
-          [],
-        )),
+        PlayerMustCost(
+          Trigger_ThatPlayer,
+          Exile(
+            [
+              Spell(Trigger_ThatSpell),
+            ],
+            [],
+          ),
+        ),
         If(
           CostWasPaid,
           [
-            MayAction(CastASpellFromExileWithoutPaying(
-              AnySpell,
-              WasExiledWithPermanent(ThisPermanent),
-            )),
+            PlayerMayAction(
+              Trigger_ThatPlayer,
+              CastASpellFromExileWithoutPaying(
+                AnySpell,
+                WasExiledWithPermanent(ThisPermanent),
+              ),
+            ),
           ],
         ),
       ]),
@@ -1089903,8 +1089909,8 @@ Card(
             ],
             [],
           ),
-          EachPermanentDealsDamage(
-            TheTokensCreatedThisWay,
+          PermanentDealsDamage(
+            ThisPermanent,
             TheNumberOfPermanentsOnTheBattlefield(And([
               IsCreatureType(Hamster),
               ControlledByAPlayer(SinglePlayer(You)),
