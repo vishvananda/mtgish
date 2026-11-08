@@ -14,10 +14,21 @@ blocks. **Library** opens card search without discarding the workspace.
 
 Empty optional fields and default modifiers are hidden. The **⋯** menu adds them
 on demand, including targeting. **IR details** exposes bookkeeping/default fields
-and the AST inspector. The normal view combines Effect/Operation and handles
+and the AST inspector. Result IDs require an explicit **⋯ → result ID** selection
+in IR details; ordinary effects keep that bookkeeping hidden. The normal view combines Effect/Operation and handles
 Program/ability/action arrays as statement stacks, so the user does not have to
 assemble serialization wrappers. New actions receive fresh result IDs; imported
 result IDs remain untouched. Power/toughness use two inline fields.
+
+Targets have named choices: **any target**, **target creature**, **target
+planeswalker**, and **target player**. The editor maps these to the appropriate
+Rust target domain and filter. Restricted/compound targets retain their complete
+filter and appear as **custom target**. Changing the domain preserves target
+counts, slot IDs, distribution, chooser and selection constraints, and updates
+direct damage-recipient references within the same ability. Ordinary
+damage needs no checkbox; **⋯ → can't be prevented** adds the exceptional
+modifier. Its checkbox is the inverse of the wire model's `preventable` field.
+Older complete workspaces migrate without changing their damage semantics.
 
 The default **Readable** AST dump omits null/empty entries inside characteristics
 and preserves actual zero values, including 0/0. Select **Complete IR** for the
@@ -89,6 +100,7 @@ npx playwright install chromium
 npm test -- /tmp/card-blocks.html
 npm run test:catalog -- /tmp/card-blocks.html
 npm run test:authoring -- /tmp/card-blocks.html
+npm run test:targets -- /tmp/card-blocks.html
 ```
 
 Primary Blockly documentation: [connection checks](https://docs.blockly.com/guides/create-custom-blocks/inputs/connection-checks/),
