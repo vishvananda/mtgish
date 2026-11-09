@@ -533,3 +533,14 @@ through Wasm. All 2,255 generated outputs remain identical after removing the
 schema/fingerprint headers. Final receipts/logs use `keyword183-release-*` in the
 review directory. The earlier in-progress evidence above records the route to
 this final verified contract; all remaining AST requirements stay open.
+
+Stage-14 publication: commit `1bf77dc` is pushed to fork main. Release
+`20261109-1bf77dc` is live at `/blocks`, SHA-256
+`cab4901650df882eeaaab0ba9e29ee8157a39261aa18c1f6902d30eb6c52857a`.
+The live artifact matches the tested file. Live card-code and keyword editing,
+legacy workspace and optional-subject document migration suites both pass.
+Release receipt: `keyword183-release.json`; live logs:
+`keyword183-live-{code,keywords}.log`. The user's `consolidation.md` is untouched.
+When schema 183 becomes a historical input in the next migration, gate keyword
+payload conversion to epochs through 182, just as entry conversion is gated to
+181; do not replay a payload migration on its already typed representation.
