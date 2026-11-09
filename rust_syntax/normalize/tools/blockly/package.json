@@ -6,7 +6,8 @@
     "test": "node test_browser.cjs",
     "test:catalog": "node test_catalog.cjs",
     "test:authoring": "node test_authoring.cjs",
-    "test:targets": "node test_targets.cjs"
+    "test:targets": "node test_targets.cjs",
+    "test:code": "node test_code.cjs"
   },
   "devDependencies": {
     "playwright": "1.65.0"

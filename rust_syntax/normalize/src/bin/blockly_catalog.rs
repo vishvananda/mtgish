@@ -170,7 +170,7 @@ fn schema() -> Value {
         };
         types.insert(name, value);
     }
-    json!({"version":mtgish_ast::ir::SCHEMA_VERSION,"types":types})
+    json!({"version":mtgish_ast::ir::SCHEMA_VERSION,"types":types,"authoring":mtgish_ast::human::editor_metadata()})
 }
 fn main() -> corpus::Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();

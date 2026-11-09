@@ -3,14 +3,21 @@
 The generated `card-blocks.html` is one self-contained file. Open it in a modern
 browser; it also works from an ordinary static web server. Search the entire
 checked-in card corpus, inspect/edit the blocks, start a blank creature or draw
-spell, and export validated normalized IR JSON. No server, CDN, network service,
+spell, and export validated normalized IR JSON or editable card code. No server, CDN, network service,
 Oracle-text reconstruction or Cantrip runtime is involved.
 
 The **Build** view is a Scratch-style authoring workspace. Drag an ability from
 Abilities into the card, then drag actions from Actions into its `do` slot. Actions
 connect vertically and can be reordered by dragging. Numbers and common player
 choices are editable directly inside the action. Keywords are small stackable
-blocks. **Library** opens card search without discarding the workspace.
+blocks. **All actions** groups the complete operation library by purpose: cards
+and libraries, damage and life, objects and movement, counters and changes,
+choices and values, mana and casting, triggers and replacements, control flow
+and batches, and game/keyword actions. **Find an action** searches names, groups
+and Rust documentation. Action names use verbs and their objects, such as
+**Draw Cards**, **Move Objects**, and **Destroy Objects**. Event references say
+**Event Player** or **Event Object**; **Ability Holder** and **Granting Object**
+remain distinct from the source of an effect. **Library** opens card search without discarding the workspace.
 
 Empty optional fields and default modifiers are hidden. The **⋯** menu adds them
 on demand, including targeting. **IR details** exposes bookkeeping/default fields
@@ -30,13 +37,47 @@ damage needs no checkbox; **⋯ → can't be prevented** adds the exceptional
 modifier. Its checkbox is the inverse of the wire model's `preventable` field.
 Older complete workspaces migrate without changing their damage semantics.
 
-The default **Readable** AST dump omits null/empty entries inside characteristics
-and preserves actual zero values, including 0/0. Select **Complete IR** for the
-exact wire representation. Export always writes the complete Rust-validated IR,
-regardless of the display format.
+The **Card code** button opens the editable code view without exposing internal
+block fields. **IR details** also reveals those fields for debugging. It omits serialization wrappers,
+empty optional fields and known defaults; **Apply code** parses and validates in
+Rust/Wasm before replacing the blocks. Unapplied edits stay in the editor while
+blocks change. **Export card code** saves a `.card` file. **Readable JSON** omits
+empty characteristics; **Complete IR** shows the exact wire representation.
+**Export valid IR** always saves complete Rust-validated IR.
+
+```text
+Card {
+  name: "Lightning Bolt",
+  properties: {card_types: [Instant], mana_cost: [Color(Red)]},
+  abilities: [Spell {
+    targets: [Target {name: victim, select: AnyTarget}],
+    do: [DealDamage {from: This, to: Targets(victim), amount: 3}]
+  }]
+}
+```
+
+The format is an authoring view of Rust IR, not reconstructed Oracle text. Result
+bindings are optional: `chosen = NoteObjects {objects: One(This)}` followed by
+`NoteObjects {objects: Selected(chosen)}` names a result. Independent abilities
+have separate symbolic scopes. Only used result bindings appear when rendering;
+internal IDs are allocated when parsing. Formatting uses stable `r0`/`t0`
+names rather than preserving the spelling of input symbols. `AnyTarget`, `Creature`, `Planeswalker`
+and `Player` use Rust's typed target API. Object and player filters remain
+separate on custom damage targets. Ordinary damage is preventable; write
+`unpreventable: true` for the exception. State changes such as `tapped: false`
+remain explicit. Omitted mana cost means no mana cost, while `mana_cost: []`
+means a zero cost. Absent power/toughness differs from `[0, 0]`.
+
+Rust APIs are `mtgish_ast::human::{read, write}` and
+`mtgish_ir::targets::TargetSelector`. Inspect a card or lower a `.card` file:
+
+```sh
+cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- card-code data/mtgish.lines.ron 'Lightning Bolt'
+cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- read-card-code /tmp/example.card
+```
 
 Save workspace preserves the block layout; Export valid IR saves the actual IR.
-Import accepts either file. Edits are also saved to browser-local storage. Undo
+Import accepts `.card` files, IR JSON and saved workspaces. Edits are also saved to browser-local storage. Undo
 and redo use complete workspace snapshots so structural edits include their
 nested blocks. Connected v1 workspaces are migrated through the lossless IR
 codec, with the original workspace backed up locally; incomplete drafts remain
@@ -73,9 +114,14 @@ in the browser. Rebuild after changing the IR, validator or Source corpus.
   handling preserve the full i64/u64 ranges.
 * `blockly-wasm` depends on `mtgish-ast` with default features disabled. It uses
   the existing `validate::unified` and strict `validate::card`, not a JavaScript
-  imitation. Unknown fields, unreduced forms, invalid ranges, wrong schema and
+  imitation. Card-code parsing and formatting also run in Rust/Wasm. Unknown fields, unreduced forms, invalid ranges, wrong schema and
   bad reference scopes are rejected. Checks run in a Web Worker; results from
   an older edit cannot enable exporting a newer unvalidated edit.
+* `human` provides the reversible authoring codec and shared semantic defaults,
+  action names, categories and role names. Both the card-code renderer and the
+  block editor use that Rust metadata. Meaningful timing, batching and provenance
+  stay explicit. The existing schema-179 wire shape stays unchanged; card-code
+  roundtrips preserve meaning after canonicalizing local result IDs.
 * `pack.py` embeds Blockly, English messages, Rust Wasm, the generated schema,
   the search index, compressed card data and the Apache license in one HTML
   artifact. Runtime fetches are unnecessary. Vendored Blockly is 13.1.0 from
@@ -83,15 +129,20 @@ in the browser. Rebuild after changing the IR, validator or Source corpus.
 
 The UI remains an IR authoring/debugging demo. Valid IR does not prove the card
 matches Oracle wording or that every operation has a Cantrip implementation.
-The browser demo limits documents to 2 MiB, nesting to 255 levels and editable
+The browser demo limits documents to 2 MiB, IR nesting to 255 levels (card-code nesting to 128 levels) and editable
 lists to 2,048 elements. These limits do not change Rust IR numeric types or
-schema 179. Workspace saves carry a model fingerprint to prevent silently
-loading a layout against a different schema/validator build.
+schema 179. Workspace saves carry a schema and model fingerprint. At the same IR schema,
+older layouts migrate through the typed codec with their original data backed
+up locally. A different IR schema requires explicit conversion.
 
 ## Verification
 
 ```sh
 cargo test --manifest-path rust_syntax/Cargo.toml -p mtgish-blockly-wasm --lib
+cargo test --manifest-path rust_syntax/Cargo.toml -p mtgish-ir --lib
+cargo test --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --test human_code
+# Full semantic card-code roundtrip after building the demo:
+HUMAN_CODE_CORPUS="$PWD/__build/blockly/cards.jsonl" cargo test --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --test human_code -- --include-ignored
 cargo test --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin blockly_catalog
 # Optional browser regressions (requires Playwright and a Chromium installation):
 cd rust_syntax/normalize/tools/blockly
@@ -101,6 +152,7 @@ npm test -- /tmp/card-blocks.html
 npm run test:catalog -- /tmp/card-blocks.html
 npm run test:authoring -- /tmp/card-blocks.html
 npm run test:targets -- /tmp/card-blocks.html
+npm run test:code -- /tmp/card-blocks.html
 ```
 
 Primary Blockly documentation: [connection checks](https://docs.blockly.com/guides/create-custom-blocks/inputs/connection-checks/),
@@ -163,3 +215,10 @@ Workspace migration preserves Blockly's serialized checkbox booleans as well as
 the live `TRUE`/`FALSE` field representation. The full-corpus codec test exercises
 this serialized form, preventing a saved `preventable: true` (or other boolean)
 from silently changing during an authoring-view upgrade.
+
+Validated authoring update (2026-11-09): all 33,529 records round-trip through
+card code with equal canonical semantics; the normalized export is unchanged.
+All 33,529 also pass the block codec roundtrip and real Wasm IR validation.
+Browser checks cover all 134 non-draft action starters, action search, shared
+labels, code edits, rejected typos, draft preservation, target-domain inference,
+`.card` export, 14 varied Wasm card-code roundtrips and workspace migration.

@@ -693,3 +693,13 @@ codecs, scopes, proposal constraints, and ambiguity. The validation receipt is
 `/tmp/mtgish-paid-validation.json`; it includes current source/test fingerprints,
 source/feature preservation, exact staged/native diagnostics, and schema-aware
 prior export comparison.
+
+## Card code and blocks
+
+The [card blocks demo](tools/blockly/README.md) provides a searchable operation
+library and an editable Rust/Wasm-validated card-code view. The public
+`human::{read, write}` functions convert between that compact authoring format
+and normalized `UnifiedCard`. Shared defaults and vocabulary live in
+`human::{defaults, names}`; `mtgish_ir::targets::TargetSelector` groups domains
+with their applicable filters. These APIs retain schema 179's wire format and
+the compiler's explicit result IDs.
