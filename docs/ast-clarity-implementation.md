@@ -10,9 +10,9 @@ whole objective; an intermediate passing stage does not complete the goal.
 | --- | --- | --- |
 | Validate every nested semantic entry child in its correct scope | Scope checks implemented; typed payload constraints pending | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
-| Typed entry and copy payloads, removing backend descriptive-term decoding | Entry and copy implemented, verified | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
+| Typed entry and copy payloads, removing backend descriptive-term decoding | Outer entry fields and copy exceptions implemented; inner entry payloads pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
 | Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified including independent alternatives and legacy migration | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
-| Destination-specific movement state | Pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
+| Destination-specific movement state | Shared destination checks implemented; serialized payload split pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
 | Clear sequence, batch, iteration, and receipt boundaries | Implemented, verified without changing execution forms | Declaration docs and discoverable authoring families; receipt and native behavior regressions |
@@ -337,3 +337,48 @@ roundtrips, binding-port comparisons and validations. Evidence is in
 Destination-specific state, mode/coin/keyword policies, API role names and typed
 counter sources, typed layouts, and final integration remain open. The queued
 29 reference defects follow completion of the broader AST/editor work.
+
+Stage-10 publication: commits `7e57b6c`, `f37e70b` and `50da95c` are pushed to
+fork main. The tested `/blocks` bundle is deployed as `20261109-50da95c`, SHA-256
+`5adfca9b2f0baf743b5ac58c1514e3bd1e2a2d4333861a85ea90d9b166a958e6`.
+The live file matches the tested artifact and the live copy-editing/migration
+smoke passes (`copy-live-browser-copy.log`).
+
+Stage 11 begins destination-state validation before changing its serialized
+representation. Shared checks reject battlefield-only state (including nested
+conditional arrivals) on hand/library/graveyard/exile movement, and exile-pile
+or exile-return state on a battlefield destination. Top-card movement and
+countering use their stated destination; token creation, populate, manifest and
+meld use the battlefield. Conjure's library placement requires a library zone.
+Selection constraints use the same checks. Counters and granted abilities on
+exiled cards remain valid, including Delay's three time counters and suspend.
+Specialized actions retain their existing hidden-exile encoding; ordinary Move
+keeps its separate visibility flag. No schema, numeric type or generator feature
+changes in this validation step.
+
+Four focused destination regressions, the existing 16 typed-entry/copy checks
+and five nested-reference/bounds checks pass. Lexical reference errors retain
+precedence over destination diagnostics; the existing missing-target regression
+is preserved without weakening its assertion. All 33,529 current normalized
+records remain valid. Evidence is
+`arrival-focused-final.log`, `arrival-corpus.log` and the inventory
+`movement-destination-inventory.json` under the review directory. The full native
+suite passes 1,439 tests with zero failures (14 opt-in audits ignored). All eleven fresh-Wasm browser suites pass, including three destination-error
+probes, 14 real card-code examples and all 33,529 corpus block/binding/validation
+checks (`arrival-final-browser-*`). The schema and all 33,529 source-derived
+records match stage 10 byte for byte. This does not
+complete the pending serialized destination/payload migration or the remaining
+mode/coin/keyword, Rust API naming/counter-source and typed-layout work.
+
+The remaining entry payload work includes `FaceDownAs`'s generic power/toughness
+and creature type, `FaceDownWith.abilities`, `FaceDownLand`, `May`,
+`RulesUntil.rules`, and `ExiledForWith.body`. The outer `EntrySpec` migration did
+not make those internal payloads typed. Complete that typing with the
+zone-specific destination payload work, using explicit archived-input origin
+maps to preserve saved authoring identities. An exact 12-occurrence corpus
+inventory is in `entry-inner-payload-inventory.json`. The current destination checks are
+a boundary invariant for that migration, not a replacement for it. The next
+cohort's layout inventory is also retained as `layout-contract-inventory.json`:
+18 known layouts include a zero-face sticker sheet and one-/two-face token
+definitions, plus typed metadata required for MeldPiece and Vanguard. Avoid a
+universal face-arity rule.

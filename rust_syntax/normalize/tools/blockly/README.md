@@ -346,3 +346,12 @@ group copies, legacy saves and version-1/version-2 document import:
 ```sh
 npm run test:branches -- /tmp/card-blocks.html
 ```
+
+Destination validation (2026-11-09) rejects battlefield-only arrival state on
+hand/library movement and exile-only state on a battlefield destination. The
+same checks cover top-card movement, countering, creation and selection
+constraints. Library placement on Conjure requires a library zone. Hidden exile,
+exile counters and granted suspend remain valid. These checks run in native Rust
+and the bundled Wasm validator; schema 181, authoring document 2 and presentation
+6 are unchanged. Splitting the remaining generic entry fields and serialized
+destination payloads remains part of the broader AST work.
