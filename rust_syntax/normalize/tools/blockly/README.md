@@ -154,15 +154,20 @@ The UI remains an IR authoring/debugging demo. Valid IR does not prove the card
 matches Oracle wording or that every operation has a Cantrip implementation.
 The browser demo limits documents to 2 MiB, IR nesting to 255 levels (card-code nesting to 128 levels) and editable
 lists to 2,048 elements. These interface limits do not change engine numeric
-types. Workspace presentation 5 saves carry a schema, model fingerprint and binding metadata. At the same IR schema,
+types. Workspace presentation 6 saves carry a schema, model fingerprint and binding metadata. At the same IR schema,
 older layouts migrate through the typed codec with their original data backed
-up locally. Saved schema-179 workspaces and IR JSON upgrade explicitly through
-Rust to schema 180; the bundle includes the old descriptor table for decoding
+up locally. Saved schema-179 and schema-180 workspaces and IR JSON upgrade explicitly through
+Rust to schema 181; the bundle includes the old descriptor table for decoding
 those blocks. The original workspace is backed up before conversion. A failed
 upgrade preserves the original draft and disables autosaving the fallback card
 until the user explicitly starts or imports another card. Unsupported schema
 epochs and unknown IR fields are rejected. Current card code uses typed entry
-records such as `entry: {tapped: true}` rather than grammar flag lists.
+records such as `entry: {tapped: true}` and typed copy exceptions such as
+`exceptions: [SetPowerToughness {power: 3, toughness: 3}]`. The Copies & tokens
+menu groups creation/copy actions and draggable exception blocks. Exception
+amounts accept literal shadows or expressions in the creating scope; granted
+rules have fresh scopes. Schema-180 saves with names retain their stable binding
+identities, including names in nested granted rules, after native migration.
 
 For native JSON upgrades:
 
@@ -192,6 +197,8 @@ npm run test:sockets -- /tmp/card-blocks.html
 npm run test:migration -- /tmp/card-blocks.html
 npm run test:bindings -- /tmp/card-blocks.html
 npm run test:names -- /tmp/card-blocks.html
+npm run test:branches -- /tmp/card-blocks.html
+npm run test:copy -- /tmp/card-blocks.html
 ```
 
 Primary Blockly documentation: [connection checks](https://docs.blockly.com/guides/create-custom-blocks/inputs/connection-checks/),

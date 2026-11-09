@@ -597,7 +597,7 @@
   }
   function flyoutBlock(type,value) {
     const state=blockState({named:type},value);
-    if(['Ability','Instruction'].includes(type))state.extraState.statement=true;
+    if(['Ability','Instruction','CopyException'].includes(type))state.extraState.statement=true;
     if(state.extraState.pr==='effect')state.extraState.autoResult=true;
     return {kind:'block',...state};
   }
@@ -637,6 +637,12 @@
     ]},
     {kind:'category',name:'All actions',colour:'#b46b4f',contents:actionGroups()},
     {kind:'category',name:'Control',colour:'#9b7a42',contents:controlGroups()},
+    {kind:'category',name:'Copies & tokens',colour:'#708f68',contents:[
+      {kind:'label',text:'Create and copy'},
+      ...['CreateTokens','CopyOnStack','CopyEach','CopyCards','Populate'].map(n=>flyoutBlock('Instruction',actionValue(n))),
+      {kind:'label',text:'Exceptions to copied values'},
+      ...types.CopyException.variants.map(v=>variantBlock('CopyException',v.wire))
+    ]},
     {kind:'category',name:'Events',colour:'#508d88',contents:[
       flyoutBlock('EventSpec',choices.EventSpec[0][1]),
       flyoutBlock('EventSpec',{Turn:{point:'UpkeepBegins',players:{kind:'One',args:SELF}}})
@@ -663,8 +669,8 @@
     const q=$('block-search').value.trim().toLocaleLowerCase();
     if(!q){workspace.updateToolbox(toolboxDefinition);return;}
     const contents=[];
-    for(const type of ['Instruction','Operation'])for(const v of types[type].variants.filter(v=>!excluded(v)&&(type!=='Instruction'||v.wire!=='Effect'))) {
-      const meta=(type==='Operation'?authoring.actions:authoring.instructions)[v.wire];
+    for(const type of ['Instruction','Operation','CopyException'])for(const v of types[type].variants.filter(v=>!excluded(v)&&(type!=='Instruction'||v.wire!=='Effect'))) {
+      const meta=type==='CopyException'?{name:v.name,label:pretty(v.name),category:'Copies & tokens'}:(type==='Operation'?authoring.actions:authoring.instructions)[v.wire];
       if(!`${v.name} ${meta.name} ${meta.label} ${meta.category} ${v.doc}`.toLocaleLowerCase().includes(q))continue;
       try{contents.push(type==='Operation'?flyoutBlock('Instruction',actionValue(v.wire)):variantBlock(type,v.wire));}catch(_){}
     }
@@ -800,14 +806,14 @@
     applyPresentation();workspace.render();
     Blockly.renderManagement.finishQueuedRenders().then(()=>workspace.zoomToFit());
   }
-  function loadIR(value,outline=true,document=null) {
+  function loadIR(value,outline=true,document=null,retainedKeys=[]) {
     const block=blockState({named:'UnifiedCard'},value,outline);
-    if(document)bindingEditor.attach(fakeBlock(block),document);
+    if(document)bindingEditor.attach(fakeBlock(block),document,retainedKeys);
     bindingEditor.reset();
     install({blocks:{languageVersion:0,blocks:[{...block,x:40,y:40}]}});
   }
   function savedWorkspace() { return {format:'mtgish.blockly.workspace.v1',presentation:6,schema:schema.version,model:payload.model,workspace:Blockly.serialization.workspaces.save(workspace)}; }
-  function decodeWorkspace(value,model=schema) {
+  function decodeWorkspace(value,model=schema,captureNames=false) {
     const nodes=value.workspace?.blocks?.blocks;
     if(nodes?.length!==1)throw Error('Keep exactly one complete card record before migration.');
     // Decoding is synchronous and uses fake blocks only. Restore the editor's
@@ -815,7 +821,8 @@
     const current=types;
     try {
       types=model.types;
-      return fromBlock(fakeBlock(nodes[0]));
+      const root=fakeBlock(nodes[0]),ir=fromBlock(root);
+      return captureNames?{ir,names:bindingEditor.captureDocument(root,ir,(value.presentation??1)<6?1:2)}:ir;
     }finally{types=current;}
   }
   async function migrateWorkspace(value) {
@@ -823,10 +830,12 @@
     localStorage.setItem('mtgish.blockly.before-schema-upgrade',JSON.stringify(value));
     const legacy=payload.legacy_models[String(value.schema)];
     if(!legacy)throw Error('Unsupported saved-workspace schema '+value.schema);
-    const ir=decodeWorkspace(value,legacy),r=await codeRequest('migrateIR',encode(ir));
+    if((value.presentation??1)<6)localStorage.setItem('mtgish.blockly.before-authoring-v6',JSON.stringify(value));
+    const decoded=decodeWorkspace(value,legacy,true),r=decoded.names?await codeRequest('formatDocument',encode(decoded.names.document)):await codeRequest('migrateIR',encode(decoded.ir));
     if(!r.valid)throw Error(r.error);
     if(sequence!==loadSequence||before!==JSON.stringify(Blockly.serialization.workspaces.save(workspace)))throw Error('The workspace changed while upgrading.');
-    loadIR(parseExact(r.ir));preserveSavedDraft=false;
+    if(decoded.names){const doc=parseExact(r.document);loadIR(doc.card,true,doc,decoded.names.keys);}
+    else loadIR(parseExact(r.ir));preserveSavedDraft=false;
   }
   function restore(value) {
     if(value.schema!==schema.version)throw Error('This workspace requires a schema upgrade; use Import.');

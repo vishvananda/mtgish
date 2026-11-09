@@ -701,12 +701,12 @@ library and an editable Rust/Wasm-validated card-code view. The public
 `human::{read, write}` functions convert between that compact authoring format
 and normalized `UnifiedCard`. Shared defaults and vocabulary live in
 `human::{defaults, names}`; `mtgish_ir::targets::TargetSelector` groups domains
-with their applicable filters. Complete IR uses schema 180 and keeps the
+with their applicable filters. Complete IR uses schema 181 and keeps the
 compiler's typed numeric IDs. Persist `human::document::Document` to retain
 scoped author names, including explicitly named unused results.
 Authoring document version 2 separates declarations in alternative branches;
 version-1 imports validate their old metadata before upgrading it. Engine IR
-remains schema 180. Alternative receipts with a shared numeric label form a
+uses schema 181. Alternative receipts with a shared numeric label form a
 group expression, while their declaration names remain independently editable.
 `ReceiptFrom("option_1", picked)` disambiguates repeated names with the shortest
 unique lexical path suffix. Ordinary references still obey native result
@@ -736,6 +736,22 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- tran
 cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- format-card-document normalized-document.json
 ```
 
-The semantic card in `card.ir.json` must match the document. A future schema
+The semantic card in `card.ir.json` must match the document. Each schema
 migration must supply its own site map before composing with canonicalization;
 an unrecorded upgrade cannot be treated as an identity map.
+
+Schema 181 replaces descriptive copy-effect operands with typed `CopyException`
+values. Source-family decoding lives in `copying::from_source`; the Cantrip
+backend consumes typed exceptions. Creator expressions, fresh granted abilities,
+ability patterns, color lists and produced-mana provenance are validated before
+generation. Backend capability gaps remain explicit.
+
+`migrate::mapped_read_json` and `ast migrate-ir-mapped old.ir.json` upgrade an
+exact schema-180 input and return a complete typed origin map. Schema-180 named
+documents upgrade before current card deserialization, carrying names and use
+sites through the same map. Nested copies and shared expressions retain their
+scoped identities. Historical schema-179 inputs still upgrade through
+`migrate::read_json` / `ast migrate-ir`, but their older entry migration does not
+claim a mapped origin report. Current-schema inputs get an identity map; unknown
+fields, invented copy forms, mismatched source families and mixed face epochs
+are rejected. Immutable old fixture data stays unchanged.

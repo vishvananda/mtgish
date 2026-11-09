@@ -55,10 +55,10 @@ let browser,page;
  assert.ok(copiedIds.every(pair=>pair[0]===pair[1]));assert.equal(new Set(copiedIds.map(pair=>pair[0])).size,3);
  // Upgrade an actual v5 save whose alternatives shared authoring identities.
  const old=require('./fixtures/workspace-v5-branches.json');
- const original=await page.evaluate(old=>window.cardBlocks.encode(window.cardBlocks.fromBlock(window.cardBlocks.fakeBlock(old.workspace.blocks.blocks[0]))),old);
- await page.evaluate(old=>window.cardBlocks.restore(old),old);
+ const original=await page.evaluate(async old=>{const d=window.cardBlocks,ir=d.fromBlock(d.fakeBlock(old.workspace.blocks.blocks[0])),migrated=await d.migrateIR(d.encode(ir));if(!migrated.valid)throw Error(migrated.error);return d.encode(d.parseExact(migrated.ir));},old);
+ await page.evaluate(old=>window.cardBlocks.migrateWorkspace(old),old);
  await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].name==='Legacy branch names'&&window.cardBlocks.bindings.document().bindings.filter(b=>b.name==='picked').length===4);
- assert.equal(await page.evaluate(()=>window.cardBlocks.encode(window.cardBlocks.generated())),original);
+ assert.deepEqual(JSON.parse(await page.evaluate(()=>window.cardBlocks.encode(window.cardBlocks.generated()))),JSON.parse(original));
  assert.equal(await page.evaluate(()=>window.cardBlocks.savedWorkspace().presentation),6);
  assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('mtgish.blockly.before-authoring-v6'))),old);
  await page.evaluate(async()=>{const d=window.cardBlocks,p=d.bindings.ports(d.workspace.getTopBlocks(false)[0]).find(p=>p.definition&&d.bindings.metadata(p)?.name==='picked');await d.bindings.rename(d.bindings.metadata(p).key,'migrated_branch');});

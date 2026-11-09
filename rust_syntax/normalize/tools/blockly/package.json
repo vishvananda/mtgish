@@ -12,7 +12,8 @@
     "test:migration": "node test_migration.cjs",
     "test:bindings": "node test_binding_document.cjs",
     "test:names": "node test_names.cjs",
-    "test:branches": "node test_branches.cjs"
+    "test:branches": "node test_branches.cjs",
+    "test:copy": "node test_copy.cjs"
   },
   "devDependencies": {
     "playwright": "1.65.0"

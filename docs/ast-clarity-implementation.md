@@ -10,7 +10,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | --- | --- | --- |
 | Validate every nested semantic entry child in its correct scope | Scope checks implemented; typed payload constraints pending | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
-| Typed entry and copy payloads, removing backend descriptive-term decoding | Entry implemented; copy pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
+| Typed entry and copy payloads, removing backend descriptive-term decoding | Entry and copy implemented, verified | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
 | Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified including independent alternatives and legacy migration | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
@@ -304,3 +304,36 @@ unresolved card rows. Revalidate each confirmed defect against the current fork
 before fixing it, retain the local source and proposal evidence, and report
 upstream when the defect belongs there. Do not mix unresolved questions into the
 29 confirmed count or pull upstream updates as part of this work.
+
+Stage 10 replaces the descriptive payloads in token recipes, continuous copies,
+copy arrivals and stack copies with ordered `CopyException` values (schema 181).
+`CopyColors` and `AbilityPattern` express their own domains. Creator expressions
+retain the creating scope; granted/quoted rules define fresh scopes. Validation
+rejects unrelated payloads, mismatched type/subtype combinations, invalid color
+lists and color-of-mana reads from non-mana results. Copy-family source decoding
+is restricted to the lowering and explicit legacy-import boundary. The generator
+consumes typed variants and retains the existing engine numeric ranges and
+capability gaps; no engine feature is added.
+
+The immutable schema-180 machine descriptors drive an explicit typed migration
+and complete ID-site origins, including cloned and removed reads. Schema-180
+named documents and real saved browser workspaces carry names, receipt-group
+identity and stable block keys through that map. Historical schema-179 imports
+remain supported without falsely claiming mapped origins for their older entry
+migration. Wrong families, invented forms, unknown fields and mixed face epochs
+are rejected. Historical fixture captures remain unchanged; only their explicit
+compatibility loaders and current-schema test constructors change.
+
+All 684 affected generated card modules and their capability diagnostics agree
+with the preceding generator, excluding only schema/fingerprint comments. A
+full 33,529-record migration audit agrees exactly with fresh source lowering and
+validates complete typed ID origins. The final native run passes 1,435 tests with zero failures (13 opt-in audits
+ignored). Independent audits rename and reparse all 82,226 definitions and check
+complete canonical origin maps across all 33,529 records, with zero failures.
+All eleven fresh-Wasm browser suites pass, including typed copy editing, toolbox
+search, named schema-180 workspace import/startup migration, and all 33,529 block
+roundtrips, binding-port comparisons and validations. Evidence is in
+`copy-final-*` under `/mnt/vizier/ast-review-20261109/`.
+Destination-specific state, mode/coin/keyword policies, API role names and typed
+counter sources, typed layouts, and final integration remain open. The queued
+29 reference defects follow completion of the broader AST/editor work.

@@ -83,9 +83,34 @@ function createBindingEditor(api) {
     const old=new Map(ports(before).map(p=>[p.path,p]));
     for(const p of ports(after)){const prior=old.get(p.path),m=prior&&metadata(prior);if(m&&prior.kind===p.kind&&(p.definition||prior.id===p.id))assign(p,m);}
   }
-  function attach(root,doc) {
-    const byPath=new Map(ports(root).map(p=>[p.path,p])), keys=doc.bindings.map(()=>fresh());
+  function attach(root,doc,retainedKeys=[]) {
+    const byPath=new Map(ports(root).map(p=>[p.path,p])), keys=doc.bindings.map((_,i)=>retainedKeys[i]||fresh());
     for(const use of doc.uses){const p=byPath.get(use.path),b=doc.bindings[use.binding];if(!p||p.kind!==b.kind)throw Error('The block codec has no binding port for '+use.path);assign(p,{...bindingMetadata(doc,keys,use.binding),qualified:!!use.qualified});}
+  }
+  function captureDocument(root,ir,version=2) {
+    const list=ports(root,ir);
+    if(!list.some(p=>metadata(p)))return null;
+    const doc={version,card:ir,bindings:[],uses:[]},indices=new Map(),saved=[],keys=[];
+    for(const p of list) {
+      const m=metadata(p);if(!m?.key||m.kind!==p.kind)throw Error('Saved names are incomplete; retain the original workspace before repairing it.');
+      if(!indices.has(m.key)) {
+        indices.set(m.key,doc.bindings.length);keys.push(m.key);saved.push(m);
+        const b={kind:m.kind,scope:m.scope,name:m.name,explicit:!!m.explicit};
+        if(version===2&&m.scope_name)b.scope_name=m.scope_name;
+        doc.bindings.push(b);
+      }else {
+        const prior=saved[indices.get(m.key)];
+        if(prior.kind!==m.kind||prior.scope!==m.scope||prior.name!==m.name||!!prior.explicit!==!!m.explicit||version===2&&(prior.scope_name!==m.scope_name||JSON.stringify(prior.alternatives||[])!==JSON.stringify(m.alternatives||[])))throw Error('A saved binding has conflicting names or scope metadata.');
+      }
+      const use={path:p.path,binding:indices.get(m.key)};
+      if(version===2&&m.qualified)use.qualified=true;doc.uses.push(use);
+    }
+    if(version===2)saved.forEach((m,i)=>{
+      if(m.alternatives?.length)doc.bindings[i].members=m.alternatives.map(a=>{
+        const index=indices.get(a.key);if(index===undefined)throw Error('A saved receipt group is missing its declaration.');return index;
+      });
+    });
+    return {document:doc,keys};
   }
   function bindingMetadata(doc,keys,index) {
     const b=doc.bindings[index];return {...b,key:keys[index],alternatives:(b.members||[]).map(i=>({key:keys[i],scope:doc.bindings[i].scope_name}))};
@@ -232,5 +257,5 @@ function createBindingEditor(api) {
     }
     for(const p of all)if(selected.has(p.block.id)){const m=metadata(p),copy=m&&copies.get(m.key);if(copy){p.set(copy.id);p.id=copy.id;assign(p,copy);}}
   }
-  return {ports,localPorts,attach,transfer,check,document:documentNow,rename,choose,options,refresh,showNumeric,promote,canPromote,created,metadata,legacy(){legacyRestore=true;},reset(){accepted=null;acceptedIR=null;groupKeys=[];candidates.clear();knownKeys.clear();pendingEditor=null;legacyRestore=false;}};
+  return {ports,localPorts,attach,captureDocument,transfer,check,document:documentNow,rename,choose,options,refresh,showNumeric,promote,canPromote,created,metadata,legacy(){legacyRestore=true;},reset(){accepted=null;acceptedIR=null;groupKeys=[];candidates.clear();knownKeys.clear();pendingEditor=null;legacyRestore=false;}};
 }
