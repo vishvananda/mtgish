@@ -37,8 +37,16 @@ The same wrong heads/wins composition was read from upstream grammar blob
 `5d279258e4a3006f2efce5dd943c6eca641ab03e`. Existing issues were searched for the
 card and for heads/won and coin/tails terms. The separately reported duplicate
 second-ability capture from issue 1 is independent of this count correction.
-The upstream report will link the tested fork correction after publication.
+Reported upstream as [i5jb/mtgish#238](https://github.com/i5jb/mtgish/issues/238),
+with tested fork correction `a620cf8`.
 
 This additional prerequisite is separate from checkpoint105's 29 confirmed
 reference defects. It does not complete the remaining coin-policy,
 destination-state, Rust naming/counter-source or layout work.
+
+Publication: fork main contains `a620cf8`. Release `20261109-a620cf8` is live at
+`/blocks`, SHA-256
+`8dd92af4d0c724680215303c2b6b0210f6797b15ffccc0f193f939f818335dc9`.
+The HTTP file matches the tested artifact, and the live code suite passes all
+sixteen Wasm examples, including the corrected physical-face count. Machine
+receipt: `coin-prerequisite/release.json` under the review evidence directory.

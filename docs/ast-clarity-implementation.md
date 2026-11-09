@@ -617,3 +617,12 @@ must use the corrected source as its fresh baseline and distinguish historical
 source deltas from structural schema upgrades. Mode and keyword work are
 complete; the broader AST goal and the 29 confirmed reference defects remain
 open. No upstream update was pulled into the fork.
+
+Stage-16 publication: `a620cf8` is pushed to fork main and deployed as
+`20261109-a620cf8`. The HTTP artifact matches the tested file and the live code
+suite passes sixteen examples. Upstream report:
+[i5jb/mtgish#238](https://github.com/i5jb/mtgish/issues/238). Full receipts and
+source/native comparison evidence are in `coin-prerequisite/` under the review
+evidence directory. Schema and Wasm bytes remain identical to stage 15; only
+the catalog's corrected card changes. The original 29 confirmed defects remain
+queued after the broader AST/editor work.
