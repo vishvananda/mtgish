@@ -4,6 +4,7 @@
 use crate::ir::*;
 use std::collections::{BTreeMap, BTreeSet};
 
+mod arrival;
 mod bounds;
 mod copying;
 
@@ -2759,7 +2760,8 @@ impl<'a> Scope<'a> {
 
             Operation::Meld { objects, entry, .. } => {
                 self.objects(objects)?;
-                self.entry(entry)
+                self.entry(entry)?;
+                arrival::battlefield(entry)
             }
             Operation::PutStickers {
                 actor,
@@ -2871,11 +2873,13 @@ impl<'a> Scope<'a> {
                 self.object(object)?;
                 when.iter().try_for_each(|f| self.filter(f))?;
                 self.destination(destination)?;
-                self.entry(entry)
+                self.entry(entry)?;
+                arrival::destination(entry, destination)
             }
             Operation::Populate { actor, entry } => {
                 self.players(actor)?;
-                self.entry(entry)
+                self.entry(entry)?;
+                arrival::battlefield(entry)
             }
             Operation::ReduceSpeed {
                 player,
@@ -2994,7 +2998,8 @@ impl<'a> Scope<'a> {
                 self.players(actor)?;
                 self.filter(cards)?;
                 self.destination(destination)?;
-                self.entry(entry)
+                self.entry(entry)?;
+                arrival::destination(entry, destination)
             }
             Operation::PayAnyAmount { actor, .. } => self.players(actor),
             Operation::RevealFromHand {
@@ -3263,6 +3268,7 @@ impl<'a> Scope<'a> {
             Operation::Manifest { actor, source, entry, .. } => {
                 self.players(actor)?;
                 self.entry(entry)?;
+                arrival::battlefield(entry)?;
                 match source {
                     ManifestSource::TopOfLibrary { player, count } => {
                         self.player(player)?;
@@ -3345,7 +3351,7 @@ impl<'a> Scope<'a> {
                 owner,
                 spot,
                 entry,
-                ..
+                zone,
             } => {
                 self.players(actor)?;
                 self.expr(count)?;
@@ -3358,7 +3364,8 @@ impl<'a> Scope<'a> {
                 if let Some(ConjureSpot::AmongTop(n) | ConjureSpot::FromTop(n)) = spot {
                     self.expr(n)?;
                 }
-                self.entry(entry)
+                self.entry(entry)?;
+                arrival::conjure(entry, zone, spot)
             }
             Operation::ChangeSpell { subject, changes } => {
                 match subject {
@@ -3594,19 +3601,11 @@ impl<'a> Scope<'a> {
                         );
                     }
                 }
-                if entry.tapped
-                    && !matches!(
-                        destination,
-                        Destination::Battlefield(_) | Destination::OwnersBattlefield
-                    )
-                {
-                    return Err("tapped arrival requires a battlefield destination".into());
-                }
                 if *face_down && !matches!(destination, Destination::Exile) {
                     return Err("face-down movement currently requires exile".into());
                 }
                 self.entry(entry)?;
-                Ok(())
+                arrival::movement(entry, destination)
             }
             Operation::ModifyEvent { change } => {
                 if !self.replacement {
@@ -3835,6 +3834,7 @@ impl<'a> Scope<'a> {
                     }
                 }
                 self.entry(entry)?;
+                arrival::battlefield(entry)?;
                 Ok(())
             }
             Operation::SeparatePiles {
@@ -4023,6 +4023,7 @@ impl<'a> Scope<'a> {
             {
                 self.destination(destination)?;
                 self.entry(entry)?;
+                arrival::destination(entry, destination)?;
             }
         }
         Ok(())
