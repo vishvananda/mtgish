@@ -638,3 +638,8 @@ corrected schema-184 coin records and named documents are captured before the
 next structural migration. The remaining broader AST work and the 29 confirmed
 reference defects remain open; this Rust-only correction needs no upstream
 reference grammar report.
+
+Stage-17 publication: `8094fd0` is pushed to fork main and deployed as
+`20261109-8094fd0`. HTTP serves the exact tested artifact; the live code suite
+passes seventeen examples and ten malformed inputs. Full release evidence is
+`mana-clash/release.json`. The whole AST/editor objective remains active.

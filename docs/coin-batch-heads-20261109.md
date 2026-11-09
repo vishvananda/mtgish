@@ -46,3 +46,10 @@ report. It is separate from the 29 confirmed reference defects queued after
 completion of the broader AST/editor work. Typed coin protocols/repetition,
 destination-specific serialization, consistent Rust roles/counter sources and
 typed layouts remain open. No upstream changes were pulled.
+
+Publication: `8094fd0` is pushed to fork main. Release `20261109-8094fd0`
+is live at `/blocks`, SHA-256
+`9c18a18d81b282940d298935e8b855d1e3e9432fde70b48e8634c1ccabd09f36`.
+HTTP returns the exact tested artifact, and the live card-code suite passes
+seventeen examples and ten malformed-input checks. Machine receipt:
+`mana-clash/release.json` in the evidence directory.
