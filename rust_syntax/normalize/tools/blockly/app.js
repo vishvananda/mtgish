@@ -299,7 +299,7 @@
     if(Array.isArray(v))return v.length===0;
     return !!v && typeof v==='object' && Object.values(v).every(isMetadataEmpty);
   }
-  const defaultStructures=new Set(['Announcement','TriggerLimits','ActivationLimits','EntrySpec','MovementTerms']);
+  const defaultStructures=new Set(['Announcement','TriggerLimits','ActivationLimits','EntrySpec','MovementTerms','ModeCount','ModeRules','ModeMechanism']);
   function hiddenReason(b,p) {
     if(b.state.shown?.includes(p.key))return false;
     if(p.key==='RESULT'||(b.state.ty.named==='Instruction'&&b.state.variant==='Effect'&&p.key==='F_result'))return true;
@@ -592,6 +592,7 @@
     return {kind:'Effect',args:{result:4294967295,operation:packEnum(types.Operation,v,args)}};
   }
   const keywordFamilies=['KeywordAction','ObjectKeywordAction'];
+  const modeFamilies=['ModeMechanism','ModeRepetition','ModeAvailability','ModeTargetPolicy','ModeAcceptance'];
   const keywordMeta=(type,v)=>(type==='KeywordAction'?authoring.keyword_actions:authoring.object_keyword_actions)[v.wire];
   function keywordValue(type,v) {
     return actionValue(type==='KeywordAction'?'Keyword':'KeywordEach',{action:packEnum(types[type],v,fieldsDefault(v.fields,[],`${type}::${v.wire}`))});
@@ -648,6 +649,13 @@
     ]},
     {kind:'category',name:'All actions',colour:'#b46b4f',contents:actionGroups()},
     {kind:'category',name:'Control',colour:'#9b7a42',contents:controlGroups()},
+    {kind:'category',name:'Choices & modes',colour:'#9b7a42',contents:[
+      {kind:'label',text:'Choose a mode when announcing the ability'},
+      flyoutBlock('Ability',{kind:'Spell',args:{announcement:{targets:[],modes:{...defaultValue({named:'ModeSelection'}),options:[{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null},{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null}]}},body:{instructions:[]}}}),
+      {kind:'label',text:'Selection method and additional rules'},
+      ...types.ModeMechanism.variants.map(v=>variantBlock('ModeMechanism',v.wire)),
+      ...['ModeRepetition','ModeAvailability','ModeTargetPolicy','ModeAcceptance'].flatMap(t=>types[t].variants.map(v=>variantBlock(t,v.wire)))
+    ]},
     {kind:'category',name:'Copies & tokens',colour:'#708f68',contents:[
       {kind:'label',text:'Create and copy'},
       ...['CreateTokens','CopyOnStack','CopyEach','CopyCards','Populate'].map(n=>flyoutBlock('Instruction',actionValue(n))),
@@ -681,8 +689,8 @@
     const q=$('block-search').value.trim().toLocaleLowerCase();
     if(!q){workspace.updateToolbox(toolboxDefinition);return;}
     const contents=[];
-    for(const type of ['Instruction','Operation','CopyException',...keywordFamilies])for(const v of types[type].variants.filter(v=>!excluded(v)&&(type!=='Instruction'||v.wire!=='Effect'))) {
-      const meta=keywordFamilies.includes(type)?keywordMeta(type,v):type==='CopyException'?{name:v.name,label:pretty(v.name),category:'Copies & tokens'}:(type==='Operation'?authoring.actions:authoring.instructions)[v.wire];
+    for(const type of ['Instruction','Operation','CopyException',...keywordFamilies,...modeFamilies])for(const v of types[type].variants.filter(v=>!excluded(v)&&(type!=='Instruction'||v.wire!=='Effect'))) {
+      const meta=modeFamilies.includes(type)?{name:v.name,label:pretty(v.name),category:'Choices & modes'}:keywordFamilies.includes(type)?keywordMeta(type,v):type==='CopyException'?{name:v.name,label:pretty(v.name),category:'Copies & tokens'}:(type==='Operation'?authoring.actions:authoring.instructions)[v.wire];
       if(!`${v.name} ${meta.name} ${meta.label} ${meta.category} ${v.doc}`.toLocaleLowerCase().includes(q))continue;
       try{contents.push(keywordFamilies.includes(type)?flyoutBlock('Instruction',keywordValue(type,v)):type==='Operation'?flyoutBlock('Instruction',actionValue(v.wire)):variantBlock(type,v.wire));}catch(_){}
     }

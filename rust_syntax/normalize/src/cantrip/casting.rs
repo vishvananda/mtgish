@@ -179,11 +179,11 @@ impl Compiler {
                     return Err(gap("entwine of a spell without modes"));
                 };
                 let (Expr::Constant(most), true) = (
-                    &paid_modes.maximum,
-                    format!("{:?}", paid_modes.modes)
+                    &paid_modes.count.maximum,
+                    format!("{:?}", paid_modes.options)
                         == format!(
                             "{:?}",
-                            unpaid_announced.modes.as_ref().map(|m| &m.modes).unwrap()
+                            unpaid_announced.modes.as_ref().map(|m| &m.options).unwrap()
                         ),
                 ) else {
                     return Err(gap("entwine that changes its modes"));

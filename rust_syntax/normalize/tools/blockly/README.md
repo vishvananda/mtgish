@@ -156,8 +156,8 @@ The browser demo limits documents to 2 MiB, IR nesting to 255 levels (card-code 
 lists to 2,048 elements. These interface limits do not change engine numeric
 types. Workspace presentation 6 saves carry a schema, model fingerprint and binding metadata. At the same IR schema,
 older layouts migrate through the typed codec with their original data backed
-up locally. Saved schema-179, schema-180, schema-181 and schema-182 workspaces and IR JSON upgrade explicitly through
-Rust to schema 183; the bundle includes the old descriptor tables for decoding
+up locally. Saved schema-179, schema-180, schema-181, schema-182 and schema-183 workspaces and IR JSON upgrade explicitly through
+Rust to schema 184; the bundle includes the old descriptor tables for decoding
 those blocks. The original workspace is backed up before conversion. A failed
 upgrade preserves the original draft and disables autosaving the fallback card
 until the user explicitly starts or imports another card. Unsupported schema
@@ -381,3 +381,13 @@ workspaces retain their names, scopes and binding keys through migration.
 ```sh
 npm run test:keywords -- /tmp/card-blocks.html
 ```
+
+Schema 184 gives modal abilities explicit bounds, options and typed rules. Use
+Choices & modes to start a modal ability or add a repetition, history, target
+sharing or acceptance rule. Announced selection supports a player chooser and
+random method together; implied modes follow their targets or requirements.
+The ordinary count, rules and mechanism stay hidden until expanded or changed.
+Native/Wasm migrations preserve schema-183 names and saved binding identities.
+`node rust_syntax/normalize/tools/blockly/test_modes.cjs` exercises count
+sockets, rule discovery, authentic named workspace import/startup and rejection
+without replacing the current draft.

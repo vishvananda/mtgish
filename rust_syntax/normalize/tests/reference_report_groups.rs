@@ -18,7 +18,7 @@ fn orcus_modes_and_their_target_constraints_keep_the_entry_cast_x() {
     assert_eq!(json.matches("CastX").count(), 5, "{json}");
     assert!(!json.contains("AnnouncedX"), "{json}");
     let Ability::Triggered { announcement, .. } = &card.abilities[2] else { panic!() };
-    let modes = &announcement.modes.as_ref().unwrap().modes;
+    let modes = &announcement.modes.as_ref().unwrap().options;
     assert!(matches!(modes[1].announcement.targets[0].count, Count::UpTo(Expr::CastX(ObjectRef::EventSubject))));
 }
 

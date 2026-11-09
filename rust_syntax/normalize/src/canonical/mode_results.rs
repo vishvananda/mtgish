@@ -38,11 +38,10 @@ fn modal(bodies: Vec<Vec<Value>>, common: Vec<Value>) -> Value {
         .collect();
     json!([{"kind":"Spell","args":{
         "announcement":{"targets":[],"modes":{
-            "minimum":{"kind":"Constant","args":1},
-            "maximum":{"kind":"Constant","args":1},
-            "repeat":false,"modes":modes,"implied":false,"unchosen":null,
-            "surcharge":null,"distinct_targets":false,"chooser":null,
-            "random":false,"budget":null,"may_decline":false}},
+            "count":{"minimum":{"kind":"Constant","args":1},"maximum":{"kind":"Constant","args":1}},
+            "options":modes,
+            "rules":{"repetition":"OnceEach","availability":"Any","surcharge":null,"targets":"MayShare","acceptance":"Required"},
+            "mechanism":{"Announced":{"chooser":"Controller","method":"PlayerChoice"}},"budget":null}},
         "body":{"instructions":common}}}])
 }
 
@@ -66,7 +65,7 @@ fn reused_and_fresh_unused_mode_labels_are_alpha_equivalent() {
     let reused = norm(modal(vec![vec![bind(17)], vec![bind(17)]], vec![]));
     let fresh = norm(modal(vec![vec![bind(23)], vec![bind(91)]], vec![]));
     assert_eq!(reused, fresh);
-    let modes = &reused[0]["args"]["announcement"]["modes"]["modes"];
+    let modes = &reused[0]["args"]["announcement"]["modes"]["options"];
     assert_eq!(
         modes[0]["body"]["instructions"][0]["args"]["result"],
         u32::MAX
@@ -184,7 +183,7 @@ fn mode_bearing_created_trigger_retains_genuine_outer_capture() {
 
 fn targeted_modal(slots: [u32; 2]) -> Value {
     let mut value = modal(vec![vec![], vec![]], vec![]);
-    for (mode, slot) in value[0]["args"]["announcement"]["modes"]["modes"]
+    for (mode, slot) in value[0]["args"]["announcement"]["modes"]["options"]
         .as_array_mut()
         .unwrap()
         .iter_mut()
@@ -216,12 +215,12 @@ fn independent_mode_target_slots_are_alpha_equivalent() {
 #[test]
 fn mode_target_definitions_cannot_supply_sibling_reads_or_hide_duplicates() {
     let mut leaking = targeted_modal([7, 7]);
-    leaking[0]["args"]["announcement"]["modes"]["modes"][1]["announcement"]["targets"] = json!([]);
+    leaking[0]["args"]["announcement"]["modes"]["options"][1]["announcement"]["targets"] = json!([]);
     assert!(valid(&leaking).is_err());
     canonical::abilities(&mut leaking).unwrap();
     assert!(valid(&leaking).is_err());
     let mut duplicate = targeted_modal([7, 7]);
-    duplicate[0]["args"]["announcement"]["modes"]["modes"][0]["announcement"]["targets"] =
+    duplicate[0]["args"]["announcement"]["modes"]["options"][0]["announcement"]["targets"] =
         json!([player_target(7), player_target(7)]);
     assert!(valid(&duplicate).is_err());
     canonical::abilities(&mut duplicate).unwrap();
@@ -231,7 +230,7 @@ fn mode_target_definitions_cannot_supply_sibling_reads_or_hide_duplicates() {
 fn mode_target_scopes_preserve_genuine_outer_targets() {
     let captured = |outer: u32, locals: [u32; 2]| {
         let mut nested = targeted_modal(locals);
-        for mode in nested[0]["args"]["announcement"]["modes"]["modes"]
+        for mode in nested[0]["args"]["announcement"]["modes"]["options"]
             .as_array_mut()
             .unwrap()
         {

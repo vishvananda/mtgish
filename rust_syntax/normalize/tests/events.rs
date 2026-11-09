@@ -261,7 +261,7 @@ fn modal_programs_inherit_event_bindings_and_event_values_do_not_leak_to_other_a
         panic!()
     };
     assert!(body.instructions.is_empty());
-    assert_eq!(announcement.modes.as_ref().unwrap().modes.len(), 2);
+    assert_eq!(announcement.modes.as_ref().unwrap().options.len(), 2);
 
     let source::OracleCard::Card {
         rules: Some(rules), ..

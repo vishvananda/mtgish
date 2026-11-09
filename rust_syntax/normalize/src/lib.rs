@@ -21,6 +21,7 @@ pub mod report;
 pub mod result_reads;
 mod source_values;
 pub mod keyword_actions;
+pub mod mode_policies;
 pub mod validate;
 
 mod subtype;

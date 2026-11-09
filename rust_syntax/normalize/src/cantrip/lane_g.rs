@@ -2486,9 +2486,9 @@ impl Compiler {
                     (&paid_announced.modes, &unpaid_announced.modes)
                 {
                     let (Expr::Constant(least), Expr::Constant(most), true) = (
-                        &paid_modes.minimum,
-                        &paid_modes.maximum,
-                        format!("{:?}", paid_modes.modes) == format!("{:?}", unpaid_modes.modes),
+                        &paid_modes.count.minimum,
+                        &paid_modes.count.maximum,
+                        format!("{:?}", paid_modes.options) == format!("{:?}", unpaid_modes.options),
                     ) else {
                         return Err(gap(format!("cost branch {keyword} that changes its modes")));
                     };

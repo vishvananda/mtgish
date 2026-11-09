@@ -3,6 +3,15 @@ use crate::{ir::*, ir_schema::Ty};
 use serde_json::{json, Value};
 pub fn type_value(name: &str) -> Option<Value> {
     Some(match name {
+        "ModeCount" => json!({"minimum":{"kind":"Constant","args":1},"maximum":{"kind":"Constant","args":1}}),
+        "ModeRules" => json!({"repetition":"OnceEach","availability":"Any","surcharge":null,"targets":"MayShare","acceptance":"Required"}),
+        "ModeMechanism" => json!({"Announced":{"chooser":"Controller","method":"PlayerChoice"}}),
+        "ModeChooser" => json!("Controller"),
+        "ModePicking" => json!("PlayerChoice"),
+        "ModeRepetition" => json!("OnceEach"),
+        "ModeAvailability" => json!("Any"),
+        "ModeTargetPolicy" => json!("MayShare"),
+        "ModeAcceptance" => json!("Required"),
         "Announcement" => json!({"targets":[],"modes":null}),
         "ActivationLimits" => serde_json::to_value(ActivationLimits::unrestricted()).unwrap(),
         "TriggerLimits" => json!({"per_turn":null,"total":null}),

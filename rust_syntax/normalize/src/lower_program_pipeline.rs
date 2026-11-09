@@ -516,7 +516,7 @@ impl Context {
                     B::Escalate(cost) => Some(self.proposal().cost(cost)?),
                     _ => None,
                 };
-                self.modes = Some(ModeSelection {
+                self.modes = Some(crate::mode_policies::LegacyModeSelection {
                     unchosen,
                     surcharge,
                     distinct_targets: matches!(
@@ -540,7 +540,7 @@ impl Context {
                     repeat,
                     modes,
                     implied: matches!(bounds, B::Implied | B::Either(_)),
-                });
+                }.current().map_err(|e| invalid(&e))?);
                 return Ok(Program::empty());
             }
         };

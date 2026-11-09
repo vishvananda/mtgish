@@ -243,7 +243,7 @@ pub(super) fn remembered(rust: String) -> String {
 /// "Choose one. If this spell was kicked, choose any number instead.": the same
 /// modes, and how many of them if it is kicked.
 pub(super) fn kicked_choice(paid: &Announcement, unpaid: &Announcement) -> Option<(u8, u8)> {
-    let (paid, unpaid) = (paid.modes.as_ref()?, unpaid.modes.as_ref()?);
+    let (paid, unpaid) = (crate::mode_policies::parts(paid.modes.as_ref()?), crate::mode_policies::parts(unpaid.modes.as_ref()?));
     let (Expr::Constant(min), Expr::Constant(max)) = (&paid.minimum, &paid.maximum) else {
         return None;
     };
@@ -3048,10 +3048,11 @@ fn snake(word: &str) -> String {
 /// "Target permanent or suspended card" in a "choose one": a choice of target
 /// inside a mode is that many modes among those of the card (CR 700.2).
 pub(super) fn flat_modes(selection: &ModeSelection) -> Option<Vec<Mode>> {
+    let selection=crate::mode_policies::parts(selection);
     let one = |n: &Expr| matches!(n, Expr::Constant(1));
     let inner = |mode: &Mode| match &mode.announcement.modes {
-        Some(inner) if one(&inner.minimum) && one(&inner.maximum) && !inner.random => {
-            Some(inner.modes.clone())
+        Some(inner) if one(&inner.count.minimum) && one(&inner.count.maximum) && !crate::mode_policies::parts(inner).random => {
+            Some(inner.options.clone())
         }
         _ => None,
     };
@@ -3062,7 +3063,7 @@ pub(super) fn flat_modes(selection: &ModeSelection) -> Option<Vec<Mode>> {
         return None;
     }
     let mut flat = Vec::new();
-    for mode in &selection.modes {
+    for mode in selection.modes {
         match inner(mode) {
             // Each inner mode is available only while the outer one would be
             // ("if you discarded a card this turn, you choose one instead").

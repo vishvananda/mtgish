@@ -2020,7 +2020,7 @@ impl Compiler {
             }
         }
         let mut read = format!("{:?}", announcement.targets);
-        for mode in announcement.modes.iter().flat_map(|modes| &modes.modes) {
+        for mode in announcement.modes.iter().flat_map(|modes| &modes.options) {
             write!(read, "{:?}", mode.announcement.targets).unwrap();
         }
         self.recipient_subject =

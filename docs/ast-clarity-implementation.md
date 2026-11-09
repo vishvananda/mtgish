@@ -544,3 +544,56 @@ Release receipt: `keyword183-release.json`; live logs:
 When schema 183 becomes a historical input in the next migration, gate keyword
 payload conversion to epochs through 182, just as entry conversion is gated to
 181; do not replay a payload migration on its already typed representation.
+
+Stage 15 is implemented and verified: schema 184 groups mode bounds, options, rules,
+selection mechanism and optional weight budget. Repetition, historical
+availability, surcharge, target sharing and acceptance use typed policies.
+Announced selection retains both an explicit chooser and a random/player
+method; implied modes have no announced chooser. All valid independent rules
+can coexist. Absent and explicit controller choosers, absent and free surcharge,
+and separate minimum/maximum expressions retain their distinct representations.
+The source/historical flag adapter lives outside semantic IR.
+
+The grouping preserves scope-bearing traversal order: bounds, option scopes,
+historical availability and surcharge, chooser, then budget. This avoids
+special reader traversal or scope metadata rewrites. Captures made with the
+schema-183 binary cover 178 source records and 182 detailed shapes, their named
+documents, and three synthetic combinations with nested cost/chooser scopes and
+creator captures. Real schema-183 workspaces capture Season of Gathering's
+budget and Shadrix Silverquill's optional distinct-target choice. Migration
+tracks explicit subtree origins. Keyword payload conversion is now gated to
+historical versions through 182, so already typed schema-183 keywords survive.
+The validator additionally checks LastCombat's player reference.
+
+The editor has a Choices & modes category with a modal ability starter and
+specific rule blocks. Ordinary count/rules/mechanism defaults stay out of the
+compact view. This stage does not complete coin policies, serialized movement
+states, role/counter names, known layout typing or final integration. The coin
+prerequisite notes are in `coin-policy-prerequisite.md` under the review evidence
+directory. The 29 confirmed reference defects remain queued after these updates;
+the checkpoint's seven unresolved investigations are separate.
+
+Stage-15 final validation passes 1,462 native tests with zero failures (15
+opt-in audits ignored in the normal run). All 33,529 inputs from each of
+179/180/181/182/183 migrate to exactly fresh lowering; mapped epochs 180–183
+have complete typed origins. Complete canonical maps pass for every record,
+and all 82,226 definitions rename and reparse without failure. All fourteen
+browser suites pass, including the full catalog's block roundtrips, ID-port
+comparisons and Wasm validation. The final independent rebuild has identical
+catalog, descriptors, Wasm, glue and HTML hashes to the tested artifact.
+Evidence uses `mode184-*` in `/mnt/vizier/ast-review-20261109/`.
+
+All 797 affected generated outputs compare identically after excluding only
+schema and generator fingerprint headers. A separate combined-rule regression
+fixes an early return after LastCombat history: additional distinct-target,
+chooser, random and budget policies now retain their capability diagnostics,
+rather than disappearing behind an apparently complete generated module. No
+engine feature or numeric-range change is introduced. Existing synthetics and
+assertions use the new field paths; authentic historical captures are unchanged.
+
+Checkpoint105 was reread and still has exactly 29 confirmed open reference
+defects, seven unresolved questions and one upstream-fixed/frontend-refused
+case. Those are not conflated. The remaining broader AST work and subsequent
+reference queue remain open. When schema 184 becomes an old input, gate mode
+payload conversion to epochs through 183 rather than applying its historical
+flag decoder to already typed ModeSelection records.

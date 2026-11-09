@@ -264,7 +264,7 @@ impl SlotRule {
 }
 
 /// "One that hasn't been chosen": the engine's history of `Event::ModesChosen`.
-pub(super) fn mode_history(unchosen: &Option<ModeHistory>) -> String {
+pub(super) fn mode_history(unchosen: &Option<&ModeHistory>) -> String {
     match unchosen {
         Some(ModeHistory::ThisTurn) => format!(".allowed({M}::history::mode_not_chosen_this_turn)"),
         Some(ModeHistory::ThisGame) => format!(".allowed({M}::history::mode_not_chosen_before)"),
@@ -892,10 +892,12 @@ impl Compiler {
     }
     /// What `ModalDef` has no word for yet.
     pub(super) fn modes_to_come(&mut self, selection: &ModeSelection, modal: String) -> Result<String> {
+        let mut modal=modal;
         let mut planned: Vec<(&str, String)> = Vec::new();
         // Modes each open only under a requirement are told apart by it
         // (`ModalDef::allowed`), not by a target.
         let flat = lane_p::flat_modes(selection);
+        let selection=crate::mode_policies::parts(selection);
         let told_by_requirements =
             flat.as_ref().unwrap_or(&selection.modes).iter().all(|mode| mode.requires.is_some());
         if selection.implied && !told_by_requirements {
@@ -908,9 +910,9 @@ impl Compiler {
         // the steps are combat's, a later combat of the turn being another.
         if let Some(ModeHistory::LastCombat(player)) = &selection.unchosen {
             let player = self.certain_player(player)?;
-            return Ok(format!(
+            modal = format!(
                 "{modal}.allowed(|q: &dyn Query, asker: &Asker, mode: u8| {{ let you = {player}; let records = q.history().all(); let combat = |r: &Record| matches!(r.step, Step::BeginCombat | Step::DeclareAttackers | Step::DeclareBlockers | Step::CombatDamage | Step::EndOfCombat); let began = |r: &Record| matches!(r.event, Event::StepBegan {{ step: Step::BeginCombat }}); let starts: Vec<usize> = records.iter().enumerate().filter(|(_, r)| r.active == you && began(r)).map(|(at, _)| at).collect(); let at = starts.len().saturating_sub(2); starts.get(at).filter(|_| starts.len() >= 2).map_or(true, |&start| !records[start + 1..].iter().take_while(|r| combat(r) && !began(r)).any(|r| matches!(r.event, Event::ModesChosen {{ source, modes, .. }} if source == asker.source && modes & (1 << mode) != 0))) }})"
-            ));
+            );
         }
         if selection.distinct_targets {
             planned.push((

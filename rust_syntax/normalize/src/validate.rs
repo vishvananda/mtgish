@@ -4508,6 +4508,8 @@ impl<'a> Scope<'a> {
             proposal.slots.insert(target.slot.0, target);
         }
         if let Some(selection) = &announcement.modes {
+            let selection=crate::mode_policies::parts(selection);
+            if let Some(ModeHistory::LastCombat(player))=selection.unchosen {proposal.player(player)?;}
             proposal.expr(&selection.minimum)?;
             proposal.expr(&selection.maximum)?;
             if let Some(cost) = &selection.surcharge {

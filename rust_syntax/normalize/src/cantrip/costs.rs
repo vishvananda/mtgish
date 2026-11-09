@@ -609,7 +609,7 @@ impl Compiler {
         if !announcement.targets.is_empty() {
             return Err(gap("targets announced for every mode"));
         }
-        let ModeSelection {
+        let crate::mode_policies::Parts {
             minimum,
             maximum,
             repeat,
@@ -618,7 +618,7 @@ impl Compiler {
             surcharge,
             may_decline,
             ..
-        } = selection;
+        } = crate::mode_policies::parts(selection);
         let bound = |n: &Expr| match n {
             Expr::Constant(n) => u8::try_from(*n).ok(),
             _ => None,
@@ -715,7 +715,7 @@ impl Compiler {
             _ if counted => format!("{listed}.up_to_that_many()"),
             _ => self.mode_count_to_come(&listed, minimum, most)?,
         };
-        if *may_decline {
+        if may_decline {
             modal = planned::planned_value(
                 "modes that may all be declined",
                 &modal,
@@ -730,10 +730,10 @@ impl Compiler {
             let test = test?;
             modal.push_str(&format!(".up_to_if({test}, {most})"));
         }
-        if *repeat {
+        if repeat {
             modal.push_str(".repeat()");
         }
-        modal.push_str(&lane_l::mode_history(unchosen));
+        modal.push_str(&lane_l::mode_history(&unchosen));
         if !opens.is_empty() {
             if unchosen.is_some() {
                 return Err(gap("mode with a requirement"));

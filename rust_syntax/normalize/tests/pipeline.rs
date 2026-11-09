@@ -1345,20 +1345,20 @@ fn program_modes_preserve_announcement_targets_and_reset_result_and_reference_sc
     assert!(announcement.targets.is_empty());
     let modes = announcement.modes.as_ref().unwrap();
     assert!(matches!(
-        (&modes.minimum, &modes.maximum, modes.repeat),
+        (&modes.count.minimum, &modes.count.maximum, modes.rules.repetition==ModeRepetition::MayRepeat),
         (&Expr::Constant(1), &Expr::Constant(2), false)
     ));
-    assert_eq!(modes.modes[0].announcement.targets[0].slot.0, 0);
-    assert_eq!(modes.modes[1].announcement.targets[0].slot.0, 0);
+    assert_eq!(modes.options[0].announcement.targets[0].slot.0, 0);
+    assert_eq!(modes.options[1].announcement.targets[0].slot.0, 0);
     assert!(matches!(
-        &modes.modes[0].body.instructions[0],
+        &modes.options[0].body.instructions[0],
         Instruction::Effect {
             result: ResultId(0),
             ..
         }
     ));
     assert!(matches!(
-        &modes.modes[1].body.instructions[0],
+        &modes.options[1].body.instructions[0],
         Instruction::Effect {
             result: ResultId(0),
             ..
@@ -1973,7 +1973,7 @@ fn entwine_branches_between_one_mode_and_both() {
             panic!()
         };
         let selection = announcement.modes.as_ref().unwrap();
-        matches!(selection.minimum, Expr::Constant(n) if n == selection.modes.len() as i64)
+        matches!(selection.count.minimum, Expr::Constant(n) if n == selection.options.len() as i64)
     };
     assert!(modes(paid));
     assert!(!modes(unpaid));
@@ -2049,9 +2049,9 @@ fn a_target_that_decides_its_mode_announces_no_mode_and_a_shuffle_is_one_destina
         panic!()
     };
     let modes = announcement.modes.as_ref().unwrap();
-    assert!(modes.implied);
-    assert_eq!(modes.modes.len(), 2);
-    let text = serde_json::to_string(&modes.modes).unwrap();
+    assert!(matches!(modes.mechanism,ModeMechanism::Implied));
+    assert_eq!(modes.options.len(), 2);
+    let text = serde_json::to_string(&modes.options).unwrap();
     assert!(text.contains("OwnersHand"), "{text}");
     assert!(text.contains("OwnersLibraryShuffled"), "{text}");
 }
@@ -2515,7 +2515,7 @@ fn a_chosen_permanent_is_read_from_its_choice() {
 #[test]
 fn modes_can_require_different_targets() {
     let text = ability_json("SpellActions(Modal_ChooseOneOrMore_DifferentTargets([ActionList([DrawACard]),ActionList([GainLife(Integer(2))])]))");
-    assert!(text.contains("\"distinct_targets\":true"), "{text}");
+    assert!(text.contains("\"targets\":\"Distinct\""), "{text}");
 }
 
 #[test]
@@ -2731,11 +2731,11 @@ fn the_extra_turn_created_is_where_the_delayed_trigger_starts() {
 #[test]
 fn modal_options_are_data_on_one_selection() {
     let random = ability_json("SpellActions(Modal_ChooseOneAtRandom([ActionList([DrawACard]),ActionList([GainLife(Integer(1))])]))");
-    assert!(random.contains("\"random\":true"), "{random}");
+    assert!(random.contains("\"method\":\"Random\""), "{random}");
     let chooser = ability_json("SpellActions(Modal_APlayerChoosesOne(Opponent,[ActionList([DrawACard]),ActionList([GainLife(Integer(1))])]))");
     assert!(chooser.contains("\"chooser\":{"), "{chooser}");
     let paired = ability_json("SpellActions(Modal_IfElse(PlayerPassesFilter(You,ControlsA(IsCreatureType(Faerie))),ActionList([DrawACard]),ActionList([GainLife(Integer(1))])))");
-    assert!(paired.contains("\"implied\":true"), "{paired}");
+    assert!(paired.contains("\"mechanism\":\"Implied\""), "{paired}");
     assert!(paired.contains("\"Not\""), "{paired}");
 }
 

@@ -21,7 +21,7 @@ pub struct MappedMigration {
 pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
     let value = crate::json_input::value(input)?;
     match value["schema_version"].as_u64() {
-        Some(180 | 181 | 182) => upgrade(value, true),
+        Some(180 | 181 | 182 | 183) => upgrade(value, true),
         Some(v) if v == u64::from(SCHEMA_VERSION) => {
             let card = super::checked(value.clone())?;
             let sites = binding_map::sites(
@@ -38,14 +38,14 @@ pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
                 },
             })
         }
-        _ => Err("mapped migration requires schema 180, 181, 182 or the current epoch".into()),
+        _ => Err("mapped migration requires schema 180, 181, 182, 183 or the current epoch".into()),
     }
 }
 pub(super) fn upgrade(mut value: Value, track: bool) -> Result<MappedMigration, String> {
     let version = value["schema_version"]
         .as_u64()
         .ok_or("legacy IR requires a schema version")? as u32;
-    if !matches!(version, 179 | 180 | 181 | 182)
+    if !matches!(version, 179 | 180 | 181 | 182 | 183)
         || value["faces"]
             .as_array()
             .ok_or("legacy IR requires faces")?
@@ -141,6 +141,8 @@ impl Walker<'_> {
                         if matches!(name.as_str(), "Card" | "UnifiedCard") {
                             value["schema_version"] = json!(SCHEMA_VERSION);
                         }
+                        let regions=super::mode_payloads::structure(name,value,path)?;
+                        self.regions(regions);
                         if self.version == 179 && name == "EntrySpec" {
                             value["controller"] = Value::Null;
                         }
@@ -203,8 +205,10 @@ impl Walker<'_> {
                             let regions = super::entry_payloads::variant(&owner, value, path)?;
                             self.regions(regions);
                         }
-                        let regions = super::keyword_payloads::variant(&owner,value,path)?;
-                        self.regions(regions);
+                        if self.version<=182 {
+                            let regions = super::keyword_payloads::variant(&owner,value,path)?;
+                            self.regions(regions);
+                        }
                     }
                 }
             }

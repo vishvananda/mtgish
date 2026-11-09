@@ -6232,7 +6232,7 @@ impl Effects {
         }
         let mut targets = !announcement.targets.is_empty();
         if let Some(modes) = &announcement.modes {
-            for mode in &modes.modes {
+            for mode in &modes.options {
                 targets |= self.announcement(&mode.announcement);
                 self.program(&mode.body);
             }

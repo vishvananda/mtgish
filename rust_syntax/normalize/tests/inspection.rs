@@ -86,7 +86,7 @@ fn operations(c: &Card) -> Vec<&Operation> {
             } => {
                 program(body, out);
                 if let Some(m) = &announcement.modes {
-                    for m in &m.modes {
+                    for m in &m.options {
                         program(&m.body, out);
                     }
                 }

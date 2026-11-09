@@ -172,7 +172,7 @@ fn bounded_counts_reject_negative_or_reversed_literals() {
 #[test]
 fn mode_bounds_share_the_same_literal_checks() {
     let code = |minimum: &str, maximum: &str| {
-        format!("Card{{name:\"Modes\",properties:{{card_types:[Instant]}},abilities:[Spell{{modes:{{minimum:{minimum},maximum:{maximum},repeat:true,implied:false,distinct_targets:false,random:false,may_decline:false,modes:[{{weight:1,do:[DrawCards{{players:You,amount:1}}]}}]}},do:[]}}]}}")
+        format!("Card{{name:\"Modes\",properties:{{card_types:[Instant]}},abilities:[Spell{{modes:{{count:{{minimum:{minimum},maximum:{maximum}}},rules:{{repetition:MayRepeat}},options:[{{weight:1,do:[DrawCards{{players:You,amount:1}}]}}]}},do:[]}}]}}")
     };
     for (minimum, maximum) in [("-1", "AnnouncedX"), ("AnnouncedX", "-1"), ("3", "1")] {
         assert!(human::read(&code(minimum, maximum)).is_err());

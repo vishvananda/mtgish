@@ -73,9 +73,9 @@ fn mirrorform_keeps_only_the_non_aura_target_restriction() {
 fn time_counter_modes_keep_the_counter_requirement_and_suspended_card_domain() {
     for (name, ability) in [("Shivan Sand-Mage", 0), ("Timebender", 1)] {
         let card = serde_json::to_value(fixtures::card(name)).unwrap();
-        let modes = &card["abilities"][ability]["args"]["announcement"]["modes"]["modes"];
+        let modes = &card["abilities"][ability]["args"]["announcement"]["modes"]["options"];
         let permanent =
-            |mode| &modes[mode]["announcement"]["modes"]["modes"][0]["announcement"]["targets"][0];
+            |mode| &modes[mode]["announcement"]["modes"]["options"][0]["announcement"]["targets"][0];
         assert_eq!(permanent(0)["filter"], json!({"kind":"Any"}));
         assert_eq!(
             permanent(1)["filter"],
@@ -87,7 +87,7 @@ fn time_counter_modes_keep_the_counter_requirement_and_suspended_card_domain() {
         );
         for mode in 0..2 {
             let suspended =
-                &modes[mode]["announcement"]["modes"]["modes"][1]["announcement"]["targets"][0];
+                &modes[mode]["announcement"]["modes"]["options"][1]["announcement"]["targets"][0];
             assert_eq!(
                 suspended["kind"],
                 json!({"Object":{"kind":"Card","zones":["Exile"]}})
@@ -168,9 +168,9 @@ fn raw_counter_and_targeting_events_keep_their_previous_type_domain() {
 #[test]
 fn timecrafting_requires_a_time_counter_only_for_its_put_permanent_target() {
     let card = serde_json::to_value(fixtures::card("Timecrafting")).unwrap();
-    let modes = &card["abilities"][0]["args"]["announcement"]["modes"]["modes"];
+    let modes = &card["abilities"][0]["args"]["announcement"]["modes"]["options"];
     let permanent =
-        |mode| &modes[mode]["announcement"]["modes"]["modes"][0]["announcement"]["targets"][0];
+        |mode| &modes[mode]["announcement"]["modes"]["options"][0]["announcement"]["targets"][0];
     assert_eq!(permanent(0)["filter"], json!({"kind":"Any"}));
     assert_eq!(
         permanent(1)["filter"],
@@ -180,7 +180,7 @@ fn timecrafting_requires_a_time_counter_only_for_its_put_permanent_target() {
         }})
     );
     for mode in 0..2 {
-        let alternatives = &modes[mode]["announcement"]["modes"]["modes"];
+        let alternatives = &modes[mode]["announcement"]["modes"]["options"];
         assert_eq!(alternatives.as_array().unwrap().len(), 2);
         let suspended = &alternatives[1]["announcement"]["targets"][0];
         assert_eq!(

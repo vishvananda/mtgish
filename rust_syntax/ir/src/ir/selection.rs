@@ -9,29 +9,58 @@ pub struct Announcement {
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct ModeSelection {
-    pub minimum: Expr,
-    pub maximum: Expr,
-    pub repeat: bool,
-    pub modes: Vec<Mode>,
-    /// The target chosen, or a mode's `requires`, decides the mode, as in
-    /// "target spell or permanent", so no mode is announced even though each
-    /// has its own target (601.2c).
-    pub implied: bool,
-    /// Only modes not yet chosen for this ability are available.
-    pub unchosen: Option<ModeHistory>,
-    /// Paid once for each mode chosen beyond the first, as for escalate (702.120).
-    pub surcharge: Option<Cost>,
-    /// No two chosen modes may share a target.
-    pub distinct_targets: bool,
-    /// One of these players chooses instead of the controller.
-    pub chooser: Option<PlayerSet>,
-    /// The game picks uniformly, not a player.
-    pub random: bool,
+    pub count: ModeCount,
+    pub options: Vec<Mode>,
+    pub rules: ModeRules,
+    pub mechanism: ModeMechanism,
     /// Chosen modes' weights may total at most this, as pawprints.
     pub budget: Option<Expr>,
-    /// Either the stated number of modes or none: "you may choose two".
-    pub may_decline: bool,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ModeCount {
+    pub minimum: Expr,
+    pub maximum: Expr,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ModeRules {
+    pub repetition: ModeRepetition,
+    pub availability: ModeAvailability,
+    /// Paid once per mode beyond the first, as for escalate (702.120).
+    pub surcharge: Option<Cost>,
+    pub targets: ModeTargetPolicy,
+    /// Either the stated number of modes or none: "you may choose two".
+    pub acceptance: ModeAcceptance,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ModeMechanism {
+    Announced { chooser: ModeChooser, method: ModePicking },
+    /// Targets or a mode's requirement determine which mode applies (601.2c).
+    Implied,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ModeChooser {
+    Controller,
+    OneOf(PlayerSet),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ModePicking { PlayerChoice, Random }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ModeRepetition { OnceEach, MayRepeat }
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ModeAvailability { Any, Unchosen(ModeHistory) }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ModeTargetPolicy { MayShare, Distinct }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ModeAcceptance { Required, MayDecline }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ModeHistory {

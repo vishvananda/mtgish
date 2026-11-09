@@ -345,12 +345,12 @@ impl Inventory<'_> {
             }
         }
         if let Some(m) = &a.modes {
-            self.expr(&m.minimum);
-            self.expr(&m.maximum);
-            if let Some(cost) = &m.surcharge {
+            self.expr(&m.count.minimum);
+            self.expr(&m.count.maximum);
+            if let Some(cost) = &m.rules.surcharge {
                 self.cost(cost);
             }
-            for mode in &m.modes {
+            for mode in &m.options {
                 self.announcement(&mode.announcement);
                 self.program(&mode.body);
             }

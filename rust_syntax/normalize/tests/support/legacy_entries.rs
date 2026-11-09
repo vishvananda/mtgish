@@ -1,6 +1,6 @@
 //! Explicit entry/copy/characteristic upgrades for immutable historical captures.
 #![allow(dead_code)]
-use mtgish_ast::{copying, ir::*, movement,keyword_actions};
+use mtgish_ast::{copying, ir::*, movement,keyword_actions,mode_policies};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -72,6 +72,10 @@ pub fn json(value: &mut Value) {
         Value::Array(items) => items.iter_mut().for_each(json),
         _ => (),
     }
+    if value.get("minimum").is_some() && value.get("modes").is_some() {
+        let old:mode_policies::LegacyModeSelection=serde_json::from_value(value.clone()).unwrap();
+        *value=serde_json::to_value(old.current().unwrap()).unwrap();
+    }
     if value
         .get("kind")
         .and_then(Value::as_str)
@@ -134,6 +138,7 @@ enum Upgrade {
     Entry,
     Copy(bool),
     Shape,
+    Modes,
     Keyword(bool),
 }
 
@@ -195,13 +200,19 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
                 i += input[i..].chars().next().unwrap().len_utf8();
                 continue;
             }
-            let field = ["entry:", "effects:", "adjustments:", "power_toughness:", "actor:"]
+            let field = ["entry:", "effects:", "adjustments:", "power_toughness:", "actor:", "minimum:"]
                 .into_iter()
                 .find(|f| input[i..].starts_with(f));
             if let Some(field) = field {
                 let value_start = i + field.len();
                 let context = stack.iter().rev().find_map(|&open| owner(&input, open));
                 let upgrade = match (field, context) {
+                    ("minimum:",_) if stack.last().is_some_and(|&open| {
+                        input[open+1..].trim_start().starts_with("minimum:") && {
+                            let mut de=ron::de::Deserializer::from_str(&input[open..]).unwrap();
+                            mode_policies::LegacyModeSelection::deserialize(&mut de).is_ok()
+                        }
+                    }) => Some(Upgrade::Modes),
                     ("actor:",Some("Keyword"|"KeywordEach")) if stack.last().is_some_and(|&open| {
                         if !has_legacy_keyword_field(&input[open..],context==Some("KeywordEach")) {return false;}
                         let mut de=ron::de::Deserializer::from_str(&input[open..]).unwrap();
@@ -231,7 +242,7 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
                     _ => None,
                 };
                 if let Some(upgrade) = upgrade {
-                    let (start, value_start) = if matches!(upgrade, Upgrade::Shape|Upgrade::Keyword(_)) {
+                    let (start, value_start) = if matches!(upgrade, Upgrade::Shape|Upgrade::Keyword(_)|Upgrade::Modes) {
                         let open = *stack.last().unwrap();
                         (open, open)
                     } else {
@@ -260,6 +271,7 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
         let tail = &input[value_start..];
         let mut de = ron::de::Deserializer::from_str(tail).unwrap();
         let (name, replacement) = match upgrade {
+            Upgrade::Modes => ("",ron::to_string(&mode_policies::LegacyModeSelection::deserialize(&mut de).unwrap().current().unwrap()).unwrap()),
             Upgrade::Keyword(each) => ("",if each {ron::to_string(&OldEach::deserialize(&mut de).unwrap().current()).unwrap()}else{ron::to_string(&OldKeyword::deserialize(&mut de).unwrap().current()).unwrap()}),
             Upgrade::Shape => (
                 "",

@@ -23,7 +23,7 @@ pub(super) enum SlotCounts {
 /// The modes of `announcement`, if each is what a kind of target implies and the
 /// ability is one target slot and what that target turns out to be.
 fn implied_modes(announcement: &Announcement) -> Option<&[Mode]> {
-    let selection = announcement.modes.as_ref()?;
+    let selection = crate::mode_policies::parts(announcement.modes.as_ref()?);
     let one = |n: &Expr| matches!(n, Expr::Constant(1));
     let plain = selection.implied
         && announcement.targets.is_empty()
@@ -44,7 +44,7 @@ fn implied_modes(announcement: &Announcement) -> Option<&[Mode]> {
 /// that a condition and its negation tell apart, read as the spell is cast. The
 /// condition, the two modes in its order, if it is that.
 pub(super) fn modes_told_as_cast(announcement: &Announcement) -> Option<(&Condition, &Mode, &Mode)> {
-    let selection = announcement.modes.as_ref()?;
+    let selection = crate::mode_policies::parts(announcement.modes.as_ref()?);
     let one = |n: &Expr| matches!(n, Expr::Constant(1));
     let plain = selection.implied
         && announcement.targets.is_empty()

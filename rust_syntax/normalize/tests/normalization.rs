@@ -109,7 +109,7 @@ fn normalization_subversive_acolyte_separates_type_change_from_pump() {
     };
     assert!(limits.once);
     let modes = announcement.modes.as_ref().unwrap();
-    let body = &modes.modes[0].body;
+    let body = &modes.options[0].body;
     assert_eq!(body.instructions.len(), 2);
     let Instruction::Effect {
         operation: Operation::CreateContinuousEffect { changes, .. },
