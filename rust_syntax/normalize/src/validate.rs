@@ -742,22 +742,29 @@ impl<'a> Scope<'a> {
             | EntryState::NotedCounters
             | EntryState::ExilePile { .. } => Ok(()),
             EntryState::FaceDownAs(shape) => self.face_down_shape(shape),
-            EntryState::FaceDownLand(land) => self.operand(land),
-            EntryState::May(flags) => flags.iter().try_for_each(|flag| self.operand(flag)),
-            EntryState::FaceDownWith { face_down, abilities, noted } => {
+            EntryState::FaceDownLand(_) => Ok(()),
+            EntryState::Optional { decider, entry } => {
+                self.player(decider)?;
+                self.entry(entry)
+            }
+            EntryState::FaceDownWith {
+                face_down,
+                abilities,
+                noted,
+            } => {
                 self.face_down_shape(face_down)?;
-                abilities.iter().try_for_each(|ability| self.operand(ability))?;
+                abilities.iter().try_for_each(validate_ability)?;
                 noted.iter().try_for_each(|card| self.object(card))
             }
             EntryState::Perpetual(changes) => {
                 changes.iter().try_for_each(|change| self.change(change))
             }
             EntryState::ExiledFor(until) => self.duration(until),
-            EntryState::RulesUntil { rules, until } => {
-                self.duration(until)?;
-                rules.iter().try_for_each(|rule| self.operand(rule))
-            }
-            EntryState::ExiledForWith { until, objects, body } => {
+            EntryState::ExiledForWith {
+                until,
+                objects,
+                body,
+            } => {
                 self.duration(until)?;
                 let mut returning = self.clone();
                 returning.replacement = false;
@@ -765,16 +772,16 @@ impl<'a> Scope<'a> {
                 returning.join_groups.clear();
                 returning.event = crate::semantics::event_bindings(&crate::semantics::entry_return_event());
                 returning.objects(objects)?;
-                let Operand::Program(program) = &**body else {
-                    return Err("return-entry trigger requires a program".into());
-                };
-                returning.program(program)
+                returning.program(body)
             }
             EntryState::Attacking { player, .. } => player.iter().try_for_each(|p| self.player(p)),
             EntryState::Blocking(object) | EntryState::AttachedTo(object) => self.object(object),
             EntryState::AttachedToChosen(filter) => self.filter(filter),
             EntryState::AttachedToPlayer(player) => self.player(player),
-            EntryState::Primitive { name, operands } => self.primitive(name, operands),
+            EntryState::Draft { name, operands } => {
+                operands.iter().try_for_each(|o| self.operand(o))?;
+                Err(format!("unresolved entry flag {name}"))
+            }
             EntryState::Changes(changes) => self.entering_changes(changes),
             EntryState::ChooseChanges(options) => options
                 .iter()
@@ -791,8 +798,8 @@ impl<'a> Scope<'a> {
     }
 
     fn face_down_shape(&self, shape: &FaceDownAs) -> Result {
-        self.operand(&shape.power_toughness)?;
-        shape.creature_type.iter().try_for_each(|kind| self.operand(kind))
+        self.expr(&shape.power)?;
+        self.expr(&shape.toughness)
     }
 
     fn duration(&self, duration: &Duration) -> Result {
@@ -2646,6 +2653,9 @@ impl<'a> Scope<'a> {
         if crate::copying::requires_typed_payload(name) {
             return Err(format!("{name} requires typed copy exceptions"));
         }
+        if crate::source_values::requires_typed_payload(name) {
+            return Err(format!("{name} requires typed face-down characteristics"));
+        }
         if crate::primitive_spec::lookup(name).is_none() {
             return Err(format!("{name} is not a reviewed primitive"));
         }
@@ -3057,11 +3067,7 @@ impl<'a> Scope<'a> {
                 as_creature,
             } => {
                 self.objects(objects)?;
-                self.operand(&as_creature.power_toughness)?;
-                as_creature
-                    .creature_type
-                    .iter()
-                    .try_for_each(|o| self.operand(o))
+                self.face_down_shape(as_creature)
             }
             Operation::Exchange {
                 first,

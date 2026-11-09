@@ -748,16 +748,20 @@ impl Compiler {
                 let pairs: Option<Vec<(String, String)>> = options
                     .iter()
                     .map(|option| match option {
-                        Operand::Term { family, operands, .. } if family == "ColorAndCreatureType" => {
-                            match operands.as_slice() {
-                                [Operand::Vocabulary { family: c, form: color }, Operand::Vocabulary { family: t, form: kind }]
-                                    if c == "Color" && t == "CreatureType" =>
-                                {
-                                    Some((color.clone(), kind.clone()))
-                                }
-                                _ => None,
+                        Operand::Term {
+                            family, operands, ..
+                        } if family == "ColorAndCreatureType" => match operands.as_slice() {
+                            [Operand::Vocabulary {
+                                family: c,
+                                form: color,
+                            }, Operand::Vocabulary {
+                                family: t,
+                                form: kind,
+                            }] if c == "Color" && t == "CreatureType" => {
+                                Some((color.clone(), kind.clone()))
                             }
-                        }
+                            _ => None,
+                        },
                         _ => None,
                     })
                     .collect();
@@ -2533,31 +2537,12 @@ impl Compiler {
                     self.fetch(self.number(amount)?.code)
                 )
             }
-            EntryState::RulesUntil { rules, until } => {
-                let rules = self.stated_operands(rules);
-                format!(
-                    "ArrivalState::RulesUntil({rules}, {})",
-                    self.duration(until)?
-                )
-            }
             EntryState::ExiledFor(until) => {
                 format!("ArrivalState::ExiledFor({})", self.duration(until)?)
             }
-            EntryState::ExiledForWith {
-                until,
-                objects,
-                body,
-            } => format!(
-                // Which of the cards that come back the body is for: permanents
-                // that match, tested as each one does.
-                "ArrivalState::ExiledForWith({}, {}, {})",
-                self.duration(until)?,
-                match objects {
-                    crate::battlefield_query!(filter) => self.filter_fn(filter)?,
-                    other => self.fetch(self.objects(other)?),
-                },
-                self.operand_code(body)
-            ),
+            // Return-entry callbacks need their own fired event frame. Keep the
+            // existing capability gap until that engine integration exists.
+            EntryState::ExiledForWith { .. } => return Err(gap(failed)),
             _ => return Err(gap(failed)),
         })
     }

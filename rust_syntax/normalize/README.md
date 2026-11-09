@@ -701,12 +701,12 @@ library and an editable Rust/Wasm-validated card-code view. The public
 `human::{read, write}` functions convert between that compact authoring format
 and normalized `UnifiedCard`. Shared defaults and vocabulary live in
 `human::{defaults, names}`; `mtgish_ir::targets::TargetSelector` groups domains
-with their applicable filters. Complete IR uses schema 181 and keeps the
+with their applicable filters. Complete IR uses schema 182 and keeps the
 compiler's typed numeric IDs. Persist `human::document::Document` to retain
 scoped author names, including explicitly named unused results.
 Authoring document version 2 separates declarations in alternative branches;
 version-1 imports validate their old metadata before upgrading it. Engine IR
-uses schema 181. Alternative receipts with a shared numeric label form a
+uses schema 182. Alternative receipts with a shared numeric label form a
 group expression, while their declaration names remain independently editable.
 `ReceiptFrom("option_1", picked)` disambiguates repeated names with the shortest
 unique lexical path suffix. Ordinary references still obey native result
@@ -747,7 +747,7 @@ ability patterns, color lists and produced-mana provenance are validated before
 generation. Backend capability gaps remain explicit.
 
 `migrate::mapped_read_json` and `ast migrate-ir-mapped old.ir.json` upgrade an
-exact schema-180 input and return a complete typed origin map. Schema-180 named
+exact schema-180 or schema-181 input and return a complete typed origin map. Named
 documents upgrade before current card deserialization, carrying names and use
 sites through the same map. Nested copies and shared expressions retain their
 scoped identities. Historical schema-179 inputs still upgrade through
@@ -755,3 +755,15 @@ scoped identities. Historical schema-179 inputs still upgrade through
 claim a mapped origin report. Current-schema inputs get an identity map; unknown
 fields, invented copy forms, mismatched source families and mixed face epochs
 are rejected. Immutable old fixture data stays unchanged.
+
+Schema 182 types face-down power/toughness, creature and land types, granted
+abilities, optional arrival state and return-trigger programs. Source-family
+decoding for characteristic values is shared by entry and copy migrations in
+`source_values`; timed entry rules use the ordinary typed rule vocabulary.
+Optional arrival state has an explicit decider independent of its controller
+override. Unknown entry forms become invalid drafts rather than complete generic
+payloads. Return predicates and programs have their own exile-to-battlefield
+event, while preserving creator captures and private result identities.
+Archived-schema upgrades walk exact input descriptors before rewriting and map
+each affected typed ID subtree explicitly. Schema-181 documents and workspaces
+retain names inside granted abilities and private return programs.

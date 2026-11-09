@@ -37,7 +37,7 @@ let browser;
   assert.deepEqual(JSON.parse(actual.ir),expected.card);
   const names=doc=>doc.bindings.map(b=>[b.kind,b.scope_name,b.name,b.explicit]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
   assert.deepEqual(names(actual.doc),names(expected));assert.deepEqual(metadataKeys(actual.save.workspace.blocks.blocks[0]),oldKeys);
-  assert.equal(actual.save.schema,181);assert.deepEqual(actual.backup,old);return actual;
+  assert.equal(actual.save.schema,await page.evaluate(()=>window.cardBlocks.schema.version));assert.deepEqual(actual.backup,old);return actual;
  }
  await page.locator('#file').setInputFiles({name:'named-copy-workspace.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(old))});
  await checked();

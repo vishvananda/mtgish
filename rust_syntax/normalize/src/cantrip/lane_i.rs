@@ -1026,18 +1026,15 @@ impl Compiler {
                         player: Some(defender),
                         or_planeswalker,
                     }] => (defender.clone(), *or_planeswalker, TokensAt::Attacking),
-                    [EntryState::RulesUntil {
-                        rules,
-                        until: Duration::EndOfTurn,
-                    }] => match rules.as_slice() {
-                        [Operand::Term { form, operands, .. }] if form == "MustAttackPlayer" => {
-                            match operands.as_slice() {
-                                [Operand::Player(defender)] => {
-                                    (defender.clone(), false, TokensAt::MustAttack)
-                                }
-                                _ => return unbatched(),
-                            }
-                        }
+                    [EntryState::ChangesUntil {
+                        changes,
+                        duration: Duration::EndOfTurn,
+                    }] => match changes.as_slice() {
+                        [Change::Rule(RuleChange::RequireCombat {
+                            action:
+                                ObjectAction::Attack(AttackDefenders::Players(PlayerSet::One(defender))),
+                            amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+                        })] => (defender.clone(), false, TokensAt::MustAttack),
                         _ => return unbatched(),
                     },
                     _ => return unbatched(),

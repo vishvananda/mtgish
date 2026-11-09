@@ -702,16 +702,17 @@ impl Reader {
         if operation {
             self.operation_depth += 1;
         }
-        let result = self.scoped_node(t, n);
+        let result = self.scoped_node(t, n, false);
         if operation {
             self.operation_depth -= 1;
         }
         result
     }
-    fn scoped_node(&mut self, t: &Ty, n: &Node) -> Result<Value, String> {
+    fn scoped_node(&mut self, t: &Ty, n: &Node, private_program: bool) -> Result<Value, String> {
         let independent = t == &named("Ability");
         let cost_scope = t == &named("CostPart") && constructor(n) == Some("PlayerAction");
         let scope = independent
+            || private_program
             || cost_scope
             || t == &named("Operand") && constructor(n) == Some("Program")
             || t == &named("EventChange") && constructor(n) == Some("Then")
@@ -745,10 +746,16 @@ impl Reader {
             let prior_receipts = self.receipt_groups.clone();
             let prior_available = self.available_results.clone();
             let prior_numeric = self.numeric_bindings.clone();
-            self.enter_scope(constructor(n).unwrap_or(match t {
-                Ty::Named(name) => name,
-                _ => "scope",
-            }));
+            // Keep the historical program scope identity when a typed body
+            // replaces Operand::Program in a persisted authoring document.
+            self.enter_scope(if private_program {
+                "Program"
+            } else {
+                constructor(n).unwrap_or(match t {
+                    Ty::Named(name) => name,
+                    _ => "scope",
+                })
+            });
             if independent {
                 self.targets.clear();
                 self.ids.clear();
@@ -757,6 +764,7 @@ impl Reader {
                 self.numeric_bindings.clear();
             }
             if independent
+                || private_program
                 || t == &named("Mode")
                 || t == &named("Operand") && constructor(n) == Some("Program")
                 || t == &named("Operation") && scope
@@ -1098,6 +1106,8 @@ impl Reader {
                             && key == "results"
                         {
                             self.join_receipts(n)
+                        } else if owner == "EntryState::ExiledForWith" && key == "body" {
+                            self.scoped_node(t, n, true)
                         } else if owner == "Instruction::Effect" && key == "operation" {
                             self.operation_input(n)
                         } else if owner == "Operation::PayCost"

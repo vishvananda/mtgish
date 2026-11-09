@@ -8,12 +8,12 @@ use super::*;
 /// deserializing the new card type. The semantic converter owns every path move;
 /// raw labels never serve as an identity heuristic. Native projection then
 /// checks the remapped groups, scopes and names as a single transaction.
-pub(super) fn upgrade_schema_180(value: &mut Value) -> Result<(), String> {
+pub(super) fn upgrade_schema(value: &mut Value) -> Result<(), String> {
     let source = &value["card"];
     let mapped = crate::migrate::mapped_read_json(
         &serde_json::to_string(source).map_err(|e| e.to_string())?,
     )?;
-    let sites = crate::migrate::input_sites(180, source)?;
+    let sites = crate::migrate::input_sites(mapped.source_version, source)?;
     let bindings: Vec<BindingName> =
         serde_json::from_value(value["bindings"].clone()).map_err(|e| e.to_string())?;
     let uses: Vec<BindingUse> =

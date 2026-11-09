@@ -8,9 +8,9 @@ whole objective; an intermediate passing stage does not complete the goal.
 
 | Requirement | State | Required evidence |
 | --- | --- | --- |
-| Validate every nested semantic entry child in its correct scope | Scope checks implemented; typed payload constraints pending | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
+| Validate every nested semantic entry child in its correct scope | Implemented, verified including private return events and fresh grants | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
-| Typed entry and copy payloads, removing backend descriptive-term decoding | Outer entry fields and copy exceptions implemented; inner entry payloads pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
+| Typed entry and copy payloads, removing backend descriptive-term decoding | Implemented, verified; destination-specific serialization remains separate | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
 | Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified including independent alternatives and legacy migration | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Shared destination checks implemented; serialized payload split pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
@@ -417,3 +417,58 @@ upstream.
 Schema 181 and numeric ranges remain unchanged. This scope fix takes priority
 before the remaining inner-entry typing/destination migration; it does not
 complete the overall AST objective or the queued 29 reference fixes.
+
+
+Stage 13 (schema 182) types the remaining inner entry payloads. `FaceDownAs`
+has numeric power/toughness and an optional creature type; face-down land has a
+`LandType`; grants contain fresh `Ability` scopes. Optional entry contains an
+`EntrySpec` and an explicit decider separate from the controller override.
+Timed rules use `ChangesUntil` and the ordinary typed `RuleChange` vocabulary.
+Return callbacks contain a `Program` directly, retaining stage 12's return event
+and private result scope. Unknown entry forms remain `Draft` diagnostics and
+cannot validate as complete IR. The artifact flag defaults to false; zero power
+and toughness remain explicit values. Numeric ranges and engine behavior are
+unchanged. Characteristic decoding is shared with copy-source conversion.
+
+A single bottom-up migration walks immutable input descriptors for 179/180/181,
+checks exact fields and face epochs, then converts payloads. Mapped 180/181
+upgrades record explicit origins before carrying author metadata; the plain 179
+upgrade retains its existing contract without claiming a mapped authoring
+migration. The replaced copy-only walker and field-name-based 179 rewrite are
+removed. Shared PTX references expand to two recorded origins. An overwritten
+controller reference maps to no output instead of being attached to the later
+controller. Unexplained legacy origins refuse migration rather than guessing
+from matching numeric IDs.
+
+Six focused regressions cover 16 authentic schema-181 cards (17 faces), their
+named authoring documents, typed shapes/scopes, cloned reads, overwritten
+controllers, strict families and unknown fields. Immutable old fixtures and
+real Magar/Lagrella workspace captures remain unchanged. All 33,529 schema-180
+and schema-181 inputs migrate to exactly fresh source lowering with complete ID
+maps; all 33,529 historical schema-179 upgrades also agree. Complete canonical
+origin maps pass for all records. All 82,226 definitions rename and reparse
+successfully. Full native validation passes 1,450 tests with zero failures
+(15 opt-in audits ignored in that run). Evidence is `entry182-*` under
+`/mnt/vizier/ast-review-20261109/`.
+
+The 16 affected generator outputs retain their prior emitted code/capability
+status: 15 compare identically after removing schema/fingerprint comments;
+Lagrella retains the same move-arrival gap with a more precise instruction path.
+The old planned return-callback template is explicitly gated until the engine
+can supply its return event. This AST work does not add that backend feature.
+
+The queued reference work is checkpoint105's 29 confirmed open defects against
+reference revision `8126cc9792747df0b8fdd02d202b025854023b3f`. Its seven unresolved
+rows remain separate. Revalidate findings on our fork and report required
+reference changes upstream after completing the broader AST/editor objective.
+Destination-specific serialization, mode/coin/keyword policies, Rust API role
+names/counter sources, typed layouts, and final integration remain open.
+
+All twelve fresh-Wasm browser suites pass, including typed entry sockets, direct
+return instruction chains, named schema-181 import/startup migration, unchanged
+binding keys and rejection without replacing the workspace. The catalog suite
+roundtrips all 33,529 block models, compares their typed ID ports and validates
+them with Wasm, with zero failures. Card-code coverage includes 15 real examples
+and eight malformed-input probes. Browser receipts are
+`entry182-browser-results.json` and `entry182-browser-*.log`. Authoring document
+2 and workspace presentation 6 remain unchanged.

@@ -301,7 +301,8 @@ fn exile_visibility_piles_counters_and_battlefield_shape_are_not_flattened() {
         )]
     ));
     let shape = FaceDownAs {
-        power_toughness: Box::new(Operand::Text("a stated nondefault shape".into())),
+        power: Expr::Constant(5),
+        toughness: Expr::Constant(5),
         creature_type: None,
         artifact: true,
     };

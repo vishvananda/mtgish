@@ -4,8 +4,9 @@ use super::*;
 /// What a face-down permanent is, when not a plain 2/2.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct FaceDownAs {
-    pub power_toughness: Box<Operand>,
-    pub creature_type: Option<Box<Operand>>,
+    pub power: Expr,
+    pub toughness: Expr,
+    pub creature_type: Option<CreatureType>,
     pub artifact: bool,
 }
 
@@ -117,8 +118,8 @@ pub enum EntryState {
     },
     /// One set of changes, chosen as it enters.
     ChooseChanges(Vec<Vec<Change>>),
-    /// A reviewed entry instruction with no reduction.
-    Primitive {
+    /// Unresolved source material for diagnostics. Never valid semantic IR.
+    Draft {
         name: String,
         operands: Vec<Operand>,
     },
@@ -136,17 +137,21 @@ pub enum EntryState {
     FaceDownAs(FaceDownAs),
     FaceDownWith {
         face_down: FaceDownAs,
-        abilities: Vec<Operand>,
+        abilities: Vec<Ability>,
         /// The card whose name is noted as this enters.
         noted: Option<ObjectRef>,
     },
-    FaceDownLand(Box<Operand>),
+    FaceDownLand(crate::mtg_types::LandType),
     NotAnAura,
     /// The counters noted when the object was exiled.
     NotedCounters,
     Perpetual(Vec<Change>),
-    /// These entry flags apply if its controller chooses.
-    May(Vec<Operand>),
+    /// Apply these arrival changes if the stated player chooses. The creating
+    /// ability's controller is distinct from an entering-controller override.
+    Optional {
+        decider: PlayerRef,
+        entry: Box<EntrySpec>,
+    },
     /// Stays exiled only for this long.
     ExiledFor(Duration),
     ExiledForWith {
@@ -157,12 +162,7 @@ pub enum EntryState {
         /// A program capturing the creator's bindings. EventSubject is the
         /// returning permanent; the creator's damage/other-event roles are
         /// unavailable. Local results remain private to this return trigger.
-        /// The legacy operand wrapper must contain Operand::Program.
-        body: Box<Operand>,
-    },
-    RulesUntil {
-        rules: Vec<Operand>,
-        until: Duration,
+        body: Program,
     },
 }
 

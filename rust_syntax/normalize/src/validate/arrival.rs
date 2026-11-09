@@ -86,7 +86,9 @@ fn check(entry: &EntrySpec, zone: &EventZone, visibility_in_entry: bool) -> Resu
             {
                 return Err("exile arrival state requires an exile destination".into());
             }
-            EntryState::When { entry, .. } => check(entry, zone, visibility_in_entry)?,
+            EntryState::When { entry, .. } | EntryState::Optional { entry, .. } => {
+                check(entry, zone, visibility_in_entry)?
+            }
             _ => {}
         }
     }

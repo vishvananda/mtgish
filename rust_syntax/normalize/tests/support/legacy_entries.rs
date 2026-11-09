@@ -1,8 +1,25 @@
-//! Declared 179 entry and 180 copy upgrades for immutable historical captures.
+//! Explicit entry/copy/characteristic upgrades for immutable historical captures.
 #![allow(dead_code)]
 use mtgish_ast::{copying, ir::Operand, movement};
 use serde::Deserialize;
 use serde_json::{json, Value};
+
+#[derive(Deserialize)]
+struct OldShape {
+    power_toughness: Operand,
+    creature_type: Option<Operand>,
+    artifact: bool,
+}
+impl OldShape {
+    fn current(self) -> mtgish_ast::ir::FaceDownAs {
+        movement::face_down_from_source(
+            &self.power_toughness,
+            self.creature_type.as_ref(),
+            self.artifact,
+        )
+        .unwrap()
+    }
+}
 
 const OPERATIONS: &[&str] = &[
     "Conjure",
@@ -66,6 +83,13 @@ pub fn json(value: &mut Value) {
             );
         }
     }
+    if value.get("power_toughness").is_some()
+        && value.get("creature_type").is_some()
+        && value.get("artifact").is_some()
+    {
+        let old: OldShape = serde_json::from_value(value.clone()).unwrap();
+        *value = serde_json::to_value(old.current()).unwrap();
+    }
     if let Some(fields) = value.as_object_mut() {
         if fields.contains_key("tapped")
             && fields.contains_key("counters")
@@ -80,6 +104,7 @@ pub fn json(value: &mut Value) {
 enum Upgrade {
     Entry,
     Copy(bool),
+    Shape,
 }
 
 fn owner(input: &str, open: usize) -> Option<&str> {
@@ -128,7 +153,7 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
                 i += input[i..].chars().next().unwrap().len_utf8();
                 continue;
             }
-            let field = ["entry:", "effects:", "adjustments:"]
+            let field = ["entry:", "effects:", "adjustments:", "power_toughness:"]
                 .into_iter()
                 .find(|f| input[i..].starts_with(f));
             if let Some(field) = field {
@@ -146,14 +171,30 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
                     ("adjustments:", Some("Copy" | "CopyEach" | "CopyOne" | "CopyNamed")) => {
                         Some(Upgrade::Copy(false))
                     }
+                    ("power_toughness:", _)
+                        if stack.last().is_some_and(|&open| {
+                            input[open + 1..]
+                                .trim_start()
+                                .starts_with("power_toughness:")
+                                && input[value_start..].trim_start().starts_with("(kind:")
+                        }) =>
+                    {
+                        Some(Upgrade::Shape)
+                    }
                     _ => None,
                 };
                 if let Some(upgrade) = upgrade {
+                    let (start, value_start) = if matches!(upgrade, Upgrade::Shape) {
+                        let open = *stack.last().unwrap();
+                        (open, open)
+                    } else {
+                        (i, value_start)
+                    };
                     if deepest
                         .as_ref()
                         .is_none_or(|(depth, _, _, _)| stack.len() >= *depth)
                     {
-                        deepest = Some((stack.len(), i, value_start, upgrade));
+                        deepest = Some((stack.len(), start, value_start, upgrade));
                     }
                 }
             }
@@ -172,6 +213,10 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
         let tail = &input[value_start..];
         let mut de = ron::de::Deserializer::from_str(tail).unwrap();
         let (name, replacement) = match upgrade {
+            Upgrade::Shape => (
+                "",
+                ron::to_string(&OldShape::deserialize(&mut de).unwrap().current()).unwrap(),
+            ),
             Upgrade::Entry => {
                 let flags = Vec::<Operand>::deserialize(&mut de).unwrap();
                 (

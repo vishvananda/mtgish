@@ -3,22 +3,23 @@
 #[cfg(test)]
 extern crate self as mtgish_ast;
 pub use rust_syntax::{corpus, inspect, mtg_types};
-pub mod canonical;
-mod binding_roles;
 pub mod binding_map;
+mod binding_roles;
+pub mod canonical;
 pub use mtgish_ir::{battlefield_query, counter, declarations, ir, ir_schema, visit};
 pub mod change_lists;
 mod complete;
+pub mod copying;
+pub mod json_input;
 #[cfg(feature = "legacy")]
 pub mod lower;
-pub mod movement;
-pub mod copying;
 pub mod migrate;
-pub mod json_input;
+pub mod movement;
 pub mod presentation;
 #[cfg(feature = "legacy")]
 pub mod report;
 pub mod result_reads;
+mod source_values;
 pub mod validate;
 
 mod subtype;

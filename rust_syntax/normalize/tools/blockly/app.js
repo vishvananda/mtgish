@@ -444,6 +444,7 @@
   function caption(state) {
     if(state.pr==='single')return 'Card';
     if(state.ty.named==='Characteristics')return 'Properties';
+    if(state.ty.named==='FaceDownAs')return 'Face-down creature';
     if(state.ty.named==='TargetSpec')return 'Target';
     if(state.ty.named==='Announcement')return 'Targets & choices';
     return ({Slot:'Target',ResultId:'Recorded result',Binding:'Loop value',SelectionId:'Selection'})[state.ty.named]||typeName(state.ty);

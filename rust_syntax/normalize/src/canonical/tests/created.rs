@@ -183,12 +183,12 @@ fn sibling_created_triggers_have_independent_target_definitions() {
 
 fn return_entry(operation: Value) -> Value {
     json!({"kind":"Move","args":{"objects":{"kind":"One","args":{"kind":"Source"}},
-        "destination":"Exile","face_down":false,
-        "terms":{"order":"DestinationDefault","placement":"DestinationDefault","qualifiers":[]},
-        "entry":{"controller":null,"tapped":false,"counters":[],"states":[{"ExiledForWith":{
-            "until":"EndOfTurn","objects":{"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":{"kind":"Any"}}},
-            "body":{"kind":"Program","args":{"instructions":[effect(0,operation)]}}
-        }}]}}})
+    "destination":"Exile","face_down":false,
+    "terms":{"order":"DestinationDefault","placement":"DestinationDefault","qualifiers":[]},
+    "entry":{"controller":null,"tapped":false,"counters":[],"states":[{"ExiledForWith":{
+        "until":"EndOfTurn","objects":{"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":{"kind":"Any"}}},
+        "body":{"instructions":[effect(0,operation)]}
+    }}]}}})
 }
 fn reveal(object: Value) -> Value {
     json!({"kind":"Reveal","args":{"objects":{"kind":"One","args":object}}})
@@ -204,8 +204,16 @@ fn a_return_trigger_keeps_its_subject_instead_of_becoming_the_creating_source() 
     assert!(valid(&value));
     canonical::abilities(&mut value).unwrap();
     assert!(valid(&value));
-    assert_eq!(returned_body(&value)["args"]["instructions"][0]["args"]["operation"]["args"]["objects"]["args"]["kind"],"EventSubject");
-    assert_eq!(value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["entry"]["states"][0]["ExiledForWith"]["objects"]["args"]["kind"],"EventSubject");
+    assert_eq!(
+        returned_body(&value)["instructions"][0]["args"]["operation"]["args"]["objects"]["args"]
+            ["kind"],
+        "EventSubject"
+    );
+    assert_eq!(
+        value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["entry"]["states"]
+            [0]["ExiledForWith"]["objects"]["args"]["kind"],
+        "EventSubject"
+    );
     let once = value.clone();
     canonical::abilities(&mut value).unwrap();
     assert_eq!(value, once);
@@ -218,7 +226,11 @@ fn a_return_trigger_has_an_event_even_when_a_spell_created_it() {
     assert!(valid(&value));
     canonical::abilities(&mut value).unwrap();
     assert!(valid(&value));
-    assert_eq!(returned_body(&value)["args"]["instructions"][0]["args"]["operation"]["args"]["objects"]["args"]["kind"],"EventSubject");
+    assert_eq!(
+        returned_body(&value)["instructions"][0]["args"]["operation"]["args"]["objects"]["args"]
+            ["kind"],
+        "EventSubject"
+    );
 }
 
 #[test]
@@ -228,12 +240,12 @@ fn a_return_trigger_cannot_inherit_its_creators_damage_event() {
 }
 
 #[test]
-fn a_return_trigger_requires_a_program_and_keeps_its_results_private() {
-    let mut value = ability(self_event(),return_entry(json!({"kind":"BindValue","args":{"value":{"kind":"Constant","args":4}}})));
+fn a_typed_return_trigger_keeps_its_results_private() {
+    let mut value = ability(
+        self_event(),
+        return_entry(json!({"kind":"BindValue","args":{"value":{"kind":"Constant","args":4}}})),
+    );
     assert!(valid(&value));
     value[0]["args"]["body"]["instructions"].as_array_mut().unwrap().push(effect(3,json!({"kind":"Draw","args":{"players":{"kind":"All"},"amount":{"kind":"BoundValue","args":0}}})));
-    assert!(!valid(&value));
-    value[0]["args"]["body"]["instructions"].as_array_mut().unwrap().pop();
-    value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["entry"]["states"][0]["ExiledForWith"]["body"] = json!({"kind":"Integer","args":42});
     assert!(!valid(&value));
 }

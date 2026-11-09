@@ -2941,7 +2941,7 @@ impl Inventory<'_> {
     }
     fn entry_states(&mut self, entry: &EntrySpec) {
         for state in &entry.states {
-            if let EntryState::Primitive { name, .. } = state {
+            if let EntryState::Draft { name, .. } = state {
                 self.primitive(name);
             }
         }

@@ -224,35 +224,9 @@ impl Conversion {
         })
     }
     fn pt(&mut self, operand: &Operand, source: &str, target: &str) -> Result<(Expr, Expr)> {
-        let (family, form, args) = term(operand)?;
-        if family != "PT" {
-            return Err("copy size requires PT source vocabulary".into());
-        }
-        match (form, args) {
-            ("PT" | "ManualPT", [p, t]) => Ok((
-                self.number(p, &child(source, 0), &format!("{target}/power"))?,
-                self.number(t, &child(source, 1), &format!("{target}/toughness"))?,
-            )),
-            ("PTX", [p, t, x]) => {
-                let mut component = |o: &Operand, index: usize, key: &str| -> Result<Expr> {
-                    let (family, form, args) = term(o)?;
-                    if family != "PTXValue" {
-                        return Err("PTX component requires PTXValue".into());
-                    }
-                    match (form, args) {
-                        ("Integer", [n]) => self.number(
-                            n,
-                            &child(&child(source, index), 0),
-                            &format!("{target}/{key}"),
-                        ),
-                        ("X", []) => self.number(x, &child(source, 2), &format!("{target}/{key}")),
-                        _ => Err("unsupported PTX component".into()),
-                    }
-                };
-                Ok((component(p, 0, "power")?, component(t, 1, "toughness")?))
-            }
-            _ => Err("unsupported copy power/toughness source shape".into()),
-        }
+        let size = crate::source_values::power_toughness(operand, source, target)?;
+        self.moves.extend(size.moves);
+        Ok((size.power, size.toughness))
     }
     fn exception(
         &mut self,

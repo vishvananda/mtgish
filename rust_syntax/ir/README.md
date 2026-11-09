@@ -91,3 +91,14 @@ rather than overloading object filters. Numeric engine ranges are unchanged.
 Frozen schema-180 descriptors support explicit JSON migration and typed ID-site
 origins. A shared PTX read may map to both power and toughness; the mapper records
 that expansion instead of inferring identity from repeated numeric labels.
+
+Schema 182 finishes typing the inner entry payloads. Face-down characteristics
+use numeric expressions and a creature type; granted abilities use `Vec<Ability>`
+with fresh scopes. `FaceDownLand` names a `LandType`. Optional arrival state names
+its decider separately from the controller override and contains an `EntrySpec`.
+Timed entry rules use ordinary `Change::Rule` values; return callbacks contain a
+`Program` with a private result scope and their own return event. Unresolved
+`EntryState::Draft` is preserved for diagnostics and rejected as complete IR.
+The immutable 179/180/181 descriptors support explicit upgrades; mapped 180/181
+upgrades preserve saved names through structural origins, including shared reads.
+Serialized destination-specific payloads remain a separate pending change.

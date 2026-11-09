@@ -21,14 +21,8 @@ fn missing_target() -> Operand {
 }
 fn shape() -> FaceDownAs {
     FaceDownAs {
-        power_toughness: Box::new(Operand::Term {
-            family: "PT".into(),
-            form: "PT".into(),
-            operands: vec![
-                Operand::Number(Expr::Constant(2)),
-                Operand::Number(Expr::Constant(2)),
-            ],
-        }),
+        power: Expr::Constant(2),
+        toughness: Expr::Constant(2),
         creature_type: None,
         artifact: false,
     }
@@ -49,30 +43,53 @@ fn moving(state: EntryState) -> Card {
 #[test]
 fn entry_payloads_cannot_hide_missing_references() {
     for state in [
-        EntryState::RulesUntil {
-            rules: vec![missing_target()],
-            until: Duration::EndOfTurn,
+        EntryState::ChangesUntil {
+            changes: vec![Change::Rule(RuleChange::RequireCombat {
+                action: ObjectAction::Attack(AttackDefenders::Objects(ObjectFilter::InSet(
+                    Box::new(ObjectSet::Targets(Slot(99))),
+                ))),
+                amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+            })],
+            duration: Duration::EndOfTurn,
         },
-        EntryState::FaceDownLand(Box::new(missing_target())),
-        EntryState::May(vec![missing_target()]),
+        EntryState::Optional {
+            decider: PlayerRef::AbilityController,
+            entry: Box::new(EntrySpec {
+                states: vec![EntryState::FaceDownAs(FaceDownAs {
+                    power: Expr::CountObjects(Box::new(ObjectSet::Targets(Slot(99)))),
+                    ..shape()
+                })],
+                ..EntrySpec::default()
+            }),
+        },
         EntryState::FaceDownWith {
             face_down: shape(),
-            abilities: vec![missing_target()],
+            abilities: vec![Ability::Spell {
+                announcement: Announcement::empty(),
+                body: Program {
+                    instructions: vec![Instruction::Effect {
+                        result: ResultId(0),
+                        operation: Operation::Reveal {
+                            objects: ObjectSet::Targets(Slot(99)),
+                        },
+                    }],
+                },
+            }],
             noted: None,
         },
         EntryState::FaceDownAs(FaceDownAs {
-            creature_type: Some(Box::new(missing_target())),
+            power: Expr::CountObjects(Box::new(ObjectSet::Targets(Slot(99)))),
             ..shape()
         }),
         EntryState::ExiledForWith {
             until: Duration::EndOfTurn,
             objects: ObjectSet::One(ObjectRef::Source),
-            body: Box::new(Operand::Program(Program {
+            body: Program {
                 instructions: vec![Instruction::Effect {
                     result: ResultId(0),
                     operation: Operation::Reveal { objects: ObjectSet::Targets(Slot(99)) },
                 }],
-            })),
+            },
         },
     ] {
         assert!(validate::card(&moving(state))
@@ -87,9 +104,11 @@ fn countering_checks_destination_and_entry_scopes() {
         (
             Destination::OwnersHand,
             EntrySpec {
-                states: vec![EntryState::RulesUntil {
-                    rules: vec![missing_target()],
-                    until: Duration::EndOfTurn,
+                states: vec![EntryState::ChangesUntil {
+                    changes: vec![],
+                    duration: Duration::WhileItMatches(ObjectFilter::InSet(Box::new(
+                        ObjectSet::Targets(Slot(99)),
+                    ))),
                 }],
                 ..EntrySpec::default()
             },
@@ -116,11 +135,11 @@ fn countering_checks_destination_and_entry_scopes() {
 
 #[test]
 fn duration_operands_validate_their_captured_references() {
-    let card = moving(EntryState::RulesUntil {
-        rules: vec![Operand::Duration(Duration::WhileItMatches(
-            ObjectFilter::InSet(Box::new(ObjectSet::Targets(Slot(99)))),
-        ))],
-        until: Duration::EndOfTurn,
+    let card = moving(EntryState::ChangesUntil {
+        changes: vec![],
+        duration: Duration::WhileItMatches(ObjectFilter::InSet(Box::new(ObjectSet::Targets(
+            Slot(99),
+        )))),
     });
     assert!(validate::card(&card)
         .unwrap_err()

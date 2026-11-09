@@ -1003,14 +1003,12 @@ fn tail_inspection_step(
 /// Entry flags that say what the entering object is or how long its exile lasts.
 fn reduced_entry_flag(form: &str, operands: &[Operand]) -> Option<EntryState> {
     use Operand::{Duration as Lasting, List, Objects};
-    let face_down = |pt: &Operand, kind: Option<&Operand>, artifact| FaceDownAs {
-        power_toughness: Box::new(pt.clone()),
-        creature_type: kind.map(|kind| Box::new(kind.clone())),
-        artifact,
+    let face_down = |pt: &Operand, kind: Option<&Operand>, artifact| {
+        crate::source_values::face_down(pt, kind, artifact).ok()
     };
     Some(match (form, operands) {
         ("EntersAsFaceDownArtifactCreature", [pt, kind]) => {
-            EntryState::FaceDownAs(face_down(pt, Some(kind), true))
+            EntryState::FaceDownAs(face_down(pt, Some(kind), true)?)
         }
         ("EntersAsFaceDownCreatureWithAbilitiesAndNotedName", [pt, List(abilities), named]) => {
             let Operand::Term { operands, .. } = named else {
@@ -1020,27 +1018,47 @@ fn reduced_entry_flag(form: &str, operands: &[Operand]) -> Option<EntryState> {
                 return None;
             };
             EntryState::FaceDownWith {
-                face_down: face_down(pt, None, false),
-                abilities: abilities.clone(),
+                face_down: face_down(pt, None, false)?,
+                abilities: abilities
+                    .iter()
+                    .map(|a| {
+                        if let Operand::Ability(a) = a {
+                            Some((**a).clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Option<Vec<_>>>()?,
                 noted: Some(card.clone()),
             }
         }
-        ("EntersAsFaceDownLand", [land]) => EntryState::FaceDownLand(Box::new(land.clone())),
+        ("EntersAsFaceDownLand", [land]) => {
+            EntryState::FaceDownLand(crate::source_values::word(land, "LandType").ok()?)
+        }
         ("EntersAsNonAuraEnchantment", []) => EntryState::NotAnAura,
         ("EntersWithNotedCounters", []) => EntryState::NotedCounters,
-        ("EntersWithPerpetualEffect", effects) => EntryState::Perpetual(perpetual_changes(effects)?),
-        ("MayActions", flags) if !flags.is_empty() => EntryState::May(flags.to_vec()),
+        ("EntersWithPerpetualEffect", effects) => {
+            EntryState::Perpetual(perpetual_changes(effects)?)
+        }
+        ("MayActions", flags) if !flags.is_empty() => EntryState::Optional {
+            decider: PlayerRef::AbilityController,
+            entry: Box::new(crate::movement::entry_from_source(flags)),
+        },
         ("Limited", [Lasting(until)]) => EntryState::ExiledFor(until.clone()),
         ("LimitedWithTriggerEnters", [Lasting(until), Objects(objects), body]) => {
             EntryState::ExiledForWith {
                 until: until.clone(),
                 objects: objects.clone(),
-                body: Box::new(body.clone()),
+                body: if let Operand::Program(program) = body {
+                    program.clone()
+                } else {
+                    return None;
+                },
             }
         }
-        ("EntersWithRuleEffectUntil", [List(rules), Lasting(until)]) => EntryState::RulesUntil {
-            rules: rules.clone(),
-            until: until.clone(),
+        ("EntersWithRuleEffectUntil", [List(rules), Lasting(until)]) => EntryState::ChangesUntil {
+            changes: crate::source_values::rules(rules).ok()?,
+            duration: until.clone(),
         },
         _ => return None,
     })
@@ -1050,7 +1068,7 @@ pub fn reduce_entry_flag(name: String, operands: Vec<Operand>) -> EntryState {
     let reduced = name
         .split_once("::")
         .and_then(|(_, form)| reduced_entry_flag(form, &operands));
-    reduced.unwrap_or(EntryState::Primitive { name, operands })
+    reduced.unwrap_or(EntryState::Draft { name, operands })
 }
 
 fn tail_objects(form: &str, operands: &[Operand]) -> Option<ObjectSet> {

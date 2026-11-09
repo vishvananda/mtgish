@@ -691,6 +691,7 @@ impl Walker {
                                     | "Operation::CreateReplacement"
                                     | "Operation::ReflexiveTrigger"
                                     | "Operation::CreateTrigger"
+                                    | "EntryState::ExiledForWith"
                                     | "Instruction::Optional"
                                     | "CostPart::PlayerAction"
                                     | "Instruction::ForEachPlayer"
@@ -726,6 +727,7 @@ impl Walker {
                                 | "Operation::CreateReplacement"
                                 | "Operation::ReflexiveTrigger"
                                 | "Operation::CreateTrigger"
+                                | "EntryState::ExiledForWith"
                                 | "Instruction::Times"
                                 | "CostPart::PlayerAction" => self.gathering_results = false,
                                 _ => {}

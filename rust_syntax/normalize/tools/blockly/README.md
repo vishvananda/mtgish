@@ -156,8 +156,8 @@ The browser demo limits documents to 2 MiB, IR nesting to 255 levels (card-code 
 lists to 2,048 elements. These interface limits do not change engine numeric
 types. Workspace presentation 6 saves carry a schema, model fingerprint and binding metadata. At the same IR schema,
 older layouts migrate through the typed codec with their original data backed
-up locally. Saved schema-179 and schema-180 workspaces and IR JSON upgrade explicitly through
-Rust to schema 181; the bundle includes the old descriptor table for decoding
+up locally. Saved schema-179, schema-180 and schema-181 workspaces and IR JSON upgrade explicitly through
+Rust to schema 182; the bundle includes the old descriptor tables for decoding
 those blocks. The original workspace is backed up before conversion. A failed
 upgrade preserves the original draft and disables autosaving the fallback card
 until the user explicitly starts or imports another card. Unsupported schema
@@ -355,3 +355,16 @@ exile counters and granted suspend remain valid. These checks run in native Rust
 and the bundled Wasm validator; schema 181, authoring document 2 and presentation
 6 are unchanged. Splitting the remaining generic entry fields and serialized
 destination payloads remains part of the broader AST work.
+
+Schema 182 replaces the remaining generic inner entry fields with typed values:
+face-down characteristics have power/toughness sockets, land types use a picker,
+granted rules are ability blocks, optional arrivals contain entry fields and a
+separate decider, and return callbacks connect directly to instructions. Timed
+entry rules use the ordinary change vocabulary. The uncommon artifact flag
+defaults to false. Old schema-181 saves retain stable binding keys, names in
+quoted abilities and private return-program scope names. Invalid migration keeps
+the existing workspace. Authoring document 2 and presentation 6 remain unchanged.
+
+```sh
+npm run test:entry -- /tmp/card-blocks.html
+```

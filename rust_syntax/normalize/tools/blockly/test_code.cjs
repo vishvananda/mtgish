@@ -92,10 +92,11 @@ let browser,page;
  });
  const malformed=[
   'Card{name:"Counter entry",properties:{card_types:[Instant]},abilities:[Spell{do:[CounterWith{object:This,destination:OwnersHand,entry:[Objects(Targets(t99))]}]}]}',
-  'Card{name:"Entry rules",properties:{card_types:[Instant]},abilities:[Spell{do:[MoveObjects{objects:One(This),destination:Exile,entry:{states:[RulesUntil{rules:[Objects(Targets(t99))],until:EndOfTurn}]}}]}]}',
+  'Card{name:"Entry rules",properties:{card_types:[Instant]},abilities:[Spell{do:[MoveObjects{objects:One(This),destination:Exile,entry:{states:[ChangesUntil{changes:[],duration:WhileItMatches(InSet(Targets(t99)))}]}}]}]}',
   ...['Between{minimum:-1,maximum:1}','Between{minimum:3,maximum:1}'].map(count=>'Card{name:"Bounds",properties:{card_types:[Instant]},abilities:[Spell{targets:[Target{name:t0,select:Creature,count:'+count+'}],do:[Reveal{objects:Targets(t0)}]}]}')
  ];
  for(const code of malformed)assert.equal((await page.evaluate(code=>window.cardBlocks.parseCode(code),code)).valid,false);
+ assert.match((await page.evaluate(code=>window.cardBlocks.parseCode(code),malformed[1])).error,/unbound target slot 99/);
  const invalidArrivals=[
   ['MoveObjects{objects:One(This),destination:OwnersHand,entry:{states:[FaceDown]}}',/battlefield destination/],
   ['MoveTopCard{actor:You,cards:Any,reveal:false,destination:OwnersHand,entry:{tapped:true}}',/battlefield destination/],
@@ -106,13 +107,13 @@ let browser,page;
   assert.equal(result.valid,false);assert.match(result.error,error);
  }
  // A spell can create an independent return-entry event, including its matcher.
- const returnCode='Card{name:"Return event",properties:{card_types:[Instant]},abilities:[Spell{do:[MoveObjects{objects:One(This),destination:Exile,entry:{states:[ExiledForWith{until:EndOfTurn,objects:One(EventObject),body:Program([NoteObjects{objects:One(EventObject)}])}]}}]}]}';
+ const returnCode='Card{name:"Return event",properties:{card_types:[Instant]},abilities:[Spell{do:[MoveObjects{objects:One(This),destination:Exile,entry:{states:[ExiledForWith{until:EndOfTurn,objects:One(EventObject),do:[NoteObjects{objects:One(EventObject)}]}]}}]}]}';
  const returned=await page.evaluate(code=>window.cardBlocks.parseCode(code),returnCode);
  assert.equal(returned.valid,true,returned.error);
  const returnText=await page.evaluate(text=>window.cardBlocks.formatDocument(text),returned.document);
  assert.equal(returnText.valid,true,returnText.error);assert.equal((returnText.code.match(/EventObject/g)||[]).length,2);
- const badReturn=await page.evaluate(code=>window.cardBlocks.parseCode(code),returnCode.replace('Program([NoteObjects{objects:One(EventObject)}])','Integer(42)'));
- assert.equal(badReturn.valid,false);assert.match(badReturn.error,/return-entry trigger requires a program/);
+ const badReturn=await page.evaluate(code=>window.cardBlocks.parseCode(code),returnCode.replace('[NoteObjects{objects:One(EventObject)}]','Integer(42)'));
+ assert.equal(badReturn.valid,false);assert.match(badReturn.error,/expected a list/);
  assert.deepEqual(errors,[]);
  await page.screenshot({path:process.env.BLOCKLY_SCREENSHOT||'/tmp/card-code.png',fullPage:true});
  console.log(JSON.stringify({codeEditing:true,validation:true,typedTargetReferences:true,typosRejected:true,draftPreserved:true,export:true,search:true,controlSearch:true,sequenceStarter:true,receiptsRetained:true,sharedNaming:true,savedWorkspaceMigration:true,wasmExamples,actionCount,returnEventScope:true,malformedInputsRejected:malformed.length+invalidArrivals.length+1,errors},null,2));

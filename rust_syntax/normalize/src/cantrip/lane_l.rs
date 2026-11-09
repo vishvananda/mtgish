@@ -330,7 +330,7 @@ fn arrival_hole(states: &[EntryState]) -> &'static str {
         }
         [EntryState::Blocking(_)] => "put onto the battlefield blocking",
         [EntryState::Flipped] => "returns flipped",
-        [EntryState::May(_)] => "may enter face down",
+        [EntryState::Optional { .. }] => "may enter face down",
         [EntryState::FaceDownAs(_)] => "put onto the battlefield face down as a stated creature",
         [EntryState::FaceDownWith { .. }] => "put onto the battlefield face down with abilities",
         [EntryState::FaceDownLand(_)] => "put onto the battlefield face down as a land",

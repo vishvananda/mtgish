@@ -7,10 +7,19 @@ use std::collections::{BTreeMap, BTreeSet};
 mod transfer;
 
 /// Grammar entry flags end here. Validated operations carry only `EntrySpec`.
-/// Unknown source material remains an unreviewed primitive instead of being
+/// Unknown source material remains an invalid draft instead of being
 /// discarded or accepted as a complete typed arrival.
 pub fn entry_from_source(flags: &[Operand]) -> EntrySpec {
     transfer::entry_from_source(flags)
+}
+/// Decode a legacy/source face-down shape once; semantic consumers use the
+/// resulting numeric expressions and creature-type vocabulary directly.
+pub fn face_down_from_source(
+    pt: &Operand,
+    kind: Option<&Operand>,
+    artifact: bool,
+) -> Result<FaceDownAs, String> {
+    crate::source_values::face_down(pt, kind, artifact)
 }
 pub fn normalize_card(mut card: Card) -> Card {
     card.walk_mut(&mut Normalize);

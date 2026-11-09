@@ -331,7 +331,7 @@ fn cost_and_quoted_programs_keep_their_local_names_separate() {
             .count(),
         2
     );
-    let text=card("do:[MoveTopCard{actor:You,cards:Any,reveal:false,destination:OwnersBattlefield,entry:{states:[RulesUntil{rules:[Program([local=NoteObjects{objects:One(This)},NoteObjects{objects:Selected(local)}])],until:EndOfTurn}]}},local=NoteObjects{objects:One(This)},NoteObjects{objects:Selected(local)}]");
+    let text=card("do:[MoveTopCard{actor:You,cards:Any,reveal:false,destination:OwnersBattlefield,entry:{states:[FaceDownWith{face_down:{power:2,toughness:2},abilities:[Spell{do:[local=NoteObjects{objects:One(This)},NoteObjects{objects:Selected(local)}]}]}]}},local=NoteObjects{objects:One(This)},NoteObjects{objects:Selected(local)}]");
     let doc = roundtrip(&text);
     assert_eq!(
         doc.bindings()

@@ -192,12 +192,8 @@ impl ZoneMove {
     }
 }
 
-fn artifact_creature(pt: &Operand, kind: &Operand) -> FaceDownAs {
-    FaceDownAs {
-        power_toughness: Box::new(pt.clone()),
-        creature_type: Some(Box::new(kind.clone())),
-        artifact: true,
-    }
+fn artifact_creature(pt: &Operand, kind: &Operand) -> Option<FaceDownAs> {
+    crate::source_values::face_down(pt, Some(kind), true).ok()
 }
 
 /// Commanders in a zone, which a row names by owner or not at all.
@@ -457,32 +453,28 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             "PutEachExiledCardOntoTheBattlefieldFaceDownAsAnArtifactCreature",
             [Objects(cards), pt, kind],
         ) => ZoneMove::new(cards.clone(), D::OwnersBattlefield)
-            .face_down(artifact_creature(pt, kind)),
+            .face_down(artifact_creature(pt, kind)?),
         (
             "PutEachGraveyardCardOntoBattlefieldFaceDownAsAnArtifactCreature",
             [Filter(cards), flags, pt, kind],
         ) => ZoneMove::new(graveyard(cards), D::OwnersBattlefield)
             .entry(flags)
-            .face_down(artifact_creature(pt, kind)),
+            .face_down(artifact_creature(pt, kind)?),
         (
             "PutEachGraveyardCardOntoBattlefieldFaceDownAsAnArtifactCreature",
             [Objects(cards), flags, pt, kind],
         ) => ZoneMove::new(cards.clone(), D::OwnersBattlefield)
             .entry(flags)
-            .face_down(artifact_creature(pt, kind)),
+            .face_down(artifact_creature(pt, kind)?),
         (
             "PutTheTopNumberCardsOfPlayersLibraryOntoBattlefieldAsFaceDownArtifactCreatures",
             [Number(n), pt, kind],
         ) => ZoneMove::new(library_top(&you()?, n.clone()), D::OwnersBattlefield)
-            .face_down(artifact_creature(pt, kind)),
+            .face_down(artifact_creature(pt, kind)?),
         ("PutAnyNumberOfCardsFromHandOntoBattlefieldAsFaceDownArtifactCreatures", [pt]) => {
             ZoneMove::new(hand(&any), D::OwnersBattlefield)
                 .choose(Count::AnyNumber)
-                .face_down(FaceDownAs {
-                    power_toughness: Box::new(pt.clone()),
-                    creature_type: None,
-                    artifact: true,
-                })
+                .face_down(crate::source_values::face_down(pt,None,true).ok()?)
         }
         ("ReturnEachCardFromPlayersGraveyardToHandThatWasPutThereFromBattlefieldThisTurn", [Filter(cards), Player(owner)]) => {
             ZoneMove::new(
@@ -627,7 +619,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
                 },
                 D::OwnersBattlefield,
             )
-            .face_down(artifact_creature(pt, kind))
+            .face_down(artifact_creature(pt, kind)?)
         }
         ("PutACardOfTypeAndOrACardOfTypeMilledThisWayOntoTheBattlefield", [List(filters), flags, Operand::Result(result)]) => {
             let parts = filters
@@ -1237,17 +1229,13 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
         ("TurnPermanentFaceDownAsArtifactCreature", [Object(object), pt, kind]) => {
             Operation::TurnFaceDownAs {
                 objects: ObjectSet::One(object.clone()),
-                as_creature: artifact_creature(pt, kind),
+                as_creature: artifact_creature(pt, kind)?,
             }
         }
         ("TurnEachPermanentFaceDownAsCreature", [Objects(set), pt, kind]) => {
             Operation::TurnFaceDownAs {
                 objects: set.clone(),
-                as_creature: FaceDownAs {
-                    power_toughness: Box::new(pt.clone()),
-                    creature_type: Some(Box::new(kind.clone())),
-                    artifact: false,
-                },
+                as_creature: crate::source_values::face_down(pt, Some(kind), false).ok()?,
             }
         }
         _ => return None,

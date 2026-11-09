@@ -2541,6 +2541,10 @@ pub fn reduce_rule(name: String, operands: Vec<Operand>) -> RuleChange {
     let bare = name.strip_prefix("PermanentRule::").unwrap_or(&name);
     match (bare, operands.as_slice()) {
         ("IsGoadedByPlayer", [Operand::Player(player)]) => RuleChange::GoadedBy(player.clone()),
+        ("MustAttackPlayer", [Operand::Player(player)]) => RuleChange::RequireCombat {
+            action: ObjectAction::Attack(AttackDefenders::Players(PlayerSet::One(player.clone()))),
+            amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+        },
         ("CantAttackIfDefendingPlayer", [Operand::Condition(condition)]) => {
             RuleChange::CantAttackDefenderIf(condition.clone())
         }

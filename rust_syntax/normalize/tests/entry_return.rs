@@ -12,10 +12,7 @@ impl Visitor for ReturnRecipients {
         if let Operation::Move { entry, .. } = operation {
             for state in &entry.states {
                 if let EntryState::ExiledForWith { body, .. } = state {
-                    let Operand::Program(program) = &**body else {
-                        panic!("return body is not a program")
-                    };
-                    for instruction in &program.instructions {
+                    for instruction in &body.instructions {
                         if let Instruction::Effect {
                             operation: Operation::PutCounters { placements },
                             ..

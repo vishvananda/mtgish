@@ -135,7 +135,7 @@ fn entry_flag(
         return;
     }
     let Some((family, form, args)) = descriptor(flag) else {
-        entry.states.push(EntryState::Primitive {
+        entry.states.push(EntryState::Draft {
             name: "MovementEntry::Unclassified".into(),
             operands: vec![flag.clone()],
         });

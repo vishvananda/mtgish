@@ -10,11 +10,7 @@ fn reduce_card_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             Count::UpTo(Expr::Constant(1)),
             PlayTerms {
                 cost: PlayCost::Free,
-                face_down: Some(FaceDownAs {
-                    power_toughness: Box::new(pt.clone()),
-                    creature_type: None,
-                    artifact: false,
-                }),
+                face_down: Some(crate::source_values::face_down(pt, None, false).ok()?),
                 ..play_terms()
             },
             None,

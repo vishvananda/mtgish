@@ -337,6 +337,11 @@ fn entry_counters_stay_in_the_creation_and_timed_entry_rules_are_named() {
         vec![],
         source::Expiration::UntilEndOfTurn,
     ));
-    let named = format!("{:?}", lower::card(&probe(vec![action])).unwrap());
-    assert!(named.contains("RulesUntil"), "{named}");
+    let lowered = lower::card(&probe(vec![action])).unwrap();
+    let (_, entry) = creations(&lowered);
+    assert!(
+        matches!(entry.states.as_slice(), [EntryState::ChangesUntil {
+        changes, duration: Duration::EndOfTurn
+    }] if changes.is_empty())
+    );
 }

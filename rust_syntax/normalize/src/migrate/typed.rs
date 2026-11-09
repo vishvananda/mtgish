@@ -1,4 +1,4 @@
-//! A typed, bottom-up copy-payload upgrade with explicit ID-site origins.
+//! Bottom-up upgrades against immutable input epochs, with explicit ID-site origins.
 use super::*;
 use crate::{
     binding_map::{self, SiteMap},
@@ -21,7 +21,7 @@ pub struct MappedMigration {
 pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
     let value = crate::json_input::value(input)?;
     match value["schema_version"].as_u64() {
-        Some(180) => upgrade(value, false),
+        Some(180 | 181) => upgrade(value, true),
         Some(v) if v == u64::from(SCHEMA_VERSION) => {
             let card = super::checked(value.clone())?;
             let sites = binding_map::sites(
@@ -38,37 +38,26 @@ pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
                 },
             })
         }
-        _ => Err("mapped migration requires schema 180 or the current epoch".into()),
+        _ => Err("mapped migration requires schema 180, 181 or the current epoch".into()),
     }
 }
-pub(super) fn check_179(value: &mut Value) -> Result<(), String> {
-    let mut walk = Walker {
-        schema: super::schema::input(179)?,
-        map: None,
-        rewrite: false,
-        allow_current: false,
-        work: 0,
-    };
-    walk.node(&Ty::Named("UnifiedCard".into()), value, "")
-}
-pub(super) fn after_179(value: Value) -> Result<UnifiedCard, String> {
-    Ok(upgrade(value, true)?.card)
-}
-
-pub(super) fn upgrade(mut value: Value, after_entry: bool) -> Result<MappedMigration, String> {
-    if value["schema_version"] != 180
+pub(super) fn upgrade(mut value: Value, track: bool) -> Result<MappedMigration, String> {
+    let version = value["schema_version"]
+        .as_u64()
+        .ok_or("legacy IR requires a schema version")? as u32;
+    if !matches!(version, 179 | 180 | 181)
         || value["faces"]
             .as_array()
             .ok_or("legacy IR requires faces")?
             .iter()
-            .any(|face| face["schema_version"] != 180)
+            .any(|face| face["schema_version"] != version)
     {
-        return Err("legacy IR faces must use schema 180".into());
+        return Err(format!("legacy IR faces must use schema {version}"));
     }
-    let schema = super::schema::input(180)?;
+    let schema = super::schema::input(version)?;
     let ty = Ty::Named("UnifiedCard".into());
     let before = binding_map::sites(schema, &ty, &value);
-    let map = (!after_entry).then(|| SiteMap {
+    let map = track.then(|| SiteMap {
         sites: before
             .keys()
             .map(|p| (p.clone(), vec![p.clone()]))
@@ -78,21 +67,20 @@ pub(super) fn upgrade(mut value: Value, after_entry: bool) -> Result<MappedMigra
     let mut walker = Walker {
         schema,
         map,
-        rewrite: true,
-        allow_current: after_entry,
+        version,
         work: 0,
     };
     walker.node(&ty, &mut value, "")?;
     let card = super::checked(value.clone())?;
     let map = walker.map.unwrap_or_default();
-    if !after_entry {
+    if track {
         map.validate(
             &before,
             &binding_map::sites(super::schema::input(SCHEMA_VERSION)?, &ty, &value),
         )?;
     }
     Ok(MappedMigration {
-        source_version: 180,
+        source_version: version,
         card,
         map,
     })
@@ -108,8 +96,7 @@ fn suffix<'a>(path: &'a str, prefix: &str) -> Option<&'a str> {
 struct Walker<'a> {
     schema: &'a Schema,
     map: Option<SiteMap>,
-    rewrite: bool,
-    allow_current: bool,
+    version: u32,
     work: usize,
 }
 impl Walker<'_> {
@@ -151,9 +138,14 @@ impl Walker<'_> {
                 match descriptor {
                     TypeDef::Struct(fields) => {
                         self.fields(fields, value, path)?;
-                        if self.rewrite && matches!(name.as_str(), "Card" | "UnifiedCard") {
+                        if matches!(name.as_str(), "Card" | "UnifiedCard") {
                             value["schema_version"] = json!(SCHEMA_VERSION);
                         }
+                        if self.version == 179 && name == "EntrySpec" {
+                            value["controller"] = Value::Null;
+                        }
+                        let regions = super::entry_payloads::structure(name, value, path)?;
+                        self.regions(regions);
                     }
                     TypeDef::Enum { adjacent, variants } => {
                         let variant = if *adjacent {
@@ -189,28 +181,24 @@ impl Walker<'_> {
                             .ok_or_else(|| format!("{path}: missing variant arguments"))?;
                         let owner = format!("{name}::{variant}");
                         let at = args_path(path, *adjacent, &variant);
-                        if self.allow_current
-                            && copy_field(&owner).is_some()
-                            && args.get("exceptions").is_some()
-                        {
-                            // Only internally constructed arrivals can reach this
-                            // route, after strict schema-179 input validation.
-                            let mut current = Walker {
-                                schema: super::schema::input(SCHEMA_VERSION)?,
-                                map: None,
-                                rewrite: false,
-                                allow_current: false,
-                                work: 0,
-                            };
-                            current.node(ty, value, path)?;
-                            return Ok(());
-                        }
                         self.fields(fields, args, &at)?;
-                        if self.rewrite {
+                        if self.version <= 180 {
                             if let Some((field, single)) = copy_field(&owner) {
                                 self.copy(args, &at, field, single)?;
                             }
                         }
+                        if self.version == 179
+                            && name == "Operation"
+                            && super::ENTRY_OPERATIONS.contains(&variant.as_str())
+                        {
+                            let flags: Vec<Operand> = serde_json::from_value(args["entry"].clone())
+                                .map_err(|e| e.to_string())?;
+                            args["entry"] =
+                                serde_json::to_value(crate::movement::entry_from_source(&flags))
+                                    .map_err(|e| e.to_string())?;
+                        }
+                        let regions = super::entry_payloads::variant(&owner, value, path)?;
+                        self.regions(regions);
                     }
                 }
             }
@@ -241,6 +229,13 @@ impl Walker<'_> {
             }
         }
         Ok(())
+    }
+    fn regions(&mut self, regions: Vec<super::entry_payloads::Region>) {
+        if let Some(map) = &mut self.map {
+            for region in regions {
+                remap(map, &region.source, &region.moves);
+            }
+        }
     }
     fn copy(
         &mut self,
@@ -277,23 +272,7 @@ impl Walker<'_> {
                     Ok((format!("{source}{a}"), format!("{target}{b}")))
                 })
                 .collect::<Result<Vec<_>, String>>()?;
-            for destinations in map.sites.values_mut() {
-                let mut next = Vec::new();
-                for destination in destinations.iter() {
-                    if suffix(destination, &source).is_none() {
-                        next.push(destination.clone());
-                        continue;
-                    }
-                    for (from, to) in &moves {
-                        if let Some(rest) = suffix(destination, from) {
-                            next.push(format!("{to}{rest}"));
-                        }
-                    }
-                }
-                next.sort();
-                next.dedup();
-                *destinations = next;
-            }
+            remap(map, &source, &moves);
         }
         let fields = args
             .as_object_mut()
@@ -304,6 +283,25 @@ impl Walker<'_> {
             serde_json::to_value(converted.exceptions).map_err(|e| e.to_string())?,
         );
         Ok(())
+    }
+}
+fn remap(map: &mut SiteMap, source: &str, moves: &[(String, String)]) {
+    for destinations in map.sites.values_mut() {
+        let mut next = vec![];
+        for destination in destinations.iter() {
+            if suffix(destination, source).is_none() {
+                next.push(destination.clone());
+                continue;
+            }
+            for (from, to) in moves {
+                if let Some(rest) = suffix(destination, from) {
+                    next.push(format!("{to}{rest}"));
+                }
+            }
+        }
+        next.sort();
+        next.dedup();
+        *destinations = next;
     }
 }
 fn copy_field(owner: &str) -> Option<(&'static str, bool)> {

@@ -21,6 +21,12 @@ pub fn field(owner: &str, key: &str, ty: &Ty) -> Option<Value> {
     if owner == "TargetSpec" && key == "count" {
         return Some(json!({"Exactly":{"kind":"Constant","args":1}}));
     }
+    if owner == "EntryState::Optional" && key == "decider" {
+        return Some(json!({"kind":"AbilityController"}));
+    }
+    if owner == "FaceDownAs" && key == "artifact" {
+        return Some(json!(false));
+    }
     if key == "preventable" {
         return Some(json!(true));
     }
