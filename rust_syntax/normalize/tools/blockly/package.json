@@ -11,7 +11,8 @@
     "test:sockets": "node test_sockets.cjs",
     "test:migration": "node test_migration.cjs",
     "test:bindings": "node test_binding_document.cjs",
-    "test:names": "node test_names.cjs"
+    "test:names": "node test_names.cjs",
+    "test:branches": "node test_branches.cjs"
   },
   "devDependencies": {
     "playwright": "1.65.0"

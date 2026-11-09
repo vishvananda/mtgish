@@ -1,0 +1,1151 @@
+{
+  "format": "mtgish.blockly.workspace.v1",
+  "presentation": 5,
+  "schema": 180,
+  "model": "6e27657a4e71c464",
+  "workspace": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "ir_value",
+          "id": "HCCg$Pd^i07k?i$hcdSH",
+          "x": 40,
+          "y": 40,
+          "extraState": {
+            "ty": {
+              "named": "UnifiedCard"
+            },
+            "ui": 3,
+            "negativePrevention": true,
+            "pr": "single",
+            "inline": {}
+          },
+          "fields": {
+            "MORE": "NONE",
+            "_ROOT_schema": "180",
+            "_ROOT_layout": "Card",
+            "_F_schema_version": "180",
+            "_F_name": "Legacy branch names"
+          },
+          "inputs": {
+            "ROOT_data": {
+              "block": {
+                "type": "ir_value",
+                "id": "N_c{=vHUowhqx/y{N3fh",
+                "extraState": {
+                  "ty": {
+                    "vec": {
+                      "named": "Field"
+                    }
+                  },
+                  "count": 0,
+                  "ui": 3,
+                  "inline": {}
+                },
+                "fields": {
+                  "MORE": "NONE"
+                }
+              }
+            },
+            "F_characteristics": {
+              "block": {
+                "type": "ir_value",
+                "id": "*wHUPP1Ei8rJ-vOJiTTL",
+                "collapsed": true,
+                "extraState": {
+                  "ty": {
+                    "named": "Characteristics"
+                  },
+                  "ui": 3,
+                  "negativePrevention": true,
+                  "inline": {}
+                },
+                "fields": {
+                  "MORE": "NONE"
+                },
+                "inputs": {
+                  "F_supertypes": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "xuR/yN[Y!(4]Et%M_/3O",
+                      "extraState": {
+                        "ty": {
+                          "vec": {
+                            "named": "SuperType"
+                          }
+                        },
+                        "count": 0,
+                        "ui": 3,
+                        "inline": {}
+                      },
+                      "fields": {
+                        "MORE": "NONE"
+                      }
+                    }
+                  },
+                  "F_card_types": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "I/*Wke@`P-1fzzXHSUc:",
+                      "extraState": {
+                        "ty": {
+                          "vec": {
+                            "named": "CardType"
+                          }
+                        },
+                        "count": 1,
+                        "ui": 3,
+                        "inline": {}
+                      },
+                      "fields": {
+                        "MORE": "NONE",
+                        "_ITEM_0": "Instant"
+                      }
+                    }
+                  },
+                  "F_subtypes": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "edm%YwQ!Z/]Ep/:U02bS",
+                      "extraState": {
+                        "ty": {
+                          "vec": {
+                            "named": "SubType"
+                          }
+                        },
+                        "count": 0,
+                        "ui": 3,
+                        "inline": {}
+                      },
+                      "fields": {
+                        "MORE": "NONE"
+                      }
+                    }
+                  },
+                  "F_mana_cost": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "7lsv{!brNBJyp!8UILyL",
+                      "extraState": {
+                        "ty": {
+                          "option": {
+                            "vec": {
+                              "named": "ManaSymbol"
+                            }
+                          }
+                        },
+                        "present": false,
+                        "ui": 3,
+                        "inline": {}
+                      },
+                      "fields": {
+                        "MORE": "NONE"
+                      }
+                    }
+                  },
+                  "F_color_indicator": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "x!}f=K]?a+Kn95P^m!ho",
+                      "extraState": {
+                        "ty": {
+                          "vec": {
+                            "named": "ManaColor"
+                          }
+                        },
+                        "count": 0,
+                        "ui": 3,
+                        "inline": {}
+                      },
+                      "fields": {
+                        "MORE": "NONE"
+                      }
+                    }
+                  },
+                  "F_power_toughness": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "84veHXoc~xLgGsV7AMAI",
+                      "extraState": {
+                        "ty": {
+                          "option": {
+                            "tuple": [
+                              {
+                                "named": "i32"
+                              },
+                              {
+                                "named": "i32"
+                              }
+                            ]
+                          }
+                        },
+                        "present": false,
+                        "ui": 3,
+                        "inline": {}
+                      },
+                      "fields": {
+                        "MORE": "NONE"
+                      }
+                    }
+                  },
+                  "F_loyalty": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "Is?6x1$[xMl#DB]TuMp1",
+                      "extraState": {
+                        "ty": {
+                          "option": {
+                            "named": "Expr"
+                          }
+                        },
+                        "present": false,
+                        "ui": 3,
+                        "inline": {}
+                      },
+                      "fields": {
+                        "MORE": "NONE"
+                      }
+                    }
+                  },
+                  "F_defense": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "P|RH=NiW!81wMwUL%_Ze",
+                      "extraState": {
+                        "ty": {
+                          "option": {
+                            "named": "i32"
+                          }
+                        },
+                        "present": false,
+                        "ui": 3,
+                        "inline": {}
+                      },
+                      "fields": {
+                        "MORE": "NONE"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "F_abilities": {
+              "block": {
+                "type": "ir_value",
+                "id": "C#lR6!$)]XO$GhzF]fV.",
+                "extraState": {
+                  "ty": {
+                    "named": "Ability"
+                  },
+                  "ui": 3,
+                  "negativePrevention": true,
+                  "variant": "Spell",
+                  "inline": {},
+                  "statement": true
+                },
+                "fields": {
+                  "VARIANT": "Spell",
+                  "MORE": "NONE"
+                },
+                "inputs": {
+                  "F_announcement": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "N(~u5}ojw6{@Orn6|w:?",
+                      "extraState": {
+                        "ty": {
+                          "named": "Announcement"
+                        },
+                        "ui": 3,
+                        "negativePrevention": true,
+                        "inline": {}
+                      },
+                      "fields": {
+                        "MORE": "NONE"
+                      },
+                      "inputs": {
+                        "F_targets": {
+                          "block": {
+                            "type": "ir_value",
+                            "id": "iJ?cWuc:U,ZaO;Im6VV:",
+                            "extraState": {
+                              "ty": {
+                                "vec": {
+                                  "named": "TargetSpec"
+                                }
+                              },
+                              "count": 0,
+                              "ui": 3,
+                              "inline": {}
+                            },
+                            "fields": {
+                              "MORE": "NONE"
+                            }
+                          }
+                        },
+                        "F_modes": {
+                          "block": {
+                            "type": "ir_value",
+                            "id": "4a1EFq/*/B.z92ZiN@;P",
+                            "extraState": {
+                              "ty": {
+                                "option": {
+                                  "named": "ModeSelection"
+                                }
+                              },
+                              "present": false,
+                              "ui": 3,
+                              "inline": {}
+                            },
+                            "fields": {
+                              "MORE": "NONE"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "F_body": {
+                    "block": {
+                      "type": "ir_value",
+                      "id": "8?7!juQ)^SjOI)rI3{w.",
+                      "extraState": {
+                        "ty": {
+                          "named": "Instruction"
+                        },
+                        "ui": 3,
+                        "negativePrevention": true,
+                        "variant": "If",
+                        "inline": {},
+                        "statement": true
+                      },
+                      "fields": {
+                        "VARIANT": "If",
+                        "MORE": "NONE"
+                      },
+                      "inputs": {
+                        "F_condition": {
+                          "block": {
+                            "type": "ir_value",
+                            "id": "dvhdEXP3L=GI.S/dB.b1",
+                            "extraState": {
+                              "ty": {
+                                "named": "Condition"
+                              },
+                              "ui": 3,
+                              "negativePrevention": true,
+                              "variant": "PlayerIsActive",
+                              "inline": {
+                                "ARG_0": "choice"
+                              }
+                            },
+                            "fields": {
+                              "VARIANT": "PlayerIsActive",
+                              "MORE": "NONE"
+                            },
+                            "inputs": {
+                              "ARG_0": {
+                                "shadow": {
+                                  "type": "ir_value",
+                                  "id": "b7QO8z!|RqDCicPkBoTn",
+                                  "inline": true,
+                                  "extraState": {
+                                    "ty": {
+                                      "named": "PlayerRef"
+                                    },
+                                    "ui": 3,
+                                    "negativePrevention": true,
+                                    "variant": "AbilityController",
+                                    "pr": "literal",
+                                    "literal": "choice",
+                                    "inline": {
+                                      "VALUE": "choice"
+                                    }
+                                  },
+                                  "fields": {
+                                    "_VALUE": "0"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "F_then": {
+                          "block": {
+                            "type": "ir_value",
+                            "id": "y(Vj@h`N~89Nl}i6GMr4",
+                            "inline": true,
+                            "extraState": {
+                              "ty": {
+                                "named": "Instruction"
+                              },
+                              "ui": 3,
+                              "negativePrevention": true,
+                              "variant": "Effect",
+                              "pr": "effect",
+                              "op": "NoteObjects",
+                              "inline": {},
+                              "statement": true,
+                              "bindings": {
+                                "RESULT": {
+                                  "kind": "Result",
+                                  "scope": 1,
+                                  "name": "picked",
+                                  "explicit": true,
+                                  "key": "cQ?G`(nnl_PRy+iaib;u",
+                                  "id": 0
+                                }
+                              }
+                            },
+                            "fields": {
+                              "VARIANT": "NoteObjects",
+                              "MORE": "NONE",
+                              "_RESULT": "0",
+                              "NAME:RESULT": "picked"
+                            },
+                            "inputs": {
+                              "O_objects": {
+                                "block": {
+                                  "type": "ir_value",
+                                  "id": "-i4-N_9`1QC-e|HBWO8[",
+                                  "extraState": {
+                                    "ty": {
+                                      "named": "ObjectSet"
+                                    },
+                                    "ui": 3,
+                                    "negativePrevention": true,
+                                    "variant": "One",
+                                    "inline": {
+                                      "ARG_0": "choice"
+                                    }
+                                  },
+                                  "fields": {
+                                    "VARIANT": "One",
+                                    "MORE": "NONE"
+                                  },
+                                  "inputs": {
+                                    "ARG_0": {
+                                      "shadow": {
+                                        "type": "ir_value",
+                                        "id": "S5q^(BaJ7I(5V*Ps$b1z",
+                                        "inline": true,
+                                        "extraState": {
+                                          "ty": {
+                                            "named": "ObjectRef"
+                                          },
+                                          "ui": 3,
+                                          "negativePrevention": true,
+                                          "variant": "Source",
+                                          "pr": "literal",
+                                          "literal": "choice",
+                                          "inline": {
+                                            "VALUE": "choice"
+                                          }
+                                        },
+                                        "fields": {
+                                          "_VALUE": "0"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "next": {
+                              "block": {
+                                "type": "ir_value",
+                                "id": "P{m8DBdR*/,gu+)]/W2k",
+                                "inline": true,
+                                "extraState": {
+                                  "ty": {
+                                    "named": "Instruction"
+                                  },
+                                  "ui": 3,
+                                  "negativePrevention": true,
+                                  "variant": "Effect",
+                                  "pr": "effect",
+                                  "op": "NoteObjects",
+                                  "inline": {},
+                                  "statement": true,
+                                  "bindings": {
+                                    "RESULT": {
+                                      "kind": "Result",
+                                      "scope": 1,
+                                      "name": "r4294967295",
+                                      "explicit": false,
+                                      "key": "G{f1.|8!S2vYQ%,h)S5m",
+                                      "id": 4294967295
+                                    }
+                                  }
+                                },
+                                "fields": {
+                                  "VARIANT": "NoteObjects",
+                                  "MORE": "NONE",
+                                  "_RESULT": "4294967295"
+                                },
+                                "inputs": {
+                                  "O_objects": {
+                                    "block": {
+                                      "type": "ir_value",
+                                      "id": "UI%3TX%MV8r6Cmz%~)t?",
+                                      "extraState": {
+                                        "ty": {
+                                          "named": "ObjectSet"
+                                        },
+                                        "ui": 3,
+                                        "negativePrevention": true,
+                                        "variant": "Selected",
+                                        "inline": {},
+                                        "bindings": {
+                                          "ARG_0": {
+                                            "kind": "Result",
+                                            "scope": 1,
+                                            "name": "picked",
+                                            "explicit": true,
+                                            "key": "cQ?G`(nnl_PRy+iaib;u",
+                                            "id": 0
+                                          }
+                                        }
+                                      },
+                                      "fields": {
+                                        "VARIANT": "Selected",
+                                        "MORE": "NONE",
+                                        "_ARG_0": "0",
+                                        "REF:ARG_0": "cQ?G`(nnl_PRy+iaib;u"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "F_otherwise": {
+                          "block": {
+                            "type": "ir_value",
+                            "id": "etuCkg#otS!D!]$g!^5l",
+                            "inline": true,
+                            "extraState": {
+                              "ty": {
+                                "named": "Instruction"
+                              },
+                              "ui": 3,
+                              "negativePrevention": true,
+                              "variant": "Effect",
+                              "pr": "effect",
+                              "op": "NoteObjects",
+                              "inline": {},
+                              "statement": true,
+                              "bindings": {
+                                "RESULT": {
+                                  "kind": "Result",
+                                  "scope": 1,
+                                  "name": "picked",
+                                  "explicit": true,
+                                  "key": "cQ?G`(nnl_PRy+iaib;u",
+                                  "id": 0
+                                }
+                              }
+                            },
+                            "fields": {
+                              "VARIANT": "NoteObjects",
+                              "MORE": "NONE",
+                              "_RESULT": "0",
+                              "NAME:RESULT": "picked"
+                            },
+                            "inputs": {
+                              "O_objects": {
+                                "block": {
+                                  "type": "ir_value",
+                                  "id": "PyvUbMo.x0u$icw(B=%@",
+                                  "extraState": {
+                                    "ty": {
+                                      "named": "ObjectSet"
+                                    },
+                                    "ui": 3,
+                                    "negativePrevention": true,
+                                    "variant": "One",
+                                    "inline": {
+                                      "ARG_0": "choice"
+                                    }
+                                  },
+                                  "fields": {
+                                    "VARIANT": "One",
+                                    "MORE": "NONE"
+                                  },
+                                  "inputs": {
+                                    "ARG_0": {
+                                      "shadow": {
+                                        "type": "ir_value",
+                                        "id": "3_`jI0@j+wOeLS|]I@zi",
+                                        "inline": true,
+                                        "extraState": {
+                                          "ty": {
+                                            "named": "ObjectRef"
+                                          },
+                                          "ui": 3,
+                                          "negativePrevention": true,
+                                          "variant": "Source",
+                                          "pr": "literal",
+                                          "literal": "choice",
+                                          "inline": {
+                                            "VALUE": "choice"
+                                          }
+                                        },
+                                        "fields": {
+                                          "_VALUE": "0"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "next": {
+                              "block": {
+                                "type": "ir_value",
+                                "id": "IN$W],Gnr;cOXbGY6Y:Q",
+                                "inline": true,
+                                "extraState": {
+                                  "ty": {
+                                    "named": "Instruction"
+                                  },
+                                  "ui": 3,
+                                  "negativePrevention": true,
+                                  "variant": "Effect",
+                                  "pr": "effect",
+                                  "op": "NoteObjects",
+                                  "inline": {},
+                                  "statement": true,
+                                  "bindings": {
+                                    "RESULT": {
+                                      "kind": "Result",
+                                      "scope": 1,
+                                      "name": "r4294967294",
+                                      "explicit": false,
+                                      "key": "?gUBoeS3=9qMS?2E-UVl",
+                                      "id": 4294967294
+                                    }
+                                  }
+                                },
+                                "fields": {
+                                  "VARIANT": "NoteObjects",
+                                  "MORE": "NONE",
+                                  "_RESULT": "4294967294"
+                                },
+                                "inputs": {
+                                  "O_objects": {
+                                    "block": {
+                                      "type": "ir_value",
+                                      "id": "X(K./Bz~:7wNgPRl99os",
+                                      "extraState": {
+                                        "ty": {
+                                          "named": "ObjectSet"
+                                        },
+                                        "ui": 3,
+                                        "negativePrevention": true,
+                                        "variant": "Selected",
+                                        "inline": {},
+                                        "bindings": {
+                                          "ARG_0": {
+                                            "kind": "Result",
+                                            "scope": 1,
+                                            "name": "picked",
+                                            "explicit": true,
+                                            "key": "cQ?G`(nnl_PRy+iaib;u",
+                                            "id": 0
+                                          }
+                                        }
+                                      },
+                                      "fields": {
+                                        "VARIANT": "Selected",
+                                        "MORE": "NONE",
+                                        "_ARG_0": "0",
+                                        "REF:ARG_0": "cQ?G`(nnl_PRy+iaib;u"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "ir_value",
+                    "id": "N#9}I)e9lxH]|gIspG4$",
+                    "extraState": {
+                      "ty": {
+                        "named": "Ability"
+                      },
+                      "ui": 3,
+                      "negativePrevention": true,
+                      "variant": "Spell",
+                      "inline": {},
+                      "statement": true
+                    },
+                    "fields": {
+                      "VARIANT": "Spell",
+                      "MORE": "NONE"
+                    },
+                    "inputs": {
+                      "F_announcement": {
+                        "block": {
+                          "type": "ir_value",
+                          "id": "pqpgW]wg)Q~_~)a+U=^)",
+                          "extraState": {
+                            "ty": {
+                              "named": "Announcement"
+                            },
+                            "ui": 3,
+                            "negativePrevention": true,
+                            "inline": {}
+                          },
+                          "fields": {
+                            "MORE": "NONE"
+                          },
+                          "inputs": {
+                            "F_targets": {
+                              "block": {
+                                "type": "ir_value",
+                                "id": "8biJmj{)3XW,HFVsvbO1",
+                                "extraState": {
+                                  "ty": {
+                                    "vec": {
+                                      "named": "TargetSpec"
+                                    }
+                                  },
+                                  "count": 0,
+                                  "ui": 3,
+                                  "inline": {}
+                                },
+                                "fields": {
+                                  "MORE": "NONE"
+                                }
+                              }
+                            },
+                            "F_modes": {
+                              "block": {
+                                "type": "ir_value",
+                                "id": "%fd68|oEn}K30{L}B%7N",
+                                "extraState": {
+                                  "ty": {
+                                    "option": {
+                                      "named": "ModeSelection"
+                                    }
+                                  },
+                                  "present": false,
+                                  "ui": 3,
+                                  "inline": {}
+                                },
+                                "fields": {
+                                  "MORE": "NONE"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "F_body": {
+                        "block": {
+                          "type": "ir_value",
+                          "id": "jJu(.z:K8eXxG@vRM$T~",
+                          "extraState": {
+                            "ty": {
+                              "named": "Instruction"
+                            },
+                            "ui": 3,
+                            "negativePrevention": true,
+                            "variant": "ChooseOne",
+                            "inline": {
+                              "F_decider": "choice"
+                            },
+                            "statement": true
+                          },
+                          "fields": {
+                            "VARIANT": "ChooseOne",
+                            "MORE": "NONE"
+                          },
+                          "inputs": {
+                            "F_decider": {
+                              "shadow": {
+                                "type": "ir_value",
+                                "id": "|o_VrKDvaZ!bjsB{/:)D",
+                                "inline": true,
+                                "extraState": {
+                                  "ty": {
+                                    "named": "PlayerRef"
+                                  },
+                                  "ui": 3,
+                                  "negativePrevention": true,
+                                  "variant": "AbilityController",
+                                  "pr": "literal",
+                                  "literal": "choice",
+                                  "inline": {
+                                    "VALUE": "choice"
+                                  }
+                                },
+                                "fields": {
+                                  "_VALUE": "0"
+                                }
+                              }
+                            },
+                            "F_options": {
+                              "block": {
+                                "type": "ir_value",
+                                "id": "~2i-^[.G$sk7Qq/3M_3k",
+                                "extraState": {
+                                  "ty": {
+                                    "vec": {
+                                      "named": "Program"
+                                    }
+                                  },
+                                  "count": 2,
+                                  "ui": 3,
+                                  "inline": {}
+                                },
+                                "fields": {
+                                  "MORE": "NONE"
+                                },
+                                "inputs": {
+                                  "ITEM_0": {
+                                    "block": {
+                                      "type": "ir_value",
+                                      "id": "}J9UF64YiyN#|8sFwr$E",
+                                      "inline": true,
+                                      "extraState": {
+                                        "ty": {
+                                          "named": "Instruction"
+                                        },
+                                        "ui": 3,
+                                        "negativePrevention": true,
+                                        "variant": "Effect",
+                                        "pr": "effect",
+                                        "op": "NoteObjects",
+                                        "inline": {},
+                                        "statement": true,
+                                        "bindings": {
+                                          "RESULT": {
+                                            "kind": "Result",
+                                            "scope": 2,
+                                            "name": "picked",
+                                            "explicit": true,
+                                            "key": "p3Mm`|Ff+?*B1%=jU;{o",
+                                            "id": 1
+                                          }
+                                        }
+                                      },
+                                      "fields": {
+                                        "VARIANT": "NoteObjects",
+                                        "MORE": "NONE",
+                                        "_RESULT": "1",
+                                        "NAME:RESULT": "picked"
+                                      },
+                                      "inputs": {
+                                        "O_objects": {
+                                          "block": {
+                                            "type": "ir_value",
+                                            "id": "~]8%7AF|Ab+~_E-w6vid",
+                                            "extraState": {
+                                              "ty": {
+                                                "named": "ObjectSet"
+                                              },
+                                              "ui": 3,
+                                              "negativePrevention": true,
+                                              "variant": "One",
+                                              "inline": {
+                                                "ARG_0": "choice"
+                                              }
+                                            },
+                                            "fields": {
+                                              "VARIANT": "One",
+                                              "MORE": "NONE"
+                                            },
+                                            "inputs": {
+                                              "ARG_0": {
+                                                "shadow": {
+                                                  "type": "ir_value",
+                                                  "id": "XE#7nb7cS)}CuSbL3t:@",
+                                                  "inline": true,
+                                                  "extraState": {
+                                                    "ty": {
+                                                      "named": "ObjectRef"
+                                                    },
+                                                    "ui": 3,
+                                                    "negativePrevention": true,
+                                                    "variant": "Source",
+                                                    "pr": "literal",
+                                                    "literal": "choice",
+                                                    "inline": {
+                                                      "VALUE": "choice"
+                                                    }
+                                                  },
+                                                  "fields": {
+                                                    "_VALUE": "0"
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "next": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "eQuF}[hL|A0Il*@wsDV.",
+                                          "inline": true,
+                                          "extraState": {
+                                            "ty": {
+                                              "named": "Instruction"
+                                            },
+                                            "ui": 3,
+                                            "negativePrevention": true,
+                                            "variant": "Effect",
+                                            "pr": "effect",
+                                            "op": "NoteObjects",
+                                            "inline": {},
+                                            "statement": true,
+                                            "bindings": {
+                                              "RESULT": {
+                                                "kind": "Result",
+                                                "scope": 2,
+                                                "name": "r4294967293",
+                                                "explicit": false,
+                                                "key": "Knwi4a%a5)XL.MWGWd8f",
+                                                "id": 4294967293
+                                              }
+                                            }
+                                          },
+                                          "fields": {
+                                            "VARIANT": "NoteObjects",
+                                            "MORE": "NONE",
+                                            "_RESULT": "4294967293"
+                                          },
+                                          "inputs": {
+                                            "O_objects": {
+                                              "block": {
+                                                "type": "ir_value",
+                                                "id": "-/!(Llo$)tV/^|P8]+_;",
+                                                "extraState": {
+                                                  "ty": {
+                                                    "named": "ObjectSet"
+                                                  },
+                                                  "ui": 3,
+                                                  "negativePrevention": true,
+                                                  "variant": "Selected",
+                                                  "inline": {},
+                                                  "bindings": {
+                                                    "ARG_0": {
+                                                      "kind": "Result",
+                                                      "scope": 2,
+                                                      "name": "picked",
+                                                      "explicit": true,
+                                                      "key": "p3Mm`|Ff+?*B1%=jU;{o",
+                                                      "id": 1
+                                                    }
+                                                  }
+                                                },
+                                                "fields": {
+                                                  "VARIANT": "Selected",
+                                                  "MORE": "NONE",
+                                                  "_ARG_0": "1",
+                                                  "REF:ARG_0": "p3Mm`|Ff+?*B1%=jU;{o"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "ITEM_1": {
+                                    "block": {
+                                      "type": "ir_value",
+                                      "id": "hi1R$^?ktR-[ZVR@X_*O",
+                                      "inline": true,
+                                      "extraState": {
+                                        "ty": {
+                                          "named": "Instruction"
+                                        },
+                                        "ui": 3,
+                                        "negativePrevention": true,
+                                        "variant": "Effect",
+                                        "pr": "effect",
+                                        "op": "NoteObjects",
+                                        "inline": {},
+                                        "statement": true,
+                                        "bindings": {
+                                          "RESULT": {
+                                            "kind": "Result",
+                                            "scope": 2,
+                                            "name": "picked",
+                                            "explicit": true,
+                                            "key": "p3Mm`|Ff+?*B1%=jU;{o",
+                                            "id": 1
+                                          }
+                                        }
+                                      },
+                                      "fields": {
+                                        "VARIANT": "NoteObjects",
+                                        "MORE": "NONE",
+                                        "_RESULT": "1",
+                                        "NAME:RESULT": "picked"
+                                      },
+                                      "inputs": {
+                                        "O_objects": {
+                                          "block": {
+                                            "type": "ir_value",
+                                            "id": "8egE13~#5cd:?qn^Go%Z",
+                                            "extraState": {
+                                              "ty": {
+                                                "named": "ObjectSet"
+                                              },
+                                              "ui": 3,
+                                              "negativePrevention": true,
+                                              "variant": "One",
+                                              "inline": {
+                                                "ARG_0": "choice"
+                                              }
+                                            },
+                                            "fields": {
+                                              "VARIANT": "One",
+                                              "MORE": "NONE"
+                                            },
+                                            "inputs": {
+                                              "ARG_0": {
+                                                "shadow": {
+                                                  "type": "ir_value",
+                                                  "id": "%#%M{(jtKbrz^f+(qS}?",
+                                                  "inline": true,
+                                                  "extraState": {
+                                                    "ty": {
+                                                      "named": "ObjectRef"
+                                                    },
+                                                    "ui": 3,
+                                                    "negativePrevention": true,
+                                                    "variant": "Source",
+                                                    "pr": "literal",
+                                                    "literal": "choice",
+                                                    "inline": {
+                                                      "VALUE": "choice"
+                                                    }
+                                                  },
+                                                  "fields": {
+                                                    "_VALUE": "0"
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "next": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "IT2i7xU6*y@u]3ZEu.3b",
+                                          "inline": true,
+                                          "extraState": {
+                                            "ty": {
+                                              "named": "Instruction"
+                                            },
+                                            "ui": 3,
+                                            "negativePrevention": true,
+                                            "variant": "Effect",
+                                            "pr": "effect",
+                                            "op": "NoteObjects",
+                                            "inline": {},
+                                            "statement": true,
+                                            "bindings": {
+                                              "RESULT": {
+                                                "kind": "Result",
+                                                "scope": 2,
+                                                "name": "r4294967292",
+                                                "explicit": false,
+                                                "key": "dhy.KXq2BO(Y@S9b3wY!",
+                                                "id": 4294967292
+                                              }
+                                            }
+                                          },
+                                          "fields": {
+                                            "VARIANT": "NoteObjects",
+                                            "MORE": "NONE",
+                                            "_RESULT": "4294967292"
+                                          },
+                                          "inputs": {
+                                            "O_objects": {
+                                              "block": {
+                                                "type": "ir_value",
+                                                "id": "r9-))$3i]2{qt@[8`1[b",
+                                                "extraState": {
+                                                  "ty": {
+                                                    "named": "ObjectSet"
+                                                  },
+                                                  "ui": 3,
+                                                  "negativePrevention": true,
+                                                  "variant": "Selected",
+                                                  "inline": {},
+                                                  "bindings": {
+                                                    "ARG_0": {
+                                                      "kind": "Result",
+                                                      "scope": 2,
+                                                      "name": "picked",
+                                                      "explicit": true,
+                                                      "key": "p3Mm`|Ff+?*B1%=jU;{o",
+                                                      "id": 1
+                                                    }
+                                                  }
+                                                },
+                                                "fields": {
+                                                  "VARIANT": "Selected",
+                                                  "MORE": "NONE",
+                                                  "_ARG_0": "1",
+                                                  "REF:ARG_0": "p3Mm`|Ff+?*B1%=jU;{o"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "F_offered": {
+                              "block": {
+                                "type": "ir_value",
+                                "id": "slcZV|Vh:Mizjez0*dNz",
+                                "extraState": {
+                                  "ty": {
+                                    "option": {
+                                      "named": "Expr"
+                                    }
+                                  },
+                                  "present": false,
+                                  "ui": 3,
+                                  "inline": {}
+                                },
+                                "fields": {
+                                  "MORE": "NONE"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

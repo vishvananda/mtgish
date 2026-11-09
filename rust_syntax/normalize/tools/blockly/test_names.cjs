@@ -29,7 +29,7 @@ let browser,page;
  await page.waitForFunction(()=>window.cardBlocks.valid()&&document.getElementById('human-editor').value.includes('Targets(defender)'));
  assert.equal(await page.evaluate(()=>window.cardBlocks.encode(window.cardBlocks.generated())),original);
  const saved=await page.evaluate(()=>window.cardBlocks.savedWorkspace());
- assert.ok(JSON.stringify(saved).includes('defender'));assert.equal(saved.presentation,5);
+ assert.ok(JSON.stringify(saved).includes('defender'));assert.equal(saved.presentation,6);
  await page.locator('#undo').click();await page.waitForFunction(()=>window.cardBlocks.valid()&&document.getElementById('human-editor').value.includes('Targets(victim)'));
  await page.locator('#redo').click();await page.waitForFunction(()=>window.cardBlocks.valid()&&document.getElementById('human-editor').value.includes('Targets(defender)'));
  await page.evaluate(saved=>window.cardBlocks.restore(saved),saved);await page.waitForFunction(()=>window.cardBlocks.valid());

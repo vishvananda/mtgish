@@ -4,8 +4,9 @@
 function createBindingEditor(api) {
   const kinds={Slot:'Target',ResultId:'Result',Binding:'Loop',SelectionId:'Selection'};
   const clone=v=>structuredClone(v), ptr=(p,k)=>p+'/'+String(k).replace(/~/g,'~0').replace(/\//g,'~1');
+  const ordered=v=>Array.isArray(v)?v.map(ordered):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,ordered(v[k])])):v;
   const fresh=()=>Blockly.utils.idGenerator.genUid();
-  let accepted=null, acceptedIR=null, groupKeys=[], candidates=new Map(), knownKeys=new Set(), pendingEditor=null;
+  let accepted=null, acceptedIR=null, groupKeys=[], candidates=new Map(), knownKeys=new Set(), pendingEditor=null, legacyRestore=false;
   function owner(s) {return s.pr==='effect'?'Operation::'+s.op:s.pr==='keyword'?'Keyword::'+s.keyword:s.variant?s.ty.named+'::'+s.variant:s.ty.named;}
   function definition(b,p) {
     const s=b.state,o=owner(s),key=p.key.replace(/^(F_|O_|K_)/,'');
@@ -84,13 +85,23 @@ function createBindingEditor(api) {
   }
   function attach(root,doc) {
     const byPath=new Map(ports(root).map(p=>[p.path,p])), keys=doc.bindings.map(()=>fresh());
-    for(const use of doc.uses){const p=byPath.get(use.path),b=doc.bindings[use.binding];if(!p||p.kind!==b.kind)throw Error('The block codec has no binding port for '+use.path);assign(p,{...b,key:keys[use.binding]});}
+    for(const use of doc.uses){const p=byPath.get(use.path),b=doc.bindings[use.binding];if(!p||p.kind!==b.kind)throw Error('The block codec has no binding port for '+use.path);assign(p,{...bindingMetadata(doc,keys,use.binding),qualified:!!use.qualified});}
+  }
+  function bindingMetadata(doc,keys,index) {
+    const b=doc.bindings[index];return {...b,key:keys[index],alternatives:(b.members||[]).map(i=>({key:keys[i],scope:doc.bindings[i].scope_name}))};
+  }
+  function label(index) {
+    const b=accepted?.bindings[index];if(!b)return '';
+    if(b.members?.length)return b.members.map(label).join(' / ');
+    const duplicate=accepted.bindings.some((other,i)=>i!==index&&!(other.members?.length)&&other.kind===b.kind&&other.name===b.name);
+    return b.name+(duplicate?' · '+b.scope_name.replaceAll('_',' ').replaceAll('/',' / '):'');
   }
   function merge(doc,list) {
     const byPath=new Map(list.map(p=>[p.path,p])), grouped=doc.bindings.map(()=>[]), seen=new Map(),keys=[],errors=[];
     for(const use of doc.uses) {
       const p=byPath.get(use.path);if(!p||p.kind!==doc.bindings[use.binding].kind)throw Error('Missing typed binding port: '+use.path);
       const prior=metadata(p),m=prior?.kind===p.kind&&(p.definition||prior.id===p.id)?prior:null;
+      if(m?.qualified)use.qualified=true;else delete use.qualified;
       grouped[use.binding].push({port:p,meta:m});
     }
     const used=new Set(grouped.flat().map(x=>x.meta?.name).filter(Boolean));
@@ -102,7 +113,8 @@ function createBindingEditor(api) {
       if(seen.has(key)&&seen.get(key)!==i)errors.push('A binding identity occurs in two scopes.');seen.set(key,i);keys.push(key);
       const retained=entries.map(x=>x.meta).filter(m=>m?.key===key);
       if(entries.some(x=>x.meta&&x.meta.key!==key))errors.push('A reference moved into a different binding scope. Choose its intended name again.');
-      if(retained.length){if(retained.some(m=>m.name!==retained[0].name))errors.push('A binding has conflicting saved names.');b.name=retained[0].name;b.explicit=retained.some(m=>m.explicit);}
+      if(b.members?.length){b.explicit=false;}
+      else if(retained.length){if(retained.some(m=>m.name!==retained[0].name))errors.push('A binding has conflicting saved names.');b.name=retained[0].name;b.explicit=retained.some(m=>m.explicit);}
       else {const base=b.kind==='Loop'?(defs.some(x=>/ForEachPlayer|ExistsPlayer|Matching/.test(owner(x.port.block.state)))?'player':'item'):b.kind.toLowerCase();let name=base,n=2;while(used.has(name))name=base+'_'+n++;b.name=name;used.add(name);}
     });
     return {doc,keys,byPath,errors};
@@ -110,13 +122,25 @@ function createBindingEditor(api) {
   async function check(ir,revision) {
     const described=await api.request('describeBindings',ir);if(!described.valid)throw Error(described.error);
     if(revision!==api.revision())return null;
+    if(legacyRestore) {
+      const doc={version:1,card:api.parse(ir),bindings:[],uses:[]},indices=new Map();
+      for(const port of currentPorts()) {
+        const m=metadata(port);if(!m)continue;
+        if(!indices.has(m.key)){indices.set(m.key,doc.bindings.length);doc.bindings.push({kind:m.kind,scope:m.scope,name:m.name,explicit:!!m.explicit});}
+        doc.uses.push({path:port.path,binding:indices.get(m.key)});
+      }
+      const migrated=await api.request('formatDocument',api.encode(doc));if(revision!==api.revision())return null;
+      if(!migrated.valid)throw Error('Saved names could not be upgraded: '+migrated.error);
+      const upgraded=api.parse(migrated.document);if(api.encode(ordered(upgraded.card))!==api.encode(ordered(api.parse(ir))))throw Error('Authoring migration changed compiler IR.');
+      attach(root(),upgraded);legacyRestore=false;api.migrationFinished();
+    }
     const state=merge(api.parse(described.document),currentPorts()),formatted=await api.request('formatDocument',api.encode(state.doc));
     if(revision!==api.revision())return null;
     if(!formatted.valid)throw Error(formatted.error);
     // Retain a checked native context for repairing a moved reference. Its old
     // authoring identity is never overwritten implicitly, and export stays off.
     accepted=state.doc;acceptedIR=ir;groupKeys=state.keys;for(const key of groupKeys)knownKeys.add(key);candidates.clear();
-    for(const use of state.doc.uses){const p=state.byPath.get(use.path),m=metadata(p),key=state.keys[use.binding];if(!m||m.kind!==p.kind||!p.definition&&m.id!==p.id||m.key===key)assign(p,{...state.doc.bindings[use.binding],key});}
+    for(const use of state.doc.uses){const p=state.byPath.get(use.path),m=metadata(p),key=state.keys[use.binding];if(!m||m.kind!==p.kind||!p.definition&&m.id!==p.id||m.key===key)assign(p,{...bindingMetadata(state.doc,state.keys,use.binding),qualified:!!use.qualified});}
     refresh();
     if(state.errors.length)throw Error(state.errors[0]);
     if(pendingEditor){const p=currentPorts().find(p=>p.definition&&metadata(p)?.key===pendingEditor);pendingEditor=null;if(p)requestAnimationFrame(()=>p.block.getField('NAME:'+p.key)?.showEditor_());}
@@ -139,8 +163,9 @@ function createBindingEditor(api) {
       const candidate=clone(doc),use=candidate.uses.find(u=>u.path===port.path);if(!use)continue;
       const definition=candidate.uses.find(u=>u.binding===i),id=definition&&getAt(candidate.card,definition.path);if(id===undefined)continue;
       setAt(candidate.card,port.path,id);use.binding=i;
+      if(port.kind==='Result')use.qualified=true;
       const checked=await api.request('formatDocument',api.encode(candidate));if(start!==api.revision())return [];
-      if(checked.valid)out.push([b.name,groupKeys[i]]);
+      if(checked.valid)out.push([label(i),groupKeys[i]]);
     }
     return out;
   }
@@ -148,7 +173,7 @@ function createBindingEditor(api) {
   async function choose(port,key) {
     const list=await options(port);if(!list.some(([,k])=>k===key))throw Error('That name is not available in this scope or reference type.');
     const i=groupKeys.indexOf(key),doc=documentNow(false),site=doc.uses.find(u=>u.binding===i);if(!site)throw Error('Missing binding.');
-    const id=getAt(doc.card,site.path),b=doc.bindings[i];api.remember();port.set(id);port.id=id;assign(port,{...b,key});api.changed();
+    const id=getAt(doc.card,site.path),b=doc.bindings[i];api.remember();port.set(id);port.id=id;assign(port,{...b,key,qualified:port.kind==='Result'});api.changed();
   }
   function refresh() {
     let list;try{list=currentPorts();}catch(_){return;}
@@ -165,7 +190,7 @@ function createBindingEditor(api) {
         field.onFinishEditing_=value=>{const old=metadata(p)?.name;Blockly.Events.disable();try{field.setValue(old);}finally{Blockly.Events.enable();}if(value!==old)setTimeout(()=>rename(m.key,value).catch(e=>api.notice(e.message)),0);};
         field.SERIALIZABLE=false;input.appendField(p.kind==='Result'?'save as':'named').appendField(field,'NAME:'+p.key);
       }else {
-        const cacheKey=api.revision()+':'+p.path,field=new Blockly.FieldDropdown(()=>candidates.get(cacheKey)||[[metadata(p)?.name||m.name,metadata(p)?.key||m.key]],value=>{
+        const cacheKey=api.revision()+':'+p.path,field=new Blockly.FieldDropdown(()=>candidates.get(cacheKey)||[[label(groupKeys.indexOf(metadata(p)?.key||m.key))||metadata(p)?.name||m.name,metadata(p)?.key||m.key]],value=>{
           if(value===metadata(p)?.key)return value;setTimeout(()=>choose(p,value).catch(e=>api.notice(e.message)),0);return null;
         });
         const open=field.showEditor_;field.showEditor_=function(event){
@@ -193,7 +218,19 @@ function createBindingEditor(api) {
       let id=0;while(used[p.kind].has(id))++id;used[p.kind].add(id);let name=m.name+'_copy',n=2;while(names.has(name))name=m.name+'_copy_'+n++;names.add(name);
       copies.set(m.key,{...m,key:fresh(),name,id});
     }
+    // A shared numeric receipt must still cover every copied alternative. Give
+    // those copied declarations one fresh label while retaining their separate
+    // authoring identities. Captures outside the copied choice keep their keys.
+    for(const p of all)if(selected.has(p.block.id)&&!p.definition) {
+      const m=metadata(p);if(!m?.alternatives?.length||copies.has(m.key))continue;
+      const members=m.alternatives.map(a=>all.find(q=>selected.has(q.block.id)&&q.definition&&q.kind==='Result'&&(metadata(q)?.key===a.key||q.id===p.id&&metadata(q)?.scope_name===a.scope)));
+      const replacements=members.map(q=>q&&copies.get(metadata(q)?.key));
+      if(replacements.every(Boolean)) {
+        const id=replacements[0].id;for(const replacement of replacements)replacement.id=id;
+        copies.set(m.key,{...m,key:fresh(),id,alternatives:replacements.map(r=>({key:r.key,scope:r.scope_name}))});
+      }
+    }
     for(const p of all)if(selected.has(p.block.id)){const m=metadata(p),copy=m&&copies.get(m.key);if(copy){p.set(copy.id);p.id=copy.id;assign(p,copy);}}
   }
-  return {ports,localPorts,attach,transfer,check,document:documentNow,rename,choose,options,refresh,showNumeric,promote,canPromote,created,metadata,reset(){accepted=null;acceptedIR=null;groupKeys=[];candidates.clear();knownKeys.clear();pendingEditor=null;}};
+  return {ports,localPorts,attach,transfer,check,document:documentNow,rename,choose,options,refresh,showNumeric,promote,canPromote,created,metadata,legacy(){legacyRestore=true;},reset(){accepted=null;acceptedIR=null;groupKeys=[];candidates.clear();knownKeys.clear();pendingEditor=null;legacyRestore=false;}};
 }

@@ -710,7 +710,7 @@
   worker.postMessage({init:payload.wasm});
   async function codeRequest(kind,text){await workerStarted;return new Promise((resolve,reject)=>{const id=nextRequest--;requests.set(id,{resolve,reject});worker.postMessage({id,[kind]:text});});}
   bindingEditor=createBindingEditor({types,parts,scalar,descriptor,variantFor,viewVariant,childValues,fromBlock,pickerValue,
-    workspace:()=>workspace,generated,revision:()=>revision,request:codeRequest,parse:parseExact,encode,notice,remember,changed});
+    workspace:()=>workspace,generated,revision:()=>revision,request:codeRequest,parse:parseExact,encode,notice,remember,changed,migrationFinished:()=>{preserveSavedDraft=false;}});
   async function refreshCode(){
     if(!lastValid||codeDirty||lastHuman===null)return;
     $('human-editor').value=lastHuman;$('code-status').textContent='Checked by Rust · edit and apply to update blocks';
@@ -799,7 +799,7 @@
     bindingEditor.reset();
     install({blocks:{languageVersion:0,blocks:[{...block,x:40,y:40}]}});
   }
-  function savedWorkspace() { return {format:'mtgish.blockly.workspace.v1',presentation:5,schema:schema.version,model:payload.model,workspace:Blockly.serialization.workspaces.save(workspace)}; }
+  function savedWorkspace() { return {format:'mtgish.blockly.workspace.v1',presentation:6,schema:schema.version,model:payload.model,workspace:Blockly.serialization.workspaces.save(workspace)}; }
   function decodeWorkspace(value,model=schema) {
     const nodes=value.workspace?.blocks?.blocks;
     if(nodes?.length!==1)throw Error('Keep exactly one complete card record before migration.');
@@ -823,8 +823,9 @@
   }
   function restore(value) {
     if(value.schema!==schema.version)throw Error('This workspace requires a schema upgrade; use Import.');
-    if(value.workspace?.blocks?.blocks?.length===1 && (value.presentation!==5||value.model!==payload.model)) {
-      try {const ir=decodeWorkspace(value),fresh=blockState({named:'UnifiedCard'},ir);bindingEditor.transfer(fakeBlock(value.workspace.blocks.blocks[0]),fakeBlock(fresh));localStorage.setItem('mtgish.blockly.before-authoring-v5',JSON.stringify(value));if(value.presentation<4)localStorage.setItem('mtgish.blockly.before-authoring-v4',JSON.stringify(value));bindingEditor.reset();install({blocks:{languageVersion:0,blocks:[{...fresh,x:40,y:40}]}});return;}catch(_){}
+    const presentation=value.presentation??1;
+    if(value.workspace?.blocks?.blocks?.length===1 && (presentation!==6||value.model!==payload.model)) {
+      try {const ir=decodeWorkspace(value),fresh=blockState({named:'UnifiedCard'},ir);bindingEditor.transfer(fakeBlock(value.workspace.blocks.blocks[0]),fakeBlock(fresh));localStorage.setItem('mtgish.blockly.before-authoring-v6',JSON.stringify(value));if(presentation<5)localStorage.setItem('mtgish.blockly.before-authoring-v5',JSON.stringify(value));if(presentation<4)localStorage.setItem('mtgish.blockly.before-authoring-v4',JSON.stringify(value));bindingEditor.reset();if(presentation<6){preserveSavedDraft=true;bindingEditor.legacy();}install({blocks:{languageVersion:0,blocks:[{...fresh,x:40,y:40}]}});return;}catch(_){}
     }
     install(value.workspace);
   }
@@ -898,9 +899,9 @@
       if(text.trimStart().startsWith('{'))value=parseExact(text);
       else {const r=await codeRequest('parseCode',text);if(!r.valid)throw Error(r.error);value=parseExact(r.ir);document=parseExact(r.document);}
       if(seq!==loadSequence)return;
-      if(value.format==='mtgish.blockly.workspace.v1') {if(value.schema===schema.version){restore(value);preserveSavedDraft=false;}else await migrateWorkspace(value);}
+      if(value.format==='mtgish.blockly.workspace.v1') {if(value.schema===schema.version){restore(value);if((value.presentation??1)>=6)preserveSavedDraft=false;}else await migrateWorkspace(value);}
       else if(document) {preserveSavedDraft=false;loadIR(value,true,document);}
-      else if(value.version===1&&value.card&&Array.isArray(value.bindings)) {const r=await codeRequest('formatDocument',encode(value));if(seq!==loadSequence)return;if(!r.valid)throw Error(r.error);preserveSavedDraft=false;loadIR(value.card,true,value);}
+      else if([1,2].includes(value.version)&&value.card&&Array.isArray(value.bindings)) {const r=await codeRequest('formatDocument',encode(value));if(seq!==loadSequence)return;if(!r.valid)throw Error(r.error);const upgraded=parseExact(r.document);preserveSavedDraft=false;loadIR(upgraded.card,true,upgraded);}
       else {const r=await codeRequest('migrateIR',encode(value));if(seq!==loadSequence)return;if(!r.valid)throw Error(r.error);preserveSavedDraft=false;loadIR(parseExact(r.ir));}
       notice('Imported '+f.name);
     }catch(e){notice('Import failed: '+e.message);}finally{$('file').value='';}

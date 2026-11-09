@@ -11,7 +11,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Validate every nested semantic entry child in its correct scope | Scope checks implemented; typed payload constraints pending | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
 | Typed entry and copy payloads, removing backend descriptive-term decoding | Entry implemented; copy pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
-| Preserve binding identities and names for targets, results, loops, and selections | Native/editor transport verified; alternative-branch identity follow-up pending | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
+| Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified including independent alternatives and legacy migration | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
@@ -119,7 +119,7 @@ the authoring reader now visit the announcement before activation modifiers,
 matching their validated scope. Arbitrary numeric labels and the shorthand
 `Targets(recipient)` both have focused regressions.
 
-Remaining work for named authoring:
+Remaining work for named authoring at the stage-5 checkpoint (completed by stages 6–8):
 
 - Attach a stable binding identity to each block's ID port in `extraState`.
   Regenerate document paths from the current tree, including statement chains,
@@ -239,9 +239,52 @@ group, not a global name-to-ID lookup. Reproductions are
 takes priority over the next typed-copy migration. The existing passing corpus
 audits do not prove this synthetic independent-branch case.
 
+Stage 8 separates `If` branches and `ChooseOne` options in native documents and
+the editor. Document version 2 adds readable scope paths and explicit receipt
+group expressions, retaining independent declaration identities even when
+several alternatives reuse one numeric result label. Formatting joins expands
+the member names and qualifies repeated names with `ReceiptFrom(scope, name)`.
+Qualified ordinary references remain subject to native visibility. Transport
+keeps declaration names through canonical group expansion/coalescing and rejects
+forged members or scopes. No engine IDs, numeric ranges or schema 180 fields
+change.
+
+Version-1 document migration validates legacy grouping before splitting names;
+presentation-6 workspace migration uses that same native migration and retains
+the original draft until it succeeds. Copies of complete receipt groups get
+fresh declaration identities and a consistent fresh group label. Save/reload,
+imports, independent renames and qualified reference selection have real browser
+coverage.
+
+The scope audit also aligned result exports with validation for optional,
+repeated and loop bodies, future programs, and root versus nested `PayCost`.
+The canonicalizer previously exported private nested payment receipts; it now
+respects the instruction boundary. Numeric declaration reservation prevents
+automatic names from colliding with later explicit IDs; numeric references use
+the actual visible declaration in the correct binding namespace.
+
+Final stage-8 evidence is in `branches-final-*` under the review evidence
+directory. The native run passes 1,424 tests with zero failures (11 opt-in audits
+ignored), including 21 focused branch regressions. The explicit audits map all
+33,529 records and independently rename/reparse all 82,226 definitions with zero
+failures. Fresh source lowering and the schema match the prior catalog byte for
+byte. The fresh Wasm browser run covers ten suites, including branch editing and
+migration plus all 33,529 block roundtrips, binding-port checks and validations.
+Typed copy exceptions and the other pending AST requirements remain open; this
+verified naming milestone does not complete the whole objective.
+
 Still open: branch-local naming and receipt resolution, typed copy exceptions,
 destination-specific state, mode/coin/
 keyword policies, Rust role/type renames and typed counter sources, batch/receipt
 documentation and discovery, and typed known layouts. The new migration-map
 contract must be applied to later schema changes; stage 7 does not complete the
 overall objective.
+
+Follow-up requested after the AST/editor clarity work: investigate and fix the
+29 confirmed reference defects cataloged in
+`~/oracle-grammar/reports/analysis/upstream-reference/current-reviews-checkpoint105.json`.
+That report reviews reference revision `8126cc9` and separately lists seven
+unresolved card rows. Revalidate each confirmed defect against the current fork
+before fixing it, retain the local source and proposal evidence, and report
+upstream when the defect belongs there. Do not mix unresolved questions into the
+29 confirmed count or pull upstream updates as part of this work.

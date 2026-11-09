@@ -93,8 +93,13 @@ pub fn describe_card_bindings(input: &str) -> String {
 /// Format a persisted authoring document; its names never enter engine IR.
 #[wasm_bindgen]
 pub fn format_card_document(input: &str) -> String {
-    match mtgish_ast::human::document::Document::from_json(input).and_then(|doc| doc.write()) {
-        Ok(code) => json!({"valid":true,"code":code}).to_string(),
+    match mtgish_ast::human::document::Document::from_json(input)
+        .and_then(|doc| doc.write().map(|code| (doc, code)))
+    {
+        Ok((document, code)) => {
+            json!({"valid":true,"code":code,"document":serde_json::to_string(&document).unwrap()})
+                .to_string()
+        }
         Err(error) => json!({"valid":false,"error":error}).to_string(),
     }
 }

@@ -262,8 +262,10 @@ its name can change without rewriting the card's numeric IDs. `rename` and `rena
 transaction before committing it. `bindings()` and `uses()` expose immutable
 metadata; serializing the document saves it with its semantic card. Names are
 excluded from card equality and engine lookup. Numeric ID types stay unchanged.
-`Document::rebind_ids` transports names through a pure ID renumbering. Structural
-canonicalization requires a binding-site mapping and is still pending.
+`Document::rebind_ids` transports names through a pure ID renumbering.
+`canonical::mapped_unified` supplies the binding-site mapping for structural
+canonicalization; `Document::transport` applies it while preserving identities
+and names, or rejects an ambiguous declaration merge or split atomically.
 
 ```sh
 # Reformat a .card file while retaining its names:
@@ -275,7 +277,8 @@ ast format-card-document document.json > restored.card
 
 The Wasm parser's `document` response carries this authoring format.
 `describe_card_bindings` creates a document from exact IR without changing its
-IDs; `format_card_document` validates and formats a saved document. The demo's
+IDs; `format_card_document` validates and formats a saved document and returns
+its upgraded document as well as code. The demo's
 inspection API exposes these as `cardBlocks.describeBindings(irText)` and
 `cardBlocks.formatDocument(documentText)`. The normal editor uses these APIs for
 name-aware validation and code formatting. Import also accepts a saved native
@@ -301,6 +304,28 @@ from this workspace and a foreign clipboard, cuts/pastes without renaming, and
 preserves names through undo/redo, reload, model upgrades and code export.
 All 33,529 corpus records pass an independent comparison of every block binding
 port's path, type and ID with the wire schema, in addition to block roundtrips
-and native Wasm validation. Native structural-canonicalization mappings remain
-pending; UI presentation rebuilds transport metadata through matching typed wire
-sites and surviving declaration identities.
+and native Wasm validation. UI presentation rebuilds transport metadata through
+matching typed wire sites and surviving declaration identities.
+
+Authoring document version 2 gives each `If` branch and `ChooseOne` option its
+own declaration identities. A normal reference can use only a result that is
+available in its lexical scope. `JoinResults` can explicitly gather alternative
+receipts; its code normally lists the declaration names directly. Repeated names
+can be qualified with a readable lexical path, for example
+`ReceiptFrom("option_1", picked)`. The formatter chooses the shortest unique
+path suffix, and ambiguous or unavailable qualifications are rejected. A shared
+numeric receipt label is stored as a group expression with distinct declaration
+members; rename its declarations rather than the group expression.
+
+Version-1 documents are checked against their original grouping before an
+automatic metadata migration splits independent declarations. Their semantic
+card and explicit names survive. Workspace presentation 6 also migrates saved
+version-5 binding metadata, retaining the original draft in
+`mtgish.blockly.before-authoring-v6` until the native migration succeeds.
+Neither migration changes schema 180 or numeric ranges. The branch browser
+suite covers independent renames, qualified references, private scopes, complete
+group copies, legacy saves and version-1/version-2 document import:
+
+```sh
+npm run test:branches -- /tmp/card-blocks.html
+```
