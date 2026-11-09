@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "card": {
+    "schema_version": 180,
+    "layout": "Card",
+    "faces": [
+      {
+        "schema_version": 180,
+        "name": "Branch names",
+        "characteristics": {
+          "supertypes": [],
+          "card_types": [
+            "Instant"
+          ],
+          "subtypes": [],
+          "mana_cost": null,
+          "color_indicator": [],
+          "power_toughness": null,
+          "loyalty": null,
+          "defense": null
+        },
+        "abilities": [
+          {
+            "kind": "Spell",
+            "args": {
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "If",
+                    "args": {
+                      "condition": {
+                        "kind": "PlayerIsActive",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      },
+                      "then": {
+                        "instructions": [
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 0,
+                              "operation": {
+                                "kind": "NoteObjects",
+                                "args": {
+                                  "objects": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 4294967295,
+                              "operation": {
+                                "kind": "NoteObjects",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Selected",
+                                    "args": 0
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "otherwise": {
+                        "instructions": [
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 0,
+                              "operation": {
+                                "kind": "NoteObjects",
+                                "args": {
+                                  "objects": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 4294967294,
+                              "operation": {
+                                "kind": "NoteObjects",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Selected",
+                                    "args": 0
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "data": []
+  },
+  "bindings": [
+    {
+      "kind": "Result",
+      "scope": 1,
+      "name": "picked",
+      "explicit": true
+    },
+    {
+      "kind": "Result",
+      "scope": 1,
+      "name": "r4294967295",
+      "explicit": false
+    },
+    {
+      "kind": "Result",
+      "scope": 1,
+      "name": "r4294967294",
+      "explicit": false
+    }
+  ],
+  "uses": [
+    {
+      "path": "/faces/0/abilities/0/args/body/instructions/0/args/otherwise/instructions/0/args/result",
+      "binding": 0
+    },
+    {
+      "path": "/faces/0/abilities/0/args/body/instructions/0/args/otherwise/instructions/1/args/operation/args/objects/args",
+      "binding": 0
+    },
+    {
+      "path": "/faces/0/abilities/0/args/body/instructions/0/args/otherwise/instructions/1/args/result",
+      "binding": 2
+    },
+    {
+      "path": "/faces/0/abilities/0/args/body/instructions/0/args/then/instructions/0/args/result",
+      "binding": 0
+    },
+    {
+      "path": "/faces/0/abilities/0/args/body/instructions/0/args/then/instructions/1/args/operation/args/objects/args",
+      "binding": 0
+    },
+    {
+      "path": "/faces/0/abilities/0/args/body/instructions/0/args/then/instructions/1/args/result",
+      "binding": 1
+    }
+  ]
+}

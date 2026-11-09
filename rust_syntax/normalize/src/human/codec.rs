@@ -10,7 +10,10 @@ use crate::{
     targets::TargetSelector,
 };
 use serde_json::{json, Value};
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
+mod receipts;
+mod results;
 fn named(n: &str) -> Ty {
     Ty::Named(n.into())
 }
@@ -195,7 +198,11 @@ impl Writer<'_> {
                 if let Some(kind) = BindingKind::of_type(n) {
                     let prefix = kind.prefix();
                     return Ok(if let Some(binding) = self.binding(v)? {
-                        Node::Name(binding.name.clone())
+                        if kind == BindingKind::Result && v.get("qualified") == Some(&json!(true)) {
+                            self.named_receipt(binding)
+                        } else {
+                            Node::Name(binding.name.clone())
+                        }
                     } else {
                         symbol(prefix, document::id_number(v).ok_or("expected ID")?)
                     });
@@ -314,7 +321,9 @@ impl Writer<'_> {
                         }
                         continue;
                     }
-                    let node = if key == "preventable" {
+                    let node = if owner == "Operation::JoinResults" && key == "results" {
+                        self.joined_receipts(value)?
+                    } else if key == "preventable" {
                         Node::Scalar(json!(!value.as_bool().ok_or("expected prevention flag")?))
                     } else {
                         self.node(ty, value)?
@@ -427,9 +436,56 @@ struct Reader {
     scope: u32,
     next_scope: u32,
     binding_namespace: &'static str,
+    branch_scopes: bool,
+    definitions: HashMap<usize, u64>,
+    receipt_groups: Vec<receipts::Group>,
+    symbolic_results: HashSet<String>,
+    receipt_work: Cell<usize>,
+    scope_names: HashMap<u32, String>,
+    scope_counts: HashMap<(u32, String), usize>,
+    available_results: HashMap<u64, usize>,
+    operation_depth: usize,
+    payment_depth: Option<usize>,
+    numeric_bindings: HashMap<(String, u64), usize>,
+    declaring: bool,
 }
 impl Reader {
+    fn enter_scope(&mut self, label: &str) {
+        let label = label.to_ascii_lowercase();
+        let count = self
+            .scope_counts
+            .entry((self.scope, label.clone()))
+            .or_default();
+        *count += 1;
+        let name = if *count == 1 && matches!(label.as_str(), "then" | "otherwise") {
+            label
+        } else {
+            format!("{label}_{count}")
+        };
+        let parent = self
+            .scope_names
+            .get(&self.scope)
+            .cloned()
+            .unwrap_or_default();
+        self.next_scope += 1;
+        self.scope = self.next_scope;
+        self.scope_names.insert(
+            self.scope,
+            if parent.is_empty() {
+                name
+            } else {
+                format!("{parent}/{name}")
+            },
+        );
+    }
     fn reserve(&mut self, n: &Node) {
+        if let Node::Call(name, args) = n {
+            if name == "ReceiptFrom" && args.len() == 2 {
+                if let Node::Name(name) | Node::Scalar(Value::String(name)) = &args[1] {
+                    self.symbolic_results.insert(name.clone());
+                }
+            }
+        }
         if let Node::Bind(_, inner) = n {
             self.reserve(inner);
         }
@@ -446,7 +502,25 @@ impl Reader {
                     self.reserve(n)
                 }
             }
-            Node::Record(_, fs) => {
+            Node::Record(name, fs) => {
+                if self.branch_scopes {
+                    if name.as_deref() == Some("Effect") {
+                        if let Some((_, value)) = fs.iter().find(|(key, _)| key == "result") {
+                            self.reserve_declaration("r", value);
+                        }
+                    }
+                    if name.as_deref() == Some("Target")
+                        || name.is_none() && fs.iter().any(|(key, _)| key == "select")
+                    {
+                        if let Some((_, value)) = fs.iter().find(|(key, _)| key == "name") {
+                            self.reserve_declaration("t", value);
+                        }
+                    }
+                    if let Some((_, value)) = fs.iter().find(|(key, _)| key == "binding") {
+                        self.reserve_declaration("b", value);
+                        self.reserve_declaration("s", value);
+                    }
+                }
                 for (_, n) in fs {
                     self.reserve(n)
                 }
@@ -454,8 +528,23 @@ impl Reader {
             _ => (),
         }
     }
+    fn reserve_declaration(&mut self, prefix: &str, node: &Node) {
+        let id = match node {
+            Node::Scalar(Value::Number(n)) => n.as_u64(),
+            Node::Name(name) | Node::Scalar(Value::String(name)) => name
+                .strip_prefix(prefix)
+                .and_then(|s| s.parse::<u64>().ok()),
+            _ => None,
+        };
+        if let Some(id) = id {
+            self.used.entry(prefix.into()).or_default().insert(id);
+        }
+    }
     fn id(&mut self, family: &str, n: &Node) -> Result<Value, String> {
         let kind = BindingKind::of_type(family).ok_or("unknown binding kind")?;
+        if kind == BindingKind::Result && matches!(n,Node::Call(name,_) if name=="ReceiptFrom") {
+            return self.ordinary_receipt(n);
+        }
         let prefix = kind.prefix();
         let name = match n {
             Node::Name(s) | Node::Scalar(Value::String(s)) => s.clone(),
@@ -468,9 +557,12 @@ impl Reader {
         if !valid_binding_name(&name) {
             return Err("a binding name must be an identifier".into());
         }
-        let raw = name
-            .strip_prefix(prefix)
-            .and_then(|s| s.parse::<u64>().ok());
+        let raw = (!matches!(kind, BindingKind::Result) || !self.symbolic_results.contains(&name))
+            .then(|| {
+                name.strip_prefix(prefix)
+                    .and_then(|s| s.parse::<u64>().ok())
+            })
+            .flatten();
         let namespace = if kind == BindingKind::Loop {
             self.binding_namespace
         } else {
@@ -492,6 +584,16 @@ impl Reader {
             self.ids.insert(key.clone(), id);
             id
         };
+        if self.branch_scopes && !self.declaring && raw.is_some() {
+            let existing = if kind == BindingKind::Result {
+                self.available_results.get(&id)
+            } else {
+                self.numeric_bindings.get(&(namespace.into(), id))
+            };
+            if let Some(index) = existing {
+                return Ok(document::tagged(id, *index));
+            }
+        }
         let index = if let Some(index) = self.symbols.get(&key) {
             *index
         } else {
@@ -499,8 +601,14 @@ impl Reader {
             self.bindings.push(BindingName {
                 kind: BindingKind::of_type(family).ok_or("unknown binding kind")?,
                 scope: self.scope,
+                scope_name: self
+                    .scope_names
+                    .get(&self.scope)
+                    .cloned()
+                    .unwrap_or_default(),
                 name,
                 explicit: raw.is_none(),
+                members: vec![],
             });
             self.symbols.insert(key, index);
             index
@@ -512,6 +620,7 @@ impl Reader {
         let prefix = kind.prefix();
         let name = match node {
             Node::Name(name) | Node::Scalar(Value::String(name)) => Some(name.clone()),
+            Node::Scalar(Value::Number(n)) => n.as_u64().map(|id| format!("{prefix}{id}")),
             _ => None,
         };
         if let Some(name) = name {
@@ -530,10 +639,37 @@ impl Reader {
                 self.symbols.remove(&key);
             }
         }
-        let value = self.id(family, node)?;
+        let prior = self.declaring;
+        self.declaring = true;
+        let value = self.id(family, node);
+        self.declaring = prior;
+        let value = value?;
         let index = value["binding"].as_u64().ok_or("missing codec binding")? as usize;
         if !matches!(node, Node::Scalar(Value::Number(_))) {
             self.bindings[index].explicit = true;
+        }
+        if kind == BindingKind::Result {
+            self.definitions.insert(
+                index,
+                document::id_number(&value).ok_or("missing result ID")?,
+            );
+            self.available_results.insert(
+                document::id_number(&value).ok_or("missing result ID")?,
+                index,
+            );
+        } else {
+            let namespace = if kind == BindingKind::Loop {
+                self.binding_namespace
+            } else {
+                prefix
+            };
+            self.numeric_bindings.insert(
+                (
+                    namespace.into(),
+                    document::id_number(&value).ok_or("missing binding ID")?,
+                ),
+                index,
+            );
         }
         Ok(value)
     }
@@ -548,12 +684,31 @@ impl Reader {
         self.bindings.push(BindingName {
             kind: BindingKind::Result,
             scope: self.scope,
+            scope_name: self
+                .scope_names
+                .get(&self.scope)
+                .cloned()
+                .unwrap_or_default(),
             name: format!("r{id}"),
             explicit: false,
+            members: vec![],
         });
+        self.definitions.insert(index, id.into());
+        self.available_results.insert(id.into(), index);
         Ok(document::tagged(id.into(), index))
     }
     fn node(&mut self, t: &Ty, n: &Node) -> Result<Value, String> {
+        let operation = matches!(t, Ty::Named(name) if name == "Operation");
+        if operation {
+            self.operation_depth += 1;
+        }
+        let result = self.scoped_node(t, n);
+        if operation {
+            self.operation_depth -= 1;
+        }
+        result
+    }
+    fn scoped_node(&mut self, t: &Ty, n: &Node) -> Result<Value, String> {
         let independent = t == &named("Ability");
         let cost_scope = t == &named("CostPart") && constructor(n) == Some("PlayerAction");
         let scope = independent
@@ -576,6 +731,9 @@ impl Reader {
                 constructor(n),
                 Some("ForEachPlayer" | "ForEachObject" | "Optional" | "Times" | "Repeatable")
             ))
+            || self.branch_scopes
+                && t == &named("Instruction")
+                && matches!(constructor(n), Some("If" | "ChooseOne"))
             || t == &named("Condition") && constructor(n) == Some("ExistsPlayer")
             || t == &named("PlayerSet") && constructor(n) == Some("Matching");
         let selection_scope = t == &named("Operation") && constructor(n) == Some("WithSelections");
@@ -584,12 +742,26 @@ impl Reader {
             let prior_ids = self.ids.clone();
             let prior_symbols = self.symbols.clone();
             let prior_scope = self.scope;
-            self.next_scope += 1;
-            self.scope = self.next_scope;
+            let prior_receipts = self.receipt_groups.clone();
+            let prior_available = self.available_results.clone();
+            let prior_numeric = self.numeric_bindings.clone();
+            self.enter_scope(constructor(n).unwrap_or(match t {
+                Ty::Named(name) => name,
+                _ => "scope",
+            }));
             if independent {
                 self.targets.clear();
                 self.ids.clear();
                 self.symbols.clear();
+                self.available_results.clear();
+                self.numeric_bindings.clear();
+            }
+            if independent
+                || t == &named("Mode")
+                || t == &named("Operand") && constructor(n) == Some("Program")
+                || t == &named("Operation") && scope
+            {
+                self.receipt_groups.clear();
             }
             // Preparation inputs inherit earlier selections. A local binder
             // shadows only after its inputs, matching native validation.
@@ -598,8 +770,20 @@ impl Reader {
             if scope {
                 self.ids = prior_ids;
                 self.symbols = prior_symbols;
+                self.receipt_groups = prior_receipts;
+                self.available_results = prior_available;
+                self.numeric_bindings = prior_numeric;
             } else {
                 let local = if local_scope { "b" } else { "s" };
+                self.numeric_bindings.retain(|(kind, _), _| {
+                    kind != "t"
+                        && if local == "b" {
+                            !kind.ends_with("_binding") && kind != "b"
+                        } else {
+                            kind != "s"
+                        }
+                });
+                self.numeric_bindings.extend(prior_numeric);
                 self.ids.retain(|(kind, _), _| {
                     if local == "b" {
                         !kind.ends_with("_binding") && kind != "b"
@@ -614,11 +798,21 @@ impl Reader {
                         kind != local
                     }
                 });
-                for (key, value) in prior_ids {
-                    self.ids.insert(key, value);
+                for (key, value) in &prior_ids {
+                    self.ids.insert(key.clone(), *value);
                 }
-                for (key, value) in prior_symbols {
-                    self.symbols.insert(key, value);
+                for (key, value) in &prior_symbols {
+                    self.symbols.insert(key.clone(), *value);
+                }
+                if self.branch_scopes && t == &named("Instruction") {
+                    self.finish_control(
+                        constructor(n).unwrap_or(""),
+                        result.as_ref().ok(),
+                        &prior_ids,
+                        &prior_symbols,
+                        prior_available,
+                        prior_receipts,
+                    )?;
                 }
             }
             self.scope = prior_scope;
@@ -730,7 +924,7 @@ impl Reader {
                     };
                     let constructor = constructor(op).map(|n| names::action_wire(n));
                     if constructor.is_some_and(|n|matches!(&schema().types["Operation"],TypeDef::Enum{variants,..} if variants.iter().any(|(v,_)|v==n))){
-                        let operation=self.node(&named("Operation"),op)?;
+                        let operation=self.operation_input(op)?;
                         let result=if let Some(name)=binding{self.declare("ResultId",&Node::Name(name.clone()))?}else{self.anonymous()?};
                         return Ok(json!({"kind":"Effect","args":{"result":result,"operation":operation}}));
                     }
@@ -818,6 +1012,7 @@ impl Reader {
                 }
                 let mut out = serde_json::Map::new();
                 let mut consumed = HashSet::new();
+                let mut branch_receipts = receipts::Group::new();
                 // Inputs are evaluated before result/selection definitions. A
                 // loop binder is visible only in its body or predicate.
                 let has_binding = fs.iter().any(|(key, _)| key == "binding");
@@ -882,7 +1077,34 @@ impl Reader {
                         {
                             let Ty::Named(family) = t else { unreachable!() };
                             self.declare(family, n)
-                        } else if owner == "Operation::PayCost" && key == "cost" {
+                        } else if self.branch_scopes
+                            && owner == "Instruction::If"
+                            && matches!(key.as_str(), "then" | "otherwise")
+                        {
+                            self.branch(t, n, key).map(|(value, receipts)| {
+                                receipts::extend(&mut branch_receipts, receipts);
+                                value
+                            })
+                        } else if self.branch_scopes
+                            && owner == "Instruction::ChooseOne"
+                            && key == "options"
+                        {
+                            self.branches(t, n).map(|(value, receipts)| {
+                                receipts::extend(&mut branch_receipts, receipts);
+                                value
+                            })
+                        } else if self.branch_scopes
+                            && owner == "Operation::JoinResults"
+                            && key == "results"
+                        {
+                            self.join_receipts(n)
+                        } else if owner == "Instruction::Effect" && key == "operation" {
+                            self.operation_input(n)
+                        } else if owner == "Operation::PayCost"
+                            && key == "cost"
+                            && (!self.branch_scopes
+                                || self.payment_depth == Some(self.operation_depth))
+                        {
                             let prior: HashSet<_> = self.symbols.keys().cloned().collect();
                             let parsed = self.node(t, n);
                             if let Ok(cost) = &parsed {
@@ -901,6 +1123,7 @@ impl Reader {
                                             continue;
                                         };
                                         let key = ("r".into(), self.bindings[binding].name.clone());
+                                        self.available_results.insert(id, binding);
                                         if !prior.contains(&key) {
                                             self.ids.insert(key.clone(), id);
                                             self.symbols.insert(key, binding);
@@ -926,6 +1149,11 @@ impl Reader {
                 }
                 if let Some((key, _)) = values.iter().find(|(k, _)| !consumed.contains(k)) {
                     return Err(format!("unknown {owner} field {key}"));
+                }
+                if self.branch_scopes
+                    && matches!(owner, "Instruction::If" | "Instruction::ChooseOne")
+                {
+                    self.receipt_groups.push(branch_receipts);
                 }
                 Ok(Value::Object(out))
             }
@@ -1020,6 +1248,12 @@ pub(super) fn read(n: &Node) -> Result<Value, String> {
     Ok(document::untag(&value))
 }
 pub(super) fn read_with_bindings(n: &Node) -> Result<(Value, Vec<BindingName>), String> {
+    read_bindings(n, true)
+}
+pub(super) fn read_legacy_bindings(n: &Node) -> Result<(Value, Vec<BindingName>), String> {
+    read_bindings(n, false)
+}
+fn read_bindings(n: &Node, branch_scopes: bool) -> Result<(Value, Vec<BindingName>), String> {
     let mut reader = Reader {
         targets: HashMap::new(),
         ids: HashMap::new(),
@@ -1031,6 +1265,18 @@ pub(super) fn read_with_bindings(n: &Node) -> Result<(Value, Vec<BindingName>), 
         scope: 0,
         next_scope: 0,
         binding_namespace: "binding",
+        branch_scopes,
+        definitions: HashMap::new(),
+        receipt_groups: Vec::new(),
+        symbolic_results: HashSet::new(),
+        receipt_work: Cell::new(0),
+        scope_names: HashMap::new(),
+        scope_counts: HashMap::new(),
+        available_results: HashMap::new(),
+        operation_depth: 0,
+        payment_depth: None,
+        numeric_bindings: HashMap::new(),
+        declaring: false,
     };
     reader.reserve(n);
     let value = if matches!(n,Node::Record(Some(name),_) if name=="Card") {

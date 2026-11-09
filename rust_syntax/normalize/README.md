@@ -704,6 +704,13 @@ and normalized `UnifiedCard`. Shared defaults and vocabulary live in
 with their applicable filters. Complete IR uses schema 180 and keeps the
 compiler's typed numeric IDs. Persist `human::document::Document` to retain
 scoped author names, including explicitly named unused results.
+Authoring document version 2 separates declarations in alternative branches;
+version-1 imports validate their old metadata before upgrading it. Engine IR
+remains schema 180. Alternative receipts with a shared numeric label form a
+group expression, while their declaration names remain independently editable.
+`ReceiptFrom("option_1", picked)` disambiguates repeated names with the shortest
+unique lexical path suffix. Ordinary references still obey native result
+visibility; qualification cannot expose a private result.
 
 Structural rewrites use `canonical::mapped_unified` to return the card and a
 complete `binding_map::SiteMap`. `Document::transport` carries names and binding
@@ -712,8 +719,10 @@ list of output sites, including an empty list for removal; introduced output
 sites are listed separately. Maps compose with `SiteMap::then`. Numeric equality
 alone cannot identify a binding when independent or nested scopes reuse IDs.
 
-Transport rejects missing or mistyped sites, changed meaning, ambiguous binding
-merges/splits, and removal of an explicit name. The source document remains
+Transport rejects missing or mistyped sites, changed meaning, ambiguous
+declaration merges/splits, and removal of an explicit name. Virtual receipt
+groups may expand or coalesce when their mapped declaration members agree.
+The source document remains
 available to resolve naming decisions. A canonical report can describe a
 many-to-one merge or one-to-many expansion even when applying its names requires
 such a decision. Pure ID renumbering still uses `Document::rebind_ids`.

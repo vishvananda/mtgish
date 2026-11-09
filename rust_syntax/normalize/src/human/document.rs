@@ -6,6 +6,8 @@ use crate::{ir::*, ir_schema::Ty};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+mod migration;
+mod transport;
 
 pub use crate::binding_map::BindingKind;
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -14,9 +16,16 @@ pub struct BindingName {
     pub kind: BindingKind,
     /// A document-local lexical scope, independent of the numeric engine ID.
     pub scope: u32,
+    /// Readable qualification when alternatives reuse a receipt's local name.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub scope_name: String,
     pub name: String,
     /// Explicit names on unused results must survive formatting too.
     pub explicit: bool,
+    /// A numeric join operand can denote several mutually exclusive receipts.
+    /// Such an operand is an expression over these definitions, not a new local.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub members: Vec<usize>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -24,6 +33,12 @@ pub struct BindingUse {
     /// JSON pointer into the exact semantic card, ending at an ID leaf.
     pub path: String,
     pub binding: usize,
+    /// An explicit lexical qualification on a reference, never a declaration.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub qualified: bool,
+}
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -67,6 +82,10 @@ pub(super) fn extract(
         uses.push(BindingUse {
             path: path.into(),
             binding,
+            qualified: value
+                .get("qualified")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
         });
         *value = json!(id);
         return Ok(());
@@ -125,98 +144,14 @@ impl Document {
         rebound.write()?;
         Ok(rebound)
     }
-    /// Apply a structural rewrite's complete typed-site map atomically. Source
-    /// binding indices remain stable. Ambiguous merges/splits and the removal of
-    /// explicit names need a deliberate naming decision, never a positional guess.
-    pub fn transport(
-        &self,
-        card: &UnifiedCard,
-        map: &crate::binding_map::SiteMap,
-    ) -> Result<Self, String> {
-        self.write()?;
-        checked(card)?;
-        let ty = Ty::Named("UnifiedCard".into());
-        let before = serde_json::to_value(&self.card).map_err(|e| e.to_string())?;
-        let after = serde_json::to_value(card).map_err(|e| e.to_string())?;
-        map.validate(
-            &crate::binding_map::sites(schema(), &ty, &before),
-            &crate::binding_map::sites(schema(), &ty, &after),
-        )?;
-        if meaning(&self.card)? != meaning(card)? {
-            return Err("mapped rewrite changes the card's meaning".into());
-        }
-        let resolved = resolve_card(card)?;
-        let groups: BTreeMap<_, _> = resolved
-            .uses
-            .iter()
-            .map(|u| (u.path.as_str(), u.binding))
-            .collect();
-        let mut incoming = vec![BTreeSet::new(); resolved.bindings.len()];
-        let mut outgoing = vec![BTreeSet::new(); self.bindings.len()];
-        let mut annotated = HashSet::new();
-        for site in &self.uses {
-            annotated.insert(site.binding);
-            for path in &map.sites[&site.path] {
-                let group = *groups
-                    .get(path.as_str())
-                    .ok_or("unresolved mapped ID site")?;
-                incoming[group].insert(site.binding);
-                outgoing[site.binding].insert(group);
-            }
-        }
-        for (index, groups) in outgoing.iter().enumerate() {
-            if groups.len() > 1 {
-                return Err(format!(
-                    "rewrite splits binding {index}; explicit names for the split are required"
-                ));
-            }
-            if groups.is_empty() && annotated.contains(&index) && self.bindings[index].explicit {
-                return Err(format!("rewrite removes explicitly named binding {index}"));
-            }
-        }
-        let mut bindings = self.bindings.clone();
-        let mut assigned = Vec::new();
-        for (group, origins) in incoming.iter().enumerate() {
-            if origins.len() > 1 {
-                return Err(format!("rewrite merges bindings {origins:?}; a retained identity must be chosen explicitly"));
-            }
-            let index = if let Some(&index) = origins.iter().next() {
-                bindings[index].scope = resolved.bindings[group].scope;
-                if !bindings[index].explicit {
-                    bindings[index].name = resolved.bindings[group].name.clone();
-                }
-                index
-            } else {
-                let index = bindings.len();
-                bindings.push(resolved.bindings[group].clone());
-                index
-            };
-            assigned.push(index);
-        }
-        let uses = resolved
-            .uses
-            .iter()
-            .map(|u| BindingUse {
-                path: u.path.clone(),
-                binding: assigned[u.binding],
-            })
-            .collect();
-        let transported = Self {
-            version: self.version,
-            card: card.clone(),
-            bindings,
-            uses,
-        };
-        transported
-            .write()
-            .map_err(|e| format!("mapped binding names are ambiguous: {e}"))?;
-        Ok(transported)
-    }
     pub fn from_json(input: &str) -> Result<Self, String> {
         let value = crate::json_input::wrapped_value(input)?;
-        let doc: Self = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
+        let mut doc: Self = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
         if serde_json::to_value(&doc).map_err(|e| e.to_string())? != value {
             return Err("unknown or missing authoring document fields".into());
+        }
+        if doc.version == 1 {
+            doc = doc.upgrade_v1()?;
         }
         doc.project()?;
         Ok(doc)
@@ -252,6 +187,11 @@ impl Document {
                 );
             }
             let binding = updated.get_mut(*index).ok_or("unknown binding")?;
+            if !binding.members.is_empty() {
+                return Err(
+                    "a receipt group is an expression; rename its branch declarations".into(),
+                );
+            }
             binding.name = name.clone();
             binding.explicit = true;
         }
@@ -264,14 +204,23 @@ impl Document {
     }
     /// A typed, temporary projection for the editor/codec; never engine IR.
     pub(super) fn project(&self) -> Result<Value, String> {
-        if self.version != 1 {
+        if self.version != 2 {
             return Err("unsupported authoring document version".into());
         }
         checked(&self.card)?;
-        let mut value = serde_json::to_value(&self.card).map_err(|e| e.to_string())?;
+        let value = serde_json::to_value(&self.card).map_err(|e| e.to_string())?;
         let mut sites = BTreeMap::new();
         id_sites(&Ty::Named("UnifiedCard".into()), &value, "", &mut sites);
         let resolved = resolve_card(&self.card)?;
+        self.project_against(value, sites, &resolved, true)
+    }
+    fn project_against(
+        &self,
+        mut value: Value,
+        sites: BTreeMap<String, BindingKind>,
+        resolved: &Document,
+        check_scopes: bool,
+    ) -> Result<Value, String> {
         let groups: BTreeMap<_, _> = resolved
             .uses
             .iter()
@@ -296,6 +245,9 @@ impl Document {
                     site.path
                 ));
             }
+            if site.qualified && binding.kind != BindingKind::Result {
+                return Err("only result references have receipt qualifications".into());
+            }
             let group = *groups
                 .get(site.path.as_str())
                 .ok_or("unresolved binding annotation")?;
@@ -317,6 +269,53 @@ impl Document {
                 .as_u64()
                 .ok_or("binding annotation must address an ID")?;
             *leaf = tagged(id, site.binding);
+            if site.qualified {
+                leaf["qualified"] = json!(true);
+            }
+        }
+        for (index, binding) in self.bindings.iter().enumerate() {
+            let mut members = BTreeSet::new();
+            for member in &binding.members {
+                if *member == index
+                    || !members.insert(*member)
+                    || self
+                        .bindings
+                        .get(*member)
+                        .is_none_or(|b| b.kind != BindingKind::Result || !b.members.is_empty())
+                {
+                    return Err("receipt group must contain distinct result definitions".into());
+                }
+            }
+            if !members.is_empty()
+                && (binding.kind != BindingKind::Result || members.len() < 2 || binding.explicit)
+            {
+                return Err(
+                    "a receipt group is an unnamed expression over alternative results".into(),
+                );
+            }
+            let Some(group) = assigned.get(&index) else {
+                continue;
+            };
+            let expected = &resolved.bindings[*group];
+            if check_scopes
+                && (binding.scope != expected.scope || binding.scope_name != expected.scope_name)
+            {
+                return Err("binding annotation has inconsistent lexical scope metadata".into());
+            }
+            let actual = members
+                .iter()
+                .map(|member| {
+                    assigned
+                        .get(member)
+                        .copied()
+                        .ok_or("receipt member has no definition")
+                })
+                .collect::<Result<BTreeSet<_>, _>>()?;
+            if actual != expected.members.iter().copied().collect() {
+                return Err(
+                    "receipt group members cross a branch scope or omit an alternative".into(),
+                );
+            }
         }
         Ok(value)
     }
@@ -336,7 +335,11 @@ fn resolve_card(card: &UnifiedCard) -> Result<Document, String> {
         binding.explicit = false;
         if let Some(id) = value.pointer(&site.path).and_then(Value::as_u64) {
             let prefix = binding.kind.prefix();
-            binding.name = format!("{prefix}{id}");
+            binding.name = if binding.members.is_empty() {
+                format!("{prefix}{id}")
+            } else {
+                format!("r{id}_receipts")
+            };
         }
     }
     Ok(doc)
@@ -352,7 +355,7 @@ pub fn read(text: &str) -> Result<Document, String> {
     }
     checked(&card)?;
     Ok(Document {
-        version: 1,
+        version: 2,
         card,
         bindings,
         uses,

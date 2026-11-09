@@ -393,12 +393,27 @@ fn all_records_support_the_authoring_document() {
     mtgish_ast::corpus::on_large_stack(|| {
         let file = std::fs::File::open(std::env::var("AUTHORING_CORPUS").unwrap()).unwrap();
         let mut count = 0;
+        let (mut definitions, mut receipt_groups) = (0, 0);
         let mut failures = Vec::new();
         for line in std::io::BufReader::new(file).lines() {
             let card: UnifiedCard = serde_json::from_str(&line.unwrap()).unwrap();
             let result = document::from_card(&card).and_then(|mut doc| {
-                let renames: Vec<_> = (0..doc.bindings().len())
-                    .map(|i| (i, format!("named_{i}")))
+                definitions += doc
+                    .bindings()
+                    .iter()
+                    .filter(|b| b.members.is_empty())
+                    .count();
+                receipt_groups += doc
+                    .bindings()
+                    .iter()
+                    .filter(|b| !b.members.is_empty())
+                    .count();
+                let renames: Vec<_> = doc
+                    .bindings()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, b)| b.members.is_empty())
+                    .map(|(i, _)| (i, format!("named_{i}")))
                     .collect();
                 doc.rename_many(&renames)
             });
@@ -419,7 +434,7 @@ fn all_records_support_the_authoring_document() {
             failures.len(),
             failures.join("\n")
         );
-        println!("Renamed every binding in all {count} records");
+        println!("Renamed all {definitions} definitions in {count} records; retained {receipt_groups} receipt-group expressions");
     });
 }
 

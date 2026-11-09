@@ -23,6 +23,7 @@ mod trace;
 mod visibility;
 use movement::groups as movement_groups;
 pub use trace::MappedCard;
+pub(crate) use visibility::branch_sites as branch_receipt_sites;
 pub(crate) use visibility::export_sites as exported_receipt_sites;
 #[cfg(test)]
 mod tests;
@@ -180,6 +181,8 @@ struct Walker {
     reading: bool,
     /// Only resolution-time PayCost exports receipts from its player actions.
     paying_cost: bool,
+    operation_depth: usize,
+    payment_depth: Option<usize>,
     /// A surrounding immediate loop gathers optional outcomes as receipts too.
     gathering_results: bool,
     visits: usize,
@@ -275,6 +278,16 @@ impl Walker {
     }
 
     fn walk(&mut self, value: &mut Value, ty: &Ty, defining: bool) {
+        let operation = matches!(ty, Ty::Named(name) if name == "Operation");
+        if operation {
+            self.operation_depth += 1;
+        }
+        self.walk_inner(value, ty, defining);
+        if operation {
+            self.operation_depth -= 1;
+        }
+    }
+    fn walk_inner(&mut self, value: &mut Value, ty: &Ty, defining: bool) {
         if self.failure.is_some() {
             return;
         }
@@ -723,7 +736,14 @@ impl Walker {
                             self.gathering_results = false;
                         }
                         let old_cost = self.paying_cost;
-                        self.paying_cost = owner == "Operation::PayCost" && field == "cost"
+                        let old_payment = self.payment_depth;
+                        if owner == "Instruction::Effect" && field == "operation" {
+                            self.payment_depth =
+                                (item["kind"] == "PayCost").then_some(self.operation_depth + 1);
+                        }
+                        self.paying_cost = owner == "Operation::PayCost"
+                            && field == "cost"
+                            && self.payment_depth == Some(self.operation_depth)
                             || self.paying_cost && owner == "Cost" && field == "parts";
                         if let Some(frame) = created.as_ref().filter(|_| {
                             matches!(field.as_str(), "body" | "announcement" | "intervening_if")
@@ -733,6 +753,7 @@ impl Walker {
                             self.walk(item, ty, defines(owner, field));
                         }
                         self.paying_cost = old_cost;
+                        self.payment_depth = old_payment;
                         self.gathering_results = old_gathering;
                         if let Some(saved) = local_results {
                             if owner == "Instruction::If" {
@@ -1065,6 +1086,8 @@ fn normalize_with_trace(value: &mut Value, keep_order: bool, tracing: bool) -> R
         read: Vec::new(),
         reading: !keep_order,
         paying_cost: false,
+        operation_depth: 0,
+        payment_depth: None,
         gathering_results: false,
         visits: 0,
         join_work: 0,
