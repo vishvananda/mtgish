@@ -1283,6 +1283,7 @@ impl Context {
     /// The named action may have produced what a later "that" means, so anything
     /// bound before it could be the wrong antecedent. Later references must fail.
     fn forget_results(&mut self) {
+        self.coin_players = None;
         self.forgotten = true;
         self.created_tokens = None;
         self.attachment_host = None;

@@ -1,0 +1,196 @@
+{
+  "schema_version": 184,
+  "layout": "Card",
+  "faces": [
+    {
+      "schema_version": 184,
+      "name": "Mana Clash",
+      "characteristics": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "abilities": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "ForEachPlayer",
+                        "args": {
+                          "players": {
+                            "kind": "Union",
+                            "args": [
+                              {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "binding": 0,
+                          "starting_with": null,
+                          "in_chosen_direction": false,
+                          "body": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 0,
+                                  "operation": {
+                                    "kind": "FlipCoin",
+                                    "args": {
+                                      "player": {
+                                        "kind": "Bound",
+                                        "args": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "DealDamage",
+                            "args": {
+                              "source": {
+                                "kind": "Source"
+                              },
+                              "recipients": {
+                                "kind": "Players",
+                                "args": {
+                                  "kind": "Matching",
+                                  "args": {
+                                    "binding": 0,
+                                    "condition": {
+                                      "kind": "CoinCameUp",
+                                      "args": {
+                                        "player": {
+                                          "kind": "Bound",
+                                          "args": 0
+                                        },
+                                        "outcome": "Tails"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "preventable": true
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "Not",
+                            "args": {
+                              "kind": "Compare",
+                              "args": {
+                                "left": {
+                                  "kind": "CoinFlipsWon",
+                                  "args": false
+                                },
+                                "comparison": "Equal",
+                                "right": {
+                                  "kind": "Constant",
+                                  "args": 0
+                                }
+                              }
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "RepeatProcess"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "data": []
+}

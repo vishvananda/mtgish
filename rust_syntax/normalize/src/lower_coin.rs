@@ -1,4 +1,49 @@
 impl Context {
+    /// Last-coin predicates suffice only when each participant flipped once.
+    fn one_coin_per_player(body: &Program, binding: &Binding) -> bool {
+        match body.instructions.as_slice() {
+            [Instruction::Effect {
+                operation:
+                    Operation::FlipCoin {
+                        player: PlayerRef::Bound(who),
+                    },
+                ..
+            }] => who.0 == binding.0,
+            [Instruction::Group(body)] => Self::one_coin_per_player(body, binding),
+            _ => false,
+        }
+    }
+    /// These references retain their player identities across intervening actions.
+    fn stable_coin_players(players: &PlayerSet) -> bool {
+        match players {
+            PlayerSet::One(
+                PlayerRef::AbilityController
+                | PlayerRef::Target { .. }
+                | PlayerRef::Bound(_)
+                | PlayerRef::EventSubject
+                | PlayerRef::EventOtherPlayer,
+            ) => true,
+            PlayerSet::Union(players) => players.iter().all(Self::stable_coin_players),
+            _ => false,
+        }
+    }
+    fn all_coins_heads(&self) -> Result<Condition> {
+        let players = self.coin_players.as_ref().ok_or_else(|| {
+            invalid("all-coin heads check has no proven one-flip-per-player batch")
+        })?;
+        fn heads(players: &PlayerSet) -> Condition {
+            match players {
+                PlayerSet::One(player) => Condition::CoinCameUp {
+                    player: Some(player.clone()),
+                    outcome: CoinOutcome::Heads,
+                },
+                PlayerSet::Union(players) => Condition::All(players.iter().map(heads).collect()),
+                _ => unreachable!("only stable, explicit participants establish a coin batch"),
+            }
+        }
+        Ok(heads(players))
+    }
+
     /// One coin flip by the one acting player, and the result branches read.
     fn coin_flip(&mut self, actor: &PlayerSet) -> Result<(Instruction, ResultId)> {
         let PlayerSet::One(player) = actor else {

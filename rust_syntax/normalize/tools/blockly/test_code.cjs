@@ -79,13 +79,14 @@ let browser,page;
  });
  assert.ok(actionCount>=134);
  const wasmExamples=await page.evaluate(async()=>{
-  const d=window.cardBlocks,names=['Cloudshift',"Conjurer's Closet",'Restoration Angel','Basalt Golem','Counterspell','Llanowar Elves','Fire // Ice','Delver of Secrets // Insectile Aberration','Jace, the Mind Sculptor','The Wandering Emperor','Brainstorm','Halfdane','Rolling Hamsphere','Knowledge Pool','Lagrella, the Magpie','Two-Headed Giant'];
+  const d=window.cardBlocks,names=['Cloudshift',"Conjurer's Closet",'Restoration Angel','Basalt Golem','Counterspell','Llanowar Elves','Fire // Ice','Delver of Secrets // Insectile Aberration','Jace, the Mind Sculptor','The Wandering Emperor','Brainstorm','Halfdane','Rolling Hamsphere','Knowledge Pool','Lagrella, the Magpie','Two-Headed Giant','Mana Clash'];
   for(const name of names){
    const entry=d.payload.cards.find(c=>c.name===name||c.name.split(' // ').sort().join(' // ')===name.split(' // ').sort().join(' // '));
    if(!entry)throw Error('Missing '+name);
    const card=(await d.shard(entry.shard))[entry.index],formatted=await d.formatCode(d.encode(card));
    if(!formatted.valid)throw Error(name+': '+formatted.error);
    if(name==='Two-Headed Giant'){if((formatted.code.match(/HeadsFlipped/g)||[]).length!==2||formatted.code.includes('CoinFlipsWon'))throw Error('Coin faces became called wins');}
+   if(name==='Mana Clash'&&(formatted.code.includes('CoinFlipsWon')||!formatted.code.includes('Heads')||!formatted.code.includes('CoinCameUp')))throw Error('Collective coin faces became a win/loss tally');
    const parsed=await d.parseCode(formatted.code);if(!parsed.valid)throw Error(name+': '+parsed.error);
    const again=await d.formatCode(parsed.ir);if(again.code!==formatted.code)throw Error(name+': unstable card code');
   }
@@ -94,7 +95,8 @@ let browser,page;
  const malformed=[
   'Card{name:"Counter entry",properties:{card_types:[Instant]},abilities:[Spell{do:[CounterWith{object:This,destination:OwnersHand,entry:[Objects(Targets(t99))]}]}]}',
   'Card{name:"Entry rules",properties:{card_types:[Instant]},abilities:[Spell{do:[MoveObjects{objects:One(This),destination:Exile,entry:{states:[ChangesUntil{changes:[],duration:WhileItMatches(InSet(Targets(t99)))}]}}]}]}',
-  ...['Between{minimum:-1,maximum:1}','Between{minimum:3,maximum:1}'].map(count=>'Card{name:"Bounds",properties:{card_types:[Instant]},abilities:[Spell{targets:[Target{name:t0,select:Creature,count:'+count+'}],do:[Reveal{objects:Targets(t0)}]}]}')
+  ...['Between{minimum:-1,maximum:1}','Between{minimum:3,maximum:1}'].map(count=>'Card{name:"Bounds",properties:{card_types:[Instant]},abilities:[Spell{targets:[Target{name:t0,select:Creature,count:'+count+'}],do:[Reveal{objects:Targets(t0)}]}]}'),
+  ...['Primitive{name:"Condition::AllCoinsCameUpHeads",operands:[]}','Primitive{name:"Condition::NumCoinFlipsWonIs",operands:[Term{family:"Condition",form:"AllCoinsCameUpHeads",operands:[]}]}'].map(condition=>'Card{name:"Coin participants",properties:{card_types:[Instant]},abilities:[Spell{do:[If{condition:'+condition+',then:[],otherwise:[]}]}]}')
  ];
  for(const code of malformed)assert.equal((await page.evaluate(code=>window.cardBlocks.parseCode(code),code)).valid,false);
  assert.match((await page.evaluate(code=>window.cardBlocks.parseCode(code),malformed[1])).error,/unbound target slot 99/);

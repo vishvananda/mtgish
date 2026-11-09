@@ -47,6 +47,9 @@ impl Context {
         self.result = child.result;
         self.invalidate_child_bindings(&child);
         self.adopt_loop(&child);
+        if Self::one_coin_per_player(&body, &binding) && Self::stable_coin_players(&players) {
+            self.coin_players = Some(players.clone());
+        }
         // Each run's picks add up, so the loop's choice reads as a set afterward.
         let picks = child.picks[self.picks.len()..].iter().map(|(who, result)| {
             let own = matches!(who, Some(PlayerRef::Bound(b)) if b.0 == binding.0);

@@ -218,7 +218,6 @@ fn reduce_event_condition(form: &str, operands: &[Operand]) -> Option<Condition>
         }
         ("YouWonTheCoinFlip", []) => Some(some_of(Expr::CoinFlipsWon(true))),
         ("YouLostTheCoinFlip", []) => Some(some_of(Expr::CoinFlipsWon(false))),
-        ("AllCoinsCameUpHeads", []) => Some(none_of(Expr::CoinFlipsWon(false))),
         ("ADiceResultIs" | "WhenAPlayerRollsAnyNumberOfDice_AnyDiceResultIs", [Compare(c, value)]) => {
             Some(some_of(Expr::Dice(DiceMeasure::Matching(
                 c.clone(),

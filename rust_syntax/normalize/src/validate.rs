@@ -2650,6 +2650,9 @@ impl<'a> Scope<'a> {
         Ok(())
     }
     fn primitive(&self, name: &str, operands: &[Operand]) -> Result {
+        if name == "Condition::AllCoinsCameUpHeads" {
+            return Err("all-coin heads check requires explicit participants".into());
+        }
         if crate::semantics::requires_typed_keyword(name) {return Err(format!("{name} requires a typed keyword action"));}
         if crate::copying::requires_typed_payload(name) {
             return Err(format!("{name} requires typed copy exceptions"));

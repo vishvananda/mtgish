@@ -5,7 +5,8 @@ use std::collections::BTreeMap;
 
 /// A fieldless form that names something in scope, not a word from a vocabulary.
 pub fn reads_scope(form: &str) -> bool {
-    form.starts_with("Ref_")
+    form == "AllCoinsCameUpHeads"
+        || form.starts_with("Ref_")
         || form.starts_with("RefOuter_")
         || form.starts_with("Trigger_")
         || form.starts_with("Eachable")

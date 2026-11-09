@@ -626,3 +626,15 @@ source/native comparison evidence are in `coin-prerequisite/` under the review
 evidence directory. Schema and Wasm bytes remain identical to stage 15; only
 the catalog's corrected card changes. The original 29 confirmed defects remain
 queued after the broader AST/editor work.
+
+Stage 17 resolves the other coin-policy prerequisite without changing schema
+184: [collective heads checks](coin-batch-heads-20261109.md) now retain their
+explicit participants rather than masquerading as losses. The full comparison
+changes exactly one condition subtree on Mana Clash; all coin producers and
+receipts are retained. Contextless and stale checks fail rather than guessing.
+Native tests: 1,467 passed, zero failed, 15 ignored. All fourteen browser suites
+pass, including the complete catalog and seventeen card-code examples. Authentic
+corrected schema-184 coin records and named documents are captured before the
+next structural migration. The remaining broader AST work and the 29 confirmed
+reference defects remain open; this Rust-only correction needs no upstream
+reference grammar report.

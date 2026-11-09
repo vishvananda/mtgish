@@ -139,6 +139,8 @@ struct Context {
     /// The latest die rolled in this scope.
     rolled: Option<ResultId>,
     flipped: Option<ResultId>,
+    /// A proven batch with one flip per stable, distinct player.
+    coin_players: Option<PlayerSet>,
     inspected_put: Option<ObjectSet>,
     phased: Option<ObjectRef>,
     /// What a keyword action just acted on, as "the transformed permanent".
@@ -473,6 +475,12 @@ impl Context {
     }
 
     fn note_done(&mut self, operation: &Operation, result: &ResultId) {
+        if matches!(
+            operation,
+            Operation::FlipCoin { .. } | Operation::FlipCoins { .. } | Operation::CoinFlips { .. }
+        ) {
+            self.coin_players = None;
+        }
         if let Some(done) = Done::of(operation) {
             self.did.insert(done, result.clone());
             // Each of these ends in a graveyard unless something replaces it.
@@ -609,6 +617,11 @@ impl Context {
     }
 
     fn invalidate_child_bindings(&mut self, child: &Self) {
+        if serde_json::to_value(&self.coin_players).unwrap()
+            != serde_json::to_value(&child.coin_players).unwrap()
+        {
+            self.coin_players = None;
+        }
         if serde_json::to_value(&self.attachment_host).unwrap()
             != serde_json::to_value(&child.attachment_host).unwrap()
         {
@@ -2041,6 +2054,9 @@ impl Context {
     }
 
     fn reduced_condition(&self, value: &source::Condition) -> Result<Condition> {
+        if matches!(value, source::Condition::AllCoinsCameUpHeads) {
+            return self.all_coins_heads();
+        }
         if let source::Condition::DeadPermanentPassesFilter(filter) = value {
             return Ok(Condition::ObjectMatches {
                 object: self.dead_object()?,
