@@ -95,6 +95,24 @@ fn every_captured_named_document_retains_its_identities_and_scope_names() {
     });
 }
 
+#[test]
+fn schema_182_entries_do_not_repeat_the_older_payload_migration() {
+    mtgish_ast::corpus::on_large_stack(|| {
+        let sources:Vec<mtg_types::OracleCard>=include_str!("fixtures/entry_internals.ronl").lines().map(|l|ron::from_str(l).unwrap()).collect();
+        let mut count=0;
+        for line in include_str!("fixtures/entry_payloads_v182.jsonl").lines() {
+            let old:Value=serde_json::from_str(line).unwrap();
+            let name=old["faces"][0]["name"].as_str().unwrap();
+            let source=sources.iter().find(|s|mtgish_ast::corpus::Identity::of(s).unwrap().names.iter().any(|n|n==name)).unwrap();
+            let mapped=migrate::mapped_read_json(line).unwrap_or_else(|e|panic!("{name}: {e}"));
+            assert_eq!(mapped.source_version,182);
+            assert_eq!(serde_json::to_value(mapped.card).unwrap(),serde_json::to_value(unified::lower(source).card).unwrap(),"{name}");
+            count+=1;
+        }
+        assert_eq!(count,16);
+    });
+}
+
 fn shared_size() -> (Value, String) {
     let mut card: Value = include_str!("fixtures/entry_internals_v181.jsonl")
         .lines()

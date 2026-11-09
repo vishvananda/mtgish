@@ -102,3 +102,15 @@ Timed entry rules use ordinary `Change::Rule` values; return callbacks contain a
 The immutable 179/180/181 descriptors support explicit upgrades; mapped 180/181
 upgrades preserve saved names through structural origins, including shared reads.
 Serialized destination-specific payloads remain a separate pending change.
+
+
+Schema 183 gives each `KeywordAction` only its own parameters. `Fight` and
+`ExchangeControl` name their first and second objects; `Amass` takes a numeric
+amount and a `CreatureType`. Adapt and monstrosity can optionally name an
+explicit subject instead of the source. Optional counted forms retain their distinct
+ordinary/counted receipt contracts. `ObjectKeywordAction` describes actions on
+a set without converting the shared batch into independent result boundaries;
+only goad and phasing carry the pre-existing explicit duration. The source
+boundary's historical tag type does not appear in validated IR. Explicit
+179/180/181/182 upgrades preserve parameter origins; entry-payload conversion
+applies only to epochs through 181.

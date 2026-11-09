@@ -3711,9 +3711,7 @@ impl Compiler {
         Ok(match operation {
             Operation::Keyword {
                 actor,
-                action: KeywordAction::Earthbend,
-                object: Some(object),
-                amount: Some(amount),
+                action: KeywordAction::Earthbend {object,amount},
                 ..
             } => {
                 let actors = self.stated_players(actor)?;
@@ -3723,8 +3721,7 @@ impl Compiler {
             }
             Operation::Keyword {
                 actor,
-                action: KeywordAction::TakeExtraTurn,
-                amount: Some(Expr::HeadsFlipped(result)),
+                action: KeywordAction::TakeExtraTurn {times:Some(Expr::HeadsFlipped(result))},
                 ..
             } if self.flips.contains_key(&result.0) => {
                 let actors = self.stated_players(actor)?;

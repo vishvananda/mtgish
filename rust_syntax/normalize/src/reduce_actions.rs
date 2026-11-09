@@ -992,16 +992,11 @@ fn matching(objects: &ObjectSet, filter: &ObjectFilter) -> ObjectSet {
 
 /// What an action does to a set of objects, chosen or at random.
 fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Operation> {
-    use KeywordAction as K;
+    use KeywordKind as K;
     use Operand::{Filter, Number, Object, Objects, Player, Players, Recipients as Hosts};
     let one = || Count::Exactly(Expr::Constant(1));
     let any = || Count::AnyNumber;
-    let each = |action, objects: &ObjectSet| Operation::KeywordEach {
-        actor: actor.clone(),
-        action,
-        objects: objects.clone(),
-        until: None,
-    };
+    let each = |action,objects:&ObjectSet| crate::keyword_actions::each_operation(actor,action,objects.clone(),None);
     let pick = |objects: &ObjectSet, count| chosen(actor, objects, count);
     let destroy = |objects, regeneration| Operation::Destroy {
         objects,
@@ -1794,11 +1789,7 @@ fn reduce_player_does(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             times: times.clone(),
             body: Box::new(Operation::Keyword {
                 actor: you(),
-                action: KeywordAction::Incubate,
-                object: None,
-                other: None,
-                amount: Some(amount.clone()),
-                subtype: None,
+                action: KeywordAction::Incubate { amount:amount.clone() },
             }),
         },
         _ => return None,

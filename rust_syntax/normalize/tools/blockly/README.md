@@ -156,8 +156,8 @@ The browser demo limits documents to 2 MiB, IR nesting to 255 levels (card-code 
 lists to 2,048 elements. These interface limits do not change engine numeric
 types. Workspace presentation 6 saves carry a schema, model fingerprint and binding metadata. At the same IR schema,
 older layouts migrate through the typed codec with their original data backed
-up locally. Saved schema-179, schema-180 and schema-181 workspaces and IR JSON upgrade explicitly through
-Rust to schema 182; the bundle includes the old descriptor tables for decoding
+up locally. Saved schema-179, schema-180, schema-181 and schema-182 workspaces and IR JSON upgrade explicitly through
+Rust to schema 183; the bundle includes the old descriptor tables for decoding
 those blocks. The original workspace is backed up before conversion. A failed
 upgrade preserves the original draft and disables autosaving the fallback card
 until the user explicitly starts or imports another card. Unsupported schema
@@ -367,4 +367,17 @@ the existing workspace. Authoring document 2 and presentation 6 remain unchanged
 
 ```sh
 npm run test:entry -- /tmp/card-blocks.html
+```
+
+
+Schema 183 gives keyword actions their own sockets: fight has first/second
+objects, amass has an amount and creature-type picker, and an action on a set
+retains its own batch and allowed duration. The shared four optional fields are
+removed. Search finds specific keyword starters, grouped by Rust's topic
+metadata alongside related actions. Amounts retain literal/expression sockets;
+ordinary versus explicitly counted forms remain distinct. Authentic schema-182
+workspaces retain their names, scopes and binding keys through migration.
+
+```sh
+npm run test:keywords -- /tmp/card-blocks.html
 ```

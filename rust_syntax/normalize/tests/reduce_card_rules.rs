@@ -117,8 +117,7 @@ fn turning_up_lets_the_event_go_on() {
             vec![],
         ),
         Operation::Keyword {
-            action: KeywordAction::TurnFaceUp,
-            object: Some(ObjectRef::EventSubject),
+            action: KeywordAction::TurnFaceUp {object:ObjectRef::EventSubject},
             ..
         }
     ));

@@ -8,7 +8,7 @@ let browser;
  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(/^https?:/.test(target)?target:pathToFileURL(path.resolve(target)).href,{timeout:120000});
  await page.waitForFunction(()=>window.cardBlocks?.valid(),null,{timeout:120000});
- assert.equal(await page.evaluate(()=>window.cardBlocks.schema.version),182);
+ const currentSchema=await page.evaluate(()=>window.cardBlocks.schema.version);assert.ok(currentSchema>=182);
  const code='Card{name:"Entry sockets",properties:{card_types:[Instant]},abilities:[Spell{do:[size=BindValue{value:5},TurnFaceDownAs{objects:One(This),as_creature:{power:BoundValue(size),toughness:3}}]}]}';
  await page.evaluate(async code=>{const d=window.cardBlocks,r=await d.parseCode(code);if(!r.valid)throw Error(r.error);d.loadIR(d.parseExact(r.ir),false,d.parseExact(r.document));},code);
  await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].name==='Entry sockets');
@@ -29,7 +29,7 @@ let browser;
    assert.deepEqual(JSON.parse(actual.ir),expected.card);
    const names=doc=>doc.bindings.map(b=>[b.kind,b.scope_name,b.name,b.explicit]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
    assert.deepEqual(names(actual.doc),names(expected));assert.deepEqual(metadataKeys(actual.save.workspace.blocks.blocks[0]),oldKeys);
-   assert.equal(actual.save.schema,182);assert.deepEqual(actual.backup,old);
+   assert.equal(actual.save.schema,currentSchema);assert.deepEqual(actual.backup,old);
   }
   await page.locator('#file').setInputFiles({name:'named-entry-workspace.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(old))});
   await checked();

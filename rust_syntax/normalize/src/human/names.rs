@@ -153,6 +153,21 @@ pub fn action(wire: &str) -> Value {
     );
     json!({"name":action_name(wire),"label":label(action_name(wire)),"category":category,"control":control})
 }
+/// Specific keyword starters use the same topic names as ordinary actions.
+pub fn keyword_action(wire:&str,each:bool)->Value {
+    let category=match wire {
+        "Fight"|"RemoveAllDamage"=>"Damage & life",
+        "Investigate"|"Amass"|"ManifestDread"|"Incubate"|"Populate"=>"Copies & tokens",
+        "Proliferate"|"Monstrosity"|"EmpowerJace"|"Adapt"|"Bolster"|"Endure"|"Blight"|"TimeTravel"|"Intensify"|"GainEnergy"|"GetTickets"=>"Counters & changes",
+        "RollDie"|"RollKeepHighest"|"RollTwoInOrder"|"RollPlanarDie"|"VisitAttractions"|"ChooseDamageNumber"|"ChooseSector"|"ChooseProtection"|"ChooseCopy"|"SetStake"|"DoubleStake"|"RerollStoredDice"|"RollAndStoreD6"=>"Choices & values",
+        "Explore"|"Connive"|"Discover"|"Learn"|"Fateseal"|"CollectEvidence"|"ShuffleGraveyard"|"ShuffleIfSearched"|"ReorderGraveyard"|"DiscardAnyNumberAtRandom"|"RemainingToBottomAtRandom"|"TurnPileFaceUp"=>"Cards & libraries",
+        "Transform"|"Convert"|"Prepare"|"Unprepare"|"PhaseIn"|"PhaseOut"|"TapOrUntap"|"ExchangeControl"|"Airbend"|"Flip"|"Awaken"|"TurnFaceUp"|"TurnFaceDown"|"Unattach"|"UnlockDoor"|"LockOrUnlockDoor"|"SetSchemeInMotion"=>"Objects & movement",
+        "Goad"|"Ungoad"|"Suspect"|"Unsuspect"|"Detain"|"Saddle"|"Harness"|"BecomeBlocked"|"RemoveFromCombat"|"RemoveFromCombatUnblocking"=>"Combat & restrictions",
+        _=>"Game & keyword actions",
+    };
+    let label=if each {format!("{} each object",label(wire))}else{label(wire)};
+    json!({"name":wire,"label":label,"category":category})
+}
 /// Instruction discovery shares the action families without conflating their
 /// execution boundaries. Labels describe a constructor, not a wire rename.
 pub fn instruction(wire: &str) -> Value {

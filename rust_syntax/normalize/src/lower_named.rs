@@ -875,25 +875,12 @@ impl Context {
             self.singular.insert(result.0);
         }
         self.note_done(&operation, &result);
-        if let Operation::Keyword {
-            action: KeywordAction::PhaseOut,
-            object,
-            ..
-        } = &operation
-        {
-            self.phased = object.clone();
-        }
-        if let Operation::Keyword { action, object, .. } = &operation {
+        if let Operation::Keyword {action,..}=&operation {
             match action {
-                KeywordAction::Transform => self.acted_on = object.clone(),
-                KeywordAction::Bolster => {
-                    self.acted_on = Some(ObjectRef::Result {
-                        result: result.clone(),
-                        phase: ObjectPhase::After,
-                        index: 0,
-                    });
-                }
-                _ => {}
+                KeywordAction::PhaseOut {object}=>self.phased=Some(object.clone()),
+                KeywordAction::Transform {object}=>self.acted_on=Some(object.clone()),
+                KeywordAction::Bolster {..}=>self.acted_on=Some(ObjectRef::Result {result:result.clone(),phase:ObjectPhase::After,index:0}),
+                _=>{}
             }
         }
         Some(Instruction::Effect { result, operation })

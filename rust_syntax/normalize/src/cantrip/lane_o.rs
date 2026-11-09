@@ -4,6 +4,7 @@
 //! while: `object_rule(applies, rule)` and `player_rule(applies, rule)` in a
 //! card's `statics`, `EffectKind::Rule(rule)` and `EffectKind::PlayerRule(rule)`
 //! on the stack. Every operand is read here, as the tests and amounts it will be.
+use crate::keyword_actions::KeywordKind;
 use super::*;
 
 const M: &str = "cantrip_mechanics";
@@ -3476,7 +3477,7 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
-        use KeywordAction as K;
+        use KeywordKind as K;
         let feature = format!("keyword action {:?} with an amount", action.action);
         match action.action {
             // "Explores X times", "populate X times": the action, that many times.
@@ -3546,11 +3547,11 @@ impl Compiler {
     /// A keyword action Cantrip has no word for, called what its rules text does.
     pub(super) fn stated_action(
         &mut self,
-        kind: KeywordAction,
+        kind: KeywordKind,
         action: &keywords::Action,
         out: &mut String,
     ) -> Result<()> {
-        use KeywordAction as K;
+        use KeywordKind as K;
         let feature = format!("keyword action {kind:?}");
         let call = match kind {
             K::ChaosEnsues => format!("{M}::planechase::chaos_ensues(g, player)?"),

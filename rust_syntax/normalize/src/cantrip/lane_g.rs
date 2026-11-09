@@ -1,5 +1,6 @@
 //! Keywords the engine has by another road, and the final form of those it does
 //! not: each planned entry here is the call the card makes once Cantrip has it.
+use crate::keyword_actions::KeywordKind;
 use super::*;
 
 const M: &str = "cantrip_mechanics";
@@ -140,8 +141,8 @@ pub(super) fn forecast(def: String) -> String {
 }
 
 /// Keyword actions the shared gate takes an amount for.
-pub(super) fn takes_amount(action: KeywordAction) -> bool {
-    use KeywordAction as K;
+pub(super) fn takes_amount(action: KeywordKind) -> bool {
+    use KeywordKind as K;
     matches!(
         action,
         K::Blight
@@ -252,17 +253,13 @@ fn evidence_of(body: &Program) -> Option<CostPart> {
         [Instruction::Effect {
             operation:
                 Operation::Keyword {
-                    action: KeywordAction::CollectEvidence,
-                    object: None,
-                    other: None,
-                    amount: amount @ Some(Expr::Constant(_)),
-                    subtype: None,
+                    action: KeywordAction::CollectEvidence {amount:amount @ Expr::Constant(_)},
                     ..
                 },
             ..
         }] => Some(CostPart::Keyword {
             action: CostKeyword::CollectEvidence,
-            amount: amount.clone(),
+            amount: Some(amount.clone()),
         }),
         _ => None,
     }

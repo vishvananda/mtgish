@@ -179,18 +179,11 @@ fn reduce_card_replacement_action(
     form: &str,
     operands: &[Operand],
 ) -> Option<Operation> {
-    let on_subject = |action| Operation::Keyword {
-        actor: actor.clone(),
-        action,
-        object: Some(ObjectRef::EventSubject),
-        other: None,
-        amount: None,
-        subtype: None,
-    };
+    let on_subject = |action| crate::keyword_actions::operation(actor,action,Some(ObjectRef::EventSubject),None,None,None);
     Some(match (form, operands) {
-        ("TurnItFaceUpInstead", []) => on_subject(KeywordAction::TurnFaceUp),
+        ("TurnItFaceUpInstead", []) => on_subject(KeywordKind::TurnFaceUp),
         // The body runs first and the damage then lands, so only earlier damage heals.
-        ("DealDamageButHealPreviousDamage", []) => on_subject(KeywordAction::RemoveAllDamage),
+        ("DealDamageButHealPreviousDamage", []) => on_subject(KeywordKind::RemoveAllDamage),
         // The top card of a shuffled face-down pile is a random one of them.
         ("PutTheTopCardOfTheExiledPileIntoHand", []) => Operation::DraftChangeZone {
             actor: actor.clone(),

@@ -3207,7 +3207,7 @@ fn gift_kind(gift: &[Program]) -> Option<(&'static str, Option<&'static str>, &'
         } if gifted(players) => Some(("CARD", None, "the chosen opponent draws a card")),
         Operation::Keyword {
             actor,
-            action: KeywordAction::TakeExtraTurn,
+            action: KeywordAction::TakeExtraTurn {..},
             ..
         } if gifted(actor) => Some((
             "EXTRA_TURN",

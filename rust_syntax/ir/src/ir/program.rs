@@ -476,10 +476,6 @@ pub enum Operation {
     Keyword {
         actor: PlayerSet,
         action: KeywordAction,
-        object: Option<ObjectRef>,
-        other: Option<ObjectRef>,
-        amount: Option<Expr>,
-        subtype: Option<String>,
     },
     /// The top card of `actor`'s library moves if it is one of `cards`, as
     /// "reveal the top card; if it's a land, put it into your hand".
@@ -506,9 +502,8 @@ pub enum Operation {
     /// duration: for goad, until `actor`'s next turn (CR 701.38a).
     KeywordEach {
         actor: PlayerSet,
-        action: KeywordAction,
+        action: ObjectKeywordAction,
         objects: ObjectSet,
-        until: Option<Duration>,
     },
     /// Copy a spell or ability on the stack `times` times, as Forge's
     /// `CopySpellAbility`. Exceptions modify the copies' copiable values;

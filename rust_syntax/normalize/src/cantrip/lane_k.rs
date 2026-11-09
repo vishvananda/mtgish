@@ -1014,7 +1014,7 @@ pub(super) fn tap_or_untap_only(body: &Program) -> bool {
         body.instructions.as_slice(),
         [Instruction::Effect {
             operation: Operation::Keyword {
-                action: KeywordAction::TapOrUntap,
+                action: KeywordAction::TapOrUntap {..},
                 ..
             },
             ..
@@ -1173,11 +1173,7 @@ pub(super) fn blights(player: &PlayerRef, body: &Program) -> Option<u8> {
         operation:
             Operation::Keyword {
                 actor: PlayerSet::One(actor),
-                action: KeywordAction::Blight,
-                object: None,
-                other: None,
-                amount: Some(Expr::Constant(n)),
-                subtype: None,
+                action: KeywordAction::Blight {amount:Expr::Constant(n)},
             },
         ..
     }] = body.instructions.as_slice()

@@ -6,7 +6,7 @@
   const schema = payload.schema, authoring = schema.authoring, $ = id => document.getElementById(id);
   const clone = v => structuredClone(v), typeKey = t => JSON.stringify(t);
   const pretty = text => text.replace(/_/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2');
-  const variantLabel = (type,v) => (type==='Operation'?authoring.actions[v.wire]?.label:type==='Instruction'?authoring.instructions?.[v.wire]?.label:null) || pretty(authoring.references[type]?.[v.wire]||v.name);
+  const variantLabel = (type,v) => (type==='Operation'?authoring.actions[v.wire]?.label:type==='Instruction'?authoring.instructions?.[v.wire]?.label:type==='KeywordAction'?authoring.keyword_actions?.[v.wire]?.label:type==='ObjectKeywordAction'?authoring.object_keyword_actions?.[v.wire]?.label:null) || pretty(authoring.references[type]?.[v.wire]||v.name);
   const typeName = t => t.named || (t.vec ? `List<${typeName(t.vec)}>` : t.option ? `Optional<${typeName(t.option)}>` : `(${t.tuple.map(typeName).join(', ')})`);
   const descriptor = t => t.named && types[t.named];
   const newtype = t => {const d=descriptor(t);return d?.kind==='struct' && d.fields.kind==='tuple' && d.fields.items.length===1 ? d.fields.items[0]:null;};
@@ -591,6 +591,11 @@
     else if(Object.keys(values).length)throw Error('This action has no named fields');
     return {kind:'Effect',args:{result:4294967295,operation:packEnum(types.Operation,v,args)}};
   }
+  const keywordFamilies=['KeywordAction','ObjectKeywordAction'];
+  const keywordMeta=(type,v)=>(type==='KeywordAction'?authoring.keyword_actions:authoring.object_keyword_actions)[v.wire];
+  function keywordValue(type,v) {
+    return actionValue(type==='KeywordAction'?'Keyword':'KeywordEach',{action:packEnum(types[type],v,fieldsDefault(v.fields,[],`${type}::${v.wire}`))});
+  }
   function abilityValue(name) {
     const v=types.Ability.variants.find(v=>v.wire===name),args=fieldsDefault(v.fields,[],`Ability::${name}`);
     if(name==='Triggered')args.event=clone(choices.EventSpec[0][1]);
@@ -614,6 +619,11 @@
       const category=authoring.actions[v.wire].category;
       if(!groups.has(category))groups.set(category,[]);
       groups.get(category).push(flyoutBlock('Instruction',actionValue(v.wire)));
+    }catch(_){}
+    for(const type of keywordFamilies)for(const v of types[type].variants)try {
+      const category=keywordMeta(type,v).category;
+      if(!groups.has(category))groups.set(category,[]);
+      groups.get(category).push(flyoutBlock('Instruction',keywordValue(type,v)));
     }catch(_){}
     return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,contents])=>({kind:'category',name,colour:'#b46b4f',contents}));
   }
@@ -641,6 +651,7 @@
     {kind:'category',name:'Copies & tokens',colour:'#708f68',contents:[
       {kind:'label',text:'Create and copy'},
       ...['CreateTokens','CopyOnStack','CopyEach','CopyCards','Populate'].map(n=>flyoutBlock('Instruction',actionValue(n))),
+      ...types.KeywordAction.variants.filter(v=>keywordMeta('KeywordAction',v).category==='Copies & tokens').map(v=>flyoutBlock('Instruction',keywordValue('KeywordAction',v))),
       {kind:'label',text:'Exceptions to copied values'},
       ...types.CopyException.variants.map(v=>variantBlock('CopyException',v.wire))
     ]},
@@ -670,10 +681,10 @@
     const q=$('block-search').value.trim().toLocaleLowerCase();
     if(!q){workspace.updateToolbox(toolboxDefinition);return;}
     const contents=[];
-    for(const type of ['Instruction','Operation','CopyException'])for(const v of types[type].variants.filter(v=>!excluded(v)&&(type!=='Instruction'||v.wire!=='Effect'))) {
-      const meta=type==='CopyException'?{name:v.name,label:pretty(v.name),category:'Copies & tokens'}:(type==='Operation'?authoring.actions:authoring.instructions)[v.wire];
+    for(const type of ['Instruction','Operation','CopyException',...keywordFamilies])for(const v of types[type].variants.filter(v=>!excluded(v)&&(type!=='Instruction'||v.wire!=='Effect'))) {
+      const meta=keywordFamilies.includes(type)?keywordMeta(type,v):type==='CopyException'?{name:v.name,label:pretty(v.name),category:'Copies & tokens'}:(type==='Operation'?authoring.actions:authoring.instructions)[v.wire];
       if(!`${v.name} ${meta.name} ${meta.label} ${meta.category} ${v.doc}`.toLocaleLowerCase().includes(q))continue;
-      try{contents.push(type==='Operation'?flyoutBlock('Instruction',actionValue(v.wire)):variantBlock(type,v.wire));}catch(_){}
+      try{contents.push(keywordFamilies.includes(type)?flyoutBlock('Instruction',keywordValue(type,v)):type==='Operation'?flyoutBlock('Instruction',actionValue(v.wire)):variantBlock(type,v.wire));}catch(_){}
     }
     workspace.updateToolbox({kind:'categoryToolbox',contents:[{kind:'category',name:'Matches',colour:'#b46b4f',contents:contents.length?contents:[{kind:'label',text:'No matching blocks'}]}]});
     workspace.getToolbox().selectItemByPosition(0);

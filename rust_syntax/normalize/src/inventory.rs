@@ -509,18 +509,10 @@ impl Inventory<'_> {
                     self.change(change);
                 }
             }
-            Operation::KeywordEach {
-                actor,
-                action,
-                objects,
-                until,
-            } => {
-                self.form("KeywordAction", action);
-                self.players(actor);
-                self.objects(objects);
-                if let Some(until) = until {
-                    self.duration(until);
-                }
+            Operation::KeywordEach {actor,action,objects} => {
+                let (kind,until)=crate::keyword_actions::each_parts(action);
+                self.form("KeywordAction",&kind);self.players(actor);self.objects(objects);
+                if let Some(until)=until {self.duration(until);}
             }
             Operation::MoveTopCard { actor, cards, .. } => {
                 self.players(actor);
@@ -898,22 +890,12 @@ impl Inventory<'_> {
             }
             Operation::ChooseAtRandom { kind, .. } => self.form("ValueKind", kind),
             Operation::ChooseAction { actor, .. } => self.players(actor),
-            Operation::Keyword {
-                actor,
-                action,
-                object,
-                other,
-                amount,
-                ..
-            } => {
-                self.form("KeywordAction", action);
+            Operation::Keyword {actor,action} => {
                 self.players(actor);
-                for object in object.iter().chain(other) {
-                    self.object(object);
-                }
-                if let Some(amount) = amount {
-                    self.expr(amount);
-                }
+                let parts=crate::keyword_actions::parts(action);
+                self.form("KeywordAction", &parts.kind);
+                for object in parts.object.into_iter().chain(parts.other) { self.object(object); }
+                if let Some(amount)=parts.amount { self.expr(amount); }
             }
             Operation::CreateDelayedTrigger {
                 event,

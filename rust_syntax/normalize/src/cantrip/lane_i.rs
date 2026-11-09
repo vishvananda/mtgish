@@ -1,5 +1,6 @@
 //! One-shot effects past the plain operations: what repeats, what a resolving
 //! player picks between, and what each of several players does.
+use crate::keyword_actions::KeywordKind;
 use super::*;
 
 /// One `Instruction::ForEachPlayer`, with what comes after it in its program.
@@ -850,8 +851,7 @@ impl Compiler {
             // nothing sees a card turned face up in exile one at a time.
             Operation::KeywordEach {
                 actor: PlayerSet::One(PlayerRef::Bound(actor)),
-                action: KeywordAction::TurnFaceUp,
-                until: None,
+                action: ObjectKeywordAction::TurnFaceUp,
                 ..
             } if actor.0 == binding.0 => Part::Walk,
             Operation::DiscardObjects { objects } if names(binding, objects) => {
@@ -1119,9 +1119,8 @@ impl Compiler {
                 operation:
                     Operation::KeywordEach {
                         actor: PlayerSet::One(PlayerRef::Bound(actor)),
-                        action: KeywordAction::TurnFaceUp,
+                        action: ObjectKeywordAction::TurnFaceUp,
                         objects,
-                        until: None,
                     },
                 ..
             } = step
@@ -2844,8 +2843,7 @@ impl Compiler {
                 actor,
                 action,
                 objects,
-                until,
-            } => self.keyword_each(id, actor, action, objects, until.as_ref(), result, out)?,
+            } => self.keyword_each(id, actor, action, objects, result, out)?,
             Operation::Move {
                 objects,
                 destination: Destination::Exile,
@@ -2973,13 +2971,14 @@ impl Compiler {
         &mut self,
         id: usize,
         actor: &PlayerSet,
-        action: &KeywordAction,
+        action: &ObjectKeywordAction,
         objects: &ObjectSet,
-        until: Option<&crate::ir::Duration>,
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
-        use KeywordAction as K;
+        use KeywordKind as K;
+        let (kind,until)=crate::keyword_actions::each_parts(action);
+        let action=&kind;
         const M: &str = "cantrip_mechanics";
         let controller = matches!(actor, PlayerSet::One(PlayerRef::AbilityController));
         if lane_n::read_as_objects(&self.after, result) {

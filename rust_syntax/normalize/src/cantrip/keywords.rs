@@ -1,5 +1,6 @@
 //! Keyword actions the rules define (CR 701): each is what `Game` or
 //! `cantrip_mechanics` calls it, so this says only who and what it is given.
+use crate::keyword_actions::KeywordKind;
 use super::*;
 
 const M: &str = "cantrip_mechanics";
@@ -9,7 +10,7 @@ pub(super) const EARTHBEND_RETURN: &str = "cantrip_mechanics::earthbend::RETURN"
 /// One `Operation::Keyword`.
 pub(super) struct Action<'a> {
     pub actor: &'a PlayerSet,
-    pub action: KeywordAction,
+    pub action: KeywordKind,
     pub object: Option<&'a ObjectRef>,
     pub other: Option<&'a ObjectRef>,
     pub amount: Option<&'a Expr>,
@@ -113,7 +114,7 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
-        use KeywordAction as K;
+        use KeywordKind as K;
         let paired = matches!(action.action, K::Fight | K::ExchangeControl);
         if action.other.is_some() && !paired {
             return Err(gap(format!(
@@ -456,7 +457,7 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
-        use KeywordAction as K;
+        use KeywordKind as K;
         match action.action {
             K::Blight => {
                 let n = self.action_amount(action, u8::MAX.into(), "u8")?;

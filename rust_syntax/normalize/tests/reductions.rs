@@ -248,7 +248,7 @@ fn set_and_stack_actions_are_typed() {
     assert!(matches!(
         reduced("Action::PhaseOutAnyNumberOfPermanents", vec![creatures()]),
         Operation::KeywordEach {
-            action: KeywordAction::PhaseOut,
+            action: ObjectKeywordAction::PhaseOut {..},
             objects: ObjectSet::DraftChosen { .. },
             ..
         }
@@ -281,7 +281,7 @@ fn set_and_stack_actions_are_typed() {
     assert!(matches!(
         reduced("Action::RollTwoD6AndChooseAnOrder", vec![]),
         Operation::Keyword {
-            action: KeywordAction::RollTwoInOrder(6),
+            action: KeywordAction::RollTwoInOrder {sides:6},
             ..
         }
     ));
@@ -636,9 +636,9 @@ fn reflexive_triggers_and_perpetual_terms_keep_their_shape() {
         }
     ));
     assert!(matches!(
-        semantics::reduce_action(you(), "Action::SetSchemeInMotion".into(), vec![]),
+        semantics::reduce_action(you(), "Action::SetSchemeInMotion".into(), vec![Operand::Vocabulary {family:"SingleScheme".into(),form:"ThisScheme".into()}]),
         Operation::Keyword {
-            action: KeywordAction::SetSchemeInMotion,
+            action: KeywordAction::SetSchemeInMotion {object:ObjectRef::Source},
             ..
         }
     ));

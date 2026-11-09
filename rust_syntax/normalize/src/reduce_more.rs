@@ -2146,21 +2146,12 @@ fn reduce_reflexive(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opti
             body: Box::new(body.clone()),
         })
     };
-    let keyword = |action, object: Option<&ObjectRef>, other: Option<&ObjectRef>, amount| {
-        Operation::Keyword {
-            actor: actor.clone(),
-            action,
-            object: object.cloned(),
-            other: other.cloned(),
-            amount,
-            subtype: None,
-        }
-    };
+    let keyword = |action, object: Option<&ObjectRef>, other:Option<&ObjectRef>, amount| crate::keyword_actions::operation(actor,action,object.cloned(),other.cloned(),amount,None);
     let you = actor_of(actor);
     match (form, operands) {
         ("Reflexive_CollectEvidenceAnyX_WhenYouDo", [body]) => then(
             keyword(
-                KeywordAction::CollectEvidence,
+                KeywordKind::CollectEvidence,
                 None,
                 None,
                 Some(Expr::AnnouncedX),
@@ -2192,7 +2183,7 @@ fn reduce_reflexive(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opti
             "Reflexive_Fight_WhenExcessDamageIsDealtToPermanent",
             [Object(first), Object(second), Object(recipient), body],
         ) => then(
-            keyword(KeywordAction::Fight, Some(first), Some(second), None),
+            keyword(KeywordKind::Fight, Some(first), Some(second), None),
             ReflexiveWhen::ExcessDamage(Some(recipient.clone())),
             body,
         ),

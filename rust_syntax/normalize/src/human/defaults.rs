@@ -12,6 +12,7 @@ pub fn type_value(name: &str) -> Option<Value> {
     })
 }
 pub fn field(owner: &str, key: &str, ty: &Ty) -> Option<Value> {
+    if owner=="KeywordAction::Amass" && key=="creature_type" {return Some(json!("Zombie"));}
     if key == "schema_version" && matches!(owner, "Card" | "UnifiedCard") {
         return Some(json!(SCHEMA_VERSION));
     }

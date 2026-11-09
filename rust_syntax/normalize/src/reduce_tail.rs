@@ -8,14 +8,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         Text, Vocabulary,
     };
     let you = || actor_of(actor);
-    let keyword = |who: PlayerSet, action, object: Option<ObjectRef>, amount| Operation::Keyword {
-        actor: who,
-        action,
-        object,
-        other: None,
-        amount,
-        subtype: None,
-    };
+    let keyword = |who:PlayerSet, action, object:Option<ObjectRef>, amount| crate::keyword_actions::operation(&who,action,object,None,amount,None);
     let choose_with = |kind, terms| Operation::ChooseValue {
         actor: actor.clone(),
         kind,
@@ -58,7 +51,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
     Some(match (form, operands) {
         ("RemoveAllDamageFromPermanent", [Object(object)]) => keyword(
             actor.clone(),
-            KeywordAction::RemoveAllDamage,
+            KeywordKind::RemoveAllDamage,
             Some(object.clone()),
             None,
         ),
@@ -231,7 +224,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         },
         ("RollTwoD6", []) => Operation::Repeat {
             times: Expr::Constant(2),
-            body: Box::new(keyword(actor.clone(), KeywordAction::RollDie(6), None, None)),
+            body: Box::new(keyword(actor.clone(), KeywordKind::RollDie(6), None, None)),
         },
         ("ExileUptoNumberGraveyardCards", [Number(count), Filter(cards)]) => Operation::DraftChangeZone {
             actor: actor.clone(),
@@ -252,9 +245,8 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         },
         ("TurnEachPermanentFaceDown", [Objects(objects)]) => Operation::KeywordEach {
             actor: actor.clone(),
-            action: KeywordAction::TurnFaceDown,
+            action: ObjectKeywordAction::TurnFaceDown,
             objects: objects.clone(),
-            until: None,
         },
         ("ExchangeTextBoxesOfTwoPermanents", [first @ Object(_), second @ Object(_)]) => {
             Operation::Exchange {
@@ -277,7 +269,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         }
         ("ReorderPlayersGraveyard", [Player(player)]) => keyword(
             PlayerSet::One(player.clone()),
-            KeywordAction::ReorderGraveyard,
+            KeywordKind::ReorderGraveyard,
             None,
             None,
         ),
@@ -287,34 +279,33 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         },
         ("PerpetuallyIncreaseIntensityOfPermanent", [Object(object), Number(amount)]) => keyword(
             actor.clone(),
-            KeywordAction::Intensify,
+            KeywordKind::Intensify,
             Some(object.clone()),
             Some(amount.clone()),
         ),
         ("SetSchemeInMotion", [Vocabulary { .. }]) => keyword(
             actor.clone(),
-            KeywordAction::SetSchemeInMotion,
+            KeywordKind::SetSchemeInMotion,
             Some(ObjectRef::Source),
             None,
         ),
         ("SetRepeatablePlayers", [Players(players)]) => keyword(
             players.clone(),
-            KeywordAction::SetRepeatablePlayers,
+            KeywordKind::SetRepeatablePlayers,
             None,
             None,
         ),
         ("TurnAnExiledPileFaceUp", []) => {
-            keyword(actor.clone(), KeywordAction::TurnPileFaceUp, None, None)
+            keyword(actor.clone(), KeywordKind::TurnPileFaceUp, None, None)
         }
         ("ActivateAManaAbilityOfEachPermanentAndLoseUnspentMana", [Objects(objects)]) => {
             Operation::Together(vec![
                 Operation::KeywordEach {
                     actor: actor.clone(),
-                    action: KeywordAction::ActivateManaAbility,
+                    action: ObjectKeywordAction::ActivateManaAbility,
                     objects: objects.clone(),
-                    until: None,
                 },
-                keyword(actor.clone(), KeywordAction::LoseUnspentMana, None, None),
+                keyword(actor.clone(), KeywordKind::LoseUnspentMana, None, None),
             ])
         }
         ("ShuffleHandAndPermanentsIntoLibrary", []) => Operation::DraftChangeZone {

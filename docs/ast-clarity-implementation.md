@@ -13,7 +13,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Typed entry and copy payloads, removing backend descriptive-term decoding | Implemented, verified; destination-specific serialization remains separate | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
 | Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified including independent alternatives and legacy migration | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Shared destination checks implemented; serialized payload split pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
-| Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
+| Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Keyword actions implemented and verified (schema 183); modes/coins pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
 | Clear sequence, batch, iteration, and receipt boundaries | Implemented, verified without changing execution forms | Declaration docs and discoverable authoring families; receipt and native behavior regressions |
 | Shared schema/declaration discovery and topic modules | Implemented, verified | Visitors, codec, catalog, fingerprint and frozen contract use one source registry; no declarations lost |
@@ -479,3 +479,57 @@ Stage-13 publication: commit `b740ba7` is pushed to fork main. Release
 The live file matches the tested artifact. Live card-code and typed-entry/named
 schema-181 migration smoke suites both pass (`entry182-live-{code,entry}.log`).
 The machine-readable release receipt is `entry182-release.json`.
+
+
+Stage 14 is implemented and verified: schema 183 places keyword parameters in their action
+variants. Scalar actions use `KeywordAction`; `KeywordEach` has a separate
+`ObjectKeywordAction` so actions on a set retain a single operation/result and
+the existing duration contracts. Fight/exchange have two explicit objects;
+amass has a numeric amount and creature-type vocabulary; adapt and monstrosity
+retain an optional explicit subject; counted forms retain
+absent versus explicit repetition. The old four optional operation fields are
+removed. Source/legacy tags and strict converters live at `keyword_actions`,
+outside complete IR; the backend borrows the same typed parameters rather than
+introducing engine features. Primitive escapes for these known actions are
+rejected. Amass source vocabulary must belong to `CreatureType`.
+
+Baseline captures precede all model edits: 151 source records/named documents
+cover all 158 observed parameter shapes, with authentic schema-182 workspaces
+for fight, connive and amass. The inventory has 2,492 keyword occurrences across
+2,234 records. All 2,255 generator outputs (2,252 distinct display names) compare
+identically after schema/fingerprint headers are removed, including repeated
+names. Migration composes explicit parameter-field origin moves with the earlier
+entry/copy conversions. A full audit caught schema-182 entries being sent through
+the older entry-payload converter again; entry conversion now runs only through
+181. Sixteen authentic schema-182 entry captures cover that version boundary.
+
+Focused keyword cases pass, including every captured source shape and all named
+documents. The new browser suite passes specific starters, literal sockets,
+creature-type editing, named import/startup, binding-key preservation and failed
+upgrade retention. An intermediate corrected full native run passed 1,456 tests with zero
+failures (15 opt-in audits ignored). Native canonical origin maps pass for all
+33,529 records and all 82,226 definitions rename/reparse successfully. Final
+historical migration and fresh-Wasm checks are recorded below. Evidence prefix: `keyword183-` under the review
+directory. This stage does not complete the pending mode/coin, destination,
+Rust naming/counter-source, layout or final-integration requirements, or the
+queued 29 confirmed reference defects.
+
+The final contract review also retains adapt/monstrosity's explicit other-object
+subject, which the backend already distinguishes as a capability gap. Two named
+authoring documents captured with the real schema-182 binary cover this non-corpus form;
+its target origins, names and existing engine gap must survive. Prior optional
+fields are removed where irrelevant, not where they encode this valid intent.
+This receiver contract is included in the final verification below.
+
+Stage-14 final verification uses the frozen optional-subject contract. All 1,457
+native tests pass with zero failures (15 opt-in audits ignored in that run).
+The four historical epochs 179/180/181/182 each migrate all 33,529 records to
+exact fresh source output; mapped epochs 180/181/182 have complete typed origins.
+Complete canonical maps pass for all 33,529 records, and all 82,226 definitions
+rename/reparse without failure. All thirteen fresh-Wasm browser suites pass,
+including all 33,529 block roundtrips, binding-port comparisons and validations.
+The keyword suite additionally checks both optional-subject authoring documents
+through Wasm. All 2,255 generated outputs remain identical after removing the
+schema/fingerprint headers. Final receipts/logs use `keyword183-release-*` in the
+review directory. The earlier in-progress evidence above records the route to
+this final verified contract; all remaining AST requirements stay open.

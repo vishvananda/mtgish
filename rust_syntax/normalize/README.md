@@ -701,12 +701,12 @@ library and an editable Rust/Wasm-validated card-code view. The public
 `human::{read, write}` functions convert between that compact authoring format
 and normalized `UnifiedCard`. Shared defaults and vocabulary live in
 `human::{defaults, names}`; `mtgish_ir::targets::TargetSelector` groups domains
-with their applicable filters. Complete IR uses schema 182 and keeps the
+with their applicable filters. Complete IR uses schema 183 and keeps the
 compiler's typed numeric IDs. Persist `human::document::Document` to retain
 scoped author names, including explicitly named unused results.
 Authoring document version 2 separates declarations in alternative branches;
 version-1 imports validate their old metadata before upgrading it. Engine IR
-uses schema 182. Alternative receipts with a shared numeric label form a
+uses schema 183. Alternative receipts with a shared numeric label form a
 group expression, while their declaration names remain independently editable.
 `ReceiptFrom("option_1", picked)` disambiguates repeated names with the shortest
 unique lexical path suffix. Ordinary references still obey native result
@@ -747,7 +747,7 @@ ability patterns, color lists and produced-mana provenance are validated before
 generation. Backend capability gaps remain explicit.
 
 `migrate::mapped_read_json` and `ast migrate-ir-mapped old.ir.json` upgrade an
-exact schema-180 or schema-181 input and return a complete typed origin map. Named
+exact schema-180, schema-181 or schema-182 input and return a complete typed origin map. Named
 documents upgrade before current card deserialization, carrying names and use
 sites through the same map. Nested copies and shared expressions retain their
 scoped identities. Historical schema-179 inputs still upgrade through
@@ -767,3 +767,15 @@ event, while preserving creator captures and private result identities.
 Archived-schema upgrades walk exact input descriptors before rewriting and map
 each affected typed ID subtree explicitly. Schema-181 documents and workspaces
 retain names inside granted abilities and private return programs.
+
+
+Schema 183 replaces `Operation::Keyword`'s optional object/other/amount/subtype
+bag with typed `KeywordAction` variants. `KeywordEach` retains its own batch and
+uses `ObjectKeywordAction`. Adapt and monstrosity retain an optional explicit
+subject, including the existing gap for another object. The explicit legacy/source `keyword_actions`
+converters refuse irrelevant/missing fields; they do not widen numbers or add
+backend features. Mapped schema-182 upgrades relocate each parameter subtree
+and retain author names. The 179/180/181 paths compose this conversion after the
+appropriate earlier entry/copy migrations. Known keyword rows cannot escape
+through a complete generic primitive. Rust naming metadata supplies specific
+keyword starters and shared topic categories to the editor.

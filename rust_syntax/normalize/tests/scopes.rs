@@ -727,8 +727,9 @@ fn a_keyword_row_keeps_its_result_when_conjuring() {
 
 #[test]
 fn rolling_a_die_says_how_many_sides() {
-    let body = lowered("SpellActions(ActionList([RollAD6]))");
-    assert!(body.contains("RollDie(6)"), "{body}");
+    let c=custom("SpellActions(ActionList([RollAD6]))").unwrap();
+    let Ability::Spell {body,..}=&c.abilities[0] else {panic!()};
+    assert!(matches!(body.instructions.as_slice(),[Instruction::Effect {operation:Operation::Keyword {action:KeywordAction::RollDie {sides:6,times:None},..},..}]));
 }
 
 #[test]
@@ -755,15 +756,14 @@ fn object_event_rows_reduce_and_keep_what_they_bind() {
 }
 
 #[test]
-fn a_keyword_action_row_is_one_generic_operation_and_keeps_its_result() {
-    let body = lowered("SpellActions(ActionList([Investigate]))");
-    assert!(body.contains("Keyword { actor"), "{body}");
-    assert!(body.contains("action: Investigate"), "{body}");
-    let body = lowered(
-        "SpellActions(ActionList([Amass(Integer(2), Zombie), PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1, +1), TheArmyAmassedThisWay)])]))",
-    );
-    assert!(body.contains("action: Amass"), "{body}");
-    assert!(body.contains("subtype: Some(\"Zombie\")"), "{body}");
+fn a_keyword_action_keeps_its_count_type_and_result_boundary() {
+    let c=custom("SpellActions(ActionList([Investigate]))").unwrap();
+    let Ability::Spell {body,..}=&c.abilities[0] else {panic!()};
+    assert!(matches!(body.instructions.as_slice(),[Instruction::Effect {operation:Operation::Keyword {action:KeywordAction::Investigate {times:None},..},..}]));
+    let c=custom("SpellActions(ActionList([Amass(Integer(2), Zombie), PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1, +1), TheArmyAmassedThisWay)])]))").unwrap();
+    let Ability::Spell {body,..}=&c.abilities[0] else {panic!()};
+    assert!(matches!(&body.instructions[0],Instruction::Effect {result:ResultId(0),operation:Operation::Keyword {action:KeywordAction::Amass {amount:Expr::Constant(2),creature_type:source::CreatureType::Zombie},..}}));
+    assert!(matches!(&body.instructions[1],Instruction::Effect {operation:Operation::PutCounters {placements},..} if matches!(placements.as_slice(),[CounterPlacement {recipients:Recipients::Objects(ObjectSet::One(ObjectRef::Result {result:ResultId(0),phase:ObjectPhase::After,index:0})),..}])));
 }
 
 #[test]

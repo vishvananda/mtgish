@@ -1875,23 +1875,10 @@ impl Compiler {
                     self.performed.insert(result.0, format!("i64::from({local})"));
                 }
             }
-            Operation::Keyword {
-                actor,
-                action,
-                object,
-                other,
-                amount,
-                subtype,
-            } => {
-                let action = keywords::Action {
-                    actor,
-                    action: *action,
-                    object: object.as_ref(),
-                    other: other.as_ref(),
-                    amount: amount.as_ref(),
-                    subtype: subtype.as_deref(),
-                };
-                self.keyword_action(id, action, result, out)?;
+            Operation::Keyword {actor,action} => {
+                let parts=crate::keyword_actions::parts(action);
+                let action=keywords::Action {actor,action:parts.kind,object:parts.object,other:parts.other,amount:parts.amount,subtype:parts.subtype.as_deref()};
+                self.keyword_action(id,action,result,out)?;
             }
             Operation::CreateTokens {
                 players: PlayerSet::All,

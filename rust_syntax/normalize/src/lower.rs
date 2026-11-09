@@ -309,11 +309,11 @@ impl Done {
                 | Destination::OwnersLibraryShuffled => Self::Library,
             },
             Operation::KeywordEach {
-                action: KeywordAction::PhaseOut,
+                action: ObjectKeywordAction::PhaseOut { .. },
                 ..
             }
             | Operation::Keyword {
-                action: KeywordAction::PhaseOut,
+                action: KeywordAction::PhaseOut { .. },
                 ..
             } => Self::PhasedOut,
             Operation::Primitive { .. }

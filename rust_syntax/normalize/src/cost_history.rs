@@ -43,7 +43,7 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
             [Instruction::Effect {
                 operation:
                     Operation::Keyword {
-                        action: KeywordAction::Blight,
+                        action: KeywordAction::Blight {..},
                         ..
                     }
                     | Operation::AttachChosen {

@@ -84,6 +84,8 @@ pub fn editor_metadata() -> Value {
     let mut values = serde_json::Map::new();
     let mut actions = serde_json::Map::new();
     let mut instructions = serde_json::Map::new();
+    let mut keyword_actions=serde_json::Map::new();
+    let mut object_keyword_actions=serde_json::Map::new();
     let mut add = |owner: String, fields: &Fields| {
         if let Fields::Named(fields) = fields {
             let defaults: serde_json::Map<_, _> = fields
@@ -105,6 +107,10 @@ pub fn editor_metadata() -> Value {
                         actions.insert(variant.clone(), names::action(variant));
                     } else if name == "Instruction" && variant != "Effect" {
                         instructions.insert(variant.clone(), names::instruction(variant));
+                    } else if name=="KeywordAction" {
+                        keyword_actions.insert(variant.clone(),names::keyword_action(variant,false));
+                    } else if name=="ObjectKeywordAction" {
+                        object_keyword_actions.insert(variant.clone(),names::keyword_action(variant,true));
                     }
                 }
             }
@@ -114,5 +120,5 @@ pub fn editor_metadata() -> Value {
         let spec=select.clone().into_spec(Slot(0));
         json!({"label":label,"selector":select,"fields":{"kind":spec.kind,"filter":spec.filter,"players":spec.players}})
     }).collect();
-    json!({"defaults":values,"targets":targets,"actions":actions,"instructions":instructions,"references":names::references()})
+    json!({"defaults":values,"targets":targets,"actions":actions,"instructions":instructions,"keyword_actions":keyword_actions,"object_keyword_actions":object_keyword_actions,"references":names::references()})
 }

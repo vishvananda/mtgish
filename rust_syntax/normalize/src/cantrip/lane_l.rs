@@ -694,15 +694,11 @@ impl Compiler {
                 self.moved.insert(result.0, format!("countered_{id}"));
                 return;
             }
-            Operation::Keyword { object: None, .. } => "true".to_string(),
-            Operation::Attach { host: object, .. }
-            | Operation::Keyword {
-                object: Some(object),
-                ..
-            } => match self.object(object) {
-                Ok(code) => format!("({}).is_some()", self.fetch(code)),
-                Err(_) => return,
+            Operation::Keyword {action,..} => match crate::keyword_actions::parts(action).object {
+                None=>"true".to_string(),
+                Some(object)=>match self.object(object) {Ok(code)=>format!("({}).is_some()",self.fetch(code)),Err(_)=>return},
             },
+            Operation::Attach {host:object,..}=>match self.object(object) {Ok(code)=>format!("({}).is_some()",self.fetch(code)),Err(_)=>return},
             _ => return,
         };
         let id = self.fresh();

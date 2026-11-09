@@ -186,6 +186,7 @@ fn generator_fingerprint() -> &'static str {
                 include_bytes!("cantrip/triggers.rs").as_slice(),
             ),
             ("semantics.rs", include_bytes!("semantics.rs").as_slice()),
+            ("keyword_actions.rs",include_bytes!("keyword_actions.rs").as_slice()),
             (
                 "source_values.rs",
                 include_bytes!("source_values.rs").as_slice(),

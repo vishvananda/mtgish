@@ -2650,6 +2650,7 @@ impl<'a> Scope<'a> {
         Ok(())
     }
     fn primitive(&self, name: &str, operands: &[Operand]) -> Result {
+        if crate::semantics::requires_typed_keyword(name) {return Err(format!("{name} requires a typed keyword action"));}
         if crate::copying::requires_typed_payload(name) {
             return Err(format!("{name} requires typed copy exceptions"));
         }
@@ -2999,12 +3000,11 @@ impl<'a> Scope<'a> {
             Operation::KeywordEach {
                 actor,
                 objects,
-                until,
-                ..
+                action,
             } => {
                 self.players(actor)?;
                 self.objects(objects)?;
-                until.iter().try_for_each(|until| self.duration(until))
+                crate::keyword_actions::each_parts(action).1.map_or(Ok(()),|until|self.duration(until))
             }
             Operation::MoveTopCard {
                 actor,
@@ -3438,19 +3438,11 @@ impl<'a> Scope<'a> {
                 self.players(actor)?;
                 options.iter().try_for_each(|o| self.operand(o))
             }
-            Operation::Keyword {
-                actor,
-                object,
-                other,
-                amount,
-                ..
-            } => {
+            Operation::Keyword {actor,action} => {
                 self.players(actor)?;
-                object
-                    .iter()
-                    .chain(other)
-                    .try_for_each(|o| self.object(o))?;
-                amount.iter().try_for_each(|n| self.expr(n))
+                let parts=crate::keyword_actions::parts(action);
+                parts.object.into_iter().chain(parts.other).try_for_each(|o|self.object(o))?;
+                parts.amount.map_or(Ok(()),|n|self.expr(n))
             }
             Operation::CreateDelayedTrigger {
                 event,
@@ -4269,7 +4261,7 @@ impl<'a> Scope<'a> {
                             | Operation::NoteObjects { .. }
                             // Bolster chooses the creature it counters (701.39a).
                             | Operation::Keyword {
-                                action: KeywordAction::Bolster,
+                                action: KeywordAction::Bolster { .. },
                                 ..
                             } => ResultKind::Selection,
                             Operation::ReorderLibrary { .. }

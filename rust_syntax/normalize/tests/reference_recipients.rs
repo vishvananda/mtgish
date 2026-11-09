@@ -155,10 +155,9 @@ fn toralfs_hammer_is_returned_but_the_equipped_creature_deals_the_damage() {
 fn curse_of_the_werefox_keeps_the_original_creature_as_the_fighter() {
     let c = serde_json::to_value(card("Curse of the Werefox")).unwrap();
     let fight = operation(&c, "Keyword");
-    assert_eq!(fight["action"], "Fight");
-    assert_eq!(fight["object"], target());
+    assert_eq!(fight["action"]["Fight"]["first"],target());
     assert_eq!(
-        fight["other"],
+        fight["action"]["Fight"]["second"],
         json!({"kind":"Target","args":{"slot":1,"index":0}})
     );
 }
@@ -183,11 +182,11 @@ fn an_attached_tokens_host_can_be_a_different_outer_target() {
     let c = custom("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature)), TargetPermanent(IsCardtype(Creature))], ActionList([Reflexive_CreateTokens_WhenYouDo([MonsterRoleToken], [EntersAttachedToPermanent(Ref_TargetPermanent2)], Targeted([UptoOneTargetPermanent(IsCardtype(Creature))], ActionList([Fight(ThePermanentAttachedToThisWay, Ref_TargetPermanent)])))])))");
     let c = serde_json::to_value(lower::card(&c).unwrap()).unwrap();
     assert_eq!(
-        operation(&c, "Keyword")["object"],
+        operation(&c, "Keyword")["action"]["Fight"]["first"],
         json!({"kind":"Target","args":{"slot":1,"index":0}})
     );
     assert_eq!(
-        operation(&c, "Keyword")["other"],
+        operation(&c, "Keyword")["action"]["Fight"]["second"],
         json!({"kind":"Target","args":{"slot":2,"index":0}})
     );
 }

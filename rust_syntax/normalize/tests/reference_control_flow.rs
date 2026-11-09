@@ -30,9 +30,7 @@ fn bridgeworks_requires_the_pumped_creature_and_makes_only_its_fight_partner_opt
         json!({"Objects":{"kind":"One","args":target(0)}})
     );
     let fight = &instructions[1]["args"]["operation"]["args"];
-    assert_eq!(fight["action"], json!("Fight"));
-    assert_eq!(fight["object"], target(0));
-    assert_eq!(fight["other"], target(1));
+    assert_eq!(fight["action"], json!({"Fight":{"first":target(0),"second":target(1)}}));
 }
 
 #[test]
@@ -41,7 +39,7 @@ fn resurgence_adds_both_the_combat_and_the_following_main_phase() {
     let instructions = &c["abilities"][0]["args"]["body"]["instructions"];
     assert_eq!(
         instructions[1]["args"]["operation"]["args"]["action"],
-        json!({"AdditionalPhase":"CombatAndMain"})
+        json!({"AdditionalPhase":{"phases":"CombatAndMain"}})
     );
     let buff = &instructions[0]["args"]["operation"]["args"];
     assert_eq!(buff["duration"], json!("EndOfTurn"));

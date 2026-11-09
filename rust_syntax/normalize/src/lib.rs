@@ -20,6 +20,7 @@ pub mod presentation;
 pub mod report;
 pub mod result_reads;
 mod source_values;
+pub mod keyword_actions;
 pub mod validate;
 
 mod subtype;

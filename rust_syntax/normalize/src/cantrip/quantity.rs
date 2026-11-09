@@ -1129,11 +1129,7 @@ mod tests {
                 } else if fight {
                     Operation::Keyword {
                         actor: PlayerSet::One(PlayerRef::AbilityController),
-                        action: KeywordAction::Fight,
-                        object: Some(ObjectRef::Source),
-                        other: Some(ObjectRef::Affected),
-                        amount: None,
-                        subtype: None,
+                        action: KeywordAction::Fight {first:ObjectRef::Source,second:ObjectRef::Affected},
                     }
                 } else {
                     damage(amount)

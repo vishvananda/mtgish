@@ -2063,11 +2063,13 @@ fn counts_and_primitive_rule_families_keep_their_operands() {
     let text = ability_json(
         "Activated(TapPermanent(ThisPermanent),ActionList([InvestigateTimes(Integer(2))]))",
     );
-    assert!(text.contains(r#""action":"Investigate""#), "{text}");
-    assert!(
-        text.contains(r#""Integer":2"#) || text.contains("2"),
-        "{text}"
-    );
+    let ability: Ability = serde_json::from_str(&text).unwrap();
+    let Ability::Activated { body, .. } = ability else { panic!("{text}") };
+    assert!(matches!(body.instructions.as_slice(), [Instruction::Effect {
+        operation: Operation::Keyword { action: KeywordAction::Investigate {
+            times: Some(Expr::Constant(2))
+        }, .. }, ..
+    }]), "{text}");
 }
 
 #[test]

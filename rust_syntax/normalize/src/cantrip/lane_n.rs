@@ -617,8 +617,7 @@ impl Compiler {
                 Instruction::Effect {
                     operation:
                         Operation::Keyword {
-                            action: KeywordAction::RemoveAllDamage,
-                            object: Some(ObjectRef::EventSubject),
+                            action: KeywordAction::RemoveAllDamage {object:ObjectRef::EventSubject},
                             ..
                         },
                     ..
@@ -1923,7 +1922,7 @@ impl Compiler {
                 Err(_) => return false,
             },
             Operation::Keyword {
-                action: KeywordAction::Proliferate,
+                action: KeywordAction::Proliferate {..},
                 ..
             } => planned::planned_value(
                 "what a proliferate chose",

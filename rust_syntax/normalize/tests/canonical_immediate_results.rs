@@ -1,14 +1,17 @@
 //! Published source-valid programs must stay valid through normalization.
 use mtgish_ast::{canonical, ir::Card, validate};
 use serde_json::Value;
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 #[test]
 fn immediate_loop_and_payment_receipts_remain_available() {
     for line in include_str!("fixtures/canonical_immediate_results.jsonl").lines() {
-        let record: Value = serde_json::from_str(line).unwrap();
+        let mut record: Value = serde_json::from_str(line).unwrap();
+        legacy_entries::json(&mut record);
         for face in record["faces"].as_array().unwrap() {
             let mut card: Card = serde_json::from_value(face.clone()).unwrap();
-            // These published programs use only unchanged forms. Keep the
-            // historical fixture intact and validate its operands at this schema.
+            // Keep published data intact; the explicit boundary adapter moves
+            // historical keyword fields before validating at this schema.
             card.schema_version = mtgish_ast::ir::SCHEMA_VERSION;
             validate::card(&card).unwrap();
             let normal = canonical::card(&card).unwrap();

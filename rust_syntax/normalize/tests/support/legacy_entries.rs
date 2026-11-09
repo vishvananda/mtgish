@@ -1,7 +1,7 @@
 //! Explicit entry/copy/characteristic upgrades for immutable historical captures.
 #![allow(dead_code)]
-use mtgish_ast::{copying, ir::Operand, movement};
-use serde::Deserialize;
+use mtgish_ast::{copying, ir::*, movement,keyword_actions};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 #[derive(Deserialize)]
@@ -19,6 +19,26 @@ impl OldShape {
         )
         .unwrap()
     }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OldKeyword {
+    actor:PlayerSet, action:keyword_actions::KeywordKind,
+    object:Option<ObjectRef>, other:Option<ObjectRef>, amount:Option<Expr>, subtype:Option<String>,
+}
+#[derive(Serialize)]
+struct KeywordArgs { actor:PlayerSet,action:KeywordAction }
+impl OldKeyword {
+    fn current(self)->KeywordArgs {KeywordArgs {actor:self.actor,action:keyword_actions::from_parts(self.action,self.object,self.other,self.amount,self.subtype).unwrap()}}
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OldEach { actor:PlayerSet, action:keyword_actions::KeywordKind, objects:ObjectSet,until:Option<Duration> }
+#[derive(Serialize)]
+struct EachArgs {actor:PlayerSet,action:ObjectKeywordAction,objects:ObjectSet}
+impl OldEach {
+    fn current(self)->EachArgs {EachArgs {actor:self.actor,action:keyword_actions::each_from_parts(self.action,self.until).unwrap(),objects:self.objects}}
 }
 
 const OPERATIONS: &[&str] = &[
@@ -65,6 +85,15 @@ pub fn json(value: &mut Value) {
         }
     }
     let kind = value.get("kind").and_then(Value::as_str).map(str::to_owned);
+    if kind.as_deref()==Some("Keyword") && value["args"].get("object").is_some() {
+        let args:OldKeyword=serde_json::from_value(value["args"].clone()).unwrap();
+        value["args"]=serde_json::to_value(args.current()).unwrap();
+    }
+    if kind.as_deref()==Some("KeywordEach") && value["args"].get("until").is_some() {
+        let args:OldEach=serde_json::from_value(value["args"].clone()).unwrap();
+        value["args"]=serde_json::to_value(args.current()).unwrap();
+    }
+
     if matches!(kind.as_deref(), Some("CopyOnStack" | "CopyOf")) {
         if let Some(fields) = value.get_mut("args").and_then(Value::as_object_mut) {
             copy_json(fields, "effects", kind.as_deref() == Some("CopyOf"));
@@ -105,6 +134,7 @@ enum Upgrade {
     Entry,
     Copy(bool),
     Shape,
+    Keyword(bool),
 }
 
 fn owner(input: &str, open: usize) -> Option<&str> {
@@ -119,6 +149,18 @@ fn owner(input: &str, open: usize) -> Option<&str> {
         .rfind(|c: char| !c.is_ascii_alphanumeric() && c != '_')
         .map_or(0, |i| i + 1);
     (start < before.len()).then_some(&before[start..])
+}
+
+fn has_legacy_keyword_field(input:&str,each:bool)->bool {
+    let field=if each {"until:"}else{"other:"};
+    let (mut depth,mut quoted,mut escaped)=(0usize,false,false);
+    for (i,c) in input.char_indices() {
+        if quoted {if escaped {escaped=false;}else if c=='\\' {escaped=true;}else if c=='"' {quoted=false;}continue;}
+        if c=='"' {quoted=true;continue;}
+        if depth==1 && input[i..].starts_with(field) {return true;}
+        match c {'('| '['|'{' =>depth+=1,')'|']'|'}'=>{depth-=1;if depth==0 {return false;}},_=>{}}
+    }
+    false
 }
 
 /// RON's deserializer consumes each old payload with its actual type. Process
@@ -153,13 +195,18 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
                 i += input[i..].chars().next().unwrap().len_utf8();
                 continue;
             }
-            let field = ["entry:", "effects:", "adjustments:", "power_toughness:"]
+            let field = ["entry:", "effects:", "adjustments:", "power_toughness:", "actor:"]
                 .into_iter()
                 .find(|f| input[i..].starts_with(f));
             if let Some(field) = field {
                 let value_start = i + field.len();
                 let context = stack.iter().rev().find_map(|&open| owner(&input, open));
                 let upgrade = match (field, context) {
+                    ("actor:",Some("Keyword"|"KeywordEach")) if stack.last().is_some_and(|&open| {
+                        if !has_legacy_keyword_field(&input[open..],context==Some("KeywordEach")) {return false;}
+                        let mut de=ron::de::Deserializer::from_str(&input[open..]).unwrap();
+                        if context==Some("Keyword") {OldKeyword::deserialize(&mut de).is_ok()} else {OldEach::deserialize(&mut de).is_ok()}
+                    })=>Some(Upgrade::Keyword(context==Some("KeywordEach"))),
                     ("entry:", Some(name))
                         if OPERATIONS.contains(&name)
                             && input[value_start..].trim_start().starts_with('[') =>
@@ -184,7 +231,7 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
                     _ => None,
                 };
                 if let Some(upgrade) = upgrade {
-                    let (start, value_start) = if matches!(upgrade, Upgrade::Shape) {
+                    let (start, value_start) = if matches!(upgrade, Upgrade::Shape|Upgrade::Keyword(_)) {
                         let open = *stack.last().unwrap();
                         (open, open)
                     } else {
@@ -213,6 +260,7 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
         let tail = &input[value_start..];
         let mut de = ron::de::Deserializer::from_str(tail).unwrap();
         let (name, replacement) = match upgrade {
+            Upgrade::Keyword(each) => ("",if each {ron::to_string(&OldEach::deserialize(&mut de).unwrap().current()).unwrap()}else{ron::to_string(&OldKeyword::deserialize(&mut de).unwrap().current()).unwrap()}),
             Upgrade::Shape => (
                 "",
                 ron::to_string(&OldShape::deserialize(&mut de).unwrap().current()).unwrap(),

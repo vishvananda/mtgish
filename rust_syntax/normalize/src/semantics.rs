@@ -1,5 +1,6 @@
 //! Rules-derived properties of complete typed programs. Keep these separate
 //! from Cantrip capabilities and avoid a serialized flag that can become stale.
+use crate::keyword_actions::KeywordKind;
 use crate::ir::*;
 use serde::Serialize;
 
@@ -286,7 +287,7 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             "Action::SecretlyChooseAGraveyardCard"
         }
         Operation::Keyword { action, .. } => {
-            KEYWORD_ACTIONS.iter().find(|(_, row)| row == action)?.0
+            KEYWORD_ACTIONS.iter().find(|(_, row)| *row == crate::keyword_actions::parts(action).kind)?.0
         }
         Operation::Conjure {
             zone: EventZone::Hand,
@@ -297,7 +298,7 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             ..
         } => "Action::ConjureCardOntoBattlefield",
         Operation::KeywordEach {
-            action: KeywordAction::Goad,
+            action: ObjectKeywordAction::Goad { .. },
             ..
         } => "Action::GoadEachCreature",
         Operation::PayAnyAmount {
@@ -354,244 +355,245 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
 }
 
 /// Action rows that are one keyword action. Each keeps its reviewed `yields`.
-const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
-    ("Action::ChooseADamageNumber", KeywordAction::ChooseDamageNumber),
-    ("Action::ChooseASector", KeywordAction::ChooseSector),
-    ("Action::ClaimThePrize", KeywordAction::ClaimPrize),
+pub(crate) fn requires_typed_keyword(name:&str)->bool {KEYWORD_ACTIONS.iter().any(|(row,_)|*row==name)}
+const KEYWORD_ACTIONS: &[(&str, KeywordKind)] = &[
+    ("Action::ChooseADamageNumber", KeywordKind::ChooseDamageNumber),
+    ("Action::ChooseASector", KeywordKind::ChooseSector),
+    ("Action::ClaimThePrize", KeywordKind::ClaimPrize),
     (
         "Action::ChooseProtectionFromAColorOrFromArtifact",
-        KeywordAction::ChooseProtection,
+        KeywordKind::ChooseProtection,
     ),
-    ("Action::SetStake", KeywordAction::SetStake),
-    ("Action::DoubleTheStake", KeywordAction::DoubleStake),
-    ("Action::ChooseCopyFromCopies", KeywordAction::ChooseCopy),
+    ("Action::SetStake", KeywordKind::SetStake),
+    ("Action::DoubleTheStake", KeywordKind::DoubleStake),
+    ("Action::ChooseCopyFromCopies", KeywordKind::ChooseCopy),
     (
         "Action::PutTopOfPlanarDeckOnBottomOfPlanarDeck",
-        KeywordAction::TopOfPlanarDeckToBottom,
+        KeywordKind::TopOfPlanarDeckToBottom,
     ),
-    ("Action::RevealTopCardOfPlanarDeck", KeywordAction::RevealTopOfPlanarDeck),
+    ("Action::RevealTopCardOfPlanarDeck", KeywordKind::RevealTopOfPlanarDeck),
     (
         "Action::RevealCardsFromTheTopOfPlanarDeckUntilRevealAPlaneCardThenChaosEnsuresOnThatPlaneThenPutAllCardsOnBottomInAnyOrder",
-        KeywordAction::PlanarDeckChaos,
+        KeywordKind::PlanarDeckChaos,
     ),
     (
         "Action::RevealCardsFromTheTopOfPlanarDeckUntilRevealAPlaneCardThenPlaneswalkToItWhileNotPlaneswalkingAwayAndPutTheRestOnBottomInAnyOrder",
-        KeywordAction::PlanarDeckPlaneswalkWithoutLeaving,
+        KeywordKind::PlanarDeckPlaneswalkWithoutLeaving,
     ),
     (
         "Action::RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsAndPutAPlaneCardFromAmongOnTopAndTheRestOnBottomInARandomOrder",
-        KeywordAction::PlanarDeckPickPlane,
+        KeywordKind::PlanarDeckPickPlane,
     ),
     (
         "Action::RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsSimultaneouslyPlaneswalkToThemThenPutOnBottomInAnyOrder",
-        KeywordAction::PlanarDeckPlaneswalkToEach,
+        KeywordKind::PlanarDeckPlaneswalkToEach,
     ),
     (
         "Action::RevealTheTopNumberCardsOfPlanarDeckAndTriggerEachCHAOSAbilityThenPutOnBottomOfPlanarDeckInAnyOrder",
-        KeywordAction::PlanarDeckChaosEach,
+        KeywordKind::PlanarDeckChaosEach,
     ),
-    ("Action::ShuffleLibraryIfSearched", KeywordAction::ShuffleIfSearched),
-    ("Action::RerollAnyNumberOfTheStoredD6Results", KeywordAction::RerollStoredDice),
-    ("Action::RollNumberD6AndStoreTheResult", KeywordAction::RollAndStoreD6),
-    ("Action::SetRepeatablePlayers", KeywordAction::SetRepeatablePlayers),
-    ("Action::SetSchemeInMotion", KeywordAction::SetSchemeInMotion),
-    ("Action::ReorderPlayersGraveyard", KeywordAction::ReorderGraveyard),
-    ("Action::DiscardAnyNumberOfCardsAtRandom", KeywordAction::DiscardAnyNumberAtRandom),
+    ("Action::ShuffleLibraryIfSearched", KeywordKind::ShuffleIfSearched),
+    ("Action::RerollAnyNumberOfTheStoredD6Results", KeywordKind::RerollStoredDice),
+    ("Action::RollNumberD6AndStoreTheResult", KeywordKind::RollAndStoreD6),
+    ("Action::SetRepeatablePlayers", KeywordKind::SetRepeatablePlayers),
+    ("Action::SetSchemeInMotion", KeywordKind::SetSchemeInMotion),
+    ("Action::ReorderPlayersGraveyard", KeywordKind::ReorderGraveyard),
+    ("Action::DiscardAnyNumberOfCardsAtRandom", KeywordKind::DiscardAnyNumberAtRandom),
     (
         "Action::PutTheRemainingLibraryCardsOnTheBottomOfLibraryInARandomOrder",
-        KeywordAction::RemainingToBottomAtRandom,
+        KeywordKind::RemainingToBottomAtRandom,
     ),
-    ("Action::TransformPermanent", KeywordAction::Transform),
-    ("Action::Fight", KeywordAction::Fight),
-    ("Action::CollectEvidence", KeywordAction::CollectEvidence),
-    ("Action::Investigate", KeywordAction::Investigate),
-    ("Action::Proliferate", KeywordAction::Proliferate),
-    ("Action::Amass", KeywordAction::Amass),
-    ("Action::ExploreWithPermanent", KeywordAction::Explore),
-    ("Action::TemptWithRing", KeywordAction::RingTempts),
-    ("Action::CreatureConnives", KeywordAction::Connive),
-    ("Action::GoadCreature", KeywordAction::Goad),
-    ("Action::Earthbend", KeywordAction::Earthbend),
-    ("Action::VentureIntoTheDungeon", KeywordAction::Venture),
-    ("Action::ManifestDread", KeywordAction::ManifestDread),
-    ("Action::Recruit", KeywordAction::Recruit),
-    ("Action::Epic", KeywordAction::Epic),
-    ("Action::Paradigm", KeywordAction::Paradigm),
+    ("Action::TransformPermanent", KeywordKind::Transform),
+    ("Action::Fight", KeywordKind::Fight),
+    ("Action::CollectEvidence", KeywordKind::CollectEvidence),
+    ("Action::Investigate", KeywordKind::Investigate),
+    ("Action::Proliferate", KeywordKind::Proliferate),
+    ("Action::Amass", KeywordKind::Amass),
+    ("Action::ExploreWithPermanent", KeywordKind::Explore),
+    ("Action::TemptWithRing", KeywordKind::RingTempts),
+    ("Action::CreatureConnives", KeywordKind::Connive),
+    ("Action::GoadCreature", KeywordKind::Goad),
+    ("Action::Earthbend", KeywordKind::Earthbend),
+    ("Action::VentureIntoTheDungeon", KeywordKind::Venture),
+    ("Action::ManifestDread", KeywordKind::ManifestDread),
+    ("Action::Recruit", KeywordKind::Recruit),
+    ("Action::Epic", KeywordKind::Epic),
+    ("Action::Paradigm", KeywordKind::Paradigm),
     (
         "Action::TakeANumberOfExtraTurns",
-        KeywordAction::TakeExtraTurn,
+        KeywordKind::TakeExtraTurn,
     ),
-    ("Action::Monstrosity", KeywordAction::Monstrosity),
-    ("Action::Discover", KeywordAction::Discover),
-    ("Action::GetEnergy", KeywordAction::GainEnergy),
-    ("Action::BecomeTheMonarch", KeywordAction::BecomeMonarch),
-    ("Action::LoseTheGame", KeywordAction::LoseGame),
-    ("Action::WinTheGame", KeywordAction::WinGame),
-    ("Action::TakeAnExtraTurn", KeywordAction::TakeExtraTurn),
-    ("Action::PhaseOutPermanent", KeywordAction::PhaseOut),
-    ("Action::PreparePermanent", KeywordAction::Prepare),
-    ("Action::TapOrUntapPermanent", KeywordAction::TapOrUntap),
-    ("Action::ExchangeControl", KeywordAction::ExchangeControl),
-    ("Action::RollAD20", KeywordAction::RollDie(20)),
-    ("Action::RollAD10", KeywordAction::RollDie(10)),
-    ("Action::RollAD6", KeywordAction::RollDie(6)),
-    ("Action::RollNumberD6", KeywordAction::RollDie(6)),
-    ("Action::RollAD4", KeywordAction::RollDie(4)),
-    ("Action::RollNumberD4", KeywordAction::RollDie(4)),
-    ("Action::EmpowerJace", KeywordAction::EmpowerJace),
-    ("Action::Incubate", KeywordAction::Incubate),
-    ("Action::Adapt", KeywordAction::Adapt),
-    ("Action::Populate", KeywordAction::Populate),
-    ("Action::InvestigateTimes", KeywordAction::Investigate),
-    ("Action::ProliferateNumberTimes", KeywordAction::Proliferate),
-    ("Action::CreatureConnivesNumber", KeywordAction::Connive),
-    ("Action::Bolster", KeywordAction::Bolster),
-    ("Action::Learn", KeywordAction::Learn),
-    ("Action::TakeTheInitiative", KeywordAction::TakeInitiative),
-    ("Action::OpenAnAttraction", KeywordAction::OpenAttraction),
-    ("Action::GetNumberTickets", KeywordAction::GetTickets),
+    ("Action::Monstrosity", KeywordKind::Monstrosity),
+    ("Action::Discover", KeywordKind::Discover),
+    ("Action::GetEnergy", KeywordKind::GainEnergy),
+    ("Action::BecomeTheMonarch", KeywordKind::BecomeMonarch),
+    ("Action::LoseTheGame", KeywordKind::LoseGame),
+    ("Action::WinTheGame", KeywordKind::WinGame),
+    ("Action::TakeAnExtraTurn", KeywordKind::TakeExtraTurn),
+    ("Action::PhaseOutPermanent", KeywordKind::PhaseOut),
+    ("Action::PreparePermanent", KeywordKind::Prepare),
+    ("Action::TapOrUntapPermanent", KeywordKind::TapOrUntap),
+    ("Action::ExchangeControl", KeywordKind::ExchangeControl),
+    ("Action::RollAD20", KeywordKind::RollDie(20)),
+    ("Action::RollAD10", KeywordKind::RollDie(10)),
+    ("Action::RollAD6", KeywordKind::RollDie(6)),
+    ("Action::RollNumberD6", KeywordKind::RollDie(6)),
+    ("Action::RollAD4", KeywordKind::RollDie(4)),
+    ("Action::RollNumberD4", KeywordKind::RollDie(4)),
+    ("Action::EmpowerJace", KeywordKind::EmpowerJace),
+    ("Action::Incubate", KeywordKind::Incubate),
+    ("Action::Adapt", KeywordKind::Adapt),
+    ("Action::Populate", KeywordKind::Populate),
+    ("Action::InvestigateTimes", KeywordKind::Investigate),
+    ("Action::ProliferateNumberTimes", KeywordKind::Proliferate),
+    ("Action::CreatureConnivesNumber", KeywordKind::Connive),
+    ("Action::Bolster", KeywordKind::Bolster),
+    ("Action::Learn", KeywordKind::Learn),
+    ("Action::TakeTheInitiative", KeywordKind::TakeInitiative),
+    ("Action::OpenAnAttraction", KeywordKind::OpenAttraction),
+    ("Action::GetNumberTickets", KeywordKind::GetTickets),
     (
         "Action::RemoveCreatureFromCombat",
-        KeywordAction::RemoveFromCombat,
+        KeywordKind::RemoveFromCombat,
     ),
-    ("Action::FlipPermanent", KeywordAction::Flip),
-    ("Action::AwakenPermanent", KeywordAction::Awaken),
-    ("Action::Planeswalk", KeywordAction::Planeswalk),
-    ("Action::ConvertPermanent", KeywordAction::Convert),
-    ("Action::SuspectPermanent", KeywordAction::Suspect),
-    ("Action::EndureWithPermanent", KeywordAction::Endure),
-    ("Action::Blight", KeywordAction::Blight),
-    ("Action::TurnPermanentFaceUp", KeywordAction::TurnFaceUp),
-    ("Action::TurnPermanentFaceDown", KeywordAction::TurnFaceDown),
-    ("Action::DetainPermanent", KeywordAction::Detain),
-    ("Action::EndTheTurn", KeywordAction::EndTheTurn),
-    ("Action::TimeTravel", KeywordAction::TimeTravel),
-    ("Action::IntensifyPermanent", KeywordAction::Intensify),
-    ("Action::Forage", KeywordAction::Forage),
-    ("Action::Ascend", KeywordAction::Ascend),
-    ("Action::BecomeDay", KeywordAction::BecomeDay),
-    ("Action::BecomeNight", KeywordAction::BecomeNight),
-    ("Action::ChaosEnsues", KeywordAction::ChaosEnsues),
-    ("Action::AirbendPermanent", KeywordAction::Airbend),
-    ("Action::SaddlePermanent", KeywordAction::Saddle),
-    ("Action::HarnessPermanent", KeywordAction::Harness),
-    ("Action::UnattachPermanent", KeywordAction::Unattach),
-    ("Action::Fateseal", KeywordAction::Fateseal),
+    ("Action::FlipPermanent", KeywordKind::Flip),
+    ("Action::AwakenPermanent", KeywordKind::Awaken),
+    ("Action::Planeswalk", KeywordKind::Planeswalk),
+    ("Action::ConvertPermanent", KeywordKind::Convert),
+    ("Action::SuspectPermanent", KeywordKind::Suspect),
+    ("Action::EndureWithPermanent", KeywordKind::Endure),
+    ("Action::Blight", KeywordKind::Blight),
+    ("Action::TurnPermanentFaceUp", KeywordKind::TurnFaceUp),
+    ("Action::TurnPermanentFaceDown", KeywordKind::TurnFaceDown),
+    ("Action::DetainPermanent", KeywordKind::Detain),
+    ("Action::EndTheTurn", KeywordKind::EndTheTurn),
+    ("Action::TimeTravel", KeywordKind::TimeTravel),
+    ("Action::IntensifyPermanent", KeywordKind::Intensify),
+    ("Action::Forage", KeywordKind::Forage),
+    ("Action::Ascend", KeywordKind::Ascend),
+    ("Action::BecomeDay", KeywordKind::BecomeDay),
+    ("Action::BecomeNight", KeywordKind::BecomeNight),
+    ("Action::ChaosEnsues", KeywordKind::ChaosEnsues),
+    ("Action::AirbendPermanent", KeywordKind::Airbend),
+    ("Action::SaddlePermanent", KeywordKind::Saddle),
+    ("Action::HarnessPermanent", KeywordKind::Harness),
+    ("Action::UnattachPermanent", KeywordKind::Unattach),
+    ("Action::Fateseal", KeywordKind::Fateseal),
     (
         "Action::SkipNextTurn",
-        KeywordAction::Skip(SkippedPart::Turn),
+        KeywordKind::Skip(SkippedPart::Turn),
     ),
     (
         "Action::SkipNextUntapStep",
-        KeywordAction::Skip(SkippedPart::UntapStep),
+        KeywordKind::Skip(SkippedPart::UntapStep),
     ),
     (
         "Action::SkipNextDrawStep",
-        KeywordAction::Skip(SkippedPart::DrawStep),
+        KeywordKind::Skip(SkippedPart::DrawStep),
     ),
     (
         "Action::SkipNextCombatPhase",
-        KeywordAction::Skip(SkippedPart::CombatPhase),
+        KeywordKind::Skip(SkippedPart::CombatPhase),
     ),
     (
         "Action::SkipNextNumberTurns",
-        KeywordAction::Skip(SkippedPart::Turn),
+        KeywordKind::Skip(SkippedPart::Turn),
     ),
     (
         "Action::SkipNextCombatPhaseThisTurn",
-        KeywordAction::Skip(SkippedPart::CombatPhaseThisTurn),
+        KeywordKind::Skip(SkippedPart::CombatPhaseThisTurn),
     ),
     (
         "Action::SkipAllCombatPhasesTheirNextTurn",
-        KeywordAction::Skip(SkippedPart::AllCombatPhasesNextTurn),
+        KeywordKind::Skip(SkippedPart::AllCombatPhasesNextTurn),
     ),
-    ("Action::RollAD8", KeywordAction::RollDie(8)),
-    ("Action::RollAD12", KeywordAction::RollDie(12)),
-    ("Action::AirbendSpell", KeywordAction::Airbend),
-    ("Action::Assimilate", KeywordAction::Assimilate),
-    ("Action::PopulateNumberTimes", KeywordAction::Populate),
-    ("Action::TimeTravelNumberTimes", KeywordAction::TimeTravel),
+    ("Action::RollAD8", KeywordKind::RollDie(8)),
+    ("Action::RollAD12", KeywordKind::RollDie(12)),
+    ("Action::AirbendSpell", KeywordKind::Airbend),
+    ("Action::Assimilate", KeywordKind::Assimilate),
+    ("Action::PopulateNumberTimes", KeywordKind::Populate),
+    ("Action::TimeTravelNumberTimes", KeywordKind::TimeTravel),
     (
         "Action::ManifestDreadNumberTimes",
-        KeywordAction::ManifestDread,
+        KeywordKind::ManifestDread,
     ),
     (
         "Action::OpenNumberAttractions",
-        KeywordAction::OpenAttraction,
+        KeywordKind::OpenAttraction,
     ),
     (
         "Action::ExploreWithPermanentNumberTimes",
-        KeywordAction::Explore,
+        KeywordKind::Explore,
     ),
-    ("Action::PhaseInPermanent", KeywordAction::PhaseIn),
-    ("Action::UnlockADoorOfPermanent", KeywordAction::UnlockDoor),
+    ("Action::PhaseInPermanent", KeywordKind::PhaseIn),
+    ("Action::UnlockADoorOfPermanent", KeywordKind::UnlockDoor),
     (
         "Action::LockOrUnlockADoorOfPermanent",
-        KeywordAction::LockOrUnlockDoor,
+        KeywordKind::LockOrUnlockDoor,
     ),
-    ("Action::SetCreatureAsBlocked", KeywordAction::BecomeBlocked),
+    ("Action::SetCreatureAsBlocked", KeywordKind::BecomeBlocked),
     (
         "Action::RemoveCreatureFromCombatAndUnblockBlockers",
-        KeywordAction::RemoveFromCombatUnblocking,
+        KeywordKind::RemoveFromCombatUnblocking,
     ),
-    ("Action::ReverseTurnOrder", KeywordAction::ReverseTurnOrder),
-    ("Action::LoseUnspentMana", KeywordAction::LoseUnspentMana),
+    ("Action::ReverseTurnOrder", KeywordKind::ReverseTurnOrder),
+    ("Action::LoseUnspentMana", KeywordKind::LoseUnspentMana),
     (
         "Action::DoubleEachTypeOfUnspentMana",
-        KeywordAction::DoubleUnspentMana,
+        KeywordKind::DoubleUnspentMana,
     ),
-    ("Action::DrawTheGame", KeywordAction::DrawGame),
-    ("Action::ShuffleGraveyard", KeywordAction::ShuffleGraveyard),
-    ("Action::RollThePlanarDie", KeywordAction::RollPlanarDie),
+    ("Action::DrawTheGame", KeywordKind::DrawGame),
+    ("Action::ShuffleGraveyard", KeywordKind::ShuffleGraveyard),
+    ("Action::RollThePlanarDie", KeywordKind::RollPlanarDie),
     (
         "Action::RollToVisitAttractions",
-        KeywordAction::VisitAttractions,
+        KeywordKind::VisitAttractions,
     ),
-    ("Action::EndTheCombatPhase", KeywordAction::EndCombat),
+    ("Action::EndTheCombatPhase", KeywordKind::EndCombat),
     (
         "Action::RollNumberD20AndIgnoreAllButHighest",
-        KeywordAction::RollKeepHighest(20),
+        KeywordKind::RollKeepHighest(20),
     ),
     (
         "Action::RollTwoD4AndChooseAnOrder",
-        KeywordAction::RollTwoInOrder(4),
+        KeywordKind::RollTwoInOrder(4),
     ),
     (
         "Action::RollTwoD6AndChooseAnOrder",
-        KeywordAction::RollTwoInOrder(6),
+        KeywordKind::RollTwoInOrder(6),
     ),
     (
         "Action::RollTwoD8AndChooseAnOrder",
-        KeywordAction::RollTwoInOrder(8),
+        KeywordKind::RollTwoInOrder(8),
     ),
     (
         "Action::RollTwoD10AndChooseAnOrder",
-        KeywordAction::RollTwoInOrder(10),
+        KeywordKind::RollTwoInOrder(10),
     ),
     (
         "Action::RollTwoD12AndChooseAnOrder",
-        KeywordAction::RollTwoInOrder(12),
+        KeywordKind::RollTwoInOrder(12),
     ),
     (
         "Action::TakeAnExtraTurnAfterNextTurn",
-        KeywordAction::TakeExtraTurnAfterNext,
+        KeywordKind::TakeExtraTurnAfterNext,
     ),
     (
         "Action::TakeAnExtraTurnAndSkipUntapStepOfThatTurn",
-        KeywordAction::TakeExtraTurnSkippingUntap,
+        KeywordKind::TakeExtraTurnSkippingUntap,
     ),
-    ("Action::PlayAMagicSubgame", KeywordAction::PlaySubgame),
+    ("Action::PlayAMagicSubgame", KeywordKind::PlaySubgame),
     (
         "Action::ThereIsAnAdditionalCombatPhase",
-        KeywordAction::AdditionalPhase(AddedPhases::Combat),
+        KeywordKind::AdditionalPhase(AddedPhases::Combat),
     ),
     (
         "Action::ThereIsAnAdditionalCombatPhaseAndAnAdditionalMainPhase",
-        KeywordAction::AdditionalPhase(AddedPhases::CombatAndMain),
+        KeywordKind::AdditionalPhase(AddedPhases::CombatAndMain),
     ),
     (
         "Action::ThereIsAnAdditionalBeginningPhase",
-        KeywordAction::AdditionalPhase(AddedPhases::Beginning),
+        KeywordKind::AdditionalPhase(AddedPhases::Beginning),
     ),
 ];
 
@@ -888,7 +890,7 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         [Operand::Object(object), Operand::Number(amount)] => {
             (Some(object.clone()), None, Some(amount.clone()), None)
         }
-        [Operand::Number(amount), Operand::Vocabulary { form, .. }] => {
+        [Operand::Number(amount), Operand::Vocabulary { family, form }] if family=="CreatureType" => {
             (None, None, Some(amount.clone()), Some(form.clone()))
         }
         [Operand::Number(amount), Operand::Object(object)] => {
@@ -903,14 +905,7 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         }
     };
     match action {
-        Some(action) => Operation::Keyword {
-            actor,
-            action,
-            object,
-            other,
-            amount,
-            subtype,
-        },
+        Some(action) => crate::keyword_actions::operation(&actor,action,object,other,amount,subtype),
         None => Operation::Primitive {
             actor,
             name,
@@ -1143,17 +1138,15 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         ("Action::TransformEachPermanent", [Objects(objects)]) => {
             return Some(Operation::KeywordEach {
                 actor: actor.clone(),
-                action: KeywordAction::Transform,
+                action: ObjectKeywordAction::Transform,
                 objects: objects.clone(),
-                until: None,
             })
         }
         ("Action::UnsuspectEachPermanent", [Objects(objects)]) => {
             return Some(Operation::KeywordEach {
                 actor: actor.clone(),
-                action: KeywordAction::Unsuspect,
+                action: ObjectKeywordAction::Unsuspect,
                 objects: objects.clone(),
-                until: None,
             })
         }
         (
@@ -1165,12 +1158,11 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
             return Some(Operation::KeywordEach {
                 actor: actor.clone(),
                 action: match name {
-                    "Action::UnsuspectPermanent" => KeywordAction::Unsuspect,
-                    "Action::TurnExiledCardFaceUp" => KeywordAction::TurnFaceUp,
-                    _ => KeywordAction::Unprepare,
+                    "Action::UnsuspectPermanent" => ObjectKeywordAction::Unsuspect,
+                    "Action::TurnExiledCardFaceUp" => ObjectKeywordAction::TurnFaceUp,
+                    _ => ObjectKeywordAction::Unprepare,
                 },
                 objects: ObjectSet::One(object.clone()),
-                until: None,
             })
         }
         (
@@ -1223,9 +1215,8 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         ("Action::Cipher", [Operand::Object(spell)]) => {
             return Some(Operation::KeywordEach {
                 actor: actor.clone(),
-                action: KeywordAction::Cipher,
+                action: ObjectKeywordAction::Cipher,
                 objects: ObjectSet::One(spell.clone()),
-                until: None,
             })
         }
         ("Action::PutAStickerOnAPermanent", [Operand::Objects(objects)]) => {
@@ -1256,13 +1247,7 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         spellbook: spellbook.clone(),
         times,
     };
-    let each =
-        |action, objects: &ObjectSet, until: Option<&crate::ir::Duration>| Operation::KeywordEach {
-            actor: actor.clone(),
-            action,
-            objects: objects.clone(),
-            until: until.cloned(),
-        };
+    let each = |action,objects:&ObjectSet,until:Option<&crate::ir::Duration>| crate::keyword_actions::each_operation(actor,action,objects.clone(),until.cloned());
     let pay = |resource| Operation::PayAnyAmount {
         actor: actor.clone(),
         resource,
@@ -1298,29 +1283,29 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         }
     };
     Some(match (name.strip_prefix("Action::")?, operands) {
-        ("GoadEachCreature", [Objects(objects)]) => each(KeywordAction::Goad, objects, None),
+        ("GoadEachCreature", [Objects(objects)]) => each(KeywordKind::Goad, objects, None),
         ("GoadEachCreatureUntil", [Objects(objects), Duration(until)]) => {
-            each(KeywordAction::Goad, objects, Some(until))
+            each(KeywordKind::Goad, objects, Some(until))
         }
         ("GoadCreatureUntil", [Object(object), Duration(until)]) => each(
-            KeywordAction::Goad,
+            KeywordKind::Goad,
             &ObjectSet::One(object.clone()),
             Some(until),
         ),
         ("PhaseOutEachPermanent", [Objects(objects)]) => {
-            each(KeywordAction::PhaseOut, objects, None)
+            each(KeywordKind::PhaseOut, objects, None)
         }
         ("PhaseOutEachPermanentUntil", [Objects(objects), Duration(until)]) => {
-            each(KeywordAction::PhaseOut, objects, Some(until))
+            each(KeywordKind::PhaseOut, objects, Some(until))
         }
         ("PhaseOutPermanentUntil", [Object(object), Duration(until)]) => each(
-            KeywordAction::PhaseOut,
+            KeywordKind::PhaseOut,
             &ObjectSet::One(object.clone()),
             Some(until),
         ),
-        ("SuspectEachPermanent", [Objects(objects)]) => each(KeywordAction::Suspect, objects, None),
-        ("DetainEachPermanent", [Objects(objects)]) => each(KeywordAction::Detain, objects, None),
-        ("AirbendPermanents", [Objects(objects)]) => each(KeywordAction::Airbend, objects, None),
+        ("SuspectEachPermanent", [Objects(objects)]) => each(KeywordKind::Suspect, objects, None),
+        ("DetainEachPermanent", [Objects(objects)]) => each(KeywordKind::Detain, objects, None),
+        ("AirbendPermanents", [Objects(objects)]) => each(KeywordKind::Airbend, objects, None),
         ("DoubleCreaturesPowerUntilEndOfTurn", [Object(o)]) => {
             double(ObjectSet::One(o.clone()), true, false)
         }
