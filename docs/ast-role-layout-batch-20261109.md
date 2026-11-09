@@ -75,3 +75,13 @@ The whole clarity goal remains open: coin policies/repetition,
 destination-specific movement serialization and final integration remain.
 The subsequent 29 confirmed reference defects and seven separate unresolved
 reference questions remain queued. No upstream changes were pulled.
+
+Publication: commit `4f8192f` is pushed to fork main and deployed as
+`20261109-4f8192f` at `/blocks`. The HTTP response matches the exact tested
+artifact, SHA-256
+`7abbd9203808fa1b9da82dc42a3b1690661cccc7a8c16158098febec8513d510`.
+Live card-code checks pass seventeen examples and thirteen malformed inputs.
+Live API/layout checks pass all six schema-184 named imports and startups with
+binding keys intact. Full receipt: `api185/release.json` in the evidence folder.
+The newly added browser schema capture was whitespace-compacted before pushing;
+repacking produces byte-identical HTML (`fixture-compaction-proof.txt`).

@@ -14,11 +14,11 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified including independent alternatives and legacy migration | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Shared destination checks implemented; serialized payload split pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Keyword actions (183) and modes (184) implemented and verified; coins pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
-| Consistent Rust role/type/action names and typed counter-event sources | Implemented and verified in batch 185; publication pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
+| Consistent Rust role/type/action names and typed counter-event sources | Implemented, verified and published in batch 185 | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
 | Clear sequence, batch, iteration, and receipt boundaries | Implemented, verified without changing execution forms | Declaration docs and discoverable authoring families; receipt and native behavior regressions |
 | Shared schema/declaration discovery and topic modules | Implemented, verified | Visitors, codec, catalog, fingerprint and frozen contract use one source registry; no declarations lost |
 | Scratch-style literal/picker shadows in typed expression sockets | Implemented, verified | Real drag/drop replacement, simple-value restoration, undo/redo, persistence, validation and browser tests |
-| Typed known layouts with an explicit extension contract | Implemented and verified in batch 185; publication pending | All 18 current layouts, metadata-only records and layout errors covered |
+| Typed known layouts with an explicit extension contract | Implemented, verified and published in batch 185 | All 18 current layouts, metadata-only records and layout errors covered |
 | Final integration, publication and deployment | Pending | Full appropriate Rust tests, 33,529 record semantic/wire checks, browser/Wasm coverage, pushed fork main and live `/blocks` smoke |
 
 Preserve absent versus zero costs and characteristics, result provenance,
@@ -663,3 +663,11 @@ its hidden literal Card tag for backward decoding; general records use the typed
 layout enum. Source/reference grammars, numeric widths and engine features are
 unchanged. The remaining coin and destination migrations and subsequent
 reference queue remain open.
+
+Stage-18 publication: `4f8192f` is pushed to fork main and live as
+`20261109-4f8192f`. HTTP matches the tested artifact. Live card-code and API/layout
+suites pass, including named schema-184 workspace import/startup. Full receipt:
+`api185/release.json`. Rust role names/counter sources and typed known layouts
+are complete. Coin protocol/repetition and destination-state typing remain open,
+followed by final integration and the 29 confirmed reference corrections. The
+user's untracked `consolidation.md` remains untouched.
