@@ -42,10 +42,27 @@ pub(super) fn same(a: &Value, b: &Value, tracing: bool) -> bool {
     }
 }
 pub(super) fn key(v: &Value, tracing: bool) -> String {
+    // Object insertion order is spelling metadata. Keep arrays positional:
+    // only the owning commutative site chooses to sort its members.
+    fn sorted(value: &Value) -> Value {
+        match value {
+            Value::Object(fields) => {
+                let mut keys: Vec<_> = fields.keys().collect();
+                keys.sort_unstable();
+                Value::Object(
+                    keys.into_iter()
+                        .map(|key| (key.clone(), sorted(&fields[key])))
+                        .collect(),
+                )
+            }
+            Value::Array(items) => Value::Array(items.iter().map(sorted).collect()),
+            scalar => scalar.clone(),
+        }
+    }
     if tracing {
-        plain(v).to_string()
+        sorted(&plain(v)).to_string()
     } else {
-        v.to_string()
+        sorted(v).to_string()
     }
 }
 /// Equal semantic subtrees that coalesce retain origins from both inputs.
