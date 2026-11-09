@@ -76,7 +76,7 @@ fn layout_faces_are_ordinary_cards() {
     let back = r#"(Name:"Back",Typeline:(Supertypes:[],Cardtypes:[Creature],Subtypes:[]),Rules:[],CardPT:(Power:2,Toughness:2))"#;
     let card = parse(&format!("Transforming(FrontFace:{front},BackFace:{back})"));
     let lowered = unified::lower(&card);
-    assert_eq!(lowered.card.layout, "Transforming");
+    assert_eq!(lowered.card.layout, mtgish_ast::ir::Layout::Transforming);
     let mut names: Vec<_> = lowered.card.faces.iter().map(|f| f.name.as_str()).collect();
     names.sort();
     assert_eq!(names, ["Back", "Front"]);

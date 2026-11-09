@@ -172,6 +172,9 @@
     if(state.pr==='literal') {
       result=[{key:'VALUE',label:'',ty:t,inline:state.literal}];
     } else if(state.pr==='single') {
+      // The single-card projection keeps its hidden Card tag as a literal.
+      // General records use the schema's typed Layout field; preserving this
+      // projection field also lets old saved cards decode before migration.
       result=[{key:'ROOT_schema',label:'schema version',ty:{named:'u32'}},{key:'ROOT_layout',label:'layout',ty:{named:'String'}},{key:'ROOT_data',label:'layout data',ty:{vec:{named:'Field'}}},
         ...fieldParts(types.Card.fields)];
     } else if(state.pr==='effect') {
@@ -279,7 +282,7 @@
     if (/Card|Characteristics|ManaSymbol/.test(n)) return '#657b62';
     if (/Ability|Keyword|Casting/.test(n)) return '#477d70';
     if (/Operation|Instruction|Program/.test(n)) return '#b46b4f';
-    if (/Expr|ResultId|Binding|Slot|i32|u32|i64/.test(n)) return '#ac8730';
+    if (/Expr|ResultId|LoopBinding|TargetSlot|i32|u32|i64/.test(n)) return '#ac8730';
     if (/Condition|Filter|Duration|Count/.test(n)) return '#86739a';
     if (/Object|Target|Recipient/.test(n)) return '#5a7f9e';
     if (/Player|Event/.test(n)) return '#508d88';
@@ -447,7 +450,7 @@
     if(state.ty.named==='FaceDownAs')return 'Face-down creature';
     if(state.ty.named==='TargetSpec')return 'Target';
     if(state.ty.named==='Announcement')return 'Targets & choices';
-    return ({Slot:'Target',ResultId:'Recorded result',Binding:'Loop value',SelectionId:'Selection'})[state.ty.named]||typeName(state.ty);
+    return ({TargetSlot:'Target',ResultId:'Recorded result',LoopBinding:'Loop value',SelectionId:'Selection'})[state.ty.named]||typeName(state.ty);
   }
   Blockly.Blocks.ir_value={
     init() {

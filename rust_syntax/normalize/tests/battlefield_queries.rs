@@ -149,7 +149,7 @@ fn player_scoped_battlefields_remain_invalid_and_card_queries_stay_distinct() {
         };
         body.instructions[0] = Instruction::Effect {
             result: ResultId(0),
-            operation: Operation::Tap {
+            operation: Operation::SetTapped {
                 objects: ObjectSet::Zone {
                     scope,
                     kind,

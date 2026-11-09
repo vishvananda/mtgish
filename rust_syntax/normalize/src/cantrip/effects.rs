@@ -54,7 +54,7 @@ pub(super) fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'stati
             }
         };
         Some(match operation {
-            Operation::Tap { objects, tapped } if chosen(objects) => {
+            Operation::SetTapped { objects, tapped } if chosen(objects) => {
                 if *tapped {
                     "Tap"
                 } else {
@@ -568,7 +568,6 @@ impl Compiler {
                 ),
                 _ => return Err(gap("recipient of event damage")),
             },
-            Recipients::CountersTheEventPut => return Err(gap("counters as a recipient")),
             Recipients::AttackedBy(object) => {
                 let carried = match self.frame.player {
                     Some(_) => format!(
@@ -588,7 +587,7 @@ impl Compiler {
             }
         })
     }
-    fn target_slot(&self, slot: &Slot) -> Result<usize> {
+    fn target_slot(&self, slot: &TargetSlot) -> Result<usize> {
         if self.reader != Reader::Resolution || !self.stack_item {
             return Err(gap("target reference outside a resolving ability"));
         }
@@ -1200,8 +1199,8 @@ impl Compiler {
             Instruction::Effect {
                 operation:
                     Operation::Search {
-                        player,
-                        library,
+                        searcher: player,
+                        library_owner: library,
                         top: None,
                         choices,
                         also,
@@ -1456,7 +1455,7 @@ impl Compiler {
                 let id = self.fresh();
                 writeln!(out, "'optional_{id}: {{").unwrap();
                 self.choose(decider, &objects, &Count::UpTo(n), &result, "Tap", out)?;
-                let tap = Operation::Tap { objects: ObjectSet::Selected(result.clone()), tapped: true };
+                let tap = Operation::SetTapped { objects: ObjectSet::Selected(result.clone()), tapped: true };
                 self.operation(&tap, &result, out)?;
                 writeln!(out, "let paid_{id} = !{}.is_empty(); if !paid_{id} {{ break 'optional_{id}; }}", self.moved(&result)?).unwrap();
                 self.performed.insert(result.0, format!("paid_{id}"));
@@ -1866,7 +1865,7 @@ impl Compiler {
                     self.stated_mana(players, mana, restriction.as_ref(), failed, out)?
                 }
             },
-            Operation::ChooseValue { actor, kind, terms } => {
+            Operation::ChooseValue { choosers: actor, kind, terms } => {
                 self.choose_on_terms(id, actor, *kind, terms, result, out)?;
                 // A scalar number belongs to this operation's result, not to
                 // an earlier choice of the same kind or an enclosing body.
@@ -2074,7 +2073,7 @@ impl Compiler {
                 entry,
                 face_down: false,
              .. } => self.move_objects_p(id, objects, destination, entry, false, result, out)?,
-            Operation::Tap { objects, tapped } => {
+            Operation::SetTapped { objects, tapped } => {
                 if *tapped {
                     // The core decides whether each object can tap. Record
                     // what actually tapped only when a later instruction uses
@@ -2388,8 +2387,8 @@ impl Compiler {
                 self.selections.insert(result.0, format!("objects_{id}"));
             }
             Operation::ReorderLibrary {
-                player,
-                library,
+                chooser: player,
+                library_owner: library,
                 objects,
                 end,
                 order,

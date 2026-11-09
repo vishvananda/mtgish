@@ -2,7 +2,7 @@
 //! whether a face is reduced; this only adds a representation for the rest, so it
 //! cannot change what counts as complete.
 use crate::{
-    ir::{Ability, Card, Field, Operand, UnifiedCard, SCHEMA_VERSION},
+    ir::{Ability, Card, Field, Layout, Operand, UnifiedCard, SCHEMA_VERSION},
     lower::{self, Diagnostic},
     mtg_types::OracleCard,
     pipeline::source_tree::decode,
@@ -73,7 +73,7 @@ fn data_record(value: &OracleCard) -> Option<Lowered> {
     };
     let card = UnifiedCard {
         schema_version: SCHEMA_VERSION,
-        layout: layout.into(),
+        layout: Layout::from_name(layout).expect("known Source layout"),
         faces,
         data,
     };
@@ -98,7 +98,7 @@ fn lower_record(value: &OracleCard) -> Lowered {
     );
     let card = UnifiedCard {
         schema_version: SCHEMA_VERSION,
-        layout: inspected["variant"].as_str().expect("layout").into(),
+        layout: Layout::from_name(inspected["variant"].as_str().expect("layout")).expect("known Source layout"),
         faces: walk.faces,
         data: walk.data,
     };

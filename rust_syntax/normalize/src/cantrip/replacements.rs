@@ -67,7 +67,7 @@ pub(super) fn capture(event: &mut ReplacementEvent, found: &mut Vec<ObjectRef>) 
 
 /// `capture` of a slot of several: "X target creatures would deal", which is one
 /// effect on each of them.
-pub(super) fn capture_slot(event: &mut ReplacementEvent, found: &mut Vec<Slot>) {
+pub(super) fn capture_slot(event: &mut ReplacementEvent, found: &mut Vec<TargetSlot>) {
     let mut name = |filter: &mut ObjectFilter| {
         if let ObjectFilter::InSet(set) = filter {
             if let ObjectSet::Targets(slot) = &**set {

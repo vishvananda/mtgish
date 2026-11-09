@@ -19,7 +19,7 @@ mod tests {
     use crate::ir_schema::{Fields, Schema, Ty, TypeDef};
     fn contains_binding(ty: &Ty) -> bool {
         match ty {
-            Ty::Named(name) => name == "Binding",
+            Ty::Named(name) => name == "LoopBinding",
             Ty::Vec(inner) | Ty::Option(inner) => contains_binding(inner),
             Ty::Tuple(items) => items.iter().any(contains_binding),
             Ty::Opaque => false,

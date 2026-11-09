@@ -106,7 +106,7 @@ fn retarget_return_actions(body: &mut Program, original: &ObjectRef, group: &Obj
                     *objects = group.clone();
                 }
             }
-            Operation::Tap { objects, .. } if same(objects) => *objects = group.clone(),
+            Operation::SetTapped { objects, .. } if same(objects) => *objects = group.clone(),
             _ => return false,
         }
     }
@@ -167,7 +167,7 @@ mod return_followup_tests {
     #[test]
     fn plural_exiles_and_unguarded_returns_have_no_single_input_proof() {
         let mut c = Context::default();
-        c.effect(moved(ObjectSet::Targets(Slot(0)), Destination::Exile));
+        c.effect(moved(ObjectSet::Targets(TargetSlot(0)), Destination::Exile));
         c.effect(moved(
             c.still_exiled(ObjectSet::Transition {
                 result: ResultId(0),
@@ -228,7 +228,7 @@ mod return_followup_tests {
             filter: ObjectFilter::Any,
         };
         let body = Program {
-            instructions: vec![c.effect(Operation::Tap {
+            instructions: vec![c.effect(Operation::SetTapped {
                 objects: ObjectSet::One(ObjectRef::Source),
                 tapped: true,
             })],

@@ -130,7 +130,7 @@ fn an_invalid_inner_operand_is_still_refused() {
             result: ResultId(0),
             operation: Operation::Destroy {
                 objects: ObjectSet::One(ObjectRef::Target {
-                    slot: Slot(7),
+                    slot: TargetSlot(7),
                     index: 0,
                 }),
                 regeneration: true,

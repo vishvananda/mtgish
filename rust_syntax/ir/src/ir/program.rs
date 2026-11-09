@@ -45,7 +45,7 @@ pub enum Instruction {
     /// the body; this is not the single-action `Operation::EachPlayer` wrapper.
     ForEachPlayer {
         players: PlayerSet,
-        binding: Binding,
+        binding: LoopBinding,
         /// Turn order begins with this player instead of the active player.
         starting_with: Option<PlayerRef>,
         /// Proceeds in the direction chosen earlier, not in turn order.
@@ -72,7 +72,7 @@ pub enum Instruction {
     /// reads. This does not turn separate child instructions into one batch.
     ForEachObject {
         objects: ObjectSet,
-        binding: Binding,
+        binding: LoopBinding,
         body: Program,
     },
 }
@@ -125,8 +125,8 @@ pub enum Operation {
     /// have disjoint original-library identities. A denied/replaced search can
     /// return searched=false; it does not cancel subsequent unconditional work.
     Search {
-        player: PlayerRef,
-        library: PlayerRef,
+        searcher: PlayerRef,
+        library_owner: PlayerRef,
         top: Option<Expr>,
         choices: Vec<SearchChoice>,
         /// Zones searched besides the library, all of them that player's.
@@ -165,8 +165,8 @@ pub enum Operation {
         objects: ObjectSet,
     },
     ReorderLibrary {
-        player: PlayerRef,
-        library: PlayerRef,
+        chooser: PlayerRef,
+        library_owner: PlayerRef,
         objects: ObjectSet,
         end: SequenceEnd,
         order: CardOrder,
@@ -354,7 +354,7 @@ pub enum Operation {
         #[serde(default)]
         terms: MovementTerms,
     },
-    Tap {
+    SetTapped {
         objects: ObjectSet,
         tapped: bool,
     },
@@ -456,7 +456,7 @@ pub enum Operation {
     /// Choose values under explicit cardinality and terms. Reads go through
     /// `ObjectFilter::Chosen`, `Change::ChosenType` or `Expr::ChosenNumber`.
     ChooseValue {
-        actor: PlayerSet,
+        choosers: PlayerSet,
         kind: ValueKind,
         terms: ChoiceTerms,
     },
@@ -617,7 +617,7 @@ pub enum Operation {
     },
     /// Puts on `to` the counters that are on `from`, which keeps them.
     DuplicateCounters {
-        from: Recipients,
+        from: CounterSource,
         to: Recipients,
         copies: CounterCopies,
         /// Only this kind.

@@ -68,7 +68,7 @@ fn those_counters_are_the_ones_the_event_put() {
     let text = lowered(
         "TriggerA(WhenAPlayerPutsAnyNumberOfCountersOnAPermanent(Opponent, IsCardtype(Creature)), ActionList([PutCounters([DuplicateThoseCounterOnPermanent(ThisPermanent)])]))",
     );
-    assert!(text.contains("from: CountersTheEventPut"), "{text}");
+    assert!(text.contains("from: EventPut"), "{text}");
 }
 
 #[test]

@@ -658,13 +658,13 @@ pub struct TrackedCard {
 /// Every card's code, a JSON object a line. A record that can't be emitted
 /// stops the run: nothing is left for the tracker to miss.
 /// The modules a layout's other faces are written in, each one `CardDef` beside the card's.
-fn face_modules(layout: &str) -> &'static [&'static str] {
+fn face_modules(layout: &Layout) -> &'static [&'static str] {
     match layout {
-        "Transforming" | "ModalDFC" => &["back"],
-        "Adventurer" => &["adventure"],
-        "Ominous" => &["omen"],
-        "Preparer" => &["prepared"],
-        "Split" | "Room" => &["left", "right"],
+        Layout::Transforming | Layout::ModalDFC => &["back"],
+        Layout::Adventurer => &["adventure"],
+        Layout::Ominous => &["omen"],
+        Layout::Preparer => &["prepared"],
+        Layout::Split | Layout::Room => &["left", "right"],
         _ => &[],
     }
 }
@@ -727,7 +727,7 @@ fn track(
             }
         }
         [one @ TrackedFace { rust: Some(module), .. }]
-            if one.gaps.is_empty() && matches!(lowered.card.layout.as_str(), "Card" | "MeldPiece") =>
+            if one.gaps.is_empty() && matches!(&lowered.card.layout, Layout::Card | Layout::MeldPiece) =>
         {
             let file = one.oracle.as_deref().and_then(|text| {
                 match card_file::card_file(&lowered.card.faces[0], text) {
@@ -759,7 +759,7 @@ fn track(
         [face] if name.is_empty() => face.name.clone(),
         _ => name,
     };
-    let card = TrackedCard { line, name, layout: lowered.card.layout.clone(), faces, rust: whole.rust, file };
+    let card = TrackedCard { line, name, layout: lowered.card.layout.to_string(), faces, rust: whole.rust, file };
     Ok(Track { card, content_only, kept })
 }
 

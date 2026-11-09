@@ -204,8 +204,8 @@ impl Context {
             }
         }
         let search = self.effect(Operation::Search {
-            player: player.clone(),
-            library: library.clone(),
+            searcher: player.clone(),
+            library_owner: library.clone(),
             top,
             choices,
             also,
@@ -497,8 +497,8 @@ impl Context {
                     continue;
                 }
                 S::PutSetAsideCardsOnTopOfLibrary => Operation::ReorderLibrary {
-                    player: library.clone(),
-                    library: library.clone(),
+                    chooser: library.clone(),
+                    library_owner: library.clone(),
                     objects: aside
                         .clone()
                         .ok_or_else(|| invalid("set-aside reference has no declaration"))?,
@@ -506,8 +506,8 @@ impl Context {
                     order: CardOrder::Chosen,
                 },
                 S::PutFoundCardsOnBottomOfLibrary => Operation::ReorderLibrary {
-                    player: library.clone(),
-                    library: library.clone(),
+                    chooser: library.clone(),
+                    library_owner: library.clone(),
                     objects: found.clone(),
                     end: SequenceEnd::Bottom,
                     order: CardOrder::Chosen,
@@ -590,8 +590,8 @@ impl Context {
             constraints: vec![],
         };
         let search = self.effect(Operation::Search {
-            player: player.clone(),
-            library: player.clone(),
+            searcher: player.clone(),
+            library_owner: player.clone(),
             top: None,
             choices: vec![choice],
             also: vec![],

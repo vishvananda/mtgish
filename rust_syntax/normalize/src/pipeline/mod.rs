@@ -104,7 +104,7 @@ pub enum SurfaceAction {
         random: bool,
     },
 }
-/// Generic operation templates with typed unresolved operands. Binding is a
+/// Generic operation templates with typed unresolved operands. LoopBinding is a
 /// distinct pass; intermediate source operands cannot escape into final Card.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ExpandedRecipe {

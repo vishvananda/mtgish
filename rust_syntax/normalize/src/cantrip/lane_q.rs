@@ -122,7 +122,7 @@ impl Compiler {
     ) -> Result<()> {
         let result = own_share(tokens).expect("a read of an own share");
         let shares = self.notes.shares[&result.0].clone();
-        let binding = Binding(OWN_SHARE_BINDING + result.0);
+        let binding = LoopBinding(OWN_SHARE_BINDING + result.0);
         let saved = self.performed.insert(
             result.0,
             format!(

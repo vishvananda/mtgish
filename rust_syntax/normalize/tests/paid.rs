@@ -114,7 +114,7 @@ fn resolution_payment_history_uses_the_payment_result_and_preserves_the_payer() 
         &body.instructions[0],
         Instruction::Effect {
             operation: Operation::PayCost {
-                player: PlayerRef::Target { slot: Slot(0), .. },
+                player: PlayerRef::Target { slot: TargetSlot(0), .. },
                 optional: true,
                 ..
             },

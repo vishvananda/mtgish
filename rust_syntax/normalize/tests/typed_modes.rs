@@ -89,10 +89,16 @@ fn captured_names_and_nested_scope_order_survive_mode_regrouping() {
             .lines()
             .chain(include_str!("fixtures/mode_context_documents_v183.jsonl").lines())
         {
-            let value: Value = serde_json::from_str(old).unwrap();
+            let mut value: Value = serde_json::from_str(old).unwrap();
+            // Three synthetic scope probes used a one-faced Transforming
+            // wrapper to force the old unified writer. That malformed layout
+            // is now rejected; exercise their unchanged modes with Card instead.
+            if value["card"]["layout"]=="Transforming" && value["card"]["faces"].as_array().unwrap().len()==1 {
+                assert!(human::document::Document::from_json(old).unwrap_err().contains("requires 2..=2 faces"));
+                value["card"]["layout"]=serde_json::json!("Card");
+            }
             let name = &value["card"]["faces"][0]["name"];
-            let document =
-                human::document::Document::from_json(old).unwrap_or_else(|e| panic!("{name}: {e}"));
+            let document = human::document::Document::from_json(&value.to_string()).unwrap_or_else(|e| panic!("{name}: {e}"));
             assert_eq!(
                 serde_json::to_value(document.bindings()).unwrap(),
                 value["bindings"],

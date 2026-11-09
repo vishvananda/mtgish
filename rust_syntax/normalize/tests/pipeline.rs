@@ -133,7 +133,7 @@ fn binding_reuses_target_domains_actor_scopes_and_result_ids() {
         panic!()
     };
     assert!(
-        matches!(&body.instructions[0],Instruction::Effect {operation:Operation::CreateContinuousEffect {affected:EffectSubjects::Objects(ObjectSet::One(ObjectRef::Target {slot:Slot(0),..})),changes,duration:Duration::EndOfTurn,evaluation:EffectEvaluation::Snapshot,..},..} if matches!(changes.as_slice(),[Change::SetController(PlayerRef::Target {slot:Slot(1),..})]))
+        matches!(&body.instructions[0],Instruction::Effect {operation:Operation::CreateContinuousEffect {affected:EffectSubjects::Objects(ObjectSet::One(ObjectRef::Target {slot:TargetSlot(0),..})),changes,duration:Duration::EndOfTurn,evaluation:EffectEvaluation::Snapshot,..},..} if matches!(changes.as_slice(),[Change::SetController(PlayerRef::Target {slot:TargetSlot(1),..})]))
     );
     let s = custom(
         "SpellActions(ActionList([GainControlOfAPermanentUntil(AnyPermanent,UntilEndOfTurn)]))",
@@ -176,7 +176,7 @@ fn move_expansion_preserves_exile_incarnations_entry_flags_and_followup_results(
     assert!(matches!(
         &body.instructions[2],
         Instruction::Effect {
-            operation: Operation::Tap {
+            operation: Operation::SetTapped {
                 objects: ObjectSet::One(ObjectRef::Result {
                     result: ResultId(1),
                     phase: ObjectPhase::After,
@@ -455,7 +455,7 @@ fn shared_quantities_compose_arithmetic_and_keep_actor_and_event_verbs() {
         &body.instructions[0],
         Instruction::Effect {
             operation: Operation::GainLife {
-                players: PlayerSet::One(PlayerRef::Target { slot: Slot(0), .. }),
+                players: PlayerSet::One(PlayerRef::Target { slot: TargetSlot(0), .. }),
                 amount: Expr::Constant(14)
             },
             ..
@@ -496,7 +496,7 @@ fn shared_cardinalities_preserve_resolution_choices_and_simultaneous_sacrifice()
     };
     assert!(matches!(untap.instructions.as_slice(),[
         Instruction::Effect {result,operation:Operation::ChooseObjects {count:Count::UpTo(Expr::Constant(2)),..}},
-        Instruction::Effect {operation:Operation::Tap {objects:ObjectSet::Selected(selected),tapped:false},..}
+        Instruction::Effect {operation:Operation::SetTapped {objects:ObjectSet::Selected(selected),tapped:false},..}
     ] if result.0==selected.0));
     let Instruction::Group(destroy) = &body.instructions[1] else {
         panic!()
@@ -778,19 +778,19 @@ fn numeric_binding_preserves_target_domains_zone_membership_and_last_known_prope
     assert!(matches!(
         power.as_ref(),
         Expr::ObjectProperty {
-            object: ObjectRef::Target { slot: Slot(0), .. },
+            object: ObjectRef::Target { slot: TargetSlot(0), .. },
             property: Property::Power,
             information: Information::CurrentOrLastKnown
         }
     ));
     assert!(
-        matches!(count.as_ref(),Expr::CountObjects(objects) if matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Library,players:PlayerSet::One(PlayerRef::Target {slot:Slot(1),..})},kind:ObjectKind::Card,..}))
+        matches!(count.as_ref(),Expr::CountObjects(objects) if matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Library,players:PlayerSet::One(PlayerRef::Target {slot:TargetSlot(1),..})},kind:ObjectKind::Card,..}))
     );
     assert!(
         matches!(numeric_amount(&card,1),Expr::CountObjects(objects) if matches!(objects.as_ref(),ObjectSet::InZone {zone:EventZone::Battlefield,..}))
     );
     assert!(
-        matches!(numeric_amount(&card,2),Expr::Aggregate {objects,property:Property::Power,aggregation:Aggregation::Sum} if matches!(objects.as_ref(),ObjectSet::One(ObjectRef::Target {slot:Slot(0),..})))
+        matches!(numeric_amount(&card,2),Expr::Aggregate {objects,property:Property::Power,aggregation:Aggregation::Sum} if matches!(objects.as_ref(),ObjectSet::One(ObjectRef::Target {slot:TargetSlot(0),..})))
     );
 }
 
@@ -823,7 +823,7 @@ fn query_recipes_preserve_exclusions_distinct_values_and_cross_zone_aggregates()
         panic!()
     };
     assert!(
-        matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Graveyard,..},filter:ObjectFilter::All(filters),..} if matches!(filters.as_slice(),[ObjectFilter::Any,ObjectFilter::Not(except)] if matches!(except.as_ref(),ObjectFilter::SameObject(ObjectRef::Target {slot:Slot(0),..}))))
+        matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Graveyard,..},filter:ObjectFilter::All(filters),..} if matches!(filters.as_slice(),[ObjectFilter::Any,ObjectFilter::Not(except)] if matches!(except.as_ref(),ObjectFilter::SameObject(ObjectRef::Target {slot:TargetSlot(0),..}))))
     );
     assert!(
         matches!(numeric_amount(&card,1),Expr::Aggregate {objects,property:Property::Power,aggregation:Aggregation::Maximum} if matches!(objects.as_ref(),ObjectSet::Union(zones) if zones.len()==2))
@@ -1012,7 +1012,7 @@ fn predicate_properties_bind_the_candidate_without_rebinding_explicit_targets() 
         panic!()
     };
     assert!(
-        matches!(&filters[0],ObjectFilter::Not(f) if matches!(f.as_ref(),ObjectFilter::SameObject(ObjectRef::Target {slot:Slot(0),..})))
+        matches!(&filters[0],ObjectFilter::Not(f) if matches!(f.as_ref(),ObjectFilter::SameObject(ObjectRef::Target {slot:TargetSlot(0),..})))
     );
     assert!(matches!(
         &filters[1],
@@ -1189,7 +1189,7 @@ fn optional_multi_instruction_recipes_keep_one_decider_and_do_not_bind_player_as
         panic!()
     };
     let Instruction::Optional {
-        decider: PlayerRef::Target { slot: Slot(0), .. },
+        decider: PlayerRef::Target { slot: TargetSlot(0), .. },
         body,
     } = &body.instructions[0]
     else {
@@ -1200,14 +1200,14 @@ fn optional_multi_instruction_recipes_keep_one_decider_and_do_not_bind_player_as
         [
             Instruction::Effect {
                 operation: Operation::Draw {
-                    players: PlayerSet::One(PlayerRef::Target { slot: Slot(0), .. }),
+                    players: PlayerSet::One(PlayerRef::Target { slot: TargetSlot(0), .. }),
                     ..
                 },
                 ..
             },
             Instruction::Effect {
                 operation: Operation::GainLife {
-                    players: PlayerSet::One(PlayerRef::Target { slot: Slot(0), .. }),
+                    players: PlayerSet::One(PlayerRef::Target { slot: TargetSlot(0), .. }),
                     ..
                 },
                 ..
@@ -1298,7 +1298,7 @@ fn program_conditionals_cannot_leak_movement_results() {
     assert!(matches!(
         &body.instructions[1],
         Instruction::Effect {
-            operation: Operation::Tap {
+            operation: Operation::SetTapped {
                 objects: ObjectSet::One(ObjectRef::Result {
                     result: ResultId(0),
                     phase: ObjectPhase::After,
@@ -1323,7 +1323,7 @@ fn program_payment_retains_explicit_payer_and_unless_uses_the_payment_result() {
         Instruction::Effect {
             result: ResultId(0),
             operation: Operation::PayCost {
-                player: PlayerRef::Target { slot: Slot(0), .. },
+                player: PlayerRef::Target { slot: TargetSlot(0), .. },
                 optional: true,
                 ..
             }
@@ -1506,7 +1506,7 @@ fn resolving_counter_cost_uses_the_payer_and_payment_choice_has_lexical_scope() 
         result,
         operation:
             Operation::PayCost {
-                player: PlayerRef::Target { slot: Slot(0), .. },
+                player: PlayerRef::Target { slot: TargetSlot(0), .. },
                 cost,
                 ..
             },
@@ -1515,7 +1515,7 @@ fn resolving_counter_cost_uses_the_payer_and_payment_choice_has_lexical_scope() 
         panic!()
     };
     assert!(
-        matches!(cost.parts.as_slice(),[CostPart::RemoveCounters {removals}] if matches!(removals.as_slice(),[CounterRemoval {player:PlayerRef::Target {slot:Slot(0),..},selection:Some(SelectionChoice {player:PlayerRef::Target {slot:Slot(0),..},count:Count::Exactly(Expr::Constant(1))}),..}]))
+        matches!(cost.parts.as_slice(),[CostPart::RemoveCounters {removals}] if matches!(removals.as_slice(),[CounterRemoval {player:PlayerRef::Target {slot:TargetSlot(0),..},selection:Some(SelectionChoice {player:PlayerRef::Target {slot:TargetSlot(0),..},count:Count::Exactly(Expr::Constant(1))}),..}]))
     );
     assert!(
         matches!(&body.instructions[1],Instruction::If {condition:Condition::PaymentChosen(paid),..} if paid.0==result.0)
@@ -1554,10 +1554,10 @@ fn condition_templates_preserve_quantified_player_bindings_and_source_zone_check
         panic!()
     };
     assert!(
-        matches!(&conditions[0],Condition::ExistsPlayer {binding:Binding(0),condition,..} if matches!(condition.as_ref(),Condition::PlayerIsActive(PlayerRef::Bound(Binding(0)))))
+        matches!(&conditions[0],Condition::ExistsPlayer {binding:LoopBinding(0),condition,..} if matches!(condition.as_ref(),Condition::PlayerIsActive(PlayerRef::Bound(LoopBinding(0)))))
     );
     assert!(
-        matches!(&conditions[1],Condition::ExistsPlayer {binding:Binding(0),condition,..} if matches!(condition.as_ref(),Condition::Compare {left:Expr::PlayerNumber {player:PlayerRef::Bound(Binding(0)),number:PlayerNumber::Life},comparison:Comparison::Greater,right:Expr::Constant(4)}))
+        matches!(&conditions[1],Condition::ExistsPlayer {binding:LoopBinding(0),condition,..} if matches!(condition.as_ref(),Condition::Compare {left:Expr::PlayerNumber {player:PlayerRef::Bound(LoopBinding(0)),number:PlayerNumber::Life},comparison:Comparison::Greater,right:Expr::Constant(4)}))
     );
     assert!(
         matches!(&conditions[2],Condition::ObjectMatches {object:ObjectRef::Source,filter:ObjectFilter::Either(zones)} if matches!(zones.as_slice(),[ObjectFilter::InZone(ZoneScope::Shared(EventZone::Exile)),ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield))]))
@@ -1582,7 +1582,7 @@ fn condition_numeric_and_predicate_children_expand_without_announcing_new_target
     assert!(matches!(
         &conditions[0],
         Condition::ObjectMatches {
-            object: ObjectRef::Target { slot: Slot(0), .. },
+            object: ObjectRef::Target { slot: TargetSlot(0), .. },
             filter: ObjectFilter::CardType(source::CardType::Creature)
         }
     ));
@@ -1754,7 +1754,7 @@ fn resolving_object_payments_keep_their_actor_and_payment_aliases_require_a_bind
         panic!()
     };
     assert!(
-        matches!(&body.instructions[0],Instruction::Effect {operation:Operation::PayCost {player:PlayerRef::Target {slot:Slot(0),..},cost,..},..} if matches!(cost.parts.as_slice(),[CostPart::ChangeTapState {symbol:false,tapped:true,selections}] if matches!(selections.as_slice(),[CostObjectSelection {objects:ObjectSet::One(ObjectRef::Target {slot:Slot(1),..}),choose:None}])))
+        matches!(&body.instructions[0],Instruction::Effect {operation:Operation::PayCost {player:PlayerRef::Target {slot:TargetSlot(0),..},cost,..},..} if matches!(cost.parts.as_slice(),[CostPart::ChangeTapState {symbol:false,tapped:true,selections}] if matches!(selections.as_slice(),[CostObjectSelection {objects:ObjectSet::One(ObjectRef::Target {slot:TargetSlot(1),..}),choose:None}])))
     );
     let source = custom(
         "Activated(TapAPermanent(AnyPermanent),ActionList([TapPermanent(ThePermanentTappedThisWay)]))",
@@ -1790,7 +1790,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
         panic!()
     };
     assert!(
-        matches!(&body.instructions[0],Instruction::Effect {operation:Operation::CreateContinuousEffect {changes,..},..} if matches!(changes.as_slice(),[Change::GrantKeyword(Keyword::Ward(cost))] if matches!(cost.parts.as_slice(),[CostPart::ChangeTapState {tapped:false,symbol:true,selections}] if matches!(selections.as_slice(),[CostObjectSelection {objects:ObjectSet::One(ObjectRef::KeywordHost),choose:None}]))))
+        matches!(&body.instructions[0],Instruction::Effect {operation:Operation::CreateContinuousEffect {changes,..},..} if matches!(changes.as_slice(),[Change::GrantKeyword(Keyword::Ward(cost))] if matches!(cost.parts.as_slice(),[CostPart::ChangeTapState {tapped:false,symbol:true,selections}] if matches!(selections.as_slice(),[CostObjectSelection {objects:ObjectSet::One(ObjectRef::AbilityHolder),choose:None}]))))
     );
 }
 
@@ -3272,7 +3272,7 @@ fn each_source_can_aim_at_its_own_controller() {
 #[test]
 fn a_granted_ability_names_who_granted_it() {
     let text = ability_json("PermanentLayerEffect(HostPermanent,[AddAbility([Activated(PayMana([ManaCostGeneric(7)]),ActionList([SacrificePermanent(ThePermanentThatGrantedThisAbility)]))])])");
-    assert!(text.contains("Granter"), "{text}");
+    assert!(text.contains("GrantingObject"), "{text}");
 }
 
 #[test]

@@ -9,7 +9,7 @@ use mtgish_ast::{
 };
 
 fn membership(result: u32) -> ObjectFilter {
-    ObjectFilter::InSet(Box::new(ObjectSet::Named(ResultId(result))))
+    ObjectFilter::InSet(Box::new(ObjectSet::Recorded(ResultId(result))))
 }
 fn effect(operation: Operation) -> Instruction {
     Instruction::Effect {
@@ -23,7 +23,7 @@ fn program(instruction: Instruction) -> Program {
     }
 }
 fn consume(objects: ObjectSet) -> Instruction {
-    effect(Operation::Tap {
+    effect(Operation::SetTapped {
         objects,
         tapped: true,
     })
@@ -53,7 +53,7 @@ fn membership_is_distinct_from_plain_objects_and_kept_on_top() {
     let reads = read(test_filter(membership(3)));
     assert!(reads.membership && reads.objects && reads.graveyard());
     assert!(!reads.kept_on_top);
-    let reads = read(consume(ObjectSet::Named(ResultId(3))));
+    let reads = read(consume(ObjectSet::Recorded(ResultId(3))));
     assert!(reads.objects);
     assert!(!reads.graveyard() && !reads.kept_on_top);
     let reads = read(number(Expr::SurveilKeptOnTop(ResultId(3))));
@@ -196,7 +196,7 @@ fn result_views_keep_selected_observed_and_created_provenance() {
     );
     assert!(read(consume(ObjectSet::Affected(ResultId(3)))).objects);
     assert!(
-        read(consume(ObjectSet::One(ObjectRef::Named {
+        read(consume(ObjectSet::One(ObjectRef::Recorded {
             result: ResultId(3),
             by: None
         })))

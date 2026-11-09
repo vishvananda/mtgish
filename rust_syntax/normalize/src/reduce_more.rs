@@ -131,7 +131,7 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             &[],
         ),
         ("DuplicateOfThePermanentSacrificedThisWayIntoHand", [Result(result)]) => {
-            simple(C::Duplicate(ObjectSet::Named(result.clone())), Z::Hand, &[])
+            simple(C::Duplicate(ObjectSet::Recorded(result.clone())), Z::Hand, &[])
         }
         ("DuplicateOfTheTopCardOfPlayersIntoHand", [Player(player)]) => simple(
             C::Duplicate(ObjectSet::LibraryTops(PlayerSet::One(player.clone()))),
@@ -431,20 +431,20 @@ fn reduce_more_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             HandPick::CastFree,
         ),
         ("ChooseACardFromAmongCardsDiscardedThisWay", [Filter(cards), Result(result)]) => {
-            choose(matching(&ObjectSet::Named(result.clone()), cards), one())
+            choose(matching(&ObjectSet::Recorded(result.clone()), cards), one())
         }
         (
             "ChooseNumberCardsFromAmongCardsInHandRevealedThisWay",
             [Number(count), Filter(cards), Result(result)],
         ) => choose(
-            matching(&ObjectSet::Named(result.clone()), cards),
+            matching(&ObjectSet::Recorded(result.clone()), cards),
             Count::Exactly(count.clone()),
         ),
         (
             "ChooseUptoNumberCardsFromAmongCardsInPlayersHandRevealedThisWay",
             [Number(count), Filter(cards), Player(_), Result(result)],
         ) => choose(
-            matching(&ObjectSet::Named(result.clone()), cards),
+            matching(&ObjectSet::Recorded(result.clone()), cards),
             Count::UpTo(count.clone()),
         ),
         ("ChooseANamedAction", options) => Operation::ChooseAction {
@@ -1426,7 +1426,7 @@ fn reduce_more_conditions(form: &str, operands: &[Operand]) -> Option<Condition>
             "NumGroupCardsWereMilledThisWay" | "ANumberOfGroupCardsWereExiledThisWay",
             [Compare(comparison, value), Filter(cards), group, Run(result)],
         ) => subset(
-            matching(&ObjectSet::Named(result.clone()), cards),
+            matching(&ObjectSet::Recorded(result.clone()), cards),
             comparison,
             value,
             group,
@@ -1471,7 +1471,7 @@ fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
         object: ObjectRef::Source,
         sources: Box::new(sources),
     };
-    let attacked_by = |attacker: &PlayerRef, binding: Binding| PlayerSet::Matching {
+    let attacked_by = |attacker: &PlayerRef, binding: LoopBinding| PlayerSet::Matching {
         binding: binding.clone(),
         condition: Box::new(Condition::PlayerAttacks {
             attacker: attacker.clone(),
@@ -1678,7 +1678,7 @@ fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
         ("TheNumberOfPlayersAttackedByPlayerThisCombat", [Players(players), Player(player)]) => {
             Expr::CountPlayers(PlayerSet::Intersection(vec![
                 players.clone(),
-                attacked_by(player, Binding(1)),
+                attacked_by(player, LoopBinding(1)),
             ]))
         }
         (
@@ -1722,9 +1722,9 @@ fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
             aggregation: Aggregation::Sum,
         },
         ("Trigger_NumberOfPlayersBeingAttacked", []) => Expr::CountPlayers(PlayerSet::Matching {
-            binding: Binding(1),
+            binding: LoopBinding(1),
             condition: Box::new(Condition::PlayerState {
-                player: PlayerRef::Bound(Binding(1)),
+                player: PlayerRef::Bound(LoopBinding(1)),
                 state: PlayerState::BeingAttacked,
             }),
         }),
@@ -1842,8 +1842,8 @@ fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<
             Expr::CountPlayers(PlayerSet::Intersection(vec![
                 players.clone(),
                 PlayerSet::Matching {
-                    binding: Binding(1),
-                    condition: Box::new(attacks(PlayerRef::Bound(Binding(1)))),
+                    binding: LoopBinding(1),
+                    condition: Box::new(attacks(PlayerRef::Bound(LoopBinding(1)))),
                 },
             ])),
             comparison,
@@ -1851,8 +1851,8 @@ fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<
         ),
         ("IsNotAttackingAPlayer", [Players(players)]) => negated(Condition::ExistsPlayer {
             players: players.clone(),
-            binding: Binding(1),
-            condition: Box::new(attacks(PlayerRef::Bound(Binding(1)))),
+            binding: LoopBinding(1),
+            condition: Box::new(attacks(PlayerRef::Bound(LoopBinding(1)))),
         }),
         ("NumCardsInHandAtBeginningOfTurnWas", [Compare(comparison, value)]) => compared(
             Expr::AsOf {
@@ -1882,7 +1882,7 @@ fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<
         },
         ("OwnedAPermanentChosenThisWay", [Run(result)]) => at_least(
             count_of(matching(
-                &ObjectSet::Named(result.clone()),
+                &ObjectSet::Recorded(result.clone()),
                 &ObjectFilter::OwnedBy(one()),
             )),
             1,
@@ -2107,8 +2107,8 @@ fn inspection_step(
             "APlayerPutsTheRemainingCardsOnTheTopOfLibraryInAnyOrder",
             [Players(PlayerSet::One(who))],
         ) => Operation::ReorderLibrary {
-            player: who.clone(),
-            library: who.clone(),
+            chooser: who.clone(),
+            library_owner: who.clone(),
             objects: cards.clone(),
             end: SequenceEnd::Top,
             order: CardOrder::Chosen,
@@ -2344,7 +2344,7 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             // "For each player, you may cast a card that player milled this way"
             // (The Ur-Sphinx): you cast, once for each player's milled cards.
             actor,
-            matching(&ObjectSet::Named(result.clone()), spells),
+            matching(&ObjectSet::Recorded(result.clone()), spells),
             Count::PerPlayer {
                 players: players.clone(),
                 each: Box::new(may_one()),
@@ -2379,7 +2379,7 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             }
         }
         ("TapEachPermanent", [Term { form, .. }]) if form == "NotInTheChosenPile" => {
-            Operation::Tap {
+            Operation::SetTapped {
                 objects: ObjectSet::battlefield(ObjectFilter::Not(Box::new(ObjectFilter::InPile(
                     None,
                 )))),
@@ -2555,7 +2555,7 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                 Expr::Multiply(
                     Box::new(stat(object, Property::Power)),
                     Box::new(Expr::Subtract(
-                        Box::new(Expr::Power(
+                        Box::new(Expr::Exponentiate(
                             Box::new(Expr::Constant(2)),
                             Box::new(times.clone()),
                         )),

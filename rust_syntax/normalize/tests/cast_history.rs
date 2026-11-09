@@ -363,7 +363,7 @@ fn new_metadata_and_granted_definitions_preserve_validation_scopes() {
         panic!()
     };
     cost.parts = vec![CostPart::ManaCostOf(ObjectRef::Target {
-        slot: Slot(0),
+        slot: TargetSlot(0),
         index: 0,
     })];
     assert!(

@@ -13,7 +13,7 @@ fn ordinary_recipient_choices_compile_for_both_target_request_shapes() {
     body.instructions = vec![Instruction::Effect {
         result: ResultId(0),
         operation: Operation::ChooseValue {
-            actor: PlayerSet::One(PlayerRef::AbilityController),
+            choosers: PlayerSet::One(PlayerRef::AbilityController),
             kind: ValueKind::Recipient,
             terms: ChoiceTerms::ordinary(1, vec![Operand::Recipients(Recipients::Players(PlayerSet::All))]),
         },

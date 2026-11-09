@@ -29,7 +29,7 @@ fn effect(result: u32, operation: Operation) -> Instruction {
     }
 }
 fn tap(objects: ObjectSet) -> Operation {
-    Operation::Tap {
+    Operation::SetTapped {
         objects,
         tapped: true,
     }
@@ -73,7 +73,7 @@ fn nested_choices_are_prepared_in_dependency_order_with_distinct_result_provenan
     ));
     assert!(matches!(
         **action,
-        Operation::Tap {
+        Operation::SetTapped {
             objects: ObjectSet::Prepared(SelectionId(1)),
             ..
         }
@@ -365,7 +365,7 @@ fn granted_ability_local_choices_stay_inside_their_independent_program() {
 #[cfg(feature = "cantrip")]
 #[test]
 fn per_player_choices_are_gathered_before_one_simultaneous_move() {
-    let binding = Binding(0);
+    let binding = LoopBinding(0);
     let player = PlayerSet::One(PlayerRef::Bound(binding.clone()));
     let selected = ObjectSet::DraftChosen {
         chooser: player.clone(),
@@ -430,7 +430,7 @@ fn simultaneous_members_prepare_all_choices_before_mutation_without_aliasing_bin
     assert!(matches!(
         members.as_slice(),
         [
-            Operation::Tap {
+            Operation::SetTapped {
                 objects: ObjectSet::Prepared(SelectionId(0)),
                 ..
             },
@@ -503,7 +503,7 @@ fn a_movement_result_keeps_pre_action_choice_and_new_identity_in_separate_views(
             2,
             Operation::Draw {
                 players: you(),
-                amount: Expr::CountObjects(Box::new(ObjectSet::Named(ResultId(0)))),
+                amount: Expr::CountObjects(Box::new(ObjectSet::Recorded(ResultId(0)))),
             },
         ),
     ])));
@@ -536,11 +536,11 @@ fn test_shape_comparison_changes_only_scratch_counters_and_keeps_payload_slots()
 #[test]
 fn player_gathering_uses_prepared_pool_ownership_and_retains_choice_views() {
     let make = |pool: ObjectSet| {
-        let player = PlayerRef::Bound(Binding(0));
+        let player = PlayerRef::Bound(LoopBinding(0));
         let p = program(vec![
             Instruction::ForEachPlayer {
                 players: PlayerSet::All,
-                binding: Binding(0),
+                binding: LoopBinding(0),
                 starting_with: None,
                 in_chosen_direction: false,
                 body: program(vec![effect(
@@ -573,7 +573,7 @@ fn player_gathering_uses_prepared_pool_ownership_and_retains_choice_views() {
     };
     let own = make(ObjectSet::Zone {
         scope: ZoneScope::Players {
-            players: PlayerSet::One(PlayerRef::Bound(Binding(0))),
+            players: PlayerSet::One(PlayerRef::Bound(LoopBinding(0))),
             zone: EventZone::Hand,
         },
         kind: ObjectKind::Card,
@@ -600,7 +600,7 @@ fn player_gathering_uses_prepared_pool_ownership_and_retains_choice_views() {
 #[cfg(feature = "cantrip")]
 #[test]
 fn player_local_entry_values_remain_a_batching_gap_instead_of_leaking_the_binding() {
-    let who = PlayerSet::One(PlayerRef::Bound(Binding(0)));
+    let who = PlayerSet::One(PlayerRef::Bound(LoopBinding(0)));
     let entry = EntrySpec {
         controller: None,
         tapped: false,
@@ -618,7 +618,7 @@ fn player_local_entry_values_remain_a_batching_gap_instead_of_leaking_the_bindin
     };
     let p = program(vec![Instruction::ForEachPlayer {
         players: PlayerSet::All,
-        binding: Binding(0),
+        binding: LoopBinding(0),
         starting_with: None,
         in_chosen_direction: false,
         body: program(vec![effect(
@@ -747,7 +747,7 @@ fn deferred_programs_capture_prepared_values_and_implicit_choice_views() {
 #[cfg(feature = "cantrip")]
 #[test]
 fn player_walked_choices_export_an_aggregate_pre_action_view() {
-    let who = PlayerRef::Bound(Binding(0));
+    let who = PlayerRef::Bound(LoopBinding(0));
     let chosen = ObjectSet::DraftChosen {
         chooser: PlayerSet::One(who.clone()),
         objects: Box::new(ObjectSet::Zone {
@@ -763,7 +763,7 @@ fn player_walked_choices_export_an_aggregate_pre_action_view() {
     let p = program(vec![
         Instruction::ForEachPlayer {
             players: PlayerSet::All,
-            binding: Binding(0),
+            binding: LoopBinding(0),
             starting_with: None,
             in_chosen_direction: false,
             body: program(vec![effect(
@@ -847,7 +847,7 @@ fn independent_abilities_reset_implicit_views_before_explicit_choices_reuse_resu
 #[cfg(feature = "cantrip")]
 #[test]
 fn an_individual_players_implicit_choices_use_pre_action_rows() {
-    let who = PlayerRef::Bound(Binding(0));
+    let who = PlayerRef::Bound(LoopBinding(0));
     let pool = ObjectSet::Zone {
         scope: ZoneScope::Players {
             players: PlayerSet::One(who.clone()),
@@ -859,7 +859,7 @@ fn an_individual_players_implicit_choices_use_pre_action_rows() {
     let p = program(vec![
         Instruction::ForEachPlayer {
             players: PlayerSet::All,
-            binding: Binding(0),
+            binding: LoopBinding(0),
             starting_with: None,
             in_chosen_direction: false,
             body: program(vec![effect(
@@ -879,16 +879,16 @@ fn an_individual_players_implicit_choices_use_pre_action_rows() {
         },
         Instruction::ForEachPlayer {
             players: PlayerSet::All,
-            binding: Binding(1),
+            binding: LoopBinding(1),
             starting_with: None,
             in_chosen_direction: false,
             body: program(vec![effect(
                 1,
                 Operation::Draw {
-                    players: PlayerSet::One(PlayerRef::Bound(Binding(1))),
+                    players: PlayerSet::One(PlayerRef::Bound(LoopBinding(1))),
                     amount: Expr::CountObjects(Box::new(ObjectSet::Earlier {
                         what: EarlierObjects::Selected,
-                        by: Some(PlayerSet::One(PlayerRef::Bound(Binding(1)))),
+                        by: Some(PlayerSet::One(PlayerRef::Bound(LoopBinding(1)))),
                     })),
                 },
             )]),

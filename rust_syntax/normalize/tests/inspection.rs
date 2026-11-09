@@ -306,10 +306,10 @@ fn viewer_library_owner_and_ordering_player_remain_distinct_and_other_zones_shar
     let ops = operations(&c);
     assert!(matches!(ops.as_slice(),[
         Operation::LookAt {player:PlayerRef::AbilityController,objects:ObjectSet::Take {objects:theirs,..}},
-        Operation::ReorderLibrary {player:PlayerRef::AbilityController,library:PlayerRef::Target {slot:Slot(0),..},..},
-        Operation::LookAt {player:PlayerRef::Target {slot:Slot(0),..},objects:ObjectSet::Take {objects:ours,..}},
-        Operation::ReorderLibrary {player:PlayerRef::Target {slot:Slot(0),..},library:PlayerRef::AbilityController,..}
-    ] if matches!(theirs.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {players:PlayerSet::One(PlayerRef::Target {slot:Slot(0),..}),zone:EventZone::Library},..}) && matches!(ours.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {players:PlayerSet::One(PlayerRef::AbilityController),zone:EventZone::Library},..})));
+        Operation::ReorderLibrary {chooser:PlayerRef::AbilityController,library_owner:PlayerRef::Target {slot:TargetSlot(0),..},..},
+        Operation::LookAt {player:PlayerRef::Target {slot:TargetSlot(0),..},objects:ObjectSet::Take {objects:ours,..}},
+        Operation::ReorderLibrary {chooser:PlayerRef::Target {slot:TargetSlot(0),..},library_owner:PlayerRef::AbilityController,..}
+    ] if matches!(theirs.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {players:PlayerSet::One(PlayerRef::Target {slot:TargetSlot(0),..}),zone:EventZone::Library},..}) && matches!(ours.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {players:PlayerSet::One(PlayerRef::AbilityController),zone:EventZone::Library},..})));
     let c=custom("SpellActions(Targeted([TargetPlayer(AnyPlayer)],ActionList([LookAtPlayersHand(Ref_TargetPlayer)])))").unwrap();
     validate::card(&c).unwrap();
     assert!(matches!(
@@ -319,7 +319,7 @@ fn viewer_library_owner_and_ordering_player_remain_distinct_and_other_zones_shar
             objects: ObjectSet::Zone {
                 scope: ZoneScope::Players {
                     zone: EventZone::Hand,
-                    players: PlayerSet::One(PlayerRef::Target { slot: Slot(0), .. })
+                    players: PlayerSet::One(PlayerRef::Target { slot: TargetSlot(0), .. })
                 },
                 ..
             }

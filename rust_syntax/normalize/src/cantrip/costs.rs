@@ -335,7 +335,7 @@ impl Compiler {
                 // has `sacrifice_granter` for "Sacrifice [granter]" and nothing
                 // that taps the granter.
                 if let [CostObjectSelection {
-                    objects: ObjectSet::One(ObjectRef::Granter),
+                    objects: ObjectSet::One(ObjectRef::GrantingObject),
                     choose: None,
                 }] = selections.as_slice()
                 {
@@ -1169,7 +1169,7 @@ impl Compiler {
                             format!("cantrip_mechanics::triggers::ward_discard_or_pay::<{n}>(\"Ward\u{2014}Discard a card or pay {{{n}}}.\")")
                         }
                         [CostPart::Life(Expr::ObjectProperty {
-                            object: ObjectRef::KeywordHost,
+                            object: ObjectRef::AbilityHolder,
                             property: Property::Power,
                             ..
                         })] => "cantrip_mechanics::triggers::ward_life_equal_to_power(\"Ward\u{2014}Pay life equal to this creature's power.\")".into(),

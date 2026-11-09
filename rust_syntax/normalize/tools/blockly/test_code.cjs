@@ -96,7 +96,12 @@ let browser,page;
   'Card{name:"Counter entry",properties:{card_types:[Instant]},abilities:[Spell{do:[CounterWith{object:This,destination:OwnersHand,entry:[Objects(Targets(t99))]}]}]}',
   'Card{name:"Entry rules",properties:{card_types:[Instant]},abilities:[Spell{do:[MoveObjects{objects:One(This),destination:Exile,entry:{states:[ChangesUntil{changes:[],duration:WhileItMatches(InSet(Targets(t99)))}]}}]}]}',
   ...['Between{minimum:-1,maximum:1}','Between{minimum:3,maximum:1}'].map(count=>'Card{name:"Bounds",properties:{card_types:[Instant]},abilities:[Spell{targets:[Target{name:t0,select:Creature,count:'+count+'}],do:[Reveal{objects:Targets(t0)}]}]}'),
-  ...['Primitive{name:"Condition::AllCoinsCameUpHeads",operands:[]}','Primitive{name:"Condition::NumCoinFlipsWonIs",operands:[Term{family:"Condition",form:"AllCoinsCameUpHeads",operands:[]}]}'].map(condition=>'Card{name:"Coin participants",properties:{card_types:[Instant]},abilities:[Spell{do:[If{condition:'+condition+',then:[],otherwise:[]}]}]}')
+  ...['Primitive{name:"Condition::AllCoinsCameUpHeads",operands:[]}','Primitive{name:"Condition::NumCoinFlipsWonIs",operands:[Term{family:"Condition",form:"AllCoinsCameUpHeads",operands:[]}]}'].map(condition=>'Card{name:"Coin participants",properties:{card_types:[Instant]},abilities:[Spell{do:[If{condition:'+condition+',then:[],otherwise:[]}]}]}'),
+  ...[
+   'drawn=DrawCards{players:You,amount:1},If{condition:CoinFlip{result:drawn,outcome:Heads},then:[],otherwise:[]}',
+   'drawn=DrawCards{players:You,amount:1},DrawCards{players:You,amount:HeadsFlipped(drawn)}',
+   'batch=FlipCoins{actor:You,count:1},If{condition:CoinFlip{result:batch,outcome:Heads},then:[],otherwise:[]}'
+  ].map(body=>'Card{name:"Coin receipts",properties:{card_types:[Instant]},abilities:[Spell{do:['+body+']}]}')
  ];
  for(const code of malformed)assert.equal((await page.evaluate(code=>window.cardBlocks.parseCode(code),code)).valid,false);
  assert.match((await page.evaluate(code=>window.cardBlocks.parseCode(code),malformed[1])).error,/unbound target slot 99/);

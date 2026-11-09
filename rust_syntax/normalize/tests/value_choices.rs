@@ -250,7 +250,7 @@ fn dynamic_choice_cardinality_uses_the_current_abilitys_result_scope() {
     let choose = Instruction::Effect {
         result: ResultId(4),
         operation: Operation::ChooseValue {
-            actor: PlayerSet::One(PlayerRef::AbilityController),
+            choosers: PlayerSet::One(PlayerRef::AbilityController),
             kind: ValueKind::Ability,
             terms: ChoiceTerms {
                 count: ChoiceCount::Exactly(Expr::BoundValue(ResultId(3))),

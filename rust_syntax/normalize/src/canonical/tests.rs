@@ -152,12 +152,11 @@ fn all_selected_unsealed_gold_fixtures_validate_before_and_after_normalization()
 #[test]
 fn flattened_typecycling_still_requires_its_exact_search_reveal_move_shuffle_contract() {
     let fixtures: Vec<Value> = serde_json::from_str(include_str!("fixtures.json")).unwrap();
-    let mut value = fixtures
+    let value = fixtures
         .into_iter()
         .find(|v| v["name"] == "Alabaster Host Intercessor")
         .unwrap();
-    value["schema_version"] = json!(SCHEMA_VERSION);
-    let card: Card = serde_json::from_value(value).unwrap();
+    let card = preserved_fixture(value);
     let canonical = canonical::card(&card).unwrap();
     for mutation in 0..3 {
         let mut invalid = canonical.clone();

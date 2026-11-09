@@ -348,7 +348,7 @@ fn a_reference_cannot_pass_as_a_vocabulary_word() {
     let bound = lowered(
         "SpellActions(Targeted([TargetAbility(AnyAbility)], ActionList([CounterAbility(Ref_TargetAbility)])))",
     );
-    assert!(bound.contains("One(Target { slot: Slot(0)"), "{bound}");
+    assert!(bound.contains("One(Target { slot: TargetSlot(0)"), "{bound}");
     assert!(!bound.contains("\"Ref_TargetAbility\""), "{bound}");
 }
 
@@ -358,19 +358,19 @@ fn references_read_the_slot_of_their_arity() {
         "SpellActions(Targeted([UptoNumberTargetPermanents(Integer(2), AnyPermanent), TargetPermanent(AnyPermanent)], ActionList([DestroyPermanent(Ref_TargetPermanent), DestroyEachPermanent(Ref_TargetPermanents)])))",
     );
     assert!(
-        body.contains("objects: One(Target { slot: Slot(1)"),
+        body.contains("objects: One(Target { slot: TargetSlot(1)"),
         "{body}"
     );
-    assert!(body.contains("objects: Targets(Slot(0))"), "{body}");
+    assert!(body.contains("objects: Targets(TargetSlot(0))"), "{body}");
     let numbered = lowered(
         "SpellActions(Targeted([AnyNumberOfTargetPermanents(AnyPermanent), UptoOneTargetPermanent(AnyPermanent), TargetPermanent(AnyPermanent)], ActionList([DestroyPermanent(Ref_TargetPermanent1), DestroyPermanent(Ref_TargetPermanent2)])))",
     );
     assert!(
-        numbered.contains("objects: One(Target { slot: Slot(1)"),
+        numbered.contains("objects: One(Target { slot: TargetSlot(1)"),
         "{numbered}"
     );
     assert!(
-        numbered.contains("objects: One(Target { slot: Slot(2)"),
+        numbered.contains("objects: One(Target { slot: TargetSlot(2)"),
         "{numbered}"
     );
 }
@@ -1693,8 +1693,8 @@ fn split_target_forms_keep_each_slot_and_their_shared_limit() {
     let angel = lowered(
         "SpellActions(Targeted([UptoNumberTargetPermanentsAndOrCardsInGraveyards(Integer(3), IsCardtype(Creature), IsCardtype(Creature))], ActionList([Exile([EachPermanent(Ref_TargetPermanents), EachCardInGraveyards(Ref_TargetGraveyardCards)], [])])))",
     );
-    assert!(angel.contains("SharesLimitWith(Slot(0))"), "{angel}");
-    assert!(angel.contains("slot: Slot(1)"), "{angel}");
+    assert!(angel.contains("SharesLimitWith(TargetSlot(0))"), "{angel}");
+    assert!(angel.contains("slot: TargetSlot(1)"), "{angel}");
     let yosei = lowered(
         "SpellActions(Targeted([UptoNumberTargetPermanentsTargetPlayerControls(Integer(5), AnyPermanent, AnyPlayer)], ActionList([PlayerAction(Ref_TargetPlayer, SkipNextUntapStep), TapEachPermanent(Ref_TargetPermanents)])))",
     );
@@ -2007,7 +2007,7 @@ fn a_total_goes_to_the_slot_that_can_split_it() {
         "SpellActions(TargetedDistributed([TargetPermanent(IsCardtype(Artifact)), UptoNumberTargetPermanents(Integer(3), IsCardtype(Creature))], DistributeNumberAmongTargets(Integer(3)), ActionList([DestroyPermanent(Ref_TargetPermanent), PutCounters([DistributedCounters(PTCounter(+1, +1))])])))",
     );
     assert!(rhino.contains("distribute: Some(Constant(3))"), "{rhino}");
-    assert!(rhino.contains("DistributedShare(Slot(1))"), "{rhino}");
+    assert!(rhino.contains("DistributedShare(TargetSlot(1))"), "{rhino}");
 }
 
 /// `rule` on a card named `name`, which is what a row's `cards` list reads.

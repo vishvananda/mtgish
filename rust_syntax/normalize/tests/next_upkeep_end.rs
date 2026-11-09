@@ -97,7 +97,7 @@ fn all_next_upkeep_callers_roundtrip_and_keep_beginning_and_end_distinct() {
 fn exact_upkeep_end_validates_its_player_and_is_not_an_alias_for_upkeep_beginning() {
     corpus::on_large_stack(|| {
         let mut c = halfdane();
-        *duration(&mut c) = Duration::UntilEndOfNextUpkeep(PlayerRef::Bound(Binding(999)));
+        *duration(&mut c) = Duration::UntilEndOfNextUpkeep(PlayerRef::Bound(LoopBinding(999)));
         assert!(validate::card(&c).is_err());
         let mut end: Value = serde_json::to_value(halfdane().abilities).unwrap();
         let mut begin = end.clone();

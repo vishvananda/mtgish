@@ -384,7 +384,7 @@ impl Report {
             let named = crate::unified::named_forms(&lowered.card);
             // Whole cards bind through the staged recipes, so a recipe that diverges
             // from native lowering still surfaces here.
-            let diagnostics = if lowered.card.layout == "Card" {
+            let diagnostics = if lowered.card.layout == crate::ir::Layout::Card {
                 match bind_prepared(&card, &structural) {
                     Ok(_) => vec![],
                     Err(errors) => errors,

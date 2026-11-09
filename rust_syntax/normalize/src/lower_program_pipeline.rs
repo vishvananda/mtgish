@@ -29,7 +29,7 @@ impl Context {
         players: PlayerSet,
         lower: impl FnOnce(&mut Self, &PlayerSet) -> Result<Instruction>,
     ) -> Result<Instruction> {
-        let binding = Binding(self.binding_depth);
+        let binding = LoopBinding(self.binding_depth);
         let mut child = self.clone();
         child.entered_from_one = None;
         child.binding_depth = self
@@ -92,7 +92,7 @@ impl Context {
         objects: ObjectSet,
         lower: impl FnOnce(&mut Self) -> Result<Program>,
     ) -> Result<Instruction> {
-        let binding = Binding(self.binding_depth);
+        let binding = LoopBinding(self.binding_depth);
         let mut child = self.clone();
         child.entered_from_one = None;
         child.binding_depth = self

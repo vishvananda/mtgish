@@ -117,7 +117,7 @@ pub fn editor_metadata() -> Value {
         }
     }
     let targets:Vec<_>=[("any target",TargetSelector::any_target()),("target creature",TargetSelector::creature()),("target planeswalker",TargetSelector::planeswalker()),("target player",TargetSelector::player())].into_iter().map(|(label,select)|{
-        let spec=select.clone().into_spec(Slot(0));
+        let spec=select.clone().into_spec(TargetSlot(0));
         json!({"label":label,"selector":select,"fields":{"kind":spec.kind,"filter":spec.filter,"players":spec.players}})
     }).collect();
     json!({"defaults":values,"targets":targets,"actions":actions,"instructions":instructions,"keyword_actions":keyword_actions,"object_keyword_actions":object_keyword_actions,"references":names::references()})

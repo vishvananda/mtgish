@@ -30,7 +30,7 @@ pub enum EffectSubject {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum Information {
     CurrentOrLastKnown,
-    Captured(Binding),
+    Captured(LoopBinding),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -81,7 +81,7 @@ pub enum ObjectRef {
     },
     /// The object carrying a parameterized keyword. Inside a granted ward
     /// definition this remains the recipient, rather than the granting source.
-    KeywordHost,
+    AbilityHolder,
     /// The card after a matched discard, wherever replacements sent it.
     Discarded,
     /// A singular role in the matched damage occurrence, when its grouping
@@ -104,7 +104,7 @@ pub enum ObjectRef {
     /// The object whose characteristic change is currently being evaluated.
     Affected,
     Target {
-        slot: Slot,
+        slot: TargetSlot,
         index: u16,
     },
     /// The matched event's distinguished object: e.g. the entering/leaving,
@@ -119,7 +119,7 @@ pub enum ObjectRef {
     EventDestination,
     /// The object chosen by this ability, or by a linked ability of this source.
     Chosen,
-    Bound(Binding),
+    Bound(LoopBinding),
     Result {
         result: ResultId,
         phase: ObjectPhase,
@@ -130,7 +130,7 @@ pub enum ObjectRef {
     /// The permanent chosen for a damage-recipient slot. A player chosen
     /// there leaves this undefined, so tests of it are false.
     RecipientObject {
-        slot: Slot,
+        slot: TargetSlot,
         index: u16,
     },
     /// The second object of a two-object event: the host of an attachment,
@@ -144,13 +144,13 @@ pub enum ObjectRef {
         chooser: PlayerRef,
     },
     /// The permanent whose effect gave the source this ability, or made it.
-    Granter,
+    GrantingObject,
     /// The creature `object` is paired with (CR 702.95b), if any.
     PairedWith(Box<ObjectRef>),
     /// The one object this spell targets.
     SoleTargetOf(Box<ObjectRef>),
     /// What a preceding instruction named, whatever kind of result it holds.
-    Named {
+    Recorded {
         result: ResultId,
         by: Option<PlayerRef>,
     },
@@ -237,7 +237,7 @@ pub enum ObjectSet {
         phase: ObjectPhase,
     },
     One(ObjectRef),
-    Targets(Slot),
+    Targets(TargetSlot),
     /// Intersect a reference/result set with current zone membership. A saved
     /// object reference alone does not imply the object is still on the field.
     InZone {
@@ -295,7 +295,7 @@ pub enum ObjectSet {
         operands: Vec<Operand>,
     },
     /// What a preceding instruction named, whatever kind of result it holds.
-    Named(ResultId),
+    Recorded(ResultId),
     /// Every matching card or object, whatever zone it is in.
     AnyZone(ObjectFilter),
     /// Cards a player owns outside the game (CR 400.11).
@@ -628,7 +628,7 @@ impl ObjectFilter {
     pub fn named_result(&self) -> Option<&ResultId> {
         match self {
             Self::InSet(objects) => match objects.as_ref() {
-                ObjectSet::Named(result) => Some(result),
+                ObjectSet::Recorded(result) => Some(result),
                 _ => None,
             },
             _ => None,

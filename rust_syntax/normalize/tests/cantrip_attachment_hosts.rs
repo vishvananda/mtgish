@@ -81,7 +81,7 @@ fn multiple_targets_are_not_rechecked_mid_resolution() {
     let mut card = cards().remove(1);
     let Ability::Activated { announcement, .. } = &mut card.abilities[0] else { panic!() };
     let mut second = announcement.targets[0].clone();
-    second.slot = Slot(1);
+    second.slot = TargetSlot(1);
     announcement.targets.push(second);
     cantrip::planned::with_features(&["non-target-attachment-hosts"], || {
         assert_eq!(cantrip::module(&card).unwrap_err().feature, "attachment host choice with multiple or optional targets");

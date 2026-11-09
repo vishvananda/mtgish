@@ -72,7 +72,7 @@ fn normalization_preserves_divine_offering_information_without_success_gate() {
         &body.instructions[0],
         Instruction::Effect {
             operation: Operation::Destroy {
-                objects: ObjectSet::One(ObjectRef::Target { slot: Slot(0), .. }),
+                objects: ObjectSet::One(ObjectRef::Target { slot: TargetSlot(0), .. }),
                 ..
             },
             ..
@@ -85,7 +85,7 @@ fn normalization_preserves_divine_offering_information_without_success_gate() {
         Instruction::Effect {
             operation: Operation::GainLife {
                 amount: Expr::ObjectProperty {
-                    object: ObjectRef::Target { slot: Slot(0), .. },
+                    object: ObjectRef::Target { slot: TargetSlot(0), .. },
                     property: Property::ManaValue,
                     information: Information::CurrentOrLastKnown
                 },

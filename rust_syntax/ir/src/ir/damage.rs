@@ -24,22 +24,20 @@ pub enum DamageRider {
 pub enum Recipients {
     Objects(ObjectSet),
     Players(PlayerSet),
-    Targets(Slot),
+    Targets(TargetSlot),
     Union(Vec<Recipients>),
     /// The player, planeswalker or battle this creature is attacking (506.2).
     AttackedBy(ObjectRef),
     /// One of the things a plural slot targeted.
     Target {
-        slot: Slot,
+        slot: TargetSlot,
         index: u16,
     },
     /// What `ValueKind::Recipient` chose.
     Chosen,
     /// Whatever the matched damage was dealt to, player or object.
     DamagedByEvent,
-    /// `from` of `DuplicateCounters`: the counters the event put, not all those on
-    /// what it put them on.
-    CountersTheEventPut,
+
 }
 
 /// Match actual positive damage, after prevention/replacement, using event
@@ -63,7 +61,7 @@ pub enum DamageRecipients {
     Any,
     /// The one player or object a damage-recipient target refers to.
     Target {
-        slot: Slot,
+        slot: TargetSlot,
         index: u16,
     },
     Objects(ObjectFilter),
@@ -73,7 +71,7 @@ pub enum DamageRecipients {
         players: PlayerSet,
     },
     /// Every target in this slot.
-    Targets(Slot),
+    Targets(TargetSlot),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -105,4 +103,12 @@ pub enum DamageGrouping {
 pub enum DamageSubject {
     Source,
     Recipient,
+}
+
+/// Counters copied by an effect. An event receipt denotes exactly the counters
+/// that event placed, rather than every counter currently on its recipient.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CounterSource {
+    On(Recipients),
+    EventPut,
 }

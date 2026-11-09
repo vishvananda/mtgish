@@ -117,7 +117,7 @@ fn mixed_targets_keep_their_domains_and_source_ordinals() {
     body.instructions[0] = effect(
         Operation::Destroy {
             objects: ObjectSet::One(ObjectRef::Target {
-                slot: Slot(1),
+                slot: TargetSlot(1),
                 index: 0,
             }),
             regeneration: true,
@@ -130,7 +130,7 @@ fn mixed_targets_keep_their_domains_and_source_ordinals() {
     body_for(&mut invalid).instructions[0] = effect(
         Operation::Counter {
             objects: ObjectSet::One(ObjectRef::Target {
-                slot: Slot(0),
+                slot: TargetSlot(0),
                 index: 0,
             }),
             destination: Destination::OwnersGraveyard,
@@ -188,11 +188,11 @@ fn countering_is_distinct_from_moving_and_followups_are_unconditional() {
     }
     let c = card("Spell Swindle");
     assert!(
-        matches!(&spell(&c).1.instructions[1], Instruction::Effect { operation: Operation::CreateTokens { tokens, .. }, .. } if matches!(&tokens[0].amount, Expr::ObjectProperty { information: Information::CurrentOrLastKnown, object: ObjectRef::Target { slot: Slot(0), .. }, property: Property::ManaValue }))
+        matches!(&spell(&c).1.instructions[1], Instruction::Effect { operation: Operation::CreateTokens { tokens, .. }, .. } if matches!(&tokens[0].amount, Expr::ObjectProperty { information: Information::CurrentOrLastKnown, object: ObjectRef::Target { slot: TargetSlot(0), .. }, property: Property::ManaValue }))
     );
     let c = card("Swords to Plowshares");
     assert!(
-        matches!(&spell(&c).1.instructions[1], Instruction::Effect { operation: Operation::GainLife { players: PlayerSet::One(PlayerRef::ControllerOf(object)), amount: Expr::ObjectProperty { information: Information::CurrentOrLastKnown, .. } }, .. } if matches!(object.as_ref(), ObjectRef::Target { slot: Slot(0), .. }))
+        matches!(&spell(&c).1.instructions[1], Instruction::Effect { operation: Operation::GainLife { players: PlayerSet::One(PlayerRef::ControllerOf(object)), amount: Expr::ObjectProperty { information: Information::CurrentOrLastKnown, .. } }, .. } if matches!(object.as_ref(), ObjectRef::Target { slot: TargetSlot(0), .. }))
     );
 }
 
@@ -239,7 +239,7 @@ fn graveyard_returns_keep_entry_properties_and_new_object_bindings() {
                 }
             },
             Instruction::Effect {
-                operation: Operation::Tap {
+                operation: Operation::SetTapped {
                     objects: ObjectSet::One(ObjectRef::Result {
                         result: ResultId(0),
                         phase: ObjectPhase::After,

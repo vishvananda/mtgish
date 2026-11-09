@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 mod arrival;
 mod bounds;
+mod layout;
 mod copying;
 
 /// The slot in `casting_costs` that holds the enclosing cost branch's cost.
@@ -20,6 +21,8 @@ enum ResultKind {
     ObjectTransition,
     CreatedObjects,
     Mana,
+    Coin,
+    CoinBatch,
     Other,
 }
 
@@ -570,7 +573,7 @@ impl<'a> Scope<'a> {
         }
     }
 
-    fn target(&self, slot: &Slot, index: Option<u16>, kind: TargetKind) -> Result {
+    fn target(&self, slot: &TargetSlot, index: Option<u16>, kind: TargetKind) -> Result {
         let spec = self
             .slots
             .get(&slot.0)
@@ -608,7 +611,7 @@ impl<'a> Scope<'a> {
                 self.object(host)
             }
             ObjectRef::NthChosen { by, .. } => by.iter().try_for_each(|player| self.player(player)),
-            ObjectRef::Named { result, by } => {
+            ObjectRef::Recorded { result, by } => {
                 if !self.results.contains_key(&result.0) {
                     return Err(format!("result {} has not run", result.0));
                 }
@@ -635,7 +638,7 @@ impl<'a> Scope<'a> {
             ObjectRef::Candidate if self.candidate => Ok(()),
             ObjectRef::Candidate => Err("filter candidate used outside an object predicate".into()),
             ObjectRef::Source => Ok(()),
-            ObjectRef::MadeHere | ObjectRef::Granter => Ok(()),
+            ObjectRef::MadeHere | ObjectRef::GrantingObject => Ok(()),
             ObjectRef::ChosenBy { result, chooser } => {
                 self.player(chooser)?;
                 match self.results.get(&result.0) {
@@ -646,8 +649,8 @@ impl<'a> Scope<'a> {
                     )),
                 }
             }
-            ObjectRef::KeywordHost if self.keyword_host => Ok(()),
-            ObjectRef::KeywordHost => {
+            ObjectRef::AbilityHolder if self.keyword_host => Ok(()),
+            ObjectRef::AbilityHolder => {
                 Err("keyword host used outside its keyword definition".into())
             }
             ObjectRef::SoleTargetOf(spell) => self.object(spell),
@@ -962,8 +965,8 @@ impl<'a> Scope<'a> {
             ObjectSet::Earlier { by, .. } => {
                 by.iter().try_for_each(|players| self.players(players))
             }
-            ObjectSet::Named(result) if self.results.contains_key(&result.0) => Ok(()),
-            ObjectSet::Named(result) => Err(format!("result {} is unavailable", result.0)),
+            ObjectSet::Recorded(result) if self.results.contains_key(&result.0) => Ok(()),
+            ObjectSet::Recorded(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::DamageSources(filter)
             | ObjectSet::AnyZone(filter)
             | ObjectSet::OutsideTheGame(filter) => self.filter(filter),
@@ -1096,7 +1099,6 @@ impl<'a> Scope<'a> {
         match recipients {
             Recipients::DamagedByEvent if self.event.damage_any_recipient => Ok(()),
             Recipients::DamagedByEvent => Err("this event names no one damaged thing".into()),
-            Recipients::CountersTheEventPut => self.object(&ObjectRef::EventSubject),
             Recipients::Objects(objects) => self.objects(objects),
             Recipients::Players(players) => self.players(players),
             Recipients::Targets(slot) | Recipients::Target { slot, .. } => {
@@ -1165,7 +1167,7 @@ impl<'a> Scope<'a> {
                 self.filter(sources)
             }
             Expr::AsOf { value, .. } => self.expr(value),
-            Expr::Power(base, exponent) => {
+            Expr::Exponentiate(base, exponent) => {
                 self.expr(base)?;
                 self.expr(exponent)
             }
@@ -1242,13 +1244,9 @@ impl<'a> Scope<'a> {
             Expr::EventActivationX => Err("event activation X used outside a cycling event".into()),
             Expr::Constant(_) | Expr::AnnouncedX => Ok(()),
             Expr::HeadsFlipped(result) => {
-                if self.results.contains_key(&result.0) {
-                    Ok(())
-                } else {
-                    Err(format!(
-                        "result {} flipped no coins in this scope",
-                        result.0
-                    ))
+                match self.results.get(&result.0) {
+                    Some(ResultKind::Coin | ResultKind::CoinBatch) => Ok(()),
+                    _ => Err(format!("result {} flipped no coins in this scope", result.0)),
                 }
             }
             Expr::DieResult(result) => {
@@ -1715,8 +1713,10 @@ impl<'a> Scope<'a> {
                 self.expr(left)?;
                 self.expr(right)
             }
-            Condition::CoinFlip { result, .. } if self.results.contains_key(&result.0) => Ok(()),
-            Condition::CoinFlip { .. } => Err("no coin was flipped before this branch".into()),
+            Condition::CoinFlip { result, .. } => match self.results.get(&result.0) {
+                Some(ResultKind::Coin) => Ok(()),
+                _ => Err(format!("result {} is not a single coin flip in this scope", result.0)),
+            },
             Condition::All(items) | Condition::Either(items) => {
                 for item in items {
                     self.condition(item)?;
@@ -2465,7 +2465,7 @@ impl<'a> Scope<'a> {
                         && !matches!(
                             selections.as_slice(),
                             [CostObjectSelection {
-                                objects: ObjectSet::One(ObjectRef::Source | ObjectRef::KeywordHost),
+                                objects: ObjectSet::One(ObjectRef::Source | ObjectRef::AbilityHolder),
                                 choose: None
                             }]
                         )
@@ -3082,7 +3082,7 @@ impl<'a> Scope<'a> {
                 self.operand(second)?;
                 until.iter().try_for_each(|until| self.duration(until))
             }
-            Operation::ChooseValue { actor, terms, .. } => {
+            Operation::ChooseValue { choosers: actor, terms, .. } => {
                 self.players(actor)?;
                 terms.options.iter().try_for_each(|o| self.operand(o))?;
                 terms.except.iter().try_for_each(|o| self.operand(o))?;
@@ -3204,7 +3204,11 @@ impl<'a> Scope<'a> {
                 self.cost(cost)
             }
             Operation::DuplicateCounters { from, to, .. } => {
-                self.recipients(from)?;
+                match from {
+                    CounterSource::On(recipients) => self.recipients(recipients)?,
+                    CounterSource::EventPut if self.event.counters_placed => (),
+                    CounterSource::EventPut => return Err("counter source requires a counter-placement event".into()),
+                }
                 self.recipients(to)
             }
             Operation::EffectOn {
@@ -3494,8 +3498,8 @@ impl<'a> Scope<'a> {
                 self.require_zone(objects, EventZone::Battlefield)
             }
             Operation::Search {
-                player,
-                library,
+                searcher: player,
+                library_owner: library,
                 top,
                 choices,
                 ..
@@ -3554,8 +3558,8 @@ impl<'a> Scope<'a> {
                 Ok(())
             }
             Operation::ReorderLibrary {
-                player,
-                library,
+                chooser: player,
+                library_owner: library,
                 objects,
                 ..
             } => {
@@ -3952,7 +3956,7 @@ impl<'a> Scope<'a> {
                 per_object.recipients(recipients)?;
                 per_object.expr(amount)
             }
-            Operation::Destroy { objects, .. } | Operation::Tap { objects, .. } => {
+            Operation::Destroy { objects, .. } | Operation::SetTapped { objects, .. } => {
                 self.require_zone(objects, EventZone::Battlefield)
             }
             Operation::Sacrifice {
@@ -4204,6 +4208,15 @@ impl<'a> Scope<'a> {
                             ResultKind::ObjectTransition
                         } else if matches!(operation,Operation::AddMana{..}) {
                             ResultKind::Mana
+                        } else if matches!(
+                            operation,
+                            Operation::FlipCoin { .. }
+                                | Operation::FlipCoins { .. }
+                                | Operation::CoinFlips { .. }
+                        ) {
+                            // Iteration gathers coins into a collection; it cannot
+                            // expose one arbitrarily chosen scalar flip.
+                            ResultKind::CoinBatch
                         } else {
                             ResultKind::Other
                         },
@@ -4259,6 +4272,10 @@ impl<'a> Scope<'a> {
                             }
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
                             Operation::AddMana { .. } => ResultKind::Mana,
+                            Operation::FlipCoin { .. } => ResultKind::Coin,
+                            Operation::FlipCoins { .. } | Operation::CoinFlips { .. } => {
+                                ResultKind::CoinBatch
+                            }
                             Operation::ChooseObjects { .. }
                             | Operation::SeparatePiles { .. }
                             | Operation::NoteObjects { .. }
@@ -4271,7 +4288,7 @@ impl<'a> Scope<'a> {
                             | Operation::Destroy { .. }
                             | Operation::Move { .. }
                             | Operation::Counter { .. }
-                            | Operation::Tap { .. }
+                            | Operation::SetTapped { .. }
                             | Operation::Discard { .. }
                             | Operation::DiscardObjects { .. }
                             | Operation::Sacrifice { .. }
@@ -4333,7 +4350,7 @@ impl<'a> Scope<'a> {
                             self.result_zones.insert(result.0, zones);
                         }
                         match operation {
-                            Operation::Search { library, .. } => {
+                            Operation::Search { library_owner: library, .. } => {
                                 self.open_searches.push(library.clone());
                                 self.search_libraries.insert(result.0, library.clone());
                             }
@@ -4638,8 +4655,8 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
         result,
         operation:
             Operation::Search {
-                player: PlayerRef::AbilityController,
-                library: PlayerRef::AbilityController,
+                searcher: PlayerRef::AbilityController,
+                library_owner: PlayerRef::AbilityController,
                 top: None,
                 choices,
                 ..
@@ -5269,6 +5286,7 @@ pub fn unified(card: &UnifiedCard) -> Result {
     if card.faces.is_empty() && card.data.is_empty() {
         return Err(format!("{} record is empty", card.layout));
     }
+    layout::record(card)?;
     card.faces.iter().try_for_each(face)?;
     card.data.iter().try_for_each(|f| operand(&f.value))
 }

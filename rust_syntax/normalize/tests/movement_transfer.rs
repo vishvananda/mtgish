@@ -122,7 +122,7 @@ fn draft_forms_decode_old_captures_but_cannot_reach_validated_records() {
         movement::normalize_unified(&mut old);
         for face in &old.faces {validate::card(face).unwrap_or_else(|e|panic!("{}: {e}",face.name));}
     }
-    let raw=card(Program {instructions:vec![Instruction::Effect {result:ResultId(0),operation:Operation::Tap {objects:ObjectSet::DraftChosen {chooser:you(),objects:Box::new(pool()),count:Count::Exactly(Expr::Constant(1))},tapped:true}}]});
+    let raw=card(Program {instructions:vec![Instruction::Effect {result:ResultId(0),operation:Operation::SetTapped {objects:ObjectSet::DraftChosen {chooser:you(),objects:Box::new(pool()),count:Count::Exactly(Expr::Constant(1))},tapped:true}}]});
     assert!(validate::card(&raw).unwrap_err().contains("draft selector"));
     validate::card(&movement::normalize_card(raw)).unwrap();
 }
@@ -131,7 +131,7 @@ fn draft_forms_decode_old_captures_but_cannot_reach_validated_records() {
 fn an_optimized_search_cannot_discard_order_or_group_terms() {
     use mtgish_ast::mtg_types::{CardType,SubType,SuperType};
     let make=|terms:MovementTerms|card(Program {instructions:vec![
-        Instruction::Effect {result:ResultId(0),operation:Operation::Search {player:PlayerRef::AbilityController,library:PlayerRef::AbilityController,top:None,choices:vec![SearchChoice {filter:ObjectFilter::All(vec![ObjectFilter::Supertype(SuperType::Basic),ObjectFilter::Subtype(SubType::Plains)]),count:Count::UpTo(Expr::Constant(1)),constraints:vec![]}],also:vec![],either:false,outside:false}},
+        Instruction::Effect {result:ResultId(0),operation:Operation::Search {searcher:PlayerRef::AbilityController,library_owner:PlayerRef::AbilityController,top:None,choices:vec![SearchChoice {filter:ObjectFilter::All(vec![ObjectFilter::Supertype(SuperType::Basic),ObjectFilter::Subtype(SubType::Plains)]),count:Count::UpTo(Expr::Constant(1)),constraints:vec![]}],also:vec![],either:false,outside:false}},
         Instruction::Effect {result:ResultId(1),operation:Operation::Reveal {objects:ObjectSet::Selected(ResultId(0))}},
         Instruction::Effect {result:ResultId(2),operation:Operation::Move {objects:ObjectSet::Selected(ResultId(0)),destination:Destination::OwnersHand,entry:EntrySpec::default(),face_down:false,terms}},
         Instruction::Effect {result:ResultId(3),operation:Operation::Shuffle {players:you(),excluding:None}},

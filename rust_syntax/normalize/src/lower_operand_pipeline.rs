@@ -85,7 +85,7 @@ impl Context {
                 } else {
                     let symbol = matches!(object, source::Permanent::ThisPermanent);
                     let object = if symbol && self.keyword_host {
-                        ObjectRef::KeywordHost
+                        ObjectRef::AbilityHolder
                     } else {
                         self.object(object)?
                     };
@@ -109,7 +109,7 @@ impl Context {
                 symbol: false,
             }],
             R::OwnMana => vec![CostPart::ManaCostOf(if self.keyword_host {
-                ObjectRef::KeywordHost
+                ObjectRef::AbilityHolder
             } else {
                 ObjectRef::Source
             })],
@@ -304,7 +304,7 @@ impl Context {
                         Condition::PlayerIsActive(self.player(player)?)
                     }
                     NumberPlayers::Players(players) => {
-                        let binding = Binding(self.binding_depth);
+                        let binding = LoopBinding(self.binding_depth);
                         Condition::ExistsPlayer {
                             players: self.players(players)?,
                             binding: binding.clone(),
@@ -326,7 +326,7 @@ impl Context {
                 }
                 NumberPlayers::Players(players) => {
                     let players = self.players(players)?;
-                    let binding = Binding(self.binding_depth);
+                    let binding = LoopBinding(self.binding_depth);
                     let mut child = self.clone();
                     child.binding_depth = self
                         .binding_depth

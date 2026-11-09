@@ -67,7 +67,7 @@ fn incremental_counters_use_three_distinct_targets_in_one_batch() {
             assert!(matches!(placement.amount,Expr::Constant(n) if n==index as i64+1));
             assert!(placement.selection.is_none());
             assert!(
-                matches!(&placement.recipients,Recipients::Objects(ObjectSet::One(ObjectRef::Target{slot:Slot(slot),index:0})) if *slot==index as u16)
+                matches!(&placement.recipients,Recipients::Objects(ObjectSet::One(ObjectRef::Target{slot:TargetSlot(slot),index:0})) if *slot==index as u16)
             );
         }
     }

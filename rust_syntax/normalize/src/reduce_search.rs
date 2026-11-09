@@ -111,7 +111,7 @@ fn reduce_search_counters(actor: &PlayerSet, form: &str, operands: &[Operand]) -
         ) => Operation::EachObject {
             objects: objects.clone(),
             action: Box::new(Operation::DuplicateCounters {
-                from: one(from),
+                from: CounterSource::On(one(from)),
                 to: one(to),
                 copies: CounterCopies::UpToOne,
                 kind: None,

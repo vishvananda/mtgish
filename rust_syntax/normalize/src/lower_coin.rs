@@ -1,6 +1,6 @@
 impl Context {
     /// Last-coin predicates suffice only when each participant flipped once.
-    fn one_coin_per_player(body: &Program, binding: &Binding) -> bool {
+    fn one_coin_per_player(body: &Program, binding: &LoopBinding) -> bool {
         match body.instructions.as_slice() {
             [Instruction::Effect {
                 operation:

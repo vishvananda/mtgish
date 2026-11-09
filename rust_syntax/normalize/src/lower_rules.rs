@@ -118,7 +118,7 @@ impl Context {
         Ok(vec![match value {
             S::CantAttack => prohibit(ObjectAction::Attack(AttackDefenders::Any)),
             S::CantAttackUnlessDefendingPlayer(condition) => {
-                let binding = Binding(self.binding_depth);
+                let binding = LoopBinding(self.binding_depth);
                 let mut child = self.clone();
                 child.defending = Some(PlayerRef::Bound(binding.clone()));
                 child.binding_depth += 1;

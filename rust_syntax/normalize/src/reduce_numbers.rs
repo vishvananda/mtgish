@@ -2,7 +2,7 @@
 // use: what is counted, among which objects, and at what moment.
 
 fn named_results(result: &ResultId) -> ObjectSet {
-    ObjectSet::Named(result.clone())
+    ObjectSet::Recorded(result.clone())
 }
 
 fn matching_results(result: &ResultId, filter: ObjectFilter) -> ObjectSet {
@@ -439,7 +439,7 @@ fn reduce_game_number(form: &str, operands: &[Operand]) -> Option<Expr> {
             as_of(Moment::TurnBegan, Expr::player_life(player.clone()))
         }
         ("Power", [Number(base), Number(exponent)]) => {
-            Expr::Power(Box::new(base.clone()), Box::new(exponent.clone()))
+            Expr::Exponentiate(Box::new(base.clone()), Box::new(exponent.clone()))
         }
         _ => return None,
     })

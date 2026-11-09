@@ -163,11 +163,11 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
             by: None,
         })),
         ("WasExiledByPlayerThisWay", [Operand::Player(_), Operand::Result(result)]) => {
-            ObjectFilter::InSet(Box::new(ObjectSet::Named(result.clone())))
+            ObjectFilter::InSet(Box::new(ObjectSet::Recorded(result.clone())))
         }
         ("RevealedFromLibraryThisWay", [Operand::Result(result)])
         | ("RevealedFromPlayersLibraryThisWay", [Operand::Player(_), Operand::Result(result)]) => {
-            ObjectFilter::InSet(Box::new(ObjectSet::Named(result.clone())))
+            ObjectFilter::InSet(Box::new(ObjectSet::Recorded(result.clone())))
         }
         // Those the instruction before gave its abilities to, the event being over.
         ("Trigger_ThoseCreatures", [Operand::Result(result)]) => {

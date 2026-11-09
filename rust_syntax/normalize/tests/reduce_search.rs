@@ -239,7 +239,7 @@ fn each_player_library_is_searched_by_one_player() {
     let text = format!("{:?}", steps(&c, 2)[0]);
     assert!(text.starts_with("ForEachPlayer"), "{text}");
     let Some(Operation::Search {
-        player, library, ..
+        searcher: player, library_owner: library, ..
     }) = operations(&c, 2).first().copied()
     else {
         panic!()

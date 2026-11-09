@@ -1,4 +1,4 @@
-//! Structural instruction recipes. Binding, result allocation, and legality are
+//! Structural instruction recipes. LoopBinding, result allocation, and legality are
 //! later operations. Unresolved source is permitted here, never in final Card.
 use super::{
     numbers::number_tree,

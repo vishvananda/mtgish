@@ -679,7 +679,7 @@ mod value_choice_scope_tests {
             instructions: vec![Instruction::Effect {
                 result: ResultId(0),
                 operation: Operation::ChooseValue {
-                    actor: PlayerSet::One(PlayerRef::AbilityController),
+                    choosers: PlayerSet::One(PlayerRef::AbilityController),
                     kind: ValueKind::Color,
                     terms: ChoiceTerms::default(),
                 },
@@ -727,7 +727,7 @@ mod value_choice_result_tests {
     use super::*;
     fn choice(kind: ValueKind, count: ChoiceCount, secret: bool) -> Operation {
         Operation::ChooseValue {
-            actor: PlayerSet::One(PlayerRef::AbilityController),
+            choosers: PlayerSet::One(PlayerRef::AbilityController),
             kind,
             terms: ChoiceTerms {
                 count,

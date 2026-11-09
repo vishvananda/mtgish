@@ -148,7 +148,7 @@ fn a_future_spell_does_not_inherit_the_creators_move_destination() {
 fn sibling_created_triggers_have_independent_target_definitions() {
     fn targeted(kind: &str, slot: u16) -> Value {
         let target = serde_json::to_value(
-            crate::targets::TargetSelector::creature().into_spec(crate::ir::Slot(slot)),
+            crate::targets::TargetSelector::creature().into_spec(crate::ir::TargetSlot(slot)),
         )
         .unwrap();
         let mut op = created(

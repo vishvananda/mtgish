@@ -17,7 +17,7 @@ fn spell(operation: Operation) -> Card {
     card
 }
 fn missing_target() -> Operand {
-    Operand::Objects(ObjectSet::Targets(Slot(99)))
+    Operand::Objects(ObjectSet::Targets(TargetSlot(99)))
 }
 fn shape() -> FaceDownAs {
     FaceDownAs {
@@ -46,7 +46,7 @@ fn entry_payloads_cannot_hide_missing_references() {
         EntryState::ChangesUntil {
             changes: vec![Change::Rule(RuleChange::RequireCombat {
                 action: ObjectAction::Attack(AttackDefenders::Objects(ObjectFilter::InSet(
-                    Box::new(ObjectSet::Targets(Slot(99))),
+                    Box::new(ObjectSet::Targets(TargetSlot(99))),
                 ))),
                 amount: RequirementAmount::AtLeast(Expr::Constant(1)),
             })],
@@ -56,7 +56,7 @@ fn entry_payloads_cannot_hide_missing_references() {
             decider: PlayerRef::AbilityController,
             entry: Box::new(EntrySpec {
                 states: vec![EntryState::FaceDownAs(FaceDownAs {
-                    power: Expr::CountObjects(Box::new(ObjectSet::Targets(Slot(99)))),
+                    power: Expr::CountObjects(Box::new(ObjectSet::Targets(TargetSlot(99)))),
                     ..shape()
                 })],
                 ..EntrySpec::default()
@@ -70,7 +70,7 @@ fn entry_payloads_cannot_hide_missing_references() {
                     instructions: vec![Instruction::Effect {
                         result: ResultId(0),
                         operation: Operation::Reveal {
-                            objects: ObjectSet::Targets(Slot(99)),
+                            objects: ObjectSet::Targets(TargetSlot(99)),
                         },
                     }],
                 },
@@ -78,7 +78,7 @@ fn entry_payloads_cannot_hide_missing_references() {
             noted: None,
         },
         EntryState::FaceDownAs(FaceDownAs {
-            power: Expr::CountObjects(Box::new(ObjectSet::Targets(Slot(99)))),
+            power: Expr::CountObjects(Box::new(ObjectSet::Targets(TargetSlot(99)))),
             ..shape()
         }),
         EntryState::ExiledForWith {
@@ -87,7 +87,7 @@ fn entry_payloads_cannot_hide_missing_references() {
             body: Program {
                 instructions: vec![Instruction::Effect {
                     result: ResultId(0),
-                    operation: Operation::Reveal { objects: ObjectSet::Targets(Slot(99)) },
+                    operation: Operation::Reveal { objects: ObjectSet::Targets(TargetSlot(99)) },
                 }],
             },
         },
@@ -107,7 +107,7 @@ fn countering_checks_destination_and_entry_scopes() {
                 states: vec![EntryState::ChangesUntil {
                     changes: vec![],
                     duration: Duration::WhileItMatches(ObjectFilter::InSet(Box::new(
-                        ObjectSet::Targets(Slot(99)),
+                        ObjectSet::Targets(TargetSlot(99)),
                     ))),
                 }],
                 ..EntrySpec::default()
@@ -115,7 +115,7 @@ fn countering_checks_destination_and_entry_scopes() {
         ),
         (
             Destination::Battlefield(PlayerRef::Target {
-                slot: Slot(99),
+                slot: TargetSlot(99),
                 index: 0,
             }),
             EntrySpec::default(),
@@ -138,7 +138,7 @@ fn duration_operands_validate_their_captured_references() {
     let card = moving(EntryState::ChangesUntil {
         changes: vec![],
         duration: Duration::WhileItMatches(ObjectFilter::InSet(Box::new(ObjectSet::Targets(
-            Slot(99),
+            TargetSlot(99),
         )))),
     });
     assert!(validate::card(&card)

@@ -5,26 +5,26 @@ fn nested(outer: u32, inner: u32, predicate: u32) -> Ability {
     let draw = |binding, result| Instruction::Effect {
         result: ResultId(result),
         operation: Operation::Draw {
-            players: PlayerSet::One(PlayerRef::Bound(Binding(binding))),
+            players: PlayerSet::One(PlayerRef::Bound(LoopBinding(binding))),
             amount: Expr::Constant(1),
         },
     };
     spell(vec![
         Instruction::ForEachPlayer {
             players: PlayerSet::Matching {
-                binding: Binding(predicate),
-                condition: Box::new(Condition::PlayerIsActive(PlayerRef::Bound(Binding(
+                binding: LoopBinding(predicate),
+                condition: Box::new(Condition::PlayerIsActive(PlayerRef::Bound(LoopBinding(
                     predicate,
                 )))),
             },
-            binding: Binding(outer),
+            binding: LoopBinding(outer),
             starting_with: None,
             in_chosen_direction: false,
             body: Program {
                 instructions: vec![Instruction::ForEachPlayer {
-                    players: PlayerSet::OthersThan(PlayerRef::Bound(Binding(outer))),
-                    binding: Binding(inner),
-                    starting_with: Some(PlayerRef::Bound(Binding(outer))),
+                    players: PlayerSet::OthersThan(PlayerRef::Bound(LoopBinding(outer))),
+                    binding: LoopBinding(inner),
+                    starting_with: Some(PlayerRef::Bound(LoopBinding(outer))),
                     in_chosen_direction: false,
                     body: Program {
                         instructions: vec![draw(outer, 1), draw(inner, 2)],
@@ -34,16 +34,16 @@ fn nested(outer: u32, inner: u32, predicate: u32) -> Ability {
         },
         Instruction::ForEachObject {
             objects: ObjectSet::battlefield(ObjectFilter::Any),
-            binding: Binding(outer),
+            binding: LoopBinding(outer),
             body: Program {
                 instructions: vec![Instruction::ForEachObject {
-                    objects: ObjectSet::One(ObjectRef::Bound(Binding(outer))),
-                    binding: Binding(inner),
+                    objects: ObjectSet::One(ObjectRef::Bound(LoopBinding(outer))),
+                    binding: LoopBinding(inner),
                     body: Program {
                         instructions: vec![Instruction::Effect {
                             result: ResultId(3),
-                            operation: Operation::Tap {
-                                objects: ObjectSet::One(ObjectRef::Bound(Binding(inner))),
+                            operation: Operation::SetTapped {
+                                objects: ObjectSet::One(ObjectRef::Bound(LoopBinding(inner))),
                                 tapped: true,
                             },
                         }],
@@ -92,26 +92,26 @@ fn player_and_object_binding_domains_are_independent() {
     let make = |player, object| {
         spell(vec![Instruction::ForEachPlayer {
             players: PlayerSet::All,
-            binding: Binding(player),
+            binding: LoopBinding(player),
             starting_with: None,
             in_chosen_direction: false,
             body: Program {
                 instructions: vec![Instruction::ForEachObject {
                     objects: ObjectSet::One(ObjectRef::Source),
-                    binding: Binding(object),
+                    binding: LoopBinding(object),
                     body: Program {
                         instructions: vec![
                             Instruction::Effect {
                                 result: ResultId(5),
                                 operation: Operation::Draw {
-                                    players: PlayerSet::One(PlayerRef::Bound(Binding(player))),
+                                    players: PlayerSet::One(PlayerRef::Bound(LoopBinding(player))),
                                     amount: Expr::Constant(1),
                                 },
                             },
                             Instruction::Effect {
                                 result: ResultId(6),
                                 operation: Operation::Reveal {
-                                    objects: ObjectSet::One(ObjectRef::Bound(Binding(object))),
+                                    objects: ObjectSet::One(ObjectRef::Bound(LoopBinding(object))),
                                 },
                             },
                         ],
@@ -141,19 +141,19 @@ fn object_binding_shadowing_preserves_inputs_and_restores_the_outer_label() {
             objects: if depth == 2 {
                 ObjectSet::One(ObjectRef::Source)
             } else {
-                ObjectSet::One(ObjectRef::Bound(Binding(if distinct {
+                ObjectSet::One(ObjectRef::Bound(LoopBinding(if distinct {
                     label - 1
                 } else {
                     label
                 })))
             },
-            binding: Binding(label),
+            binding: LoopBinding(label),
             body: Program {
                 instructions: if depth == 0 {
                     vec![Instruction::Effect {
                         result: ResultId(9),
                         operation: Operation::Reveal {
-                            objects: ObjectSet::One(ObjectRef::Bound(Binding(label))),
+                            objects: ObjectSet::One(ObjectRef::Bound(LoopBinding(label))),
                         },
                     }]
                 } else {
@@ -166,7 +166,7 @@ fn object_binding_shadowing_preserves_inputs_and_restores_the_outer_label() {
                         Instruction::Effect {
                             result: ResultId(depth),
                             operation: Operation::Reveal {
-                                objects: ObjectSet::One(ObjectRef::Bound(Binding(label))),
+                                objects: ObjectSet::One(ObjectRef::Bound(LoopBinding(label))),
                             },
                         },
                     ]

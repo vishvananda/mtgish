@@ -10,12 +10,12 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
     let you = || actor_of(actor);
     let keyword = |who:PlayerSet, action, object:Option<ObjectRef>, amount| crate::keyword_actions::operation(&who,action,object,None,amount,None);
     let choose_with = |kind, terms| Operation::ChooseValue {
-        actor: actor.clone(),
+        choosers: actor.clone(),
         kind,
         terms,
     };
     let choose_value = |kind| Operation::ChooseValue {
-        actor: actor.clone(),
+        choosers: actor.clone(),
         kind,
         terms: ChoiceTerms::ordinary(1, vec![]),
     };
@@ -161,7 +161,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             )
         }
         ("ChooseAColorAndCreatureType", pairs) if !pairs.is_empty() => Operation::ChooseValue {
-            actor: actor.clone(),
+            choosers: actor.clone(),
             kind: ValueKind::ColorAndCreatureType,
             terms: ChoiceTerms::ordinary(1, pairs.to_vec()),
         },
@@ -170,7 +170,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             choose_value(ValueKind::BasicLandType),
         ]),
         ("SwapWordChoice", [Text(_), Text(_)]) => Operation::ChooseValue {
-            actor: actor.clone(),
+            choosers: actor.clone(),
             kind: ValueKind::Word,
             terms: ChoiceTerms::ordinary(1, operands.to_vec()),
         },
@@ -664,7 +664,7 @@ fn reduce_tail_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> 
         ("WasExiledThisWay", []) => among(earlier(EarlierObjects::Exiled)),
         ("WasTurnedFaceUpThisWay", []) => among(earlier(EarlierObjects::It)),
         ("WasExiledByPlayerThisWay", [Player(player), Run(result)]) => ObjectFilter::All(vec![
-            ObjectFilter::InSet(Box::new(ObjectSet::Named(result.clone()))),
+            ObjectFilter::InSet(Box::new(ObjectSet::Recorded(result.clone()))),
             exiled_by(player.clone()),
         ]),
         ("WasExiledWithAnAbility", [Term { operands, .. }]) => {
@@ -983,7 +983,7 @@ fn tail_inspection_step(
             put(cards.clone(), D::OwnersLibraryFromTop(depth.clone()), &[])
         }
         ("PlayerChoosesACardName", [Player(player), options @ ..]) => Operation::ChooseValue {
-            actor: PlayerSet::One(player.clone()),
+            choosers: PlayerSet::One(player.clone()),
             kind: ValueKind::CardName,
             terms: ChoiceTerms::ordinary(1, options.to_vec()),
         },

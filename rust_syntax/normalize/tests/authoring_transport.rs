@@ -302,7 +302,7 @@ fn metadata_only_single_abilities_use_the_same_typed_canonicalizer() {
     .unwrap();
     let card = UnifiedCard {
         schema_version: SCHEMA_VERSION,
-        layout: "StickerSheet".into(),
+        layout: mtgish_ast::ir::Layout::Extension {namespace:"tests.mtgish".into(),name:"SingleAbility".into()},
         faces: vec![],
         data: vec![Field {
             name: "Ability".into(),

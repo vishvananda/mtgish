@@ -2252,8 +2252,8 @@ fn ability_text(body: &Program) -> String {
                     }] => format!("Gets {p:+}/{t:+} until end of turn."),
                     _ => "Change characteristics until end of turn.".into(),
                 },
-                Operation::Tap { tapped: true, .. } => "Tap the chosen permanents.".into(),
-                Operation::Tap { tapped: false, .. } => "Untap the chosen permanents.".into(),
+                Operation::SetTapped { tapped: true, .. } => "Tap the chosen permanents.".into(),
+                Operation::SetTapped { tapped: false, .. } => "Untap the chosen permanents.".into(),
                 Operation::Destroy { .. } => "Destroy the chosen permanents.".into(),
                 Operation::Move { destination, .. } => match destination {
                     Destination::OwnersHand | Destination::Hand(_) => {

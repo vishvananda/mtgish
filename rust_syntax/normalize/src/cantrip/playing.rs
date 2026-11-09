@@ -189,7 +189,7 @@ impl Compiler {
                         return Err(gap("play count PerPlayer"));
                     }
                 }
-                ObjectSet::Matching { objects, .. } if matches!(**objects, ObjectSet::Named(_)) => {}
+                ObjectSet::Matching { objects, .. } if matches!(**objects, ObjectSet::Recorded(_)) => {}
                 _ => return Err(gap("play count PerPlayer")),
             }
             let id = self.fresh();
@@ -231,7 +231,7 @@ impl Compiler {
         // "That card", however many it comes to: of one, whether; of more, which, to the last.
         let each = matches!(count, Count::Exactly(n) if !matches!(n, Expr::Constant(_)));
         let among = !self.one_object(&set);
-        let copies = matches!(cards, ObjectSet::Copies(_) | ObjectSet::Named(_));
+        let copies = matches!(cards, ObjectSet::Copies(_) | ObjectSet::Recorded(_));
         if lands && !spell.is_empty() {
             return Err(gap("a land played by what it is as a spell"));
         }

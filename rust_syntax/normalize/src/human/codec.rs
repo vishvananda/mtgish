@@ -257,7 +257,7 @@ impl Writer<'_> {
                     if let Some(slot) = slot {
                         return Ok(Node::Call(
                             "Targets".into(),
-                            vec![self.node(&named("Slot"), slot)?],
+                            vec![self.node(&named("TargetSlot"), slot)?],
                         ));
                     }
                 }
@@ -352,7 +352,7 @@ impl Writer<'_> {
             .map(Ok)
             .unwrap_or_else(|| self.node(&named("TargetSelector"), &selector))?;
         let mut fields = vec![
-            ("name".into(), self.node(&named("Slot"), &v["slot"])?),
+            ("name".into(), self.node(&named("TargetSlot"), &v["slot"])?),
             ("select".into(), select),
         ];
         let TypeDef::Struct(Fields::Named(fs)) = &schema().types["TargetSpec"] else {
@@ -899,7 +899,7 @@ impl Reader {
                 if name == "Recipients" {
                     if let Node::Call(name, args) = n {
                         if name == "Targets" && args.len() == 1 {
-                            let slot = self.id("Slot", &args[0])?;
+                            let slot = self.id("TargetSlot", &args[0])?;
                             let id: u16 = document::id_number(&slot)
                                 .ok_or("expected target ID")?
                                 .try_into()
@@ -1072,7 +1072,7 @@ impl Reader {
                     let alias = names::field(owner, key);
                     let candidates: Vec<_> = values
                         .iter()
-                        .filter(|(k, _)| k == key || k == &alias)
+                        .filter(|(k, _)| k == key || k == &alias || names::legacy_field(owner,key)==Some(k.as_str()))
                         .collect();
                     if candidates.len() > 1 {
                         return Err(format!("duplicate aliases for {owner}.{key}"));
@@ -1177,7 +1177,7 @@ impl Reader {
             return Err("expected Target record".into());
         }
         let get = |key: &str| fields.iter().find(|(k, _)| k == key).map(|(_, n)| n);
-        let slot = self.declare("Slot", get("name").ok_or("target needs a name")?)?;
+        let slot = self.declare("TargetSlot", get("name").ok_or("target needs a name")?)?;
         let select = get("select").ok_or("target needs a selector")?;
         let preset = constructor(select).and_then(|name| {
             presets()
@@ -1195,7 +1195,7 @@ impl Reader {
         };
         let selector: TargetSelector =
             serde_json::from_value(document::untag(&selector_value)).map_err(|e| e.to_string())?;
-        let spec = selector.into_spec(Slot(
+        let spec = selector.into_spec(TargetSlot(
             document::id_number(&slot)
                 .ok_or("expected target ID")?
                 .try_into()

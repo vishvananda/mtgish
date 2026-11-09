@@ -14,7 +14,7 @@ fn all_heads() -> Condition {
         },
         Condition::CoinCameUp {
             player: Some(PlayerRef::Target {
-                slot: Slot(0),
+                slot: TargetSlot(0),
                 index: 0,
             }),
             outcome: CoinOutcome::Heads,
@@ -48,6 +48,9 @@ fn mana_clash_changes_only_its_collective_head_check_and_keeps_private_flip_rece
             expected.pointer(ptr).unwrap(),
             &json!({"kind":"Not","args":{"kind":"Compare","args":{"left":{"kind":"CoinFlipsWon","args":false},"comparison":"Equal","right":{"kind":"Constant","args":0}}}})
         );
+        // Upgrade the authentic capture structurally; retain its original,
+        // separately corrected heads/wins condition until the assertion below.
+        expected = serde_json::to_value(mtgish_ast::migrate::read_json(&expected.to_string()).unwrap()).unwrap();
         *expected.pointer_mut(ptr).unwrap() =
             serde_json::to_value(Condition::Not(Box::new(all_heads()))).unwrap();
         assert_eq!(serde_json::to_value(&card).unwrap(), expected);
@@ -120,7 +123,7 @@ fn heads_predicate_uses_both_participants_and_ignores_unrelated_flips() {
             Condition::CoinCameUp {
                 player:
                     Some(PlayerRef::Target {
-                        slot: Slot(0),
+                        slot: TargetSlot(0),
                         index: 0,
                     }),
                 outcome: CoinOutcome::Heads,

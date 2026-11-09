@@ -54,8 +54,8 @@ fn search(c: &Card) -> (&PlayerRef, &PlayerRef, &[SearchChoice]) {
     let Instruction::Effect {
         operation:
             Operation::Search {
-                player,
-                library,
+                searcher: player,
+                library_owner: library,
                 choices,
                 ..
             },
@@ -162,7 +162,7 @@ fn searcher_library_owner_and_battlefield_controller_remain_distinct() {
     assert!(matches!(
         search(&c).1,
         PlayerRef::Target {
-            slot: Slot(0),
+            slot: TargetSlot(0),
             index: 0
         }
     ));
@@ -189,14 +189,14 @@ fn searcher_library_owner_and_battlefield_controller_remain_distinct() {
         panic!()
     };
     assert!(
-        matches!(decider,PlayerRef::ControllerOf(object) if matches!(object.as_ref(),ObjectRef::Target { slot:Slot(0), .. }))
+        matches!(decider,PlayerRef::ControllerOf(object) if matches!(object.as_ref(),ObjectRef::Target { slot:TargetSlot(0), .. }))
     );
     let [Instruction::Group(p)] = body.instructions.as_slice() else {
         panic!()
     };
     let Instruction::Effect {
         operation: Operation::Search {
-            player, library, ..
+            searcher: player, library_owner: library, ..
         },
         ..
     } = &p.instructions[0]
@@ -352,7 +352,7 @@ fn search_results_have_typed_status_and_zone_scope() {
         panic!()
     };
     body.instructions.push(effect(
-        Operation::Tap {
+        Operation::SetTapped {
             objects: ObjectSet::Selected(ResultId(0)),
             tapped: true,
         },
@@ -557,8 +557,8 @@ fn library_observation_and_reordering_do_not_masquerade_as_zone_movement() {
     );
     let search = effect(
         Operation::Search {
-            player: player.clone(),
-            library: player,
+            searcher: player.clone(),
+            library_owner: player,
             top: None,
             choices: vec![SearchChoice {
                 filter: ObjectFilter::Any,

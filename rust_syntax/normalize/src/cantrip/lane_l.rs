@@ -480,16 +480,19 @@ impl Compiler {
     fn duplicate_counters(
         &mut self,
         id: usize,
-        from: &Recipients,
+        from: &CounterSource,
         to: &Recipients,
         copies: CounterCopies,
         kind: Option<&crate::counter::CounterKind>,
         out: &mut String,
     ) -> Result<()> {
         use CounterCopies as C;
-        if let (Recipients::CountersTheEventPut, Recipients::Objects(to)) = (from, to) {
+        if let (CounterSource::EventPut, Recipients::Objects(to)) = (from, to) {
             return self.duplicate_what_the_event_put(id, to, copies, out);
         }
+        let CounterSource::On(from) = from else {
+            return Err(gap("event counters copied to a player"));
+        };
         let (Recipients::Objects(from), Recipients::Objects(to)) = (from, to) else {
             let (Recipients::Players(from), Recipients::Players(to)) = (from, to) else {
                 return Err(gap("operation DuplicateCounters"));
@@ -593,7 +596,7 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         self.choose(player, objects, &Count::AnyNumber, result, "Tap", out)?;
-        let tap = Operation::Tap {
+        let tap = Operation::SetTapped {
             objects: ObjectSet::Selected(result.clone()),
             tapped: true,
         };
@@ -779,7 +782,7 @@ impl Compiler {
     /// The targets an earlier slot chose, read while a later slot is chosen. A slot
     /// of no fixed size has to be the last before this one: what follows it in
     /// `chosen_targets` is this slot's own, which a target can't repeat anyway.
-    pub(super) fn chosen_in_slot(&self, earlier: &Slot, choosing: usize) -> Result<String> {
+    pub(super) fn chosen_in_slot(&self, earlier: &TargetSlot, choosing: usize) -> Result<String> {
         let referred = match self.slots.get(&earlier.0) {
             Some((i, _)) if *i < choosing => *i,
             _ => return Err(gap("target reference to no earlier slot")),
@@ -1898,11 +1901,11 @@ impl Compiler {
             Operation::Together(operations)
                 if operations
                     .iter()
-                    .all(|operation| matches!(operation, Operation::Tap { .. })) =>
+                    .all(|operation| matches!(operation, Operation::SetTapped { .. })) =>
             {
                 let (mut tapping, mut untapping) = (Vec::new(), Vec::new());
                 for (at, operation) in operations.iter().enumerate() {
-                    let Operation::Tap { objects, tapped } = operation else {
+                    let Operation::SetTapped { objects, tapped } = operation else {
                         return Err(gap(feature));
                     };
                     writeln!(out, "let turned_{id}_{at}: Vec<ObjectId> = ({}).into_iter().filter(|&o| g.state().obj(o).tapped != {tapped}).collect();", self.acted_on(objects)?).unwrap();

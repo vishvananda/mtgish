@@ -323,7 +323,7 @@ impl Compiler {
     }
     fn reads_itself(&self, object: &ObjectRef) -> bool {
         match object {
-            ObjectRef::Result { result, .. } | ObjectRef::Named { result, .. } => {
+            ObjectRef::Result { result, .. } | ObjectRef::Recorded { result, .. } => {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
@@ -374,7 +374,7 @@ impl Compiler {
             ObjectSet::Created(result) => self.creations.contains_key(&result.0),
             ObjectSet::Affected(result) => self.selections.contains_key(&result.0),
             ObjectSet::Transition { result, .. } => self.moved.contains_key(&result.0),
-            ObjectSet::Named(result) => {
+            ObjectSet::Recorded(result) => {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
@@ -552,7 +552,7 @@ impl Compiler {
             ObjectSet::Created(result) => self.creations.contains_key(&result.0),
             ObjectSet::Affected(result) => self.selections.contains_key(&result.0),
             ObjectSet::Transition { result, .. } => self.moved.contains_key(&result.0),
-            ObjectSet::Named(result) => {
+            ObjectSet::Recorded(result) => {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)

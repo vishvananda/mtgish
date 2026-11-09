@@ -3785,7 +3785,7 @@ impl Compiler {
                 );
             }
             EntryState::CountersOf {
-                object: ObjectRef::Named { result, .. },
+                object: ObjectRef::Recorded { result, .. },
                 one_of_each: false,
             } => {
                 let Some(list) = self.selections.get(&result.0).cloned() else {

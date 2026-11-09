@@ -50,7 +50,7 @@ fn repaired_cards_keep_choices_out_of_announcement() {
         };
         assert_eq!(*n, count);
         assert!(
-            matches!(&group.instructions[1], Instruction::Effect {operation:Operation::Tap{objects:ObjectSet::Selected(selected),tapped:false},..} if selected.0==result.0)
+            matches!(&group.instructions[1], Instruction::Effect {operation:Operation::SetTapped{objects:ObjectSet::Selected(selected),tapped:false},..} if selected.0==result.0)
         );
         let roundtrip: Card = ron::from_str(&ron::ser::to_string(&card).unwrap()).unwrap();
         validate::card(&roundtrip).unwrap();

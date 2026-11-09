@@ -216,8 +216,8 @@ impl Context {
             }
             S::PutTheCardFoundThisWayOnTopOfLibrary => {
                 let operation = Operation::ReorderLibrary {
-                    player: player.clone(),
-                    library: library.clone(),
+                    chooser: player.clone(),
+                    library_owner: library.clone(),
                     objects: found(state)?,
                     end: SequenceEnd::Top,
                     order: CardOrder::Chosen,

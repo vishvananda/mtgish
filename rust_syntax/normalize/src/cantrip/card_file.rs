@@ -47,7 +47,7 @@ fn first_target(objects: &ObjectRef) -> bool {
     matches!(
         objects,
         ObjectRef::Target {
-            slot: Slot(0),
+            slot: TargetSlot(0),
             index: 0
         }
     )
@@ -118,7 +118,7 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
             other => Err(gap(format!("card file: instruction {}", form(other)))),
         })
         .collect::<Result<_>>()?;
-    let in_slot = |recipients: &Recipients| matches!(recipients, Recipients::Targets(Slot(0)));
+    let in_slot = |recipients: &Recipients| matches!(recipients, Recipients::Targets(TargetSlot(0)));
     match operations.as_slice() {
         [Operation::Draw { players, amount }] if controller(players) => Ok(Recipe {
             code: Code::Closure(format!("effects::draw(g, item, {})", constant(amount)?)),

@@ -167,7 +167,7 @@ fn primordial_ooze_pays_and_damages_using_the_same_counter_snapshot() {
         matches!(cost.parts.as_slice(), [CostPart::ManaWithX { x: Some(Expr::BoundValue(bound)), .. }] if bound.0 == value.0)
     );
     assert!(matches!(then.instructions.as_slice(), [
-        Instruction::Effect { operation: Operation::Tap { .. }, .. },
+        Instruction::Effect { operation: Operation::SetTapped { .. }, .. },
         Instruction::Effect { operation: Operation::DealDamage { amount: Expr::BoundValue(bound), .. }, .. }
     ] if bound.0 == value.0));
 }

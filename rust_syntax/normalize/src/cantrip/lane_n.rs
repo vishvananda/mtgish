@@ -1710,7 +1710,7 @@ impl Compiler {
                 match &damage.recipients {
                     DamageRecipients::Objects(filter) if filter.named_result().is_some() => {
                         let result = filter.named_result().expect("named result checked above");
-                        let list = self.objects(&ObjectSet::Named(result.clone()))?;
+                        let list = self.objects(&ObjectSet::Recorded(result.clone()))?;
                         damage.recipients = DamageRecipients::Any;
                         Some(self.fetch(list))
                     }
@@ -1829,7 +1829,7 @@ impl Compiler {
         out: &mut String,
     ) -> Option<u32> {
         let binding = 1000 + self.fresh() as u32;
-        let each = ObjectRef::Bound(Binding(binding));
+        let each = ObjectRef::Bound(LoopBinding(binding));
         let results: Vec<u32> = self.moved.keys().copied().collect();
         let result = results
             .into_iter()
@@ -1917,7 +1917,7 @@ impl Compiler {
         }
         let id = self.fresh();
         let list = match op {
-            Operation::Tap { objects, .. } => match self.acted_on(objects) {
+            Operation::SetTapped { objects, .. } => match self.acted_on(objects) {
                 Ok(list) => list,
                 Err(_) => return false,
             },

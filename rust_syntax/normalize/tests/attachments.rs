@@ -128,7 +128,7 @@ fn equip_uses_an_ordinary_targeted_attach_program_but_retains_keyword_identity()
             operation: Operation::Attach {
                 attachments: ObjectSet::One(ObjectRef::Source),
                 host: ObjectRef::Target {
-                    slot: Slot(0),
+                    slot: TargetSlot(0),
                     index: 0
                 }
             },
@@ -155,7 +155,7 @@ fn equip_uses_an_ordinary_targeted_attach_program_but_retains_keyword_identity()
         panic!()
     };
     *host = ObjectRef::Target {
-        slot: Slot(1),
+        slot: TargetSlot(1),
         index: 0,
     };
     assert!(validate::card(&c)

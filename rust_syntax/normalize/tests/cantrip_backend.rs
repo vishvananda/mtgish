@@ -448,7 +448,7 @@ fn generated_modules_execute_in_cantrip() {
             panic!()
         };
         result.0 += 100;
-        if let Operation::Tap {
+        if let Operation::SetTapped {
             objects: ObjectSet::Selected(selected),
             ..
         } = operation

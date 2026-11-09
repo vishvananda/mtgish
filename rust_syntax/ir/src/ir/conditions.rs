@@ -22,7 +22,7 @@ pub enum Condition {
     },
     ExistsPlayer {
         players: PlayerSet,
-        binding: Binding,
+        binding: LoopBinding,
         condition: Box<Condition>,
     },
     /// CR 118.12: the optional cost was chosen, or the mandatory cost was

@@ -312,13 +312,13 @@ fn player_predicate_bindings_and_replacement_changes_are_scoped() {
         panic!()
     };
     assert!(
-        matches!(condition.as_ref(),Condition::ExistsPlayer {players:PlayerSet::All,binding:Binding(0),condition}
-        if matches!(condition.as_ref(),Condition::Compare {left:Expr::PlayerNumber {player:PlayerRef::Bound(Binding(0)),number:PlayerNumber::Life},comparison:Comparison::LessOrEqual,right:Expr::Constant(13)}))
+        matches!(condition.as_ref(),Condition::ExistsPlayer {players:PlayerSet::All,binding:LoopBinding(0),condition}
+        if matches!(condition.as_ref(),Condition::Compare {left:Expr::PlayerNumber {player:PlayerRef::Bound(LoopBinding(0)),number:PlayerNumber::Life},comparison:Comparison::LessOrEqual,right:Expr::Constant(13)}))
     );
     body.instructions.push(Instruction::Effect {
         result: ResultId(900),
         operation: Operation::PayCost {
-            player: PlayerRef::Bound(Binding(0)),
+            player: PlayerRef::Bound(LoopBinding(0)),
             cost: Cost { parts: vec![] },
             optional: true,
         },

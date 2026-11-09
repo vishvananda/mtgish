@@ -293,7 +293,7 @@ pub enum PlayerRef {
     /// a casting proposal, reads that proposal's announcing player instead.
     CasterOf(Box<ObjectRef>),
     Target {
-        slot: Slot,
+        slot: TargetSlot,
         index: u16,
     },
     /// The cast/copy event's actor or the turn event's turn player. Other
@@ -305,7 +305,7 @@ pub enum PlayerRef {
     /// The player chosen by this ability, or by a linked ability of this source
     /// (CR 607.2). The choosing form is a primitive, so no result binds it yet.
     Chosen,
-    Bound(Binding),
+    Bound(LoopBinding),
     /// The second player of a two-player event: the attacked player.
     EventOtherPlayer,
     /// "An opponent": one of these players, picked by the controller as this
@@ -364,7 +364,7 @@ pub enum PlayerSet {
     Intersection(Vec<PlayerSet>),
     /// Every player for whom `condition` holds, with that player bound.
     Matching {
-        binding: Binding,
+        binding: LoopBinding,
         condition: Box<Condition>,
     },
     /// Set union, with duplicate players removed before a batch.
@@ -373,7 +373,7 @@ pub enum PlayerSet {
     All,
     OpponentsOf(PlayerRef),
     OthersThan(PlayerRef),
-    Targets(Slot),
+    Targets(TargetSlot),
     /// Dealt damage by this earlier instruction of the same resolution.
     DamagedBy(ResultId),
     /// "Those" players: whichever the row around this one names.

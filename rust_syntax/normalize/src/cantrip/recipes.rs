@@ -215,7 +215,7 @@ impl Compiler {
         if !effects::only_plain_moves(body) { return Ok(false); }
         let steps = &ungroup(body).instructions;
         if let [
-            Instruction::Effect { result: found, operation: Operation::Search { player: PlayerRef::AbilityController, library: PlayerRef::AbilityController, top: None, choices, also, either: false, outside: false } },
+            Instruction::Effect { result: found, operation: Operation::Search { searcher: PlayerRef::AbilityController, library_owner: PlayerRef::AbilityController, top: None, choices, also, either: false, outside: false } },
             Instruction::Effect { operation: Operation::Reveal { objects: ObjectSet::Selected(revealed) }, .. },
             Instruction::Effect { operation: Operation::Move { objects: ObjectSet::Selected(moved), destination: Destination::OwnersHand, face_down: false, terms, .. }, .. },
             Instruction::Effect { operation: Operation::Shuffle { players: PlayerSet::One(PlayerRef::AbilityController), excluding: None }, .. },

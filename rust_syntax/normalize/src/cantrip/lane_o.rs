@@ -3936,7 +3936,7 @@ impl Compiler {
     /// `Option<ObjectId>`: the spell or ability a slot targets, read as an object.
     pub(super) fn stack_object(
         &self,
-        slot: &Slot,
+        slot: &TargetSlot,
         index: impl std::fmt::Display,
     ) -> Result<String> {
         let at = self.slot(slot)?;
@@ -3947,7 +3947,7 @@ impl Compiler {
         ))
     }
     /// As `stack_object`, of every target of the slot.
-    pub(super) fn stack_objects(&self, slot: &Slot) -> Result<String> {
+    pub(super) fn stack_objects(&self, slot: &TargetSlot) -> Result<String> {
         let at = self.slot(slot)?;
         Ok(planned::planned_value(
             "a spell or ability on the stack read as an object",
@@ -4897,12 +4897,12 @@ mod lasting_target_capture_tests {
         for (slot, index) in [(8, 0), (0, 8), (12, 19)] {
             let mut c = Compiler::new();
             c.stack_item = true;
-            let spec = TargetSpec { slot: Slot(slot), kind: TargetKind::Object(ObjectDomain::permanent()),
+            let spec = TargetSpec { slot: TargetSlot(slot), kind: TargetKind::Object(ObjectDomain::permanent()),
                 count: Count::AnyNumber, filter: ObjectFilter::Any, players: None,
                 distribute: None, constraints: vec![], chooser: None };
             c.slots.insert(slot, (slot as usize, spec));
             *c.captured_rule_targets.borrow_mut() = Some(Vec::new());
-            let filter = ObjectFilter::SameObject(ObjectRef::Target { slot: Slot(slot), index });
+            let filter = ObjectFilter::SameObject(ObjectRef::Target { slot: TargetSlot(slot), index });
             let test = c.filter(&filter, &Candidate::of("id")).unwrap();
             let reads = c.captured_rule_targets.borrow_mut().take().unwrap();
             assert_eq!(reads, [(slot as usize, index, "object")]);

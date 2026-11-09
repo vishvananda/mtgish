@@ -572,7 +572,7 @@ impl Inventory<'_> {
                     self.duration(until);
                 }
             }
-            Operation::ChooseValue { actor, kind, .. } => {
+            Operation::ChooseValue { choosers: actor, kind, .. } => {
                 self.players(actor);
                 self.form("ValueKind", kind);
             }
@@ -713,7 +713,8 @@ impl Inventory<'_> {
                 self.filter(filter);
             }
             Operation::DuplicateCounters { from, to, .. } => {
-                self.recipients(from);
+                self.form("CounterSource", from);
+                if let CounterSource::On(recipients) = from { self.recipients(recipients); }
                 self.recipients(to);
             }
             Operation::PutSticker { actor, objects, .. } => {
@@ -924,8 +925,8 @@ impl Inventory<'_> {
             Operation::FlipCoin { player } => self.player(player),
             Operation::CreateRegenerationShields { objects } => self.objects(objects),
             Operation::Search {
-                player,
-                library,
+                searcher: player,
+                library_owner: library,
                 top,
                 choices,
                 ..
@@ -973,8 +974,8 @@ impl Inventory<'_> {
                 }
             }
             Operation::ReorderLibrary {
-                player,
-                library,
+                chooser: player,
+                library_owner: library,
                 objects,
                 end,
                 order,
@@ -1273,7 +1274,7 @@ impl Inventory<'_> {
                 objects,
                 regeneration: _,
             }
-            | Operation::Tap { objects, tapped: _ } => self.objects(objects),
+            | Operation::SetTapped { objects, tapped: _ } => self.objects(objects),
             Operation::Move {
                 objects,
                 destination,
@@ -2147,7 +2148,7 @@ impl Inventory<'_> {
         match r {
             ObjectSet::Prepared(_) => {}
             ObjectSet::Scoped => {}
-            ObjectSet::Named(_) => {}
+            ObjectSet::Recorded(_) => {}
             ObjectSet::Earlier { by, .. } => {
                 if let Some(by) = by {
                     self.players(by);
@@ -2288,7 +2289,7 @@ impl Inventory<'_> {
         match r {
             Recipients::Objects(o) => self.objects(o),
             Recipients::Players(p) => self.players(p),
-            Recipients::Chosen | Recipients::DamagedByEvent | Recipients::CountersTheEventPut => {}
+            Recipients::Chosen | Recipients::DamagedByEvent => {}
             Recipients::AttackedBy(attacker) => self.object(attacker),
             Recipients::Union(items) => {
                 for r in items {
@@ -2348,7 +2349,7 @@ impl Inventory<'_> {
                 self.filter(sources);
             }
             Expr::AsOf { value, .. } => self.expr(value),
-            Expr::Power(base, exponent) => {
+            Expr::Exponentiate(base, exponent) => {
                 self.expr(base);
                 self.expr(exponent);
             }

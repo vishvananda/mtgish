@@ -47,14 +47,14 @@ impl Visitor for Reader {
         true
     }
     fn object_set(&mut self, objects: &ObjectSet) -> bool {
-        if matches!(objects, ObjectSet::Named(r) | ObjectSet::Affected(r) | ObjectSet::Transition { result:r, .. } if r.0 == self.result)
+        if matches!(objects, ObjectSet::Recorded(r) | ObjectSet::Affected(r) | ObjectSet::Transition { result:r, .. } if r.0 == self.result)
         {
             self.reads.objects = true;
         }
         true
     }
     fn object_ref(&mut self, object: &ObjectRef) -> bool {
-        if matches!(object, ObjectRef::Named {result:r,..} if r.0 == self.result) {
+        if matches!(object, ObjectRef::Recorded {result:r,..} if r.0 == self.result) {
             self.reads.objects = true;
         }
         true

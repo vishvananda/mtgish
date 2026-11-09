@@ -1136,7 +1136,7 @@ pub(super) fn asked_if(decider: &PlayerRef, local: &str, body: &Program) -> Stri
         // A search that can't be caused isn't offered (Ashiok, Dream Render's ruling).
         // A search of other zones too still searches them (Agency Outfitter).
         Some(Instruction::Effect {
-            operation: Operation::Search { player, library, also, .. },
+            operation: Operation::Search { searcher: player, library_owner: library, also, .. },
             ..
         }) if same(player) && same(library) && also.is_empty() => {
             format!("g.may_search({local}, {local}) && ")
@@ -2377,7 +2377,7 @@ impl Compiler {
     pub(super) fn each_discards_two(
         &mut self,
         players: &PlayerSet,
-        binding: &Binding,
+        binding: &LoopBinding,
         steps: &Program,
         out: &mut String,
     ) -> bool {

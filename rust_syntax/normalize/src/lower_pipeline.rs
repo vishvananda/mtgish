@@ -1,4 +1,4 @@
-// Binding pass for generated operation templates. Context and scope/result
+// LoopBinding pass for generated operation templates. Context and scope/result
 // checks are shared with the existing compiler; no template parses Oracle text.
 impl Context {
     fn pipeline_owners(
@@ -285,7 +285,7 @@ impl Context {
                 }
             }
             R::ObjectEffect { operation, .. } => match operation {
-                O::Tap { tapped } => Operation::Tap { objects, tapped },
+                O::Tap { tapped } => Operation::SetTapped { objects, tapped },
                 O::Destroy { regeneration } => Operation::Destroy {
                     objects,
                     regeneration,

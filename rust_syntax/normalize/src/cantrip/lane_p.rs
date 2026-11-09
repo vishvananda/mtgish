@@ -479,7 +479,7 @@ impl Compiler {
         let [Instruction::Effect {
             operation:
                 Operation::ChooseValue {
-                    actor: PlayerSet::One(PlayerRef::AbilityController),
+                    choosers: PlayerSet::One(PlayerRef::AbilityController),
                     kind: ValueKind::Color,
                     terms,
                 },
@@ -575,7 +575,7 @@ impl Compiler {
             ObjectSet::Prepared(binding) => {
                 self.selection_metadata(binding).is_ok_and(|p| p.outside)
             }
-            ObjectSet::Selected(result) | ObjectSet::Named(result) => {
+            ObjectSet::Selected(result) | ObjectSet::Recorded(result) => {
                 self.notes.outside.contains(&result.0)
             }
             ObjectSet::Union(sets) => sets.iter().any(|set| self.from_outside(set)),
@@ -2841,8 +2841,8 @@ impl Compiler {
             Err(failed) => failed,
         };
         let Operation::Search {
-            player,
-            library,
+            searcher: player,
+            library_owner: library,
             top,
             choices,
             also,
@@ -4018,8 +4018,8 @@ impl Compiler {
                 )
             }
             Operation::Search {
-                player,
-                library,
+                searcher: player,
+                library_owner: library,
                 top,
                 choices,
                 also,
@@ -4073,7 +4073,7 @@ impl Compiler {
                 let spells = self.fetch(self.objects(objects)?);
                 format!("{M}::effects::counter_onto(g, {source}, {spells}, CounterDestination::{destination:?})?")
             }
-            Operation::ChooseValue { actor, kind, terms } => {
+            Operation::ChooseValue { choosers: actor, kind, terms } => {
                 let actors = self.stated_players(actor)?;
                 let options = self.stated_operands(&terms.options);
                 let except = self.stated_operands(&terms.except);

@@ -129,7 +129,7 @@ fn classification_accounts_for_targets_loyalty_library_moves_and_nested_definiti
         panic!()
     };
     announcement.targets.push(TargetSpec {
-        slot: Slot(0),
+        slot: TargetSlot(0),
         kind: TargetKind::Object(ObjectDomain::permanent()),
         count: Count::UpTo(Expr::Constant(1)),
         filter: ObjectFilter::Any,

@@ -408,7 +408,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         }
         // "You put that card into your hand": the card an earlier instruction
         // chose from outside the game, not a fresh choice (Extrapolate the Impossible).
-        ("PutACardFromOutsideGameInHand", [Objects(ObjectSet::Selected(chosen) | ObjectSet::Named(chosen))]) => {
+        ("PutACardFromOutsideGameInHand", [Objects(ObjectSet::Selected(chosen) | ObjectSet::Recorded(chosen))]) => {
             ZoneMove::new(ObjectSet::Selected(chosen.clone()), D::OwnersHand)
         }
         ("PutACardFromOutsideGameInHand", [_]) => {
@@ -581,7 +581,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         ("PutACardDiscardedThisWayOntoTheBattlefield", [Filter(cards), flags, Operand::Result(result)]) => {
             ZoneMove::new(
                 ObjectSet::Matching {
-                    objects: Box::new(ObjectSet::Named(result.clone())),
+                    objects: Box::new(ObjectSet::Recorded(result.clone())),
                     filter: cards.clone(),
                 },
                 D::OwnersBattlefield,
@@ -592,7 +592,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         ("PutEachCardOfTypeMilledThisWayOntoTheBattlefield", [Filter(cards), flags, Operand::Result(result)]) => {
             ZoneMove::new(
                 ObjectSet::Matching {
-                    objects: Box::new(ObjectSet::Named(result.clone())),
+                    objects: Box::new(ObjectSet::Recorded(result.clone())),
                     filter: cards.clone(),
                 },
                 D::OwnersBattlefield,
@@ -602,7 +602,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         ("ReturnAnyNumberOfGroupCardsMilledThisWayToBattlefield", [Filter(cards), group, flags, Operand::Result(result)]) => {
             ZoneMove::new(
                 ObjectSet::Matching {
-                    objects: Box::new(ObjectSet::Named(result.clone())),
+                    objects: Box::new(ObjectSet::Recorded(result.clone())),
                     filter: cards.clone(),
                 },
                 D::OwnersBattlefield,
@@ -614,7 +614,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         ("PutEachCardOfTypeMilledThisWayOntoTheBattlefieldAsFaceDownArtifactCreatures", [Filter(cards), pt, kind, Operand::Result(result)]) => {
             ZoneMove::new(
                 ObjectSet::Matching {
-                    objects: Box::new(ObjectSet::Named(result.clone())),
+                    objects: Box::new(ObjectSet::Recorded(result.clone())),
                     filter: cards.clone(),
                 },
                 D::OwnersBattlefield,
@@ -632,7 +632,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             let count = parts.len() as i64;
             ZoneMove::new(
                 ObjectSet::Matching {
-                    objects: Box::new(ObjectSet::Named(result.clone())),
+                    objects: Box::new(ObjectSet::Recorded(result.clone())),
                     filter: ObjectFilter::Either(parts),
                 },
                 D::OwnersBattlefield,
@@ -643,7 +643,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         ("ReturnEachCardFromPlayersGraveyardToBattlefieldThatWasDestroyThisWay", [Filter(cards), Player(_), flags, Operand::Result(result)]) => {
             ZoneMove::new(
                 ObjectSet::Matching {
-                    objects: Box::new(ObjectSet::Named(result.clone())),
+                    objects: Box::new(ObjectSet::Recorded(result.clone())),
                     filter: cards.clone(),
                 },
                 D::OwnersBattlefield,
@@ -947,7 +947,7 @@ fn reduce_cast(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Op
             },
         ),
         ("CastTheCardDiscardedThisWayWithoutPaying" | "CastTheCardRevealedThisWayWithoutPaying" | "CastASpellDrawnThisWayWithoutPaying", [Operand::Result(result)]) => {
-            cast(ObjectSet::Named(result.clone()), one(), free())
+            cast(ObjectSet::Recorded(result.clone()), one(), free())
         }
         ("CastCommanderFromCommandZoneWithoutPaying", []) => cast(
             commanders_in(Z::Command, None, actor)?,
@@ -1002,7 +1002,7 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
         objects,
         regeneration,
     };
-    let tap = |objects: &ObjectSet, tapped| Operation::Tap {
+    let tap = |objects: &ObjectSet, tapped| Operation::SetTapped {
         objects: objects.clone(),
         tapped,
     };
@@ -1128,7 +1128,7 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
             objects: ObjectSet::One(object.clone()),
         },
         ("RevealTheCardPutInHandThisWay", [Operand::Result(result)]) => Operation::Reveal {
-            objects: ObjectSet::Named(result.clone()),
+            objects: ObjectSet::Recorded(result.clone()),
         },
         ("RevealUptoNumberCardsOfTypeFromHand", [Number(n), cards]) => Operation::Reveal {
             objects: pick(
@@ -1137,7 +1137,7 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
             ),
         },
         ("DiscardTheCardRevealedThisWay", [Operand::Result(result)]) => Operation::DiscardObjects {
-            objects: ObjectSet::Named(result.clone()),
+            objects: ObjectSet::Recorded(result.clone()),
         },
         ("RevealHandAndDiscardACardOfTypeAtRandom", [Filter(cards)]) => {
             Operation::Together(vec![
@@ -1427,7 +1427,7 @@ fn reduce_choice(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<
     use ValueKind as V;
     let terms = ChoiceTerms::default;
     let with = |kind, terms| Operation::ChooseValue {
-        actor: actor.clone(),
+        choosers: actor.clone(),
         kind,
         terms,
     };
@@ -1530,7 +1530,7 @@ fn reduce_choice(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<
             },
         ),
         ("ForEachPlayerChooseAWord", [Players(players), List(words)]) => Operation::ChooseValue {
-            actor: players.clone(),
+            choosers: players.clone(),
             kind: V::Word,
             terms: ChoiceTerms::ordinary(1, words.clone()),
         },

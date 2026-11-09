@@ -358,11 +358,11 @@ fn controlled_among(objects: ObjectFilter, players: &PlayerSet) -> ObjectFilter 
 fn state_event(form: &str, operands: &[Operand]) -> Option<EventSpec> {
     use Operand::{Comparison as Compare, Objects, Players};
     let state = |condition| Some(EventSpec::State { condition });
-    let player = || PlayerRef::Bound(Binding(0));
+    let player = || PlayerRef::Bound(LoopBinding(0));
     let any_player = |players: &PlayerSet, condition| {
         state(Condition::ExistsPlayer {
             players: players.clone(),
-            binding: Binding(0),
+            binding: LoopBinding(0),
             condition: Box::new(condition),
         })
     };
@@ -718,7 +718,7 @@ pub fn reduce_object(name: String, operands: Vec<Operand>) -> ObjectRef {
             Operand::Player(player) => Some(player.clone()),
             _ => None,
         });
-        return ObjectRef::Named {
+        return ObjectRef::Recorded {
             result: result.clone(),
             by,
         };
@@ -766,7 +766,7 @@ pub fn reduce_object(name: String, operands: Vec<Operand>) -> ObjectRef {
             }
         }
         ("TheSpellThatGrantedThisAbility" | "ThePermanentThatCreatedThisEmblem", [], _) => {
-            ObjectRef::Granter
+            ObjectRef::GrantingObject
         }
         _ => ObjectRef::Primitive { name, operands },
     }
@@ -775,7 +775,7 @@ pub fn reduce_object(name: String, operands: Vec<Operand>) -> ObjectRef {
 pub fn reduce_objects(name: String, operands: Vec<Operand>) -> ObjectSet {
     let form = name.split_once("::").map_or("", |(_, form)| form);
     if let [.., Operand::Result(result)] = operands.as_slice() {
-        return ObjectSet::Named(result.clone());
+        return ObjectSet::Recorded(result.clone());
     }
     if let Some(objects) = tail_objects(form, &operands) {
         return objects;
@@ -801,7 +801,7 @@ pub fn reduce_objects(name: String, operands: Vec<Operand>) -> ObjectSet {
 fn earlier_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> {
     if let [.., Operand::Result(result)] = operands {
         if earlier_reference(form).is_some() {
-            return Some(ObjectFilter::InSet(Box::new(ObjectSet::Named(result.clone()))));
+            return Some(ObjectFilter::InSet(Box::new(ObjectSet::Recorded(result.clone()))));
         }
     }
     let what = earlier_reference(form)?;
@@ -855,7 +855,7 @@ pub fn reduce_player_ref(name: String, operands: Vec<Operand>) -> PlayerRef {
         }
         // Each row has the one target: the permanent just returned to that hand.
         ("OwnerOfTargetPermanent", []) => PlayerRef::OwnerOf(Box::new(ObjectRef::Target {
-            slot: Slot(0),
+            slot: TargetSlot(0),
             index: 0,
         })),
         ("AssociatedPlayerForPermanent", [Operand::Object(object)]) => {

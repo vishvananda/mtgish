@@ -119,7 +119,7 @@ pub enum Expr {
     BoundValue(ResultId),
     /// The part of this slot's distributed total assigned to the recipient at
     /// hand, so one operation over the slot gives each target its own amount.
-    DistributedShare(Slot),
+    DistributedShare(TargetSlot),
     /// What the die rolled by this result showed.
     DieResult(ResultId),
     /// How often an event happened in a window, or the total of its amounts.
@@ -187,7 +187,7 @@ pub enum Expr {
         moment: Moment,
         value: Box<Expr>,
     },
-    Power(Box<Expr>, Box<Expr>),
+    Exponentiate(Box<Expr>, Box<Expr>),
     /// Turns taken in the game, this one included.
     TurnNumber,
     /// Count distinct values, rather than objects or subtype occurrences.

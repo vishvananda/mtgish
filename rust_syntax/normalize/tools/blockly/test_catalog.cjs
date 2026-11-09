@@ -14,7 +14,7 @@ let browser;
   const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
   const fake=s=>({type:s.type,state:s.extraState,isEnabled:()=>true,getFieldValue:n=>{const v=s.fields?.[n],p=d.parts(s.extraState).find(p=>'_'+p.key===n);return p?.ty.named==='bool'?(v===true||v==='TRUE'):v;},getInputTargetBlock:n=>{const child=s.inputs?.[n]?.block||s.inputs?.[n]?.shadow;return child?fake(child):null;},getNextBlock:()=>s.next?.block?fake(s.next.block):null});
   // Walk wire types independently of the block presentation's wrapper mapping.
-  const idKinds={Slot:'Target',ResultId:'Result',Binding:'Loop',SelectionId:'Selection'};
+  const idKinds={TargetSlot:'Target',ResultId:'Result',LoopBinding:'Loop',SelectionId:'Selection'};
   const pointer=(path,key)=>path+'/'+String(key).replace(/~/g,'~0').replace(/\//g,'~1');
   function wireSites(ty,value,path='',out=[]) {
    if(idKinds[ty.named]){out.push([path,idKinds[ty.named],value]);return out;}

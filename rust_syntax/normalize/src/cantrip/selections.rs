@@ -373,7 +373,7 @@ mod transfer_reference_tests {
     use super::*;
     #[test]
     fn an_earlier_milled_subset_and_literal_text_do_not_become_the_whole_graveyard() {
-        assert!(!queries_graveyard(&ObjectSet::Named(ResultId(0))));
+        assert!(!queries_graveyard(&ObjectSet::Recorded(ResultId(0))));
         assert!(!queries_graveyard(&ObjectSet::Primitive {name:"contains Zone::graveyard".into(),operands:vec![Operand::Text("Zone::graveyard".into())]}));
         assert!(queries_graveyard(&ObjectSet::Zone {scope:ZoneScope::Players {players:PlayerSet::One(PlayerRef::AbilityController),zone:EventZone::Graveyard},kind:ObjectKind::Card,filter:ObjectFilter::Any}));
     }
@@ -381,7 +381,7 @@ mod transfer_reference_tests {
 
 pub(super) fn selection_purpose(action: &Operation) -> &'static str {
     let objects = match action.action() {
-        Operation::Move { objects, .. } | Operation::Tap { objects, .. } => Some(objects),
+        Operation::Move { objects, .. } | Operation::SetTapped { objects, .. } => Some(objects),
         _ => None,
     };
     match objects {

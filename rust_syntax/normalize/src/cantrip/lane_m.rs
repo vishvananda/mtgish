@@ -353,7 +353,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         // the card revealed is the card chosen in the hand.
         Operation::RevealFromHand { .. } => &["Revealed", "Selected"],
         Operation::Search { .. } => &["Found"],
-        Operation::Tap { .. } => &["Tapped"],
+        Operation::SetTapped { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
         Operation::CopyCards { .. } | Operation::CopyOnStack { .. } => &["CopiedSpell"],
         // "If you gain control of a creature this way, tap it" (Midnight Crusader
@@ -380,7 +380,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
 /// A walk of players who each just discard, as the one discard it is.
 pub(super) fn each_discards(
     players: &PlayerSet,
-    binding: &Binding,
+    binding: &LoopBinding,
     body: &Program,
 ) -> Option<Instruction> {
     let [Instruction::Effect {
@@ -441,7 +441,7 @@ impl Compiler {
         let chosen = match operation {
             Operation::Move { objects, .. }
             | Operation::Reveal { objects }
-            | Operation::Tap { objects, .. } => match objects {
+            | Operation::SetTapped { objects, .. } => match objects {
                 ObjectSet::Selected(chosen) => Some(chosen.0),
                 _ => None,
             },
@@ -735,7 +735,7 @@ impl Compiler {
         let unattaches_granter = self.activation_cost.as_ref().is_some_and(|cost| {
             cost.parts
                 .iter()
-                .any(|part| matches!(part, CostPart::Unattach(ObjectRef::Granter)))
+                .any(|part| matches!(part, CostPart::Unattach(ObjectRef::GrantingObject)))
         });
         if matches!(what, EarlierObjects::Unattached) && unattaches_granter {
             return Ok("vec![asker.source]".into());
@@ -869,7 +869,7 @@ impl Compiler {
         }
         let mut value = serde_json::to_value(operation).ok()?;
         let fields = value.get_mut("args")?.as_object_mut()?;
-        let binding = Binding(ACTING);
+        let binding = LoopBinding(ACTING);
         let one = PlayerSet::One(PlayerRef::Bound(binding.clone()));
         let players: PlayerSet = if let Some(set) = fields.get("players") {
             let players = serde_json::from_value(set.clone()).ok()?;
@@ -1313,7 +1313,7 @@ impl Compiler {
                     }
                 }
             }
-            Expr::Power(base, exponent) => {
+            Expr::Exponentiate(base, exponent) => {
                 let (base, exponent) = (self.number(base)?, self.number(exponent)?);
                 Number {
                     code: format!(

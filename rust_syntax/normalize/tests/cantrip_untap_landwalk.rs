@@ -47,7 +47,7 @@ fn simultaneous_untap_results_record_actual_untaps() {
     let source: OracleCard = ron::from_str(r#"Card(Name: "Untap probe", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), Rules: [SpellActions(ActionList([DrawACard]))])"#).unwrap();
     let mut card = lower::card(&source).unwrap();
     card.abilities = vec![Ability::Spell { announcement: Announcement::empty(), body: Program { instructions: vec![
-        Instruction::Effect { result: ResultId(0), operation: Operation::Tap { objects: ObjectSet::battlefield(ObjectFilter::Any), tapped: false } },
+        Instruction::Effect { result: ResultId(0), operation: Operation::SetTapped { objects: ObjectSet::battlefield(ObjectFilter::Any), tapped: false } },
         Instruction::Effect { result: ResultId(1), operation: Operation::GainLife { players: PlayerSet::One(PlayerRef::AbilityController), amount: Expr::CountObjects(Box::new(ObjectSet::Transition { result: ResultId(0), phase: ObjectPhase::After })) } },
     ] } }];
     let generated = cantrip::module(&card).unwrap();

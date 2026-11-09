@@ -41,7 +41,7 @@ impl TargetSelector {
     pub fn player() -> Self {
         Self::Players { filter: None }
     }
-    pub fn into_spec(self, slot: Slot) -> TargetSpec {
+    pub fn into_spec(self, slot: TargetSlot) -> TargetSpec {
         let mut spec = TargetSpec {
             slot,
             kind: TargetKind::Player,
@@ -102,7 +102,7 @@ mod tests {
     use super::*;
     #[test]
     fn changing_domain_replaces_only_applicable_filters() {
-        let mut spec = TargetSelector::creature().into_spec(Slot(7));
+        let mut spec = TargetSelector::creature().into_spec(TargetSlot(7));
         spec.count = Count::UpTo(Expr::Constant(3));
         spec.set_selector(TargetSelector::player());
         assert!(matches!(

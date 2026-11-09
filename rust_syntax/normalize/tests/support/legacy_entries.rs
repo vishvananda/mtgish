@@ -72,6 +72,7 @@ pub fn json(value: &mut Value) {
         Value::Array(items) => items.iter_mut().for_each(json),
         _ => (),
     }
+    api_names(value);
     if value.get("minimum").is_some() && value.get("modes").is_some() {
         let old:mode_policies::LegacyModeSelection=serde_json::from_value(value.clone()).unwrap();
         *value=serde_json::to_value(old.current().unwrap()).unwrap();
@@ -172,7 +173,7 @@ fn has_legacy_keyword_field(input:&str,each:bool)->bool {
 /// the deepest eligible field first, including old fields in quoted abilities;
 /// draft ChangeZone's intentionally generic entry vector remains untouched.
 pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
-    let mut input = input.to_string();
+    let mut input = ron_api_names(input);
     for _ in 0..65_536 {
         let bytes = input.as_bytes();
         let (mut i, mut quoted, mut escaped) = (0, false, false);
@@ -300,4 +301,73 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
         input = format!("{}{name}{replacement}{}", &input[..start], &input[end..]);
     }
     panic!("historical payload upgrade limit exceeded");
+}
+
+/// Spelling/role adaptation for immutable pre-authoring producer snapshots.
+/// Unlike the live migration, these captures have several older schema shapes;
+/// change only the enumerated aliases and retain every other subtree verbatim.
+fn api_names(value: &mut Value) {
+    let Some(kind)=value.get("kind").and_then(Value::as_str).map(str::to_string) else {return;};
+    let rename=match kind.as_str() {
+        "Tap"=>Some("SetTapped"), "KeywordHost"=>Some("AbilityHolder"), "Granter"=>Some("GrantingObject"),
+        "Power" if value["args"].as_array().is_some_and(|a|a.len()==2)=>Some("Exponentiate"),
+        "Named" if value["args"].is_number() || (value["args"].get("result").is_some()&&value["args"].get("by").is_some())=>Some("Recorded"),
+        _=>None,
+    };
+    if let Some(new)=rename {value["kind"]=json!(new);}
+    let roles:&[(&str,&str)]=match kind.as_str() {
+        "Search"=>&[("player","searcher"),("library","library_owner")],
+        "ReorderLibrary"=>&[("player","chooser"),("library","library_owner")],
+        "ChooseValue"|"ChooseValueWith"=>&[("actor","choosers")],_=>&[],
+    };
+    for (old,new) in roles {
+        if let Some(args)=value["args"].as_object_mut() {if let Some(v)=args.remove(*old) {args.insert((*new).into(),v);}}
+    }
+    if kind=="DuplicateCounters" && value["args"]["from"].get("kind").is_some() {
+        let from=value["args"]["from"].take();
+        value["args"]["from"]=if from["kind"]=="CountersTheEventPut" {json!("EventPut")}else{json!({"On":from})};
+    }
+}
+
+/// Lexical spelling adaptation confined to these immutable, pre-authoring RON
+/// fixtures. Quoted text and unrelated enums (e.g. CounterKind::Named) retain
+/// their original bytes; operation role fields are changed only at args depth 1.
+fn ron_api_names(input: &str) -> String {
+    let mut out=input.to_string();
+    if let Some(start)=out.find("layout:") {
+        let start=start+"layout:".len();let tail=&out[start..];
+        let mut de=ron::de::Deserializer::from_str(tail).unwrap();
+        let name=String::deserialize(&mut de).unwrap();
+        let end=start+tail.len()-de.remainder().len();
+        out.replace_range(start..end,&ron::to_string(&Layout::from_name(&name).unwrap()).unwrap());
+    }
+    let mut mask=out.as_bytes().to_vec();let(mut quoted,mut escaped)=(false,false);
+    for b in &mut mask {
+        let c=*b;
+        if quoted {if escaped {escaped=false;}else if c==b'\\' {escaped=true;}else if c==b'"' {quoted=false;}*b=b' ';}
+        else if c==b'"' {quoted=true;*b=b' ';}
+    }
+    let mask=String::from_utf8(mask).unwrap();let mut edits=vec![];
+    for (old,new) in [("Tap","SetTapped"),("Granter","GrantingObject"),("KeywordHost","AbilityHolder"),("Power","Exponentiate"),("Named","Recorded")] {
+        let pattern=format!("kind:{old},args:");
+        for (at,_) in mask.match_indices(&pattern) {
+            let payload=&mask[at+pattern.len()..];
+            if old=="Named" && !(payload.starts_with("(result:")||payload.starts_with("((")||payload.as_bytes().get(1).is_some_and(u8::is_ascii_digit)) {continue;}
+            edits.push((at+5,at+5+old.len(),new.to_string()));
+        }
+        if matches!(old,"Granter"|"KeywordHost") {for (at,_) in mask.match_indices(&format!("kind:{old})")) {edits.push((at+5,at+5+old.len(),new.to_string()));}}
+    }
+    for (op,roles) in [("Search",vec![("player","searcher"),("library","library_owner")]),("ReorderLibrary",vec![("player","chooser"),("library","library_owner")]),("ChooseValue",vec![("actor","choosers")])] {
+        let pattern=format!("kind:{op},args:(");
+        for (at,_) in mask.match_indices(&pattern) {
+            let mut depth=1;let mut i=at+pattern.len();let bytes=mask.as_bytes();
+            while i<bytes.len() && depth>0 {
+                if depth==1 {for (old,new) in &roles {if mask[i..].starts_with(&format!("{old}:")) && (bytes[i-1]==b'('||bytes[i-1]==b',') {edits.push((i,i+old.len(),(*new).into()));}}}
+                match bytes[i] {b'('|b'['|b'{'=>depth+=1,b')'|b']'|b'}'=>depth-=1,_=>{}}i+=1;
+            }
+        }
+    }
+    edits.sort_by_key(|(a,_,_)|*a);edits.dedup();
+    for (a,b,v) in edits.into_iter().rev(){out.replace_range(a..b,&v);}
+    out
 }

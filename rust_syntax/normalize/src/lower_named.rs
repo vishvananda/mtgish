@@ -1103,7 +1103,7 @@ impl Context {
     fn primitive_object(&self, value: &source::Permanent) -> Option<ObjectRef> {
         let (name, operands) = self.primitive("Permanent", value)?;
         Some(match (name.as_str(), operands.as_slice()) {
-            ("Permanent::ThisGuest", []) => ObjectRef::Granter,
+            ("Permanent::ThisGuest", []) => ObjectRef::GrantingObject,
             ("Permanent::SingleTargetPermanentOfSpell", [Operand::Object(spell)]) => {
                 ObjectRef::SoleTargetOf(Box::new(spell.clone()))
             }

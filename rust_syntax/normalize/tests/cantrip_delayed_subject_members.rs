@@ -73,12 +73,12 @@ fn the_native_dual_role_feature_is_required_without_forgiving_aura_identity() {
 fn capturing(counts: &[i64], order: &[usize], player: bool) -> Card {
     let mut c = card("Gift of Immortality");
     let mut targets: Vec<_> = counts.iter().enumerate().map(|(i, &n)| TargetSpec {
-        slot: Slot(i as u16), kind: TargetKind::Object(ObjectDomain { kind: ObjectKind::Permanent, zones: vec![EventZone::Battlefield] }),
+        slot: TargetSlot(i as u16), kind: TargetKind::Object(ObjectDomain { kind: ObjectKind::Permanent, zones: vec![EventZone::Battlefield] }),
         count: Count::UpTo(Expr::Constant(n)), filter: ObjectFilter::Any, players: None, distribute: None, constraints: vec![], chooser: None,
     }).collect();
-    let mut instructions: Vec<_> = order.iter().enumerate().map(|(i, &target)| Instruction::Effect { result: ResultId(i as u32), operation: Operation::Tap { objects: ObjectSet::Targets(Slot(target as u16)), tapped: true } }).collect();
+    let mut instructions: Vec<_> = order.iter().enumerate().map(|(i, &target)| Instruction::Effect { result: ResultId(i as u32), operation: Operation::SetTapped { objects: ObjectSet::Targets(TargetSlot(target as u16)), tapped: true } }).collect();
     if player {
-        let slot = Slot(targets.len() as u16);
+        let slot = TargetSlot(targets.len() as u16);
         targets.push(TargetSpec { slot: slot.clone(), kind: TargetKind::Player, count: Count::Exactly(Expr::Constant(1)), filter: ObjectFilter::Any, players: None, distribute: None, constraints: vec![], chooser: None });
         instructions.push(Instruction::Effect { result: ResultId(100), operation: Operation::Draw { players: PlayerSet::One(PlayerRef::Target { slot, index: 0 }), amount: Expr::Constant(1) } });
     }
@@ -125,8 +125,8 @@ fn an_unknown_outer_reference_is_a_gap_instead_of_an_empty_capture() {
     let mut c = capturing(&[1], &[0], false);
     let Ability::Spell { body, .. } = &mut c.abilities[0] else { unreachable!() };
     let Instruction::Effect { operation: Operation::CreateDelayedTrigger { body, .. }, .. } = &mut body.instructions[0] else { unreachable!() };
-    let Instruction::Effect { operation: Operation::Tap { objects, .. }, .. } = &mut body.instructions[0] else { unreachable!() };
-    *objects = ObjectSet::Targets(Slot(7));
+    let Instruction::Effect { operation: Operation::SetTapped { objects, .. }, .. } = &mut body.instructions[0] else { unreachable!() };
+    *objects = ObjectSet::Targets(TargetSlot(7));
     assert!(mtgish_ast::validate::card(&c).is_err());
     assert!(custom(&c).is_err(), "unknown creator reference cannot silently become None");
 }

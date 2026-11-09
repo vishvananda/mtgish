@@ -7,7 +7,7 @@ use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct UnifiedCard {
     pub schema_version: u32,
-    pub layout: String,
+    pub layout: Layout,
     pub faces: Vec<Card>,
     pub data: Vec<Field>,
 }
@@ -107,4 +107,107 @@ pub struct Characteristics {
     pub power_toughness: Option<(i32, i32)>,
     pub loyalty: Option<Expr>,
     pub defense: Option<i32>,
+}
+
+/// The known interpretation of a record's ordinary faces and layout metadata.
+/// Extensions are explicitly namespaced; an unknown name never becomes a known
+/// layout by sharing its spelling. Backend support must be provided separately.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Layout {
+    Card,
+    Transforming,
+    ModalDFC,
+    Adventurer,
+    Ominous,
+    Preparer,
+    Room,
+    Split,
+    MeldPiece,
+    Melded,
+    Dungeon,
+    StickerSheet,
+    TokenDefinition,
+    Planar,
+    Scheme,
+    Conspiracy,
+    Vanguard,
+    Flip,
+    Extension { namespace: String, name: String },
+}
+impl Layout {
+    pub const KNOWN: [Self; 18] = [
+        Self::Card,
+        Self::Transforming,
+        Self::ModalDFC,
+        Self::Adventurer,
+        Self::Ominous,
+        Self::Preparer,
+        Self::Room,
+        Self::Split,
+        Self::MeldPiece,
+        Self::Melded,
+        Self::Dungeon,
+        Self::StickerSheet,
+        Self::TokenDefinition,
+        Self::Planar,
+        Self::Scheme,
+        Self::Conspiracy,
+        Self::Vanguard,
+        Self::Flip,
+    ];
+    pub fn known_name(&self) -> Option<&'static str> {
+        Some(match self {
+            Self::Card => "Card",
+            Self::Transforming => "Transforming",
+            Self::ModalDFC => "ModalDFC",
+            Self::Adventurer => "Adventurer",
+            Self::Ominous => "Ominous",
+            Self::Preparer => "Preparer",
+            Self::Room => "Room",
+            Self::Split => "Split",
+            Self::MeldPiece => "MeldPiece",
+            Self::Melded => "Melded",
+            Self::Dungeon => "Dungeon",
+            Self::StickerSheet => "StickerSheet",
+            Self::TokenDefinition => "TokenDefinition",
+            Self::Planar => "Planar",
+            Self::Scheme => "Scheme",
+            Self::Conspiracy => "Conspiracy",
+            Self::Vanguard => "Vanguard",
+            Self::Flip => "Flip",
+            Self::Extension { .. } => return None,
+        })
+    }
+    /// Source and legacy strings accept only the enumerated built-in layouts.
+    pub fn from_name(name: &str) -> Result<Self, String> {
+        match name {
+            "Card" => Ok(Self::Card),
+            "Transforming" => Ok(Self::Transforming),
+            "ModalDFC" => Ok(Self::ModalDFC),
+            "Adventurer" => Ok(Self::Adventurer),
+            "Ominous" => Ok(Self::Ominous),
+            "Preparer" => Ok(Self::Preparer),
+            "Room" => Ok(Self::Room),
+            "Split" => Ok(Self::Split),
+            "MeldPiece" => Ok(Self::MeldPiece),
+            "Melded" => Ok(Self::Melded),
+            "Dungeon" => Ok(Self::Dungeon),
+            "StickerSheet" => Ok(Self::StickerSheet),
+            "TokenDefinition" => Ok(Self::TokenDefinition),
+            "Planar" => Ok(Self::Planar),
+            "Scheme" => Ok(Self::Scheme),
+            "Conspiracy" => Ok(Self::Conspiracy),
+            "Vanguard" => Ok(Self::Vanguard),
+            "Flip" => Ok(Self::Flip),
+            _ => Err(format!("unknown layout {name}; use an explicit namespaced Extension")),
+        }
+    }
+}
+impl std::fmt::Display for Layout {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Extension { namespace, name } => write!(f, "{namespace}:{name}"),
+            known => f.write_str(known.known_name().expect("known layout")),
+        }
+    }
 }

@@ -412,7 +412,7 @@ impl Compiler {
     }
     /// `Option<Target>` of a target announced ahead of the slot whose filter is
     /// being read, which the engine lists without saying whose each is.
-    pub(super) fn earlier_target(&self, slot: &Slot, index: u16) -> Result<Option<String>> {
+    pub(super) fn earlier_target(&self, slot: &TargetSlot, index: u16) -> Result<Option<String>> {
         let Some(choosing) = self.choosing else {
             return Ok(None);
         };
@@ -452,10 +452,10 @@ impl Compiler {
         }
         Ok(Some(format!("q.chosen_targets().get({at}).copied()")))
     }
-    fn is_first_slot(&self, slot: &Slot) -> bool {
+    fn is_first_slot(&self, slot: &TargetSlot) -> bool {
         self.slots.get(&slot.0).is_some_and(|(i, _)| *i == 0)
     }
-    pub(super) fn slot(&self, slot: &Slot) -> Result<usize> {
+    pub(super) fn slot(&self, slot: &TargetSlot) -> Result<usize> {
         if self.reader != Reader::Resolution || !self.stack_item {
             return Err(gap("target reference outside a resolving ability"));
         }
@@ -2739,7 +2739,7 @@ impl Compiler {
     }
 }
 
-fn c_slot_is_fixed(c: &Compiler, slot: &Slot, index: u16) -> bool {
+fn c_slot_is_fixed(c: &Compiler, slot: &TargetSlot, index: u16) -> bool {
     c.slots.get(&slot.0).is_some_and(|(_, spec)| {
         matches!(&spec.count, Count::Exactly(Expr::Constant(n)) if *n > i64::from(index))
     })
@@ -2803,7 +2803,7 @@ mod result_membership_tests {
         let mut compiler = Compiler::new();
         compiler.pile_not_chosen.insert(3, "other_pile".into());
         compiler.moved.insert(3, "chosen_pile".into());
-        let chosen = ObjectFilter::InSet(Box::new(ObjectSet::Named(ResultId(3))));
+        let chosen = ObjectFilter::InSet(Box::new(ObjectSet::Recorded(ResultId(3))));
         let other = ObjectFilter::Not(Box::new(chosen.clone()));
         assert_eq!(compiler.predicate(&other, &Candidate::of("id")).unwrap(), "other_pile.contains(&id)");
         assert_eq!(compiler.predicate(&chosen, &Candidate::of("id")).unwrap(), "(chosen_pile.clone()).contains(&id)");
@@ -2834,7 +2834,7 @@ mod battlefield_query_tests {
     #[test]
     fn named_object_zone_guards_keep_stale_object_rejection() {
         let mut compiler=Compiler::new();compiler.moved.insert(3,"moved".into());
-        let query=ObjectSet::InZone {objects:Box::new(ObjectSet::Named(ResultId(3))),zone:EventZone::Battlefield};
+        let query=ObjectSet::InZone {objects:Box::new(ObjectSet::Recorded(ResultId(3))),zone:EventZone::Battlefield};
         let code=compiler.objects(&query).unwrap();
         assert!(code.contains("moved.clone()"));assert!(code.contains("became.is_none()"));assert!(code.contains("zone.kind() == ZoneKind::Battlefield"));
     }
@@ -2879,7 +2879,7 @@ mod subject_provenance_tests {
         for player in &players {
             assert!(compiler.certain_player(player).is_err());
         }
-        let target = PlayerRef::ControllerOf(Box::new(ObjectRef::Target { slot: Slot(0), index: 0 }));
+        let target = PlayerRef::ControllerOf(Box::new(ObjectRef::Target { slot: TargetSlot(0), index: 0 }));
         assert!(compiler.certain_player(&target).is_err());
         let object_frame = Frame { object: Some(Carried::Subject), ..Frame::default() };
         let player_frame = Frame { player: Some(Carried::Subject), ..Frame::default() };

@@ -27,6 +27,8 @@ pub struct EventBindings {
     pub spell: bool,
     pub player: bool,
     pub amount: bool,
+    /// Actual counters placed by the matched event, retained through wrappers.
+    pub counters_placed: bool,
     pub moved: bool,
     pub damage: bool,
     pub damage_source: bool,
@@ -59,6 +61,7 @@ impl EventBindings {
             spell: a.spell && b.spell,
             player: a.player && b.player,
             amount: a.amount && b.amount,
+            counters_placed: a.counters_placed && b.counters_placed,
             moved: a.moved && b.moved,
             block_pair: a.block_pair && b.block_pair,
             group: a.group && b.group,
@@ -202,7 +205,7 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
         Operation::Sacrifice {
             objects, choose, ..
         } => choose.as_ref().map_or_else(|| chosen(objects), one),
-        Operation::Tap { objects, .. } | Operation::Destroy { objects, .. } => chosen(objects),
+        Operation::SetTapped { objects, .. } | Operation::Destroy { objects, .. } => chosen(objects),
         Operation::Discard {
             players: PlayerSet::One(_),
             amount: Expr::Constant(1),
@@ -691,7 +694,7 @@ fn reduce_placed_counters(form: &str, operands: &[Operand]) -> Option<Operation>
     let one = |object: &ObjectRef| Recipients::Objects(ObjectSet::One(object.clone()));
     let duplicate = |from, to, copies| {
         Some(Operation::DuplicateCounters {
-            from,
+            from: CounterSource::On(from),
             to,
             copies,
             kind: None,
@@ -871,7 +874,7 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         .and_then(|form| VALUE_CHOICES.iter().find(|(row, ..)| *row == form));
     if let Some((_, kind, count)) = choice {
         return Operation::ChooseValue {
-            actor,
+            choosers: actor,
             kind: *kind,
             terms: ChoiceTerms::ordinary(*count, operands),
         };
@@ -5551,9 +5554,10 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             moved_owner: matches!(to, EventZone::Graveyard | EventZone::Hand),
             ..EventBindings::default()
         },
-        EventSpec::NthCounter { .. } => {
-            row_bindings("Trigger::WhenTheNthCounterOfTypeIsPutOnAPermanent")
-        }
+        EventSpec::NthCounter { .. } => EventBindings {
+            counters_placed: true,
+            ..row_bindings("Trigger::WhenTheNthCounterOfTypeIsPutOnAPermanent")
+        },
         EventSpec::AttackUnblocked { count: None, .. } => {
             row_bindings("Trigger::WhenACreatureAttacksAPlayerAndIsntBlocked")
         }
@@ -5577,9 +5581,10 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
         EventSpec::ControlChanges { .. } => {
             row_bindings("Trigger::WhenAPlayerGainsControlOfAPermanentFromAPlayer")
         }
-        EventSpec::CountersOnPlayer { .. } => {
-            row_bindings("Trigger::WhenAPlayerPutsCountersOnAPlayer")
-        }
+        EventSpec::CountersOnPlayer { .. } => EventBindings {
+            counters_placed: true,
+            ..row_bindings("Trigger::WhenAPlayerPutsCountersOnAPlayer")
+        },
         EventSpec::AttacksWith {
             by: Some(_), ..
         } => row_bindings("Trigger::WhenAPlayerAttacksWithASingleCreatureAndANumberOfOtherCreatures"),
@@ -5688,7 +5693,8 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 ..EventBindings::default()
             }
         }
-        EventSpec::Counters { by, .. } => EventBindings {
+        EventSpec::Counters { change, by, .. } => EventBindings {
+            counters_placed: matches!(change, CounterChange::Put),
             object: true,
             permanent: true,
             player: by.is_some(),
@@ -5753,6 +5759,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                     && matches!(event.source_kind, ObjectKind::Spell),
                 player: recipient && players,
                 amount: true,
+                counters_placed: false,
                 moved: false,
                 damage: true,
                 damage_source: source,
@@ -5958,7 +5965,7 @@ impl Effects {
                     | Operation::DealDamageFromEach { .. }
                     | Operation::DealDamageWith { .. }
                     | Operation::Destroy { .. }
-                    | Operation::Tap { .. }
+                    | Operation::SetTapped { .. }
                     | Operation::Sacrifice { .. }
                     | Operation::PutCounters { .. }
                     | Operation::CreateContinuousEffect { .. } => {}
@@ -6065,7 +6072,7 @@ impl Effects {
             ObjectRef::Query { objects, .. } => self.objects_library(objects),
             ObjectRef::Result { result, phase, .. } => self.result_library(result, phase),
             ObjectRef::ChosenBy { result, .. } => self.result_library(result, &ObjectPhase::After),
-            ObjectRef::Named { .. }
+            ObjectRef::Recorded { .. }
             | ObjectRef::Earlier { .. }
             | ObjectRef::SourceOf(_)
             | ObjectRef::Scoped
@@ -6073,9 +6080,9 @@ impl Effects {
             | ObjectRef::HauntedBy(_)
             | ObjectRef::NthChosen { .. } => false,
             ObjectRef::Source
-            | ObjectRef::KeywordHost
+            | ObjectRef::AbilityHolder
             | ObjectRef::MadeHere
-            | ObjectRef::Granter
+            | ObjectRef::GrantingObject
             | ObjectRef::Discarded
             | ObjectRef::Damage(_)
             | ObjectRef::Candidate
@@ -6110,7 +6117,7 @@ impl Effects {
             ObjectSet::LibraryTops(_) => true,
             ObjectSet::Primitive { .. }
             | ObjectSet::Earlier { .. }
-            | ObjectSet::Named(_)
+            | ObjectSet::Recorded(_)
             | ObjectSet::Scoped
             | ObjectSet::AnyZone(_)
             | ObjectSet::OutsideTheGame(_) => false,

@@ -120,7 +120,7 @@ fn gutter_grime_tokens_count_the_granter_for_both_characteristics() {
         assert_eq!(change[characteristic]["kind"], "CountCounters");
         assert_eq!(
             change[characteristic]["args"]["recipients"],
-            json!({"kind":"Objects","args":{"kind":"One","args":{"kind":"Granter"}}})
+            json!({"kind":"Objects","args":{"kind":"One","args":{"kind":"GrantingObject"}}})
         );
     }
 }
@@ -147,7 +147,7 @@ fn toralfs_hammer_is_returned_but_the_equipped_creature_deals_the_damage() {
     for name in ["Toralf's Hammer", "Razor Boomerang"] {
         let c = serde_json::to_value(card(name)).unwrap();
         assert_eq!(operation(&c, "DealDamage")["source"], json!({"kind":"Source"}), "{name}");
-        assert_eq!(operation(&c, "Move")["objects"], json!({"kind":"One","args":{"kind":"Granter"}}), "{name}");
+        assert_eq!(operation(&c, "Move")["objects"], json!({"kind":"One","args":{"kind":"GrantingObject"}}), "{name}");
     }
 }
 

@@ -6,7 +6,7 @@ use super::*;
 /// One `Instruction::ForEachPlayer`, with what comes after it in its program.
 pub(super) struct EachPlayer<'a> {
     pub players: &'a PlayerSet,
-    pub binding: &'a Binding,
+    pub binding: &'a LoopBinding,
     pub starting_with: Option<&'a PlayerRef>,
     pub in_chosen_direction: bool,
     pub body: &'a Program,
@@ -16,7 +16,7 @@ pub(super) struct EachPlayer<'a> {
 /// "Each player who chose fame, ... that player": a step the data words as each of
 /// one player, the one walked, doing it is that player's own turn at it, where
 /// `PlayerRef::Acting` is the player walked.
-pub(super) fn own_turns(body: &Program, binding: &Binding) -> Option<Program> {
+pub(super) fn own_turns(body: &Program, binding: &LoopBinding) -> Option<Program> {
     let own = |i: &Instruction| matches!(i, Instruction::Effect { operation: Operation::EachPlayer { players, .. }, .. } if one_bound(players, binding));
     if !body.instructions.iter().any(own) {
         return None;
@@ -38,7 +38,7 @@ pub(super) fn own_turns(body: &Program, binding: &Binding) -> Option<Program> {
     Some(Program { instructions })
 }
 /// Whether a part of a per-player body reads the player it is for.
-fn names(binding: &Binding, value: &impl crate::visit::Walk) -> bool {
+fn names(binding: &LoopBinding, value: &impl crate::visit::Walk) -> bool {
     use crate::visit::{Visitor, Walk};
     struct Reads { binding: u32, found: bool }
     impl Visitor for Reads {
@@ -64,10 +64,10 @@ fn names(binding: &Binding, value: &impl crate::visit::Walk) -> bool {
     value.walk(&mut reads);
     reads.found
 }
-fn is_bound(player: &PlayerRef, binding: &Binding) -> bool {
+fn is_bound(player: &PlayerRef, binding: &LoopBinding) -> bool {
     matches!(player, PlayerRef::Bound(b) if b.0 == binding.0)
 }
-fn one_bound(players: &PlayerSet, binding: &Binding) -> bool {
+fn one_bound(players: &PlayerSet, binding: &LoopBinding) -> bool {
     matches!(players, PlayerSet::One(player) if is_bound(player, binding))
 }
 /// Every result the instructions bind, however deep.
@@ -138,7 +138,7 @@ fn walked(op: &Operation) -> bool {
 /// A walk whose player may pay a cost, and whose later step does something
 /// unless they did, all of it about one thing done for them: each player's turn
 /// is the whole process.
-fn punished_in_turn(flat: &[Instruction], binding: &Binding) -> bool {
+fn punished_in_turn(flat: &[Instruction], binding: &LoopBinding) -> bool {
     let paid: Vec<u32> = flat
         .iter()
         .filter_map(|step| match step {
@@ -557,7 +557,7 @@ pub(super) fn on_the_stack(domain: &ObjectDomain) -> bool {
 impl Compiler {
     /// The zone of objects a player's own, so entering "under their control" is
     /// under their owner's.
-    fn own_cards(&self, objects: &ObjectSet, binding: &Binding, earlier: &[Instruction]) -> bool {
+    fn own_cards(&self, objects: &ObjectSet, binding: &LoopBinding, earlier: &[Instruction]) -> bool {
         if let ObjectSet::Prepared(id) = objects {
             return self
                 .selection_metadata(id)
@@ -599,7 +599,7 @@ impl Compiler {
                         operation,
                     } if made.0 == result.0 => match operation {
                         Operation::Search {
-                            library,
+                            library_owner: library,
                             also,
                             outside: false,
                             ..
@@ -618,9 +618,9 @@ impl Compiler {
     }
     /// "Cards they own", or "cards they exiled this way" of a step that moved
     /// what each player owns.
-    fn moved_their_own(&self, objects: &ObjectSet, binding: &Binding) -> bool {
+    fn moved_their_own(&self, objects: &ObjectSet, binding: &LoopBinding) -> bool {
         let text = format!("{objects:?}");
-        if text.contains(&format!("OwnedBy(One(Bound(Binding({}))))", binding.0)) {
+        if text.contains(&format!("OwnedBy(One(Bound(LoopBinding({}))))", binding.0)) {
             return true;
         }
         let Some(at) = text.find("MovedBy { result: ResultId(") else {
@@ -945,11 +945,11 @@ impl Compiler {
             {
                 Part::Gather(Gathered::Counters { operation: operation.clone(), result })
             }
-            Operation::Tap { objects, tapped } if names(binding, objects) => {
+            Operation::SetTapped { objects, tapped } if names(binding, objects) => {
                 let tapped = *tapped;
                 Part::Gather(Gathered::Objects {
                     objects: objects.clone(),
-                    then: Box::new(move |objects| Operation::Tap { objects, tapped }),
+                    then: Box::new(move |objects| Operation::SetTapped { objects, tapped }),
                 })
             }
             Operation::Mill { players, amount } if one_bound(players, binding) => {
@@ -2298,7 +2298,7 @@ impl Compiler {
     }
     /// What `operation` has no arm for of its own.
     /// Whether targets of `slot` are items on the stack, abilities among them.
-    pub(super) fn stack_slot(&self, slot: &Slot) -> bool {
+    pub(super) fn stack_slot(&self, slot: &TargetSlot) -> bool {
         self.slots.get(&slot.0).is_some_and(
             |(_, spec)| matches!(&spec.kind, TargetKind::Object(domain) if on_the_stack(domain)),
         )
@@ -2337,7 +2337,7 @@ impl Compiler {
         }
     }
     /// `stack_item` for the slot `slot`, or `STACK_ITEM` when it is not known.
-    pub(super) fn slot_item(&self, slot: &Slot) -> &'static str {
+    pub(super) fn slot_item(&self, slot: &TargetSlot) -> &'static str {
         match self.slots.get(&slot.0) {
             Some((_, spec)) => match &spec.kind {
                 TargetKind::Object(domain) => stack_item(domain, &spec.filter),
@@ -2424,7 +2424,7 @@ impl Compiler {
     /// ability's own controller, which its source's need not be (113.8).
     pub(super) fn stack_controller(
         &self,
-        slot: &Slot,
+        slot: &TargetSlot,
         index: impl std::fmt::Display,
     ) -> Result<String> {
         if let Some(kept) = self.countered.get(&slot.0) {
@@ -2769,7 +2769,7 @@ impl Compiler {
                 self.move_counters(id, result, player, from, to, kind.as_ref(), amount, out)?;
             }
             Operation::DuplicateCounters {
-                from: Recipients::Objects(from),
+                from: CounterSource::On(Recipients::Objects(from)),
                 to: Recipients::Objects(to),
                 copies: CounterCopies::All,
                 kind,
@@ -3076,7 +3076,7 @@ impl Compiler {
             (_, Some(_)) => return Err(gap("keyword action with a duration of its own")),
             _ => {
                 let binding = u32::MAX - id as u32;
-                let each = ObjectRef::Bound(Binding(binding));
+                let each = ObjectRef::Bound(LoopBinding(binding));
                 writeln!(
                     out,
                     "for bound_{binding} in {} {{",
@@ -3558,8 +3558,8 @@ impl Compiler {
         const LIBRARY: &str = "cantrip_mechanics::library";
         const SELECTION: &str = "cantrip_mechanics::select::Selection";
         let Operation::Search {
-            player,
-            library,
+            searcher: player,
+            library_owner: library,
             top,
             choices,
             also,
@@ -3684,8 +3684,8 @@ impl Compiler {
             return Err(gap("search with cards from outside the game"));
         }
         let Operation::Search {
-            player,
-            library,
+            searcher: player,
+            library_owner: library,
             top: None,
             choices,
             also,
@@ -4046,12 +4046,12 @@ mod entry_ability_tests {
     use super::*;
     #[test]
     fn player_dependencies_distinguish_object_ids_literals_shadowing_and_captures() {
-        let binding=Binding(7);
-        let read=||Instruction::Effect {result:ResultId(0),operation:Operation::Draw {players:PlayerSet::One(PlayerRef::Bound(Binding(7))),amount:Expr::Constant(1)}};
-        assert!(names(&binding,&PlayerRef::Bound(Binding(7))));
-        assert!(!names(&binding,&ObjectRef::Bound(Binding(7))));
-        assert!(!names(&binding,&Operand::Text("Bound(Binding(7))".into())));
-        let shadow=Instruction::ForEachPlayer {players:PlayerSet::All,binding:Binding(7),starting_with:None,in_chosen_direction:false,body:Program {instructions:vec![read()]}};
+        let binding=LoopBinding(7);
+        let read=||Instruction::Effect {result:ResultId(0),operation:Operation::Draw {players:PlayerSet::One(PlayerRef::Bound(LoopBinding(7))),amount:Expr::Constant(1)}};
+        assert!(names(&binding,&PlayerRef::Bound(LoopBinding(7))));
+        assert!(!names(&binding,&ObjectRef::Bound(LoopBinding(7))));
+        assert!(!names(&binding,&Operand::Text("Bound(LoopBinding(7))".into())));
+        let shadow=Instruction::ForEachPlayer {players:PlayerSet::All,binding:LoopBinding(7),starting_with:None,in_chosen_direction:false,body:Program {instructions:vec![read()]}};
         assert!(!names(&binding,&shadow));
         let ability=Ability::Spell {announcement:Announcement::empty(),body:Program {instructions:vec![shadow.clone()]}};
         assert!(!names(&binding,&ability));

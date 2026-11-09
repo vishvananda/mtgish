@@ -974,7 +974,7 @@ impl Compiler {
     ) -> Result<()> {
         let payer = self.fetch(self.certain_player(player)?);
         writeln!(out, "let payer_{id} = {payer}; let mut paid_{id} = false; if {M}::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{").unwrap();
-        let untap = Operation::Tap {
+        let untap = Operation::SetTapped {
             objects: objects.clone(),
             tapped: false,
         };
@@ -1506,7 +1506,7 @@ impl Compiler {
             ) =>
             {
                 let objects = selections[0].objects.clone();
-                let tap = Operation::Tap {
+                let tap = Operation::SetTapped {
                     objects,
                     tapped: true,
                 };
@@ -1712,7 +1712,7 @@ impl Compiler {
                     "Cost {{ remove_counters_from: Some(CountersFrom {{ filter: {filter}, kind: {of_kind}, size: {size} }}), ..Cost::NONE }}"
                 ))
             }
-            (ObjectSet::One(ObjectRef::Granter), CounterAmount::All) => plan(format!(
+            (ObjectSet::One(ObjectRef::GrantingObject), CounterAmount::All) => plan(format!(
                 "Cost {{ remove_all_counters_from_granter: Some({of_kind}), ..Cost::NONE }}"
             )),
             (ObjectSet::One(ObjectRef::Source), CounterAmount::Count(Count::AnyNumber)) => {
@@ -1785,7 +1785,7 @@ impl Compiler {
                 count: Expr::Constant(n),
             } => plan("engine: no mill cost", &format!("mill: {n}")),
             CostPart::Sacrifice {
-                objects: ObjectSet::One(ObjectRef::Granter),
+                objects: ObjectSet::One(ObjectRef::GrantingObject),
                 choose: None,
             } if !resolving => field("sacrifice_granter: true"),
             CostPart::Sacrifice {
@@ -1819,7 +1819,7 @@ impl Compiler {
             }
             CostPart::Exert(ObjectRef::Source) if !resolving => "EXERT".into(),
             CostPart::Unattach(ObjectRef::Source) => "UNATTACH_THIS".into(),
-            CostPart::Unattach(ObjectRef::Granter) => plan(
+            CostPart::Unattach(ObjectRef::GrantingObject) => plan(
                 "engine: no cost unattaches what gave the ability",
                 "unattach_granter: true",
             ),

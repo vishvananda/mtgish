@@ -332,7 +332,7 @@ fn restricted_damage_targets_and_multi_player_effects_keep_their_predicates_and_
         trigger(&c).2.instructions.as_slice(),
         [Instruction::Effect {
             operation: Operation::DealDamage {
-                recipients: Recipients::Targets(Slot(0)),
+                recipients: Recipients::Targets(TargetSlot(0)),
                 ..
             },
             ..

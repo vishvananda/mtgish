@@ -190,7 +190,7 @@ fn protection_from_players_preserves_the_player_quality_and_captures_granting_bi
         operation:
             Operation::CreateContinuousEffect {
                 affected:
-                    EffectSubjects::Objects(ObjectSet::One(ObjectRef::Target { slot: Slot(1), .. })),
+                    EffectSubjects::Objects(ObjectSet::One(ObjectRef::Target { slot: TargetSlot(1), .. })),
                 changes,
                 ..
             },
@@ -200,7 +200,7 @@ fn protection_from_players_preserves_the_player_quality_and_captures_granting_bi
         panic!()
     };
     assert!(
-        matches!(changes.as_slice(), [Change::GrantKeyword(Keyword::Protection(q))] if matches!(q.as_ref(), Protection::Players(PlayerSet::One(PlayerRef::Target { slot: Slot(0), .. }))))
+        matches!(changes.as_slice(), [Change::GrantKeyword(Keyword::Protection(q))] if matches!(q.as_ref(), Protection::Players(PlayerSet::One(PlayerRef::Target { slot: TargetSlot(0), .. }))))
     );
 }
 
@@ -257,7 +257,7 @@ fn ward_retains_a_later_triggered_payment_and_cost_choice_is_not_a_joint_cost() 
     assert!(matches!(
         ward(&c).parts.as_slice(),
         [CostPart::Life(Expr::ObjectProperty {
-            object: ObjectRef::KeywordHost,
+            object: ObjectRef::AbilityHolder,
             property: Property::Power,
             information: Information::CurrentOrLastKnown
         })]
@@ -265,7 +265,7 @@ fn ward_retains_a_later_triggered_payment_and_cost_choice_is_not_a_joint_cost() 
     let c = custom("EachPermanentLayerEffect(IsCardtype(Creature),[AddAbility([Ward(PayLife(PowerOfPermanent(ThisPermanent)))])])").unwrap();
     validate::card(&c).unwrap();
     assert!(
-        matches!(&c.abilities[0],Ability::Static { changes, .. } if matches!(changes.as_slice(),[Change::GrantKeyword(Keyword::Ward(cost))] if matches!(cost.parts.as_slice(),[CostPart::Life(Expr::ObjectProperty { object:ObjectRef::KeywordHost,.. })])))
+        matches!(&c.abilities[0],Ability::Static { changes, .. } if matches!(changes.as_slice(),[Change::GrantKeyword(Keyword::Ward(cost))] if matches!(cost.parts.as_slice(),[CostPart::Life(Expr::ObjectProperty { object:ObjectRef::AbilityHolder,.. })])))
     );
 }
 
@@ -331,7 +331,7 @@ fn keyword_cost_bindings_and_nested_quality_references_cannot_escape_their_scope
     for amount in [
         Expr::player_life(PlayerRef::WardPayer),
         Expr::ObjectProperty {
-            object: ObjectRef::KeywordHost,
+            object: ObjectRef::AbilityHolder,
             property: Property::Power,
             information: Information::CurrentOrLastKnown,
         },

@@ -600,7 +600,7 @@ impl Walker {
                 // traversal order, including when commutative events move.
                 let binding = types
                     .iter()
-                    .any(|(field, ty)| field == "binding" && *ty == Ty::Named("Binding".into()));
+                    .any(|(field, ty)| field == "binding" && *ty == Ty::Named("LoopBinding".into()));
                 let previous_binding = binding
                     .then(|| {
                         self.scopes

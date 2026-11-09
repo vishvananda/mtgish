@@ -17,7 +17,7 @@ pub fn action_wire(name: &str) -> &str {
         "DrawCards" => "Draw",
         "DiscardCards" => "Discard",
         "MillCards" => "Mill",
-        "SetTapped" => "Tap",
+        "Tap" => "SetTapped",
         "MoveObjects" => "Move",
         "DestroyObjects" => "Destroy",
         "SacrificeObjects" => "Sacrifice",
@@ -41,7 +41,7 @@ pub fn category(wire: &str) -> &'static str {
         | "FightEach"
         | "CreateRegenerationShields" => "Damage & life",
         "Move" | "MoveTopCard" | "Destroy" | "Sacrifice" | "SacrificeAllBut" | "ReturnAfter"
-        | "Conjure" | "CreateTokens" | "CopyCards" | "CopyEach" | "Tap" | "Attach"
+        | "Conjure" | "CreateTokens" | "CopyCards" | "CopyEach" | "SetTapped" | "Attach"
         | "AttachChosen" | "AttachEach" | "Manifest" | "TurnFaceDownAs" | "GiveControl"
         | "Exchange" | "Meld" | "Populate" => "Objects & movement",
         "PutCounters"
@@ -118,8 +118,8 @@ pub fn reference_name(ty: &str, wire: &str) -> Option<&'static str> {
     match (ty, wire) {
         ("PlayerRef", "EventSubject") => Some("EventPlayer"),
         ("ObjectRef", "EventSubject") => Some("EventObject"),
-        ("ObjectRef", "KeywordHost") => Some("AbilityHolder"),
-        ("ObjectRef", "Granter") => Some("GrantingObject"),
+        ("ObjectRef", "AbilityHolder") => Some("AbilityHolder"),
+        ("ObjectRef", "GrantingObject") => Some("GrantingObject"),
         _ => None,
     }
 }
@@ -127,13 +127,15 @@ pub fn reference_wire<'a>(ty: &str, name: &'a str) -> &'a str {
     match (ty, name) {
         ("PlayerRef", "EventPlayer") => "EventSubject",
         ("ObjectRef", "EventObject") => "EventSubject",
-        ("ObjectRef", "AbilityHolder") => "KeywordHost",
-        ("ObjectRef", "GrantingObject") => "Granter",
+        ("ObjectRef", "KeywordHost") => "AbilityHolder",
+        ("ObjectRef", "Granter") => "GrantingObject",
+        ("ObjectRef" | "ObjectSet", "Named") => "Recorded",
+        ("Expr", "Power") => "Exponentiate",
         _ => name,
     }
 }
 pub fn references() -> Value {
-    json!({"PlayerRef":{"EventSubject":"EventPlayer"},"ObjectRef":{"EventSubject":"EventObject","KeywordHost":"AbilityHolder","Granter":"GrantingObject"}})
+    json!({"PlayerRef":{"EventSubject":"EventPlayer"},"ObjectRef":{"EventSubject":"EventObject","AbilityHolder":"AbilityHolder","GrantingObject":"GrantingObject"}})
 }
 pub fn label(name: &str) -> String {
     let mut out = String::new();
@@ -195,5 +197,16 @@ pub fn field(owner: &str, name: &str) -> String {
         ("Operation::DealDamage", "recipients") => "to".into(),
         (_, "preventable") => "unpreventable".into(),
         _ => name.into(),
+    }
+}
+
+/// Read-only compatibility aliases. Writers and editor metadata use the
+/// current semantic roles, so aliases cannot reintroduce the old wire fields.
+pub fn legacy_field<'a>(owner: &str, field: &'a str) -> Option<&'a str> {
+    match (owner,field) {
+        ("Operation::Search","searcher") | ("Operation::ReorderLibrary","chooser") => Some("player"),
+        ("Operation::Search" | "Operation::ReorderLibrary","library_owner") => Some("library"),
+        ("Operation::ChooseValue","choosers") => Some("actor"),
+        _ => None,
     }
 }

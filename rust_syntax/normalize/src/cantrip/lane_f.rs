@@ -163,15 +163,15 @@ fn shape(card: &UnifiedCard, args: &Value) -> Shape {
         },
         _ => Shape::Unjoined,
     };
-    match card.layout.as_str() {
-        "Transforming" | "ModalDFC" => beside(&args["FrontFace"], "back"),
-        "Flip" => beside(&args["Unflipped"], "flipped"),
-        "Adventurer" => beside(args, "adventure"),
-        "Ominous" => beside(args, "omen"),
-        "Preparer" => beside(args, "prepared"),
-        "Room" => halves(&args["LeftDoor"]),
-        "Split" => halves(&args["Cards"][0]),
-        _ if card.faces.len() < 2 || card.layout == "TokenDefinition" => Shape::Alone,
+    match &card.layout {
+        Layout::Transforming | Layout::ModalDFC => beside(&args["FrontFace"], "back"),
+        Layout::Flip => beside(&args["Unflipped"], "flipped"),
+        Layout::Adventurer => beside(args, "adventure"),
+        Layout::Ominous => beside(args, "omen"),
+        Layout::Preparer => beside(args, "prepared"),
+        Layout::Room => halves(&args["LeftDoor"]),
+        Layout::Split => halves(&args["Cards"][0]),
+        _ if card.faces.len() < 2 || card.layout == Layout::TokenDefinition => Shape::Alone,
         _ => Shape::Unjoined,
     }
 }
@@ -224,11 +224,11 @@ fn without(face: &Card, mechanic: Mechanic) -> (Card, bool) {
 /// which is no player's library (CR 901.3, 902.3, 904.3, 905.1).
 fn variant(card: &UnifiedCard, args: &Value) -> Option<String> {
     let number = |key: &str| args[key].as_i64().unwrap_or_default();
-    Some(match card.layout.as_str() {
-        "Planar" => "variant: Some(Variant::Planechase)".to_string(),
-        "Scheme" => "variant: Some(Variant::Archenemy)".to_string(),
-        "Conspiracy" => "variant: Some(Variant::ConspiracyDraft)".to_string(),
-        "Vanguard" => format!(
+    Some(match &card.layout {
+        Layout::Planar => "variant: Some(Variant::Planechase)".to_string(),
+        Layout::Scheme => "variant: Some(Variant::Archenemy)".to_string(),
+        Layout::Conspiracy => "variant: Some(Variant::ConspiracyDraft)".to_string(),
+        Layout::Vanguard => format!(
             "variant: Some(Variant::Vanguard {{ hand: {}, life: {} }})",
             number("HandModifier"),
             number("LifeModifier")
@@ -346,7 +346,7 @@ impl Joining<'_> {
     }
     /// The file of a card that is its faces at once, none of them `CARD`.
     fn halves(&mut self, left: usize, right: usize) -> Result<String> {
-        let room = self.card.layout == "Room";
+        let room = self.card.layout == Layout::Room;
         let (left_half, left_fuse) = without(&self.card.faces[left], Mechanic::Fuse);
         let (right_half, right_fuse) = without(&self.card.faces[right], Mechanic::Fuse);
         let whole = both_halves(&left_half, &right_half);
@@ -388,16 +388,16 @@ impl Joining<'_> {
     /// The file of a card with one face beside it.
     fn with_face(&mut self, main: usize, other: usize, module: &'static str) -> Result<String> {
         let face = &self.card.faces[other];
-        let no_card = self.card.layout == "Preparer";
+        let no_card = self.card.layout == Layout::Preparer;
         let place = Place {
             no_card,
             ..Place::default()
         };
         self.beside(other, face, module, place)?;
-        match self.card.layout.as_str() {
-            "Flip" => self.plan_field("layout Flip", "flip: Some(&flipped::CARD)"),
-            "Transforming" => self.fields("back: Some(&back::CARD), "),
-            "ModalDFC" => {
+        match &self.card.layout {
+            Layout::Flip => self.plan_field("layout Flip", "flip: Some(&flipped::CARD)"),
+            Layout::Transforming => self.fields("back: Some(&back::CARD), "),
+            Layout::ModalDFC => {
                 self.fields("back: Some(&back::CARD), ");
                 let types = &face.characteristics.card_types;
                 if types.iter().any(|t| name(t) == "Land") {
@@ -417,7 +417,7 @@ impl Joining<'_> {
 
 /// Whether a record is a card to play at all, not a token or a sticker sheet.
 pub fn is_card(card: &UnifiedCard) -> bool {
-    !card.faces.is_empty() && card.layout != "TokenDefinition"
+    !card.faces.is_empty() && card.layout != Layout::TokenDefinition
 }
 
 /// A sticker sheet (CR 123): no card, but the sheet a game of Unfinity has beside it. Cantrip leaves stickers out of the
@@ -468,11 +468,14 @@ pub fn whole_printed(
     card: &UnifiedCard,
     oracle: Option<&BTreeMap<String, String>>,
 ) -> Result<Whole> {
-    if card.layout == "StickerSheet" {
+    if let Layout::Extension { .. } = &card.layout {
+        return Err(gap(format!("unsupported layout extension {}", card.layout)));
+    }
+    if card.layout == Layout::StickerSheet {
         return Ok(sticker_sheet(card));
     }
-    let inspected = match card.layout.as_str() {
-        "Card" => Value::Null,
+    let inspected = match &card.layout {
+        Layout::Card => Value::Null,
         _ => crate::inspect::value(source).expect("source AST serialization"),
     };
     let args = &inspected["args"];
@@ -502,12 +505,12 @@ pub fn whole_printed(
             if let Some(field) = variant(card, args) {
                 joining.plan_field(&layout, &field);
             }
-            match (card.layout.as_str(), card.faces.first()) {
+            match (&card.layout, card.faces.first()) {
                 // A half is an ordinary card: the meld is the partner's instruction
                 // to do, or the hole of the one that prints it.
-                ("MeldPiece", _) => {}
-                ("Melded", _) => joining.plan_field(&layout, "melded: true"),
-                ("Dungeon", Some(face)) => joining.plan_list(&layout, "dungeon", &dungeon(face)),
+                (Layout::MeldPiece, _) => {}
+                (Layout::Melded, _) => joining.plan_field(&layout, "melded: true"),
+                (Layout::Dungeon, Some(face)) => joining.plan_list(&layout, "dungeon", &dungeon(face)),
                 _ => {}
             }
             for at in 0..card.faces.len() {

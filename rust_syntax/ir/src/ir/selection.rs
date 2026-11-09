@@ -82,7 +82,7 @@ pub struct Mode {
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct TargetSpec {
-    pub slot: Slot,
+    pub slot: TargetSlot,
     pub kind: TargetKind,
     pub count: Count,
     pub filter: ObjectFilter,
@@ -153,10 +153,10 @@ impl ObjectDomain {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub struct Slot(pub u16);
+pub struct TargetSlot(pub u16);
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub struct Binding(pub u32);
+pub struct LoopBinding(pub u32);
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct ResultId(pub u32);
@@ -281,7 +281,7 @@ pub enum SelectionConstraint {
     OneForEach(Vec<ObjectFilter>),
     /// None of these may be what that earlier slot chose: "another target" is a
     /// second use of the word, so 601.2c alone does not keep them apart.
-    DifferentFromTarget(Slot),
+    DifferentFromTarget(TargetSlot),
     /// Each pick has the name of a different one of these objects.
     NamedAfterOneEach(ObjectSet),
     /// No two of the chosen objects share a value of this property.
@@ -300,7 +300,7 @@ pub enum SelectionConstraint {
     },
     /// Counts against that earlier slot's limit, as "up to three target creatures
     /// and/or creature cards in graveyards".
-    SharesLimitWith(Slot),
+    SharesLimitWith(TargetSlot),
     /// Every object has the same set of values of this property.
     AllSameProperty(DistinctProperty),
     /// Not what an earlier run of the enclosing player loop picked.

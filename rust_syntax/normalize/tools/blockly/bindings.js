@@ -2,7 +2,7 @@
  * current tree. Rust owns scope, reference types, and the final name check. */
 'use strict';
 function createBindingEditor(api) {
-  const kinds={Slot:'Target',ResultId:'Result',Binding:'Loop',SelectionId:'Selection'};
+  const kinds={TargetSlot:'Target',Slot:'Target',ResultId:'Result',LoopBinding:'Loop',Binding:'Loop',SelectionId:'Selection'};
   const clone=v=>structuredClone(v), ptr=(p,k)=>p+'/'+String(k).replace(/~/g,'~0').replace(/\//g,'~1');
   const ordered=v=>Array.isArray(v)?v.map(ordered):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,ordered(v[k])])):v;
   const fresh=()=>Blockly.utils.idGenerator.genUid();

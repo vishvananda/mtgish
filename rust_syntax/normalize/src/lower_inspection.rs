@@ -593,8 +593,8 @@ impl Context {
             } else if let Some((end, order)) = order {
                 self.inspection_assignment(
                     Operation::ReorderLibrary {
-                        player: player.clone(),
-                        library: library.clone(),
+                        chooser: player.clone(),
+                        library_owner: library.clone(),
                         objects: selected,
                         end,
                         order,
@@ -643,8 +643,8 @@ impl Context {
             S::PutTheRemainingCardsOnTopOfLibraryInAnyOrder
             | S::PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder
             | S::PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder => Operation::ReorderLibrary {
-                player: player.clone(),
-                library: library.clone(),
+                chooser: player.clone(),
+                library_owner: library.clone(),
                 objects: remaining,
                 end: if matches!(action, S::PutTheRemainingCardsOnTopOfLibraryInAnyOrder) {
                     SequenceEnd::Top
@@ -680,8 +680,8 @@ impl Context {
                     excluding: Some(noted.clone()),
                 }));
                 Operation::ReorderLibrary {
-                    player: player.clone(),
-                    library: library.clone(),
+                    chooser: player.clone(),
+                    library_owner: library.clone(),
                     objects: noted,
                     end: SequenceEnd::Top,
                     order: CardOrder::Chosen,
@@ -693,8 +693,8 @@ impl Context {
                     excluding: Some(remaining.clone()),
                 }));
                 Operation::ReorderLibrary {
-                    player: player.clone(),
-                    library: library.clone(),
+                    chooser: player.clone(),
+                    library_owner: library.clone(),
                     objects: remaining,
                     end: SequenceEnd::Top,
                     order: CardOrder::Chosen,

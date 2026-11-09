@@ -239,7 +239,7 @@ struct Context {
     group_effect: Option<ResultId>,
     narrowed_choice: Option<ResultId>,
     extra_turn: Option<ResultId>,
-    iterated_object: Option<Binding>,
+    iterated_object: Option<LoopBinding>,
     /// The card a row just put into a hand: seeked, drafted or conjured.
     to_hand: Option<ResultId>,
     /// The latest snapshot of a set, for "those creatures".
@@ -288,7 +288,7 @@ impl Done {
                 ..
             } => Self::Cast,
             Operation::Draw { .. } => Self::Drew,
-            Operation::Tap { tapped: false, .. } => Self::Untapped,
+            Operation::SetTapped { tapped: false, .. } => Self::Untapped,
             Operation::PutCounters { .. } => Self::Counters,
             Operation::CreateContinuousEffect { .. } => Self::Effect,
             Operation::LoseLife { .. } => Self::LifeLost,
@@ -367,7 +367,7 @@ impl Context {
         }
         primitive().ok_or(error)
     }
-    fn target(&self, kind: TargetKind, ordinal: usize, element: u16) -> Result<Slot> {
+    fn target(&self, kind: TargetKind, ordinal: usize, element: u16) -> Result<TargetSlot> {
         let of_kind = |slots: &'_ [TargetSpec]| {
             slots
                 .iter()
@@ -521,8 +521,8 @@ impl Context {
             Operation::Discard { .. } | Operation::DiscardObjects { .. } => {
                 Some(PaymentAction::Discard)
             }
-            Operation::Tap { tapped: true, .. } => Some(PaymentAction::Tap),
-            Operation::Tap { tapped: false, .. } => Some(PaymentAction::Untap),
+            Operation::SetTapped { tapped: true, .. } => Some(PaymentAction::Tap),
+            Operation::SetTapped { tapped: false, .. } => Some(PaymentAction::Untap),
             _ => None,
         };
         if let Some(action) = shadow {
@@ -533,7 +533,7 @@ impl Context {
     }
 
     fn effect(&mut self, operation: Operation) -> Instruction {
-        if let Operation::Tap {
+        if let Operation::SetTapped {
             objects,
             tapped: true,
         } = &operation
@@ -572,7 +572,7 @@ impl Context {
                 });
             }
         }
-        if let Operation::Search { library, .. } = &operation {
+        if let Operation::Search { library_owner: library, .. } = &operation {
             self.open_searches.push(library.clone());
         }
         if let Operation::Reveal { objects } = &operation {
@@ -815,7 +815,7 @@ impl Context {
             S::TheChosenPermanent => return Ok(ObjectRef::Chosen),
             S::ThePermanentThatGrantedThisAbility
             | S::ThePermanentThatCreatedIt
-            | S::GuestPermanent => return Ok(ObjectRef::Granter),
+            | S::GuestPermanent => return Ok(ObjectRef::GrantingObject),
             S::WouldDealDamage_DamageRecipientPermanent if self.event.damage_recipient => {
                 return Ok(ObjectRef::Damage(DamageSubject::Recipient))
             }
@@ -893,7 +893,7 @@ impl Context {
             }
             S::ThisPermanent | S::ThisPermanentOrThisCommandCard => {
                 return Ok(if self.keyword_host {
-                    ObjectRef::KeywordHost
+                    ObjectRef::AbilityHolder
                 } else {
                     ObjectRef::Source
                 })
@@ -1008,7 +1008,7 @@ impl Context {
             S::You => self.you.clone().unwrap_or(PlayerRef::AbilityController),
             // An `If` has settled that one card is highest, so the set is one player.
             S::PlayersRevealTopCardOfLibraryAndFindHighestManaValue_SingleWinner => {
-                let binding = Binding(self.binding_depth);
+                let binding = LoopBinding(self.binding_depth);
                 PlayerRef::OneOf(Box::new(PlayerSet::Matching {
                     binding: binding.clone(),
                     condition: Box::new(Condition::HadExtreme {
@@ -1197,7 +1197,7 @@ impl Context {
                     .collect::<Result<_>>()?,
             ),
             _ => {
-                let binding = Binding(self.binding_depth);
+                let binding = LoopBinding(self.binding_depth);
                 let mut child = self.clone();
                 child.binding_depth = self
                     .binding_depth
@@ -5143,7 +5143,7 @@ impl Context {
         for (i, value) in values.iter().enumerate() {
             let mut target = crate::targets::TargetSelector::Objects {
                 domain: ObjectDomain::permanent(), filter: ObjectFilter::Any,
-            }.into_spec(Slot(self.targets.len().try_into().map_err(|_|invalid("too many target slots"))?));
+            }.into_spec(TargetSlot(self.targets.len().try_into().map_err(|_|invalid("too many target slots"))?));
             match value {
                 S::TargetSpellOrAbility(_) | S::UptoNumberTargetSpellsOrAbilities(..) => {
                     target.kind = TargetKind::Object(ObjectDomain {
@@ -5509,7 +5509,7 @@ impl Context {
                     permanents.count = limit.clone();
                     let shared = permanents.slot.clone();
                     self.targets.push(permanents);
-                    target.slot = Slot(shared.0 + 1);
+                    target.slot = TargetSlot(shared.0 + 1);
                     target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
                     target.filter = self.grave_filter(c)?;
                     target.count = limit;
@@ -5521,7 +5521,7 @@ impl Context {
                     player.players = Some(self.players(players)?);
                     let slot = player.slot.clone();
                     self.targets.push(player);
-                    target.slot = Slot(slot.0 + 1);
+                    target.slot = TargetSlot(slot.0 + 1);
                     target.filter = ObjectFilter::All(vec![
                         self.filter(p)?,
                         ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::Target {
@@ -5671,7 +5671,7 @@ impl Context {
             let first = self.targets.len();
             let program =
                 self.actions(&source::Actions::Targeted(targets.clone(), body.clone()))?;
-            let slots: Vec<Slot> = self.targets[first..]
+            let slots: Vec<TargetSlot> = self.targets[first..]
                 .iter()
                 .map(|t| t.slot.clone())
                 .collect();
@@ -6192,7 +6192,7 @@ impl Context {
                 if planeswalker(&filter) {
                     return Err(unsupported(value));
                 }
-                let slot = Slot(0);
+                let slot = TargetSlot(0);
                 let mut limits = ActivationLimits {
                     sorcery: true,
                     ..ActivationLimits::unrestricted()

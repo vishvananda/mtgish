@@ -313,7 +313,7 @@ pub fn reduce_mana_production(name: &str, operands: &[Operand]) -> Option<ManaPr
             among(&exiled_with(object), true)
         }
         ("AnyColorManaSymbolInTheCardRevealedThisWay", [Operand::Result(result)]) => among(
-            &one(&ObjectRef::Named {
+            &one(&ObjectRef::Recorded {
                 result: result.clone(),
                 by: None,
             }),
@@ -541,7 +541,7 @@ fn reduce_more_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
     let player = |who: &PlayerRef| Recipients::Players(PlayerSet::One(who.clone()));
     let duplicate = |from, to, copies| {
         Some(Operation::DuplicateCounters {
-            from,
+            from: CounterSource::On(from),
             to,
             copies,
             kind: None,
@@ -638,10 +638,10 @@ fn reduce_more_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
             },
         )),
         ("DuplicateThoseCounterOnPermanent", [Object(to)]) => {
-            duplicate(Recipients::CountersTheEventPut, one(to), CounterCopies::All)
+            Some(Operation::DuplicateCounters {from: CounterSource::EventPut, to: one(to), copies: CounterCopies::All, kind: None})
         }
         ("DuplicateACounterOfEachOfThoseKindsOnPermanent", [Object(to)]) => {
-            duplicate(Recipients::CountersTheEventPut, one(to), CounterCopies::OneOfEachKind)
+            Some(Operation::DuplicateCounters {from: CounterSource::EventPut, to: one(to), copies: CounterCopies::OneOfEachKind, kind: None})
         }
         ("DoubleAllCountersPlayerHas", [Player(who)]) => {
             duplicate(player(who), player(who), CounterCopies::All)
@@ -668,7 +668,7 @@ fn reduce_more_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
         ) => duplicate(many(from), many(to), CounterCopies::OneOfEachKindDistributed),
         ("DuplicateCountersOfTypeOfPermanentOnPermanent", [kind, Object(from), Object(to)]) => {
             Some(Operation::DuplicateCounters {
-                from: one(from),
+                from: CounterSource::On(one(from)),
                 to: one(to),
                 copies: CounterCopies::All,
                 kind: Some(counter_kind(kind)?),

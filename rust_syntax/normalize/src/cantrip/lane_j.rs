@@ -1935,7 +1935,7 @@ impl Compiler {
         };
         Ok(match object {
             ObjectRef::Chosen => format!("q.state().chosen_object({})", self.linked()),
-            ObjectRef::Named { result, .. } => {
+            ObjectRef::Recorded { result, .. } => {
                 format!("({}).first().copied()", self.named(result)?)
             }
             // The object the discard made is what the event names.
@@ -1943,16 +1943,16 @@ impl Compiler {
                 self.carried_object(self.frame.object)?
             }
             // The stack item remembers the effect that gave the ability (CR 607.5).
-            ObjectRef::Granter if self.reader == Reader::Resolution && self.stack_item => {
+            ObjectRef::GrantingObject if self.reader == Reader::Resolution && self.stack_item => {
                 "granter(q, item)".to_string()
             }
             // A token's ability naming the permanent that made it: the ability that
             // created it, while that permanent is still that object. A copy of the
             // token was made by something else (CR 400.7).
-            ObjectRef::Granter if self.reader == Reader::Layer => {
+            ObjectRef::GrantingObject if self.reader == Reader::Layer => {
                 "q.history().all().iter().find_map(|r| match (r.event, r.cause) { (Event::Entered { permanent, .. }, Cause::Ability { source, .. }) if permanent == asker.source => Some(source), _ => None }).filter(|&o| q.state().obj(o).became.is_none())".to_string()
             }
-            ObjectRef::Granter => return held("q.granted_by(asker.source)"),
+            ObjectRef::GrantingObject => return held("q.granted_by(asker.source)"),
             ObjectRef::PairedWith(_) => {
                 return held(&format!(
                     "{}.and_then(|o: ObjectId| q.state().obj(o).paired_with)",
@@ -2058,7 +2058,7 @@ impl Compiler {
     /// The rest of `objects`.
     pub(super) fn objects_rest(&self, objects: &ObjectSet) -> Result<String> {
         Ok(match objects {
-            ObjectSet::Named(result) => self.named(result)?,
+            ObjectSet::Recorded(result) => self.named(result)?,
             // CR 609.7a: permanents, spells, what those name, and what waits to apply.
             ObjectSet::DamageSources(filter) => format!(
                 "({}).into_iter().filter(|&id| {}).collect::<Vec<ObjectId>>()",
@@ -3139,7 +3139,7 @@ impl Compiler {
             return Err(gap("possibly absent player FirstWilling"));
         }
         let asked = self.fetch(self.players(players)?);
-        let binding = Binding(self.fresh() as u32 + 1_000_000);
+        let binding = LoopBinding(self.fresh() as u32 + 1_000_000);
         self.bound_players.insert(binding.0);
         // "Half their life": the cost reads whoever is being asked.
         let key = format!("willing {players:?}");

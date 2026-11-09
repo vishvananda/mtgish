@@ -204,10 +204,10 @@ fn zone_changes_match_the_watched_old_identity_but_carry_the_actual_arrival() {
 fn watched_target_uses_the_allocated_slot_index_not_the_ir_identifier() {
     let mut c = card("Reincarnation");
     let Ability::Spell { announcement, body } = &mut c.abilities[0] else { panic!() };
-    announcement.targets[0].slot = Slot(7);
+    announcement.targets[0].slot = TargetSlot(7);
     let Instruction::Effect { operation: Operation::CreateTrigger { event, .. }, .. } = &mut body.instructions[0] else { panic!() };
     let EventSpec::ZoneChange { objects: ObjectFilter::SameObject(ObjectRef::Target { slot, .. }), .. } = event else { panic!() };
-    *slot = Slot(7);
+    *slot = TargetSlot(7);
     let output = code(&c, &[FEATURE]).unwrap();
     assert!(dense(&output).contains("t_0_raw.get(0).copied().filter(|t|t_0.contains(t))"), "{output}");
     assert!(!output.contains("t_7_raw"), "{output}");
@@ -247,14 +247,14 @@ fn creator_and_event_dependent_conditions_do_not_run_as_watcher() {
         named(ObjectRef::EventSubject, "creator"),
         Condition::PlayerIsActive(PlayerRef::ControllerOf(Box::new(ObjectRef::Damage(DamageSubject::Source)))),
         Condition::Compare { left: Expr::EventAmount, comparison: Comparison::Greater, right: Expr::Constant(0) },
-        Condition::ExistsPlayer { players: PlayerSet::All, binding: Binding(0), condition: Box::new(Condition::All(vec![Condition::PlayerIsActive(PlayerRef::Bound(Binding(0))), named(ObjectRef::Damage(DamageSubject::Source), "creator")])) },
+        Condition::ExistsPlayer { players: PlayerSet::All, binding: LoopBinding(0), condition: Box::new(Condition::All(vec![Condition::PlayerIsActive(PlayerRef::Bound(LoopBinding(0))), named(ObjectRef::Damage(DamageSubject::Source), "creator")])) },
     ];
     for event_condition in event_conditions {
         let c = damage_with_condition(Condition::All(vec![creator.clone(), event_condition]));
         let gap = code(&c, &[FEATURE]).unwrap_err();
         assert!(gap.contains("condition reading both its creator and event"), "{gap}");
     }
-    let original_target = damage_with_condition(Condition::All(vec![creator, named(ObjectRef::Target { slot: Slot(0), index: 0 }, "creator")]));
+    let original_target = damage_with_condition(Condition::All(vec![creator, named(ObjectRef::Target { slot: TargetSlot(0), index: 0 }, "creator")]));
     let gap = code(&original_target, &[FEATURE]).unwrap_err();
     assert!(gap.contains("target reference") || gap.contains("condition reading both its creator and event"), "{gap}");
 }
@@ -263,13 +263,13 @@ fn creator_literal_named_event_and_event_only_conditions_keep_their_contexts() {
     let creator = code(&damage_with_condition(named(ObjectRef::Source, "Event Horizon")), &[FEATURE]).unwrap();
     assert!(creator.contains(".condition("), "{creator}");
     syn::parse_file(&creator).unwrap();
-    let bound = Condition::ExistsPlayer { players: PlayerSet::All, binding: Binding(0), condition: Box::new(Condition::PlayerIsActive(PlayerRef::Bound(Binding(0)))) };
+    let bound = Condition::ExistsPlayer { players: PlayerSet::All, binding: LoopBinding(0), condition: Box::new(Condition::PlayerIsActive(PlayerRef::Bound(LoopBinding(0)))) };
     let bound_creator = code(&damage_with_condition(Condition::All(vec![named(ObjectRef::Source, "creator"), bound])), &[FEATURE]).unwrap();
     assert!(bound_creator.contains(".condition("), "{bound_creator}");
     syn::parse_file(&bound_creator).unwrap();
     let event = code(&damage_with_condition(named(ObjectRef::EventSubject, "victim")), &[FEATURE]).unwrap();
     assert!(event.contains("subject.object()") && event.contains("item.subject"), "{event}");
     syn::parse_file(&event).unwrap();
-    let watched = code(&damage_with_condition(named(ObjectRef::Target { slot: Slot(0), index: 0 }, "victim")), &[FEATURE]).unwrap_err();
+    let watched = code(&damage_with_condition(named(ObjectRef::Target { slot: TargetSlot(0), index: 0 }, "victim")), &[FEATURE]).unwrap_err();
     assert!(watched.contains("target reference") || watched.contains("watched object"), "{watched}");
 }
