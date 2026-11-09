@@ -11,7 +11,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Validate every nested semantic entry child in its correct scope | Scope checks implemented; typed payload constraints pending | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
 | Typed entry and copy payloads, removing backend descriptive-term decoding | Entry implemented; copy pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
-| Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified in native code, editor and structural canonicalization | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
+| Preserve binding identities and names for targets, results, loops, and selections | Native/editor transport verified; alternative-branch identity follow-up pending | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
@@ -227,7 +227,20 @@ suites pass, including 33,529 block roundtrips, typed binding-port comparisons
 and real Wasm validations. Receipts are under
 `/mnt/vizier/ast-review-20261109/maps-*`.
 
-Still open: typed copy exceptions, destination-specific state, mode/coin/
+An additional scope audit after stage 7 reproduced an authoring-identity gap:
+two `If` branches or `ChooseOne` options that each declare and read `picked`
+produce one `BindingName` in their parent scope. Native validation correctly
+checks those programs in independent cloned scopes. The named reader must keep
+their local identities separate, while allowing explicit `JoinResults` to refer
+to the appropriate alternative receipts. Raw numeric receipt labels may be
+reused by multiple alternatives, so resolving these requires the join's branch
+group, not a global name-to-ID lookup. Reproductions are
+`names-branch-{if,choice}.{card,json}` in the evidence directory. This follow-up
+takes priority over the next typed-copy migration. The existing passing corpus
+audits do not prove this synthetic independent-branch case.
+
+Still open: branch-local naming and receipt resolution, typed copy exceptions,
+destination-specific state, mode/coin/
 keyword policies, Rust role/type renames and typed counter sources, batch/receipt
 documentation and discovery, and typed known layouts. The new migration-map
 contract must be applied to later schema changes; stage 7 does not complete the
