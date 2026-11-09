@@ -46,7 +46,7 @@ pub(crate) fn export_sites(value: &Value, choices: bool) -> Vec<(u64, String)> {
         }
     }
     let mut out = Vec::new();
-    if let Ok(body) = serde_json::from_value::<Program>(value.clone()) {
+    if let Ok(body) = serde_json::from_value::<Program>(super::trace::plain(value)) {
         collect(&body, choices, "", &mut out);
     }
     out

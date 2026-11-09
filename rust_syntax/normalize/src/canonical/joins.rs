@@ -108,7 +108,18 @@ impl Walker {
         let Some(input) = value.as_array() else {
             return;
         };
-        let Some(ids) = input.iter().map(Value::as_u64).collect::<Option<Vec<_>>>() else {
+        let Some(ids) = input
+            .iter()
+            .map(|v| {
+                (if self.tracing {
+                    super::trace::number(v)
+                } else {
+                    v.as_u64()
+                })
+                .map(|id| (id, v.clone()))
+            })
+            .collect::<Option<Vec<_>>>()
+        else {
             return;
         };
         let Some(scope) = self.scopes.last() else {
@@ -120,7 +131,7 @@ impl Walker {
             if !charge(&mut self.join_work, &mut self.failure, ids.len()) {
                 return;
             }
-            if ids.iter().all(|id| {
+            if ids.iter().all(|(id, _)| {
                 ordinary.is_some_and(|m| m.contains_key(id)) || candidate.contains_key(id)
             }) {
                 group = Some(candidate);
@@ -130,7 +141,7 @@ impl Walker {
         let Some(group) = group else { return };
         let visit = scope.visit;
         let mut results = Vec::new();
-        for id in ids {
+        for (id, origin) in ids {
             // An enclosing definition made after the choice owns its numeric
             // label. Branch-only receipts are a fallback within this scope.
             let local = ordinary
@@ -150,7 +161,7 @@ impl Walker {
                 if self.reading {
                     self.read[visit].insert(definition);
                 }
-                results.push(Value::from(new));
+                results.push(super::trace::with_number(&origin, new));
             }
         }
         *value = Value::Array(results);

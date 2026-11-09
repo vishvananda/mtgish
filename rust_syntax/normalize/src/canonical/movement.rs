@@ -1,7 +1,7 @@
 //! Reuse native simultaneous preparation; never hoist choices across a closure.
 use crate::ir::Ability;
 use serde_json::Value;
-fn needed(value: &Value) -> bool {
+pub(super) fn needed(value: &Value) -> bool {
     if value["kind"] == "Together"
         && value["args"].as_array().is_some_and(|actions| {
             actions

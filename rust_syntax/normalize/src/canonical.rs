@@ -19,8 +19,10 @@ mod mode_results;
 mod movement;
 #[cfg(test)]
 mod result_scopes;
+mod trace;
 mod visibility;
 use movement::groups as movement_groups;
+pub use trace::MappedCard;
 pub(crate) use visibility::export_sites as exported_receipt_sites;
 #[cfg(test)]
 mod tests;
@@ -72,13 +74,25 @@ struct Ids {
 const UNUSED_START: u64 = u32::MAX as u64;
 
 impl Ids {
-    fn define(&mut self, kind: &'static str, value: &mut Value, read: Option<&HashSet<u64>>) {
-        let Some(old) = value.as_u64() else { return };
+    fn define(
+        &mut self,
+        kind: &'static str,
+        value: &mut Value,
+        read: Option<&HashSet<u64>>,
+        tracing: bool,
+    ) {
+        let Some(old) = (if tracing {
+            trace::number(value)
+        } else {
+            value.as_u64()
+        }) else {
+            return;
+        };
         if kind == "selection" {
             let new = self.selections;
             self.selections += 1;
             self.maps.entry(kind).or_default().insert(old, new);
-            *value = Value::from(new);
+            trace::set_number(value, new);
             return;
         }
         if kind == "result" {
@@ -86,7 +100,7 @@ impl Ids {
             self.results += 1;
             // Preserve invalid duplicate definitions for validation to reject.
             if let Some(new) = self.maps.get(kind).and_then(|map| map.get(&old)) {
-                *value = Value::from(*new);
+                trace::set_number(value, *new);
                 return;
             }
             self.result_definitions.insert(old, definition);
@@ -100,7 +114,7 @@ impl Ids {
                 new
             };
             self.maps.entry(kind).or_default().insert(old, new);
-            *value = Value::from(new);
+            trace::set_number(value, new);
             return;
         }
         let map = self.maps.entry(kind).or_default();
@@ -109,11 +123,11 @@ impl Ids {
             // label. Its inputs used the outer map; only its body sees this one.
             let next = map.values().max().map_or(0, |n| n + 1);
             map.insert(old, next);
-            *value = Value::from(next);
+            trace::set_number(value, next);
         } else {
             let next = map.len() as u64;
             let new = *map.entry(old).or_insert(next);
-            *value = Value::from(new);
+            trace::set_number(value, new);
         }
     }
 }
@@ -158,6 +172,7 @@ struct Walker {
     reference_reductions: bool,
     /// Keep ids and list order, for callers that read the text back out.
     keep_order: bool,
+    tracing: bool,
     /// The definitions each ability reads, by visiting order. The first of the two
     /// passes fills this; the second consults it.
     read: Vec<HashSet<u64>>,
@@ -181,13 +196,13 @@ fn damage_subject(event: &Value) -> Option<Value> {
 }
 
 fn id_kind(name: &str) -> Option<&'static str> {
-    match name {
-        "ResultId" => Some("result"),
-        "Slot" => Some("slot"),
-        "Binding" => Some("binding"),
-        "SelectionId" => Some("selection"),
-        _ => None,
-    }
+    use crate::binding_map::BindingKind;
+    Some(match BindingKind::of_type(name)? {
+        BindingKind::Target => "slot",
+        BindingKind::Result => "result",
+        BindingKind::Loop => "binding",
+        BindingKind::Selection => "selection",
+    })
 }
 
 impl Walker {
@@ -236,7 +251,13 @@ impl Walker {
     }
 
     fn use_id(&mut self, kind: &'static str, value: &mut Value) {
-        let Some(old) = value.as_u64() else { return };
+        let Some(old) = (if self.tracing {
+            trace::number(value)
+        } else {
+            value.as_u64()
+        }) else {
+            return;
+        };
         if self.keep_order {
             return;
         }
@@ -247,7 +268,7 @@ impl Walker {
                         self.read[scope.visit].insert(*definition);
                     }
                 }
-                *value = Value::from(*new);
+                trace::set_number(value, *new);
                 return;
             }
         }
@@ -272,9 +293,9 @@ impl Walker {
                     if **inner == Ty::Named("Instruction".into()) {
                         splice_groups(items);
                     } else if **inner == Ty::Named("Ability".into()) {
-                        merge_statics(items);
+                        merge_statics(items, self.tracing);
                         if !self.keep_order {
-                            merge_triggers(items);
+                            merge_triggers(items, self.tracing);
                         }
                     }
                 }
@@ -315,7 +336,7 @@ impl Walker {
             if defining {
                 if let (Some(scope), false) = (self.scopes.last_mut(), self.keep_order) {
                     let read = (!self.reading).then(|| &self.read[scope.visit]);
-                    scope.define(kind, value, read);
+                    scope.define(kind, value, read, self.tracing);
                 }
             } else {
                 self.use_id(kind, value);
@@ -394,7 +415,7 @@ impl Walker {
     fn variant(&mut self, value: &mut Value, name: &str, adjacent: bool) {
         let schema = self.schema;
         if name == "EventSpec" && !self.keep_order {
-            entry::player(value, schema);
+            entry::player(value, schema, self.tracing);
         }
         let variant = if adjacent {
             value
@@ -435,7 +456,7 @@ impl Walker {
                         drop_identity(items);
                     }
                     if !self.keep_order {
-                        items.sort_by_cached_key(Value::to_string);
+                        items.sort_by_cached_key(|v| trace::key(v, self.tracing));
                     }
                 }
                 if let Some(only) = single(content) {
@@ -470,7 +491,7 @@ impl Walker {
                 }
                 ("EventSpec", "Either") if !self.keep_order => {
                     if let Some(Value::Array(events)) = value.get_mut("Either") {
-                        events.sort_by_cached_key(Value::to_string);
+                        events.sort_by_cached_key(|v| trace::key(v, self.tracing));
                     }
                 }
                 ("ObjectRef", "Damage") => {
@@ -517,7 +538,7 @@ impl Walker {
         }
         flatten(&mut filters, "Either");
         if !self.keep_order {
-            filters.sort_by_cached_key(Value::to_string);
+            filters.sort_by_cached_key(|v| trace::key(v, self.tracing));
         }
         *value = serde_json::json!({"kind": "Objects", "args": {
             "kind": "Zone",
@@ -793,15 +814,24 @@ fn splice_groups(items: &mut Vec<Value>) {
 }
 
 /// Two statics in a row for the same objects are one static with both changes.
-fn merge_statics(items: &mut Vec<Value>) {
+fn merge_statics(items: &mut Vec<Value>, tracing: bool) {
     let mut merged: Vec<Value> = Vec::with_capacity(items.len());
     for item in items.drain(..) {
         if let Some(last) = merged.last_mut() {
             let same = item["kind"] == "Static"
                 && last["kind"] == "Static"
-                && item["args"]["kind"] == last["args"]["kind"]
-                && item["args"]["affected"] == last["args"]["affected"];
+                && trace::same(&item["args"]["kind"], &last["args"]["kind"], tracing)
+                && trace::same(
+                    &item["args"]["affected"],
+                    &last["args"]["affected"],
+                    tracing,
+                );
             if same {
+                if tracing {
+                    for field in ["kind", "affected"] {
+                        trace::merge(&mut last["args"][field], &item["args"][field]);
+                    }
+                }
                 let more = item["args"]["changes"]
                     .as_array()
                     .cloned()
@@ -818,12 +848,12 @@ fn merge_statics(items: &mut Vec<Value>) {
 }
 
 /// Whether two triggered abilities differ in nothing but what triggers them.
-fn same_but_event(a: &Value, b: &Value) -> bool {
+fn same_but_event(a: &Value, b: &Value, tracing: bool) -> bool {
     a["kind"] == "Triggered"
         && b["kind"] == "Triggered"
         && ["intervening_if", "limits", "announcement", "body"]
             .iter()
-            .all(|field| a["args"][*field] == b["args"][*field])
+            .all(|field| trace::same(&a["args"][*field], &b["args"][*field], tracing))
 }
 
 /// The events of a trigger, whether it has one or lists several.
@@ -836,11 +866,16 @@ fn trigger_events(ability: &Value) -> Vec<Value> {
 
 /// `Whenever a or b, do c`, held as one ability with `Either` or as two sharing a
 /// body, means the same either way, so comparison sees one ability in event order.
-fn merge_triggers(items: &mut Vec<Value>) {
+fn merge_triggers(items: &mut Vec<Value>, tracing: bool) {
     let mut merged: Vec<Value> = Vec::with_capacity(items.len());
     for item in items.drain(..) {
         match merged.last_mut() {
-            Some(last) if same_but_event(last, &item) => {
+            Some(last) if same_but_event(last, &item, tracing) => {
+                if tracing {
+                    for field in ["intervening_if", "limits", "announcement", "body"] {
+                        trace::merge(&mut last["args"][field], &item["args"][field]);
+                    }
+                }
                 let mut events = trigger_events(last);
                 events.extend(trigger_events(&item));
                 last["args"]["event"] = json!({ "Either": events });
@@ -850,7 +885,7 @@ fn merge_triggers(items: &mut Vec<Value>) {
     }
     for item in merged.iter_mut().filter(|item| item["kind"] == "Triggered") {
         if let Some(Value::Array(events)) = item["args"]["event"].get_mut("Either") {
-            events.sort_by_key(|event| event.to_string());
+            events.sort_by_key(|event| trace::key(event, tracing));
         }
     }
     *items = merged;
@@ -1009,7 +1044,14 @@ fn defines(owner: &str, field: &str) -> bool {
 }
 
 fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
-    movement_groups(value)?;
+    normalize_with_trace(value, keep_order, false)
+}
+fn normalize_with_trace(value: &mut Value, keep_order: bool, tracing: bool) -> Result<(), String> {
+    if tracing {
+        trace::movement_groups(value)?;
+    } else {
+        movement_groups(value)?;
+    }
     let mut walker = Walker {
         schema: schema()?,
         binding_namespace: "binding",
@@ -1019,6 +1061,7 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
         event_header: false,
         reference_reductions: true,
         keep_order,
+        tracing,
         read: Vec::new(),
         reading: !keep_order,
         paying_cost: false,
@@ -1079,4 +1122,14 @@ fn battlefield_filter(value: &Value) -> Option<&Value> {
 fn battlefield_filter_mut(value: &mut Value) -> Option<&mut Value> {
     battlefield_filter(value)?;
     value.get_mut("args")?.get_mut("filter")
+}
+
+/// Canonicalize every face and metadata ability in a unified record.
+pub fn unified(card: &crate::ir::UnifiedCard) -> Result<crate::ir::UnifiedCard, String> {
+    trace::unified(card)
+}
+/// The same canonical form with a complete typed-ID provenance map, including
+/// removed, cloned and coalesced sites. Tracing is checked against the plain form.
+pub fn mapped_unified(card: &crate::ir::UnifiedCard) -> Result<MappedCard, String> {
+    trace::mapped(card)
 }

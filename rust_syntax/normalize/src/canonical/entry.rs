@@ -2,12 +2,17 @@
 use crate::ir_schema::{Fields, Schema, Ty, TypeDef};
 use serde_json::{json, Value};
 
-fn contains(filter: &Value, wanted: &Value) -> bool {
-    filter == wanted
-        || filter["kind"] == "All"
-            && filter["args"]
-                .as_array()
-                .is_some_and(|items| items.iter().any(|item| contains(item, wanted)))
+fn contains(filter: &mut Value, wanted: &Value, tracing: bool) -> bool {
+    if super::trace::same(filter, wanted, tracing) {
+        if tracing {
+            super::trace::merge(filter, wanted);
+        }
+        return true;
+    }
+    filter["kind"] == "All"
+        && filter["args"]
+            .as_array_mut()
+            .is_some_and(|items| items.iter_mut().any(|item| contains(item, wanted, tracing)))
 }
 
 fn controlled(filter: &Value) -> bool {
@@ -21,7 +26,7 @@ fn controlled(filter: &Value) -> bool {
 /// The matching player's controller restriction can live in its object filter.
 /// The event remains a player event: its recorded controller is never replaced
 /// by a later ControllerOf(EventSubject) query.
-pub(super) fn player(event: &mut Value, schema: &Schema) {
+pub(super) fn player(event: &mut Value, schema: &Schema, tracing: bool) {
     let Some(args) = event.get_mut("Player") else {
         return;
     };
@@ -42,7 +47,7 @@ pub(super) fn player(event: &mut Value, schema: &Schema) {
     let restriction = json!({"kind":"ControlledBy","args":players});
     if args["objects"].is_null() {
         args["objects"] = restriction;
-    } else if !contains(&args["objects"], &restriction) {
+    } else if !contains(&mut args["objects"], &restriction, tracing) {
         args["objects"] = json!({"kind":"All","args":[args["objects"].take(), restriction]});
     }
     args["players"] = json!({"kind":"All"});

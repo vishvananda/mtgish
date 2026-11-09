@@ -2,32 +2,12 @@
 //! lookup. Sites address typed ID leaves, so the same numeric ID in two abilities
 //! can have different names. The temporary tagged projection is codec-only.
 use super::{checked, codec, schema, syntax};
-use crate::{
-    ir::*,
-    ir_schema::{Fields, Ty, TypeDef},
-};
+use crate::{ir::*, ir_schema::Ty};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum BindingKind {
-    Target,
-    Result,
-    Loop,
-    Selection,
-}
-impl BindingKind {
-    pub(super) fn of_type(name: &str) -> Option<Self> {
-        Some(match name {
-            "Slot" => Self::Target,
-            "ResultId" => Self::Result,
-            "Binding" => Self::Loop,
-            "SelectionId" => Self::Selection,
-            _ => return None,
-        })
-    }
-}
+pub use crate::binding_map::BindingKind;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BindingName {
@@ -107,74 +87,8 @@ pub(super) fn extract(
     Ok(())
 }
 fn id_sites(ty: &Ty, value: &Value, path: &str, sites: &mut BTreeMap<String, BindingKind>) {
-    match ty {
-        Ty::Named(name) if BindingKind::of_type(name).is_some() => {
-            sites.insert(path.into(), BindingKind::of_type(name).unwrap());
-        }
-        Ty::Vec(inner) => {
-            if let Some(items) = value.as_array() {
-                for (i, v) in items.iter().enumerate() {
-                    id_sites(inner, v, &pointer(path, &i.to_string()), sites)
-                }
-            }
-        }
-        Ty::Option(inner) => {
-            if !value.is_null() {
-                id_sites(inner, value, path, sites)
-            }
-        }
-        Ty::Tuple(items) => {
-            for (i, ty) in items.iter().enumerate() {
-                id_sites(ty, &value[i], &pointer(path, &i.to_string()), sites)
-            }
-        }
-        Ty::Named(name) => match schema().types.get(name) {
-            Some(TypeDef::Struct(fields)) => field_sites(fields, value, path, sites),
-            Some(TypeDef::Enum { adjacent, variants }) => {
-                let variant = if *adjacent {
-                    value["kind"].as_str()
-                } else {
-                    value.as_str().or_else(|| {
-                        value
-                            .as_object()
-                            .and_then(|o| o.keys().next().map(String::as_str))
-                    })
-                };
-                if let Some((name, fields)) = variants
-                    .iter()
-                    .find(|(name, _)| Some(name.as_str()) == variant)
-                {
-                    let key = if *adjacent { "args" } else { name };
-                    field_sites(fields, &value[key], &pointer(path, key), sites);
-                }
-            }
-            _ => (),
-        },
-        Ty::Opaque => (),
-    }
-}
-fn field_sites(
-    fields: &Fields,
-    value: &Value,
-    path: &str,
-    sites: &mut BTreeMap<String, BindingKind>,
-) {
-    match fields {
-        Fields::Named(fields) => {
-            for (name, ty) in fields {
-                id_sites(ty, &value[name], &pointer(path, name), sites)
-            }
-        }
-        Fields::Tuple(fields) => {
-            for (i, ty) in fields.iter().enumerate() {
-                if fields.len() == 1 {
-                    id_sites(ty, value, path, sites)
-                } else {
-                    id_sites(ty, &value[i], &pointer(path, &i.to_string()), sites)
-                }
-            }
-        }
-        Fields::Unit => (),
+    for (relative, family) in crate::binding_map::sites(schema(), ty, value) {
+        sites.insert(format!("{path}{relative}"), family);
     }
 }
 impl Document {
@@ -210,6 +124,93 @@ impl Document {
         rebound.card = card.clone();
         rebound.write()?;
         Ok(rebound)
+    }
+    /// Apply a structural rewrite's complete typed-site map atomically. Source
+    /// binding indices remain stable. Ambiguous merges/splits and the removal of
+    /// explicit names need a deliberate naming decision, never a positional guess.
+    pub fn transport(
+        &self,
+        card: &UnifiedCard,
+        map: &crate::binding_map::SiteMap,
+    ) -> Result<Self, String> {
+        self.write()?;
+        checked(card)?;
+        let ty = Ty::Named("UnifiedCard".into());
+        let before = serde_json::to_value(&self.card).map_err(|e| e.to_string())?;
+        let after = serde_json::to_value(card).map_err(|e| e.to_string())?;
+        map.validate(
+            &crate::binding_map::sites(schema(), &ty, &before),
+            &crate::binding_map::sites(schema(), &ty, &after),
+        )?;
+        if meaning(&self.card)? != meaning(card)? {
+            return Err("mapped rewrite changes the card's meaning".into());
+        }
+        let resolved = resolve_card(card)?;
+        let groups: BTreeMap<_, _> = resolved
+            .uses
+            .iter()
+            .map(|u| (u.path.as_str(), u.binding))
+            .collect();
+        let mut incoming = vec![BTreeSet::new(); resolved.bindings.len()];
+        let mut outgoing = vec![BTreeSet::new(); self.bindings.len()];
+        let mut annotated = HashSet::new();
+        for site in &self.uses {
+            annotated.insert(site.binding);
+            for path in &map.sites[&site.path] {
+                let group = *groups
+                    .get(path.as_str())
+                    .ok_or("unresolved mapped ID site")?;
+                incoming[group].insert(site.binding);
+                outgoing[site.binding].insert(group);
+            }
+        }
+        for (index, groups) in outgoing.iter().enumerate() {
+            if groups.len() > 1 {
+                return Err(format!(
+                    "rewrite splits binding {index}; explicit names for the split are required"
+                ));
+            }
+            if groups.is_empty() && annotated.contains(&index) && self.bindings[index].explicit {
+                return Err(format!("rewrite removes explicitly named binding {index}"));
+            }
+        }
+        let mut bindings = self.bindings.clone();
+        let mut assigned = Vec::new();
+        for (group, origins) in incoming.iter().enumerate() {
+            if origins.len() > 1 {
+                return Err(format!("rewrite merges bindings {origins:?}; a retained identity must be chosen explicitly"));
+            }
+            let index = if let Some(&index) = origins.iter().next() {
+                bindings[index].scope = resolved.bindings[group].scope;
+                if !bindings[index].explicit {
+                    bindings[index].name = resolved.bindings[group].name.clone();
+                }
+                index
+            } else {
+                let index = bindings.len();
+                bindings.push(resolved.bindings[group].clone());
+                index
+            };
+            assigned.push(index);
+        }
+        let uses = resolved
+            .uses
+            .iter()
+            .map(|u| BindingUse {
+                path: u.path.clone(),
+                binding: assigned[u.binding],
+            })
+            .collect();
+        let transported = Self {
+            version: self.version,
+            card: card.clone(),
+            bindings,
+            uses,
+        };
+        transported
+            .write()
+            .map_err(|e| format!("mapped binding names are ambiguous: {e}"))?;
+        Ok(transported)
     }
     pub fn from_json(input: &str) -> Result<Self, String> {
         let value = crate::json_input::wrapped_value(input)?;
@@ -334,12 +335,7 @@ fn resolve_card(card: &UnifiedCard) -> Result<Document, String> {
         let binding = &mut doc.bindings[site.binding];
         binding.explicit = false;
         if let Some(id) = value.pointer(&site.path).and_then(Value::as_u64) {
-            let prefix = match binding.kind {
-                BindingKind::Target => "t",
-                BindingKind::Result => "r",
-                BindingKind::Loop => "b",
-                BindingKind::Selection => "s",
-            };
+            let prefix = binding.kind.prefix();
             binding.name = format!("{prefix}{id}");
         }
     }
@@ -363,33 +359,7 @@ pub fn read(text: &str) -> Result<Document, String> {
     })
 }
 fn meaning(card: &UnifiedCard) -> Result<Value, String> {
-    let mut value = serde_json::to_value(card).map_err(|e| e.to_string())?;
-    for face in value["faces"].as_array_mut().ok_or("missing faces")? {
-        let c: Card = serde_json::from_value(face.clone()).map_err(|e| e.to_string())?;
-        *face = serde_json::to_value(crate::canonical::card(&c)?).map_err(|e| e.to_string())?;
-    }
-    fn metadata(value: &mut Value) -> Result<(), String> {
-        match value {
-            Value::Object(fields) => {
-                for (key, v) in fields {
-                    if key == "abilities" {
-                        crate::canonical::abilities(v)?
-                    } else {
-                        metadata(v)?
-                    }
-                }
-            }
-            Value::Array(items) => {
-                for v in items {
-                    metadata(v)?
-                }
-            }
-            _ => (),
-        }
-        Ok(())
-    }
-    metadata(&mut value["data"])?;
-    Ok(value)
+    serde_json::to_value(crate::canonical::unified(card)?).map_err(|e| e.to_string())
 }
 
 fn first_difference(a: &Value, b: &Value, path: &str) -> Option<String> {

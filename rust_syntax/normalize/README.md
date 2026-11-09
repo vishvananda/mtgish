@@ -701,5 +701,32 @@ library and an editable Rust/Wasm-validated card-code view. The public
 `human::{read, write}` functions convert between that compact authoring format
 and normalized `UnifiedCard`. Shared defaults and vocabulary live in
 `human::{defaults, names}`; `mtgish_ir::targets::TargetSelector` groups domains
-with their applicable filters. These APIs retain schema 179's wire format and
-the compiler's explicit result IDs.
+with their applicable filters. Complete IR uses schema 180 and keeps the
+compiler's typed numeric IDs. Persist `human::document::Document` to retain
+scoped author names, including explicitly named unused results.
+
+Structural rewrites use `canonical::mapped_unified` to return the card and a
+complete `binding_map::SiteMap`. `Document::transport` carries names and binding
+identities through that map atomically. Each input typed ID leaf has an explicit
+list of output sites, including an empty list for removal; introduced output
+sites are listed separately. Maps compose with `SiteMap::then`. Numeric equality
+alone cannot identify a binding when independent or nested scopes reuse IDs.
+
+Transport rejects missing or mistyped sites, changed meaning, ambiguous binding
+merges/splits, and removal of an explicit name. The source document remains
+available to resolve naming decisions. A canonical report can describe a
+many-to-one merge or one-to-many expansion even when applying its names requires
+such a decision. Pure ID renumbering still uses `Document::rebind_ids`.
+
+```sh
+# The canonical report maps the exact current-schema input, without an implicit upgrade.
+cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- read-card-document example.card > document.json
+cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- read-card-code example.card > card.ir.json
+cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- canonical-ir card.ir.json > mapped.json
+cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- transport-card-document document.json mapped.json > normalized-document.json
+cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- format-card-document normalized-document.json
+```
+
+The semantic card in `card.ir.json` must match the document. A future schema
+migration must supply its own site map before composing with canonicalization;
+an unrecorded upgrade cannot be treated as an identity map.

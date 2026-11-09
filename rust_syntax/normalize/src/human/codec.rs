@@ -192,13 +192,8 @@ impl Writer<'_> {
             }
             Ty::Opaque => return Ok(raw_node(v)),
             Ty::Named(n) => {
-                if let Some(prefix) = match n.as_str() {
-                    "ResultId" => Some("r"),
-                    "Slot" => Some("t"),
-                    "Binding" => Some("b"),
-                    "SelectionId" => Some("s"),
-                    _ => None,
-                } {
+                if let Some(kind) = BindingKind::of_type(n) {
+                    let prefix = kind.prefix();
                     return Ok(if let Some(binding) = self.binding(v)? {
                         Node::Name(binding.name.clone())
                     } else {
@@ -460,12 +455,8 @@ impl Reader {
         }
     }
     fn id(&mut self, family: &str, n: &Node) -> Result<Value, String> {
-        let prefix = match family {
-            "ResultId" => "r",
-            "Slot" => "t",
-            "Binding" => "b",
-            _ => "s",
-        };
+        let kind = BindingKind::of_type(family).ok_or("unknown binding kind")?;
+        let prefix = kind.prefix();
         let name = match n {
             Node::Name(s) | Node::Scalar(Value::String(s)) => s.clone(),
             Node::Scalar(Value::Number(n)) => format!(
@@ -480,7 +471,7 @@ impl Reader {
         let raw = name
             .strip_prefix(prefix)
             .and_then(|s| s.parse::<u64>().ok());
-        let namespace = if family == "Binding" {
+        let namespace = if kind == BindingKind::Loop {
             self.binding_namespace
         } else {
             prefix
@@ -493,11 +484,7 @@ impl Reader {
             *id
         } else {
             let used = self.used.entry(prefix.into()).or_default();
-            let max = if family == "Slot" {
-                u16::MAX as u64
-            } else {
-                u32::MAX as u64
-            };
+            let max = kind.maximum();
             let id = (0..=max)
                 .find(|n| !used.contains(n))
                 .ok_or("binding IDs exhausted")?;
@@ -521,18 +508,14 @@ impl Reader {
         Ok(document::tagged(id, index))
     }
     fn declare(&mut self, family: &str, node: &Node) -> Result<Value, String> {
-        let prefix = match family {
-            "ResultId" => "r",
-            "Slot" => "t",
-            "Binding" => "b",
-            _ => "s",
-        };
+        let kind = BindingKind::of_type(family).ok_or("unknown binding kind")?;
+        let prefix = kind.prefix();
         let name = match node {
             Node::Name(name) | Node::Scalar(Value::String(name)) => Some(name.clone()),
             _ => None,
         };
         if let Some(name) = name {
-            let namespace = if family == "Binding" {
+            let namespace = if kind == BindingKind::Loop {
                 self.binding_namespace
             } else {
                 prefix
@@ -686,7 +669,7 @@ impl Reader {
             }
             Ty::Opaque => raw_value(n),
             Ty::Named(name) => {
-                if ["ResultId", "Slot", "Binding", "SelectionId"].contains(&name.as_str()) {
+                if BindingKind::of_type(name).is_some() {
                     return self.id(name, n);
                 }
                 if name == "Program" {

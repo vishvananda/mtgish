@@ -11,7 +11,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Validate every nested semantic entry child in its correct scope | Scope checks implemented; typed payload constraints pending | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
 | Typed entry and copy payloads, removing backend descriptive-term decoding | Entry implemented; copy pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
-| Preserve binding identities and names for targets, results, loops, and selections | Native document, bridge and editor implemented; structural canonicalization transport pending | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
+| Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified in native code, editor and structural canonicalization | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
@@ -188,3 +188,47 @@ Remaining: native mappings through structural canonicalization and schema
 migration, typed copy exceptions, destination-specific state, selection/coin/
 keyword policies, Rust role/type renames, batch/receipt documentation and typed
 layouts. This editor milestone does not complete the full objective.
+
+Stage 7 carries authoring identities through structural canonicalization.
+`canonical::mapped_unified` returns an unchanged numeric card representation
+and a complete typed-ID origin map. Source sites can move, clone, coalesce or
+be removed. Explicitly introduced sites are supported by `binding_map::SiteMap`,
+and maps compose with `then`. The traced canonicalizer uses the ordinary typed
+preparation rewrite's path moves and checks its entire output against ordinary
+canonicalization. Typed ability discovery includes single abilities and
+metadata-only records, rather than searching for JSON fields named `abilities`.
+
+`Document::transport` retains binding indices and explicit names atomically.
+It rejects incomplete or mistyped mappings, changed meaning, ambiguous binding
+merges/splits and removal of explicit names. Callers retain the original document
+and the full mapping report to resolve those decisions. Automatic names adopt
+the canonical label; names remain outside semantic equality. CLI commands
+`canonical-ir` and `transport-card-document` expose the workflow. Canonical maps
+address the exact current input epoch; migration is never silently performed
+before assigning origins. Each future schema migration must supply its own
+explicit map if binding paths change.
+
+The transport regressions exposed six existing preparation errors. Hoisting
+missed references in later choosers and future programs, could capture inherited
+or nested selections, and left consecutive preparation layers for another pass.
+The authoring reader discarded valid outer selection names on entry to a
+nested preparation. Scoped collection, capture-avoiding renaming and sequential
+binder activation now preserve these meanings. IDs retain their original widths.
+
+Evidence: 14 transport regressions and six preparation regressions pass;
+the CLI roundtrip preserves `chosen_cards`, rejects incomplete maps and unknown
+fields, and requires explicit upgrades of legacy inputs. Fresh schema and all
+33,529 source-derived records match the previous catalog byte for byte. The
+all-binding name audit renames and reparses all 33,529 records with zero failures.
+The final native suite passes 1,403 tests with zero failures (11 opt-in audits
+ignored). Explicit mapped-corpus validation proves complete maps, equality with
+plain canonicalization and idempotence for all 33,529 records. All nine browser
+suites pass, including 33,529 block roundtrips, typed binding-port comparisons
+and real Wasm validations. Receipts are under
+`/mnt/vizier/ast-review-20261109/maps-*`.
+
+Still open: typed copy exceptions, destination-specific state, mode/coin/
+keyword policies, Rust role/type renames and typed counter sources, batch/receipt
+documentation and discovery, and typed known layouts. The new migration-map
+contract must be applied to later schema changes; stage 7 does not complete the
+overall objective.
