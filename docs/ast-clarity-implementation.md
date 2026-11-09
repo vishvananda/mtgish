@@ -472,3 +472,10 @@ them with Wasm, with zero failures. Card-code coverage includes 15 real examples
 and eight malformed-input probes. Browser receipts are
 `entry182-browser-results.json` and `entry182-browser-*.log`. Authoring document
 2 and workspace presentation 6 remain unchanged.
+
+Stage-13 publication: commit `b740ba7` is pushed to fork main. Release
+`20261109-b740ba7` is live at `/blocks`; SHA-256 is
+`ef65c6b490a19a00196ed8bd80a7187d8eb57a0e88ce6eab85ddb7d8d4639a02`.
+The live file matches the tested artifact. Live card-code and typed-entry/named
+schema-181 migration smoke suites both pass (`entry182-live-{code,entry}.log`).
+The machine-readable release receipt is `entry182-release.json`.
