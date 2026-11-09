@@ -597,3 +597,10 @@ case. Those are not conflated. The remaining broader AST work and subsequent
 reference queue remain open. When schema 184 becomes an old input, gate mode
 payload conversion to epochs through 183 rather than applying its historical
 flag decoder to already typed ModeSelection records.
+
+Stage-15 publication: commit `ecef36f` is pushed to fork main. Release
+`20261109-ecef36f` is live at `/blocks`; its SHA-256 is
+`c7814885e42b96578cb05f438c32cb14bc098515eea877ed4b910fc9a9b2fc48`.
+HTTP returns the exact tested artifact. Live card-code and mode editing/named
+schema-183 migration suites pass (`mode184-live-{code,modes}.log`). Release
+receipt: `mode184-release.json`. The untracked user `consolidation.md` is intact.
