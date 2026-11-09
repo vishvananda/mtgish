@@ -69,8 +69,14 @@ let browser,page;
   }
   return names.length;
  });
+ const malformed=[
+  'Card{name:"Counter entry",properties:{card_types:[Instant]},abilities:[Spell{do:[CounterWith{object:This,destination:OwnersHand,entry:[Objects(Targets(t99))]}]}]}',
+  'Card{name:"Entry rules",properties:{card_types:[Instant]},abilities:[Spell{do:[MoveObjects{objects:One(This),destination:Exile,entry:{states:[RulesUntil{rules:[Objects(Targets(t99))],until:EndOfTurn}]}}]}]}',
+  ...['Between{minimum:-1,maximum:1}','Between{minimum:3,maximum:1}'].map(count=>'Card{name:"Bounds",properties:{card_types:[Instant]},abilities:[Spell{targets:[Target{name:t0,select:Creature,count:'+count+'}],do:[Reveal{objects:Targets(t0)}]}]}')
+ ];
+ for(const code of malformed)assert.equal((await page.evaluate(code=>window.cardBlocks.parseCode(code),code)).valid,false);
  assert.deepEqual(errors,[]);
  await page.screenshot({path:process.env.BLOCKLY_SCREENSHOT||'/tmp/card-code.png',fullPage:true});
- console.log(JSON.stringify({codeEditing:true,validation:true,typedTargetReferences:true,typosRejected:true,draftPreserved:true,export:true,search:true,sharedNaming:true,savedWorkspaceMigration:true,wasmExamples,actionCount,errors},null,2));
+ console.log(JSON.stringify({codeEditing:true,validation:true,typedTargetReferences:true,typosRejected:true,draftPreserved:true,export:true,search:true,sharedNaming:true,savedWorkspaceMigration:true,wasmExamples,actionCount,malformedInputsRejected:malformed.length,errors},null,2));
  await browser.close();
 })().catch(async e=>{console.error(e);if(page){await page.screenshot({path:'/tmp/card-code-failure.png'});console.error(await page.locator('#code-status').textContent());}if(browser)await browser.close();process.exitCode=1;});

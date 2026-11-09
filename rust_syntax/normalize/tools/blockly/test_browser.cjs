@@ -37,7 +37,7 @@ let browser;
   // Build a card, then edit the actual numeric block field.
   await page.locator('#starter').selectOption('draw');await page.locator('#new-card').click();
   await page.waitForFunction(()=>window.cardBlocks.valid() && document.getElementById('card-title').textContent==='New draw spell');
-  await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.pr==='effect'&&b.state.op==='Draw').getField('_O_amount').setValue('2'));
+  await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.pr==='effect'&&b.state.op==='Draw').getInputTargetBlock('O_amount').getField('_VALUE').setValue('2'));
   await page.waitForFunction(()=>window.cardBlocks.valid()?.includes('"args": 2'));
   const downloadPromise=page.waitForEvent('download');await page.locator('#export').click();const download=await downloadPromise;
   assert.equal(download.suggestedFilename(),'New_draw_spell.ir.json');

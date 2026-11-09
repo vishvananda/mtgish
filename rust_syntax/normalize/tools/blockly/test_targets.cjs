@@ -67,7 +67,7 @@ let browser,page;
  await page.evaluate(()=>{
   const d=window.cardBlocks,v=d.blank(true);v.faces[0].abilities[0].args.body.instructions[0].args.operation={kind:'DealDamage',args:{source:{kind:'Source'},recipients:{kind:'Players',args:{kind:'All'}},amount:{kind:'Constant',args:3},preventable:true}};d.loadIR(v,false);
   const saved=d.savedWorkspace();delete saved.presentation;
-  function legacy(b){delete b.extraState.negativePrevention;for(const k of Object.keys(b.fields||{}))if(k.endsWith('preventable'))b.fields[k]=!(b.fields[k]===true||b.fields[k]==='TRUE');Object.values(b.inputs||{}).forEach(i=>legacy(i.block));if(b.next?.block)legacy(b.next.block);}
+  function legacy(b){delete b.extraState.negativePrevention;for(const k of Object.keys(b.fields||{}))if(k.endsWith('preventable'))b.fields[k]=!(b.fields[k]===true||b.fields[k]==='TRUE');Object.values(b.inputs||{}).forEach(i=>{if(i.block)legacy(i.block);if(i.shadow)legacy(i.shadow);});if(b.next?.block)legacy(b.next.block);}
   saved.workspace.blocks.blocks.forEach(legacy);const before=d.encode(d.generated());d.restore(saved);if(d.encode(d.generated())!==before)throw Error('Migration changed prevention');
  });
  await page.waitForFunction(()=>window.cardBlocks.valid());

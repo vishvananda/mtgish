@@ -9,7 +9,9 @@ Oracle-text reconstruction or Cantrip runtime is involved.
 The **Build** view is a Scratch-style authoring workspace. Drag an ability from
 Abilities into the card, then drag actions from Actions into its `do` slot. Actions
 connect vertically and can be reordered by dragging. Numbers and common player
-choices are editable directly inside the action. Keywords are small stackable
+choices are editable shadow blocks in typed sockets. Drop an expression onto a
+number or picker to replace it; removing the expression restores the previous
+simple value. There is no conversion menu. Keywords are small stackable
 blocks. **All actions** groups the complete operation library by purpose: cards
 and libraries, damage and life, objects and movement, counters and changes,
 choices and values, mana and casting, triggers and replacements, control flow
@@ -153,6 +155,7 @@ npm run test:catalog -- /tmp/card-blocks.html
 npm run test:authoring -- /tmp/card-blocks.html
 npm run test:targets -- /tmp/card-blocks.html
 npm run test:code -- /tmp/card-blocks.html
+npm run test:sockets -- /tmp/card-blocks.html
 ```
 
 Primary Blockly documentation: [connection checks](https://docs.blockly.com/guides/create-custom-blocks/inputs/connection-checks/),

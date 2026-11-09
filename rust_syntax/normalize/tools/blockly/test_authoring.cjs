@@ -42,7 +42,7 @@ let browser,page;
  await dragFromMenu('Actions','GainLife','after-draw');
  await page.waitForFunction(()=>window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions.length===2&&window.cardBlocks.valid());
  // Inline editable parameters, with no number/player wrapper blocks.
- await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.pr==='effect'&&b.state.op==='Draw').setFieldValue('2','_O_amount'));
+ await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.pr==='effect'&&b.state.op==='Draw').getInputTargetBlock('O_amount').setFieldValue('2','_VALUE'));
  await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.operation.args.amount.args===2);
  const value=await page.evaluate(()=>window.cardBlocks.generated());
  assert.deepEqual(value.faces[0].abilities[0].args.body.instructions.map(i=>i.args.operation.kind),['Draw','GainLife']);

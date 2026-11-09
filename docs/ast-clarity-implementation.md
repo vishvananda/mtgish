@@ -17,7 +17,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
 | Clear sequence, batch, iteration, and receipt boundaries | Pending | Declaration docs and discoverable authoring families; receipt and native behavior regressions |
 | Shared schema/declaration discovery and topic modules | Implemented, verified | Visitors, codec, catalog, fingerprint and frozen contract use one source registry; no declarations lost |
-| Scratch-style literal/picker shadows in typed expression sockets | Pending | Real drag/drop replacement, simple-value restoration, undo/redo, persistence, validation and browser tests |
+| Scratch-style literal/picker shadows in typed expression sockets | Implemented, verified | Real drag/drop replacement, simple-value restoration, undo/redo, persistence, validation and browser tests |
 | Typed known layouts with an explicit extension contract | Pending | All 18 current layouts, metadata-only records and layout errors covered |
 | Final integration, publication and deployment | Pending | Full appropriate Rust tests, 33,529 record semantic/wire checks, browser/Wasm coverage, pushed fork main and live `/blocks` smoke |
 
@@ -46,3 +46,15 @@ passed, seven ignored. Evidence: `topic-modules-full-tests.log` and
 `final-build/{schema.json,cards.jsonl}` under the review evidence directory.
 The module guide records the existing sequence/batch/receipt boundaries; the
 remaining API naming and typed representation work is still open.
+
+Stage 3 evidence: normal authoring uses editable literal/picker shadow blocks in
+real typed sockets. An expression drops directly over a simple value; removal
+restores the edited prior value. Amount and player expressions, action rebuilds,
+undo/redo, save/restore and migration of a real presentation-3 workspace all pass
+browser regressions. Common X/arithmetic blocks and full player expressions are
+available in the toolbox. Fresh Wasm passes all 33,529 block roundtrips and IR
+validations, 14 varied card-code examples and the four malformed nested-reference/
+interval probes. Browser, authoring, targets, code and sockets suites pass.
+Evidence: `*-fresh-wasm.log`, `sockets-browser.log` and the captured legacy fixture
+in `tools/blockly/fixtures/workspace-v3.json`. Presentation is now version 4;
+normalized schema and numeric ranges remain unchanged.

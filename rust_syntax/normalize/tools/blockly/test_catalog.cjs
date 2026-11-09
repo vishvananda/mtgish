@@ -12,7 +12,7 @@ let browser;
  const report=await page.evaluate(async()=>{
   const d=window.cardBlocks,report={expected:d.payload.record_count,records:0,blockRoundtrips:0,wasmValid:0,failures:[]};
   const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
-  const fake=s=>({type:s.type,state:s.extraState,isEnabled:()=>true,getFieldValue:n=>{const v=s.fields?.[n],p=d.parts(s.extraState).find(p=>'_'+p.key===n);return p?.ty.named==='bool'?(v===true||v==='TRUE'):v;},getInputTargetBlock:n=>s.inputs?.[n]?.block?fake(s.inputs[n].block):null,getNextBlock:()=>s.next?.block?fake(s.next.block):null});
+  const fake=s=>({type:s.type,state:s.extraState,isEnabled:()=>true,getFieldValue:n=>{const v=s.fields?.[n],p=d.parts(s.extraState).find(p=>'_'+p.key===n);return p?.ty.named==='bool'?(v===true||v==='TRUE'):v;},getInputTargetBlock:n=>{const child=s.inputs?.[n]?.block||s.inputs?.[n]?.shadow;return child?fake(child):null;},getNextBlock:()=>s.next?.block?fake(s.next.block):null});
   for(let n=0;n<d.payload.shards.length;n++){
    const records=await d.shard(n);
    for(const value of records){

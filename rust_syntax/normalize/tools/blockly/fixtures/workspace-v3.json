@@ -1,0 +1,428 @@
+{
+  "source_commit": "01e2cd784ed51ea8b2a0e9a29cae895f0c284ac1",
+  "workspace": {
+    "format": "mtgish.blockly.workspace.v1",
+    "presentation": 3,
+    "schema": 179,
+    "model": "36a7b1a1b4087496",
+    "workspace": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+          {
+            "type": "ir_value",
+            "id": "P~}d.Cp~^CLDO74)r.O7",
+            "x": 40,
+            "y": 40,
+            "extraState": {
+              "ty": {
+                "named": "UnifiedCard"
+              },
+              "ui": 2,
+              "negativePrevention": true,
+              "pr": "single",
+              "inline": {}
+            },
+            "fields": {
+              "MORE": "NONE",
+              "_ROOT_schema": "179",
+              "_ROOT_layout": "Card",
+              "_F_schema_version": "179",
+              "_F_name": "New draw spell"
+            },
+            "inputs": {
+              "ROOT_data": {
+                "block": {
+                  "type": "ir_value",
+                  "id": "FN#}1TI=LC^cTCXfG$%y",
+                  "extraState": {
+                    "ty": {
+                      "vec": {
+                        "named": "Field"
+                      }
+                    },
+                    "count": 0,
+                    "ui": 2,
+                    "inline": {}
+                  },
+                  "fields": {
+                    "MORE": "NONE"
+                  }
+                }
+              },
+              "F_characteristics": {
+                "block": {
+                  "type": "ir_value",
+                  "id": "WtoTb623{/8)_ekc^3o#",
+                  "extraState": {
+                    "ty": {
+                      "named": "Characteristics"
+                    },
+                    "ui": 2,
+                    "negativePrevention": true,
+                    "inline": {}
+                  },
+                  "fields": {
+                    "MORE": "NONE"
+                  },
+                  "inputs": {
+                    "F_supertypes": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "F(@Qp]r^_+cVW^f9JE+D",
+                        "extraState": {
+                          "ty": {
+                            "vec": {
+                              "named": "SuperType"
+                            }
+                          },
+                          "count": 0,
+                          "ui": 2,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_card_types": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "wR1xiXwC@2YH7:k:|://",
+                        "extraState": {
+                          "ty": {
+                            "vec": {
+                              "named": "CardType"
+                            }
+                          },
+                          "count": 1,
+                          "ui": 2,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE",
+                          "_ITEM_0": "Instant"
+                        }
+                      }
+                    },
+                    "F_subtypes": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "xE*EnS@UJ7`xLSXKf{:f",
+                        "extraState": {
+                          "ty": {
+                            "vec": {
+                              "named": "SubType"
+                            }
+                          },
+                          "count": 0,
+                          "ui": 2,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_mana_cost": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "9-_@|$Ay/0.vjB(@])sL",
+                        "extraState": {
+                          "ty": {
+                            "option": {
+                              "vec": {
+                                "named": "ManaSymbol"
+                              }
+                            }
+                          },
+                          "present": true,
+                          "ui": 2,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        },
+                        "inputs": {
+                          "SOME": {
+                            "block": {
+                              "type": "ir_value",
+                              "id": "h9m*q5:gc@JV#vGpkt=t",
+                              "extraState": {
+                                "ty": {
+                                  "vec": {
+                                    "named": "ManaSymbol"
+                                  }
+                                },
+                                "count": 0,
+                                "ui": 2,
+                                "inline": {}
+                              },
+                              "fields": {
+                                "MORE": "NONE"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "F_color_indicator": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "1A?k-*v)-/|eXvK;DRrE",
+                        "extraState": {
+                          "ty": {
+                            "vec": {
+                              "named": "ManaColor"
+                            }
+                          },
+                          "count": 0,
+                          "ui": 2,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_power_toughness": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "MIviNj-@%_RjCH=1#/!=",
+                        "extraState": {
+                          "ty": {
+                            "option": {
+                              "tuple": [
+                                {
+                                  "named": "i32"
+                                },
+                                {
+                                  "named": "i32"
+                                }
+                              ]
+                            }
+                          },
+                          "present": false,
+                          "ui": 2,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_loyalty": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "@M8+sG5uZ2g}b[PY{oqJ",
+                        "extraState": {
+                          "ty": {
+                            "option": {
+                              "named": "Expr"
+                            }
+                          },
+                          "present": false,
+                          "ui": 2,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_defense": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "z*|+]XR/@s=s}mc[NXX=",
+                        "extraState": {
+                          "ty": {
+                            "option": {
+                              "named": "i32"
+                            }
+                          },
+                          "present": false,
+                          "ui": 2,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "F_abilities": {
+                "block": {
+                  "type": "ir_value",
+                  "id": "zFi9Qzx|97trc*QC:=vF",
+                  "extraState": {
+                    "ty": {
+                      "named": "Ability"
+                    },
+                    "ui": 2,
+                    "negativePrevention": true,
+                    "variant": "Spell",
+                    "inline": {},
+                    "statement": true
+                  },
+                  "fields": {
+                    "VARIANT": "Spell",
+                    "MORE": "NONE"
+                  },
+                  "inputs": {
+                    "F_announcement": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "MZ2g17]`Sf0KO7;Qa2JQ",
+                        "extraState": {
+                          "ty": {
+                            "named": "Announcement"
+                          },
+                          "ui": 2,
+                          "negativePrevention": true,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        },
+                        "inputs": {
+                          "F_targets": {
+                            "block": {
+                              "type": "ir_value",
+                              "id": "w@*}JtOqV7LIO]9*:Fw`",
+                              "extraState": {
+                                "ty": {
+                                  "vec": {
+                                    "named": "TargetSpec"
+                                  }
+                                },
+                                "count": 0,
+                                "ui": 2,
+                                "inline": {}
+                              },
+                              "fields": {
+                                "MORE": "NONE"
+                              }
+                            }
+                          },
+                          "F_modes": {
+                            "block": {
+                              "type": "ir_value",
+                              "id": "GDo^#HySS^^FYa1]SpFG",
+                              "extraState": {
+                                "ty": {
+                                  "option": {
+                                    "named": "ModeSelection"
+                                  }
+                                },
+                                "present": false,
+                                "ui": 2,
+                                "inline": {}
+                              },
+                              "fields": {
+                                "MORE": "NONE"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "F_body": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "X~0o9_}UwAZY*N5;|G{G",
+                        "inline": true,
+                        "extraState": {
+                          "ty": {
+                            "named": "Instruction"
+                          },
+                          "ui": 2,
+                          "negativePrevention": true,
+                          "variant": "Effect",
+                          "pr": "effect",
+                          "op": "Draw",
+                          "inline": {
+                            "O_amount": "constant",
+                            "O_players": "choice"
+                          },
+                          "statement": true
+                        },
+                        "fields": {
+                          "VARIANT": "Draw",
+                          "MORE": "NONE",
+                          "_O_amount": "1",
+                          "_O_players": "0",
+                          "_RESULT": "4294967295"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "ir": {
+    "schema_version": 179,
+    "layout": "Card",
+    "data": [],
+    "faces": [
+      {
+        "schema_version": 179,
+        "name": "New draw spell",
+        "characteristics": {
+          "supertypes": [],
+          "card_types": [
+            "Instant"
+          ],
+          "subtypes": [],
+          "mana_cost": [],
+          "color_indicator": [],
+          "power_toughness": null,
+          "loyalty": null,
+          "defense": null
+        },
+        "abilities": [
+          {
+            "kind": "Spell",
+            "args": {
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Draw",
+                        "args": {
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "amount": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
