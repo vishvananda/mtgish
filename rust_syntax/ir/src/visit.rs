@@ -5,6 +5,9 @@ use crate::ir::*;
 /// Hooks return false to stop traversal beneath that node. This lets a query
 /// distinguish a lexical closure from an independently declared ability.
 pub trait Visitor {
+    fn selection_id(&mut self, _: &SelectionId) -> bool {
+        true
+    }
     fn ability(&mut self, _: &Ability) -> bool {
         true
     }
@@ -60,6 +63,10 @@ impl<T: Walk> Walk for [T] {
 /// Mutable hooks bracket each node in declaration order. Returning false skips
 /// its children; the postorder hook still runs and may replace the node.
 pub trait VisitorMut {
+    fn selection_id(&mut self, _: &mut SelectionId) -> bool {
+        true
+    }
+    fn selection_id_end(&mut self, _: &mut SelectionId) {}
     fn ability(&mut self, _: &mut Ability) -> bool {
         true
     }

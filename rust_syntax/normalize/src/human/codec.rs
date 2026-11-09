@@ -608,10 +608,8 @@ impl Reader {
                 self.ids.clear();
                 self.symbols.clear();
             }
-            if selection_scope {
-                self.ids.retain(|(kind, _), _| kind != "s");
-                self.symbols.retain(|(kind, _), _| kind != "s");
-            }
+            // Preparation inputs inherit earlier selections. A local binder
+            // shadows only after its inputs, matching native validation.
             let result = self.inner(t, n);
             self.targets = prior_targets;
             if scope {

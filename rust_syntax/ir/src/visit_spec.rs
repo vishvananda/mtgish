@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use syn::{Fields, GenericArgument, Item, PathArguments, Type};
 
 const HOOKS: &[(&str, &str)] = &[
+    ("SelectionId", "selection_id"),
     ("Ability", "ability"),
     ("Instruction", "instruction"),
     ("Operation", "operation"),

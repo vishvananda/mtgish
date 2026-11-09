@@ -21,18 +21,25 @@ let browser;
   if(!scopes.valid)throw Error(scopes.error);const wrong=d.parseExact(scopes.document),targets=wrong.bindings.map((b,i)=>[b,i]).filter(([b])=>b.kind==='Target').map(([,i])=>i);
   wrong.uses.find(u=>u.binding===targets[1]&&u.path.endsWith('/objects/args')).binding=targets[0];
   const cross=await d.formatDocument(d.encode(wrong));
+  const preparation=await d.parseCode('Card{name:"Selection captures",properties:{card_types:[Instant]},abilities:[Spell{do:[WithSelections{steps:[{binding:picked,chooser:Players(You),objects:One(This),count:Exactly(1),constraints:[]}],action:WithSelections{steps:[{binding:picked,chooser:Players(You),objects:Prepared(picked),count:Exactly(1),constraints:[]}],action:NoteObjects{objects:Prepared(picked)}}}]}]}');
+  if(!preparation.valid)throw Error(preparation.error);
+  const prep=d.parseExact(preparation.document),selections=prep.bindings.filter(b=>b.kind==='Selection');
+  if(selections.length!==2||selections[0].scope===selections[1].scope)throw Error('Selection identities lost their scopes');
+  selections[0].name='outer_cards';selections[1].name='inner_cards';
+  const captures=await d.formatDocument(d.encode(prep));if(!captures.valid)throw Error(captures.error);
   for(const name of ['Explosion of Riches',"Warrior's Blades"]) {
    const entry=d.payload.cards.find(c=>c.name===name);
    const card=(await d.shard(entry.shard))[entry.index],cohort=await d.describeBindings(d.encode(card));if(!cohort.valid)throw Error(cohort.error);
    const scoped=d.parseExact(cohort.document);scoped.bindings.forEach((b,i)=>{b.name='named_'+i;b.explicit=true;});
    const renamed=await d.formatDocument(d.encode(scoped));if(!renamed.valid)throw Error(name+': '+renamed.error);
   }
-  return {ir:parsed.ir,before,after,formatted:formatted.code,renamed:renamed.code,described:described.valid,rejected,cross};
+  return {ir:parsed.ir,before,after,formatted:formatted.code,renamed:renamed.code,described:described.valid,rejected,cross,captures:captures.code};
  });
  assert.ok(result.formatted.includes('hit = DealDamage'));assert.ok(result.formatted.includes('Targets(victim)'));
  assert.ok(result.renamed.includes('name: defender'));assert.ok(result.renamed.includes('Targets(defender)'));assert.ok(!result.renamed.includes('victim'));
  assert.equal(result.before,result.after);assert.ok(!result.ir.includes('victim'));assert.equal(result.described,true);
  assert.equal(result.rejected.valid,false);assert.match(result.rejected.error,/unknown/);
  assert.equal(result.cross.valid,false);assert.match(result.cross.error,/lexical scope/);assert.deepEqual(errors,[]);
- console.log(JSON.stringify({wasmNames:true,explicitUnusedResults:true,rename:true,irIdsUnchanged:true,strictDocumentImport:true,scopeIdentity:true,reflexiveTargets:true,activationModifierTargets:true,errors},null,2));await browser.close();
+ assert.ok(result.captures.includes('objects: Prepared(outer_cards)'));assert.ok(result.captures.includes('objects: Prepared(inner_cards)'));
+ console.log(JSON.stringify({wasmNames:true,explicitUnusedResults:true,rename:true,irIdsUnchanged:true,strictDocumentImport:true,scopeIdentity:true,reflexiveTargets:true,activationModifierTargets:true,selectionCaptures:true,errors},null,2));await browser.close();
 })().catch(async e=>{console.error(e);if(browser)await browser.close();process.exitCode=1});
