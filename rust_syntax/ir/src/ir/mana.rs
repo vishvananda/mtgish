@@ -1,6 +1,7 @@
 //! Mana in the normalized semantic model.
 use super::*;
 
+/// One production. Choices and numeric observations precede adding its mana;
 /// `All` does not split it into independent productions.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ManaProduction {

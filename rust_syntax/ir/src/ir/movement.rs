@@ -16,8 +16,6 @@ pub enum CardOrder {
     Random,
 }
 
-/// One production. Choices and numeric observations precede adding its mana;
-
 #[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct EntrySpec {
     pub tapped: bool,
