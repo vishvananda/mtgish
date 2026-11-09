@@ -107,10 +107,7 @@ fn reduce_card_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                 object: spell.clone(),
                 times: Expr::Constant(1),
                 targets: NewTargets::Same,
-                effects: match effects {
-                    Operand::Vocabulary { form, .. } if form == "NoSpellCopyEffects" => vec![],
-                    effects => vec![effects.clone()],
-                },
+                exceptions: crate::copying::from_source(std::slice::from_ref(effects)).ok()?,
                 card: Some(card.clone()),
             }
         }

@@ -28,27 +28,27 @@ impl TokenSpec {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum TokenRecipe {
     Defined(TokenDefinition),
-    /// A copy of `object` (707.2), with `adjustments` to the copiable values.
+    /// A copy of `object` (707.2), with explicit copiable-value exceptions.
     Copy {
         object: ObjectRef,
-        adjustments: Vec<Operand>,
+        exceptions: Vec<CopyException>,
     },
     /// One copy of each of `objects`.
     CopyEach {
         objects: ObjectSet,
-        adjustments: Vec<Operand>,
+        exceptions: Vec<CopyException>,
     },
     /// The token Oracle gives this name, defined outside the card that makes it.
     Named(String),
     /// A copy of one of `objects`, picked as the effect resolves.
     CopyOne {
         objects: ObjectSet,
-        adjustments: Vec<Operand>,
+        exceptions: Vec<CopyException>,
     },
     /// A copy of the Oracle card with this name, which is not in the game.
     CopyNamed {
         name: String,
-        adjustments: Vec<Operand>,
+        exceptions: Vec<CopyException>,
     },
     /// A copy of a random Oracle card matching `cards`.
     CopyAtRandom {

@@ -30,11 +30,11 @@ fn predefined_tokens() -> std::result::Result<
 }
 
 impl Context {
-    fn copy_adjustments(&self, effects: &source::TokenCopyEffects) -> Result<Vec<Operand>> {
+    fn copy_exceptions(&self, effects: &source::TokenCopyEffects) -> Result<Vec<CopyException>> {
         let inspected = crate::inspect::value(effects)
-            .map_err(|_| invalid("copy adjustments do not serialize"))?;
+            .map_err(|_| invalid("copy exceptions do not serialize"))?;
         match self.term("TokenCopyEffects", &inspected) {
-            Some(term) => Ok(vec![term]),
+            Some(term) => crate::copying::from_source(&[term]).map_err(|e| invalid(&e)),
             None => Err(unsupported(effects)),
         }
     }
@@ -86,7 +86,7 @@ impl Context {
                         what: EarlierObjects::CopiedSpell,
                         by: None,
                     },
-                    adjustments: vec![],
+                    exceptions: vec![],
                 }));
             }
             S::TokenCopyOfCommander(effects) => {
@@ -96,7 +96,7 @@ impl Context {
                         ObjectFilter::State(ObjectState::Commander),
                         ObjectFilter::OwnedBy(PlayerSet::One(you)),
                     ])),
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfEachCardInLibrary(cards, effects) => {
@@ -106,73 +106,73 @@ impl Context {
                         PlayerSet::All,
                         self.library_filter(cards)?,
                     ),
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfPermanent(object, effects) => {
                 return Ok(copy(TokenRecipe::Copy {
                     object: self.object(object)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfExiledCard(card, effects) => {
                 return Ok(copy(TokenRecipe::Copy {
                     object: self.exiled_card(card)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfGraveyardCard(card, effects) => {
                 return Ok(copy(TokenRecipe::Copy {
                     object: self.grave_card(card)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfDiscardedCard(card, effects) => {
                 return Ok(copy(TokenRecipe::Copy {
                     object: self.hand_card(card)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfSpell(spell, effects) => {
                 return Ok(copy(TokenRecipe::Copy {
                     object: self.spell(spell)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfEachPermanent(objects, effects) => {
                 return Ok(copy(TokenRecipe::CopyEach {
                     objects: self.objects(objects)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfEachExiledCard(cards, effects) => {
                 return Ok(copy(TokenRecipe::CopyEach {
                     objects: self.exile_cards(cards)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfEachGraveyardCard(cards, effects) => {
                 return Ok(copy(TokenRecipe::CopyEach {
                     objects: self.grave_cards(cards)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfAPermanent(objects, effects) => {
                 return Ok(copy(TokenRecipe::CopyOne {
                     objects: self.objects(objects)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfAnExiledCard(cards, effects) => {
                 return Ok(copy(TokenRecipe::CopyOne {
                     objects: self.exile_cards(cards)?,
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfNamedCard(name, effects) => {
                 return Ok(copy(TokenRecipe::CopyNamed {
                     name: name.clone(),
-                    adjustments: self.copy_adjustments(effects)?,
+                    exceptions: self.copy_exceptions(effects)?,
                 }))
             }
             S::TokenCopyOfACardAtRandom(cards) => {

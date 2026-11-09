@@ -80,11 +80,11 @@ fn activated_with_spending(abilities: &Operand, spend_as: SpendAs) -> Option<Cha
     })
 }
 
-fn copy_of(object: ObjectRef, effects: &Operand) -> Change {
-    Change::CopyOf {
+fn copy_of(object: ObjectRef, effects: &Operand) -> Option<Change> {
+    Some(Change::CopyOf {
         object,
-        effects: Box::new(effects.clone()),
-    }
+        exceptions: crate::copying::from_source(std::slice::from_ref(effects)).ok()?,
+    })
 }
 
 fn earlier_object(what: EarlierObjects) -> ObjectRef {
@@ -234,15 +234,15 @@ fn reduce_layer(form: &str, operands: &[Operand]) -> Option<Change> {
                 index: 0,
             },
             effects,
-        ),
+        )?,
         ("IsACopyOfPermanentSpell", [Operand::Object(object), effects]) => {
-            copy_of(object.clone(), effects)
+            copy_of(object.clone(), effects)?
         }
         ("IsACopyOfTheRevealedCard", [effects]) => {
-            copy_of(earlier_object(EarlierObjects::Revealed), effects)
+            copy_of(earlier_object(EarlierObjects::Revealed), effects)?
         }
         ("IsACopyOf_TheObjectChosenToCopy", [effects]) => {
-            copy_of(earlier_object(EarlierObjects::Selected), effects)
+            copy_of(earlier_object(EarlierObjects::Selected), effects)?
         }
         ("HasTextOfGraveyardCardAndTheText", [Operand::Object(object), abilities]) => {
             Change::TextOf {
@@ -681,11 +681,11 @@ fn reduce_more_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
 /// A state a permanent enters with, past the ones `reduce_entry` names.
 fn reduce_more_entry(form: &str, operands: &[Operand]) -> Option<EntryState> {
     use Operand::{List, Number, Object, Objects};
-    let copy = |objects: ObjectSet, effects: &Operand, until: Option<&Duration>| EntryState::CopyOf {
+    let copy = |objects: ObjectSet, effects: &Operand, until: Option<&Duration>| Some(EntryState::CopyOf {
         objects,
-        effects: Box::new(effects.clone()),
+        exceptions: crate::copying::from_source(std::slice::from_ref(effects)).ok()?,
         until: until.cloned(),
-    };
+    });
     let choice = |kinds: &[Operand], amount: Expr, distinct| {
         Some(EntryState::CountersOfChoice {
             kinds: counter_kinds(kinds)?,
@@ -725,7 +725,7 @@ fn reduce_more_entry(form: &str, operands: &[Operand]) -> Option<EntryState> {
         (
             "EnterAsACopyOfACardInAPlayersGraveyard",
             [Operand::Filter(cards), Operand::Players(players), effects],
-        ) => Some(copy(
+        ) => copy(
             ObjectSet::Zone {
                 scope: ZoneScope::Players {
                     zone: EventZone::Graveyard,
@@ -736,15 +736,15 @@ fn reduce_more_entry(form: &str, operands: &[Operand]) -> Option<EntryState> {
             },
             effects,
             None,
-        )),
+        ),
         ("EnterAsACopyOfACardInExile", [Objects(objects), effects]) => {
-            Some(copy(objects.clone(), effects, None))
+            copy(objects.clone(), effects, None)
         }
         ("EnterAsCopyOfExiled", [Object(object), effects]) => {
-            Some(copy(ObjectSet::One(object.clone()), effects, None))
+            copy(ObjectSet::One(object.clone()), effects, None)
         }
         ("EnterAsACopyOfAPermanentUntil", [Objects(objects), effects, Operand::Duration(until)]) => {
-            Some(copy(objects.clone(), effects, Some(until)))
+            copy(objects.clone(), effects, Some(until))
         }
         _ => None,
     }

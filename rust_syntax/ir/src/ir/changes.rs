@@ -84,10 +84,10 @@ pub enum Change {
     ActivationRule(ActivationRule),
     LosesAbility(Box<Operand>),
     SetLandType(Box<Operand>),
-    /// Copiable values come from `object`; `effects` are the exceptions.
+    /// Copiable values come from `object`, with these copy-time exceptions.
     CopyOf {
         object: ObjectRef,
-        effects: Box<Operand>,
+        exceptions: Vec<CopyException>,
     },
     AddEnchantmentType(Box<Operand>),
     SetName(String),

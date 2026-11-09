@@ -390,7 +390,7 @@ enum Gathered {
     TokenCopyAt {
         player: PlayerRef,
         object: ObjectRef,
-        adjustments: Vec<Operand>,
+        exceptions: Vec<CopyException>,
         defender: PlayerRef,
         tapped: bool,
         result: ResultId,
@@ -1058,7 +1058,7 @@ impl Compiler {
                     }),
                     TokenRecipe::Copy {
                         object,
-                        adjustments,
+                        exceptions,
                     } if !or_planeswalker
                         && at == TokensAt::Attacking
                         && matches!(token.amount, Expr::Constant(1)) =>
@@ -1066,7 +1066,7 @@ impl Compiler {
                         Part::Gather(Gathered::TokenCopyAt {
                             player: player.clone(),
                             object: object.clone(),
-                            adjustments: adjustments.clone(),
+                            exceptions: exceptions.clone(),
                             defender,
                             tapped: entry.tapped,
                             result,
@@ -1871,36 +1871,36 @@ impl Compiler {
             }
             Gathered::TokenCopies { player, recipe, .. } => {
                 let player = self.fetch(self.certain_player(player)?);
-                let (originals, adjustments) = match recipe {
+                let (originals, exceptions) = match recipe {
                     TokenRecipe::Copy {
                         object,
-                        adjustments,
+                        exceptions,
                     } => (
                         format!(
                             "{}.into_iter().collect::<Vec<ObjectId>>()",
                             self.fetch(self.object(object)?)
                         ),
-                        adjustments,
+                        exceptions,
                     ),
                     TokenRecipe::CopyEach {
                         objects,
-                        adjustments,
-                    } => (self.fetch(self.objects(objects)?), adjustments),
+                        exceptions,
+                    } => (self.fetch(self.objects(objects)?), exceptions),
                     // "A token that's a copy of a creature they control": each chooses
                     // one in turn, and the tokens are all made together.
                     TokenRecipe::CopyOne {
                         objects,
-                        adjustments,
+                        exceptions,
                     } => (
                         format!(
                             "{{ let among = {}; cantrip_mechanics::choose::select(g, player_{id}, asker.source, Purpose::CopyWhich, among, cantrip_mechanics::select::cards(cantrip_mechanics::select::exactly(1)))? }}",
                             self.fetch(self.objects(objects)?)
                         ),
-                        adjustments,
+                        exceptions,
                     ),
                     _ => return Err(gap("per-player CreateTokens")),
                 };
-                let values = self.copy_values("Some(original)", adjustments)?;
+                let values = self.copy_values("Some(original)", exceptions)?;
                 writeln!(out, "let player_{id} = {player}; let originals_{id} = {originals}; for original in originals_{id} {{ if let Some(values) = {values} {{ gathered_{local}.push((values, player_{id})); }} }}").unwrap();
             }
             Gathered::TokenCopyAt { defender, .. } => {
@@ -2050,12 +2050,12 @@ impl Compiler {
             Gathered::TokenCopyAt {
                 player,
                 object,
-                adjustments,
+                exceptions,
                 tapped,
                 result,
                 ..
             } => {
-                let values = self.copy_values(&format!("original_{local}"), &adjustments)?;
+                let values = self.copy_values(&format!("original_{local}"), &exceptions)?;
                 writeln!(out, "let original_{local} = {}; let values_{local} = {values}; let player_{local} = {}; let created_{local} = match values_{local} {{ Some(values) if !gathered_{local}.is_empty() => g.create_token_copies_tapped(values, player_{local}, gathered_{local}.len() as u32, {tapped})?, _ => Vec::new() }}; if !gathered_{local}.is_empty() {{ let (share_{local}, extra_{local}) = (created_{local}.len() / gathered_{local}.len(), created_{local}.len() % gathered_{local}.len()); let mut from_{local} = 0; for (at, &target) in gathered_{local}.iter().enumerate() {{ let upto = from_{local} + share_{local} + usize::from(at < extra_{local}); g.enter_attacking(&created_{local}[from_{local}..upto], target); from_{local} = upto; }} }}", self.fetch(self.object(&object)?), self.fetch(self.certain_player(&player)?)).unwrap();
                 self.creations.insert(result.0, format!("created_{local}"));
             }
@@ -2617,7 +2617,7 @@ impl Compiler {
         object: &ObjectRef,
         times: &Expr,
         new_targets: bool,
-        effects: &[Operand],
+        exceptions: &[CopyException],
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
@@ -2648,14 +2648,14 @@ impl Compiler {
         };
         let plain = format!("g.copy_spell(spell, copier_{id}, {new_targets})?;");
         if let Some(listed) = slot {
-            if !effects.is_empty() {
+            if !exceptions.is_empty() {
                 return Err(gap("operation CopyOnStack"));
             }
             writeln!(out, "let copier_{id} = {copier}; if let Some(t) = ({listed}).first().copied() {{ {open}match t {{ Target::Object(spell) => {{ {plain} }} t => {{ {copy_ability} }} }}{close} }}").unwrap();
             return Ok(());
         }
         if matches!(object, ObjectRef::EventStackObject) && self.frame.spell_or_ability {
-            if !effects.is_empty() {
+            if !exceptions.is_empty() {
                 return Err(gap("operation CopyOnStack"));
             }
             writeln!(
@@ -2666,7 +2666,7 @@ impl Compiler {
             return Ok(());
         }
         if matches!(object, ObjectRef::EventStackObject) && self.frame.activated.is_some() {
-            if !effects.is_empty() {
+            if !exceptions.is_empty() {
                 return Err(gap("operation CopyOnStack"));
             }
             let ability = self.carried_ability()?;
@@ -2695,7 +2695,7 @@ impl Compiler {
             false => format!("{call};"),
         };
         writeln!(out, "let copier_{id} = {copier}; let spell_{id}: Option<ObjectId> = ({list}).first().copied();{copies}").unwrap();
-        if effects.is_empty() {
+        if exceptions.is_empty() {
             writeln!(
                 out,
                 "if let Some(spell) = spell_{id} {{ {open}{}{close} }}",
@@ -2703,7 +2703,7 @@ impl Compiler {
             )
             .unwrap();
         } else {
-            let values = self.copy_values(&format!("spell_{id}"), effects)?;
+            let values = self.copy_values(&format!("spell_{id}"), exceptions)?;
             writeln!(out, "let values_{id} = {values}; if let (Some(spell), Some(values)) = (spell_{id}, values_{id}) {{ {open}{}{close} }}", keep(format!("g.copy_spell_as(spell, copier_{id}, {new_targets}, values)?"))).unwrap();
         }
         if kept {
@@ -2731,9 +2731,9 @@ impl Compiler {
                 object,
                 times: Expr::Constant(1),
                 targets: NewTargets::To(to) | NewTargets::Each(to @ ObjectSet::Created(_)),
-                effects,
+                exceptions,
                 card: None,
-            } if effects.is_empty() => {
+            } if exceptions.is_empty() => {
                 let copier = self.fetch(self.certain_player(player)?);
                 let spell = self.fetch(self.object(object)?);
                 let to = self.fetch(self.objects(to)?);
@@ -2744,11 +2744,11 @@ impl Compiler {
                 object,
                 times,
                 targets: targets @ (NewTargets::Same | NewTargets::May),
-                effects,
+                exceptions,
                 card: None,
             } => {
                 let new_targets = matches!(targets, NewTargets::May);
-                self.copy_on_stack(id, player, object, times, new_targets, effects, result, out)?;
+                self.copy_on_stack(id, player, object, times, new_targets, exceptions, result, out)?;
             }
             Operation::Retarget {
                 actor: PlayerSet::One(player),

@@ -703,9 +703,9 @@ fn sacrifices_to_copy(cost: &Cost) -> Option<ObjectFilter> {
     };
     let creatures = matches!(filter, ObjectFilter::CardType(t) if form(t) == "Creature");
     let copies = matches!(body.instructions.as_slice(), [Instruction::Effect {
-        operation: Operation::CopyOnStack { object: ObjectRef::Source, effects, card: None, .. },
+        operation: Operation::CopyOnStack { object: ObjectRef::Source, exceptions, card: None, .. },
         ..
-    }] if effects.is_empty());
+    }] if exceptions.is_empty());
     (creatures && copies).then(|| filter.clone())
 }
 

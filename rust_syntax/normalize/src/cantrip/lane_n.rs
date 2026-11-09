@@ -1013,8 +1013,8 @@ impl Compiler {
             EntryState::CopyOf {
                 objects,
                 until: None,
-                effects,
-            } if format!("{effects:?}").contains("NoCopyEffects") => {
+                exceptions,
+            } if exceptions.is_empty() => {
                 let original = self.matching(frame, |c| c.objects(objects))?;
                 planned(format!(
                     "z.enters_as_copy_of = ({original}).first().copied()"

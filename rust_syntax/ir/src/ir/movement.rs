@@ -81,10 +81,11 @@ pub enum EntryState {
     Transformed,
     /// Enters prepared, as `KeywordAction::Prepare` does to a permanent.
     Prepared,
-    /// Enters as a copy of one of these, as Forge's `Clone`. `effects` are its exceptions.
+    /// Enters as a copy of one of these, with copy-time exceptions. Additional
+    /// arrival instructions remain separate `EntryState` values (707.9e).
     CopyOf {
         objects: ObjectSet,
-        effects: Box<Operand>,
+        exceptions: Vec<CopyException>,
         until: Option<Duration>,
     },
     /// Attacking but never declared (508.4). The entering side chooses the defender

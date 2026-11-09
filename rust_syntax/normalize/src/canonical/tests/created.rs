@@ -34,7 +34,7 @@ fn ability(event: Value, operation: Value) -> Value {
 
 fn copy(object: Value) -> Value {
     json!({"kind":"CopyOnStack","args":{"actor":{"kind":"One","args":{"kind":"AbilityController"}},
-        "object":object,"times":{"kind":"Constant","args":1},"targets":"May","effects":[],"card":null}})
+        "object":object,"times":{"kind":"Constant","args":1},"targets":"May","exceptions":[],"card":null}})
 }
 
 fn valid(value: &Value) -> bool {

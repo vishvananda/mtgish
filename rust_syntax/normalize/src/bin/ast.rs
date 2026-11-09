@@ -9,6 +9,10 @@ fn run() -> Result<()> {
             let card=mtgish_ast::migrate::read_json(&std::fs::read_to_string(input)?)?;
             println!("{}",serde_json::to_string_pretty(&card)?);
         }
+        [command,input] if command=="migrate-ir-mapped" => {
+            let mapped=mtgish_ast::migrate::mapped_read_json(&std::fs::read_to_string(input)?)?;
+            println!("{}",serde_json::to_string_pretty(&mapped)?);
+        }
         [command,input,name] if command=="card-code" => {
             let source=corpus::read_cards(Path::new(input))?.into_iter().find(|c|corpus::Identity::of(c).is_ok_and(|id|id.names.iter().any(|n|n==name))).ok_or("card not found")?;
             let card=mtgish_ast::unified::lower(&source).card;

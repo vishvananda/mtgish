@@ -145,7 +145,10 @@ impl Document {
         Ok(rebound)
     }
     pub fn from_json(input: &str) -> Result<Self, String> {
-        let value = crate::json_input::wrapped_value(input)?;
+        let mut value = crate::json_input::wrapped_value(input)?;
+        if value["card"]["schema_version"] == 180 {
+            migration::upgrade_schema_180(&mut value)?;
+        }
         let mut doc: Self = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
         if serde_json::to_value(&doc).map_err(|e| e.to_string())? != value {
             return Err("unknown or missing authoring document fields".into());

@@ -387,11 +387,6 @@ fn returns_when_crowned<'a>(result: &ResultId, rest: &'a [Instruction]) -> Optio
     }
 }
 
-/// Whether a token copy's adjustment changes anything about the copy.
-fn adjusts(adjustment: &Operand) -> bool {
-    !matches!(adjustment, Operand::Term { form, .. } if form == "NoTokenCopyEffects")
-}
-
 /// `list` less what stayed: a transition is of what moved, not what was asked to.
 pub(super) fn gone(list: &str) -> String {
     format!("{list}.iter().copied().filter(|&o| q.state().obj(o).became.is_some()).collect::<Vec<ObjectId>>()")
@@ -3427,7 +3422,7 @@ impl Compiler {
                 recipe:
                     TokenRecipe::CopyOne {
                         objects,
-                        adjustments,
+                        exceptions,
                     },
                 ..
             }],
@@ -3439,7 +3434,7 @@ impl Compiler {
             }
             let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
             writeln!(out, "let player_{id} = {}; let among_{id} = {}; let chosen_{id} = cantrip_mechanics::choose::select(g, player_{id}, asker.source, Purpose::CopyWhich, among_{id}, cantrip_mechanics::select::cards(cantrip_mechanics::select::exactly(1)))?.first().copied();", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?)).unwrap();
-            let values = self.copy_values(&format!("chosen_{id}"), adjustments)?;
+            let values = self.copy_values(&format!("chosen_{id}"), exceptions)?;
             let creation = self.copy_token_creation("values", &format!("player_{id}"), &format!("count_{id}"), entry)?;
             writeln!(out, "let values_{id} = {values}; let count_{id} = {}; let created_{id} = match values_{id} {{ Some(values) => {creation}?, None => Vec::new() }};", self.fetch(amount)).unwrap();
             self.copy_token_state(id, entry, out)?;
@@ -3451,7 +3446,7 @@ impl Compiler {
             recipe:
                 TokenRecipe::Copy {
                     object,
-                    adjustments,
+                    exceptions,
                 },
             ..
         }] = tokens
@@ -3463,7 +3458,7 @@ impl Compiler {
                 return self.token_copy_for_each(
                     id,
                     object,
-                    adjustments,
+                    exceptions,
                     amount,
                     players,
                     entry,
@@ -3472,7 +3467,7 @@ impl Compiler {
                 );
             };
             let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
-            if adjustments.iter().any(adjusts) || entry.tapped || !entry.states.is_empty() {
+            if !exceptions.is_empty() || entry.tapped || !entry.states.is_empty() {
                 let single = self.slots.len() == 1 && matches!(object, ObjectRef::Target { slot, index: 0 }
                     if self.slots.get(&slot.0).is_some_and(|(_, spec)| matches!(spec.kind, TargetKind::Object(_))
                         && matches!(spec.count, Count::Exactly(Expr::Constant(1)))));
@@ -3481,12 +3476,12 @@ impl Compiler {
                     // The item's only target is compulsory: with no legal one
                     // it never resolves (CR 608.2b), rather than making no copy
                     // and proceeding through an unreachable match arm.
-                    let values = self.excepted("q.copiable_values(original)".into(), adjustments)?;
+                    let values = self.excepted("q.copiable_values(original)".into(), exceptions)?;
                     let values = self.fetch(format!("{{ let original = original_{id}; {values} }}"));
                     let creation = self.copy_token_creation(&format!("values_{id}"), &format!("player_{id}"), &format!("count_{id}"), entry)?;
                     writeln!(out, "let Some(original_{id}) = original_{id} else {{ return Ok(()); }}; let values_{id} = {values}; let created_{id} = {creation}?;").unwrap();
                 } else {
-                    let values = self.copy_values(&format!("original_{id}"), adjustments)?;
+                    let values = self.copy_values(&format!("original_{id}"), exceptions)?;
                     let creation = self.copy_token_creation("values", &format!("player_{id}"), &format!("count_{id}"), entry)?;
                     writeln!(out, "let values_{id} = {values}; let created_{id} = match values_{id} {{ Some(values) => {creation}?, None => Vec::new() }};").unwrap();
                 }
@@ -3522,7 +3517,7 @@ impl Compiler {
             recipe:
                 TokenRecipe::CopyEach {
                     objects,
-                    adjustments,
+                    exceptions,
                 },
             ..
         }] = tokens
@@ -3531,12 +3526,12 @@ impl Compiler {
                 return Err(gap("adjusted token copy"));
             }
             let PlayerSet::One(player) = players else {
-                if adjustments.iter().any(adjusts) {
+                if !exceptions.is_empty() {
                     return Err(gap("adjusted token copy"));
                 }
                 return self.token_copies_for_each(id, objects, players, result, out);
             };
-            let values = self.copy_values("Some(original)", adjustments)?;
+            let values = self.copy_values("Some(original)", exceptions)?;
             writeln!(out, "let originals_{id} = {}; let player_{id} = {}; let mut copies_{id}: Vec<(Copiable, PlayerId)> = Vec::new(); if let Some(player) = player_{id} {{ for &original in &originals_{id} {{ if let Some(values) = {values} {{ copies_{id}.push((values, player)); }} }} }} let created_{id} = g.create_token_copies_together(&copies_{id})?;", self.fetch(self.objects(objects)?), self.fetch(self.player(player)?)).unwrap();
             self.creations.insert(result.0, format!("created_{id}"));
             return Ok(());
@@ -4212,11 +4207,11 @@ impl Compiler {
         .unwrap();
         let joined = lane_n::power_with_toughness(changes);
         let changes = joined.as_deref().unwrap_or(changes);
-        if let [Change::CopyOf { object, effects }] = changes {
+        if let [Change::CopyOf { object, exceptions }] = changes {
             let original = self.fetch(self.objects(&ObjectSet::One(object.clone()))?);
             let values = self.copy_values(
                 &format!("original_{id}.first().copied()"),
-                std::slice::from_ref(effects),
+                exceptions,
             )?;
             writeln!(out, "let original_{id} = {original}; let values_{id} = {values}; if let (Some(source), Some(values)) = (source_{id}, values_{id}) {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.become_copy(source, object, values, duration_{id}); }} }}); }}").unwrap();
             return Ok(());

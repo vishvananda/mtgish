@@ -1337,7 +1337,7 @@ fn reduce_stack_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         object: object.clone(),
         times,
         targets,
-        effects: vec![],
+        exceptions: vec![],
         card: None,
     };
     let once = || Expr::Constant(1);

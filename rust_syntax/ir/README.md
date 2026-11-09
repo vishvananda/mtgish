@@ -24,6 +24,7 @@ than runtime object IDs or function pointers.
 | `actions` | Supporting payloads for choices, counters, exchange and other actions |
 | `conditions` | Conditions and coin outcomes |
 | `tokens` | Token definitions and copy recipes |
+| `copying` | Typed copy exceptions, colors and ability patterns |
 
 The type definitions remain the serialization contract. Moving a declaration
 does not change its fields, variant order or public re-export. Changing those
@@ -79,3 +80,14 @@ The editor discovers instructions and action families from
 Control menu groups sequences/batches, conditions/choices, iteration/repetition,
 local selections, and results/receipts. Search includes control instructions as
 well as actions; the shared vocabulary does not collapse their distinct types.
+
+Schema 181 gives token recipes, stack copies, copy arrivals and continuing copy
+changes the same `Vec<CopyException>` payload. Copy-time exceptions belong to
+copiable values; later continuous effects and extra arrival instructions retain
+their own typed homes. Numeric inputs use the creating effect's scope, while
+quoted granted abilities define fresh scopes. `AbilityPattern` matches abilities
+rather than overloading object filters. Numeric engine ranges are unchanged.
+
+Frozen schema-180 descriptors support explicit JSON migration and typed ID-site
+origins. A shared PTX read may map to both power and toughness; the mapper records
+that expansion instead of inferring identity from repeated numeric labels.

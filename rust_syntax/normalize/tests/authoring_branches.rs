@@ -212,7 +212,7 @@ fn saved_v1_branch_documents_upgrade_names_without_changing_the_card() {
         let original: Value = serde_json::from_str(input).unwrap();
         let mut doc = Document::from_json(input).unwrap();
         assert_eq!(doc.version, 2);
-        assert_eq!(serde_json::to_value(doc.card()).unwrap(), original["card"]);
+        assert_eq!(serde_json::to_value(doc.card()).unwrap(), serde_json::to_value(mtgish_ast::migrate::read_json(&original["card"].to_string()).unwrap()).unwrap());
         let picked: Vec<_> = doc
             .bindings()
             .iter()

@@ -259,7 +259,7 @@ impl Compiler {
             recipe:
                 TokenRecipe::Copy {
                     object,
-                    adjustments,
+                    exceptions,
                 },
             ..
         }] = tokens
@@ -267,8 +267,7 @@ impl Compiler {
             return Ok(None);
         };
         if copies != 0
-            || adjustments.len() != 1
-            || !format!("{adjustments:?}").contains("NoTokenCopyEffects")
+            || !exceptions.is_empty()
             || matches!(object, ObjectRef::Result { .. })
         {
             return Ok(None);

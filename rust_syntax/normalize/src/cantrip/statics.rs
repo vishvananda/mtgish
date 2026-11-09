@@ -424,7 +424,7 @@ impl Compiler {
             Change::SetLandType(land) => {
                 let words = match &**land {
                     Operand::Vocabulary { form: word, .. } => vec![word.as_str()],
-                    Operand::List(list) => copies::words(list)?,
+                    Operand::List(list) => list.iter().map(|o| match o { Operand::Vocabulary {form,..} => Ok(form.as_str()), other => Err(gap(format!("land type {}",form(other)))) }).collect::<Result<Vec<_>>>()?,
                     other if lane_q::second_chosen_land_type(other).is_some() => Vec::new(),
                     other => return Err(gap(format!("land type {}", form(other)))),
                 };

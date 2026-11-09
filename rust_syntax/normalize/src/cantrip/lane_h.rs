@@ -3546,7 +3546,7 @@ impl Compiler {
                     change:
                         EventChange::Entry(EntryState::CopyOf {
                             objects,
-                            effects,
+                            exceptions,
                             until,
                         }),
                 },
@@ -3569,7 +3569,7 @@ impl Compiler {
         .unwrap();
         let values = self.copy_values(
             &format!("Some(chosen_{id})"),
-            std::slice::from_ref(&**effects),
+            exceptions,
         )?;
         writeln!(
             out,
@@ -3773,11 +3773,11 @@ impl Compiler {
             }
             EntryState::CopyOf {
                 objects: ObjectSet::One(object),
-                effects,
+                exceptions,
                 until: None,
             } => {
                 let object = self.object(object)?;
-                let values = self.copy_values(&object, std::slice::from_ref(&**effects))?;
+                let values = self.copy_values(&object, exceptions)?;
                 self.plan_code(
                     "event change as it enters Entry CopyOf",
                     &format!("entering.copy = {values};"),

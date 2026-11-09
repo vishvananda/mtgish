@@ -1,89 +1,128 @@
-//! The exceptions a copy states (CR 707.9b), each what `Copiable` calls it.
+//! Compile typed copy-time exceptions (CR 707.9), never grammar terms.
 use super::*;
 
-/// The `Vocabulary` words of `operands`.
-pub(super) fn words(operands: &[Operand]) -> Result<Vec<&str>> {
-    operands
+fn list<T: std::fmt::Debug>(prefix: &str, values: &[T]) -> String {
+    values
         .iter()
-        .map(|operand| match operand {
-            Operand::Vocabulary { form, .. } => Ok(form.as_str()),
-            other => Err(gap(format!("copy exception of {}", form(other)))),
-        })
-        .collect()
+        .map(|v| format!("{prefix}::{}", name(v)))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 impl Compiler {
-    /// `values`, a `Copiable`, with what `adjustments` state.
-    pub(super) fn excepted(&mut self, values: String, adjustments: &[Operand]) -> Result<String> {
-        adjustments
-            .iter()
-            .try_fold(values, |values, adjustment| self.except(values, adjustment))
+    pub(super) fn excepted(
+        &mut self,
+        mut values: String,
+        exceptions: &[CopyException],
+    ) -> Result<String> {
+        let mut known_types: Option<std::collections::BTreeSet<String>> = None;
+        for exception in exceptions {
+            // Compare type state, not substrings in emitted Rust. An intervening
+            // type addition must not be hidden by an earlier full replacement.
+            if let CopyException::SetCardTypes(types) = exception {
+                let next = types.iter().map(name).collect();
+                if known_types.as_ref() == Some(&next) {
+                    continue;
+                }
+            }
+            values = self.except(values, exception)?;
+            match exception {
+                CopyException::SetTypes { card_types, .. }
+                | CopyException::SetCardTypes(card_types) => {
+                    known_types = Some(card_types.iter().map(name).collect())
+                }
+                CopyException::AddCardTypes(types) => {
+                    if let Some(known) = &mut known_types {
+                        known.extend(types.iter().map(name));
+                    }
+                }
+                CopyException::MergeTypeline
+                | CopyException::IfPermanentSpell(_)
+                | CopyException::AddAbilities(_)
+                | CopyException::AddAbilityIfAbsent { .. }
+                | CopyException::AddCurrentAbility
+                | CopyException::AddChosenAbilities
+                | CopyException::AddAbilitiesFrom { .. } => known_types = None,
+                _ => {}
+            }
+        }
+        Ok(values)
     }
-    fn except(&mut self, values: String, exception: &Operand) -> Result<String> {
-        let Operand::Term {
-            form: name,
-            operands,
-            ..
-        } = exception
-        else {
-            return Err(gap(format!("copy exception {}", form(exception))));
-        };
-        Ok(match (name.as_str(), operands.as_slice()) {
-            ("NoTokenCopyEffects" | "NoCopyEffects", []) => values,
-            ("TokenCopyEffects" | "CopyEffects", list) => self.excepted(values, list)?,
-            ("SetPT", [Operand::Term { operands, .. }]) => match operands.as_slice() {
-                [Operand::Integer(power), Operand::Integer(toughness)] => {
-                    format!("{values}.sized({power}, {toughness})")
+    fn except(&mut self, values: String, exception: &CopyException) -> Result<String> {
+        use CopyException as E;
+        let planned = |feature: &str, code: String| planned::planned_value(feature, &values, &code);
+        Ok(match exception {
+            E::RemoveSupertypes(types) if matches!(types.as_slice(),[crate::mtg_types::SuperType::Legendary])=>format!("{values}.nonlegendary()"),
+            E::AddSupertypes(types) if matches!(types.as_slice(),[crate::mtg_types::SuperType::Legendary])=>format!("{values}.legendary()"),
+            E::RemoveSupertypes(types)=>planned("copy exception RemoveSupertypes",format!("{values}.without_supertypes(&[{}])",list("Supertype",types))),
+            E::AddSupertypes(types)=>planned("copy exception AddSupertypes",format!("{values}.with_supertypes(&[{}])",list("Supertype",types))),
+            E::AddCardTypes(types)=>types.iter().fold(values,|v,t|format!("{v}.with_type(CardType::{})",name(t))),
+            E::SetCardTypes(types)=>planned("copy exception SetCardtypes",format!("{values}.typed_as(TypeSet::of(&[{}]))",list("CardType",types))),
+            E::AddCreatureTypes(types)=>self.copy_subtypes(values,&types.iter().map(crate::subtype::creature_type).collect::<Vec<_>>()),
+            E::AddArtifactTypes(types)=>self.copy_subtypes(values,&types.iter().map(crate::subtype::artifact_type).collect::<Vec<_>>()),
+            E::AddLandTypes(types)=>self.copy_subtypes(values,&types.iter().map(crate::subtype::land_type).collect::<Vec<_>>()),
+            E::SetTypes{card_types,subtypes}=>{
+                let subtypes=subtypes.iter().map(|t|format!("q.words(asker.source).subtype(Subtype::{})",name(t))).collect::<Vec<_>>().join(", ");
+                format!("{values}.typed(TypeSet::of(&[{}]), SubtypeSet::of(&[{subtypes}]))",list("CardType",card_types))
+            }
+            E::SetArtifactTypes(types)=>planned("copy exception SetArtifactTypes",format!("{values}.subtyped_as(CardType::Artifact, SubtypeSet::of(&[{}]))",list("Subtype",types))),
+            E::Colors{mode,colors:CopyColors::Listed(colors)}=>match mode {
+                ChangeMode::Set=>{
+                    let set=colors.iter().fold("ColorSet::NONE".into(),|set,c|format!("{set}.with(q.words(asker.source).color(Color::{}))",name(c)));
+                    format!("{values}.colored({set})")
                 }
-                _ => return self.stated_size(values, operands),
+                ChangeMode::Add=>lane_o::added_colors(&values,&list("Color",colors)),
             },
-            ("RemoveSupertypes", list) if words(list)? == ["Legendary"] => {
-                format!("{values}.nonlegendary()")
+            E::Colors{mode,..}=>return Err(gap(if matches!(mode,ChangeMode::Set){"copy exception SetColor"}else{"copy exception AddColor"})),
+            E::KeepColors=>format!("{{ let own = q.copiable_values(asker.source); {values}.colored(own.colors.unwrap_or(q.card(own.card).colors())) }}"),
+            E::SetName(text)=>format!("{values}.named({})",quoted(text)),
+            E::KeepName=>format!("{{ let own = q.copiable_values(asker.source); {values}.named(own.name.unwrap_or(q.card(own.card).name)) }}"),
+            E::SetPowerToughness{power:Expr::Constant(p),toughness:Expr::Constant(t)}=>{
+                let(_,low,high)=quantity::pt_kind();
+                format!("{values}.sized({}, {})",i128::from(*p).clamp(low,high),i128::from(*t).clamp(low,high))
             }
-            ("AddSupertypes", list) if words(list)? == ["Legendary"] => {
-                format!("{values}.legendary()")
+            E::SetPowerToughness{power,toughness}=>format!("{values}.sized({}, {})",self.copy_size(power)?,self.copy_size(toughness)?),
+            E::KeepPowerToughness=>format!("{{ let own = q.card(q.chars(asker.source).card); {values}.sized(own.power.unwrap_or(0), own.toughness.unwrap_or(0)) }}"),
+            E::SetLoyalty(Expr::Constant(n)) if {let(_,low,high)=quantity::pt_kind();(low..=high).contains(&i128::from(*n))}=>format!("{values}.with_loyalty({n})"),
+            E::SetLoyalty(n)=>planned("copy exception SetLoyalty",format!("{values}.with_loyalty({})",self.copy_size(n)?)),
+            E::RemoveManaCost=>format!("{values}.costless()"),
+            E::AddAbilities(abilities)=>return self.copy_abilities(values,abilities),
+            E::AddCurrentAbility if self.stack_item=>format!("{values}.with_ability(item.ability)"),
+            E::AddCurrentAbility|E::AddChosenAbilities=>return Err(gap("copy exception AddAbilityVariable")),
+            E::RemoveCurrentAbility=>planned("copy exception RemoveThisAbility",format!("{values}.without_ability(item.ability)")),
+            E::RemoveAbilities(pattern)=>planned("copy exception LosesAbility",format!("{values}.losing({})",self.copy_pattern(pattern)?)),
+            E::AddAbilityIfAbsent{ability,..}=>{
+                // Preserve the existing capability gap until the engine exposes
+                // a predicate for matching an existing ability on a copy.
+                self.granted_refs(ability)?;
+                return Err(gap("copy exception AddAbilityIfItDoesntHaveAbility"));
             }
-            ("SetColor", [Operand::Term { form, .. }]) if form == "Colorless" => {
-                format!("{values}.colored(ColorSet::NONE)")
-            }
-            ("SetColor", [Operand::Term { form, operands, .. }]) if form == "SimpleColorList" => {
-                let set = words(operands)?
-                    .iter()
-                    .fold("ColorSet::NONE".to_string(), |set, color| {
-                        format!("{set}.with(q.words(asker.source).color(Color::{color}))")
-                    });
-                format!("{values}.colored({set})")
-            }
-            ("AddCardtypes" | "AddCardtype", list) => words(list)?.iter().fold(values, |values, word| {
-                format!("{values}.with_type(CardType::{word})")
-            }),
-            ("AddCreatureType" | "AddCreatureTypes" | "AddArtifactTypes" | "AddLandTypes", list) => {
-                words(list)?.iter().fold(values, |values, word| {
-                    format!("{values}.with_subtype(q.words(asker.source).subtype(Subtype::{word}))")
-                })
-            }
-            // "Except it's a 4/4 black Zombie": that is what it is (CR 707.9b).
-            ("SetCreatureTypes", list) => {
-                let types = words(list)?
-                    .iter()
-                    .map(|word| format!("q.words(asker.source).subtype(Subtype::{word})"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("{values}.typed(TypeSet::of(&[CardType::Creature]), SubtypeSet::of(&[{types}]))")
-            }
-            ("SetCardtypes", list)
-                if words(list)? == ["Creature"]
-                    && values.contains(".typed(TypeSet::of(&[CardType::Creature])") =>
-            {
-                values
-            }
-            ("AddAbility", [Operand::Ability(ability)]) => match &**ability {
+            E::IfPermanentSpell(exceptions)=>format!("{{ let plain = {values}; if cantrip_mechanics::targets::is_permanent_card(&q.chars(original)) {{ {} }} else {{ plain }} }}",self.excepted("plain".into(),exceptions)?),
+            E::MergeTypeline=>return Err(gap("copy exception MergeTypeline")),
+            E::AddAbilitiesFrom{..}=>return Err(gap("copy exception AddAbilityFromEachExiledHasable")),
+        })
+    }
+    fn copy_subtypes(&self, values: String, types: &[crate::mtg_types::SubType]) -> String {
+        types.iter().fold(values, |v, t| {
+            format!(
+                "{v}.with_subtype(q.words(asker.source).subtype(Subtype::{}))",
+                name(t)
+            )
+        })
+    }
+    fn copy_size(&self, n: &Expr) -> Result<String> {
+        let (pt, _, _) = quantity::pt_kind();
+        Ok(format!(
+            "({}).clamp({pt}::MIN.into(), {pt}::MAX.into()) as {pt}",
+            self.number(n)?.code
+        ))
+    }
+    fn copy_abilities(&mut self, values: String, abilities: &[Ability]) -> Result<String> {
+        if let [ability] = abilities {
+            match ability {
                 Ability::Keyword(k) if keyword(k).is_ok() => {
-                    format!("{values}.with_keyword({})", keyword(k)?)
+                    return Ok(format!("{values}.with_keyword({})", keyword(k)?))
                 }
-                // How to build a deck, Partner say (Sakashima of a Thousand Faces'
-                // "other abilities"): nothing in a game reads it, so the copy has
-                // nothing to carry, as a card printing one has no line for it.
                 Ability::DeckRule(rule)
                     if !matches!(
                         rule,
@@ -92,48 +131,125 @@ impl Compiler {
                             | DeckRule::Partner(PartnerKind::With(_))
                     ) =>
                 {
-                    values
+                    return Ok(values)
                 }
                 ability if lane_j::granted_keyword(ability).is_some() => {
-                    let keyword = lane_j::granted_keyword(ability).expect("just seen");
-                    format!("{values}.with_keyword({keyword})")
+                    return Ok(format!(
+                        "{values}.with_keyword({})",
+                        lane_j::granted_keyword(ability).unwrap()
+                    ))
                 }
-                // "Except it's 1/1 and has toxic 1" (CR 707.9b): toxic is a number of
-                // the card's (`CardDef::toxic`), which `Copiable` has no word for, and
-                // a copy's toxic is read from the card it copies alone.
                 ability if lane_n::toxic_of(ability).is_some() => {
-                    return Err(gap("toxic as a copy exception"));
+                    return Err(gap("toxic as a copy exception"))
                 }
                 ability => {
-                    let Ok(index) = self.grant(ability) else {
-                        return self.stated_exception(values, "AddAbility", operands);
-                    };
-                    format!(
-                        "{values}.with_ability(AbilityRef::delayed({}, {index}))",
-                        self.source_card()
-                    )
+                    if let Ok(index) = self.grant(ability) {
+                        return Ok(format!(
+                            "{values}.with_ability(AbilityRef::delayed({}, {index}))",
+                            self.source_card()
+                        ));
+                    }
                 }
-            },
-            ("AddAbilityVariable", list) if self.stack_item && words(list)? == ["ThisAbility"] => {
-                format!("{values}.with_ability(item.ability)")
             }
-            ("SetName", [Operand::Text(text)]) => format!("{values}.named({})", quoted(text)),
-            ("SetLoyalty", [Operand::Integer(n)]) => format!("{values}.with_loyalty({n})"),
-            ("SetLoyalty", [Operand::Number(Expr::Constant(n))]) if { let (_, low, high) = quantity::pt_kind(); (low..=high).contains(&i128::from(*n)) } => {
-                format!("{values}.with_loyalty({n})")
+        }
+        let mut code = values;
+        for ability in abilities {
+            let keyword = match ability {
+                Ability::Keyword(k)
+                | Ability::Static {
+                    kind:
+                        StaticKind::CharacteristicDefining {
+                            keyword: Some(k), ..
+                        },
+                    ..
+                } => keyword(k).ok(),
+                _ => None,
+            };
+            if let Some(keyword) = keyword {
+                code = format!("{code}.with_keyword({keyword})");
+                continue;
             }
-            ("HasNoManaCost", []) => format!("{values}.costless()"),
-            // A spell's copy, read while `original` names that spell.
-            ("IfPermanentSpell", list) => format!(
-                "{{ let plain = {values}; if cantrip_mechanics::targets::is_permanent_card(&q.chars(original)) {{ {} }} else {{ plain }} }}",
-                self.excepted("plain".into(), list)?
+            if lane_n::toxic_of(ability).is_some() {
+                return Err(gap("toxic as a copy exception"));
+            }
+            let refs = self.granted_refs(ability).or_else(|failed| {
+                let Ability::Mechanic {
+                    mechanic,
+                    amount: Some(amount),
+                    ..
+                } = ability
+                else {
+                    return Err(failed);
+                };
+                Ok(vec![format!(
+                    "AbilityRef::mechanic(Mechanic::{mechanic:?}, {})",
+                    self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?)
+                )])
+            })?;
+            for r in refs {
+                code = format!("{code}.with_ability({r})");
+            }
+        }
+        Ok(code)
+    }
+    fn copy_pattern(&mut self, pattern: &AbilityPattern) -> Result<String> {
+        Ok(match pattern {
+            AbilityPattern::Keyword(keyword)
+                if serde_json::to_value(keyword)
+                    .map_err(|_| gap("copy ability pattern"))?
+                    .get("args")
+                    .is_none() =>
+            {
+                format!("Lost::{}", form(keyword))
+            }
+            AbilityPattern::Mechanic(mechanic) => format!("Lost::{mechanic:?}"),
+            AbilityPattern::KeywordFamily(family) => format!("Lost::Any{family:?}"),
+            AbilityPattern::Category(kind) => format!(
+                "Lost::{}",
+                match kind {
+                    AbilityCategory::Activated => "ActivatedAbility",
+                    AbilityCategory::Triggered => "TriggeredAbility",
+                    AbilityCategory::Loyalty => "LoyaltyAbility",
+                    AbilityCategory::Mana => "ManaAbility",
+                    AbilityCategory::NonMana => "NonManaAbility",
+                }
             ),
-            (other, list) => return self.stated_exception(values, other, list),
+            AbilityPattern::Current => "Lost::ThisAbility".into(),
+            AbilityPattern::OtherThanCurrent => "Lost::OtherThanThisAbility".into(),
+            AbilityPattern::Sticker => "Lost::StickerAbility".into(),
+            AbilityPattern::AbilitySticker => "Lost::AbilityStickerAbility".into(),
+            AbilityPattern::HasTapInCost => "Lost::HasTapSelfInCost".into(),
+            AbilityPattern::Exhaust => "Lost::ExhaustAbility".into(),
+            AbilityPattern::AnyProtectionFromColor => "Lost::AnyProtectionFromColor".into(),
+            AbilityPattern::ProtectionFromColor(color) => {
+                format!("Lost::ProtectionFromColor(Color::{color:?})")
+            }
+            AbilityPattern::Chosen => "Lost::TheChosenAbility".into(),
+            AbilityPattern::Eachable => "Lost::EachableAbility".into(),
+            AbilityPattern::All(patterns) => format!(
+                "Lost::And(&[{}])",
+                patterns
+                    .iter()
+                    .map(|p| self.copy_pattern(p))
+                    .collect::<Result<Vec<_>>>()?
+                    .join(", ")
+            ),
+            _ => return Err(gap(format!("copy ability pattern {}", form(pattern)))),
         })
     }
-    /// `Option<Copiable>`: `object`'s values with these exceptions, if it's there.
-    pub(super) fn copy_values(&mut self, object: &str, adjustments: &[Operand]) -> Result<String> {
-        let values = self.excepted("q.copiable_values(original)".into(), adjustments)?;
+    pub(super) fn copy_values(
+        &mut self,
+        object: &str,
+        exceptions: &[CopyException],
+    ) -> Result<String> {
+        let values = self.excepted("q.copiable_values(original)".into(), exceptions)?;
         Ok(self.fetch(format!("{object}.map(|original: ObjectId| {values})")))
+    }
+    /// Planned callers receive a typed transformation, not source enum words.
+    pub(super) fn copy_callback(&mut self, exceptions: &[CopyException]) -> Result<String> {
+        let values = self.excepted("values".into(), exceptions)?;
+        Ok(format!(
+            "|q: &dyn Query, asker: &Asker, original: ObjectId, values: Copiable| {values}"
+        ))
     }
 }

@@ -769,14 +769,14 @@ pub fn reduce_entry(name: &str, operands: &[Operand]) -> Option<EntryState> {
         ("EnterAsACopyOfAPermanent", [Operand::Objects(objects), effects]) => {
             Some(EntryState::CopyOf {
                 objects: objects.clone(),
-                effects: Box::new(effects.clone()),
+                exceptions: crate::copying::from_source(std::slice::from_ref(effects)).ok()?,
                 until: None,
             })
         }
         ("EnterAsACopyOfPermanent", [Operand::Object(object), effects]) => {
             Some(EntryState::CopyOf {
                 objects: ObjectSet::One(object.clone()),
-                effects: Box::new(effects.clone()),
+                exceptions: crate::copying::from_source(std::slice::from_ref(effects)).ok()?,
                 until: None,
             })
         }
@@ -1574,48 +1574,48 @@ fn reduce_stack_copy(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Opt
     use Operand::{List, Number, Object, Objects, Players};
     let one = || Expr::Constant(1);
     let copy =
-        |object: &ObjectRef, times: Expr, targets, effects: &[Operand]| Operation::CopyOnStack {
+        |object: &ObjectRef, times: Expr, targets, effects: &[Operand]| Some(Operation::CopyOnStack {
             actor: actor.clone(),
             object: object.clone(),
             times,
             targets,
-            effects: effects.to_vec(),
+            exceptions: crate::copying::from_source(effects).ok()?,
             card: None,
-        };
+        });
     let retarget = |object: &ObjectRef, targets| Operation::Retarget {
         actor: actor.clone(),
         object: object.clone(),
         targets,
     };
     Some(match (name.strip_prefix("Action::")?, operands) {
-        ("CopySpell", [Object(o)]) => copy(o, one(), T::Same, &[]),
+        ("CopySpell", [Object(o)]) => copy(o, one(), T::Same, &[])?,
         ("CopySpellNumberTimes" | "CopySpellForEach", [Object(o), Number(n)]) => {
-            copy(o, n.clone(), T::Same, &[])
+            copy(o, n.clone(), T::Same, &[])?
         }
         (
             "CopySpellNumberTimesAndMayChooseNewTargets"
             | "CopySpellForEachAndMayChooseNewTargets"
             | "CopyAbilityNumberTimesAndMayChooseNewTargets",
             [Object(o), Number(n)],
-        ) => copy(o, n.clone(), T::May, &[]),
+        ) => copy(o, n.clone(), T::May, &[])?,
         (
             "CopySpellAndMayChooseNewTargets"
             | "CopyAbilityAndMayChooseNewTargets"
             | "CopySpellOrAbilityAndMayChooseNewTargets",
             [Object(o)],
-        ) => copy(o, one(), T::May, &[]),
-        ("CopySpellWithModifiers", [Object(o), List(effects)]) => copy(o, one(), T::Same, effects),
+        ) => copy(o, one(), T::May, &[])?,
+        ("CopySpellWithModifiers", [Object(o), List(effects)]) => copy(o, one(), T::Same, effects)?,
         ("CopySpellAndMayChooseNewTargetsWithEffects", [Object(o), List(effects)]) => {
-            copy(o, one(), T::May, effects)
+            copy(o, one(), T::May, effects)?
         }
         ("CopySpellAndMustChooseNewTarget", [Object(o), Object(to)]) => {
-            copy(o, one(), T::To(ObjectSet::One(to.clone())), &[])
+            copy(o, one(), T::To(ObjectSet::One(to.clone())), &[])?
         }
         (
             "CopySpellForEachPermanentAndMustChooseItAsNewTarget"
             | "CopyAbilityForEachPermanentItCouldTarget",
             [Object(o), Objects(each)],
-        ) => copy(o, one(), T::Each(each.clone()), &[]),
+        ) => copy(o, one(), T::Each(each.clone()), &[])?,
         ("ChooseNewTargetsForSpell" | "ChooseNewTargetsForSpellOrAbility", [Object(o)]) => {
             retarget(o, T::May)
         }
@@ -2411,10 +2411,7 @@ fn reduce_single_change(name: String, operands: Vec<Operand>) -> Change {
         ("LayerEffect::SetLandType", [land]) => Change::SetLandType(Box::new(land.clone())),
         ("LayerEffect::SetName", [Operand::Text(name)]) => Change::SetName(name.clone()),
         ("LayerEffect::IsACopyOfExiledCard", [Operand::Object(object), effects]) => {
-            Change::CopyOf {
-                object: object.clone(),
-                effects: Box::new(effects.clone()),
-            }
+            copy_of(object.clone(), effects).unwrap_or_else(|| Change::Primitive { name:name.clone(),operands:operands.clone() })
         }
         ("SpellEffect::Convoke", []) => Change::GrantAbility(Box::new(Ability::Mechanic {
             mechanic: Mechanic::Convoke,
@@ -2426,19 +2423,9 @@ fn reduce_single_change(name: String, operands: Vec<Operand>) -> Change {
         (
             "LayerEffect::IsACopyOfLibraryCard",
             [Operand::Objects(ObjectSet::Selected(result)), effects],
-        ) => Change::CopyOf {
-            object: ObjectRef::Result {
-                result: result.clone(),
-                phase: ObjectPhase::After,
-                index: 0,
-            },
-            effects: Box::new(effects.clone()),
-        },
+        ) => copy_of(ObjectRef::Result { result:result.clone(),phase:ObjectPhase::After,index:0 },effects).unwrap_or_else(||Change::Primitive{name:name.clone(),operands:operands.clone()}),
         ("LayerEffect::IsACopyOfGraveyardCard", [Operand::Object(object), effects]) => {
-            Change::CopyOf {
-                object: object.clone(),
-                effects: Box::new(effects.clone()),
-            }
+            copy_of(object.clone(), effects).unwrap_or_else(|| Change::Primitive { name:name.clone(),operands:operands.clone() })
         }
         (
             "StaticLayerEffect::AddAbilityFromCardsInGraveyardsHasable",
@@ -2476,10 +2463,7 @@ fn reduce_single_change(name: String, operands: Vec<Operand>) -> Change {
         ("LayerEffect::AddEnchantmentType", [kind]) => {
             Change::AddEnchantmentType(Box::new(kind.clone()))
         }
-        ("LayerEffect::IsACopyOfPermanent", [Operand::Object(object), effects]) => Change::CopyOf {
-            object: object.clone(),
-            effects: Box::new(effects.clone()),
-        },
+        ("LayerEffect::IsACopyOfPermanent", [Operand::Object(object), effects]) => copy_of(object.clone(),effects).unwrap_or_else(||Change::Primitive{name:name.clone(),operands:operands.clone()}),
         _ => {
             let layer = name
                 .split_once("::")

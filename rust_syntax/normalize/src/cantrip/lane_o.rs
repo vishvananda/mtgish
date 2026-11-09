@@ -78,7 +78,7 @@ fn any_player_may(line: &str) -> Option<(String, String)> {
 
 /// "In addition to its other colors": `colored` sets them all, so what the values
 /// have now goes in with them. An exception's colors are the card's words.
-fn added_colors(values: &str, colors: &str) -> String {
+pub(super) fn added_colors(values: &str, colors: &str) -> String {
     format!("{{ let plain = {values}; let had = plain.colors.unwrap_or(q.card(plain.card).colors()); plain.colored([{colors}].into_iter().fold(had, |set: ColorSet, color: Color| set.with(q.words(asker.source).color(color)))) }}")
 }
 
@@ -2688,9 +2688,8 @@ impl Compiler {
         let [change] = changes else {
             return Ok(false);
         };
-        let (object, more) = match change {
-            Change::CopyOf { object, effects } => (object, effects),
-            Change::TextOf { object, plus } => (object, plus),
+        let object = match change {
+            Change::CopyOf { object, .. } | Change::TextOf { object, .. } => object,
             _ => return Ok(false),
         };
         let feature = format!("static change {}", form(change));
@@ -2698,7 +2697,7 @@ impl Compiler {
             .queried(|c| {
                 let (guard, test) = (c.guard()?, c.rule_subject(affected, "id")?);
                 let tabled = std::mem::replace(&mut c.tabled, true);
-                let more = c.stated(more);
+                let more = match change { Change::CopyOf { exceptions, .. } => c.copy_callback(exceptions), Change::TextOf { plus, .. } => c.stated(plus), _ => unreachable!("checked copy/text change") };
                 c.tabled = tabled;
                 Ok((format!("{guard}{test}"), c.object(object)?, more?))
             })
@@ -4175,7 +4174,7 @@ impl Compiler {
         &mut self,
         id: usize,
         object: &ObjectRef,
-        adjustments: &[Operand],
+        exceptions: &[CopyException],
         amount: &Expr,
         players: &PlayerSet,
         entry: &EntrySpec,
@@ -4186,7 +4185,7 @@ impl Compiler {
             return Err(gap("token copies for several players"));
         }
         let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
-        let values = self.copy_values(&format!("original_{id}"), adjustments)?;
+        let values = self.copy_values(&format!("original_{id}"), exceptions)?;
         writeln!(out, "let original_{id} = {}; let values_{id} = {values}; let count_{id} = {}; let players_{id} = {}; let mut copies_{id}: Vec<(Copiable, PlayerId)> = Vec::new(); if let Some(values) = values_{id} {{ for &player in &players_{id} {{ for _ in 0..count_{id} {{ copies_{id}.push((values.clone(), player)); }} }} }} let created_{id} = g.create_token_copies_together(&copies_{id})?;", self.fetch(self.damage_source(object)?), self.fetch(amount), self.fetch(self.players(players)?)).unwrap();
         self.token_state(id, entry, out)?;
         self.creations.insert(result.0, format!("created_{id}"));
@@ -4359,152 +4358,6 @@ impl Compiler {
             &format!("CostDelta::more_cost({more})"),
         ))
     }
-    /// A size in a copy that depends on the original.
-    pub(super) fn stated_size(&mut self, values: String, operands: &[Operand]) -> Result<String> {
-        const FEATURE: &str = "copy exception of a power and toughness not fixed";
-        // "Except its power is half that creature's power": a number as it's made,
-        // and from then on what the copy is (CR 707.9b).
-        if let [Operand::Number(power), Operand::Number(toughness)] = operands {
-            let size = |c: &Self, n: &Expr| -> Result<String> {
-                let (pt, _, _) = quantity::pt_kind();
-                Ok(format!("({}).clamp({pt}::MIN.into(), {pt}::MAX.into()) as {pt}", c.number(n)?.code))
-            };
-            return Ok(format!("{values}.sized({}, {})", size(self, power)?, size(self, toughness)?));
-        }
-        let code = match operands {
-            [power, toughness] => {
-                format!(
-                    "{values}.sized_by({}, {})",
-                    self.stated(power)?,
-                    self.stated(toughness)?
-                )
-            }
-            _ => return Err(gap(FEATURE)),
-        };
-        Ok(planned::planned_value(FEATURE, &values, &code))
-    }
-    /// An exception `Copiable` has no word for.
-    pub(super) fn stated_exception(
-        &mut self,
-        values: String,
-        name: &str,
-        operands: &[Operand],
-    ) -> Result<String> {
-        let feature = format!("copy exception {name}");
-        let of = |prefix: &str, list: &[Operand]| -> Result<String> {
-            Ok(copies::words(list)?
-                .iter()
-                .map(|word| format!("{prefix}::{word}"))
-                .collect::<Vec<_>>()
-                .join(", "))
-        };
-        let code = match (name, operands) {
-            ("SetCardtypes", list) => format!(
-                "{values}.typed_as(TypeSet::of(&[{}]))",
-                of("CardType", list)?
-            ),
-            ("SetArtifactTypes", list) => format!(
-                "{values}.subtyped_as(CardType::Artifact, SubtypeSet::of(&[{}]))",
-                of("Subtype", list)?
-            ),
-            ("AddSupertypes", list) => {
-                format!("{values}.with_supertypes(&[{}])", of("Supertype", list)?)
-            }
-            ("RemoveSupertypes", list) => {
-                format!("{values}.without_supertypes(&[{}])", of("Supertype", list)?)
-            }
-            ("AddColor", [Operand::Term { operands, .. }]) => {
-                return Ok(added_colors(&values, &of("Color", operands)?))
-            }
-            ("AddColor", list) => return Ok(added_colors(&values, &of("Color", list)?)),
-            // "Equal to this creature's": printed on the face it is, cast prototyped or
-            // not (Hulking Metamorph's ruling), and from then on what the copy is.
-            ("KeepPT", []) => {
-                return Ok(format!("{{ let own = q.card(q.chars(asker.source).card); {values}.sized(own.power.unwrap_or(0), own.toughness.unwrap_or(0)) }}"))
-            }
-            // "Except its name is still [this]": its own copiable name (CR 707.9b),
-            // a copy effect's on it or its card's.
-            ("KeepName", []) => {
-                return Ok(format!("{{ let own = q.copiable_values(asker.source); {values}.named(own.name.unwrap_or(q.card(own.card).name)) }}"))
-            }
-            // "It doesn't copy that creature's color": its own copiable color, which is
-            // what a copy of it copies (Vesuvan Doppelganger's ruling).
-            ("KeepColor", []) => {
-                return Ok(format!("{{ let own = q.copiable_values(asker.source); {values}.colored(own.colors.unwrap_or(q.card(own.card).colors())) }}"))
-            }
-            ("RemoveThisAbility", []) => format!("{values}.without_ability(item.ability)"),
-            ("SetLoyalty", [loyalty]) => {
-                format!("{values}.with_loyalty({})", self.stated(loyalty)?)
-            }
-            ("AddAbility" | "AddAbilityIfItDoesntHaveAbility" | "LosesAbility", list) => {
-                let method = match name {
-                    "AddAbility" => "with_ability",
-                    "LosesAbility" => "without_ability",
-                    _ => "with_ability_if_absent",
-                };
-                let mut code = values.clone();
-                for operand in list {
-                    // "Except it has changeling" (Omni-Changeling), "the copy gains
-                    // haste" (Choreographed Sparks): a keyword the copy's values
-                    // have (CR 707.9b), as a characteristic-defining one too.
-                    let added_keyword = match operand {
-                        Operand::Ability(ability) if name == "AddAbility" => match &**ability {
-                            Ability::Keyword(k) => keyword(k).ok(),
-                            Ability::Static {
-                                kind: StaticKind::CharacteristicDefining { keyword: Some(k), .. },
-                                ..
-                            } => keyword(k).ok(),
-                            _ => None,
-                        },
-                        _ => None,
-                    };
-                    if let Some(k) = added_keyword {
-                        code = format!("{code}.with_keyword({k})");
-                        continue;
-                    }
-                    match operand {
-                        Operand::Ability(ability) if lane_n::toxic_of(ability).is_some() => {
-                            return Err(gap("toxic as a copy exception"));
-                        }
-                        Operand::Ability(ability) => {
-                            let refs = self.granted_refs(ability).or_else(|failed| {
-                                let Ability::Mechanic {
-                                    mechanic,
-                                    amount: Some(amount),
-                                    ..
-                                } = &**ability
-                                else {
-                                    return Err(failed);
-                                };
-                                Ok(vec![format!(
-                                    "AbilityRef::mechanic(Mechanic::{mechanic:?}, {})",
-                                    self.fetch(
-                                        self.number(amount)?.amount(u32::MAX.into(), "u32")?
-                                    )
-                                )])
-                            });
-                            for each in refs? {
-                                code = format!("{code}.{method}({each})");
-                            }
-                        }
-                        lost if name == "LosesAbility" => {
-                            code = format!("{code}.losing({})", self.lost_word(lost)?);
-                        }
-                        _ => return Err(gap(feature)),
-                    }
-                }
-                // `Copiable::with_ability` and `with_keyword` are what an added
-                // ability is; what the ability itself waits on is its own hole.
-                if name == "AddAbility" {
-                    return Ok(code);
-                }
-                code
-            }
-            _ => return Err(gap(feature)),
-        };
-        Ok(planned::planned_value(&feature, &values, &code))
-    }
-
     // --- Abilities with no arm elsewhere.
 
     /// The one spell a `Visit`, room or the like resolves as: its effect, with

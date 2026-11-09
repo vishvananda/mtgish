@@ -419,4 +419,7 @@ pub enum KeywordFamily {
     Embalm,
     Eternalize,
     Partner,
+    BandsWithOthers,
+    Cycling,
+    Vanishing,
 }

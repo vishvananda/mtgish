@@ -1460,9 +1460,9 @@ impl Compiler {
                 object,
                 times,
                 targets,
-                effects: _,
+                exceptions,
                 card: None,
-            } => {
+            } if exceptions.is_empty() => {
                 let feature = match targets {
                     NewTargets::Each(_) | NewTargets::EachLegal => {
                         "a copy of a spell for each object it could target".to_string()

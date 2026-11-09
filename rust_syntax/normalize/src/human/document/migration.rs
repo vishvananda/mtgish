@@ -4,6 +4,58 @@
 //! mutated in place. This migration changes authoring metadata, not engine IR.
 use super::*;
 
+/// Carry saved annotation identities through the exact schema migration before
+/// deserializing the new card type. The semantic converter owns every path move;
+/// raw labels never serve as an identity heuristic. Native projection then
+/// checks the remapped groups, scopes and names as a single transaction.
+pub(super) fn upgrade_schema_180(value: &mut Value) -> Result<(), String> {
+    let source = &value["card"];
+    let mapped = crate::migrate::mapped_read_json(
+        &serde_json::to_string(source).map_err(|e| e.to_string())?,
+    )?;
+    let sites = crate::migrate::input_sites(180, source)?;
+    let bindings: Vec<BindingName> =
+        serde_json::from_value(value["bindings"].clone()).map_err(|e| e.to_string())?;
+    let uses: Vec<BindingUse> =
+        serde_json::from_value(value["uses"].clone()).map_err(|e| e.to_string())?;
+    if serde_json::to_value(&bindings).map_err(|e| e.to_string())? != value["bindings"]
+        || serde_json::to_value(&uses).map_err(|e| e.to_string())? != value["uses"]
+    {
+        return Err("unknown or missing legacy authoring annotation fields".into());
+    }
+    let mut seen = HashSet::new();
+    let mut present = HashSet::new();
+    let mut retained = HashSet::new();
+    let mut output = Vec::new();
+    for use_ in uses {
+        let binding = bindings.get(use_.binding).ok_or("unknown legacy binding")?;
+        if !seen.insert(use_.path.clone()) || sites.get(&use_.path) != Some(&binding.kind) {
+            return Err(
+                "legacy annotation has a duplicate, mistyped or missing source site".into(),
+            );
+        }
+        present.insert(use_.binding);
+        for path in &mapped.map.sites[&use_.path] {
+            retained.insert(use_.binding);
+            output.push(BindingUse {
+                path: path.clone(),
+                binding: use_.binding,
+                qualified: use_.qualified,
+            });
+        }
+    }
+    for index in present.difference(&retained) {
+        if bindings[*index].explicit {
+            return Err(format!(
+                "schema upgrade removes explicitly named binding {index}"
+            ));
+        }
+    }
+    value["card"] = serde_json::to_value(mapped.card).map_err(|e| e.to_string())?;
+    value["uses"] = serde_json::to_value(output).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 impl Document {
     pub(super) fn upgrade_v1(self) -> Result<Self, String> {
         if self.uses.iter().any(|u| u.qualified)

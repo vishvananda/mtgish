@@ -5,6 +5,7 @@ use crate::ir::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod bounds;
+mod copying;
 
 /// The slot in `casting_costs` that holds the enclosing cost branch's cost.
 const BRANCH_COST: u32 = u32::MAX;
@@ -17,6 +18,7 @@ enum ResultKind {
     Selection,
     ObjectTransition,
     CreatedObjects,
+    Mana,
     Other,
 }
 
@@ -720,12 +722,12 @@ impl<'a> Scope<'a> {
         entry.states.iter().try_for_each(|state| match state {
             EntryState::CopyOf {
                 objects,
-                effects,
+                exceptions,
                 until,
             } => {
                 self.objects(objects)?;
                 until.iter().try_for_each(|d| self.duration(d))?;
-                self.operand(effects)
+                self.copy_exceptions(exceptions)
             }
             EntryState::CountersOfChoice { amount, .. } => {
                 self.count(&Count::Exactly(amount.clone()))
@@ -1871,8 +1873,8 @@ impl<'a> Scope<'a> {
                 self.expr(power)?;
                 self.expr(toughness)
             }
-            Change::ColorOfMana { mana, .. } if self.results.contains_key(&mana.0) => Ok(()),
-            Change::ColorOfMana { mana, .. } => Err(format!("result {} is unavailable", mana.0)),
+            Change::ColorOfMana { mana, .. } if matches!(self.results.get(&mana.0),Some(ResultKind::Mana)) => Ok(()),
+            Change::ColorOfMana { mana, .. } => Err(format!("result {} does not provide produced mana in this scope", mana.0)),
             Change::GrantAbility(ability) => {
                 if has_definition(ability) {
                     return Err(
@@ -1931,9 +1933,9 @@ impl<'a> Scope<'a> {
             Change::AddEnchantmentType(operand)
             | Change::LosesAbility(operand)
             | Change::SetLandType(operand) => self.operand(operand),
-            Change::CopyOf { object, effects } => {
+            Change::CopyOf { object, exceptions } => {
                 self.object(object)?;
-                self.operand(effects)
+                self.copy_exceptions(exceptions)
             }
         }
     }
@@ -2632,6 +2634,9 @@ impl<'a> Scope<'a> {
         Ok(())
     }
     fn primitive(&self, name: &str, operands: &[Operand]) -> Result {
+        if crate::copying::requires_typed_payload(name) {
+            return Err(format!("{name} requires typed copy exceptions"));
+        }
         if crate::primitive_spec::lookup(name).is_none() {
             return Err(format!("{name} is not a reviewed primitive"));
         }
@@ -3007,7 +3012,7 @@ impl<'a> Scope<'a> {
                 object,
                 times,
                 targets,
-                effects,
+                exceptions,
                 card,
             } => {
                 self.players(actor)?;
@@ -3015,7 +3020,7 @@ impl<'a> Scope<'a> {
                 self.expr(times)?;
                 self.new_targets(targets)?;
                 card.iter().try_for_each(|o| self.object(o))?;
-                effects.iter().try_for_each(|o| self.operand(o))
+                self.copy_exceptions(exceptions)
             }
             Operation::Retarget {
                 actor,
@@ -3772,22 +3777,22 @@ impl<'a> Scope<'a> {
                         TokenRecipe::Defined(definition) => definition,
                         TokenRecipe::Copy {
                             object,
-                            adjustments,
+                            exceptions,
                         } => {
                             self.object(object)?;
-                            adjustments.iter().try_for_each(|o| self.operand(o))?;
+                            self.copy_exceptions(exceptions)?;
                             continue;
                         }
                         TokenRecipe::CopyEach {
                             objects,
-                            adjustments,
+                            exceptions,
                         }
                         | TokenRecipe::CopyOne {
                             objects,
-                            adjustments,
+                            exceptions,
                         } => {
                             self.objects(objects)?;
-                            adjustments.iter().try_for_each(|o| self.operand(o))?;
+                            self.copy_exceptions(exceptions)?;
                             continue;
                         }
                         TokenRecipe::Named(name) if name.is_empty() => {
@@ -3796,8 +3801,8 @@ impl<'a> Scope<'a> {
                         TokenRecipe::CopyNamed { name, .. } if name.is_empty() => {
                             return Err("named token recipe is empty".into());
                         }
-                        TokenRecipe::CopyNamed { adjustments, .. } => {
-                            adjustments.iter().try_for_each(|o| self.operand(o))?;
+                        TokenRecipe::CopyNamed { exceptions, .. } => {
+                            self.copy_exceptions(exceptions)?;
                             continue;
                         }
                         TokenRecipe::CopyAtRandom { cards } => {
@@ -4187,6 +4192,8 @@ impl<'a> Scope<'a> {
                             ResultKind::CreatedObjects
                         } else if crate::semantics::makes_card(operation) {
                             ResultKind::ObjectTransition
+                        } else if matches!(operation,Operation::AddMana{..}) {
+                            ResultKind::Mana
                         } else {
                             ResultKind::Other
                         },
@@ -4241,6 +4248,7 @@ impl<'a> Scope<'a> {
                                 ResultKind::Payment
                             }
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
+                            Operation::AddMana { .. } => ResultKind::Mana,
                             Operation::ChooseObjects { .. }
                             | Operation::SeparatePiles { .. }
                             | Operation::NoteObjects { .. }

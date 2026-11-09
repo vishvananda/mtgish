@@ -511,13 +511,14 @@ pub enum Operation {
         until: Option<Duration>,
     },
     /// Copy a spell or ability on the stack `times` times, as Forge's
-    /// `CopySpellAbility`. `effects` change the copies.
+    /// `CopySpellAbility`. Exceptions modify the copies' copiable values;
+    /// later continuing changes belong in their own instructions.
     CopyOnStack {
         actor: PlayerSet,
         object: ObjectRef,
         times: Expr,
         targets: NewTargets,
-        effects: Vec<Operand>,
+        exceptions: Vec<CopyException>,
         /// The card that goes onto the stack as the copy, when one does.
         card: Option<ObjectRef>,
     },

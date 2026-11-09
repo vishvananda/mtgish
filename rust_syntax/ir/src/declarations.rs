@@ -107,6 +107,11 @@ pub const SOURCES: &[Source] = &[
         role: Role::Semantic,
     },
     Source {
+        path: "src/ir/copying.rs",
+        text: include_str!("ir/copying.rs"),
+        role: Role::Semantic,
+    },
+    Source {
         path: "src/counter.rs",
         text: include_str!("counter.rs"),
         role: Role::Vocabulary,

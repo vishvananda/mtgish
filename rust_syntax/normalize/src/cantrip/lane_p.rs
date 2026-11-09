@@ -2505,7 +2505,7 @@ impl Compiler {
             }
             EntryState::CopyOf {
                 objects,
-                effects,
+                exceptions,
                 until,
             } => {
                 let until = match until {
@@ -2515,7 +2515,7 @@ impl Compiler {
                 format!(
                     "ArrivalState::CopyOf({}, {}, {until})",
                     self.fetch(self.objects(objects)?),
-                    self.operand_code(effects)
+                    self.copy_callback(exceptions)?
                 )
             }
             EntryState::CountersOfChoice {
@@ -2600,20 +2600,18 @@ impl Compiler {
             amount,
             recipe: TokenRecipe::CopyEach {
                 objects,
-                adjustments,
+                exceptions,
             },
             ..
         }] = tokens
         {
             let amount = self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?);
             let objects = self.fetch(self.objects(objects)?);
-            let adjustments: Vec<String> =
-                adjustments.iter().map(|o| self.operand_code(o)).collect();
+            let exceptions = self.copy_callback(exceptions)?;
             let players = self.fetch(self.players(players)?);
             let arrival = self.arrival_code(entry, &failed.feature)?;
             let call = format!(
-                "{{ let mut made: Vec<ObjectId> = Vec::new(); for object in {objects} {{ made.extend({M}::tokens::create_from_recipes(g, asker.source, &{players}, &[({amount}, TokenRecipe::Copy(Some(object), &[{}]))], {arrival})?); }} made }}",
-                adjustments.join(", ")
+                "{{ let mut made: Vec<ObjectId> = Vec::new(); for object in {objects} {{ made.extend({M}::tokens::create_from_recipes(g, asker.source, &{players}, &[({amount}, TokenRecipe::Copy(Some(object), {exceptions}))], {arrival})?); }} made }}"
             );
             let created = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
             writeln!(out, "let created_{id}: Vec<ObjectId> = {created};").unwrap();
@@ -2623,41 +2621,37 @@ impl Compiler {
         let mut orders = Vec::new();
         for token in tokens {
             let amount = self.fetch(self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?);
-            let adjusted = |c: &mut Self, list: &[Operand]| -> String {
-                let list: Vec<String> = list.iter().map(|o| c.operand_code(o)).collect();
-                list.join(", ")
-            };
             let recipe = match &token.recipe {
                 TokenRecipe::Defined(definition) => self.stated_definition(definition)?,
                 TokenRecipe::Named(name) => format!("TokenRecipe::Named({})", quoted(name)),
                 TokenRecipe::Copy {
                     object,
-                    adjustments,
+                    exceptions,
                 } => format!(
-                    "TokenRecipe::Copy({}, &[{}])",
+                    "TokenRecipe::Copy({}, {})",
                     self.fetch(self.object(object)?),
-                    adjusted(self, adjustments)
+                    self.copy_callback(exceptions)?
                 ),
                 TokenRecipe::CopyEach {
                     objects,
-                    adjustments,
+                    exceptions,
                 } => format!(
-                    "TokenRecipe::CopyEach({}, &[{}])",
+                    "TokenRecipe::CopyEach({}, {})",
                     self.fetch(self.objects(objects)?),
-                    adjusted(self, adjustments)
+                    self.copy_callback(exceptions)?
                 ),
                 TokenRecipe::CopyOne {
                     objects,
-                    adjustments,
+                    exceptions,
                 } => format!(
-                    "TokenRecipe::CopyOne({}, &[{}])",
+                    "TokenRecipe::CopyOne({}, {})",
                     self.fetch(self.objects(objects)?),
-                    adjusted(self, adjustments)
+                    self.copy_callback(exceptions)?
                 ),
-                TokenRecipe::CopyNamed { name, adjustments } => format!(
-                    "TokenRecipe::CopyNamed({}, &[{}])",
+                TokenRecipe::CopyNamed { name, exceptions } => format!(
+                    "TokenRecipe::CopyNamed({}, {})",
                     quoted(name),
-                    adjusted(self, adjustments)
+                    self.copy_callback(exceptions)?
                 ),
                 TokenRecipe::CopyAtRandom { cards } => {
                     format!("TokenRecipe::CopyAtRandom({})", self.operand_code(cards))
