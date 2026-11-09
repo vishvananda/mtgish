@@ -1469,6 +1469,7 @@ impl Compiler {
     }
     /// The body of a `TargetFilter`, or a shared target for an unrestricted one.
     fn target_test(&self, spec: &TargetSpec) -> Result<String> {
+        let selector = spec.selector().map_err(gap)?;
         if let Some(shared) = recipes::graveyard_permanent_target(spec) {
             return Ok(shared);
         }
@@ -1499,30 +1500,30 @@ impl Compiler {
             return Ok("(cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE.filter)(q, asker, t)".into());
         }
         let id = Candidate::of("id");
-        Ok(match &spec.kind {
-            TargetKind::Object(domain) if lane_i::on_the_stack(domain) => {
-                self.stack_target_test(domain, &spec.filter)?
+        Ok(match &selector {
+            crate::targets::TargetSelector::Objects { domain, filter } if lane_i::on_the_stack(domain) => {
+                self.stack_target_test(domain, filter)?
             }
-            TargetKind::Object(domain) => format!(
+            crate::targets::TargetSelector::Objects { domain, filter } => format!(
                 "matches!(t, Target::Object(id) if {} && ({}))",
                 Self::target_domain(domain)?,
-                self.filter(&spec.filter, &id)?
+                self.filter(filter, &id)?
             ),
-            TargetKind::Player => match &spec.players {
+            crate::targets::TargetSelector::Players { filter } => match filter {
                 Some(players) => format!(
                     "matches!(t, Target::Player(p) if {})",
                     self.player_in(players, "p")?
                 ),
                 None => "matches!(t, Target::Player(_))".into(),
             },
-            TargetKind::DamageRecipient => {
-                let players = match &spec.players {
+            crate::targets::TargetSelector::Damageable { objects: filter, players } => {
+                let players = match players {
                     Some(players) => self.player_in(players, "p")?,
                     None => "true".into(),
                 };
                 format!(
                     "match t {{ Target::Player(p) => {players}, Target::Object(id) => q.is_on_battlefield(id) && {{ let c = q.chars(id); c.is(CardType::Creature) || c.is(CardType::Planeswalker) || c.is(CardType::Battle) }} && ({}), _ => false }}",
-                    self.filter(&spec.filter, &id)?
+                    self.filter(filter, &id)?
                 )
             }
         })

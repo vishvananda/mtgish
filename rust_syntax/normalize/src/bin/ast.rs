@@ -5,6 +5,16 @@ use std::path::{Path, PathBuf};
 fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.as_slice() {
+        [command,input,name] if command=="card-code" => {
+            let source=corpus::read_cards(Path::new(input))?.into_iter().find(|c|corpus::Identity::of(c).is_ok_and(|id|id.names.iter().any(|n|n==name))).ok_or("card not found")?;
+            let card=mtgish_ast::unified::lower(&source).card;
+            print!("{}",mtgish_ast::human::write(&card)?);
+        }
+        [command,input] if command=="read-card-code" => {
+            let card=mtgish_ast::human::read(&std::fs::read_to_string(input)?)?;
+            println!("{}",serde_json::to_string_pretty(&card)?);
+        }
+
         [command,report,source_type,output] if command=="pipeline-candidates" => {
             let report=serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(report)?))?;
             let source=std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/mtg_types.rs"))?;
@@ -176,7 +186,7 @@ fn run() -> Result<()> {
             }
             out.commit()?;
         }
-        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast cantrip-gaps <corpus.ronl> <survey.json> (requires --features cantrip)\n       ast cantrip-files <corpus.ronl> <oracle.json> <rows.jsonl> (requires --features cantrip)\n       ast cantrip-module <corpus.ronl> <card name>... (requires --features cantrip)\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
+        _ => return Err("usage: ast card-code <corpus.ronl> <card name>\n       ast read-card-code <card.card>\n       ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast cantrip-gaps <corpus.ronl> <survey.json> (requires --features cantrip)\n       ast cantrip-files <corpus.ronl> <oracle.json> <rows.jsonl> (requires --features cantrip)\n       ast cantrip-module <corpus.ronl> <card name>... (requires --features cantrip)\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
     }
     Ok(())
 }

@@ -90,6 +90,26 @@ pub fn validate_ir(input: &str) -> String {
     }
 }
 
+/// Render card code using the Rust schema, shared defaults and naming policy.
+#[wasm_bindgen]
+pub fn format_card_code(input: &str) -> String {
+    match check(input).and_then(|card| mtgish_ast::human::write(&card)) {
+        Ok(code) => json!({"valid":true,"code":code}).to_string(),
+        Err(error) => json!({"valid":false,"error":error}).to_string(),
+    }
+}
+
+/// Parse symbolic authoring code, allocate internal IDs and validate the full IR.
+#[wasm_bindgen]
+pub fn parse_card_code(input: &str) -> String {
+    match mtgish_ast::human::read(input) {
+        Ok(card) => {
+            json!({"valid":true,"ir":serde_json::to_string_pretty(&card).unwrap()}).to_string()
+        }
+        Err(error) => json!({"valid":false,"error":error}).to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,6 +118,24 @@ mod tests {
             "schema_version":mtgish_ast::ir::SCHEMA_VERSION,"name":"New card",
             "characteristics":{"supertypes":[],"card_types":["Creature"],"subtypes":[],"mana_cost":[],
                 "color_indicator":[],"power_toughness":[1,1],"loyalty":null,"defense":null},"abilities":[]}]})
+    }
+    #[test]
+    fn card_code_bridge_uses_the_same_strict_validator() {
+        let formatted: Value =
+            serde_json::from_str(&format_card_code(&blank().to_string())).unwrap();
+        assert_eq!(formatted["valid"], true);
+        let parsed: Value =
+            serde_json::from_str(&parse_card_code(formatted["code"].as_str().unwrap())).unwrap();
+        assert_eq!(parsed["valid"], true);
+        assert_eq!(
+            serde_json::from_str::<Value>(parsed["ir"].as_str().unwrap()).unwrap(),
+            blank()
+        );
+        for code in ["Card {name: \"bad\",properties:{card_types:[Creature]},extra:true}",
+            "Card {name: \"bad\",properties:{card_types:[Instant]},abilities:[Spell{do:[DrawCards{players:You,amount:BoundValue(b42)}]}]}"] {
+            let response: Value = serde_json::from_str(&parse_card_code(code)).unwrap();
+            assert_eq!(response["valid"], false);
+        }
     }
     #[test]
     fn validates_native_shape_and_rejects_wrong_schema_unknown_fields_and_scope() {

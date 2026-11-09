@@ -5125,21 +5125,9 @@ impl Context {
     fn proposal_targets(&mut self, values: &[source::Target]) -> Result<()> {
         use source::Target as S;
         for (i, value) in values.iter().enumerate() {
-            let mut target = TargetSpec {
-                slot: Slot(
-                    self.targets
-                        .len()
-                        .try_into()
-                        .map_err(|_| invalid("too many target slots"))?,
-                ),
-                kind: TargetKind::Object(ObjectDomain::permanent()),
-                count: Count::Exactly(Expr::Constant(1)),
-                filter: ObjectFilter::Any,
-                players: None,
-                distribute: None,
-                chooser: None,
-                constraints: vec![],
-            };
+            let mut target = crate::targets::TargetSelector::Objects {
+                domain: ObjectDomain::permanent(), filter: ObjectFilter::Any,
+            }.into_spec(Slot(self.targets.len().try_into().map_err(|_|invalid("too many target slots"))?));
             match value {
                 S::TargetSpellOrAbility(_) | S::UptoNumberTargetSpellsOrAbilities(..) => {
                     target.kind = TargetKind::Object(ObjectDomain {

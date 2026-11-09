@@ -4442,11 +4442,12 @@ impl<'a> Scope<'a> {
         proposal.announcing = true;
         proposal.payment_costs.clear();
         for target in &announcement.targets {
-            if let TargetKind::Object(domain) = &target.kind {
-                proposal.domain(domain)?;
+            match target.selector()? {
+                crate::targets::TargetSelector::Objects { domain, filter } => { proposal.domain(&domain)?; proposal.filter(&filter)?; }
+                crate::targets::TargetSelector::Players { filter } => { if let Some(players)=filter { proposal.players(&players)?; } }
+                crate::targets::TargetSelector::Damageable { objects, players } => { proposal.filter(&objects)?; if let Some(players)=players { proposal.players(&players)?; } }
             }
             proposal.count(&target.count)?;
-            proposal.filter(&target.filter)?;
             proposal.selection_constraints(&target.constraints)?;
             for constraint in &target.constraints {
                 if let SelectionConstraint::DifferentFromTarget(slot)
@@ -4462,9 +4463,6 @@ impl<'a> Scope<'a> {
             }
             if let Some(total) = &target.distribute {
                 proposal.expr(total)?;
-            }
-            if let Some(players) = &target.players {
-                proposal.players(players)?;
             }
             if self.slots.insert(target.slot.0, target).is_some() {
                 return Err(format!("duplicate target slot {}", target.slot.0));
