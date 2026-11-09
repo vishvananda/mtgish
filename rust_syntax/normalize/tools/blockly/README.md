@@ -23,8 +23,11 @@ remain distinct from the source of an effect. **Library** opens card search with
 
 Empty optional fields and default modifiers are hidden. The **⋯** menu adds them
 on demand, including targeting. **IR details** exposes bookkeeping/default fields
-and the AST inspector. Result IDs require an explicit **⋯ → result ID** selection
-in IR details; ordinary effects keep that bookkeeping hidden. The normal view combines Effect/Operation and handles
+and the AST inspector. Targets, loop bindings and selections have editable names;
+references use menus of names that Rust validates in that scope and type.
+Unused action results stay unnamed until **⋯ → Name result** is selected. Renames
+update every reference and reject collisions without changing numeric engine IDs.
+The normal view combines Effect/Operation and handles
 Program/ability/action arrays as statement stacks, so the user does not have to
 assemble serialization wrappers. New actions receive fresh result IDs; imported
 result IDs remain untouched. Power/toughness use two inline fields.
@@ -61,10 +64,9 @@ Card {
 The format is an authoring view of Rust IR, not reconstructed Oracle text. Result
 bindings are optional: `chosen = NoteObjects {objects: One(This)}` followed by
 `NoteObjects {objects: Selected(chosen)}` names a result. Independent abilities
-have separate symbolic scopes. Only used result bindings appear when rendering;
-internal IDs are allocated when parsing. The current editor's semantic-only
-formatting uses stable `r0`/`t0` names. The native authoring document API below
-preserves the spelling of input symbols; editor persistence wiring is pending. `AnyTarget`, `Creature`, `Planeswalker`
+have separate symbolic scopes. Used results and explicitly named unused results
+keep their names through code edits, imports, exports, undo/redo and workspace
+saves. Compiler IDs are allocated when parsing and remain numeric in complete IR. `AnyTarget`, `Creature`, `Planeswalker`
 and `Player` use Rust's typed target API. Object and player filters remain
 separate on custom damage targets. Ordinary damage is preventable; write
 `unpreventable: true` for the exception. State changes such as `tapped: false`
@@ -110,6 +112,13 @@ in the browser. Rebuild after changing the IR, validator or Source corpus.
   counter vocabulary, imported Source vocabularies, Serde variant renames and
   the compiled macro-generated Mechanic registry. It exports the current full
   normalized corpus. There is no manually maintained second IR schema.
+* `bindings.js` attaches stable identities to typed ID ports in block state and
+  derives fresh wire paths from the current block tree. It covers statement
+  chains, combined actions, single-face views, enum/option wrappers and literal
+  target pickers. A reference moved across scopes stays blocked until explicitly
+  rebound, even when its numeric ID matches a different local declaration. Copies
+  get fresh definitions and preserve external captures; cuts preserve identity.
+  Names and candidate references are checked through the native Wasm document API.
 * `app.js` maps that schema to editable typed Blockly blocks and back to the
   exact JSON wire shape, including tuples, options, lists and both enum layouts.
   Primitive, vocabulary and scalar newtype fields are inline; compound list items use statement sockets. Rust documentation appears when
@@ -135,7 +144,7 @@ The UI remains an IR authoring/debugging demo. Valid IR does not prove the card
 matches Oracle wording or that every operation has a Cantrip implementation.
 The browser demo limits documents to 2 MiB, IR nesting to 255 levels (card-code nesting to 128 levels) and editable
 lists to 2,048 elements. These interface limits do not change engine numeric
-types. Workspace saves carry a schema and model fingerprint. At the same IR schema,
+types. Workspace presentation 5 saves carry a schema, model fingerprint and binding metadata. At the same IR schema,
 older layouts migrate through the typed codec with their original data backed
 up locally. Saved schema-179 workspaces and IR JSON upgrade explicitly through
 Rust to schema 180; the bundle includes the old descriptor table for decoding
@@ -172,6 +181,7 @@ npm run test:code -- /tmp/card-blocks.html
 npm run test:sockets -- /tmp/card-blocks.html
 npm run test:migration -- /tmp/card-blocks.html
 npm run test:bindings -- /tmp/card-blocks.html
+npm run test:names -- /tmp/card-blocks.html
 ```
 
 Primary Blockly documentation: [connection checks](https://docs.blockly.com/guides/create-custom-blocks/inputs/connection-checks/),
@@ -267,8 +277,9 @@ The Wasm parser's `document` response carries this authoring format.
 `describe_card_bindings` creates a document from exact IR without changing its
 IDs; `format_card_document` validates and formats a saved document. The demo's
 inspection API exposes these as `cardBlocks.describeBindings(irText)` and
-`cardBlocks.formatDocument(documentText)`. They are available for the editor
-integration; the ordinary code button still uses semantic-only formatting.
+`cardBlocks.formatDocument(documentText)`. The normal editor uses these APIs for
+name-aware validation and code formatting. Import also accepts a saved native
+authoring-document JSON file.
 
 Run `npm run test:bindings -- /tmp/card-blocks.html` to test the actual Wasm
 bridge, including renames, explicit unused results, scope identity, sibling
@@ -281,3 +292,15 @@ formatted card and compares canonical meaning:
 ```sh
 AUTHORING_CORPUS="$PWD/__build/blockly/cards.jsonl" cargo test --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --test authoring_names all_records_support_the_authoring_document -- --ignored
 ```
+
+Validated naming update (2026-11-09): the browser test edits an actual name text
+field and reference menu, names an unused result on demand, renames all four
+binding families, checks separate player/object loop roles with equal raw IDs,
+rejects a cross-scope move and explicitly repairs it, copies statement groups
+from this workspace and a foreign clipboard, cuts/pastes without renaming, and
+preserves names through undo/redo, reload, model upgrades and code export.
+All 33,529 corpus records pass an independent comparison of every block binding
+port's path, type and ID with the wire schema, in addition to block roundtrips
+and native Wasm validation. Native structural-canonicalization mappings remain
+pending; UI presentation rebuilds transport metadata through matching typed wire
+sites and surviving declaration identities.

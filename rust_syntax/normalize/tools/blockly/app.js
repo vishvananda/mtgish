@@ -288,8 +288,10 @@
   function button(symbol,label,fn) { return new Blockly.FieldImage(icon(symbol),22,22,label,fn); }
   let workspace, suppress=false, revision=0, timer, lastValid=null, lastSubmittedIR=null, workerReady=false, preserveSavedDraft=false;
   let history=[],historyIndex=-1;
-  let detailMode=false,codeDirty=false,codeIR=null,lastHuman=null;
+  let detailMode=false,codeDirty=false,lastHuman=null,bindingEditor=null;
   function scalarType(p){return p.inline==='pt'?{named:'i32'}:p.inline==='constant'?{named:'i64'}:p.inline==='choice'?{named:'String'}:scalar(p.ty)?p.ty:null;}
+  function pickerValue(b,p,index) {const choice=choices[p.ty.named]?.[index];if(!choice)throw Error('Choose a valid '+p.label);const pick=b.state.picks?.[p.key];return clone(pick?.index===index?pick.value:choice[1]);}
+  function fakeBlock(s) {return {type:s.type,state:s.extraState,isEnabled:()=>!s.disabled&&!s.disabledReasons?.length,getFieldValue:n=>s.fields?.[n],setFieldValue:(v,n)=>{(s.fields??={})[n]=v;},getInputTargetBlock:n=>{const child=s.inputs?.[n]?.block||s.inputs?.[n]?.shadow;return child?fakeBlock(child):null;},getNextBlock:()=>s.next?.block?fakeBlock(s.next.block):null};}
   function valueField(p,value){return p.inline==='choice'?new Blockly.FieldDropdown(choices[p.ty.named].map(([label],i)=>[label,String(i)])):field(scalarType(p),value);}
   function isMetadataEmpty(v) {
     if(v===null || v===false || v==='DestinationDefault')return true;
@@ -301,6 +303,7 @@
     if(b.state.shown?.includes(p.key))return false;
     if(p.key==='RESULT'||(b.state.ty.named==='Instruction'&&b.state.variant==='Effect'&&p.key==='F_result'))return true;
     if(detailMode)return false;
+    if(bindingEditor&&!bindingEditor.showNumeric(b,p))return true;
     if(b.state.ty.named==='TargetSpec'&&['F_kind','F_filter','F_players'].includes(p.key)) {
       try{if(targetPreset(fromBlock(b))>=0)return true;}catch(_){}
     }
@@ -335,6 +338,7 @@
   }
   function optionsFor(b) {
     const out=[['⋯','NONE']];
+    if(bindingEditor?.canPromote(b))out.push(['Name result','NAME_RESULT']);
     for(const p of parts(b.state)) {
       if(!detailMode && (p.key.startsWith('ROOT_')||['F_schema_version','RESULT'].includes(p.key)))continue;
       if(hiddenReason(b,p))out.push([p.ty.named==='Announcement'?'Add a target':p.ty.vec?'Add '+p.label.replace(/ies$/,'y').replace(/s$/,''):p.flow?'Add otherwise':pretty(p.label||p.key),'SHOW:'+p.key]);
@@ -347,7 +351,7 @@
     if(!['Characteristics','Announcement','TargetSpec'].includes(name))return null;
     const v=fromBlock(b);
     if(name==='Characteristics')return [...v.supertypes,...v.card_types,...v.subtypes,v.power_toughness?.join('/')].filter(Boolean).join(' · ')||'Properties';
-    if(name==='TargetSpec')return targetSummary(v);
+    if(name==='TargetSpec'){const named=b.state.bindings?.F_slot?.name;return targetSummary(v)+(named?' · '+named:'');}
     return [...v.targets.map(targetSummary),v.modes?'mode choices':''].filter(Boolean).join(' · ')||'No targets';
   }
   function applyPresentation() {
@@ -390,6 +394,7 @@
   function replaceView(b,patch,value=fromBlock(b)) {
     const old=Blockly.serialization.blocks.save(b),next=old.next;
     const fresh=blockState(b.state.ty,value,b.isCollapsed(),{...b.state,...patch});
+    bindingEditor?.transfer(b,fakeBlock(fresh));
     fresh.id=b.id;fresh.x=old.x;fresh.y=old.y;if(next)fresh.next=next;
     const saved=Blockly.serialization.workspaces.save(workspace);
     function find(holder) {
@@ -440,7 +445,7 @@
     if(state.ty.named==='Characteristics')return 'Properties';
     if(state.ty.named==='TargetSpec')return 'Target';
     if(state.ty.named==='Announcement')return 'Targets & choices';
-    return typeName(state.ty);
+    return ({Slot:'Target',ResultId:'Recorded result',Binding:'Loop value',SelectionId:'Selection'})[state.ty.named]||typeName(state.ty);
   }
   Blockly.Blocks.ir_value={
     init() {
@@ -495,7 +500,7 @@
         }else header.appendField(caption(this.state));
         if(header)header.appendField(new Blockly.FieldDropdown(()=>optionsFor(this),v=>{
           if(v==='NONE')return null;
-          setTimeout(()=>{if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
+          setTimeout(()=>{if(v==='NAME_RESULT')bindingEditor.promote(this);else if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
         }),'MORE');
         for(const p of parts(this.state)) {
           if(p.inline==='pt') {
@@ -549,7 +554,7 @@
       if(p.inline==='pt')values[p.key]=[readScalar({named:'i32'},b.getFieldValue('_'+p.key+'_P')),readScalar({named:'i32'},b.getFieldValue('_'+p.key+'_T'))];
       else if(p.inline==='constant')values[p.key]={kind:'Constant',args:readScalar({named:'i64'},b.getFieldValue('_'+p.key))};
       else if(p.inline==='choice') {
-        const choice=choices[p.ty.named]?.[Number(b.getFieldValue('_'+p.key))];if(!choice)throw Error('Choose a valid '+p.label);values[p.key]=clone(choice[1]);
+        values[p.key]=pickerValue(b,p,Number(b.getFieldValue('_'+p.key)));
       } else if(p.inline==='unpreventable')values[p.key]=!readScalar(p.ty,b.getFieldValue('_'+p.key));
       else if(scalar(p.ty))values[p.key]=readScalar(p.ty,b.getFieldValue('_'+p.key));
       else if(p.flow) {const list=chainValues(b.getInputTargetBlock(p.key));values[p.key]=p.flow==='program'?{instructions:list}:list;}
@@ -671,6 +676,9 @@
     remember();const next=historyIndex+(redo?1:-1);
     if(next<0 || next>=history.length)return;
     historyIndex=next;install(JSON.parse(history[next]),false);
+    // Normalize incidental serialization changes made while restoring a frame.
+    // They must not truncate the redo history as a new user edit.
+    history[historyIndex]=JSON.stringify(Blockly.serialization.workspaces.save(workspace));
   };
   function notice(text) { $('notice').textContent=text; $('notice').style.display='block'; clearTimeout(notice.timer); notice.timer=setTimeout(()=>$('notice').style.display='none',4500); }
   function invalid(text,waiting=false) {
@@ -696,23 +704,16 @@
     if(requests.has(e.data.id)){const p=requests.get(e.data.id);requests.delete(e.data.id);e.data.error?p.reject(Error(e.data.error)):p.resolve(e.data.batch??e.data.result);return;}
     if(e.data.ready){workerReady=true;startedResolve();changed();return;}
     if(!workerReady&&e.data.error&&e.data.id===undefined){startedReject(Error(e.data.error));invalid(e.data.error);return;}
-    if(e.data.id!==revision) return;
-    const r=e.data.result;
-    if(e.data.error || !r.valid) { invalid(e.data.error||r.error); return; }
-    lastValid=r.ir;if($('dump-format').value==='human')refreshCode().catch(e=>{$('code-status').textContent=e.message;}); $('export').disabled=false; $('validation').className='badge valid'; $('validation').textContent='✓ Valid Rust IR';
-    $('validation-detail').textContent=`Schema ${r.schema} · ${r.faces} face${r.faces===1?'':'s'} · checked in this browser with WebAssembly`;
+
   };
   worker.onerror=e=>{startedReject(Error(e.message));invalid('The WebAssembly worker stopped: '+e.message);for(const p of requests.values())p.reject(Error(e.message));requests.clear();};
   worker.postMessage({init:payload.wasm});
   async function codeRequest(kind,text){await workerStarted;return new Promise((resolve,reject)=>{const id=nextRequest--;requests.set(id,{resolve,reject});worker.postMessage({id,[kind]:text});});}
+  bindingEditor=createBindingEditor({types,parts,scalar,descriptor,variantFor,viewVariant,childValues,fromBlock,pickerValue,
+    workspace:()=>workspace,generated,revision:()=>revision,request:codeRequest,parse:parseExact,encode,notice,remember,changed});
   async function refreshCode(){
-    if(!lastValid||codeDirty)return;
-    const ir=lastValid;
-    if(codeIR===ir&&lastHuman!==null){$('human-editor').value=lastHuman;return;}
-    const r=await codeRequest('formatCode',ir);
-    if(lastValid!==ir||codeDirty)return;
-    if(!r.valid){$('code-status').textContent=r.error;return;}
-    codeIR=ir;lastHuman=r.code;$('human-editor').value=r.code;$('code-status').textContent='Checked by Rust · edit and apply to update blocks';
+    if(!lastValid||codeDirty||lastHuman===null)return;
+    $('human-editor').value=lastHuman;$('code-status').textContent='Checked by Rust · edit and apply to update blocks';
   }
   function showDump(){
     const human=$('dump-format').value==='human';$('ir').classList.toggle('hidden',human);$('human-editor').classList.toggle('hidden',!human);$('code-actions').classList.toggle('hidden',!human);
@@ -725,13 +726,13 @@
       const r=await codeRequest('parseCode',text);
       if(text!==$('human-editor').value||revision!==start){notice('Workspace or code changed while checking; apply again.');return;}
       if(!r.valid){$('code-status').textContent=r.error;return;}
-      preserveSavedDraft=false;codeDirty=false;codeIR=null;loadIR(parseExact(r.ir));notice('Applied validated card code');
+      preserveSavedDraft=false;codeDirty=false;loadIR(parseExact(r.ir),true,parseExact(r.document));notice('Applied validated card code');
     }catch(e){$('code-status').textContent=e.message;}
   };
   $('export-code').onclick=async()=>{
     if(codeDirty){notice('Apply code edits before exporting.');return;}
     if(!lastValid)return;const ir=lastValid;
-    try{const r=await codeRequest('formatCode',ir);if(r.valid&&lastValid===ir)download(($('card-title').textContent||'card').replace(/[^\p{L}\p{N}_-]+/gu,'_')+'.card',r.code);else if(!r.valid)notice(r.error);}catch(e){notice(e.message);}
+    try{const r=await codeRequest('formatDocument',encode(bindingEditor.document()));if(r.valid&&lastValid===ir)download(($('card-title').textContent||'card').replace(/[^\p{L}\p{N}_-]+/gu,'_')+'.card',r.code);else if(!r.valid)notice(r.error);}catch(e){notice(e.message);}
   };
 
   function generated() {
@@ -739,6 +740,7 @@
     if(roots.length!==1 || roots[0].state.ty.named!=='UnifiedCard') throw Error('Keep exactly one card record, with all other blocks connected. Delete or attach the loose blocks.');
     return fromBlock(roots[0]);
   }
+  function validCurrent() {try{return lastValid&&encode(generated())===lastSubmittedIR?lastValid:null;}catch(_){return null;}}
   function allocateFreshResults() {
     const blocks=workspace.getAllBlocks(false),used=new Set();
     for(const b of blocks){
@@ -761,7 +763,19 @@
         $('card-title').textContent=value.faces.map(f=>f.name).join(' // ')||'New card';
         $('workspace-meta').textContent=`Saved locally${detailMode?' · schema '+schema.version:''} · drag blocks from the left to build`;
         try {if(!preserveSavedDraft)localStorage.setItem('mtgish.blockly.v1',JSON.stringify(savedWorkspace()));else $('workspace-meta').textContent='Original draft preserved · current workspace is not autosaved';}catch(_){$('workspace-meta').textContent+=' · local save unavailable';}
-        if(workerReady) {lastSubmittedIR=ir;worker.postMessage({id:revision,ir});}
+        if(workerReady) {
+          const start=revision;lastSubmittedIR=ir;
+          bindingEditor.check(ir,start).then(result=>{
+            if(!result||start!==revision)return;
+            lastValid=ir;lastHuman=result.code;
+            // Filling automatic identity metadata belongs to this edit's snapshot.
+            if(historyIndex>=0)history[historyIndex]=JSON.stringify(Blockly.serialization.workspaces.save(workspace));
+            try{if(!preserveSavedDraft)localStorage.setItem('mtgish.blockly.v1',JSON.stringify(savedWorkspace()));}catch(_){}
+            applyPresentation();if($('dump-format').value==='human')refreshCode();
+            $('export').disabled=false;$('validation').className='badge valid';$('validation').textContent='✓ Valid Rust IR';
+            $('validation-detail').textContent=`Schema ${schema.version} · ${value.faces.length} face${value.faces.length===1?'':'s'} · names and references checked in Rust / WebAssembly`;
+          }).catch(e=>{if(start===revision)invalid(e.message);});
+        }
       } catch(e) { $('ir').textContent=''; invalid(e.message); }
     },120);
   }
@@ -779,11 +793,13 @@
     applyPresentation();workspace.render();
     Blockly.renderManagement.finishQueuedRenders().then(()=>workspace.zoomToFit());
   }
-  function loadIR(value,outline=true) {
+  function loadIR(value,outline=true,document=null) {
     const block=blockState({named:'UnifiedCard'},value,outline);
+    if(document)bindingEditor.attach(fakeBlock(block),document);
+    bindingEditor.reset();
     install({blocks:{languageVersion:0,blocks:[{...block,x:40,y:40}]}});
   }
-  function savedWorkspace() { return {format:'mtgish.blockly.workspace.v1',presentation:4,schema:schema.version,model:payload.model,workspace:Blockly.serialization.workspaces.save(workspace)}; }
+  function savedWorkspace() { return {format:'mtgish.blockly.workspace.v1',presentation:5,schema:schema.version,model:payload.model,workspace:Blockly.serialization.workspaces.save(workspace)}; }
   function decodeWorkspace(value,model=schema) {
     const nodes=value.workspace?.blocks?.blocks;
     if(nodes?.length!==1)throw Error('Keep exactly one complete card record before migration.');
@@ -792,8 +808,7 @@
     const current=types;
     try {
       types=model.types;
-      const fake=s=>({type:s.type,state:s.extraState,isEnabled:()=>!s.disabled&&!s.disabledReasons?.length,getFieldValue:n=>s.fields?.[n],getInputTargetBlock:n=>{const child=s.inputs?.[n]?.block||s.inputs?.[n]?.shadow;return child?fake(child):null;},getNextBlock:()=>s.next?.block?fake(s.next.block):null});
-      return fromBlock(fake(nodes[0]));
+      return fromBlock(fakeBlock(nodes[0]));
     }finally{types=current;}
   }
   async function migrateWorkspace(value) {
@@ -808,15 +823,16 @@
   }
   function restore(value) {
     if(value.schema!==schema.version)throw Error('This workspace requires a schema upgrade; use Import.');
-    if(value.workspace?.blocks?.blocks?.length===1 && (value.presentation!==4||value.model!==payload.model)) {
-      try {const ir=decodeWorkspace(value);localStorage.setItem('mtgish.blockly.before-authoring-v4',JSON.stringify(value));loadIR(ir);return;}catch(_){}
+    if(value.workspace?.blocks?.blocks?.length===1 && (value.presentation!==5||value.model!==payload.model)) {
+      try {const ir=decodeWorkspace(value),fresh=blockState({named:'UnifiedCard'},ir);bindingEditor.transfer(fakeBlock(value.workspace.blocks.blocks[0]),fakeBlock(fresh));localStorage.setItem('mtgish.blockly.before-authoring-v5',JSON.stringify(value));if(value.presentation<4)localStorage.setItem('mtgish.blockly.before-authoring-v4',JSON.stringify(value));bindingEditor.reset();install({blocks:{languageVersion:0,blocks:[{...fresh,x:40,y:40}]}});return;}catch(_){}
     }
     install(value.workspace);
   }
   workspace.addChangeListener(e=>{
     if(e.isUiEvent && e.type!==Blockly.Events.SELECTED)setTimeout(applyPresentation,0);
     if(e.type===Blockly.Events.SELECTED){ const b=workspace.getBlockById(e.newElementId); if(b){ const d=descriptor(b.state.ty),v=d?.variants?.find(v=>v.wire===b.state.variant); $('selection').replaceChildren(); const title=document.createElement('strong');title.textContent=typeName(b.state.ty)+(v?'::'+v.name:'');$('selection').append(title,document.createTextNode('  '+(v?.doc||'Connect a value of this type to a matching socket.'))); } }
-    if(!e.isUiEvent && e.type!==Blockly.Events.FINISHED_LOADING) changed();
+    if(e.name?.startsWith('NAME:'))return;
+    if(!e.isUiEvent && e.type!==Blockly.Events.FINISHED_LOADING) {if(e.type===Blockly.Events.BLOCK_CREATE)bindingEditor?.created(e.ids||[]);changed();}
   });
   const bytes=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)), shards=new Map();
   async function shard(n) {
@@ -870,14 +886,24 @@
   $('collapse').onclick=()=>{workspace.getAllBlocks(false).filter(b=>['Characteristics','Announcement','EntrySpec','MovementTerms','TargetSpec'].includes(b.state.ty.named)).forEach(b=>b.setCollapsed(true));workspace.zoomToFit();};
   $('export').onclick=()=>{
     if(!lastValid)return;
-    try {if(encode(generated())!==lastSubmittedIR){changed();notice('Checking the latest edit before exporting.');return;}}
+    try {if(encode(generated())!==lastSubmittedIR){changed();notice('Checking the latest edit before exporting.');return;}bindingEditor.document();}
     catch(e){invalid(e.message);return;}
     download(($('card-title').textContent||'card').replace(/[^\p{L}\p{N}_-]+/gu,'_')+'.ir.json',lastValid);
   };
   $('save-workspace').onclick=()=>download('card.workspace.json',JSON.stringify(savedWorkspace(),null,2));
   $('import').onclick=()=>$('file').click();$('file').onchange=async()=>{
     const f=$('file').files[0];if(!f)return;const seq=++loadSequence;
-    try {const text=await f.text();let value;if(text.trimStart().startsWith('{'))value=parseExact(text);else{const r=await codeRequest('parseCode',text);if(!r.valid)throw Error(r.error);value=parseExact(r.ir);}if(seq!==loadSequence)return;if(value.format==='mtgish.blockly.workspace.v1'){if(value.schema===schema.version){restore(value);preserveSavedDraft=false;}else await migrateWorkspace(value);}else {const r=await codeRequest('migrateIR',encode(value));if(seq!==loadSequence)return;if(!r.valid)throw Error(r.error);preserveSavedDraft=false;loadIR(parseExact(r.ir));}notice('Imported '+f.name);}catch(e){notice('Import failed: '+e.message);}finally{$('file').value='';}
+    try {
+      const text=await f.text();let value,document=null;
+      if(text.trimStart().startsWith('{'))value=parseExact(text);
+      else {const r=await codeRequest('parseCode',text);if(!r.valid)throw Error(r.error);value=parseExact(r.ir);document=parseExact(r.document);}
+      if(seq!==loadSequence)return;
+      if(value.format==='mtgish.blockly.workspace.v1') {if(value.schema===schema.version){restore(value);preserveSavedDraft=false;}else await migrateWorkspace(value);}
+      else if(document) {preserveSavedDraft=false;loadIR(value,true,document);}
+      else if(value.version===1&&value.card&&Array.isArray(value.bindings)) {const r=await codeRequest('formatDocument',encode(value));if(seq!==loadSequence)return;if(!r.valid)throw Error(r.error);preserveSavedDraft=false;loadIR(value.card,true,value);}
+      else {const r=await codeRequest('migrateIR',encode(value));if(seq!==loadSequence)return;if(!r.valid)throw Error(r.error);preserveSavedDraft=false;loadIR(parseExact(r.ir));}
+      notice('Imported '+f.name);
+    }catch(e){notice('Import failed: '+e.message);}finally{$('file').value='';}
   };
   searchCards();
   let restored=false;
@@ -885,5 +911,5 @@
   if(!restored&&!workspace.getAllBlocks(false).length) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={workspace,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:()=>lastValid,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
+  window.cardBlocks={workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

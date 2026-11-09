@@ -81,7 +81,7 @@ let browser,page;
    shadow:d.workspace.getAllBlocks(false).find(b=>b.state.op==='Draw').getInputTargetBlock('O_amount').isShadow()};
  },old);
  const upgraded=await page.evaluate(ir=>window.cardBlocks.migrateIR(window.cardBlocks.encode(ir)),old.ir);
- assert.equal(upgraded.valid,true);assert.deepEqual(migrated.ir,JSON.parse(upgraded.ir));assert.equal(migrated.presentation,4);assert.equal(migrated.shadow,true);
+ assert.equal(upgraded.valid,true);assert.deepEqual(migrated.ir,JSON.parse(upgraded.ir));assert.equal(migrated.presentation,5);assert.equal(migrated.shadow,true);
  await page.waitForFunction(()=>window.cardBlocks.valid());
  assert.deepEqual(errors,[]);
  await page.screenshot({path:process.env.BLOCKLY_SCREENSHOT||'/tmp/typed-sockets.png',fullPage:true});

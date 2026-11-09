@@ -53,7 +53,7 @@ def main():
         'PAYLOAD': json.dumps(payload, separators=(',', ':'), ensure_ascii=False).replace('<', '\\u003c'),
         'BLOCKLY': re.sub(r'//# sourceMappingURL=.*', '', core + '\n' + messages).replace('</script', '<\\/script'),
         'GLUE': json.dumps((args.build / 'wasm/validator.js').read_text()).replace('<', '\\u003c'),
-        'APP': (source / 'app.js').read_text().replace('</script', '<\\/script'),
+        'APP': ((source / 'bindings.js').read_text() + '\n' + (source / 'app.js').read_text()).replace('</script', '<\\/script'),
         'SPRITE': 'data:image/svg+xml;base64,' + base64.b64encode((source / 'vendor/media/sprites.svg').read_bytes()).decode(),
         'LICENSE': (source / 'vendor/LICENSE.blockly').read_text().replace('--', '—'),
     }

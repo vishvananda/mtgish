@@ -11,7 +11,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Validate every nested semantic entry child in its correct scope | Scope checks implemented; typed payload constraints pending | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
 | Typed entry and copy payloads, removing backend descriptive-term decoding | Entry implemented; copy pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
-| Preserve binding identities and names for targets, results, loops, and selections | Native document and bridge implemented; editor and structural transport pending | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
+| Preserve binding identities and names for targets, results, loops, and selections | Native document, bridge and editor implemented; structural canonicalization transport pending | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
@@ -156,3 +156,35 @@ failing, rather than stopping at the first card. Evidence:
 `names-all-renamed-final.log`, `names-publish-native.log`, and
 `names-publish-browser-*.log`. Editor integration and structural transport remain
 open; this checkpoint does not complete the overall clarity objective.
+
+Stage 6 integrates names into the editor. `bindings.js` stores stable identities
+on block ports and recomputes their current typed wire paths. The normal code
+apply, import, formatting, export and workspace-save paths retain authoring
+names. Declaration fields accept atomic native-checked renames; reference menus
+probe candidates through the same native scope/type validator. Results need no
+name until used or explicitly named through the ordinary menu. Engine IDs,
+schema 180 and numeric ranges stay unchanged; workspace presentation is now 5.
+
+Copies get new identities and IDs, with internal references remapped and external
+captures retained. Foreign clipboard data is also deconflicted. Known deleted
+identities distinguish a cut/paste from a copy. A moved reference with a reused
+numeric ID cannot silently attach to another declaration: export is blocked,
+and the native context remains available to explicitly choose its new binding.
+View/domain rebuilds and model-fingerprint upgrades carry matching typed-site
+metadata forward. Undo/redo normalizes restored snapshots so serialization alone
+does not create another undo step or truncate redo history.
+
+Evidence: `names-ui-editor-captures.log` covers real text/menu interactions,
+optional result naming, all binding kinds, equal-ID player/object loops,
+collision rollback, copies, cuts, scope rejection/recovery, saves/reloads,
+fingerprint upgrades and named code export. `names-ui-port-catalog.log` compares
+every binding port independently with wire types for all 33,529 records, with
+zero failures; all records also roundtrip and validate in Wasm. The final browser
+suites all pass and are recorded in `names-ui-publish-*.log` (nine suites including
+the naming workflow). No Rust source changed in this
+stage; the preceding 1,383-test native evidence still applies.
+
+Remaining: native mappings through structural canonicalization and schema
+migration, typed copy exceptions, destination-specific state, selection/coin/
+keyword policies, Rust role/type renames, batch/receipt documentation and typed
+layouts. This editor milestone does not complete the full objective.
