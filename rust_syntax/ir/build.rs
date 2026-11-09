@@ -1,10 +1,19 @@
 //! Generate typed traversal once with the independently pinned type package.
+#[allow(dead_code)]
+#[path = "src/declarations.rs"]
+mod declarations;
 #[path = "src/visit_spec.rs"]
 mod visit_spec;
 fn main() {
-    println!("cargo:rerun-if-changed=src/ir.rs");
+    println!("cargo:rerun-if-changed=src/declarations.rs");
+    for source in declarations::SOURCES
+        .iter()
+        .filter(|source| source.role == declarations::Role::Semantic)
+    {
+        println!("cargo:rerun-if-changed={}", source.path);
+    }
     println!("cargo:rerun-if-changed=src/visit_spec.rs");
-    let source = std::fs::read_to_string("src/ir.rs").expect("IR source");
+    let source = declarations::traversal_text();
     let generated = format!(
         "{}\n{}",
         visit_spec::generate(&source),

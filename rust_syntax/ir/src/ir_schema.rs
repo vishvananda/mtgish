@@ -41,7 +41,7 @@ pub struct Schema {
 impl Schema {
     /// The table for this crate's own IR source.
     pub fn of_ir() -> Result<Self, String> {
-        Self::from_sources(&[include_str!("ir.rs"), include_str!("counter.rs")])
+        Self::from_sources(&crate::declarations::wire_texts())
     }
 
     pub fn from_sources(sources: &[&str]) -> Result<Self, String> {

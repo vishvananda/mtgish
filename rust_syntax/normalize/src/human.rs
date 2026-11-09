@@ -15,18 +15,14 @@ use std::sync::OnceLock;
 fn schema() -> &'static Schema {
     static SCHEMA: OnceLock<Schema> = OnceLock::new();
     SCHEMA.get_or_init(|| {
-        let mut schema = Schema::from_sources(&[
-            include_str!("../../src/mtg_types.rs"),
-            include_str!("../../ir/src/ir.rs"),
-            include_str!("../../ir/src/counter.rs"),
-            include_str!("../../ir/src/targets.rs"),
-        ])
-        .expect("Rust authoring schema");
+        let mut schema = Schema::from_sources(&crate::declarations::authoring_texts())
+            .expect("Rust authoring schema");
         // Use the actual Serde constructor names, without a second variant registry.
-        for item in syn::parse_file(include_str!("../../ir/src/ir.rs"))
-            .unwrap()
-            .items
-        {
+        for item in crate::declarations::SOURCES.iter().flat_map(|source| {
+            syn::parse_file(source.text)
+                .expect("Rust model declarations")
+                .items
+        }) {
             let syn::Item::Enum(item) = item else {
                 continue;
             };

@@ -4,7 +4,7 @@
 extern crate self as mtgish_ast;
 pub use rust_syntax::{corpus, inspect, mtg_types};
 pub mod canonical;
-pub use mtgish_ir::{battlefield_query, counter, ir, ir_schema, visit};
+pub use mtgish_ir::{battlefield_query, counter, declarations, ir, ir_schema, visit};
 pub mod change_lists;
 mod complete;
 #[cfg(feature = "legacy")]

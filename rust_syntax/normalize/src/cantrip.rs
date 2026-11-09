@@ -186,7 +186,6 @@ fn generator_fingerprint() -> &'static str {
             ),
             ("semantics.rs", include_bytes!("semantics.rs").as_slice()),
             ("validate.rs", include_bytes!("validate.rs").as_slice()),
-            ("ir.rs", include_bytes!("../../ir/src/ir.rs").as_slice()),
             (
                 "cantrip_vocab.rs",
                 include_bytes!("cantrip_vocab.rs").as_slice(),
@@ -253,6 +252,8 @@ fn generator_fingerprint() -> &'static str {
             ),
         ]
         .into_iter()
+        .chain(crate::declarations::fingerprint_sources().map(|(path, text)| (path, text.as_bytes())))
+        .chain(std::iter::once(("validate/bounds.rs", include_bytes!("validate/bounds.rs").as_slice())))
         .map(|(name, bytes)| (name, corpus::digest(bytes)))
         .collect();
         corpus::digest(&serde_json::to_vec(&inputs).expect("generator input hashes"))

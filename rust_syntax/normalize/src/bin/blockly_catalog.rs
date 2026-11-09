@@ -9,9 +9,8 @@ use std::{
     path::Path,
 };
 
-const IR: &str = include_str!("../../../ir/src/ir.rs");
-const COUNTERS: &str = include_str!("../../../ir/src/counter.rs");
-const SOURCE: &str = include_str!("../../../src/mtg_types.rs");
+use mtgish_ast::declarations;
+const SOURCE: &str = declarations::SOURCE_VOCABULARY;
 
 fn ty(t: &Ty) -> Value {
     match t {
@@ -53,7 +52,7 @@ fn docs(attrs: &[syn::Attribute]) -> String {
 }
 fn schema() -> Value {
     // Source is read first so the normalized Card/Ability/etc. definitions win.
-    let mut schema = Schema::from_sources(&[SOURCE, IR, COUNTERS]).unwrap();
+    let mut schema = Schema::from_sources(&declarations::authoring_texts()).unwrap();
     let mut annotations = BTreeMap::new();
     // Mechanic is macro-generated in ir.rs; use its compiled registry rather
     // than maintaining a second list or guessing at macro expansion.
@@ -79,7 +78,8 @@ fn schema() -> Value {
             variants: mechanics,
         },
     );
-    for (is_source, source) in [(true, SOURCE), (false, IR), (false, COUNTERS)] {
+    for (is_source, source) in std::iter::once((true, SOURCE))
+        .chain(declarations::SOURCES.iter().map(|source| (false, source.text))) {
         for item in syn::parse_file(source).unwrap().items {
             if let syn::Item::Enum(e) = item {
                 if is_source
