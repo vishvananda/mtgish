@@ -4,6 +4,8 @@
 use crate::ir::*;
 use std::collections::{BTreeMap, BTreeSet};
 
+mod bounds;
+
 /// The slot in `casting_costs` that holds the enclosing cost branch's cost.
 const BRANCH_COST: u32 = u32::MAX;
 
@@ -734,22 +736,27 @@ impl<'a> Scope<'a> {
             | EntryState::Flipped
             | EntryState::NotAnAura
             | EntryState::NotedCounters
-            | EntryState::FaceDownAs(_)
-            | EntryState::FaceDownLand(_)
-            | EntryState::May(_)
             | EntryState::ExilePile { .. } => Ok(()),
-            EntryState::FaceDownWith { noted, .. } => {
+            EntryState::FaceDownAs(shape) => self.face_down_shape(shape),
+            EntryState::FaceDownLand(land) => self.operand(land),
+            EntryState::May(flags) => flags.iter().try_for_each(|flag| self.operand(flag)),
+            EntryState::FaceDownWith { face_down, abilities, noted } => {
+                self.face_down_shape(face_down)?;
+                abilities.iter().try_for_each(|ability| self.operand(ability))?;
                 noted.iter().try_for_each(|card| self.object(card))
             }
             EntryState::Perpetual(changes) => {
                 changes.iter().try_for_each(|change| self.change(change))
             }
-            EntryState::ExiledFor(until) | EntryState::RulesUntil { until, .. } => {
-                self.duration(until)
-            }
-            EntryState::ExiledForWith { until, objects, .. } => {
+            EntryState::ExiledFor(until) => self.duration(until),
+            EntryState::RulesUntil { rules, until } => {
                 self.duration(until)?;
-                self.objects(objects)
+                rules.iter().try_for_each(|rule| self.operand(rule))
+            }
+            EntryState::ExiledForWith { until, objects, body } => {
+                self.duration(until)?;
+                self.objects(objects)?;
+                self.operand(body)
             }
             EntryState::Attacking { player, .. } => player.iter().try_for_each(|p| self.player(p)),
             EntryState::Blocking(object) | EntryState::AttachedTo(object) => self.object(object),
@@ -769,6 +776,11 @@ impl<'a> Scope<'a> {
                 self.entering_changes(changes)
             }
         })
+    }
+
+    fn face_down_shape(&self, shape: &FaceDownAs) -> Result {
+        self.operand(&shape.power_toughness)?;
+        shape.creature_type.iter().try_for_each(|kind| self.operand(kind))
     }
 
     fn duration(&self, duration: &Duration) -> Result {
@@ -1316,6 +1328,7 @@ impl<'a> Scope<'a> {
             Count::Exactly(n) | Count::UpTo(n) | Count::AtLeast(n) | Count::AsManyAsCan(n) => n,
             Count::AnyNumber => return Ok(()),
             Count::Between { minimum, maximum } => {
+                bounds::interval(minimum, maximum)?;
                 self.expr(minimum)?;
                 maximum
             }
@@ -1324,9 +1337,7 @@ impl<'a> Scope<'a> {
                 return self.count(each);
             }
         };
-        if matches!(value, Expr::Constant(n) if *n < 0) {
-            return Err("negative selection count".into());
-        }
+        bounds::nonnegative(value)?;
         self.expr(value)
     }
 
@@ -2669,7 +2680,7 @@ impl<'a> Scope<'a> {
             Operand::Players(players) => self.players(players),
             Operand::Number(expression) => self.expr(expression),
             Operand::Condition(condition) => self.condition(condition),
-            Operand::Duration(_) => Ok(()),
+            Operand::Duration(duration) => self.duration(duration),
             Operand::Filter(filter) => self.filter(filter),
             Operand::Comparison(_, expression) => self.expr(expression),
             Operand::Stickers(stickers) => {
@@ -2850,11 +2861,16 @@ impl<'a> Scope<'a> {
                 self.expr(to)?;
                 self.operation(action)
             }
-            Operation::CounterWith { object, when, .. } => {
+            Operation::CounterWith { object, when, destination, entry } => {
                 self.object(object)?;
-                when.iter().try_for_each(|f| self.filter(f))
+                when.iter().try_for_each(|f| self.filter(f))?;
+                self.destination(destination)?;
+                entry.iter().try_for_each(|flag| self.operand(flag))
             }
-            Operation::Populate { actor, .. } => self.players(actor),
+            Operation::Populate { actor, entry } => {
+                self.players(actor)?;
+                entry.iter().try_for_each(|flag| self.operand(flag))
+            }
             Operation::ReduceSpeed {
                 player,
                 amount,
@@ -3236,8 +3252,9 @@ impl<'a> Scope<'a> {
                 self.players(actor)?;
                 self.operand(flags)
             }
-            Operation::Manifest { actor, source, .. } => {
+            Operation::Manifest { actor, source, entry, .. } => {
                 self.players(actor)?;
+                entry.iter().try_for_each(|flag| self.operand(flag))?;
                 match source {
                     ManifestSource::TopOfLibrary { player, count } => {
                         self.player(player)?;
@@ -4481,6 +4498,8 @@ impl<'a> Scope<'a> {
             if let Some(budget) = &selection.budget {
                 proposal.expr(budget)?;
             }
+            bounds::interval(&selection.minimum, &selection.maximum)
+                .map_err(|error| format!("invalid mode bounds: {error}"))?;
             if let (Expr::Constant(min), Expr::Constant(max)) =
                 (&selection.minimum, &selection.maximum)
             {
