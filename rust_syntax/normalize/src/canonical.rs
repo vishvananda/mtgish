@@ -435,7 +435,7 @@ impl Walker {
                         drop_identity(items);
                     }
                     if !self.keep_order {
-                        items.sort_by_cached_key(Value::to_string);
+                        items.sort_by_cached_key(stable_json_key);
                     }
                 }
                 if let Some(only) = single(content) {
@@ -470,7 +470,7 @@ impl Walker {
                 }
                 ("EventSpec", "Either") if !self.keep_order => {
                     if let Some(Value::Array(events)) = value.get_mut("Either") {
-                        events.sort_by_cached_key(Value::to_string);
+                        events.sort_by_cached_key(stable_json_key);
                     }
                 }
                 ("ObjectRef", "Damage") => {
@@ -517,7 +517,7 @@ impl Walker {
         }
         flatten(&mut filters, "Either");
         if !self.keep_order {
-            filters.sort_by_cached_key(Value::to_string);
+            filters.sort_by_cached_key(stable_json_key);
         }
         *value = serde_json::json!({"kind": "Objects", "args": {
             "kind": "Zone",
@@ -850,7 +850,7 @@ fn merge_triggers(items: &mut Vec<Value>) {
     }
     for item in merged.iter_mut().filter(|item| item["kind"] == "Triggered") {
         if let Some(Value::Array(events)) = item["args"]["event"].get_mut("Either") {
-            events.sort_by_key(|event| event.to_string());
+            events.sort_by_cached_key(stable_json_key);
         }
     }
     *items = merged;
@@ -1079,4 +1079,25 @@ fn battlefield_filter(value: &Value) -> Option<&Value> {
 fn battlefield_filter_mut(value: &mut Value) -> Option<&mut Value> {
     battlefield_filter(value)?;
     value.get_mut("args")?.get_mut("filter")
+}
+
+/// JSON object insertion order is spelling metadata, never a semantic order.
+/// Arrays remain ordered here; only the owning commutative sites sort them.
+fn stable_json_key(value: &Value) -> String {
+    fn sorted(value: &Value) -> Value {
+        match value {
+            Value::Object(fields) => {
+                let mut keys: Vec<_> = fields.keys().collect();
+                keys.sort_unstable();
+                Value::Object(
+                    keys.into_iter()
+                        .map(|key| (key.clone(), sorted(&fields[key])))
+                        .collect(),
+                )
+            }
+            Value::Array(items) => Value::Array(items.iter().map(sorted).collect()),
+            scalar => scalar.clone(),
+        }
+    }
+    sorted(value).to_string()
 }

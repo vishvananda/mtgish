@@ -7,6 +7,7 @@ mod created;
 mod departures;
 mod entry;
 mod event_order;
+mod json_key_order;
 
 // Reuse the existing canonical regression suite without building the export CLI.
 mod regressions {
@@ -44,7 +45,10 @@ fn preserved_fixture(mut value: Value) -> Card {
     // that representation explicitly rather than relabeling it as current.
     value["schema_version"] = json!(179);
     let old = json!({"schema_version":179,"layout":"Card","data":[],"faces":[value]});
-    crate::migrate::read_json(&old.to_string()).unwrap().faces.remove(0)
+    crate::migrate::read_json(&old.to_string())
+        .unwrap()
+        .faces
+        .remove(0)
 }
 
 #[test]

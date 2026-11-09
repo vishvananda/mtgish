@@ -37,3 +37,7 @@ required-features = ["legacy"]
 name = "blockly_catalog"
 path = "src/bin/blockly_catalog.rs"
 required-features = ["legacy"]
+
+[dev-dependencies]
+# Exercise insertion-ordered JSON without changing production dependency features.
+serde_json = { version = "1", features = ["preserve_order", "unbounded_depth"] }
