@@ -13,7 +13,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Typed entry and copy payloads, removing backend descriptive-term decoding | Implemented, verified; destination-specific serialization remains separate | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
 | Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified including independent alternatives and legacy migration | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Shared destination checks implemented; serialized payload split pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
-| Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Keyword actions implemented and verified (schema 183); modes/coins pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
+| Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Keyword actions (183) and modes (184) implemented and verified; coins pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
 | Clear sequence, batch, iteration, and receipt boundaries | Implemented, verified without changing execution forms | Declaration docs and discoverable authoring families; receipt and native behavior regressions |
 | Shared schema/declaration discovery and topic modules | Implemented, verified | Visitors, codec, catalog, fingerprint and frozen contract use one source registry; no declarations lost |
@@ -604,3 +604,16 @@ Stage-15 publication: commit `ecef36f` is pushed to fork main. Release
 HTTP returns the exact tested artifact. Live card-code and mode editing/named
 schema-183 migration suites pass (`mode184-live-{code,modes}.log`). Release
 receipt: `mode184-release.json`. The untracked user `consolidation.md` is intact.
+
+
+Stage 16 resolves a coin-policy prerequisite without changing schema 184:
+[Two-Headed Giant's source template](reference-coin-faces-20261109.md) now
+compares the actual heads count, rather than wins. The complete 33,529-record
+Source/native comparison changes exactly this card's two quantity reads. This
+is a source correction, so earlier epoch migrations continue to preserve the
+historical input's meaning; they do not silently rewrite an old saved card by
+name to match a newer Oracle correction. The explicit coin-policy migration
+must use the corrected source as its fresh baseline and distinguish historical
+source deltas from structural schema upgrades. Mode and keyword work are
+complete; the broader AST goal and the 29 confirmed reference defects remain
+open. No upstream update was pulled into the fork.

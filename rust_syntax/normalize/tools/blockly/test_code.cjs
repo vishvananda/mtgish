@@ -79,12 +79,13 @@ let browser,page;
  });
  assert.ok(actionCount>=134);
  const wasmExamples=await page.evaluate(async()=>{
-  const d=window.cardBlocks,names=['Cloudshift',"Conjurer's Closet",'Restoration Angel','Basalt Golem','Counterspell','Llanowar Elves','Fire // Ice','Delver of Secrets // Insectile Aberration','Jace, the Mind Sculptor','The Wandering Emperor','Brainstorm','Halfdane','Rolling Hamsphere','Knowledge Pool','Lagrella, the Magpie'];
+  const d=window.cardBlocks,names=['Cloudshift',"Conjurer's Closet",'Restoration Angel','Basalt Golem','Counterspell','Llanowar Elves','Fire // Ice','Delver of Secrets // Insectile Aberration','Jace, the Mind Sculptor','The Wandering Emperor','Brainstorm','Halfdane','Rolling Hamsphere','Knowledge Pool','Lagrella, the Magpie','Two-Headed Giant'];
   for(const name of names){
    const entry=d.payload.cards.find(c=>c.name===name||c.name.split(' // ').sort().join(' // ')===name.split(' // ').sort().join(' // '));
    if(!entry)throw Error('Missing '+name);
    const card=(await d.shard(entry.shard))[entry.index],formatted=await d.formatCode(d.encode(card));
    if(!formatted.valid)throw Error(name+': '+formatted.error);
+   if(name==='Two-Headed Giant'){if((formatted.code.match(/HeadsFlipped/g)||[]).length!==2||formatted.code.includes('CoinFlipsWon'))throw Error('Coin faces became called wins');}
    const parsed=await d.parseCode(formatted.code);if(!parsed.valid)throw Error(name+': '+parsed.error);
    const again=await d.formatCode(parsed.ir);if(again.code!==formatted.code)throw Error(name+': unstable card code');
   }

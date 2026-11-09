@@ -1420950,7 +1420950,10 @@ Card(
       ActionList([
         FlipCoins(Integer(2)),
         If(
-          NumCoinFlipsWonIs(EqualTo(Integer(2))),
+          ValueIs(
+            TheNumberOfCoinsThatCameUpHeads,
+            EqualTo(Integer(2)),
+          ),
           [
             CreatePermanentLayerEffectUntil(
               ThisPermanent,
@@ -1420964,7 +1420967,10 @@ Card(
           ],
         ),
         If(
-          NumCoinFlipsWonIs(EqualTo(Integer(0))),
+          ValueIs(
+            TheNumberOfCoinsThatCameUpHeads,
+            EqualTo(Integer(0)),
+          ),
           [
             CreatePermanentLayerEffectUntil(
               ThisPermanent,
