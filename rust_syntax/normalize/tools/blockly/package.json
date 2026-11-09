@@ -9,7 +9,8 @@
     "test:targets": "node test_targets.cjs",
     "test:code": "node test_code.cjs",
     "test:sockets": "node test_sockets.cjs",
-    "test:migration": "node test_migration.cjs"
+    "test:migration": "node test_migration.cjs",
+    "test:bindings": "node test_binding_document.cjs"
   },
   "devDependencies": {
     "playwright": "1.65.0"

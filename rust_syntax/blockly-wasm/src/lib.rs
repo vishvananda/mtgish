@@ -1,54 +1,10 @@
 //! Browser entry point to the same validator used by native IR consumers.
 use mtgish_ast::{ir::UnifiedCard, validate};
-use serde::Deserialize;
 use serde_json::{json, Value};
 use wasm_bindgen::prelude::*;
 
 fn check(input: &str) -> Result<UnifiedCard, String> {
-    if input.len() > 2 * 1024 * 1024 {
-        return Err("This demo accepts IR documents up to 2 MiB.".into());
-    }
-    // Bound nesting before entering Serde so malformed pasted JSON cannot
-    // overflow the Wasm stack before the ordinary validation errors run.
-    let (mut depth, mut quoted, mut escaped) = (0usize, false, false);
-    for b in input.bytes() {
-        if quoted {
-            if escaped {
-                escaped = false;
-            } else if b == b'\\' {
-                escaped = true;
-            } else if b == b'"' {
-                quoted = false;
-            }
-        } else {
-            match b {
-                b'"' => quoted = true,
-                b'{' | b'[' => {
-                    depth += 1;
-                    if depth >= 256 {
-                        return Err("This demo accepts IR nesting up to 255 levels.".into());
-                    }
-                }
-                b'}' | b']' => depth = depth.saturating_sub(1),
-                _ => (),
-            }
-        }
-    }
-    let mut reader = serde_json::Deserializer::from_str(input);
-    reader.disable_recursion_limit();
-    let value = Value::deserialize(&mut reader).map_err(|e| e.to_string())?;
-    reader.end().map_err(|e| e.to_string())?;
-    fn bounded(v: &Value, depth: usize) -> bool {
-        depth < 256
-            && match v {
-                Value::Array(v) => v.iter().all(|v| bounded(v, depth + 1)),
-                Value::Object(v) => v.values().all(|v| bounded(v, depth + 1)),
-                _ => true,
-            }
-    }
-    if !bounded(&value, 0) {
-        return Err("This demo accepts IR nesting up to 255 levels.".into());
-    }
+    let value = mtgish_ast::json_input::value(input)?;
     let card: UnifiedCard = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
     if serde_json::to_value(&card).map_err(|e| e.to_string())? != value {
         return Err(
@@ -95,7 +51,9 @@ pub fn validate_ir(input: &str) -> String {
 #[wasm_bindgen]
 pub fn migrate_ir(input: &str) -> String {
     match mtgish_ast::migrate::read_json(input) {
-        Ok(card) => json!({"valid":true,"ir":serde_json::to_string_pretty(&card).unwrap()}).to_string(),
+        Ok(card) => {
+            json!({"valid":true,"ir":serde_json::to_string_pretty(&card).unwrap()}).to_string()
+        }
         Err(error) => json!({"valid":false,"error":error}).to_string(),
     }
 }
@@ -112,10 +70,31 @@ pub fn format_card_code(input: &str) -> String {
 /// Parse symbolic authoring code, allocate internal IDs and validate the full IR.
 #[wasm_bindgen]
 pub fn parse_card_code(input: &str) -> String {
-    match mtgish_ast::human::read(input) {
-        Ok(card) => {
-            json!({"valid":true,"ir":serde_json::to_string_pretty(&card).unwrap()}).to_string()
+    match mtgish_ast::human::document::read(input) {
+        Ok(document) => {
+            json!({"valid":true,"ir":serde_json::to_string_pretty(document.card()).unwrap(),
+                "document":serde_json::to_string(&document).unwrap()})
+            .to_string()
         }
+        Err(error) => json!({"valid":false,"error":error}).to_string(),
+    }
+}
+
+/// Inspect typed names without changing the caller's numeric compiler IDs.
+#[wasm_bindgen]
+pub fn describe_card_bindings(input: &str) -> String {
+    match check(input).and_then(|card| mtgish_ast::human::document::from_card(&card)) {
+        Ok(document) => {
+            json!({"valid":true,"document":serde_json::to_string(&document).unwrap()}).to_string()
+        }
+        Err(error) => json!({"valid":false,"error":error}).to_string(),
+    }
+}
+/// Format a persisted authoring document; its names never enter engine IR.
+#[wasm_bindgen]
+pub fn format_card_document(input: &str) -> String {
+    match mtgish_ast::human::document::Document::from_json(input).and_then(|doc| doc.write()) {
+        Ok(code) => json!({"valid":true,"code":code}).to_string(),
         Err(error) => json!({"valid":false,"error":error}).to_string(),
     }
 }
@@ -146,6 +125,33 @@ mod tests {
             let response: Value = serde_json::from_str(&parse_card_code(code)).unwrap();
             assert_eq!(response["valid"], false);
         }
+    }
+    #[test]
+    fn document_bridge_preserves_names_without_adding_them_to_ir() {
+        let code = r#"Card{name:"Names",properties:{card_types:[Instant]},abilities:[Spell{targets:[Target{name:victim,select:AnyTarget}],do:[hit=DealDamage{from:This,to:Targets(victim),amount:3}]}]}"#;
+        let parsed: Value = serde_json::from_str(&parse_card_code(code)).unwrap();
+        assert_eq!(parsed["valid"], true);
+        assert!(!parsed["ir"].as_str().unwrap().contains("victim"));
+        let formatted: Value =
+            serde_json::from_str(&format_card_document(parsed["document"].as_str().unwrap()))
+                .unwrap();
+        assert_eq!(formatted["valid"], true);
+        assert!(formatted["code"]
+            .as_str()
+            .unwrap()
+            .contains("hit = DealDamage"));
+        assert!(formatted["code"]
+            .as_str()
+            .unwrap()
+            .contains("Targets(victim)"));
+        let described: Value =
+            serde_json::from_str(&describe_card_bindings(parsed["ir"].as_str().unwrap())).unwrap();
+        assert_eq!(described["valid"], true);
+        let mut extra: Value = serde_json::from_str(parsed["document"].as_str().unwrap()).unwrap();
+        extra["card"]["unexpected"] = json!(true);
+        let rejected: Value =
+            serde_json::from_str(&format_card_document(&extra.to_string())).unwrap();
+        assert_eq!(rejected["valid"], false);
     }
     #[test]
     fn validates_native_shape_and_rejects_wrong_schema_unknown_fields_and_scope() {

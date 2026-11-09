@@ -680,6 +680,8 @@
   const workerCode = `${VALIDATOR_GLUE}\nself.onmessage=async e=>{const m=e.data;try{
     if(m.init){const stream=new Blob([Uint8Array.from(atob(m.init),c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'));wasm_bindgen.initSync({module:new Uint8Array(await new Response(stream).arrayBuffer())});self.postMessage({ready:true});}
     else if(m.batch)self.postMessage({id:m.id,batch:m.batch.map(ir=>{const r=JSON.parse(wasm_bindgen.validate_ir(ir));return {valid:r.valid,error:r.error};})});
+    else if(m.describeBindings!==undefined)self.postMessage({id:m.id,result:JSON.parse(wasm_bindgen.describe_card_bindings(m.describeBindings))});
+    else if(m.formatDocument!==undefined)self.postMessage({id:m.id,result:JSON.parse(wasm_bindgen.format_card_document(m.formatDocument))});
     else if(m.formatCode!==undefined)self.postMessage({id:m.id,result:JSON.parse(wasm_bindgen.format_card_code(m.formatCode))});
     else if(m.migrateIR!==undefined)self.postMessage({id:m.id,result:JSON.parse(wasm_bindgen.migrate_ir(m.migrateIR))});
     else if(m.parseCode!==undefined)self.postMessage({id:m.id,result:JSON.parse(wasm_bindgen.parse_card_code(m.parseCode))});
@@ -883,5 +885,5 @@
   if(!restored&&!workspace.getAllBlocks(false).length) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={workspace,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:()=>lastValid,savedWorkspace,restore,validateTexts,formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
+  window.cardBlocks={workspace,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:()=>lastValid,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

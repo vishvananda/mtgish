@@ -1,7 +1,6 @@
 //! Explicit upgrades for persisted normalized JSON. Source grammar flags are
 //! decoded only at this input boundary; current validated IR is fully typed.
 use crate::{ir::*, validate};
-use serde::Deserialize;
 use serde_json::{json, Value};
 
 const ENTRY_OPERATIONS: &[&str] = &[
@@ -67,39 +66,7 @@ fn upgrade_179(value: &mut Value, depth: usize) -> Result<(), String> {
 /// Load exact current JSON or explicitly upgrade the preceding wire contract.
 /// Unknown fields and unsupported epochs are errors, including during upgrade.
 pub fn read_json(input: &str) -> Result<UnifiedCard, String> {
-    if input.len() > 2 * 1024 * 1024 {
-        return Err("IR migration document exceeds 2 MiB".into());
-    }
-    // Bound nesting before entering Serde, matching the browser's ordinary
-    // validator. Its default 128-level guard would reject valid saved drafts.
-    let (mut depth, mut quoted, mut escaped) = (0usize, false, false);
-    for b in input.bytes() {
-        if quoted {
-            if escaped {
-                escaped = false;
-            } else if b == b'\\' {
-                escaped = true;
-            } else if b == b'"' {
-                quoted = false;
-            }
-        } else {
-            match b {
-                b'"' => quoted = true,
-                b'{' | b'[' => {
-                    depth += 1;
-                    if depth >= 256 {
-                        return Err("IR migration nesting exceeds 255 levels".into());
-                    }
-                }
-                b'}' | b']' => depth = depth.saturating_sub(1),
-                _ => (),
-            }
-        }
-    }
-    let mut reader = serde_json::Deserializer::from_str(input);
-    reader.disable_recursion_limit();
-    let mut value = Value::deserialize(&mut reader).map_err(|e| e.to_string())?;
-    reader.end().map_err(|e| e.to_string())?;
+    let mut value = crate::json_input::value(input)?;
     match value.get("schema_version").and_then(Value::as_u64) {
         Some(version) if version == u64::from(SCHEMA_VERSION) => (),
         Some(179) => {

@@ -1,6 +1,7 @@
 //! Compact, reversible card code over the normalized Rust model. This is an
 //! authoring view, not Oracle text: parsing always ends in strict IR validation.
 mod codec;
+pub mod document;
 pub mod defaults;
 pub mod names;
 mod syntax;

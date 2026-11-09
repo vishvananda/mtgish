@@ -21,6 +21,7 @@ mod movement;
 mod result_scopes;
 mod visibility;
 use movement::groups as movement_groups;
+pub(crate) use visibility::export_sites as exported_receipt_sites;
 #[cfg(test)]
 mod tests;
 

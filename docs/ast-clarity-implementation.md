@@ -11,7 +11,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Validate every nested semantic entry child in its correct scope | Scope checks implemented; typed payload constraints pending | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
 | Typed entry and copy payloads, removing backend descriptive-term decoding | Entry implemented; copy pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
-| Preserve immutable names for targets, results, loops, and selections | Pending | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
+| Preserve binding identities and names for targets, results, loops, and selections | Native document and bridge implemented; editor and structural transport pending | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
@@ -84,3 +84,75 @@ comparison. Top-card destinations now validate their player references as well
 as their typed arrivals. Migration rejects mixed face epochs, preserves the
 browser's 255-level JSON depth contract, and rejects excessive nesting before
 entering Serde. An in-flight workspace upgrade cannot replace a newer block edit.
+
+Stage 5 introduces `human::document::Document` (authoring version 1). It stores
+scoped, typed names and ID-use sites alongside the unchanged schema-180 card.
+Formatting and JSON serialization preserve explicit names, including unused
+results. Single and batch renames update all uses atomically and reject
+collisions, wrong namespaces, forged sites and references moved across scopes.
+Player and object loop bindings have separate semantic lookup roles even when
+the engine labels are identical. Parser binders activate after their inputs;
+loop starting players and selection inputs retain their outer context.
+
+The document's card is read-only. `rebind_ids` accepts a validated pure compiler
+ID renumbering and retains names; structural edits require an explicit site
+mapping. Semantic comparisons canonicalize a copy of the card, excluding names.
+The new CLI commands are `format-card-code`, `read-card-document` and
+`format-card-document`. The Wasm bridge returns the document from code parsing
+and exposes describing bindings and formatting a saved document. The existing
+editor still uses its semantic-only code flow; editor wiring is not complete.
+
+The rename cohort found a canonicalization bug on Explosion of Riches: sibling
+reflexive targets shared the same renumbering map. Created-trigger target maps
+now inherit their creator's context and restore it afterward. A second
+regression covers overlapping player/object loop labels; canonicalization now
+uses their semantic reference roles. Both fixes preserve numeric types and the
+wire contract. A schema-derived test requires a role for each Binding position.
+Nested object iterations now restore a shadowed outer binding. Each player-action
+payment part sees the pre-payment result context; move receipts publish after
+all parts, as in native validation. Quoted programs and after-event programs keep
+private result definitions. The named-document tests cover these scopes, with
+separate canonicalization regressions for shadowing and deferred receipt export.
+The all-binding audit also exposed Warrior's Blades: activation cost modifiers
+were visited before their target labels were established. Canonicalization and
+the authoring reader now visit the announcement before activation modifiers,
+matching their validated scope. Arbitrary numeric labels and the shorthand
+`Targets(recipient)` both have focused regressions.
+
+Remaining work for named authoring:
+
+- Attach a stable binding identity to each block's ID port in `extraState`.
+  Regenerate document paths from the current tree, including statement chains,
+  combined effect blocks, single-face views, options, enum wrappers and IDs
+  embedded in literal target pickers. Metadata
+  must move with its block during edits; a global path/name table would go stale.
+- Reuse the native document/bridge for validation, formatting and exports. A
+  code apply must install the returned document, and saved workspace restoration
+  must preserve names even after the model fingerprint changes.
+- Show declaration names and typed reference choices. Keep compiler ID fields
+  in IR details, and preserve explicit versus automatic result naming.
+- Preserve identities during constructor/domain rebuilds, undo/redo, copies,
+  save/import/export and fresh worker initialization. Metadata bootstrap should
+  merge into the current history entry, not add a spurious undo step.
+- Implement structural canonicalization/migration mappings before changing the
+  authoring document's semantic structure. Keep the rejection for unmapped edits;
+  the current `rebind_ids` API deliberately handles only ID changes.
+- Verify real browser edits, repeated names in independent scopes, reference
+  movement, rename collisions, persistence and the full corpus with fresh Wasm.
+
+Evidence for stage 5 is under `/mnt/vizier/ast-review-20261109/names-*`.
+
+The full native stage-5 suite passes 1,383 tests with zero failures (10 opt-in
+audits ignored), including private after-event results and target-dependent
+activation modifiers. The fresh release Wasm passes all eight browser suites, including all
+33,529 block roundtrips and validations. CLI formatting through saved document
+JSON preserves both `victim` and an explicit unused `hit`. This native milestone
+does not change the live editor's save/code flow or the deployed `/blocks` page.
+
+Final name-audit evidence: every binding in all 33,529 normalized records was
+renamed to a distinct explicit symbol, formatted, reparsed and compared by
+canonical meaning, with zero failures. The audit reports every failure before
+failing, rather than stopping at the first card. Evidence:
+`names-all-renamed-final.log`, `names-publish-native.log`, and
+`names-publish-browser-*.log`. Editor integration and structural transport remain
+open; this checkpoint does not complete the overall clarity objective.

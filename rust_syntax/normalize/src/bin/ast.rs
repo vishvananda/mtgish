@@ -19,6 +19,19 @@ fn run() -> Result<()> {
             println!("{}",serde_json::to_string_pretty(&card)?);
         }
 
+        [command,input] if command=="format-card-code" => {
+            let document=mtgish_ast::human::document::read(&std::fs::read_to_string(input)?)?;
+            print!("{}",document.write()?);
+        }
+        [command,input] if command=="read-card-document" => {
+            let document=mtgish_ast::human::document::read(&std::fs::read_to_string(input)?)?;
+            println!("{}",serde_json::to_string_pretty(&document)?);
+        }
+        [command,input] if command=="format-card-document" => {
+            let document=mtgish_ast::human::document::Document::from_json(&std::fs::read_to_string(input)?)?;
+            print!("{}",document.write()?);
+        }
+
         [command,report,source_type,output] if command=="pipeline-candidates" => {
             let report=serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(report)?))?;
             let source=std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/mtg_types.rs"))?;
@@ -190,7 +203,7 @@ fn run() -> Result<()> {
             }
             out.commit()?;
         }
-        _ => return Err("usage: ast migrate-ir <old-or-current.ir.json>\n       ast card-code <corpus.ronl> <card name>\n       ast read-card-code <card.card>\n       ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast cantrip-gaps <corpus.ronl> <survey.json> (requires --features cantrip)\n       ast cantrip-files <corpus.ronl> <oracle.json> <rows.jsonl> (requires --features cantrip)\n       ast cantrip-module <corpus.ronl> <card name>... (requires --features cantrip)\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
+        _ => return Err("usage: ast format-card-code <card.card>\n       ast read-card-document <card.card>\n       ast format-card-document <document.json>\n       ast migrate-ir <old-or-current.ir.json>\n       ast card-code <corpus.ronl> <card name>\n       ast read-card-code <card.card>\n       ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast cantrip-gaps <corpus.ronl> <survey.json> (requires --features cantrip)\n       ast cantrip-files <corpus.ronl> <oracle.json> <rows.jsonl> (requires --features cantrip)\n       ast cantrip-module <corpus.ronl> <card name>... (requires --features cantrip)\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
     }
     Ok(())
 }

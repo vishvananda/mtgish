@@ -12,6 +12,7 @@ mod complete;
 pub mod lower;
 pub mod movement;
 pub mod migrate;
+pub mod json_input;
 pub mod presentation;
 #[cfg(feature = "legacy")]
 pub mod report;

@@ -1,5 +1,7 @@
 use super::{
-    defaults, names, schema,
+    defaults,
+    document::{self, BindingKind, BindingName},
+    names, schema,
     syntax::{self, Node},
 };
 use crate::{
@@ -15,14 +17,15 @@ fn named(n: &str) -> Ty {
 fn symbol(prefix: &str, n: u64) -> Node {
     Node::Name(format!("{prefix}{n}"))
 }
-fn ident(s: &str) -> bool {
+pub(super) fn valid_binding_name(s: &str) -> bool {
     !s.is_empty()
+        && s.len() <= 128
         && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
         && !s.as_bytes()[0].is_ascii_digit()
         && !matches!(s, "true" | "false" | "None")
 }
 fn literal(s: &str) -> Node {
-    if ident(s) {
+    if valid_binding_name(s) {
         Node::Name(s.into())
     } else {
         Node::Scalar(json!(s))
@@ -78,7 +81,7 @@ fn references(t: &Ty, v: &Value, out: &mut HashSet<u32>, root: bool) {
     }
     if let Ty::Named(n) = t {
         if n == "ResultId" {
-            if let Some(id) = v.as_u64() {
+            if let Some(id) = document::id_number(v) {
                 out.insert(id as u32);
             }
             return;
@@ -125,15 +128,31 @@ fn references(t: &Ty, v: &Value, out: &mut HashSet<u32>, root: bool) {
         }
     }
 }
-struct Writer {
+struct Writer<'a> {
     reads: HashSet<u32>,
+    bindings: &'a [BindingName],
 }
-impl Writer {
+impl Writer<'_> {
+    fn binding(&self, value: &Value) -> Result<Option<&BindingName>, String> {
+        value
+            .get("binding")
+            .and_then(Value::as_u64)
+            .map(|i| {
+                self.bindings
+                    .get(i as usize)
+                    .ok_or("unknown codec binding".into())
+            })
+            .transpose()
+    }
     fn node(&self, t: &Ty, v: &Value) -> Result<Node, String> {
         if t == &named("Ability") {
             let mut reads = HashSet::new();
             references(t, v, &mut reads, true);
-            return Writer { reads }.inner(t, v);
+            return Writer {
+                reads,
+                bindings: self.bindings,
+            }
+            .inner(t, v);
         }
         self.inner(t, v)
     }
@@ -180,7 +199,11 @@ impl Writer {
                     "SelectionId" => Some("s"),
                     _ => None,
                 } {
-                    return Ok(symbol(prefix, v.as_u64().ok_or("expected ID")?));
+                    return Ok(if let Some(binding) = self.binding(v)? {
+                        Node::Name(binding.name.clone())
+                    } else {
+                        symbol(prefix, document::id_number(v).ok_or("expected ID")?)
+                    });
                 }
                 if n == "Expr" && v["kind"] == "Constant" {
                     return Ok(Node::Scalar(v["args"].clone()));
@@ -193,12 +216,20 @@ impl Writer {
                 }
                 if n == "Instruction" && v["kind"] == "Effect" {
                     let op = self.node(&named("Operation"), &v["args"]["operation"])?;
-                    let id = v["args"]["result"].as_u64().ok_or("missing result ID")?;
-                    return Ok(if self.reads.contains(&(id as u32)) {
-                        Node::Bind(format!("r{id}"), Box::new(op))
-                    } else {
-                        op
-                    });
+                    let result = &v["args"]["result"];
+                    let id = document::id_number(result).ok_or("missing result ID")?;
+                    let binding = self.binding(result)?;
+                    return Ok(
+                        if self.reads.contains(&(id as u32)) || binding.is_some_and(|b| b.explicit)
+                        {
+                            Node::Bind(
+                                binding.map_or_else(|| format!("r{id}"), |b| b.name.clone()),
+                                Box::new(op),
+                            )
+                        } else {
+                            op
+                        },
+                    );
                 }
                 if n == "PlayerRef" && v == &json!({"kind":"AbilityController"}) {
                     return Ok(Node::Name("You".into()));
@@ -300,8 +331,18 @@ impl Writer {
         })
     }
     fn target(&self, v: &Value) -> Result<Node, String> {
-        let spec: TargetSpec = serde_json::from_value(v.clone()).map_err(|e| e.to_string())?;
-        let selector = serde_json::to_value(spec.selector()?).map_err(|e| e.to_string())?;
+        let spec: TargetSpec =
+            serde_json::from_value(document::untag(v)).map_err(|e| e.to_string())?;
+        let mut selector = serde_json::to_value(spec.selector()?).map_err(|e| e.to_string())?;
+        match selector["kind"].as_str() {
+            Some("Objects") => selector["args"]["filter"] = v["filter"].clone(),
+            Some("Players") => selector["args"]["filter"] = v["players"].clone(),
+            Some("Damageable") => {
+                selector["args"]["objects"] = v["filter"].clone();
+                selector["args"]["players"] = v["players"].clone();
+            }
+            _ => (),
+        }
         let select = selector_preset(&selector)
             .map(|s| Node::Name(s.into()))
             .map(Ok)
@@ -351,9 +392,12 @@ fn raw_node(v: &Value) -> Node {
     }
 }
 pub(super) fn write(v: &Value) -> Result<String, String> {
+    write_with_bindings(v, &[])
+}
+pub(super) fn write_with_bindings(v: &Value, bindings: &[BindingName]) -> Result<String, String> {
     let mut reads = HashSet::new();
     references(&named("UnifiedCard"), v, &mut reads, true);
-    let w = Writer { reads };
+    let w = Writer { reads, bindings };
     let mut node = if v["layout"] == "Card"
         && v["data"] == json!([])
         && v["faces"].as_array().is_some_and(|a| a.len() == 1)
@@ -383,6 +427,11 @@ struct Reader {
     used: HashMap<String, HashSet<u64>>,
     anon: u32,
     nodes: usize,
+    symbols: HashMap<(String, String), usize>,
+    bindings: Vec<BindingName>,
+    scope: u32,
+    next_scope: u32,
+    binding_namespace: &'static str,
 }
 impl Reader {
     fn reserve(&mut self, n: &Node) {
@@ -418,33 +467,92 @@ impl Reader {
             _ => "s",
         };
         let name = match n {
-            Node::Name(s) => s.clone(),
-            Node::Scalar(Value::String(s)) => s.clone(),
-            Node::Scalar(Value::Number(n)) => {
-                let id = n.as_u64().ok_or("expected an unsigned binding ID")?;
-                self.used.entry(prefix.into()).or_default().insert(id);
-                return Ok(json!(id));
-            }
+            Node::Name(s) | Node::Scalar(Value::String(s)) => s.clone(),
+            Node::Scalar(Value::Number(n)) => format!(
+                "{prefix}{}",
+                n.as_u64().ok_or("expected an unsigned binding ID")?
+            ),
             _ => return Err("expected a binding name".into()),
         };
-        if let Some(n) = name
+        if !valid_binding_name(&name) {
+            return Err("a binding name must be an identifier".into());
+        }
+        let raw = name
             .strip_prefix(prefix)
-            .and_then(|s| s.parse::<u64>().ok())
-        {
-            self.used.entry(prefix.into()).or_default().insert(n);
-            return Ok(json!(n));
+            .and_then(|s| s.parse::<u64>().ok());
+        let namespace = if family == "Binding" {
+            self.binding_namespace
+        } else {
+            prefix
+        };
+        let key = (namespace.into(), name.clone());
+        let id = if let Some(id) = raw {
+            self.used.entry(prefix.into()).or_default().insert(id);
+            id
+        } else if let Some(id) = self.ids.get(&key) {
+            *id
+        } else {
+            let used = self.used.entry(prefix.into()).or_default();
+            let max = if family == "Slot" {
+                u16::MAX as u64
+            } else {
+                u32::MAX as u64
+            };
+            let id = (0..=max)
+                .find(|n| !used.contains(n))
+                .ok_or("binding IDs exhausted")?;
+            used.insert(id);
+            self.ids.insert(key.clone(), id);
+            id
+        };
+        let index = if let Some(index) = self.symbols.get(&key) {
+            *index
+        } else {
+            let index = self.bindings.len();
+            self.bindings.push(BindingName {
+                kind: BindingKind::of_type(family).ok_or("unknown binding kind")?,
+                scope: self.scope,
+                name,
+                explicit: raw.is_none(),
+            });
+            self.symbols.insert(key, index);
+            index
+        };
+        Ok(document::tagged(id, index))
+    }
+    fn declare(&mut self, family: &str, node: &Node) -> Result<Value, String> {
+        let prefix = match family {
+            "ResultId" => "r",
+            "Slot" => "t",
+            "Binding" => "b",
+            _ => "s",
+        };
+        let name = match node {
+            Node::Name(name) | Node::Scalar(Value::String(name)) => Some(name.clone()),
+            _ => None,
+        };
+        if let Some(name) = name {
+            let namespace = if family == "Binding" {
+                self.binding_namespace
+            } else {
+                prefix
+            };
+            let key = (namespace.into(), name);
+            if self
+                .symbols
+                .get(&key)
+                .is_some_and(|i| self.bindings[*i].scope != self.scope)
+            {
+                self.ids.remove(&key);
+                self.symbols.remove(&key);
+            }
         }
-        let key = (prefix.into(), name);
-        if let Some(id) = self.ids.get(&key) {
-            return Ok(json!(id));
+        let value = self.id(family, node)?;
+        let index = value["binding"].as_u64().ok_or("missing codec binding")? as usize;
+        if !matches!(node, Node::Scalar(Value::Number(_))) {
+            self.bindings[index].explicit = true;
         }
-        let used = self.used.entry(prefix.into()).or_default();
-        let id = (0..=u32::MAX as u64)
-            .find(|n| !used.contains(n))
-            .ok_or("binding IDs exhausted")?;
-        used.insert(id);
-        self.ids.insert(key, id);
-        Ok(json!(id))
+        Ok(value)
     }
     fn anonymous(&mut self) -> Result<Value, String> {
         let used = self.used.entry("r".into()).or_default();
@@ -453,24 +561,86 @@ impl Reader {
         }
         let id = self.anon;
         used.insert(id as u64);
-        Ok(json!(id))
+        let index = self.bindings.len();
+        self.bindings.push(BindingName {
+            kind: BindingKind::Result,
+            scope: self.scope,
+            name: format!("r{id}"),
+            explicit: false,
+        });
+        Ok(document::tagged(id.into(), index))
     }
     fn node(&mut self, t: &Ty, n: &Node) -> Result<Value, String> {
         let independent = t == &named("Ability");
+        let cost_scope = t == &named("CostPart") && constructor(n) == Some("PlayerAction");
         let scope = independent
+            || cost_scope
+            || t == &named("Operand") && constructor(n) == Some("Program")
+            || t == &named("EventChange") && constructor(n) == Some("Then")
             || t == &named("Mode")
             || (t == &named("Operation")
-                && matches!(constructor(n), Some("CreateTrigger" | "ReflexiveTrigger")));
-        if scope {
+                && matches!(
+                    constructor(n),
+                    Some(
+                        "CreateTrigger"
+                            | "ReflexiveTrigger"
+                            | "CreateDelayedTrigger"
+                            | "CreateReplacement"
+                    )
+                ));
+        let local_scope = (t == &named("Instruction")
+            && matches!(
+                constructor(n),
+                Some("ForEachPlayer" | "ForEachObject" | "Optional" | "Times" | "Repeatable")
+            ))
+            || t == &named("Condition") && constructor(n) == Some("ExistsPlayer")
+            || t == &named("PlayerSet") && constructor(n) == Some("Matching");
+        let selection_scope = t == &named("Operation") && constructor(n) == Some("WithSelections");
+        if scope || local_scope || selection_scope {
             let prior_targets = self.targets.clone();
             let prior_ids = self.ids.clone();
+            let prior_symbols = self.symbols.clone();
+            let prior_scope = self.scope;
+            self.next_scope += 1;
+            self.scope = self.next_scope;
             if independent {
                 self.targets.clear();
                 self.ids.clear();
+                self.symbols.clear();
+            }
+            if selection_scope {
+                self.ids.retain(|(kind, _), _| kind != "s");
+                self.symbols.retain(|(kind, _), _| kind != "s");
             }
             let result = self.inner(t, n);
             self.targets = prior_targets;
-            self.ids = prior_ids;
+            if scope {
+                self.ids = prior_ids;
+                self.symbols = prior_symbols;
+            } else {
+                let local = if local_scope { "b" } else { "s" };
+                self.ids.retain(|(kind, _), _| {
+                    if local == "b" {
+                        !kind.ends_with("_binding") && kind != "b"
+                    } else {
+                        kind != local
+                    }
+                });
+                self.symbols.retain(|(kind, _), _| {
+                    if local == "b" {
+                        !kind.ends_with("_binding") && kind != "b"
+                    } else {
+                        kind != local
+                    }
+                });
+                for (key, value) in prior_ids {
+                    self.ids.insert(key, value);
+                }
+                for (key, value) in prior_symbols {
+                    self.symbols.insert(key, value);
+                }
+            }
+            self.scope = prior_scope;
             return result;
         }
         self.inner(t, n)
@@ -547,8 +717,10 @@ impl Reader {
                     if let Node::Call(name, args) = n {
                         if name == "Targets" && args.len() == 1 {
                             let slot = self.id("Slot", &args[0])?;
-                            let id: u16 =
-                                serde_json::from_value(slot.clone()).map_err(|e| e.to_string())?;
+                            let id: u16 = document::id_number(&slot)
+                                .ok_or("expected target ID")?
+                                .try_into()
+                                .map_err(|_| "target ID exceeds u16")?;
                             return Ok(
                                 match self
                                     .targets
@@ -577,8 +749,9 @@ impl Reader {
                     };
                     let constructor = constructor(op).map(|n| names::action_wire(n));
                     if constructor.is_some_and(|n|matches!(&schema().types["Operation"],TypeDef::Enum{variants,..} if variants.iter().any(|(v,_)|v==n))){
-                        let result=if let Some(name)=binding{self.id("ResultId",&Node::Name(name.clone()))?}else{self.anonymous()?};
-                        return Ok(json!({"kind":"Effect","args":{"result":result,"operation":self.node(&named("Operation"),op)?}}));
+                        let operation=self.node(&named("Operation"),op)?;
+                        let result=if let Some(name)=binding{self.declare("ResultId",&Node::Name(name.clone()))?}else{self.anonymous()?};
+                        return Ok(json!({"kind":"Effect","args":{"result":result,"operation":operation}}));
                     }
                     if binding.is_some() {
                         return Err("only an action can bind a result".into());
@@ -610,6 +783,21 @@ impl Reader {
         }
     }
     fn fields(
+        &mut self,
+        owner: &str,
+        name: Option<&str>,
+        f: &Fields,
+        n: &Node,
+    ) -> Result<Value, String> {
+        let saved = self.binding_namespace;
+        if let Some(namespace) = crate::binding_roles::namespace(owner) {
+            self.binding_namespace = namespace;
+        }
+        let result = self.fields_inner(owner, name, f, n);
+        self.binding_namespace = saved;
+        result
+    }
+    fn fields_inner(
         &mut self,
         owner: &str,
         name: Option<&str>,
@@ -649,7 +837,36 @@ impl Reader {
                 }
                 let mut out = serde_json::Map::new();
                 let mut consumed = HashSet::new();
-                for (key, t) in fs {
+                // Inputs are evaluated before result/selection definitions. A
+                // loop binder is visible only in its body or predicate.
+                let has_binding = fs.iter().any(|(key, _)| key == "binding");
+                let mut ordered: Vec<_> = fs.iter().collect();
+                ordered.sort_by_key(|(key, _)| {
+                    if owner == "Ability::Activated" {
+                        return match key.as_str() {
+                            "announcement" => 1,
+                            "limits" => 2,
+                            "body" => 3,
+                            _ => 0,
+                        };
+                    }
+                    if owner == "Instruction::Effect" && key == "result"
+                        || owner == "SelectionStep" && key == "binding"
+                        || owner == "Mode" && key == "body"
+                    {
+                        3
+                    } else if has_binding
+                        && owner != "SelectionStep"
+                        && matches!(key.as_str(), "body" | "condition")
+                    {
+                        2
+                    } else if has_binding && owner != "SelectionStep" && key == "binding" {
+                        1
+                    } else {
+                        0
+                    }
+                });
+                for (key, t) in ordered {
                     if key == "announcement"
                         && t == &named("Announcement")
                         && values.iter().any(|(k, _)| k == "targets" || k == "modes")
@@ -678,9 +895,43 @@ impl Reader {
                     }
                     let v = if let Some((k, n)) = candidates.first() {
                         consumed.insert(k.clone());
-                        let v = self
-                            .node(t, n)
-                            .map_err(|e| format!("{owner}.{alias}: {e}"))?;
+                        let v = if (key == "binding"
+                            || owner == "Instruction::Effect" && key == "result")
+                            && matches!(t,Ty::Named(name) if BindingKind::of_type(name).is_some())
+                        {
+                            let Ty::Named(family) = t else { unreachable!() };
+                            self.declare(family, n)
+                        } else if owner == "Operation::PayCost" && key == "cost" {
+                            let prior: HashSet<_> = self.symbols.keys().cloned().collect();
+                            let parsed = self.node(t, n);
+                            if let Ok(cost) = &parsed {
+                                for part in cost["parts"].as_array().into_iter().flatten() {
+                                    let body = &part["PlayerAction"]["body"];
+                                    for (id, path) in crate::canonical::exported_receipt_sites(
+                                        &document::untag(body),
+                                        false,
+                                    ) {
+                                        let Some(binding) = body
+                                            .pointer(&path)
+                                            .and_then(|v| v.get("binding"))
+                                            .and_then(Value::as_u64)
+                                            .map(|i| i as usize)
+                                        else {
+                                            continue;
+                                        };
+                                        let key = ("r".into(), self.bindings[binding].name.clone());
+                                        if !prior.contains(&key) {
+                                            self.ids.insert(key.clone(), id);
+                                            self.symbols.insert(key, binding);
+                                        }
+                                    }
+                                }
+                            }
+                            parsed
+                        } else {
+                            self.node(t, n)
+                        }
+                        .map_err(|e| format!("{owner}.{alias}: {e}"))?;
                         if key == "preventable" && k.as_str() == "unpreventable" {
                             json!(!v.as_bool().ok_or("unpreventable must be Boolean")?)
                         } else {
@@ -707,7 +958,7 @@ impl Reader {
             return Err("expected Target record".into());
         }
         let get = |key: &str| fields.iter().find(|(k, _)| k == key).map(|(_, n)| n);
-        let slot = self.id("Slot", get("name").ok_or("target needs a name")?)?;
+        let slot = self.declare("Slot", get("name").ok_or("target needs a name")?)?;
         let select = get("select").ok_or("target needs a selector")?;
         let preset = constructor(select).and_then(|name| {
             presets()
@@ -715,20 +966,34 @@ impl Reader {
                 .find(|(n, _)| *n == name)
                 .map(|(_, s)| s)
         });
-        let selector = if let Some(p) = preset {
+        let selector_value = if let Some(p) = preset {
             if !matches!(select, Node::Name(_)) {
                 return Err("target preset takes no operands".into());
             }
-            p
+            serde_json::to_value(p).map_err(|e| e.to_string())?
         } else {
-            serde_json::from_value(self.node(&named("TargetSelector"), select)?)
-                .map_err(|e| e.to_string())?
+            self.node(&named("TargetSelector"), select)?
         };
+        let selector: TargetSelector =
+            serde_json::from_value(document::untag(&selector_value)).map_err(|e| e.to_string())?;
         let spec = selector.into_spec(Slot(
-            serde_json::from_value(slot).map_err(|e| e.to_string())?,
+            document::id_number(&slot)
+                .ok_or("expected target ID")?
+                .try_into()
+                .map_err(|_| "target ID exceeds u16")?,
         ));
         self.targets.insert(spec.slot.0, spec.kind.clone());
         let mut value = serde_json::to_value(spec).map_err(|e| e.to_string())?;
+        value["slot"] = slot;
+        match selector_value["kind"].as_str() {
+            Some("Objects") => value["filter"] = selector_value["args"]["filter"].clone(),
+            Some("Players") => value["players"] = selector_value["args"]["filter"].clone(),
+            Some("Damageable") => {
+                value["filter"] = selector_value["args"]["objects"].clone();
+                value["players"] = selector_value["args"]["players"].clone();
+            }
+            _ => (),
+        }
         let TypeDef::Struct(Fields::Named(fs)) = &schema().types["TargetSpec"] else {
             unreachable!()
         };
@@ -770,18 +1035,28 @@ fn raw_value(n: &Node) -> Result<Value, String> {
     })
 }
 pub(super) fn read(n: &Node) -> Result<Value, String> {
+    let (value, _) = read_with_bindings(n)?;
+    Ok(document::untag(&value))
+}
+pub(super) fn read_with_bindings(n: &Node) -> Result<(Value, Vec<BindingName>), String> {
     let mut reader = Reader {
         targets: HashMap::new(),
         ids: HashMap::new(),
         used: HashMap::new(),
         anon: u32::MAX,
         nodes: 0,
+        symbols: HashMap::new(),
+        bindings: Vec::new(),
+        scope: 0,
+        next_scope: 0,
+        binding_namespace: "binding",
     };
     reader.reserve(n);
-    if matches!(n,Node::Record(Some(name),_) if name=="Card") {
+    let value = if matches!(n,Node::Record(Some(name),_) if name=="Card") {
         let face = reader.node(&named("Card"), n)?;
-        Ok(json!({"schema_version":SCHEMA_VERSION,"layout":"Card","data":[],"faces":[face]}))
+        json!({"schema_version":SCHEMA_VERSION,"layout":"Card","data":[],"faces":[face]})
     } else {
-        reader.node(&named("UnifiedCard"), n)
-    }
+        reader.node(&named("UnifiedCard"), n)?
+    };
+    Ok((value, reader.bindings))
 }

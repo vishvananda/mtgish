@@ -62,8 +62,9 @@ The format is an authoring view of Rust IR, not reconstructed Oracle text. Resul
 bindings are optional: `chosen = NoteObjects {objects: One(This)}` followed by
 `NoteObjects {objects: Selected(chosen)}` names a result. Independent abilities
 have separate symbolic scopes. Only used result bindings appear when rendering;
-internal IDs are allocated when parsing. Formatting uses stable `r0`/`t0`
-names rather than preserving the spelling of input symbols. `AnyTarget`, `Creature`, `Planeswalker`
+internal IDs are allocated when parsing. The current editor's semantic-only
+formatting uses stable `r0`/`t0` names. The native authoring document API below
+preserves the spelling of input symbols; editor persistence wiring is pending. `AnyTarget`, `Creature`, `Planeswalker`
 and `Player` use Rust's typed target API. Object and player filters remain
 separate on custom damage targets. Ordinary damage is preventable; write
 `unpreventable: true` for the exception. State changes such as `tapped: false`
@@ -170,6 +171,7 @@ npm run test:targets -- /tmp/card-blocks.html
 npm run test:code -- /tmp/card-blocks.html
 npm run test:sockets -- /tmp/card-blocks.html
 npm run test:migration -- /tmp/card-blocks.html
+npm run test:bindings -- /tmp/card-blocks.html
 ```
 
 Primary Blockly documentation: [connection checks](https://docs.blockly.com/guides/create-custom-blocks/inputs/connection-checks/),
@@ -240,3 +242,42 @@ All 33,529 also pass the block codec roundtrip and real Wasm IR validation.
 Browser checks cover all 134 non-draft action starters, action search, shared
 labels, code edits, rejected typos, draft preservation, target-domain inference,
 `.card` export, 14 varied Wasm card-code roundtrips and workspace migration.
+
+## Native named authoring documents
+
+Use `human::document::read` for an editable authoring document and `write` to
+format it without losing names. The document holds a read-only semantic `card()`
+and a scoped symbol table. The binding identity is stable within that document;
+its name can change without rewriting the card's numeric IDs. `rename` and `rename_many` validate a complete rename
+transaction before committing it. `bindings()` and `uses()` expose immutable
+metadata; serializing the document saves it with its semantic card. Names are
+excluded from card equality and engine lookup. Numeric ID types stay unchanged.
+`Document::rebind_ids` transports names through a pure ID renumbering. Structural
+canonicalization requires a binding-site mapping and is still pending.
+
+```sh
+# Reformat a .card file while retaining its names:
+ast format-card-code card.card > formatted.card
+# Save and restore the complete authoring document:
+ast read-card-document card.card > document.json
+ast format-card-document document.json > restored.card
+```
+
+The Wasm parser's `document` response carries this authoring format.
+`describe_card_bindings` creates a document from exact IR without changing its
+IDs; `format_card_document` validates and formats a saved document. The demo's
+inspection API exposes these as `cardBlocks.describeBindings(irText)` and
+`cardBlocks.formatDocument(documentText)`. They are available for the editor
+integration; the ordinary code button still uses semantic-only formatting.
+
+Run `npm run test:bindings -- /tmp/card-blocks.html` to test the actual Wasm
+bridge, including renames, explicit unused results, scope identity, sibling
+reflexive targets and target-dependent activation modifiers.
+
+The opt-in native name audit assigns a distinct explicit name to every target,
+result, loop and selection in all 33,529 normalized records, then reparses each
+formatted card and compares canonical meaning:
+
+```sh
+AUTHORING_CORPUS="$PWD/__build/blockly/cards.jsonl" cargo test --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --test authoring_names all_records_support_the_authoring_document -- --ignored
+```
