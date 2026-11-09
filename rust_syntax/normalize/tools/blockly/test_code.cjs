@@ -43,6 +43,27 @@ let browser,page;
  await page.locator('#block-search').fill('damage');
  await page.waitForFunction(()=>window.cardBlocks.workspace.getFlyout().getWorkspace().getAllBlocks(false).some(b=>b.state.op==='DealDamage'));
  await page.locator('#block-search').fill('');
+ // Control instructions are discoverable through the same shared search as
+ // actions. Build a real instruction sequence from its flyout starter, keeping
+ // the existing action and receipt inside it.
+ for(const wire of ['Group','If','Optional','ChooseOne','ForEachPlayer','ForEachObject','Repeatable','Times']) {
+  await page.locator('#block-search').fill(wire);
+  await page.waitForFunction(wire=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).some(b=>b.state.ty.named==='Instruction'&&b.state.variant===wire),wire);
+ }
+ await page.locator('#block-search').fill('choose an option');
+ assert.equal(await page.evaluate(()=>{const d=window.cardBlocks,b=d.workspace.getFlyout().getWorkspace().getTopBlocks(false).find(b=>b.state.variant==='ChooseOne');return d.fromBlock(b).args.options.length;}),2);
+ await page.locator('#block-search').fill('results & receipts');
+ assert.deepEqual(await page.evaluate(()=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).map(b=>b.state.op).sort()),['BindValue','JoinResults','NoteObjects']);
+ await page.locator('#block-search').fill('sequence of instructions');
+ const receiptBefore=await page.evaluate(()=>window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.result);
+ await page.evaluate(()=>{
+  const d=window.cardBlocks,w=d.workspace,starter=w.getFlyout().getWorkspace().getTopBlocks(false).find(b=>b.state.variant==='Group'),saved=Blockly.serialization.blocks.save(starter),group=Blockly.serialization.blocks.append(saved,w),ability=w.getAllBlocks(false).find(b=>b.state.ty.named==='Ability'&&b.state.variant==='Spell'),body=ability.getInputTargetBlock('F_body');
+  body.previousConnection.disconnect();ability.getInput('F_body').connection.connect(group.previousConnection);
+  const sequence=d.parts(group.state).find(p=>p.flow);group.getInput(sequence.key).connection.connect(body.previousConnection);
+ });
+ await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].kind==='Group');
+ assert.equal(await page.evaluate(()=>window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.instructions[0].args.result),receiptBefore);
+ await page.locator('#block-search').fill('');
  // Old UI fingerprints at the same frozen IR schema migrate through the typed codec.
  await page.evaluate(()=>{const d=window.cardBlocks,s=d.savedWorkspace(),before=d.encode(d.generated());s.model='previous-ui-model';d.restore(s);if(d.encode(d.generated())!==before)throw Error('Workspace migration changed IR');});
  await page.waitForFunction(()=>window.cardBlocks.valid());
@@ -77,6 +98,6 @@ let browser,page;
  for(const code of malformed)assert.equal((await page.evaluate(code=>window.cardBlocks.parseCode(code),code)).valid,false);
  assert.deepEqual(errors,[]);
  await page.screenshot({path:process.env.BLOCKLY_SCREENSHOT||'/tmp/card-code.png',fullPage:true});
- console.log(JSON.stringify({codeEditing:true,validation:true,typedTargetReferences:true,typosRejected:true,draftPreserved:true,export:true,search:true,sharedNaming:true,savedWorkspaceMigration:true,wasmExamples,actionCount,malformedInputsRejected:malformed.length,errors},null,2));
+ console.log(JSON.stringify({codeEditing:true,validation:true,typedTargetReferences:true,typosRejected:true,draftPreserved:true,export:true,search:true,controlSearch:true,sequenceStarter:true,receiptsRetained:true,sharedNaming:true,savedWorkspaceMigration:true,wasmExamples,actionCount,malformedInputsRejected:malformed.length,errors},null,2));
  await browser.close();
 })().catch(async e=>{console.error(e);if(page){await page.screenshot({path:'/tmp/card-code-failure.png'});console.error(await page.locator('#code-status').textContent());}if(browser)await browser.close();process.exitCode=1;});

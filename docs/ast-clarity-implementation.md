@@ -15,7 +15,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | Destination-specific movement state | Pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Pending | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
-| Clear sequence, batch, iteration, and receipt boundaries | Pending | Declaration docs and discoverable authoring families; receipt and native behavior regressions |
+| Clear sequence, batch, iteration, and receipt boundaries | Implemented, verified without changing execution forms | Declaration docs and discoverable authoring families; receipt and native behavior regressions |
 | Shared schema/declaration discovery and topic modules | Implemented, verified | Visitors, codec, catalog, fingerprint and frozen contract use one source registry; no declarations lost |
 | Scratch-style literal/picker shadows in typed expression sockets | Implemented, verified | Real drag/drop replacement, simple-value restoration, undo/redo, persistence, validation and browser tests |
 | Typed known layouts with an explicit extension contract | Pending | All 18 current layouts, metadata-only records and layout errors covered |
@@ -273,12 +273,28 @@ migration plus all 33,529 block roundtrips, binding-port checks and validations.
 Typed copy exceptions and the other pending AST requirements remain open; this
 verified naming milestone does not complete the whole objective.
 
-Still open: branch-local naming and receipt resolution, typed copy exceptions,
-destination-specific state, mode/coin/
-keyword policies, Rust role/type renames and typed counter sources, batch/receipt
-documentation and discovery, and typed known layouts. The new migration-map
-contract must be applied to later schema changes; stage 7 does not complete the
-overall objective.
+Stage 9 documents instruction sequences, single-instruction ordered clauses,
+simultaneous batches, alternative scopes, loop exports, fixed repetition and
+repeatable processes at their declarations and in the IR guide. Shared native
+metadata supplies labels and discovery families for every control instruction
+as well as related operations. The Control menu now includes sequences, option
+choices, both explicit loop forms, bounded processes, local selection scopes,
+and receipt tools. Search includes instructions and their Rust documentation;
+option-choice starters supply two empty alternatives.
+
+Evidence: `control-native.log` passes 33 authoring/branch/join regressions;
+`control-contract.log` passes three registry/target/frozen-schema checks. All
+ten fresh-Wasm browser suites pass (`control-browser-*`), including actual menu
+search and inserting a sequence around an existing action without changing its
+receipt. The 33,529 records and complete wire descriptors match the preceding
+build; all records pass block roundtrips, binding-port comparison and validation.
+This stage changes documentation and authoring discovery, not execution forms.
+
+Still open: typed copy exceptions, destination-specific state, mode/coin/keyword
+policies, Rust role/type renames and typed counter sources, and typed known
+layouts. The migration-map contract must be applied to later schema changes.
+Stages 8 and 9 complete the identified naming/scope and control-discovery work,
+not the overall objective.
 
 Follow-up requested after the AST/editor clarity work: investigate and fix the
 29 confirmed reference defects cataloged in

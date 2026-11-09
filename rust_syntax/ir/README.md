@@ -48,8 +48,30 @@ Execution boundaries carry meaning:
 | `Instruction::ForEachPlayer` | Player choices in APNAP order before simultaneous actions; receipts retain player identity |
 | `Instruction::ForEachObject` | A body with an explicit object binding |
 | `Operation::WithSelections` | Lexical preparation followed by the action that supplies the result |
+| `Instruction::If` / `ChooseOne` | Independent alternative scopes; an explicit `JoinResults` can gather compatible receipts |
+| `Instruction::Optional` | Optional program with stated selection/creation/transition exports; other local results stay private |
+| `Instruction::Repeatable` | Repeat only when `RepeatProcess` is reached, gathering immediate body receipts |
+| `Instruction::Times` | A repeatable process with a total-run cap and private body receipts |
+| `Operation::Repeat` | A fixed number of executions of one action under one receipt boundary |
+| `Operation::EachPlayer` | One player-relative action under the enclosing receipt; `Acting` reads that player |
+| `Operation::PlayersDo` | A rules-defined player-action policy, including optional/any-one/otherwise choices |
 
 Preserve these boundaries when normalizing. A shared backend call does not prove
 that two forms have the same selection timing, receipt identity or replacement
 behavior. Likewise, original selected identities, observations, created objects,
 and before/after movement views have distinct meanings.
+
+A receipt identifies what happened at an instruction, not a mutable variable.
+An observation retains the observed incarnation and order. A selection denotes
+the chosen current objects; a movement receipt exposes distinct before/after
+views, and created objects have their own result kind. Neither a named binding
+nor a `Group` follows an old object through an unrelated zone change. A joined
+receipt must come from a compatible choice group; it cannot make every private
+branch result available to ordinary reads. See the individual declarations in
+`program.rs` for lexical export and execution contracts.
+
+The editor discovers instructions and action families from
+`human::editor_metadata`, backed by the same naming policy as card code. Its
+Control menu groups sequences/batches, conditions/choices, iteration/repetition,
+local selections, and results/receipts. Search includes control instructions as
+well as actions; the shared vocabulary does not collapse their distinct types.

@@ -15,11 +15,21 @@ simple value. There is no conversion menu. Keywords are small stackable
 blocks. **All actions** groups the complete operation library by purpose: cards
 and libraries, damage and life, objects and movement, counters and changes,
 choices and values, mana and casting, triggers and replacements, control flow
-and batches, and game/keyword actions. **Find an action** searches names, groups
-and Rust documentation. Action names use verbs and their objects, such as
+and batches, and game/keyword actions. **Control** groups instruction sequences,
+simultaneous actions, conditions and choices, iteration and repetition, local
+selections, and results and receipts. **Find a block** searches action and
+instruction names, families and Rust documentation. Action names use verbs and their objects, such as
 **Draw Cards**, **Move Objects**, and **Destroy Objects**. Event references say
 **Event Player** or **Event Object**; **Ability Holder** and **Granting Object**
 remain distinct from the source of an effect. **Library** opens card search without discarding the workspace.
+
+**Sequence of instructions** (`Group`) keeps a separate result for each child
+instruction. **In Order** and **Together** contain action clauses under one
+instruction/result boundary; one is ordered and the other simultaneous. The
+repeatable-process blocks run again only when **Repeat Process** is reached;
+the bounded version caps total runs. **Repeat** instead runs one action a fixed
+number of times. Tooltips describe lexical scope and receipt exports. A
+**Choose an option** starter includes two empty alternatives to fill in.
 
 Empty optional fields and default modifiers are hidden. The **⋯** menu adds them
 on demand, including targeting. **IR details** exposes bookkeeping/default fields

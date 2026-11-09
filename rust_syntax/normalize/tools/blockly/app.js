@@ -6,6 +6,7 @@
   const schema = payload.schema, authoring = schema.authoring, $ = id => document.getElementById(id);
   const clone = v => structuredClone(v), typeKey = t => JSON.stringify(t);
   const pretty = text => text.replace(/_/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2');
+  const variantLabel = (type,v) => (type==='Operation'?authoring.actions[v.wire]?.label:type==='Instruction'?authoring.instructions?.[v.wire]?.label:null) || pretty(authoring.references[type]?.[v.wire]||v.name);
   const typeName = t => t.named || (t.vec ? `List<${typeName(t.vec)}>` : t.option ? `Optional<${typeName(t.option)}>` : `(${t.tuple.map(typeName).join(', ')})`);
   const descriptor = t => t.named && types[t.named];
   const newtype = t => {const d=descriptor(t);return d?.kind==='struct' && d.fields.kind==='tuple' && d.fields.items.length===1 ? d.fields.items[0]:null;};
@@ -495,7 +496,7 @@
         else if(t.option){header.appendField(t.option.vec?.named==='ManaSymbol'?(this.state.present?'Mana cost':'No mana cost'):(this.state.present?'Value':'Not set'));if(t.option.vec?.named==='ManaSymbol')header.appendField('','COST_ZERO');header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));}
         else if(variant && !scalar(t)) {
           const vd=this.state.pr==='effect'?types.Operation:this.state.pr==='keyword'?types.Keyword:d;
-          header.appendField(new Blockly.FieldDropdown(vd.variants.map(v=>[this.state.pr==='effect'?(authoring.actions[v.wire]?.label||pretty(v.name)):(authoring.references[this.state.ty.named]?.[v.wire]?pretty(authoring.references[this.state.ty.named][v.wire]):pretty(v.name)),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
+          header.appendField(new Blockly.FieldDropdown(vd.variants.map(v=>[variantLabel(this.state.pr==='effect'?'Operation':t.named,v),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
           header.appendField('· '+t.named,'TYPE_LABEL');
         }else header.appendField(caption(this.state));
         if(header)header.appendField(new Blockly.FieldDropdown(()=>optionsFor(this),v=>{
@@ -602,7 +603,9 @@
   }
   function variantBlock(type,name) {
     const d=types[type],v=d.variants.find(v=>v.wire===name);
-    return flyoutBlock(type,packEnum(d,v,fieldsDefault(v.fields,[],`${type}::${name}`)));
+    const args=fieldsDefault(v.fields,[],`${type}::${name}`);
+    if(type==='Instruction'&&name==='ChooseOne')args.options=[{instructions:[]},{instructions:[]}];
+    return flyoutBlock(type,packEnum(d,v,args));
   }
   function actionGroups() {
     const groups=new Map();
@@ -612,6 +615,12 @@
       groups.get(category).push(flyoutBlock('Instruction',actionValue(v.wire)));
     }catch(_){}
     return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,contents])=>({kind:'category',name,colour:'#b46b4f',contents}));
+  }
+  function controlGroups() {
+    const groups=new Map(),add=(meta,block)=>{if(!groups.has(meta.category))groups.set(meta.category,[]);groups.get(meta.category).push(block);};
+    for(const v of types.Instruction.variants.filter(v=>v.wire!=='Effect'))add(authoring.instructions[v.wire],variantBlock('Instruction',v.wire));
+    for(const v of types.Operation.variants.filter(v=>!excluded(v)&&authoring.actions[v.wire].control))try{add(authoring.actions[v.wire],flyoutBlock('Instruction',actionValue(v.wire)));}catch(_){}
+    return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,contents])=>({kind:'category',name,colour:'#9b7a42',contents}));
   }
   const toolboxDefinition={kind:'categoryToolbox',contents:[
     {kind:'category',name:'Abilities',colour:'#477d70',contents:[
@@ -627,9 +636,7 @@
       flyoutBlock('Instruction',actionValue('Move',{objects:{kind:'One',args:{kind:'Source'}},destination:'Exile'}))
     ]},
     {kind:'category',name:'All actions',colour:'#b46b4f',contents:actionGroups()},
-    {kind:'category',name:'Control',colour:'#9b7a42',contents:[
-      ...['If','Optional','Repeatable','ForEachPlayer'].map(n=>variantBlock('Instruction',n))
-    ]},
+    {kind:'category',name:'Control',colour:'#9b7a42',contents:controlGroups()},
     {kind:'category',name:'Events',colour:'#508d88',contents:[
       flyoutBlock('EventSpec',choices.EventSpec[0][1]),
       flyoutBlock('EventSpec',{Turn:{point:'UpkeepBegins',players:{kind:'One',args:SELF}}})
@@ -656,12 +663,12 @@
     const q=$('block-search').value.trim().toLocaleLowerCase();
     if(!q){workspace.updateToolbox(toolboxDefinition);return;}
     const contents=[];
-    for(const v of types.Operation.variants.filter(v=>!excluded(v))) {
-      const meta=authoring.actions[v.wire];
+    for(const type of ['Instruction','Operation'])for(const v of types[type].variants.filter(v=>!excluded(v)&&(type!=='Instruction'||v.wire!=='Effect'))) {
+      const meta=(type==='Operation'?authoring.actions:authoring.instructions)[v.wire];
       if(!`${v.name} ${meta.name} ${meta.label} ${meta.category} ${v.doc}`.toLocaleLowerCase().includes(q))continue;
-      try{contents.push(flyoutBlock('Instruction',actionValue(v.wire)));}catch(_){}
+      try{contents.push(type==='Operation'?flyoutBlock('Instruction',actionValue(v.wire)):variantBlock(type,v.wire));}catch(_){}
     }
-    workspace.updateToolbox({kind:'categoryToolbox',contents:[{kind:'category',name:'Matches',colour:'#b46b4f',contents:contents.length?contents:[{kind:'label',text:'No matching actions'}]}]});
+    workspace.updateToolbox({kind:'categoryToolbox',contents:[{kind:'category',name:'Matches',colour:'#b46b4f',contents:contents.length?contents:[{kind:'label',text:'No matching blocks'}]}]});
     workspace.getToolbox().selectItemByPosition(0);
   };
 

@@ -73,16 +73,14 @@ pub fn category(wire: &str) -> &'static str {
         | "FlipCoins"
         | "CoinFlips"
         | "Clash"
-        | "NoteObjects"
-        | "BindValue"
         | "ChooseAndPay"
         | "ChooseDefender"
         | "ChoosePile"
         | "Piles"
         | "Bid"
         | "Guess"
-        | "Note"
-        | "JoinResults" => "Choices & values",
+        | "Note" => "Choices & values",
+        "NoteObjects" | "BindValue" | "JoinResults" => "Results & receipts",
         "AddMana"
         | "PayCost"
         | "PayAnyAmount"
@@ -106,10 +104,10 @@ pub fn category(wire: &str) -> &'static str {
         | "ModifyEvent"
         | "WithReflexive"
         | "DelayedUnlessPaid" => "Triggers & replacements",
-        "RepeatProcess" | "Repeat" | "Together" | "InOrder" | "PlayersDo" | "EachPlayer"
-        | "EachObject" | "EachCounterKind" | "EachNumber" | "WithSelections" | "TowardPlayer" => {
-            "Control flow & batches"
-        }
+        "Together" | "InOrder" => "Sequence & batches",
+        "RepeatProcess" | "Repeat" | "PlayersDo" | "EachPlayer" | "EachObject"
+        | "EachCounterKind" | "EachNumber" | "TowardPlayer" => "Iteration & repetition",
+        "WithSelections" => "Local selections",
         "Keyword" | "KeywordEach" | "GameEffect" | "AbandonScheme" | "BeginOnBattlefield"
         | "CreateEmblem" | "AddPhases" | "ChangeCombat" | "ReduceSpeed" | "RestartGame"
         | "Wish" | "DraftFromSpellbook" => "Game & keyword actions",
@@ -148,7 +146,31 @@ pub fn label(name: &str) -> String {
     out
 }
 pub fn action(wire: &str) -> Value {
-    json!({"name":action_name(wire),"label":label(action_name(wire)),"category":category(wire)})
+    let category = category(wire);
+    let control = matches!(
+        category,
+        "Sequence & batches" | "Iteration & repetition" | "Local selections" | "Results & receipts"
+    );
+    json!({"name":action_name(wire),"label":label(action_name(wire)),"category":category,"control":control})
+}
+/// Instruction discovery shares the action families without conflating their
+/// execution boundaries. Labels describe a constructor, not a wire rename.
+pub fn instruction(wire: &str) -> Value {
+    let (label, category) = match wire {
+        "Group" => ("Sequence of instructions", "Sequence & batches"),
+        "If" => ("If / otherwise", "Conditions & choices"),
+        "Optional" => ("Optional instructions", "Conditions & choices"),
+        "ChooseOne" => ("Choose an option", "Conditions & choices"),
+        "ForEachPlayer" => ("For each player", "Iteration & repetition"),
+        "ForEachObject" => ("For each object", "Iteration & repetition"),
+        "Repeatable" => ("Repeatable process", "Iteration & repetition"),
+        "Times" => (
+            "Repeatable process with a run limit",
+            "Iteration & repetition",
+        ),
+        _ => (wire, "Instructions"),
+    };
+    json!({"name":wire,"label":label,"category":category})
 }
 pub fn field(owner: &str, name: &str) -> String {
     match (owner, name) {

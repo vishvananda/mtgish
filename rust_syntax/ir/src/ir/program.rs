@@ -1,8 +1,10 @@
 //! Program in the normalized semantic model.
 use super::*;
 
-/// A program is a sequence of semantic instructions. The operations making
-/// up one continuous-effect instruction stay in one payload.
+/// An ordered instruction stream. Each `Effect` publishes its own typed
+/// receipt before the next instruction; `Group` nests that same stream without
+/// adding a receipt. Operations nested inside one effect do not gain independent
+/// result IDs. Keep continuous changes from one instruction in one payload.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct Program {
     pub instructions: Vec<Instruction>,
@@ -11,25 +13,36 @@ pub struct Program {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum Instruction {
+    /// One operation and its typed receipt. Record only what the operation's
+    /// result contract provides: a choice, observation, payment, created set,
+    /// movement transition, or another stated result, not a generic object list.
     Effect {
         result: ResultId,
         operation: Operation,
     },
+    /// A sequence in the current instruction/receipt scope. Child instructions
+    /// keep their own receipts; this wrapper is neither a batch nor a new result.
     Group(Program),
+    /// Execute one branch in its own cloned lexical scope. Branch-local results
+    /// do not become ordinary outer references; use `JoinResults` for an explicit
+    /// alternative receipt. Both branches can reuse a declaration spelling.
     If {
         condition: Condition,
         then: Program,
         otherwise: Program,
     },
-    Optional {
-        decider: PlayerRef,
-        body: Program,
-    },
+    /// Ask `decider` whether to run the body. Native receipt exports retain its
+    /// object selections, creations and transitions, including an empty outcome
+    /// when declined. Other local results and branch receipt groups stay private.
+    Optional { decider: PlayerRef, body: Program },
     /// Run `body`, then run it again each time it reached `RepeatProcess`.
+    /// Immediate body choices/results are gathered; private nested choice groups
+    /// do not escape. This is a repeatable process, not a fixed-count action.
     Repeatable(Program),
     /// Each player, as `binding`, does `body`: choices in APNAP order, and the
     /// actions then happen together (101.4). A choice made in `body` can be read
-    /// after the loop as a set of every player's picks.
+    /// after the loop as a set of every player's picks. The binding is local to
+    /// the body; this is not the single-action `Operation::EachPlayer` wrapper.
     ForEachPlayer {
         players: PlayerSet,
         binding: Binding,
@@ -42,6 +55,8 @@ pub enum Instruction {
     /// The decider picks one option as this resolves; no target is announced.
     /// With `offered`, the game first picks that many options at random and the
     /// decider picks among those, as Forge's `GenericChoice | NumRandomChoices$`.
+    /// Options have independent lexical scopes. Only an explicit `JoinResults`
+    /// exposes alternative receipts outside the selected option.
     ChooseOne {
         decider: PlayerRef,
         options: Vec<Program>,
@@ -49,11 +64,12 @@ pub enum Instruction {
     },
     /// Run `body`, and run it again each time it reached `RepeatProcess`, for
     /// at most this many runs in all: "repeat this process X more times".
-    Times {
-        amount: Expr,
-        body: Program,
-    },
+    /// Results remain local; unlike `Repeatable`, this form exports no receipts.
+    /// `amount` is a total-run cap, not an unconditional iteration count.
+    Times { amount: Expr, body: Program },
     /// Run `body` once for each of these objects, read as `ObjectRef::Bound`.
+    /// The binding stays local; immediate body results are gathered for later
+    /// reads. This does not turn separate child instructions into one batch.
     ForEachObject {
         objects: ObjectSet,
         binding: Binding,
@@ -393,7 +409,10 @@ pub enum Operation {
     FlipCoin {
         player: PlayerRef,
     },
-    /// One result standing for whichever of these branch results was made.
+    /// One receipt standing for whichever of these alternative branch results
+    /// was made. Operands must belong to one compatible enclosing choice group;
+    /// this does not concatenate ordinary object lists or expose arbitrary
+    /// private results. Reused numeric labels can denote several alternatives.
     JoinResults {
         results: Vec<ResultId>,
     },
@@ -659,8 +678,13 @@ pub enum Operation {
         terms: PlayTerms,
         group: Option<Box<Operand>>,
     },
-    /// These happen at once.
+    /// Simultaneous action clauses under one enclosing instruction/result
+    /// boundary. Clauses have no independent result IDs; this differs from an
+    /// instruction `Group` and from ordered clauses in `InOrder`.
     Together(Vec<Operation>),
+    /// Execute a single action `times` times under one instruction/result
+    /// boundary. This is a fixed count, unlike a repeatable instruction program
+    /// that requests another run by reaching `RepeatProcess`.
     Repeat {
         times: Expr,
         body: Box<Operation>,
@@ -723,6 +747,8 @@ pub enum Operation {
     /// Actions done by these players, or by one of them if `any_one`.
     /// `optional` lets the deciding player decline; `otherwise` follows when
     /// they did.
+    /// This rules-defined player-action policy has one enclosing receipt; it is
+    /// not the explicit bound instruction program in `ForEachPlayer`.
     PlayersDo {
         players: PlayerSet,
         any_one: bool,
@@ -871,7 +897,10 @@ pub enum Operation {
         fighters: ObjectSet,
         others: ObjectSet,
     },
-    /// Each of these players does this; inside it `PlayerRef::Acting` is that player.
+    /// Each of these players does one action; inside it `PlayerRef::Acting` is
+    /// that player. One enclosing instruction owns the result. Use
+    /// `Instruction::ForEachPlayer` for an explicitly bound instruction program
+    /// whose choices are collected before simultaneous player actions.
     EachPlayer {
         players: PlayerSet,
         action: Box<Operation>,
@@ -952,7 +981,9 @@ pub enum Operation {
         action: Box<Operation>,
     },
     /// Ordered clauses, distinct from a simultaneous Together group. Each
-    /// clause observes the state left by the preceding clause.
+    /// clause observes the state left by the preceding clause. The enclosing
+    /// effect supplies one receipt; clauses do not publish named intermediate
+    /// receipts. Use an instruction `Group` when each action needs its own result.
     InOrder(Vec<Operation>),
 }
 

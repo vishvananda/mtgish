@@ -1,8 +1,8 @@
 //! Compact, reversible card code over the normalized Rust model. This is an
 //! authoring view, not Oracle text: parsing always ends in strict IR validation.
 mod codec;
-pub mod document;
 pub mod defaults;
+pub mod document;
 pub mod names;
 mod syntax;
 use crate::{
@@ -83,6 +83,7 @@ pub fn editor_metadata() -> Value {
     let schema = schema();
     let mut values = serde_json::Map::new();
     let mut actions = serde_json::Map::new();
+    let mut instructions = serde_json::Map::new();
     let mut add = |owner: String, fields: &Fields| {
         if let Fields::Named(fields) = fields {
             let defaults: serde_json::Map<_, _> = fields
@@ -102,6 +103,8 @@ pub fn editor_metadata() -> Value {
                     add(format!("{name}::{variant}"), fields);
                     if name == "Operation" {
                         actions.insert(variant.clone(), names::action(variant));
+                    } else if name == "Instruction" && variant != "Effect" {
+                        instructions.insert(variant.clone(), names::instruction(variant));
                     }
                 }
             }
@@ -111,5 +114,5 @@ pub fn editor_metadata() -> Value {
         let spec=select.clone().into_spec(Slot(0));
         json!({"label":label,"selector":select,"fields":{"kind":spec.kind,"filter":spec.filter,"players":spec.players}})
     }).collect();
-    json!({"defaults":values,"targets":targets,"actions":actions,"references":names::references()})
+    json!({"defaults":values,"targets":targets,"actions":actions,"instructions":instructions,"references":names::references()})
 }
