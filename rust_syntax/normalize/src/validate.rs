@@ -759,8 +759,16 @@ impl<'a> Scope<'a> {
             }
             EntryState::ExiledForWith { until, objects, body } => {
                 self.duration(until)?;
-                self.objects(objects)?;
-                self.operand(body)
+                let mut returning = self.clone();
+                returning.replacement = false;
+                returning.open_searches.clear();
+                returning.join_groups.clear();
+                returning.event = crate::semantics::event_bindings(&crate::semantics::entry_return_event());
+                returning.objects(objects)?;
+                let Operand::Program(program) = &**body else {
+                    return Err("return-entry trigger requires a program".into());
+                };
+                returning.program(program)
             }
             EntryState::Attacking { player, .. } => player.iter().try_for_each(|p| self.player(p)),
             EntryState::Blocking(object) | EntryState::AttachedTo(object) => self.object(object),

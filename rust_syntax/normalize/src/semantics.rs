@@ -5530,6 +5530,16 @@ fn with_bindings(outer: &EventBindings, row: &EventBindings) -> EventBindings {
     }
 }
 
+/// A limited exile's follow-up matches each returning permanent, independently
+/// of the event that created the exile instruction.
+pub(crate) fn entry_return_event() -> EventSpec {
+    EventSpec::ZoneChange {
+        objects: ObjectFilter::Any,
+        from: Some(EventZone::Exile),
+        to: EventZone::Battlefield,
+    }
+}
+
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_) => EventBindings::default(),

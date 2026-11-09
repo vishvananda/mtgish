@@ -747,6 +747,7 @@ impl Walker {
                             || self.paying_cost && owner == "Cost" && field == "parts";
                         if let Some(frame) = created.as_ref().filter(|_| {
                             matches!(field.as_str(), "body" | "announcement" | "intervening_if")
+                                || owner == "EntryState::ExiledForWith" && field == "objects"
                         }) {
                             self.walk_created(item, ty, frame);
                         } else {

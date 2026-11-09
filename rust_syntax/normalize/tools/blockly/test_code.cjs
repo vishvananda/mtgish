@@ -79,7 +79,7 @@ let browser,page;
  });
  assert.ok(actionCount>=134);
  const wasmExamples=await page.evaluate(async()=>{
-  const d=window.cardBlocks,names=['Cloudshift',"Conjurer's Closet",'Restoration Angel','Basalt Golem','Counterspell','Llanowar Elves','Fire // Ice','Delver of Secrets // Insectile Aberration','Jace, the Mind Sculptor','The Wandering Emperor','Brainstorm','Halfdane','Rolling Hamsphere','Knowledge Pool'];
+  const d=window.cardBlocks,names=['Cloudshift',"Conjurer's Closet",'Restoration Angel','Basalt Golem','Counterspell','Llanowar Elves','Fire // Ice','Delver of Secrets // Insectile Aberration','Jace, the Mind Sculptor','The Wandering Emperor','Brainstorm','Halfdane','Rolling Hamsphere','Knowledge Pool','Lagrella, the Magpie'];
   for(const name of names){
    const entry=d.payload.cards.find(c=>c.name===name||c.name.split(' // ').sort().join(' // ')===name.split(' // ').sort().join(' // '));
    if(!entry)throw Error('Missing '+name);
@@ -105,8 +105,16 @@ let browser,page;
   const result=await page.evaluate(code=>window.cardBlocks.parseCode(code),'Card{name:"Invalid arrival",properties:{card_types:[Instant]},abilities:[Spell{do:['+operation+']}]}');
   assert.equal(result.valid,false);assert.match(result.error,error);
  }
+ // A spell can create an independent return-entry event, including its matcher.
+ const returnCode='Card{name:"Return event",properties:{card_types:[Instant]},abilities:[Spell{do:[MoveObjects{objects:One(This),destination:Exile,entry:{states:[ExiledForWith{until:EndOfTurn,objects:One(EventObject),body:Program([NoteObjects{objects:One(EventObject)}])}]}}]}]}';
+ const returned=await page.evaluate(code=>window.cardBlocks.parseCode(code),returnCode);
+ assert.equal(returned.valid,true,returned.error);
+ const returnText=await page.evaluate(text=>window.cardBlocks.formatDocument(text),returned.document);
+ assert.equal(returnText.valid,true,returnText.error);assert.equal((returnText.code.match(/EventObject/g)||[]).length,2);
+ const badReturn=await page.evaluate(code=>window.cardBlocks.parseCode(code),returnCode.replace('Program([NoteObjects{objects:One(EventObject)}])','Integer(42)'));
+ assert.equal(badReturn.valid,false);assert.match(badReturn.error,/return-entry trigger requires a program/);
  assert.deepEqual(errors,[]);
  await page.screenshot({path:process.env.BLOCKLY_SCREENSHOT||'/tmp/card-code.png',fullPage:true});
- console.log(JSON.stringify({codeEditing:true,validation:true,typedTargetReferences:true,typosRejected:true,draftPreserved:true,export:true,search:true,controlSearch:true,sequenceStarter:true,receiptsRetained:true,sharedNaming:true,savedWorkspaceMigration:true,wasmExamples,actionCount,malformedInputsRejected:malformed.length+invalidArrivals.length,errors},null,2));
+ console.log(JSON.stringify({codeEditing:true,validation:true,typedTargetReferences:true,typosRejected:true,draftPreserved:true,export:true,search:true,controlSearch:true,sequenceStarter:true,receiptsRetained:true,sharedNaming:true,savedWorkspaceMigration:true,wasmExamples,actionCount,returnEventScope:true,malformedInputsRejected:malformed.length+invalidArrivals.length+1,errors},null,2));
  await browser.close();
 })().catch(async e=>{console.error(e);if(page){await page.screenshot({path:'/tmp/card-code-failure.png'});console.error(await page.locator('#code-status').textContent());}if(browser)await browser.close();process.exitCode=1;});

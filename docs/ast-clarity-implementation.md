@@ -377,8 +377,43 @@ not make those internal payloads typed. Complete that typing with the
 zone-specific destination payload work, using explicit archived-input origin
 maps to preserve saved authoring identities. An exact 12-occurrence corpus
 inventory is in `entry-inner-payload-inventory.json`. The current destination checks are
-a boundary invariant for that migration, not a replacement for it. The next
-cohort's layout inventory is also retained as `layout-contract-inventory.json`:
+a boundary invariant for that migration, not a replacement for it. For later layout work, the inventory is also retained as `layout-contract-inventory.json`:
 18 known layouts include a zero-face sticker sheet and one-/two-face token
 definitions, plus typed metadata required for MeldPiece and Vanguard. Avoid a
 universal face-arity rule.
+
+Stage-11 publication: commits `593a3f9` and `197568b` are pushed to fork main.
+The release `20261109-197568b` is live at `/blocks`, SHA-256
+`bbbea23c1533758c3bf7d58d586cce066b0711740d0df25a76ce1b1a8f8f6d34`.
+The live file matches the tested artifact; live card-code editing, 14 real code
+examples and seven malformed-input probes pass (`arrival-live-browser-code.log`).
+
+Stage 12 fixes a semantic frame defect found by the entry audit, independently of the
+queued reference bugs. In Lagrella's `ExiledForWith`, canonicalization changed
+`EventSubject` in the return-trigger body into `Source`, using the creating
+ETB event. A spell creating the same return trigger was rejected for lacking
+an outer event. Baseline reproductions are `entry-return-{original,canonical-before}.json`
+and `entry-return-spell-probe.{json,log}` in the review directory.
+
+The fix gives both the return predicate and body a distinct
+exile-to-battlefield event frame. The duration retains its creator context;
+target/result captures remain available, local results stay private, and damage
+or other roles from the creating event are unavailable. The body must contain
+a program. Four synthetic frame regressions and a real Lagrella source/authoring
+regression pass. The full native suite passes 1,444 tests with zero failures
+(14 opt-in audits ignored). All 33,529 records pass complete canonical origin
+maps; all 82,226 definitions rename and reparse without failure. Exported records
+and wire shapes are unchanged; only field documentation changes in the catalog.
+Lagrella's existing generated capability gap is unchanged. The missing-target
+probe now puts its reference inside a proper return program and retains its
+original assertion. The transport regression also rejects substituting the
+creating source for the returning permanent despite an otherwise valid ID map.
+All eleven fresh-Wasm browser suites pass, including the spell-created return
+scope, refusal of a non-program body, 15 real card-code examples and all 33,529
+block/binding/validation checks. Evidence is in `entry-return-*` under the review
+directory. This is an internal normalizer/canonicalizer defect; the captured
+source grammar record is correct, so it does not require a reference correction
+upstream.
+Schema 181 and numeric ranges remain unchanged. This scope fix takes priority
+before the remaining inner-entry typing/destination migration; it does not
+complete the overall AST objective or the queued 29 reference fixes.

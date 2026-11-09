@@ -67,7 +67,12 @@ fn entry_payloads_cannot_hide_missing_references() {
         EntryState::ExiledForWith {
             until: Duration::EndOfTurn,
             objects: ObjectSet::One(ObjectRef::Source),
-            body: Box::new(missing_target()),
+            body: Box::new(Operand::Program(Program {
+                instructions: vec![Instruction::Effect {
+                    result: ResultId(0),
+                    operation: Operation::Reveal { objects: ObjectSet::Targets(Slot(99)) },
+                }],
+            })),
         },
     ] {
         assert!(validate::card(&moving(state))

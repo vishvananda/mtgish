@@ -151,7 +151,13 @@ pub enum EntryState {
     ExiledFor(Duration),
     ExiledForWith {
         until: Duration,
+        /// Tested as each permanent returns, under that permanent's own
+        /// battlefield-entry event rather than the creating ability's event.
         objects: ObjectSet,
+        /// A program capturing the creator's bindings. EventSubject is the
+        /// returning permanent; the creator's damage/other-event roles are
+        /// unavailable. Local results remain private to this return trigger.
+        /// The legacy operand wrapper must contain Operand::Program.
         body: Box<Operand>,
     },
     RulesUntil {
