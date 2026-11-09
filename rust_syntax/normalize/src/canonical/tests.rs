@@ -39,6 +39,14 @@ fn normalized(ability: &Ability) -> Vec<Ability> {
     serde_json::from_value(value).unwrap()
 }
 
+fn preserved_fixture(mut value: Value) -> Card {
+    // These immutable captures use the pre-180 entry representation. Upgrade
+    // that representation explicitly rather than relabeling it as current.
+    value["schema_version"] = json!(179);
+    let old = json!({"schema_version":179,"layout":"Card","data":[],"faces":[value]});
+    crate::migrate::read_json(&old.to_string()).unwrap().faces.remove(0)
+}
+
 #[test]
 fn unread_definitions_have_distinct_deterministic_ids_and_remain_valid() {
     let first = normalized(&spell(vec![draw(17), draw(42)]));
@@ -121,9 +129,8 @@ fn used_results_stay_bound_and_referenced_duplicate_definitions_stay_invalid() {
 #[test]
 fn all_selected_unsealed_gold_fixtures_validate_before_and_after_normalization() {
     let fixtures: Vec<Value> = serde_json::from_str(include_str!("fixtures.json")).unwrap();
-    for mut value in fixtures {
-        value["schema_version"] = json!(SCHEMA_VERSION);
-        let before: Card = serde_json::from_value(value).unwrap();
+    for value in fixtures {
+        let before = preserved_fixture(value);
         validate::card(&before).unwrap();
         let after = canonical::card(&before).unwrap();
         validate::card(&after).unwrap_or_else(|why| panic!("{}: {why}", before.name));

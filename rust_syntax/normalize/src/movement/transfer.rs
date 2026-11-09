@@ -21,6 +21,9 @@ pub(super) fn canonical_move(operation: &Operation) -> Operation {
     for flag in entry {
         entry_flag(flag, &mut destination, &mut arrival, &mut hidden);
     }
+    // A canonical Move's destination already carries its controller. Other
+    // creating actions retain an explicit override in their typed entry.
+    arrival.controller = None;
     if let Some(shape) = face_down {
         arrival.states.push(EntryState::FaceDownAs(shape.clone()));
     }
@@ -83,6 +86,29 @@ pub(super) fn canonical_move(operation: &Operation) -> Operation {
     }
 }
 
+pub(super) fn entry_from_source(flags: &[Operand]) -> EntrySpec {
+    let mut entry = EntrySpec::default();
+    let mut destination = Destination::OwnersBattlefield;
+    let mut hidden = false;
+    // Countered into exile with counters and a granted ability, as on Delay.
+    if let [Operand::Number(amount), kind, Operand::List(effects)] = flags {
+        if let Some(kind) = crate::semantics::counter_kind(kind) {
+            entry.counters.push((kind, amount.clone()));
+            for effect in effects {
+                entry_flag(effect, &mut destination, &mut entry, &mut hidden);
+            }
+            return entry;
+        }
+    }
+    for flag in flags {
+        entry_flag(flag, &mut destination, &mut entry, &mut hidden);
+    }
+    if hidden && !entry.states.iter().any(|state| matches!(state, EntryState::FaceDown)) {
+        entry.states.push(EntryState::FaceDown);
+    }
+    entry
+}
+
 fn descriptor(operand: &Operand) -> Option<(&str, &str, &[Operand])> {
     match operand {
         Operand::Vocabulary { family, form } => Some((family, form, &[])),
@@ -126,12 +152,15 @@ fn entry_flag(
         ("EnterFlag", "EntersTapped", []) => entry.tapped = true,
         ("EnterFlag", "EntersUnderPlayersControl", [Operand::Player(player)]) => {
             *destination = Destination::Battlefield(player.clone());
+            entry.controller = Some(EntryController::Player(player.clone()));
         }
         ("EnterFlag", "EntersUnderAPlayersControl", [Operand::Players(players)]) => {
             *destination = Destination::Battlefield(PlayerRef::OneOf(Box::new(players.clone())));
+            entry.controller = Some(EntryController::Player(PlayerRef::OneOf(Box::new(players.clone()))));
         }
         ("EnterFlag", "EntersUnderOwnersControl", []) => {
-            *destination = Destination::OwnersBattlefield
+            *destination = Destination::OwnersBattlefield;
+            entry.controller = Some(EntryController::Owner);
         }
         ("EnterFlag", "EntersAttachedToPermanent", [Operand::Object(host)]) => {
             entry.states.push(EntryState::AttachedTo(host.clone()))
@@ -164,6 +193,10 @@ fn entry_flag(
             entry.states.push(EntryState::Transformed)
         }
         ("EnterFlag", "EntersFaceDown", []) => entry.states.push(EntryState::FaceDown),
+        ("EntryState", "FaceDown", []) => entry.states.push(EntryState::FaceDown),
+        ("ExiledCardEffect", "AddAbility", [Operand::Ability(ability)]) => {
+            entry.states.push(EntryState::Changes(vec![Change::GrantAbility(ability.clone())]));
+        }
         ("EnterFlag", "EntersFlipped", []) => entry.states.push(EntryState::Flipped),
         ("EnterFlag", "EntersAttacking", []) => entry.states.push(EntryState::Attacking {
             player: None,

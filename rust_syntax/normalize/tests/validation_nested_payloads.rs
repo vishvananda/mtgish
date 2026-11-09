@@ -79,13 +79,22 @@ fn entry_payloads_cannot_hide_missing_references() {
 #[test]
 fn countering_checks_destination_and_entry_scopes() {
     for (destination, entry) in [
-        (Destination::OwnersHand, vec![missing_target()]),
+        (
+            Destination::OwnersHand,
+            EntrySpec {
+                states: vec![EntryState::RulesUntil {
+                    rules: vec![missing_target()],
+                    until: Duration::EndOfTurn,
+                }],
+                ..EntrySpec::default()
+            },
+        ),
         (
             Destination::Battlefield(PlayerRef::Target {
                 slot: Slot(99),
                 index: 0,
             }),
-            vec![],
+            EntrySpec::default(),
         ),
     ] {
         let card = spell(Operation::CounterWith {
@@ -157,13 +166,22 @@ fn validate_the_current_corpus() {
         let mut count = 0;
         for line in std::io::BufReader::new(std::fs::File::open(file).unwrap()).lines() {
             let card: UnifiedCard = serde_json::from_str(&line.unwrap()).unwrap();
-            let checked = validate::unified(&card).and_then(|_| card.faces.iter().try_for_each(validate::card));
+            let checked = validate::unified(&card)
+                .and_then(|_| card.faces.iter().try_for_each(validate::card));
             if let Err(error) = checked {
-                failures.push((card.faces.iter().map(|f| f.name.clone()).collect::<Vec<_>>(), error));
+                failures.push((
+                    card.faces
+                        .iter()
+                        .map(|f| f.name.clone())
+                        .collect::<Vec<_>>(),
+                    error,
+                ));
             }
             count += 1;
         }
-        for (names,error) in &failures { eprintln!("{names:?}: {error}"); }
+        for (names, error) in &failures {
+            eprintln!("{names:?}: {error}");
+        }
         assert_eq!(count, 33529);
         assert!(failures.is_empty(), "{} invalid records", failures.len());
         println!("All {count} records validate");

@@ -241,7 +241,7 @@ impl Compiler {
         let [Instruction::Effect { operation: Operation::Move { objects: fallback, destination: Destination::OwnersHand, face_down: false, terms, .. }, .. }] = ungroup(then).instructions.as_slice() else { return Ok(false) };
         if !terms.is_default() { return Ok(false); }
         if format!("{fallback:?}") != format!("{looked:?}") { return Ok(false); }
-        let Some((entry, _)) = lane_i::entry_of(entry, &Destination::OwnersBattlefield) else { return Ok(false) };
+        let Some((entry, _)) = lane_i::arrival_at(entry, &Destination::OwnersBattlefield) else { return Ok(false) };
         if !entry.states.is_empty() || !entry.counters.is_empty() { return Ok(false); }
         let objects = "cantrip_mechanics::top_of_library(g, asker.controller, 1)";
         let tapped = entry.tapped;

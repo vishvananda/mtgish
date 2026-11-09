@@ -90,6 +90,16 @@ pub fn validate_ir(input: &str) -> String {
     }
 }
 
+/// Explicitly upgrade a persisted normalized document, retaining strict field
+/// and scope checks. Ordinary validation never guesses an old schema.
+#[wasm_bindgen]
+pub fn migrate_ir(input: &str) -> String {
+    match mtgish_ast::migrate::read_json(input) {
+        Ok(card) => json!({"valid":true,"ir":serde_json::to_string_pretty(&card).unwrap()}).to_string(),
+        Err(error) => json!({"valid":false,"error":error}).to_string(),
+    }
+}
+
 /// Render card code using the Rust schema, shared defaults and naming policy.
 #[wasm_bindgen]
 pub fn format_card_code(input: &str) -> String {

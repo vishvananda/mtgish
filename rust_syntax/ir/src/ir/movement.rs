@@ -18,9 +18,27 @@ pub enum CardOrder {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct EntrySpec {
+    /// Overrides the action's ordinary entering controller. This is separate
+    /// from the owner of a created card and from the player making a choice.
+    #[serde(default)]
+    pub controller: Option<EntryController>,
     pub tapped: bool,
     pub counters: Vec<(crate::counter::CounterKind, Expr)>,
     pub states: Vec<EntryState>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EntryController {
+    Owner,
+    Player(PlayerRef),
+}
+
+impl EntrySpec {
+    /// The common arrival supported by a plain tapped/untapped engine call.
+    pub fn simple_tapped(&self) -> Option<bool> {
+        (self.controller.is_none() && self.counters.is_empty() && self.states.is_empty())
+            .then_some(self.tapped)
+    }
 }
 
 /// Placement terms are independent of selecting the objects that will move.

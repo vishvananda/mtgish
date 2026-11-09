@@ -1,6 +1,9 @@
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 use mtgish_ast::{canonical, corpus, ir::*, lower, mtg_types as source, validate};
 use serde_json::Value;
 fn normalized(mut v: Value) -> Value {
+    legacy_entries::json(&mut v);
     let abilities: Vec<Ability> = serde_json::from_value(v.clone()).unwrap();
     validate::abilities(&abilities).unwrap();
     canonical::abilities(&mut v).unwrap();

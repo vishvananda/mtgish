@@ -122,8 +122,9 @@ in the browser. Rebuild after changing the IR, validator or Source corpus.
 * `human` provides the reversible authoring codec and shared semantic defaults,
   action names, categories and role names. Both the card-code renderer and the
   block editor use that Rust metadata. Meaningful timing, batching and provenance
-  stay explicit. The existing schema-179 wire shape stays unchanged; card-code
-  roundtrips preserve meaning after canonicalizing local result IDs.
+  stay explicit. Schema 180 replaces the six remaining grammar entry lists with typed
+  arrival fields. Card-code roundtrips preserve meaning after canonicalizing
+  local result IDs.
 * `pack.py` embeds Blockly, English messages, Rust Wasm, the generated schema,
   the search index, compressed card data and the Apache license in one HTML
   artifact. Runtime fetches are unnecessary. Vendored Blockly is 13.1.0 from
@@ -132,10 +133,22 @@ in the browser. Rebuild after changing the IR, validator or Source corpus.
 The UI remains an IR authoring/debugging demo. Valid IR does not prove the card
 matches Oracle wording or that every operation has a Cantrip implementation.
 The browser demo limits documents to 2 MiB, IR nesting to 255 levels (card-code nesting to 128 levels) and editable
-lists to 2,048 elements. These limits do not change Rust IR numeric types or
-schema 179. Workspace saves carry a schema and model fingerprint. At the same IR schema,
+lists to 2,048 elements. These interface limits do not change engine numeric
+types. Workspace saves carry a schema and model fingerprint. At the same IR schema,
 older layouts migrate through the typed codec with their original data backed
-up locally. A different IR schema requires explicit conversion.
+up locally. Saved schema-179 workspaces and IR JSON upgrade explicitly through
+Rust to schema 180; the bundle includes the old descriptor table for decoding
+those blocks. The original workspace is backed up before conversion. A failed
+upgrade preserves the original draft and disables autosaving the fallback card
+until the user explicitly starts or imports another card. Unsupported schema
+epochs and unknown IR fields are rejected. Current card code uses typed entry
+records such as `entry: {tapped: true}` rather than grammar flag lists.
+
+For native JSON upgrades:
+
+```sh
+cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- migrate-ir old.ir.json > current.ir.json
+```
 
 ## Verification
 
@@ -156,6 +169,7 @@ npm run test:authoring -- /tmp/card-blocks.html
 npm run test:targets -- /tmp/card-blocks.html
 npm run test:code -- /tmp/card-blocks.html
 npm run test:sockets -- /tmp/card-blocks.html
+npm run test:migration -- /tmp/card-blocks.html
 ```
 
 Primary Blockly documentation: [connection checks](https://docs.blockly.com/guides/create-custom-blocks/inputs/connection-checks/),
@@ -177,9 +191,10 @@ new cards, field edits, grouped list undo/redo, incompatible socket rejection,
 JSON download, invalid result scope, workspace restoration and the maximum i64.
 No HTTP requests are made when opening the standalone file from disk.
 
-Native checks: 137 AST library tests plus the schema-export and Wasm-bridge tests
-pass (one existing opt-in AST audit ignored). The demo adds no IR enum, numeric
-range, schema version or engine behavior.
+Initial native checks passed 137 AST library tests plus the schema-export and
+Wasm-bridge tests (one opt-in AST audit ignored). That first build added no IR
+enum or engine behavior. Later schema changes are tracked in
+[the implementation record](../../../../docs/ast-clarity-implementation.md).
 
 ## Deployment
 

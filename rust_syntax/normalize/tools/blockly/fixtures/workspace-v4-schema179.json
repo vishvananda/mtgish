@@ -1,0 +1,1090 @@
+{
+  "source_commit": "c009745844a4c9c749cf5af47682753c19db012b",
+  "workspace": {
+    "format": "mtgish.blockly.workspace.v1",
+    "presentation": 4,
+    "schema": 179,
+    "model": "e7f56965109bd970",
+    "workspace": {
+      "blocks": {
+        "languageVersion": 0,
+        "blocks": [
+          {
+            "type": "ir_value",
+            "id": "1nuIMMiz(ekSa.TBnHM}",
+            "x": 40,
+            "y": 40,
+            "extraState": {
+              "ty": {
+                "named": "UnifiedCard"
+              },
+              "ui": 3,
+              "negativePrevention": true,
+              "pr": "single",
+              "inline": {}
+            },
+            "fields": {
+              "MORE": "NONE",
+              "_ROOT_schema": "179",
+              "_ROOT_layout": "Card",
+              "_F_schema_version": "179",
+              "_F_name": "Desertion"
+            },
+            "inputs": {
+              "ROOT_data": {
+                "block": {
+                  "type": "ir_value",
+                  "id": "--LWsaBL)hBxY8Qp4^F}",
+                  "extraState": {
+                    "ty": {
+                      "vec": {
+                        "named": "Field"
+                      }
+                    },
+                    "count": 0,
+                    "ui": 3,
+                    "inline": {}
+                  },
+                  "fields": {
+                    "MORE": "NONE"
+                  }
+                }
+              },
+              "F_characteristics": {
+                "block": {
+                  "type": "ir_value",
+                  "id": "mimADZ?pZc.xKK)q}0{D",
+                  "collapsed": true,
+                  "extraState": {
+                    "ty": {
+                      "named": "Characteristics"
+                    },
+                    "ui": 3,
+                    "negativePrevention": true,
+                    "inline": {}
+                  },
+                  "fields": {
+                    "MORE": "NONE"
+                  },
+                  "inputs": {
+                    "F_supertypes": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "([g|[)Vj#`5X[V9!+:2I",
+                        "extraState": {
+                          "ty": {
+                            "vec": {
+                              "named": "SuperType"
+                            }
+                          },
+                          "count": 0,
+                          "ui": 3,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_card_types": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "#!@+1K27QA9!{A0IC%zo",
+                        "extraState": {
+                          "ty": {
+                            "vec": {
+                              "named": "CardType"
+                            }
+                          },
+                          "count": 1,
+                          "ui": 3,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE",
+                          "_ITEM_0": "Instant"
+                        }
+                      }
+                    },
+                    "F_subtypes": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "_yORZc5-u|#47yW=HeuQ",
+                        "extraState": {
+                          "ty": {
+                            "vec": {
+                              "named": "SubType"
+                            }
+                          },
+                          "count": 0,
+                          "ui": 3,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_mana_cost": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "F#qM@8n^quL^1eE%E=@t",
+                        "extraState": {
+                          "ty": {
+                            "option": {
+                              "vec": {
+                                "named": "ManaSymbol"
+                              }
+                            }
+                          },
+                          "present": true,
+                          "ui": 3,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        },
+                        "inputs": {
+                          "SOME": {
+                            "block": {
+                              "type": "ir_value",
+                              "id": "b4y#_3OqU[?=x|2+2g]u",
+                              "extraState": {
+                                "ty": {
+                                  "vec": {
+                                    "named": "ManaSymbol"
+                                  }
+                                },
+                                "count": 3,
+                                "ui": 3,
+                                "inline": {}
+                              },
+                              "fields": {
+                                "MORE": "NONE"
+                              },
+                              "inputs": {
+                                "ITEM_0": {
+                                  "block": {
+                                    "type": "ir_value",
+                                    "id": "[G+Nl%C.w~M@Y/lwqo!X",
+                                    "extraState": {
+                                      "ty": {
+                                        "named": "ManaSymbol"
+                                      },
+                                      "ui": 3,
+                                      "negativePrevention": true,
+                                      "variant": "Generic",
+                                      "inline": {},
+                                      "statement": true
+                                    },
+                                    "fields": {
+                                      "VARIANT": "Generic",
+                                      "MORE": "NONE",
+                                      "_ARG_0": "3"
+                                    }
+                                  }
+                                },
+                                "ITEM_1": {
+                                  "block": {
+                                    "type": "ir_value",
+                                    "id": "6Se%BB8f(J_.1XhVBmE_",
+                                    "extraState": {
+                                      "ty": {
+                                        "named": "ManaSymbol"
+                                      },
+                                      "ui": 3,
+                                      "negativePrevention": true,
+                                      "variant": "Color",
+                                      "inline": {},
+                                      "statement": true
+                                    },
+                                    "fields": {
+                                      "VARIANT": "Color",
+                                      "MORE": "NONE",
+                                      "_ARG_0": "Blue"
+                                    }
+                                  }
+                                },
+                                "ITEM_2": {
+                                  "block": {
+                                    "type": "ir_value",
+                                    "id": "H{R/ccx.4)V!iY[r;d8Y",
+                                    "extraState": {
+                                      "ty": {
+                                        "named": "ManaSymbol"
+                                      },
+                                      "ui": 3,
+                                      "negativePrevention": true,
+                                      "variant": "Color",
+                                      "inline": {},
+                                      "statement": true
+                                    },
+                                    "fields": {
+                                      "VARIANT": "Color",
+                                      "MORE": "NONE",
+                                      "_ARG_0": "Blue"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "F_color_indicator": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "H:fhfh0#myT;r:Hzi2!:",
+                        "extraState": {
+                          "ty": {
+                            "vec": {
+                              "named": "ManaColor"
+                            }
+                          },
+                          "count": 0,
+                          "ui": 3,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_power_toughness": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "oNUZ1b3^zwNBu+DnVT.o",
+                        "extraState": {
+                          "ty": {
+                            "option": {
+                              "tuple": [
+                                {
+                                  "named": "i32"
+                                },
+                                {
+                                  "named": "i32"
+                                }
+                              ]
+                            }
+                          },
+                          "present": false,
+                          "ui": 3,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_loyalty": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "ZK$=HpNmkj9IEeHfCqM7",
+                        "extraState": {
+                          "ty": {
+                            "option": {
+                              "named": "Expr"
+                            }
+                          },
+                          "present": false,
+                          "ui": 3,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    },
+                    "F_defense": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "OIgF,#yoTODv,cOj%G@~",
+                        "extraState": {
+                          "ty": {
+                            "option": {
+                              "named": "i32"
+                            }
+                          },
+                          "present": false,
+                          "ui": 3,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "F_abilities": {
+                "block": {
+                  "type": "ir_value",
+                  "id": "4@f8ue2,|7;Q1V|Zu9}V",
+                  "extraState": {
+                    "ty": {
+                      "named": "Ability"
+                    },
+                    "ui": 3,
+                    "negativePrevention": true,
+                    "variant": "Spell",
+                    "inline": {},
+                    "statement": true
+                  },
+                  "fields": {
+                    "VARIANT": "Spell",
+                    "MORE": "NONE"
+                  },
+                  "inputs": {
+                    "F_announcement": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "@!Ccdff3Z$XLWFPSo1wW",
+                        "extraState": {
+                          "ty": {
+                            "named": "Announcement"
+                          },
+                          "ui": 3,
+                          "negativePrevention": true,
+                          "inline": {}
+                        },
+                        "fields": {
+                          "MORE": "NONE"
+                        },
+                        "inputs": {
+                          "F_targets": {
+                            "block": {
+                              "type": "ir_value",
+                              "id": "OAhthK3+1Z3UQS6s4:7/",
+                              "extraState": {
+                                "ty": {
+                                  "vec": {
+                                    "named": "TargetSpec"
+                                  }
+                                },
+                                "count": 1,
+                                "ui": 3,
+                                "inline": {}
+                              },
+                              "fields": {
+                                "MORE": "NONE"
+                              },
+                              "inputs": {
+                                "ITEM_0": {
+                                  "block": {
+                                    "type": "ir_value",
+                                    "id": ";}6EfB2]RGTTs!,yH%}/",
+                                    "extraState": {
+                                      "ty": {
+                                        "named": "TargetSpec"
+                                      },
+                                      "ui": 3,
+                                      "negativePrevention": true,
+                                      "inline": {},
+                                      "statement": true
+                                    },
+                                    "fields": {
+                                      "TARGET_PRESET": "CUSTOM",
+                                      "MORE": "NONE",
+                                      "_F_slot": "0"
+                                    },
+                                    "inputs": {
+                                      "F_kind": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "Dl~Z%K]KlG9Y~9`YInLH",
+                                          "extraState": {
+                                            "ty": {
+                                              "named": "TargetKind"
+                                            },
+                                            "ui": 3,
+                                            "negativePrevention": true,
+                                            "variant": "Object",
+                                            "inline": {}
+                                          },
+                                          "fields": {
+                                            "VARIANT": "Object",
+                                            "MORE": "NONE"
+                                          },
+                                          "inputs": {
+                                            "ARG_0": {
+                                              "block": {
+                                                "type": "ir_value",
+                                                "id": "%Z]Fl-E0}{s./ktqH)J-",
+                                                "extraState": {
+                                                  "ty": {
+                                                    "named": "ObjectDomain"
+                                                  },
+                                                  "ui": 3,
+                                                  "negativePrevention": true,
+                                                  "inline": {}
+                                                },
+                                                "fields": {
+                                                  "MORE": "NONE",
+                                                  "_F_kind": "Spell"
+                                                },
+                                                "inputs": {
+                                                  "F_zones": {
+                                                    "block": {
+                                                      "type": "ir_value",
+                                                      "id": "+1sOkK#4j.5/E)*{%=(Q",
+                                                      "extraState": {
+                                                        "ty": {
+                                                          "vec": {
+                                                            "named": "EventZone"
+                                                          }
+                                                        },
+                                                        "count": 1,
+                                                        "ui": 3,
+                                                        "inline": {}
+                                                      },
+                                                      "fields": {
+                                                        "MORE": "NONE",
+                                                        "_ITEM_0": "Stack"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "F_count": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "2R9N49t6IDp$+wlC$Nz}",
+                                          "extraState": {
+                                            "ty": {
+                                              "named": "Count"
+                                            },
+                                            "ui": 3,
+                                            "negativePrevention": true,
+                                            "variant": "Exactly",
+                                            "inline": {
+                                              "ARG_0": "constant"
+                                            }
+                                          },
+                                          "fields": {
+                                            "VARIANT": "Exactly",
+                                            "MORE": "NONE"
+                                          },
+                                          "inputs": {
+                                            "ARG_0": {
+                                              "shadow": {
+                                                "type": "ir_value",
+                                                "id": "}]gLmgMZOA0)PB9H}q`o",
+                                                "inline": true,
+                                                "extraState": {
+                                                  "ty": {
+                                                    "named": "Expr"
+                                                  },
+                                                  "ui": 3,
+                                                  "negativePrevention": true,
+                                                  "variant": "Constant",
+                                                  "pr": "literal",
+                                                  "literal": "constant",
+                                                  "inline": {
+                                                    "VALUE": "constant"
+                                                  }
+                                                },
+                                                "fields": {
+                                                  "_VALUE": "1"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "F_filter": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "Y/u#5DURR1/|G**s0B|k",
+                                          "extraState": {
+                                            "ty": {
+                                              "named": "ObjectFilter"
+                                            },
+                                            "ui": 3,
+                                            "negativePrevention": true,
+                                            "variant": "Any",
+                                            "inline": {}
+                                          },
+                                          "fields": {
+                                            "VARIANT": "Any",
+                                            "MORE": "NONE"
+                                          }
+                                        }
+                                      },
+                                      "F_players": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "`AUvU7hk7y,7HmuhY.ZA",
+                                          "extraState": {
+                                            "ty": {
+                                              "option": {
+                                                "named": "PlayerSet"
+                                              }
+                                            },
+                                            "present": false,
+                                            "ui": 3,
+                                            "inline": {}
+                                          },
+                                          "fields": {
+                                            "MORE": "NONE"
+                                          }
+                                        }
+                                      },
+                                      "F_distribute": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "PM*}|3dK%A}^kV^mS-tX",
+                                          "extraState": {
+                                            "ty": {
+                                              "option": {
+                                                "named": "Expr"
+                                              }
+                                            },
+                                            "present": false,
+                                            "ui": 3,
+                                            "inline": {}
+                                          },
+                                          "fields": {
+                                            "MORE": "NONE"
+                                          }
+                                        }
+                                      },
+                                      "F_constraints": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "0(:G)Y:l}22tPaF0Qd(N",
+                                          "extraState": {
+                                            "ty": {
+                                              "vec": {
+                                                "named": "SelectionConstraint"
+                                              }
+                                            },
+                                            "count": 0,
+                                            "ui": 3,
+                                            "inline": {}
+                                          },
+                                          "fields": {
+                                            "MORE": "NONE"
+                                          }
+                                        }
+                                      },
+                                      "F_chooser": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "!YH$tXg1$tT-R,{O)Hqv",
+                                          "extraState": {
+                                            "ty": {
+                                              "option": {
+                                                "named": "PlayerRef"
+                                              }
+                                            },
+                                            "present": false,
+                                            "ui": 3,
+                                            "inline": {}
+                                          },
+                                          "fields": {
+                                            "MORE": "NONE"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "F_modes": {
+                            "block": {
+                              "type": "ir_value",
+                              "id": "5,MAi%.-+mS.Z2MV{ql`",
+                              "extraState": {
+                                "ty": {
+                                  "option": {
+                                    "named": "ModeSelection"
+                                  }
+                                },
+                                "present": false,
+                                "ui": 3,
+                                "inline": {}
+                              },
+                              "fields": {
+                                "MORE": "NONE"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "F_body": {
+                      "block": {
+                        "type": "ir_value",
+                        "id": "Sz$n%J#~l[B+AsZ/UsCO",
+                        "inline": true,
+                        "extraState": {
+                          "ty": {
+                            "named": "Instruction"
+                          },
+                          "ui": 3,
+                          "negativePrevention": true,
+                          "variant": "Effect",
+                          "pr": "effect",
+                          "op": "CounterWith",
+                          "inline": {},
+                          "statement": true
+                        },
+                        "fields": {
+                          "VARIANT": "CounterWith",
+                          "MORE": "NONE",
+                          "_RESULT": "0"
+                        },
+                        "inputs": {
+                          "O_object": {
+                            "shadow": {
+                              "type": "ir_value",
+                              "id": "Y%(/X9ROAQO]Wz[?nlsG",
+                              "inline": true,
+                              "extraState": {
+                                "ty": {
+                                  "named": "ObjectRef"
+                                },
+                                "ui": 3,
+                                "negativePrevention": true,
+                                "variant": "Source",
+                                "pr": "literal",
+                                "literal": "choice",
+                                "inline": {
+                                  "VALUE": "choice"
+                                }
+                              },
+                              "fields": {
+                                "_VALUE": "0"
+                              }
+                            },
+                            "block": {
+                              "type": "ir_value",
+                              "id": "snO0,*0^Y.7v$LA_qsne",
+                              "extraState": {
+                                "ty": {
+                                  "named": "ObjectRef"
+                                },
+                                "ui": 3,
+                                "negativePrevention": true,
+                                "variant": "Target",
+                                "inline": {}
+                              },
+                              "fields": {
+                                "VARIANT": "Target",
+                                "MORE": "NONE",
+                                "_F_slot": "0",
+                                "_F_index": "0"
+                              }
+                            }
+                          },
+                          "O_when": {
+                            "block": {
+                              "type": "ir_value",
+                              "id": "b*KuP(UOsJiRO+,/?R9)",
+                              "extraState": {
+                                "ty": {
+                                  "option": {
+                                    "named": "ObjectFilter"
+                                  }
+                                },
+                                "present": true,
+                                "ui": 3,
+                                "inline": {}
+                              },
+                              "fields": {
+                                "MORE": "NONE"
+                              },
+                              "inputs": {
+                                "SOME": {
+                                  "block": {
+                                    "type": "ir_value",
+                                    "id": "xnx%##oNn2T/xk{uY]59",
+                                    "extraState": {
+                                      "ty": {
+                                        "named": "ObjectFilter"
+                                      },
+                                      "ui": 3,
+                                      "negativePrevention": true,
+                                      "variant": "Either",
+                                      "inline": {}
+                                    },
+                                    "fields": {
+                                      "VARIANT": "Either",
+                                      "MORE": "NONE"
+                                    },
+                                    "inputs": {
+                                      "ARG_0": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "/07nu%rotZM,ti0}i9MW",
+                                          "extraState": {
+                                            "ty": {
+                                              "vec": {
+                                                "named": "ObjectFilter"
+                                              }
+                                            },
+                                            "count": 2,
+                                            "ui": 3,
+                                            "inline": {}
+                                          },
+                                          "fields": {
+                                            "MORE": "NONE"
+                                          },
+                                          "inputs": {
+                                            "ITEM_0": {
+                                              "block": {
+                                                "type": "ir_value",
+                                                "id": "@+?Sz-(J0xpa}FXU42*N",
+                                                "extraState": {
+                                                  "ty": {
+                                                    "named": "ObjectFilter"
+                                                  },
+                                                  "ui": 3,
+                                                  "negativePrevention": true,
+                                                  "variant": "CardType",
+                                                  "inline": {},
+                                                  "statement": true
+                                                },
+                                                "fields": {
+                                                  "VARIANT": "CardType",
+                                                  "MORE": "NONE",
+                                                  "_ARG_0": "Artifact"
+                                                }
+                                              }
+                                            },
+                                            "ITEM_1": {
+                                              "block": {
+                                                "type": "ir_value",
+                                                "id": "wDiqb(Id{c08RDQeB1pJ",
+                                                "extraState": {
+                                                  "ty": {
+                                                    "named": "ObjectFilter"
+                                                  },
+                                                  "ui": 3,
+                                                  "negativePrevention": true,
+                                                  "variant": "CardType",
+                                                  "inline": {},
+                                                  "statement": true
+                                                },
+                                                "fields": {
+                                                  "VARIANT": "CardType",
+                                                  "MORE": "NONE",
+                                                  "_ARG_0": "Creature"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "O_destination": {
+                            "block": {
+                              "type": "ir_value",
+                              "id": "1r^A5VW-Pn#R?OY,G%iF",
+                              "extraState": {
+                                "ty": {
+                                  "named": "Destination"
+                                },
+                                "ui": 3,
+                                "negativePrevention": true,
+                                "variant": "Battlefield",
+                                "inline": {
+                                  "ARG_0": "choice"
+                                }
+                              },
+                              "fields": {
+                                "VARIANT": "Battlefield",
+                                "MORE": "NONE"
+                              },
+                              "inputs": {
+                                "ARG_0": {
+                                  "shadow": {
+                                    "type": "ir_value",
+                                    "id": "jDHprQQq-4/-yf8^gSv[",
+                                    "inline": true,
+                                    "extraState": {
+                                      "ty": {
+                                        "named": "PlayerRef"
+                                      },
+                                      "ui": 3,
+                                      "negativePrevention": true,
+                                      "variant": "AbilityController",
+                                      "pr": "literal",
+                                      "literal": "choice",
+                                      "inline": {
+                                        "VALUE": "choice"
+                                      }
+                                    },
+                                    "fields": {
+                                      "_VALUE": "0"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "O_entry": {
+                            "block": {
+                              "type": "ir_value",
+                              "id": "kjW:L83)_={,J(f^[-36",
+                              "extraState": {
+                                "ty": {
+                                  "vec": {
+                                    "named": "Operand"
+                                  }
+                                },
+                                "count": 1,
+                                "ui": 3,
+                                "inline": {}
+                              },
+                              "fields": {
+                                "MORE": "NONE"
+                              },
+                              "inputs": {
+                                "ITEM_0": {
+                                  "block": {
+                                    "type": "ir_value",
+                                    "id": "KmvU$7TZW)2W34rfdTiM",
+                                    "extraState": {
+                                      "ty": {
+                                        "named": "Operand"
+                                      },
+                                      "ui": 3,
+                                      "negativePrevention": true,
+                                      "variant": "Term",
+                                      "inline": {},
+                                      "statement": true
+                                    },
+                                    "fields": {
+                                      "VARIANT": "Term",
+                                      "MORE": "NONE",
+                                      "_F_family": "EnterFlag",
+                                      "_F_form": "EntersUnderPlayersControl"
+                                    },
+                                    "inputs": {
+                                      "F_operands": {
+                                        "block": {
+                                          "type": "ir_value",
+                                          "id": "#qt*U)eVtLj@+e`cgEVd",
+                                          "extraState": {
+                                            "ty": {
+                                              "vec": {
+                                                "named": "Operand"
+                                              }
+                                            },
+                                            "count": 1,
+                                            "ui": 3,
+                                            "inline": {}
+                                          },
+                                          "fields": {
+                                            "MORE": "NONE"
+                                          },
+                                          "inputs": {
+                                            "ITEM_0": {
+                                              "block": {
+                                                "type": "ir_value",
+                                                "id": "5Di{l53;rS|xq9_M[+Rn",
+                                                "extraState": {
+                                                  "ty": {
+                                                    "named": "Operand"
+                                                  },
+                                                  "ui": 3,
+                                                  "negativePrevention": true,
+                                                  "variant": "Player",
+                                                  "inline": {
+                                                    "ARG_0": "choice"
+                                                  },
+                                                  "statement": true
+                                                },
+                                                "fields": {
+                                                  "VARIANT": "Player",
+                                                  "MORE": "NONE"
+                                                },
+                                                "inputs": {
+                                                  "ARG_0": {
+                                                    "shadow": {
+                                                      "type": "ir_value",
+                                                      "id": "PqbG?K=7%`)(t}`Jvd!y",
+                                                      "inline": true,
+                                                      "extraState": {
+                                                        "ty": {
+                                                          "named": "PlayerRef"
+                                                        },
+                                                        "ui": 3,
+                                                        "negativePrevention": true,
+                                                        "variant": "AbilityController",
+                                                        "pr": "literal",
+                                                        "literal": "choice",
+                                                        "inline": {
+                                                          "VALUE": "choice"
+                                                        }
+                                                      },
+                                                      "fields": {
+                                                        "_VALUE": "0"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "ir": {
+    "schema_version": 179,
+    "layout": "Card",
+    "data": [],
+    "faces": [
+      {
+        "schema_version": 179,
+        "name": "Desertion",
+        "characteristics": {
+          "supertypes": [],
+          "card_types": [
+            "Instant"
+          ],
+          "subtypes": [],
+          "mana_cost": [
+            {
+              "Generic": 3
+            },
+            {
+              "Color": "Blue"
+            },
+            {
+              "Color": "Blue"
+            }
+          ],
+          "color_indicator": [],
+          "power_toughness": null,
+          "loyalty": null,
+          "defense": null
+        },
+        "abilities": [
+          {
+            "kind": "Spell",
+            "args": {
+              "announcement": {
+                "targets": [
+                  {
+                    "slot": 0,
+                    "kind": {
+                      "Object": {
+                        "kind": "Spell",
+                        "zones": [
+                          "Stack"
+                        ]
+                      }
+                    },
+                    "count": {
+                      "Exactly": {
+                        "kind": "Constant",
+                        "args": 1
+                      }
+                    },
+                    "filter": {
+                      "kind": "Any"
+                    },
+                    "players": null,
+                    "distribute": null,
+                    "constraints": [],
+                    "chooser": null
+                  }
+                ],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "CounterWith",
+                        "args": {
+                          "object": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          },
+                          "when": {
+                            "kind": "Either",
+                            "args": [
+                              {
+                                "kind": "CardType",
+                                "args": "Artifact"
+                              },
+                              {
+                                "kind": "CardType",
+                                "args": "Creature"
+                              }
+                            ]
+                          },
+                          "destination": {
+                            "Battlefield": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "entry": [
+                            {
+                              "kind": "Term",
+                              "args": {
+                                "family": "EnterFlag",
+                                "form": "EntersUnderPlayersControl",
+                                "operands": [
+                                  {
+                                    "kind": "Player",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

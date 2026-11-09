@@ -2415,6 +2415,7 @@ impl Compiler {
     }
     /// How something enters, as code: an `Arrival` the engine doesn't have yet.
     fn arrival_code(&mut self, entry: &EntrySpec, failed: &str) -> Result<String> {
+        if entry.controller.is_some() { return Err(gap(format!("{failed}: controller override"))); }
         let mut counters = Vec::new();
         for (kind, n) in &entry.counters {
             counters.push(format!(
@@ -3801,7 +3802,7 @@ impl Compiler {
                     }
                 };
                 let count = self.fetch(self.number(count)?.code);
-                let entry = self.stated_operands(entry);
+                let entry = self.stated_operands(&self.entry_operands(entry)?);
                 // What each player conjured, together: the instruction's result.
                 format!("{{ let mut conjured: Vec<ObjectId> = Vec::new(); for player in {actors} {{ conjured.extend({M}::conjure::conjure(g, player, {owner}, {source}, {what}, {count}, ConjureTo::Entering(EventZone::{zone:?}, {spot}, {entry}))?); }}; conjured }};")
             }

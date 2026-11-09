@@ -10,7 +10,7 @@ whole objective; an intermediate passing stage does not complete the goal.
 | --- | --- | --- |
 | Validate every nested semantic entry child in its correct scope | Scope checks implemented; typed payload constraints pending | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
-| Typed entry and copy payloads, removing backend descriptive-term decoding | Pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
+| Typed entry and copy payloads, removing backend descriptive-term decoding | Entry implemented; copy pending | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
 | Preserve immutable names for targets, results, loops, and selections | Pending | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
 | Destination-specific movement state | Pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
 | Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
@@ -58,3 +58,29 @@ interval probes. Browser, authoring, targets, code and sockets suites pass.
 Evidence: `*-fresh-wasm.log`, `sockets-browser.log` and the captured legacy fixture
 in `tools/blockly/fixtures/workspace-v3.json`. Presentation is now version 4;
 normalized schema and numeric ranges remain unchanged.
+
+Stage 4: schema 180 replaces grammar operand lists on Conjure, MoveTopCard,
+Manifest, Meld, CounterWith and Populate with EntrySpec. Grammar flag decoding
+is confined to source lowering and the explicit schema-179 JSON upgrade;
+the planned engine bridge encodes typed arrivals into its existing ABI.
+Delay retains three time counters and granted suspend. Unreviewed legacy flags
+and unknown fields fail validation. Destination-specific arrival constraints
+and typed copy exceptions remain pending.
+
+All 33,529 captured schema-179 records upgrade to exactly the schema-180 result
+of fresh source lowering. The 270 affected face outputs and existing backend
+diagnostics agree after excluding fingerprint comments. This comparison does
+not imply that every affected card has a backend implementation. All 33,529
+records roundtrip through the browser block codec and pass the real Wasm
+validator. Browser startup upgrades a real schema-179 Desertion workspace;
+failed upgrades retain the original draft, and strict IR import rejects unknown
+fields without replacing the workspace. Immutable historical fixture files
+stay unchanged; their loaders explicitly apply the entry migration. Evidence:
+`typed-entry-*` under `/mnt/vizier/ast-review-20261109/`.
+
+The final full native run passed 1,356 tests with zero failures (eight ignored).
+A focused corpus run additionally executes the ignored 33,529-record migration
+comparison. Top-card destinations now validate their player references as well
+as their typed arrivals. Migration rejects mixed face epochs, preserves the
+browser's 255-level JSON depth contract, and rejects excessive nesting before
+entering Serde. An in-flight workspace upgrade cannot replace a newer block edit.

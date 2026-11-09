@@ -1,9 +1,12 @@
+#[path = "legacy_entries.rs"]
+mod legacy_entries;
 use serde_json::{json, Value};
 
 /// Declared schema-176 migration for these earlier captured fixtures: ordinary
 /// move defaults and an unselected/unflagged zone change. Richer transfers must
 /// use the separate full migration oracle, rather than relaxing this comparison.
 pub fn movement_defaults(value: &mut Value) {
+    legacy_entries::json(value);
     if value.get("kind").and_then(Value::as_str) == Some("ChangeZone") {
         let a=&value["args"];
         let normal=a["entry"].as_array().unwrap().iter().all(|flag|*flag==json!({"kind":"Term","args":{"family":"EnterFlag","form":"EntersNormally","operands":[]}}));

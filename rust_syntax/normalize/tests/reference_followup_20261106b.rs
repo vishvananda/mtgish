@@ -1,4 +1,6 @@
 //! Independent complete expected programs supplied by the Oracle investigation.
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 use mtgish_ast::{canonical, lower, mtg_types::OracleCard, validate};
 use serde_json::Value;
 #[test]
@@ -13,6 +15,8 @@ fn new_reference_operands_match_the_complete_reviewed_programs() {
         let mut expected = case["expected"].clone();
         let mut historical = case["historical"].clone();
         let mut actual = serde_json::to_value(&card.abilities).unwrap();
+        legacy_entries::json(&mut expected);
+        legacy_entries::json(&mut historical);
         canonical::abilities(&mut expected).unwrap();
         canonical::abilities(&mut historical).unwrap();
         canonical::abilities(&mut actual).unwrap();

@@ -1001,7 +1001,7 @@ fn reduce_manifest(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Optio
         actor: actor.clone(),
         source,
         cloak,
-        entry: vec![],
+        entry: crate::movement::entry_from_source(&[]),
     })
 }
 
@@ -1340,7 +1340,7 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
                 cards: cards.clone(),
                 reveal: false,
                 destination: Destination::OwnersBattlefield,
-                entry: flags.to_vec(),
+                entry: crate::movement::entry_from_source(flags),
             }
         }
         ("RevealTopCardOfLibraryAndPutIntoHand", [Operand::Filter(cards)]) => {
@@ -1349,7 +1349,7 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
                 cards: cards.clone(),
                 reveal: true,
                 destination: Destination::OwnersHand,
-                entry: vec![],
+                entry: crate::movement::entry_from_source(&[]),
             }
         }
         ("PayAnyAmountOfMana", []) => pay(PaidResource::Mana),
@@ -1564,7 +1564,7 @@ fn reduce_conjure(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option
         zone,
         owner: owner.cloned(),
         spot,
-        entry: entry.to_vec(),
+        entry: crate::movement::entry_from_source(entry),
     })
 }
 

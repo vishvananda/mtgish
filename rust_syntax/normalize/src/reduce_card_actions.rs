@@ -57,7 +57,7 @@ fn reduce_card_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                 zone: EventZone::Battlefield,
                 owner: None,
                 spot: None,
-                entry: entry.clone(),
+                entry: crate::movement::entry_from_source(entry),
             }),
         },
         (

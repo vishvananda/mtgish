@@ -713,6 +713,7 @@ impl<'a> Scope<'a> {
     }
 
     fn entry(&self, entry: &EntrySpec) -> Result {
+        if let Some(EntryController::Player(player)) = &entry.controller { self.player(player)?; }
         for (_, amount) in &entry.counters {
             self.count(&Count::Exactly(amount.clone()))?;
         }
@@ -2753,7 +2754,7 @@ impl<'a> Scope<'a> {
 
             Operation::Meld { objects, entry, .. } => {
                 self.objects(objects)?;
-                entry.iter().try_for_each(|flag| self.operand(flag))
+                self.entry(entry)
             }
             Operation::PutStickers {
                 actor,
@@ -2865,11 +2866,11 @@ impl<'a> Scope<'a> {
                 self.object(object)?;
                 when.iter().try_for_each(|f| self.filter(f))?;
                 self.destination(destination)?;
-                entry.iter().try_for_each(|flag| self.operand(flag))
+                self.entry(entry)
             }
             Operation::Populate { actor, entry } => {
                 self.players(actor)?;
-                entry.iter().try_for_each(|flag| self.operand(flag))
+                self.entry(entry)
             }
             Operation::ReduceSpeed {
                 player,
@@ -2981,12 +2982,14 @@ impl<'a> Scope<'a> {
             Operation::MoveTopCard {
                 actor,
                 cards,
+                destination,
                 entry,
                 ..
             } => {
                 self.players(actor)?;
                 self.filter(cards)?;
-                entry.iter().try_for_each(|o| self.operand(o))
+                self.destination(destination)?;
+                self.entry(entry)
             }
             Operation::PayAnyAmount { actor, .. } => self.players(actor),
             Operation::RevealFromHand {
@@ -3254,7 +3257,7 @@ impl<'a> Scope<'a> {
             }
             Operation::Manifest { actor, source, entry, .. } => {
                 self.players(actor)?;
-                entry.iter().try_for_each(|flag| self.operand(flag))?;
+                self.entry(entry)?;
                 match source {
                     ManifestSource::TopOfLibrary { player, count } => {
                         self.player(player)?;
@@ -3350,7 +3353,7 @@ impl<'a> Scope<'a> {
                 if let Some(ConjureSpot::AmongTop(n) | ConjureSpot::FromTop(n)) = spot {
                     self.expr(n)?;
                 }
-                entry.iter().try_for_each(|o| self.operand(o))
+                self.entry(entry)
             }
             Operation::ChangeSpell { subject, changes } => {
                 match subject {
@@ -3572,6 +3575,9 @@ impl<'a> Scope<'a> {
                 face_down,
                 terms,
             } => {
+                if entry.controller.is_some() {
+                    return Err("a move's controller belongs to its destination".into());
+                }
                 self.objects(objects)?;
                 self.destination(destination)?;
                 self.selection_constraints(&terms.qualifiers)?;

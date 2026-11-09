@@ -79,7 +79,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                 zone: Z::Battlefield,
                 owner: None,
                 spot: None,
-                entry: entry.clone(),
+                entry: crate::movement::entry_from_source(entry),
             }),
         },
         (
@@ -334,11 +334,11 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             actor: actor.clone(),
             source: ManifestSource::Cards(cards.clone()),
             cloak: true,
-            entry: entry.clone(),
+            entry: crate::movement::entry_from_source(entry),
         },
         ("PopulateWithFlags", entry) => Operation::Populate {
             actor: actor.clone(),
-            entry: entry.to_vec(),
+            entry: crate::movement::entry_from_source(entry),
         },
         ("ReducePlayersSpeedToNoLessThan", [Player(player), Number(amount), Number(floor)]) => {
             Operation::ReduceSpeed {
@@ -352,7 +352,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                 object: object.clone(),
                 when: Some(when.clone()),
                 destination: D::Battlefield(you()),
-                entry: entry.clone(),
+                entry: crate::movement::entry_from_source(entry),
             }
         }
         (
@@ -362,7 +362,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             object: object.clone(),
             when: None,
             destination: D::Exile,
-            entry: vec![amount.clone(), kind.clone(), effects.clone()],
+            entry: crate::movement::entry_from_source(&[amount.clone(), kind.clone(), effects.clone()]),
         },
         ("PutCountersWithRestriction", [List(actions), Term { form, operands: limit, .. }])
             if form == "CantCauseTheNumberOfCountersOfTypeOnPermanentToBeGreaterThan" =>
@@ -902,13 +902,13 @@ fn tail_inspection_step(
             actor: actor.clone(),
             source: ManifestSource::Cards(picked(Count::Exactly(Expr::Constant(1)))),
             cloak: false,
-            entry: vec![],
+            entry: crate::movement::entry_from_source(&[]),
         },
         ("CloakNumberGenericCards", [Number(count)]) => Operation::Manifest {
             actor: actor.clone(),
             source: ManifestSource::Cards(picked(Count::Exactly(count.clone()))),
             cloak: true,
-            entry: vec![],
+            entry: crate::movement::entry_from_source(&[]),
         },
         ("ConjureADuplicateOfCardOntoTheBattlefield", [Object(card), List(entry)]) => {
             Operation::Conjure {
@@ -918,7 +918,7 @@ fn tail_inspection_step(
                 zone: EventZone::Battlefield,
                 owner: None,
                 spot: None,
-                entry: entry.clone(),
+                entry: crate::movement::entry_from_source(entry),
             }
         }
         ("PutRemainingCardsOnTheTopOrBottomOfLibraryInAnyOrder", []) => {

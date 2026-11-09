@@ -2438,7 +2438,7 @@ impl Compiler {
             }
             Operation::Populate { actor, entry } => {
                 let player = self.one_actor(actor, &feature)?;
-                let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
+                let entry: Vec<String> = self.entry_operands(entry)?.iter().map(|o| self.operand_code(o)).collect();
                 self.plan_code(
                     &feature,
                     &format!(
@@ -2752,7 +2752,7 @@ impl Compiler {
                     }
                     None => "None".to_string(),
                 };
-                let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
+                let entry: Vec<String> = self.entry_operands(entry)?.iter().map(|o| self.operand_code(o)).collect();
                 // "Onto the battlefield under your control": the player is the
                 // destination's, as a move's is.
                 let destination = self.destination_code(destination)?;

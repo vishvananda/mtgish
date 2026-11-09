@@ -1,3 +1,5 @@
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 #[path = "support/generated_locals.rs"]
 mod generated_locals;
 use mtgish_ast::{
@@ -290,7 +292,7 @@ fn complete_captured_old_records_keep_all_operands_except_reviewed_domain_correc
     let old = include_str!("fixtures/movement_selections_before.ronl").lines();
     let source = include_str!("fixtures/movement_selections.ronl").lines();
     for (before, line) in old.zip(source) {
-        let mut expected: UnifiedCard = ron::from_str(before).unwrap();
+        let mut expected: UnifiedCard = legacy_entries::ron(before);
         expected.schema_version = SCHEMA_VERSION;
         for f in &mut expected.faces {
             f.schema_version = SCHEMA_VERSION;
@@ -600,6 +602,7 @@ fn player_gathering_uses_prepared_pool_ownership_and_retains_choice_views() {
 fn player_local_entry_values_remain_a_batching_gap_instead_of_leaking_the_binding() {
     let who = PlayerSet::One(PlayerRef::Bound(Binding(0)));
     let entry = EntrySpec {
+        controller: None,
         tapped: false,
         states: vec![],
         counters: vec![(

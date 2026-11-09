@@ -3321,7 +3321,7 @@ impl Compiler {
                 self.operand_code(cards)
             ),
         };
-        let tapped = conjured_tapped(entry).ok_or_else(|| gap("operation Conjure"))?;
+        let tapped = entry.simple_tapped().ok_or_else(|| gap("operation Conjure"))?;
         let place = |c: &Self, n: &Expr| -> Result<String> {
             Ok(c.fetch(c.number(n)?.amount(u32::MAX.into(), "usize")?))
         };
@@ -3402,7 +3402,7 @@ impl Compiler {
         else {
             return Err(gap("operation Manifest"));
         };
-        let tapped = conjured_tapped(entry).ok_or_else(|| gap("operation Manifest"))?;
+        let tapped = entry.simple_tapped().ok_or_else(|| gap("operation Manifest"))?;
         let how = if *cloak {
             "FaceDown::Cloaked"
         } else {
@@ -3473,7 +3473,7 @@ impl Compiler {
             return Err(gap("operation MoveTopCard"));
         };
         let (entry, destination) =
-            entry_of(entry, destination).ok_or_else(|| gap("operation MoveTopCard"))?;
+            arrival_at(entry, destination).ok_or_else(|| gap("operation MoveTopCard"))?;
         let filter = self.filter(cards, &Candidate::of("id"))?;
         writeln!(out, "let player_{id} = {}; let top_{id} = cantrip_mechanics::top_of_library(g, player_{id}, 1);", self.fetch(self.certain_player(player)?)).unwrap();
         if *reveal {
@@ -3987,59 +3987,15 @@ pub(super) fn plain_play(op: &Operation) -> Option<Operation> {
     })
 }
 
-/// A move's flags as a move's entry and destination.
-pub(super) fn entry_of(operands: &[Operand], destination: &Destination) -> Option<(EntrySpec, Destination)> {
-    fn read(
-        operands: &[Operand],
-        entry: &mut EntrySpec,
-        destination: &mut Destination,
-    ) -> Option<()> {
-        for operand in operands {
-            match operand {
-                Operand::List(flags) => read(flags, entry, destination)?,
-                Operand::Term { form, operands, .. } => {
-                    match (form.as_str(), operands.as_slice()) {
-                        ("EntersNormally", []) => {}
-                        ("EntersTapped", []) => entry.tapped = true,
-                        ("EntersUnderPlayersControl", [Operand::Player(player)]) => {
-                            if !matches!(destination, Destination::OwnersBattlefield) {
-                                return None;
-                            }
-                            *destination = Destination::Battlefield(player.clone());
-                        }
-                        ("EntersAttachedToPermanent", [Operand::Object(host)]) => {
-                            entry.states.push(EntryState::AttachedTo(host.clone()))
-                        }
-                        _ => return None,
-                    }
-                }
-                _ => return None,
-            }
-        }
-        Some(())
-    }
-    let mut entry = EntrySpec {
-        tapped: false,
-        counters: Vec::new(),
-        states: Vec::new(),
+/// Resolve a typed controller override alongside an action's destination.
+pub(super) fn arrival_at(entry: &EntrySpec, destination: &Destination) -> Option<(EntrySpec, Destination)> {
+    let mut entry = entry.clone();
+    let destination = match entry.controller.take() {
+        Some(EntryController::Owner) => Destination::OwnersBattlefield,
+        Some(EntryController::Player(player)) => Destination::Battlefield(player),
+        None => destination.clone(),
     };
-    let mut destination = destination.clone();
-    read(operands, &mut entry, &mut destination)?;
     Some((entry, destination))
-}
-
-/// Whether a conjured permanent enters tapped, if that is all its entry says.
-fn conjured_tapped(entry: &[Operand]) -> Option<bool> {
-    let mut tapped = false;
-    for operand in entry {
-        match operand {
-            Operand::List(flags) => tapped |= conjured_tapped(flags)?,
-            Operand::Term { form, .. } if form == "EntersNormally" => {}
-            Operand::Term { form, .. } if form == "EntersTapped" => tapped = true,
-            _ => return None,
-        }
-    }
-    Some(tapped)
 }
 
 fn same_kind(a: ViewKind, b: ViewKind) -> bool {

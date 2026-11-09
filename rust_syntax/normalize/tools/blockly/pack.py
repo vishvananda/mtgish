@@ -42,6 +42,11 @@ def main():
     catalog.sort(key=lambda c: c['name'].casefold())
     payload = {'schema': schema, 'record_count': count, 'cards': catalog, 'shards': shards, 'wasm': compressed(wasm),
                'model': hashlib.sha256(json.dumps(schema, sort_keys=True).encode() + wasm).hexdigest()[:16]}
+    payload['legacy_models'] = {}
+    for legacy_path in sorted((source / 'fixtures').glob('schema-*.json')):
+        legacy = json.loads(legacy_path.read_text())
+        if legacy['version'] < schema['version']:
+            payload['legacy_models'][str(legacy['version'])] = legacy
     core = (source / 'vendor/blockly_compressed.js').read_text()
     messages = (source / 'vendor/msg/en.js').read_text()
     replacements = {

@@ -2,7 +2,8 @@
 'use strict';
 (async () => {
   const payload = JSON.parse(document.getElementById('demo-payload').textContent);
-  const schema = payload.schema, types = schema.types, authoring = schema.authoring, $ = id => document.getElementById(id);
+  let types=payload.schema.types;
+  const schema = payload.schema, authoring = schema.authoring, $ = id => document.getElementById(id);
   const clone = v => structuredClone(v), typeKey = t => JSON.stringify(t);
   const pretty = text => text.replace(/_/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2');
   const typeName = t => t.named || (t.vec ? `List<${typeName(t.vec)}>` : t.option ? `Optional<${typeName(t.option)}>` : `(${t.tuple.map(typeName).join(', ')})`);
@@ -285,7 +286,7 @@
   }
   const icon = s => 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><rect x="1" y="1" width="20" height="20" rx="5" fill="white" fill-opacity=".22"/><text x="11" y="16" text-anchor="middle" fill="white" font-size="19">${s}</text></svg>`);
   function button(symbol,label,fn) { return new Blockly.FieldImage(icon(symbol),22,22,label,fn); }
-  let workspace, suppress=false, revision=0, timer, lastValid=null, lastSubmittedIR=null, workerReady=false;
+  let workspace, suppress=false, revision=0, timer, lastValid=null, lastSubmittedIR=null, workerReady=false, preserveSavedDraft=false;
   let history=[],historyIndex=-1;
   let detailMode=false,codeDirty=false,codeIR=null,lastHuman=null;
   function scalarType(p){return p.inline==='pt'?{named:'i32'}:p.inline==='constant'?{named:'i64'}:p.inline==='choice'?{named:'String'}:scalar(p.ty)?p.ty:null;}
@@ -680,24 +681,28 @@
     if(m.init){const stream=new Blob([Uint8Array.from(atob(m.init),c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'));wasm_bindgen.initSync({module:new Uint8Array(await new Response(stream).arrayBuffer())});self.postMessage({ready:true});}
     else if(m.batch)self.postMessage({id:m.id,batch:m.batch.map(ir=>{const r=JSON.parse(wasm_bindgen.validate_ir(ir));return {valid:r.valid,error:r.error};})});
     else if(m.formatCode!==undefined)self.postMessage({id:m.id,result:JSON.parse(wasm_bindgen.format_card_code(m.formatCode))});
+    else if(m.migrateIR!==undefined)self.postMessage({id:m.id,result:JSON.parse(wasm_bindgen.migrate_ir(m.migrateIR))});
     else if(m.parseCode!==undefined)self.postMessage({id:m.id,result:JSON.parse(wasm_bindgen.parse_card_code(m.parseCode))});
     else self.postMessage({id:m.id,result:JSON.parse(wasm_bindgen.validate_ir(m.ir))});
   }catch(e){self.postMessage({id:m.id,error:String(e)});}};`;
+  let startedResolve,startedReject;
+  const workerStarted=new Promise((resolve,reject)=>{startedResolve=resolve;startedReject=reject;});workerStarted.catch(()=>{});
   const worker=new Worker(URL.createObjectURL(new Blob([workerCode],{type:'application/javascript'})));
   const requests=new Map();let nextRequest=-1;
   function validateTexts(batch){return new Promise((resolve,reject)=>{const id=nextRequest--;requests.set(id,{resolve,reject});worker.postMessage({id,batch});});}
   worker.onmessage=e=>{
     if(requests.has(e.data.id)){const p=requests.get(e.data.id);requests.delete(e.data.id);e.data.error?p.reject(Error(e.data.error)):p.resolve(e.data.batch??e.data.result);return;}
-    if(e.data.ready){workerReady=true; changed(); return;}
+    if(e.data.ready){workerReady=true;startedResolve();changed();return;}
+    if(!workerReady&&e.data.error&&e.data.id===undefined){startedReject(Error(e.data.error));invalid(e.data.error);return;}
     if(e.data.id!==revision) return;
     const r=e.data.result;
     if(e.data.error || !r.valid) { invalid(e.data.error||r.error); return; }
     lastValid=r.ir;if($('dump-format').value==='human')refreshCode().catch(e=>{$('code-status').textContent=e.message;}); $('export').disabled=false; $('validation').className='badge valid'; $('validation').textContent='✓ Valid Rust IR';
     $('validation-detail').textContent=`Schema ${r.schema} · ${r.faces} face${r.faces===1?'':'s'} · checked in this browser with WebAssembly`;
   };
-  worker.onerror=e=>{invalid('The WebAssembly worker stopped: '+e.message);for(const p of requests.values())p.reject(Error(e.message));requests.clear();};
+  worker.onerror=e=>{startedReject(Error(e.message));invalid('The WebAssembly worker stopped: '+e.message);for(const p of requests.values())p.reject(Error(e.message));requests.clear();};
   worker.postMessage({init:payload.wasm});
-  function codeRequest(kind,text){return new Promise((resolve,reject)=>{const id=nextRequest--;requests.set(id,{resolve,reject});worker.postMessage({id,[kind]:text});});}
+  async function codeRequest(kind,text){await workerStarted;return new Promise((resolve,reject)=>{const id=nextRequest--;requests.set(id,{resolve,reject});worker.postMessage({id,[kind]:text});});}
   async function refreshCode(){
     if(!lastValid||codeDirty)return;
     const ir=lastValid;
@@ -718,7 +723,7 @@
       const r=await codeRequest('parseCode',text);
       if(text!==$('human-editor').value||revision!==start){notice('Workspace or code changed while checking; apply again.');return;}
       if(!r.valid){$('code-status').textContent=r.error;return;}
-      codeDirty=false;codeIR=null;loadIR(parseExact(r.ir));notice('Applied validated card code');
+      preserveSavedDraft=false;codeDirty=false;codeIR=null;loadIR(parseExact(r.ir));notice('Applied validated card code');
     }catch(e){$('code-status').textContent=e.message;}
   };
   $('export-code').onclick=async()=>{
@@ -753,7 +758,7 @@
         const value=generated(),ir=encode(value); $('ir').textContent=dump(value);
         $('card-title').textContent=value.faces.map(f=>f.name).join(' // ')||'New card';
         $('workspace-meta').textContent=`Saved locally${detailMode?' · schema '+schema.version:''} · drag blocks from the left to build`;
-        try {localStorage.setItem('mtgish.blockly.v1',JSON.stringify(savedWorkspace()));}catch(_){$('workspace-meta').textContent+=' · local save unavailable';}
+        try {if(!preserveSavedDraft)localStorage.setItem('mtgish.blockly.v1',JSON.stringify(savedWorkspace()));else $('workspace-meta').textContent='Original draft preserved · current workspace is not autosaved';}catch(_){$('workspace-meta').textContent+=' · local save unavailable';}
         if(workerReady) {lastSubmittedIR=ir;worker.postMessage({id:revision,ir});}
       } catch(e) { $('ir').textContent=''; invalid(e.message); }
     },120);
@@ -777,12 +782,32 @@
     install({blocks:{languageVersion:0,blocks:[{...block,x:40,y:40}]}});
   }
   function savedWorkspace() { return {format:'mtgish.blockly.workspace.v1',presentation:4,schema:schema.version,model:payload.model,workspace:Blockly.serialization.workspaces.save(workspace)}; }
-  function restore(value) {
-    if(value.schema!==schema.version) throw Error('This workspace was saved against a different Rust model. Import its IR instead.');
+  function decodeWorkspace(value,model=schema) {
     const nodes=value.workspace?.blocks?.blocks;
-    if(nodes?.length===1 && (value.presentation!==4||value.model!==payload.model)) {
+    if(nodes?.length!==1)throw Error('Keep exactly one complete card record before migration.');
+    // Decoding is synchronous and uses fake blocks only. Restore the editor's
+    // current descriptor table before loading or rendering any real blocks.
+    const current=types;
+    try {
+      types=model.types;
       const fake=s=>({type:s.type,state:s.extraState,isEnabled:()=>!s.disabled&&!s.disabledReasons?.length,getFieldValue:n=>s.fields?.[n],getInputTargetBlock:n=>{const child=s.inputs?.[n]?.block||s.inputs?.[n]?.shadow;return child?fake(child):null;},getNextBlock:()=>s.next?.block?fake(s.next.block):null});
-      try {const ir=fromBlock(fake(nodes[0]));localStorage.setItem('mtgish.blockly.before-authoring-v3',JSON.stringify(value));loadIR(ir);return;}catch(_){}
+      return fromBlock(fake(nodes[0]));
+    }finally{types=current;}
+  }
+  async function migrateWorkspace(value) {
+    const sequence=loadSequence,before=JSON.stringify(Blockly.serialization.workspaces.save(workspace));
+    localStorage.setItem('mtgish.blockly.before-schema-upgrade',JSON.stringify(value));
+    const legacy=payload.legacy_models[String(value.schema)];
+    if(!legacy)throw Error('Unsupported saved-workspace schema '+value.schema);
+    const ir=decodeWorkspace(value,legacy),r=await codeRequest('migrateIR',encode(ir));
+    if(!r.valid)throw Error(r.error);
+    if(sequence!==loadSequence||before!==JSON.stringify(Blockly.serialization.workspaces.save(workspace)))throw Error('The workspace changed while upgrading.');
+    loadIR(parseExact(r.ir));preserveSavedDraft=false;
+  }
+  function restore(value) {
+    if(value.schema!==schema.version)throw Error('This workspace requires a schema upgrade; use Import.');
+    if(value.workspace?.blocks?.blocks?.length===1 && (value.presentation!==4||value.model!==payload.model)) {
+      try {const ir=decodeWorkspace(value);localStorage.setItem('mtgish.blockly.before-authoring-v4',JSON.stringify(value));loadIR(ir);return;}catch(_){}
     }
     install(value.workspace);
   }
@@ -810,7 +835,7 @@
     const shown=q ? [...matches].sort((a,b)=>(a.name.toLocaleLowerCase()===q?-1:b.name.toLocaleLowerCase()===q?1:0)).slice(0,50) : favourites.map(n=>payload.cards.find(c=>c.name===n)).filter(Boolean);
     $('card-count').textContent=q ? `${matches.length.toLocaleString()} matches · showing ${shown.length}`:`${payload.cards.length.toLocaleString()} card records · try a favourite`;
     $('card-results').replaceChildren(...shown.map(c=>{
-      const b=document.createElement('button');b.className='result';const title=document.createElement('strong');title.textContent=c.name;const small=document.createElement('small');small.textContent=c.types||'Card';b.append(title,small);b.onclick=()=>loadCard(c);return b;
+      const b=document.createElement('button');b.className='result';const title=document.createElement('strong');title.textContent=c.name;const small=document.createElement('small');small.textContent=c.types||'Card';b.append(title,small);b.onclick=()=>{preserveSavedDraft=false;loadCard(c);};return b;
     }));
   }
   function blank(draw=false) {
@@ -836,7 +861,7 @@
   $('code-view').onclick=()=>openInspector($('studio').classList.contains('hide-inspector'));
   $('details').onclick=()=>{detailMode=!detailMode;$('details').setAttribute('aria-pressed',String(detailMode));applyPresentation();workspace.render();openInspector(detailMode);};
   setMode('blocks');
-  $('new-card').onclick=()=>{++loadSequence;const kind=$('starter').value,v=blank(kind!=='creature');if(kind==='spell'){v.faces[0].abilities=[];v.faces[0].name='New spell';}loadIR(v,false);};
+  $('new-card').onclick=()=>{preserveSavedDraft=false;++loadSequence;const kind=$('starter').value,v=blank(kind!=='creature');if(kind==='spell'){v.faces[0].abilities=[];v.faces[0].name='New spell';}loadIR(v,false);};
   $('fit').onclick=()=>workspace.zoomToFit();$('zoom-in').onclick=()=>workspace.zoomCenter(1);$('zoom-out').onclick=()=>workspace.zoomCenter(-1);
   $('undo').onclick=()=>workspace.undo(false);$('redo').onclick=()=>workspace.undo(true);
   $('expand').onclick=()=>{workspace.getAllBlocks(false).forEach(b=>b.setCollapsed(false));workspace.zoomToFit();};
@@ -850,13 +875,13 @@
   $('save-workspace').onclick=()=>download('card.workspace.json',JSON.stringify(savedWorkspace(),null,2));
   $('import').onclick=()=>$('file').click();$('file').onchange=async()=>{
     const f=$('file').files[0];if(!f)return;const seq=++loadSequence;
-    try {const text=await f.text();let value;if(text.trimStart().startsWith('{'))value=parseExact(text);else{const r=await codeRequest('parseCode',text);if(!r.valid)throw Error(r.error);value=parseExact(r.ir);}if(seq!==loadSequence)return;if(value.format==='mtgish.blockly.workspace.v1')restore(value);else loadIR(value);notice('Imported '+f.name);}catch(e){notice('Import failed: '+e.message);}finally{$('file').value='';}
+    try {const text=await f.text();let value;if(text.trimStart().startsWith('{'))value=parseExact(text);else{const r=await codeRequest('parseCode',text);if(!r.valid)throw Error(r.error);value=parseExact(r.ir);}if(seq!==loadSequence)return;if(value.format==='mtgish.blockly.workspace.v1'){if(value.schema===schema.version){restore(value);preserveSavedDraft=false;}else await migrateWorkspace(value);}else {const r=await codeRequest('migrateIR',encode(value));if(seq!==loadSequence)return;if(!r.valid)throw Error(r.error);preserveSavedDraft=false;loadIR(parseExact(r.ir));}notice('Imported '+f.name);}catch(e){notice('Import failed: '+e.message);}finally{$('file').value='';}
   };
   searchCards();
   let restored=false;
-  try {const saved=JSON.parse(localStorage.getItem('mtgish.blockly.v1'));if(saved){restore(saved);restored=true;}}catch(_){}
-  if(!restored) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
+  try {const saved=JSON.parse(localStorage.getItem('mtgish.blockly.v1'));if(saved){if(saved.schema===schema.version)restore(saved);else await migrateWorkspace(saved);restored=true;}}catch(e){preserveSavedDraft=true;notice('Saved draft could not be upgraded; the original save is preserved. '+e.message);}
+  if(!restored&&!workspace.getAllBlocks(false).length) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={workspace,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:()=>lastValid,savedWorkspace,restore,validateTexts,formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text)};
+  window.cardBlocks={workspace,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:()=>lastValid,savedWorkspace,restore,validateTexts,formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

@@ -4,6 +4,13 @@ use crate::{
     visit::{VisitorMut, WalkMut},
 };
 mod transfer;
+
+/// Grammar entry flags end here. Validated operations carry only `EntrySpec`.
+/// Unknown source material remains an unreviewed primitive instead of being
+/// discarded or accepted as a complete typed arrival.
+pub fn entry_from_source(flags: &[Operand]) -> EntrySpec {
+    transfer::entry_from_source(flags)
+}
 pub fn normalize_card(mut card: Card) -> Card {
     card.walk_mut(&mut Normalize);
     card

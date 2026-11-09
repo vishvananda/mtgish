@@ -44,7 +44,7 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             zone,
             owner: owner.cloned(),
             spot,
-            entry: entry.to_vec(),
+            entry: crate::movement::entry_from_source(entry),
         }
     };
     let simple =
@@ -281,7 +281,7 @@ fn reduce_more_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             Operation::Meld {
                 objects: objects.clone(),
                 into: into.clone(),
-                entry: entry.to_vec(),
+                entry: crate::movement::entry_from_source(entry),
             }
         }
         ("CastCopiedCardWithoutPaying", []) => cast(earlier(EarlierObjects::CopiedSpell), one()),

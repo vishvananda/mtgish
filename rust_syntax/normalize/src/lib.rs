@@ -10,6 +10,7 @@ mod complete;
 #[cfg(feature = "legacy")]
 pub mod lower;
 pub mod movement;
+pub mod migrate;
 pub mod presentation;
 #[cfg(feature = "legacy")]
 pub mod report;

@@ -432,7 +432,7 @@ pub enum Operation {
         owner: Option<PlayerRef>,
         /// Where in a library. None is a random position.
         spot: Option<ConjureSpot>,
-        entry: Vec<Operand>,
+        entry: EntrySpec,
     },
     /// Choose values under explicit cardinality and terms. Reads go through
     /// `ObjectFilter::Chosen`, `Change::ChosenType` or `Expr::ChosenNumber`.
@@ -469,7 +469,7 @@ pub enum Operation {
         cards: ObjectFilter,
         reveal: bool,
         destination: Destination,
-        entry: Vec<Operand>,
+        entry: EntrySpec,
     },
     /// Pay as much of this as `actor` chooses, for later "that much".
     PayAnyAmount {
@@ -534,7 +534,7 @@ pub enum Operation {
         actor: PlayerSet,
         source: ManifestSource,
         cloak: bool,
-        entry: Vec<Operand>,
+        entry: EntrySpec,
     },
     AbandonScheme {
         actor: PlayerSet,
@@ -773,7 +773,7 @@ pub enum Operation {
     Meld {
         objects: ObjectSet,
         into: String,
-        entry: Vec<Operand>,
+        entry: EntrySpec,
     },
     PutStickers {
         actor: PlayerSet,
@@ -883,11 +883,11 @@ pub enum Operation {
         object: ObjectRef,
         when: Option<ObjectFilter>,
         destination: Destination,
-        entry: Vec<Operand>,
+        entry: EntrySpec,
     },
     Populate {
         actor: PlayerSet,
-        entry: Vec<Operand>,
+        entry: EntrySpec,
     },
     ReduceSpeed {
         player: PlayerRef,

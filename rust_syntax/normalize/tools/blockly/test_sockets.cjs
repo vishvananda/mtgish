@@ -75,12 +75,13 @@ let browser,page;
  await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.op==='Draw').getInputTargetBlock('O_players').dispose(false));
  await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.operation.args.players.kind==='One');
  const old=require('./fixtures/workspace-v3.json');
- const migrated=await page.evaluate(old=>{
-  const d=window.cardBlocks;d.restore(old.workspace);
+ const migrated=await page.evaluate(async old=>{
+  const d=window.cardBlocks;if(old.workspace.schema===d.schema.version)d.restore(old.workspace);else await d.migrateWorkspace(old.workspace);
   return {ir:d.generated(),presentation:d.savedWorkspace().presentation,
    shadow:d.workspace.getAllBlocks(false).find(b=>b.state.op==='Draw').getInputTargetBlock('O_amount').isShadow()};
  },old);
- assert.deepEqual(migrated.ir,old.ir);assert.equal(migrated.presentation,4);assert.equal(migrated.shadow,true);
+ const upgraded=await page.evaluate(ir=>window.cardBlocks.migrateIR(window.cardBlocks.encode(ir)),old.ir);
+ assert.equal(upgraded.valid,true);assert.deepEqual(migrated.ir,JSON.parse(upgraded.ir));assert.equal(migrated.presentation,4);assert.equal(migrated.shadow,true);
  await page.waitForFunction(()=>window.cardBlocks.valid());
  assert.deepEqual(errors,[]);
  await page.screenshot({path:process.env.BLOCKLY_SCREENSHOT||'/tmp/typed-sockets.png',fullPage:true});

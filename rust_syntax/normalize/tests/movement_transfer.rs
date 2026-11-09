@@ -1,3 +1,5 @@
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 use mtgish_ast::{
     ir::*,
     movement,
@@ -113,7 +115,7 @@ fn graveyard_moves_use_the_zone_verb_only_for_proven_nonpermanents() {
 #[test]
 fn draft_forms_decode_old_captures_but_cannot_reach_validated_records() {
     for line in include_str!("fixtures/movement_transfer_before.ronl").lines() {
-        let mut old:UnifiedCard=ron::from_str(line).unwrap();
+        let mut old:UnifiedCard=legacy_entries::ron(line);
         old.schema_version=SCHEMA_VERSION;
         for face in &mut old.faces {face.schema_version=SCHEMA_VERSION;}
         assert!(old.faces.iter().any(|face|validate::card(face).is_err()));

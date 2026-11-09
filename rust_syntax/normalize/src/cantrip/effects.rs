@@ -182,8 +182,8 @@ fn arrives_attacking_from_hand<'a>(player: &PlayerRef, cost: &'a Cost) -> Option
     };
     let same = format!("{owner:?}") == format!("{player:?}")
         && format!("{destination:?}") == format!("Battlefield({player:?})");
-    let attacking = format!("{entry:?}")
-        == "EntrySpec { tapped: true, counters: [], states: [Attacking { player: None, or_planeswalker: false }] }";
+    let attacking = entry.controller.is_none() && entry.tapped && entry.counters.is_empty()
+        && matches!(entry.states.as_slice(), [EntryState::Attacking { player: None, or_planeswalker: false }]);
     (same && attacking).then_some(filter)
 }
 
@@ -466,7 +466,7 @@ pub(super) fn search_destination(result: &ResultId, rest: &[Instruction]) -> &'s
 }
 
 pub(super) fn plain_entry(entry: &EntrySpec) -> bool {
-    !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
+    entry.controller.is_none() && !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
 }
 
 /// The locals earlier instructions bound, keyed by the result that names them.
@@ -3357,6 +3357,7 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        if entry.controller.is_some() { return Err(gap("token arrival controller override")); }
         if tokens
             .iter()
             .all(|token| matches!(token.recipe, TokenRecipe::Named(_)))
@@ -3836,7 +3837,7 @@ impl Compiler {
             {
                 let test = self.filter(filter, &Candidate::of("o"))?;
                 let then = self.arrival(then)?;
-                let plain = EntrySpec { tapped: false, counters: Vec::new(), states: Vec::new() };
+                let plain = EntrySpec::default();
                 let otherwise = self.arrival(&plain)?;
                 format!("if {{ let q: &dyn Query = g; {test} }} {{ {then} }} else {{ {otherwise} }}")
             }
