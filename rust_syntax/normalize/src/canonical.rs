@@ -103,9 +103,17 @@ impl Ids {
             return;
         }
         let map = self.maps.entry(kind).or_default();
-        let next = map.len() as u64;
-        let new = *map.entry(old).or_insert(next);
-        *value = Value::from(new);
+        if kind == "object_binding" {
+            // Object iteration permits a nested binding to shadow the same
+            // label. Its inputs used the outer map; only its body sees this one.
+            let next = map.values().max().map_or(0, |n| n + 1);
+            map.insert(old, next);
+            *value = Value::from(next);
+        } else {
+            let next = map.len() as u64;
+            let new = *map.entry(old).or_insert(next);
+            *value = Value::from(new);
+        }
     }
 }
 
@@ -139,6 +147,7 @@ fn subject_of(ability: &Value) -> Subject {
 
 struct Walker {
     schema: &'static Schema,
+    binding_namespace: &'static str,
     scopes: Vec<Ids>,
     /// The role each open ability's damage event calls its subject.
     damage_subjects: Vec<Option<Value>>,
@@ -297,6 +306,11 @@ impl Walker {
             return;
         }
         if let Some(kind) = id_kind(name) {
+            let kind = if kind == "binding" {
+                self.binding_namespace
+            } else {
+                kind
+            };
             if defining {
                 if let (Some(scope), false) = (self.scopes.last_mut(), self.keep_order) {
                     let read = (!self.reading).then(|| &self.read[scope.visit]);
@@ -313,6 +327,7 @@ impl Walker {
             (name == "Mode").then(|| self.scopes.last().and_then(|s| s.maps.get("slot").cloned()));
         let local_results = (name == "Mode"
             || name == "Operand" && value["kind"] == "Program"
+            || name == "EventChange" && value.get("Then").is_some()
             || name == "Instruction" && value["kind"] == "Repeatable")
             .then(|| self.result_scope());
         let exported = if name == "Instruction" && value["kind"] == "Repeatable" {
@@ -511,6 +526,15 @@ impl Walker {
     }
 
     fn fields(&mut self, value: &mut Value, fields: &Fields, owner: &str) {
+        let saved = self.binding_namespace;
+        if let Some(namespace) = crate::binding_roles::namespace(owner) {
+            self.binding_namespace = namespace;
+        }
+        self.fields_inner(value, fields, owner);
+        self.binding_namespace = saved;
+    }
+    fn fields_inner(&mut self, value: &mut Value, fields: &Fields, owner: &str) {
+        let binding_namespace = self.binding_namespace;
         match fields {
             Fields::Unit => {}
             Fields::Tuple(types) => {
@@ -523,13 +547,31 @@ impl Walker {
                 }
             }
             Fields::Named(types) => {
+                // Announced targets belong to the created invocation. It can
+                // capture the creator's targets, but cannot define slots for a
+                // later sibling trigger or the creating program.
+                let created_slots = matches!(
+                    owner,
+                    "Operation::CreateTrigger" | "Operation::ReflexiveTrigger"
+                )
+                .then(|| {
+                    self.scopes
+                        .last()
+                        .and_then(|scope| scope.maps.get("slot").cloned())
+                });
                 let mut branch_joins = JoinGroup::new();
                 // A loop or predicate binds only its own body. Keeping those
                 // ids in the ability-wide map makes a later sibling depend on
                 // traversal order, including when commutative events move.
-                let binding = types.iter().any(|(field, _)| field == "binding");
+                let binding = types
+                    .iter()
+                    .any(|(field, ty)| field == "binding" && *ty == Ty::Named("Binding".into()));
                 let previous_binding = binding
-                    .then(|| self.scopes.last().map(|s| s.maps.get("binding").cloned()))
+                    .then(|| {
+                        self.scopes
+                            .last()
+                            .map(|s| s.maps.get(binding_namespace).cloned())
+                    })
                     .flatten();
                 let previous_selection = (owner == "Operation::WithSelections").then(|| {
                     self.scopes
@@ -559,12 +601,29 @@ impl Walker {
                     selection && field == "binding"
                         || owner == "Instruction::Effect" && field == "result"
                 };
-                let ordered = types
+                let mut ordered: Vec<_> = types
                     .iter()
                     .filter(|(field, _)| !late(field))
-                    .chain(types.iter().filter(|(field, _)| late(field)));
+                    .chain(types.iter().filter(|(field, _)| late(field)))
+                    .collect();
+                if owner == "Ability::Activated" {
+                    // Activation-cost modifiers can inspect announced targets.
+                    // Establish those labels before visiting the modifiers.
+                    ordered.sort_by_key(|(field, _)| match field.as_str() {
+                        "announcement" => 1,
+                        "limits" => 2,
+                        "body" => 3,
+                        _ => 0,
+                    });
+                }
                 for (field, ty) in ordered {
                     if let Some(item) = value.get_mut(field) {
+                        if owner == "Cost" && field == "parts" && self.paying_cost {
+                            if let (Value::Array(parts), Ty::Vec(inner)) = (item, ty) {
+                                self.payment_parts(parts, inner);
+                            }
+                            continue;
+                        }
                         if owner == "Operation::JoinResults" && field == "results" {
                             self.join_ids(item);
                             continue;
@@ -670,6 +729,13 @@ impl Walker {
                     }
                 }
                 self.reference_reductions = old_reductions;
+                if let (Some(previous), Some(scope)) = (created_slots, self.scopes.last_mut()) {
+                    if let Some(previous) = previous {
+                        scope.maps.insert("slot", previous);
+                    } else {
+                        scope.maps.remove("slot");
+                    }
+                }
                 if let (Some(previous), Some(scope)) = (previous_selection, self.scopes.last_mut())
                 {
                     if let Some(map) = previous {
@@ -681,10 +747,10 @@ impl Walker {
                 if let (Some(previous), Some(scope)) = (previous_binding, self.scopes.last_mut()) {
                     match previous {
                         Some(map) => {
-                            scope.maps.insert("binding", map);
+                            scope.maps.insert(binding_namespace, map);
                         }
                         None => {
-                            scope.maps.remove("binding");
+                            scope.maps.remove(binding_namespace);
                         }
                     }
                 }
@@ -945,6 +1011,7 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
     movement_groups(value)?;
     let mut walker = Walker {
         schema: schema()?,
+        binding_namespace: "binding",
         scopes: Vec::new(),
         damage_subjects: Vec::new(),
         subjects: Vec::new(),

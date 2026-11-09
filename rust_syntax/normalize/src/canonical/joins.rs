@@ -14,6 +14,33 @@ fn charge(work: &mut usize, failure: &mut Option<String>, amount: usize) -> bool
     }
 }
 impl Walker {
+    /// Each player-action cost reads the pre-payment context. Export its move
+    /// receipts only after all cost parts, matching the validator's ledger.
+    pub(super) fn payment_parts(&mut self, parts: &mut [Value], ty: &Ty) {
+        let mut pending = std::collections::HashMap::new();
+        for part in parts {
+            let saved = self.result_scope();
+            let exported = super::visibility::exports(&part["PlayerAction"]["body"], false);
+            self.walk(part, ty, false);
+            if let Some(scope) = self.scopes.last() {
+                for old in exported {
+                    if let (Some(new), Some(definition)) = (
+                        scope.maps.get("result").and_then(|map| map.get(&old)),
+                        scope.result_definitions.get(&old),
+                    ) {
+                        pending.insert(old, (*new, *definition));
+                    }
+                }
+            }
+            self.restore_result_scope(saved);
+        }
+        if let Some(scope) = self.scopes.last_mut() {
+            for (old, (new, definition)) in pending {
+                scope.maps.entry("result").or_default().insert(old, new);
+                scope.result_definitions.insert(old, definition);
+            }
+        }
+    }
     pub(super) fn collect_join_branch(&mut self, floor: u64, into: &mut JoinGroup) {
         let Some(scope) = self.scopes.last() else {
             return;

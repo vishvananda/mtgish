@@ -4,6 +4,7 @@
 extern crate self as mtgish_ast;
 pub use rust_syntax::{corpus, inspect, mtg_types};
 pub mod canonical;
+mod binding_roles;
 pub use mtgish_ir::{battlefield_query, counter, declarations, ir, ir_schema, visit};
 pub mod change_lists;
 mod complete;

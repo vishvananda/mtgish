@@ -143,3 +143,40 @@ fn a_future_spell_does_not_inherit_the_creators_move_destination() {
     canonical::abilities(&mut value).unwrap();
     assert!(!valid(&value));
 }
+
+#[test]
+fn sibling_created_triggers_have_independent_target_definitions() {
+    fn targeted(kind: &str, slot: u16) -> Value {
+        let target = serde_json::to_value(
+            crate::targets::TargetSelector::creature().into_spec(crate::ir::Slot(slot)),
+        )
+        .unwrap();
+        let mut op = created(
+            spell_event(),
+            vec![effect(
+                0,
+                json!({"kind":"Reveal","args":{"objects":{"kind":"Targets","args":slot}}}),
+            )],
+        );
+        if kind == "ReflexiveTrigger" {
+            op = json!({"kind":"ReflexiveTrigger","args":{"performed":null,"condition":null,"announcement":{"targets":[target],"modes":null},"body":op["args"]["body"]}});
+        } else {
+            op["args"]["announcement"]["targets"] = json!([target]);
+        }
+        op
+    }
+    for kind in ["CreateTrigger", "ReflexiveTrigger"] {
+        let normalize = |a, b| {
+            let mut value = ability(self_event(), targeted(kind, a));
+            value[0]["args"]["body"]["instructions"]
+                .as_array_mut()
+                .unwrap()
+                .push(effect(8, targeted(kind, b)));
+            assert!(valid(&value));
+            canonical::abilities(&mut value).unwrap();
+            assert!(valid(&value));
+            value
+        };
+        assert_eq!(normalize(17, 17), normalize(23, 91), "{kind}");
+    }
+}

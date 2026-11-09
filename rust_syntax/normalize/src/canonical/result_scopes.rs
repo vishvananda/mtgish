@@ -1,5 +1,5 @@
 use crate::{canonical, ir::Ability, validate};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 fn norm(mut v: Value) -> Value {
     let a: Vec<Ability> = serde_json::from_value(v.clone()).unwrap();
     validate::abilities(&a).unwrap();
@@ -83,4 +83,63 @@ fn optional_numeric_locals_do_not_shadow_a_later_payment_receipt() {
         instructions[1]["args"]["result"],
         instructions[2]["args"]["condition"]["args"]
     );
+}
+
+#[test]
+fn payment_action_parts_have_private_definitions_and_publish_receipts_at_the_end() {
+    fn payment(first: u32, last: u32) -> Value {
+        let move_to = |destination: &str| {
+            json!({"kind":"Move","args":{
+            "objects":{"kind":"One","args":{"kind":"Source"}},"destination":destination,
+            "entry":crate::ir::EntrySpec::default(),"face_down":false,"terms":crate::ir::MovementTerms::default()}})
+        };
+        let part = |id, destination| json!({"PlayerAction":{"player":{"kind":"AbilityController"},"body":{"instructions":[effect(id,move_to(destination))]}}});
+        json!([{"kind":"Spell","args":{"announcement":{"targets":[],"modes":null},"body":{"instructions":[
+            effect(500,json!({"kind":"PayCost","args":{"player":{"kind":"AbilityController"},"optional":false,"cost":{"parts":[part(first,"OwnersHand"),part(last,"OwnersGraveyard")]}}})),
+            effect(501,json!({"kind":"NoteObjects","args":{"objects":{"kind":"Transition","args":{"result":last,"phase":"After"}}}}))
+        ]}}}])
+    }
+    let a = norm(payment(17, 17));
+    let b = norm(payment(23, 91));
+    assert_eq!(a, b);
+    let parts =
+        &a[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["cost"]["parts"];
+    assert_eq!(
+        parts[0]["PlayerAction"]["body"]["instructions"][0]["args"]["result"],
+        u32::MAX
+    );
+    assert_eq!(
+        parts[1]["PlayerAction"]["body"]["instructions"][0]["args"]["result"],
+        0
+    );
+}
+
+#[test]
+fn after_event_program_results_do_not_leak_into_the_replacement_body() {
+    fn replacement(inner: u32, outer: u32) -> Value {
+        let define = |id| {
+            effect(
+                id,
+                json!({"kind":"BindValue","args":{"value":{"kind":"Constant","args":2}}}),
+            )
+        };
+        let use_value = |id| {
+            effect(
+                500,
+                json!({"kind":"GainLife","args":{
+            "players":{"kind":"One","args":{"kind":"AbilityController"}},
+            "amount":{"kind":"BoundValue","args":id}}}),
+            )
+        };
+        json!([{"kind":"Spell","args":{"announcement":{"targets":[],"modes":null},"body":{"instructions":[
+            effect(501, json!({"kind":"CreateReplacement","args":{
+                "event":{"Enter":{"objects":{"kind":"Any"}}},"limit":"UntilExpired","duration":"EndOfTurn",
+                "body":{"instructions":[
+                    effect(502,json!({"kind":"ModifyEvent","args":{"change":{"Then":{"instructions":[define(inner),use_value(inner)]}}}})),
+                    define(outer),use_value(outer)
+                ]}
+            }}))
+        ]}}}])
+    }
+    assert_eq!(norm(replacement(17, 17)), norm(replacement(23, 91)));
 }
