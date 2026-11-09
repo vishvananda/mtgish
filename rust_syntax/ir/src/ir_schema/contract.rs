@@ -28,3 +28,21 @@ fn schema_shape_is_frozen() {
 fn dump_schema_contract() {
     println!("BEGIN_SCHEMA_CONTRACT\n{}END_SCHEMA_CONTRACT", signature());
 }
+
+/// Migration origins must be interpreted using the schema at the saved epoch,
+/// not a reconstruction from whichever types happen to compile today.
+#[test]
+#[ignore = "explicit frozen descriptor generation"]
+fn dump_schema_descriptors() {
+    println!("BEGIN_SCHEMA_DESCRIPTORS\n{}\nEND_SCHEMA_DESCRIPTORS", serde_json::to_string_pretty(&serde_json::json!({"schema_version":crate::ir::SCHEMA_VERSION,"schema":Schema::of_ir().unwrap()})).unwrap());
+}
+
+#[test]
+fn frozen_descriptors_match_the_compiled_contract() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("schema/{}.json", crate::ir::SCHEMA_VERSION));
+    let value: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(fixture).unwrap()).unwrap();
+    assert_eq!(value, serde_json::json!({"schema_version":crate::ir::SCHEMA_VERSION,"schema":Schema::of_ir().unwrap()}));
+    let saved: Schema = serde_json::from_value(value["schema"].clone()).unwrap();
+    assert_eq!(serde_json::to_value(saved).unwrap(), value["schema"]);
+}

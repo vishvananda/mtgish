@@ -28,6 +28,10 @@ than runtime object IDs or function pointers.
 The type definitions remain the serialization contract. Moving a declaration
 does not change its fields, variant order or public re-export. Changing those
 requires reviewing the frozen schema and rebuilding affected artifacts.
+The readable contract in `schema/<epoch>.txt` is accompanied by machine-readable
+typed descriptors in `schema/<epoch>.json`. Migrations use the archived input
+epoch to identify binding sites; they must not infer an old card's types from
+the current model. Both current snapshots are checked against compiled source.
 
 `src/declarations.rs` registers model sources once. The frozen schema extractor,
 typed visitor generator, authoring codec, Blockly catalog and generator

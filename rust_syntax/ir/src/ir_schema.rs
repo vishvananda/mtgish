@@ -1,11 +1,12 @@
 //! The IR's shape, read from its Rust source, for tools that walk serialized cards
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use syn::{Fields as SynFields, GenericArgument, Item, PathArguments, Type};
 
 #[cfg(test)]
 mod contract;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Ty {
     Named(String),
     Vec(Box<Ty>),
@@ -16,14 +17,14 @@ pub enum Ty {
     Opaque,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Fields {
     Unit,
     Tuple(Vec<Ty>),
     Named(Vec<(String, Ty)>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TypeDef {
     Struct(Fields),
     Enum {
@@ -33,7 +34,8 @@ pub enum TypeDef {
     },
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Schema {
     pub types: HashMap<String, TypeDef>,
 }
