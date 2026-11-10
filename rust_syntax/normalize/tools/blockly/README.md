@@ -38,6 +38,21 @@ previous simple value. **Library** opens card search without discarding the
 workspace. The section projection preserves imported ability order, binding
 paths, numeric IDs and names; it adds no AST variants or engine behavior.
 
+The compact properties summary has a visible **Edit…** button. **Properties…**
+in the toolbar opens the same form: card-type checkboxes, mana notation such as
+`2GU`, searchable creature-type chips, and power/toughness. Blank mana cost and
+zero remain distinct. Existing noncreature subtypes and other characteristics
+stay exact. Characteristic-defining power/toughness formulas remain in their
+ability blocks rather than being replaced by literal stats.
+
+**Activated ability** has an **Edit…** button beside its compact cost. The form
+supports mana, tapping this card, sacrifice, tapping other controlled permanents,
+paying life and discarding cards. Additional rows can be removed. Imported
+custom components remain exact and can be edited through **Edit in blocks**.
+New components append without moving existing payment-component references;
+removal that would invalidate a referenced component must be performed together
+with its references in the block view. Both forms support cancel and undo/redo.
+
 **Sequence of instructions** (`Group`) keeps a separate result for each child
 instruction. **In Order** and **Together** contain action clauses under one
 instruction/result boundary; one is ordered and the other simultaneous. The

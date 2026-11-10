@@ -7,7 +7,7 @@
   const clone = v => structuredClone(v), typeKey = t => JSON.stringify(t);
   const sections=createCardSections();
   const pretty = text => text.replace(/_/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2');
-  const variantLabel = (type,v) => (type==='CastingRule'?({Permission:'Cast from another zone',AdditionalCost:'Additional casting cost',AlternativeCost:'Alternative casting cost',ReduceCost:'This card costs less to cast',Require:'Casting restriction',Flash:'Cast with flash'})[v.wire]:null) || (type==='Ability'?({Spell:'When this spell resolves',Triggered:'When an event happens',Activated:'Pay a cost → effects',Static:'Continuous effect',Casting:'Casting rule',Replacement:'Replace an event',Scoped:'Ability in selected locations',Mechanic:'Keyword mechanic'})[v.wire]:null) || (type==='Operation'?authoring.actions[v.wire]?.label:type==='Instruction'?authoring.instructions?.[v.wire]?.label:type==='KeywordAction'?authoring.keyword_actions?.[v.wire]?.label:type==='ObjectKeywordAction'?authoring.object_keyword_actions?.[v.wire]?.label:null) || pretty(authoring.references[type]?.[v.wire]||v.name);
+  const variantLabel = (type,v) => (type==='CastingRule'?({Permission:'Cast from another zone',AdditionalCost:'Additional casting cost',AlternativeCost:'Alternative casting cost',ReduceCost:'This card costs less to cast',Require:'Casting restriction',Flash:'Cast with flash'})[v.wire]:null) || (type==='Ability'?({Spell:'When this spell resolves',Triggered:'When an event happens',Activated:'Activated ability',Static:'Continuous effect',Casting:'Casting rule',Replacement:'Replace an event',Scoped:'Ability in selected locations',Mechanic:'Keyword mechanic'})[v.wire]:null) || (type==='Operation'?authoring.actions[v.wire]?.label:type==='Instruction'?authoring.instructions?.[v.wire]?.label:type==='KeywordAction'?authoring.keyword_actions?.[v.wire]?.label:type==='ObjectKeywordAction'?authoring.object_keyword_actions?.[v.wire]?.label:null) || pretty(authoring.references[type]?.[v.wire]||v.name);
   const typeName = t => t.named || (t.vec ? `List<${typeName(t.vec)}>` : t.option ? `Optional<${typeName(t.option)}>` : `(${t.tuple.map(typeName).join(', ')})`);
   const descriptor = t => t.named && types[t.named];
   const newtype = t => {const d=descriptor(t);return d?.kind==='struct' && d.fields.kind==='tuple' && d.fields.items.length===1 ? d.fields.items[0]:null;};
@@ -289,7 +289,7 @@
     }
     const variant=viewVariant(state);
     if(variant && !scalar(t))result.fields.VARIANT=variant.wire;
-    if(outline && ['Characteristics','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival'].includes(t.named))result.collapsed=true;
+    if((outline||['Characteristics','Cost'].includes(t.named)) && ['Characteristics','Cost','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival'].includes(t.named))result.collapsed=true;
     return result;
   }
   function colour(t) {
@@ -307,7 +307,7 @@
   function button(symbol,label,fn) { return new Blockly.FieldImage(icon(symbol),22,22,label,fn); }
   let workspace, suppress=false, revision=0, timer, lastValid=null, lastSubmittedIR=null, workerReady=false, preserveSavedDraft=false;
   let history=[],historyIndex=-1;
-  let detailMode=false,codeDirty=false,lastHuman=null,bindingEditor=null;
+  let detailMode=false,codeDirty=false,lastHuman=null,bindingEditor=null,propertyEditor=null,costEditor=null;
   function scalarType(p){return p.inline==='pt'?{named:'i32'}:p.inline==='constant'?{named:'i64'}:p.inline==='choice'?{named:'String'}:scalar(p.ty)?p.ty:null;}
   function pickerValue(b,p,index) {const choice=choices[p.ty.named]?.[index];if(!choice)throw Error('Choose a valid '+p.label);const pick=b.state.picks?.[p.key];return clone(pick?.index===index?pick.value:choice[1]);}
   function fakeBlock(s) {return {type:s.type,state:s.extraState,isEnabled:()=>!s.disabled&&!s.disabledReasons?.length,getFieldValue:n=>s.fields?.[n],setFieldValue:(v,n)=>{(s.fields??={})[n]=v;},getInputTargetBlock:n=>{const child=s.inputs?.[n]?.block||s.inputs?.[n]?.shadow;return child?fakeBlock(child):null;},getNextBlock:()=>s.next?.block?fakeBlock(s.next.block):null};}
@@ -401,9 +401,10 @@
   }
   function collapsedSummary(b) {
     const name=b.state.ty.named;
-    if(!['Characteristics','Announcement','TargetSpec'].includes(name))return null;
+    if(!['Characteristics','Announcement','TargetSpec','Cost'].includes(name))return null;
     const v=fromBlock(b);
-    if(name==='Characteristics')return [...v.supertypes,...v.card_types,...v.subtypes,v.power_toughness?.join('/')].filter(Boolean).join(' · ')||'Properties';
+    if(name==='Cost')return costEditor?.summary(v)||'Cost';
+    if(name==='Characteristics')return [...v.supertypes,...v.card_types,...v.subtypes,v.power_toughness?.join('/'),propertyEditor?.manaText(v.mana_cost)||''].filter(Boolean).join(' · ')||'Properties';
     if(name==='TargetSpec'){const named=b.state.bindings?.F_slot?.name;return targetSummary(v)+(named?' · '+named:'');}
     return [...v.targets.map(targetSummary),v.modes?'mode choices':''].filter(Boolean).join(' · ')||'No targets';
   }
@@ -666,7 +667,11 @@
                 .appendField(button('+',p.abilitySection==='resolve'?'Add a spell effect':'Add an ability here',()=>insertDefault(this,p)),'FILL_'+p.key)
                 .appendField(button('−','Clear this section (undo restores it)',()=>removeSection(this,p.abilitySection)));
               this.moveInputBefore(title.name,p.key);
-            }else input.appendField(p.label).appendField(button('+',p.flow?'Add a block':`Fill ${p.label}`,()=>insertDefault(this,p)),'FILL_'+p.key);
+            }else {
+              input.appendField(p.label);
+              if(['Characteristics','Cost'].includes(p.ty.named))input.appendField(new Blockly.FieldImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="24"><rect width="56" height="24" rx="5" fill="white" fill-opacity=".25"/><text x="28" y="16" text-anchor="middle" fill="white" font-family="sans-serif" font-size="12">Edit…</text></svg>'),56,24,p.ty.named==='Cost'?'Edit cost':'Edit card properties',()=>p.ty.named==='Cost'?costEditor.open(this.getInputTargetBlock(p.key)):propertyEditor.open(this.getInputTargetBlock(p.key))),'EDIT_PROPERTIES');
+              else input.appendField(button('+',p.flow?'Add a block':`Fill ${p.label}`,()=>insertDefault(this,p)),'FILL_'+p.key);
+            }
             const shadow=shadows[p.key];
             if(shadow&&typeKey(shadow.extraState.ty)===typeKey(ty))this.getInput(p.key).connection.setShadowState(shadow);
             const old=attached[p.key];
@@ -853,6 +858,9 @@
   ]};
   const theme=Blockly.Theme.defineTheme('cardBlocks',{base:Blockly.Themes.Classic,fontStyle:{family:'system-ui, sans-serif',size:11},componentStyles:{workspaceBackgroundColour:'#f4f6f1',scrollbarColour:'#a8b5a4',scrollbarOpacity:.6,insertionMarkerColour:'#52794c',insertionMarkerOpacity:.4}});
   workspace=Blockly.inject('workspace',{renderer:'zelos',theme,toolbox:toolboxDefinition,trashcan:false,sounds:false,zoom:{controls:false,wheel:true,startScale:.75,maxScale:1.6,minScale:.12,scaleSpeed:1.16},move:{scrollbars:true,drag:true,wheel:true},grid:{spacing:22,length:1,colour:'#d6dfd1',snap:false}});
+  propertyEditor=createPropertyEditor({types,clone,fromBlock,replaceView,workspace:()=>workspace,notice,same,readScalar});
+  costEditor=createCostEditor({clone,same,readScalar,fromBlock,replaceView,workspace:()=>workspace,notice,manaText:propertyEditor.manaText,parseMana:propertyEditor.parseMana});
+  $('edit-properties').onclick=()=>propertyEditor.open();
   new ResizeObserver(()=>Blockly.svgResize(workspace)).observe($('workspace'));
   $('block-search').oninput=()=>{
     const q=$('block-search').value.trim().toLocaleLowerCase();
@@ -1133,5 +1141,5 @@
   if(!restored&&!workspace.getAllBlocks(false).length) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
+  window.cardBlocks={costs:costEditor,properties:propertyEditor,sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

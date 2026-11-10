@@ -47,7 +47,7 @@ let browser,page;
  await page.locator('#undo').click();await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].kind==='Scoped');
  // Multiple functioning zones are editable without changing the ability body.
  await menu('Activated','Edit functioning locations…');
- await page.locator('dialog input').fill('Hand, Graveyard');await page.locator('dialog').getByRole('button',{name:'OK',exact:true}).click();
+ await page.locator('dialog[open] input').fill('Hand, Graveyard');await page.locator('dialog[open]').getByRole('button',{name:'OK',exact:true}).click();
  await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.zones.length===2);
  assert.deepEqual(await page.evaluate(()=>window.cardBlocks.generated().faces[0].abilities[0].args.zones),['Hand','Graveyard']);
  await page.locator('#undo').click();await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.zones.length===1);
