@@ -402,6 +402,13 @@
       }
     },
     {
+      "id": "program.Actions.Modal_ChooseBothIf",
+      "domain": "Actions",
+      "source": "Modal_ChooseBothIf",
+      "arity": 2,
+      "recipe": { "kind": "Modal", "bounds": { "kind": "BothIf", "argument": 0 }, "modes": 1 }
+    },
+    {
       "id": "program.Actions.Modal_ChooseOneOrBothIf",
       "domain": "Actions",
       "source": "Modal_ChooseOneOrBothIf",

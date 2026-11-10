@@ -75,6 +75,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("game-draw-legality", "fn cant_draw(&self, player: PlayerId, n: u32) -> bool;", &[]),
     ("damage-loyalty-floor", "pub fn leave_loyalty(&mut self, minimum: u32)", &["damage-loyalty-floor"]),
     ("creation-exile-links", "fn creation_linked_exiled(&self, source: ObjectId) -> Vec<ObjectId>;", &["noncopiable-creation-exile-links"]),
+    ("state-trigger-player-capture", "fn state_triggered_with_player(", &["state-trigger-player-capture"]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

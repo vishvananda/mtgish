@@ -461,6 +461,14 @@ impl Context {
                         (amount.clone(), amount, true)
                     }
                     B::Unchosen(_) => (Expr::Constant(1), Expr::Constant(1), false),
+                    B::BothIf(condition) => {
+                        let count = Expr::Conditional {
+                            condition: Box::new(self.proposal().condition(condition)?),
+                            then: Box::new(Expr::Constant(2)),
+                            otherwise: Box::new(Expr::Constant(1)),
+                        };
+                        (count.clone(), count, false)
+                    },
                     B::OneOrBothIf(condition) => (
                         Expr::Constant(1),
                         Expr::Conditional {

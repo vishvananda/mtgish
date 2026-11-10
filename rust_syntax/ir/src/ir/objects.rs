@@ -564,6 +564,9 @@ pub enum ObjectFilter {
     TargetedBy(Box<ObjectFilter>),
     /// Has a color outside the color identity of this player's commander.
     ColorOutsideCommanderIdentity(PlayerRef),
+    /// Candidate is a host that this Aura could legally enchant. Unlike
+    /// CouldEnchant, the candidate is not the Aura. This does not target.
+    CouldBeEnchantedBy(ObjectRef),
 }
 
 /// Something that happened to an object. See `ObjectFilter::History`.

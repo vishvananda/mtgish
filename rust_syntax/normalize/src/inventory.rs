@@ -2637,6 +2637,7 @@ impl Inventory<'_> {
                 self.players(players)
             }
             ObjectFilter::CouldEnchant(objects) => self.objects(objects),
+            ObjectFilter::CouldBeEnchantedBy(aura) => self.object(aura),
             ObjectFilter::ExiledBy { player, with, .. } => {
                 self.player(player);
                 if let Some(object) = with {
@@ -3228,6 +3229,10 @@ impl Inventory<'_> {
                 }
             }
             EventSpec::State { condition } => self.condition(condition),
+            EventSpec::StateWithPlayer { condition, player } => {
+                self.condition(condition);
+                self.player(player)
+            },
             EventSpec::Either(events) => {
                 for event in events {
                     self.event(event);

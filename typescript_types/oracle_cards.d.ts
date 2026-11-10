@@ -1423,6 +1423,7 @@ type Actions =
 | { "_Actions": "Modal_ChooseBoth", "args": Array<Actions> }
 | { "_Actions": "Modal_ChooseOneOrBoth", "args": Array<Actions> }
 | { "_Actions": "Modal_ChooseOneOrBothIf", "args": [Condition, Array<Actions>] }
+| { "_Actions": "Modal_ChooseBothIf", "args": [Condition, Array<Actions>] }
 | { "_Actions": "Modal_ChooseOneOrMayChooseTwoIf", "args": [Condition, Array<Actions>] }
 | { "_Actions": "Modal_ChooseOneOrMore", "args": Array<Actions> }
 | { "_Actions": "Modal_ChooseOneOrMore_DifferentTargets", "args": Array<Actions> }
@@ -4169,6 +4170,7 @@ type GameNumber =
 | { "_GameNumber": "TheNumberOfPermanentsGainedControlOfThisWay" }
 | { "_GameNumber": "TheNumberOfPermanentsOfTypeSacrificedThisWay", "args": Permanents }
 | { "_GameNumber": "TheNumberOfPermanentsOnTheBattlefield", "args": Permanents }
+| { "_GameNumber": "TheNumberOfPermanents", "args": Permanents }
 | { "_GameNumber": "TheNumberOfPermanentsOnTheBattlefieldAsSpellWasCast", "args": Permanents }
 | { "_GameNumber": "TheNumberOfPermanentsOnTheBattlefieldAtBeginningOfTurn", "args": Permanents }
 | { "_GameNumber": "TheNumberOfPermanentsPutIntoAPlayersGraveyardThisTurn", "args": [Permanents, Players] }

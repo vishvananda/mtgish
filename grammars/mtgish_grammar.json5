@@ -2078,6 +2078,7 @@
     "[{{CONDITION}}, {{CONDITION}}]": ""
   },
   "{{CONDITION}}": {
+    "ThisCardIsOnTheBattlefield": "",
     "{{_CONDITION[Exile]}}": "",
 
     "And({{CONDITION_LIST}})": "",
@@ -3808,6 +3809,7 @@
     "TheNumberOfPermanentsGainedControlOfThisWay": "",
     "TheNumberOfPermanentsOfTypeSacrificedThisWay({{PERMANENTS}})": "",
     "TheNumberOfPermanentsOnTheBattlefield({{PERMANENTS}})": "",
+    "TheNumberOfPermanents({{PERMANENTS}})": "",
     "TheNumberOfPermanentsOnTheBattlefieldAsSpellWasCast({{PERMANENTS}})": "",
     "TheNumberOfPermanentsOnTheBattlefieldAtBeginningOfTurn({{PERMANENTS}})": "",
     "TheNumberOfCardsPutIntoAPlayersGraveyardFromTheirLibraryThisTurn({{PLAYERS}})": "",
@@ -6302,6 +6304,7 @@
     "Modal_ChooseOneAtRandom({{TOP_LEVEL_ACTIONS_LIST}})": "",
     "Modal_ChooseOneOrBoth({{TOP_LEVEL_ACTIONS_LIST}})": "",
     "Modal_ChooseOneOrBothIf({{CONDITION}}, {{TOP_LEVEL_ACTIONS_LIST}})": "",
+    "Modal_ChooseBothIf({{CONDITION}}, {{TOP_LEVEL_ACTIONS_LIST}})": "",
     "Modal_ChooseOneOrChooseOneOrMoreIf({{CONDITION}}, {{TOP_LEVEL_ACTIONS_LIST}})": "",
     "Modal_ChooseOneOrMayChooseTwoIf({{CONDITION}}, {{TOP_LEVEL_ACTIONS_LIST}})": "",
     "Modal_ChooseOneOrMore({{TOP_LEVEL_ACTIONS_LIST}})": "",
@@ -6347,7 +6350,7 @@
   "{{TRIGGER_EFFECT}}": {
     //"FromGraveyardIf({{CONDITION}}, TriggerA({{TRIGGER}}, {{TOP_LEVEL_ACTIONS}}))": "",
     //"If({{CONDITION}}, [FromStack(TriggerA({{TRIGGER}}, {{TOP_LEVEL_ACTIONS}}))])": "",
-    //"If({{CONDITION}}, [TriggerA({{TRIGGER}}, {{TOP_LEVEL_ACTIONS}})])": "",
+    "If({{CONDITION}}, [TriggerA({{TRIGGER}}, {{TOP_LEVEL_ACTIONS}})])": "",
     //"If({{CONDITION}}, [TriggerI({{TRIGGER}}, {{CONDITION}}, {{TOP_LEVEL_ACTIONS}})])": "",
     //"If({{CONDITION}}, [TriggerOnceEachTurn({{TRIGGER}}, {{TOP_LEVEL_ACTIONS}})])": "",
     "AnchorWord({{VOTE_OPTION}}, TriggerA({{TRIGGER}}, {{TOP_LEVEL_ACTIONS}}))": "",

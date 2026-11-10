@@ -152,7 +152,7 @@ fn reduce_card_replacement(name: &str, operands: &[Operand]) -> Option<Replaceme
                 cause: stack_filter(by)?,
                 event: Box::new(ReplacementEvent::Counters {
                     kind: Some(counter_kind(kind)?),
-                    objects: event_filter(objects)?,
+                    objects: ObjectFilter::InSet(Box::new(objects.clone())),
                     players: None,
                     by: None,
                     effect_only: false,

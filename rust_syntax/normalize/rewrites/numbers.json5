@@ -427,6 +427,11 @@
       }
     },
     {
+      "id": "number.TheNumberOfPermanents",
+      "source": "TheNumberOfPermanents", "arity": 1,
+      "expression": { "kind": "Count", "query": { "kind": "Objects", "argument": 0 } }
+    },
+    {
       "id": "number.TheNumberOfPermanentsOnTheBattlefield",
       "source": "TheNumberOfPermanentsOnTheBattlefield",
       "arity": 1,

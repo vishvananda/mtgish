@@ -4666,7 +4666,7 @@
       18
     ],
     "contains": [
-      "nent)), ActionList([MayAction(CreatePermanentLayerEffect(ThisPermanent, [SetPT(PT(2, 1)), AddCreatureType(Construct), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([Flying]), AddAbility([Ward(PayMana([ManaCostGeneric(1)]))]), RemoveArtifactType(Equipment)]))])), Equip(IsC"
+      "nent)), ActionList([MayAction(CreatePermanentLayerEffect(ThisPermanent, [SetPT(PT(2, 1)), SetCreatureType(Construct), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([Flying]), AddAbility([Ward(PayMana([ManaCostGeneric(1)]))]), RemoveArtifactType(Equipment)]))])), Equip(IsC"
     ],
     "excludes": [
       "nent)), ActionList([MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PT(2, 1)), AddCreatureType(Construct), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([Flying]), AddAbility([Ward(PayMana([ManaCostGeneric(1)]))]), RemoveArtifactType(Equipment)], UntilEndOfTurn))])), Equip(IsC"
@@ -11737,10 +11737,10 @@
       81
     ],
     "contains": [
-      "DestroyPermanent(Trigger_ThatOtherCreature)"
+      "DestroyPermanent(Trigger_ThatCreature)"
     ],
     "excludes": [
-      "DestroyPermanent(Trigger_ThatCreature)"
+      "DestroyPermanent(Trigger_ThatOtherCreature)"
     ]
   },
   {
@@ -11749,10 +11749,11 @@
       82
     ],
     "contains": [
-      "PlayerMustCost(ControllerOfPermanent(ThisPermanent), SacrificePermanent(ThisPermanent))"
+      "PlayerMustCost(Trigger_ThatPlayer, SacrificePermanent(ThisPermanent))",
+      "Player(Trigger_ThatPlayer)"
     ],
     "excludes": [
-      "Trigger_ThatPlayer"
+      "ControllerOfPermanent(ThisPermanent)"
     ]
   },
   {

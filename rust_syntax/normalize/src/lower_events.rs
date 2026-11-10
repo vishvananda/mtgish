@@ -432,8 +432,9 @@ impl Context {
                 point: TurnPoint::CombatEnds,
                 players: PlayerSet::All,
             },
-            S::WhenAPlayerControlsAPermanent(players, objects) => EventSpec::State {
-                condition: Condition::Compare {
+            S::WhenAPlayerControlsAPermanent(players, objects) => {
+                let condition =
+                Condition::Compare {
                     left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::All(
                         vec![
                             self.filter(objects)?,
@@ -442,18 +443,51 @@ impl Context {
                     )))),
                     comparison: Comparison::Greater,
                     right: Expr::Constant(0),
-                },
+                };
+                match &**objects {
+                    source::Permanents::SinglePermanent(object) => EventSpec::StateWithPlayer {
+                        condition,
+                        player: PlayerRef::ControllerOf(Box::new(self.object(object)?)),
+                    },
+                    _ => EventSpec::State { condition },
+                }
             },
-            S::Or(events) if !events.is_empty() => EventSpec::Either(
-                events
-                    .iter()
-                    .enumerate()
-                    .map(|(i, event)| {
-                        self.trigger(event)
-                            .map_err(|e| e.at(format!("events[{i}]")))
-                    })
-                    .collect::<Result<_>>()?,
-            ),
+            S::Or(events) if !events.is_empty() => {
+                let events = events.iter().enumerate().map(|(i, event)| {
+                    self.trigger(event).map_err(|e| e.at(format!("events[{i}]")))
+                }).collect::<Result<Vec<_>>>()?;
+                let whole = |event: EventSpec| -> Option<EventSpec> {
+                    match event {
+                        EventSpec::Batch { event, per: BatchPer::Whole, count: None, including: None } => Some(*event),
+                        EventSpec::Caused { cause, event } => match *event {
+                            EventSpec::Batch { event, per: BatchPer::Whole, count: None, including: None } => Some(EventSpec::Caused { cause, event }),
+                            _ => None,
+                        },
+                        _ => None,
+                    }
+                };
+                let grouped = events.iter().cloned().map(whole).collect::<Option<Vec<_>>>();
+                // Alternative origins of the same simultaneous zone-change
+                // action share one batch. Do not merge unrelated event kinds
+                // (for example fighting/blocking, or phasing/exiling).
+                let destination = |event: &EventSpec| match event {
+                    EventSpec::ZoneChange { to, .. } => Some(to.clone()),
+                    EventSpec::Caused { event, .. } => match event.as_ref() {
+                        EventSpec::ZoneChange { to, .. } => Some(to.clone()), _ => None,
+                    },
+                    _ => None,
+                };
+                let same_action = grouped.as_ref().is_some_and(|grouped| {
+                    let first = grouped.first().and_then(destination);
+                    first.is_some() && grouped.iter().all(|event| destination(event) == first)
+                });
+                if let Some(grouped) = grouped.filter(|_| same_action) {
+                    EventSpec::Batch {
+                        event: Box::new(EventSpec::Either(grouped)),
+                        per: BatchPer::Whole, count: None, including: None,
+                    }
+                } else { EventSpec::Either(events) }
+            },
             S::If(condition, event) => {
                 let event = self.trigger(event)?;
                 let mut event_scope = self.clone();

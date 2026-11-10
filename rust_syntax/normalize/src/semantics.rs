@@ -5874,6 +5874,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             ..EventBindings::default()
         },
         EventSpec::State { .. } => EventBindings::default(),
+        EventSpec::StateWithPlayer { .. } => EventBindings { player: true, ..EventBindings::default() },
         EventSpec::Filtered { event, .. } => event_bindings(event),
         EventSpec::Either(events) => events
             .iter()

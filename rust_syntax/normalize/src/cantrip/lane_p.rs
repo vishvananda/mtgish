@@ -1506,6 +1506,10 @@ impl Compiler {
             ),
             // "With enchant creature" and "could enchant a creature" come here as
             // the same set of creatures, and only the second looks at what is there.
+            ObjectFilter::CouldBeEnchantedBy(aura) => format!(
+                "({}).is_some_and(|aura: ObjectId| could_enchant(q, aura, asker.controller, {id}))",
+                self.object(aura)?
+            ),
             ObjectFilter::CouldEnchant(hosts) if matches!(&**hosts, ObjectSet::One(_)) => format!(
                 "({}).into_iter().any(|host: ObjectId| could_enchant(q, {id}, asker.controller, host))",
                 self.objects(hosts)?

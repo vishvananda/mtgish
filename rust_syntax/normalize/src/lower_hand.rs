@@ -36,7 +36,7 @@ impl Context {
         };
         let holder = holder.clone();
         let hand = self.private_cards(EventZone::Hand, owner.clone(), ObjectFilter::Any);
-        let passing = self.private_cards(EventZone::Hand, owner, filter.clone());
+        let passing = self.private_cards(EventZone::Hand, owner.clone(), filter.clone());
         let mut instructions = Vec::new();
         let mut objects = passing.clone();
         match shown {
@@ -47,27 +47,23 @@ impl Context {
                 instructions.push(self.effect(Operation::Reveal { objects: passing }));
             }
             HandShown::Number(number) => {
-                let offered = self.effect(Operation::ChooseObjects {
-                    constraints: vec![],
-                    player: holder,
-                    objects: hand,
-                    count: Count::AsManyAsCan(number),
+                // Observe the actual reveal, including replacement/prevention,
+                // instead of treating an offered selection as revealed history.
+                let reveal = self.effect(Operation::RevealFromHand {
+                    actor: owner.clone(), cards: ObjectFilter::Any,
+                    count: Some(number), at_random: false,
                 });
-                let Instruction::Effect { result, .. } = &offered else {
-                    unreachable!()
+                let Instruction::Effect { result, .. } = &reveal else { unreachable!() };
+                let mut filters = vec![ObjectFilter::OwnedBy(owner.clone())];
+                if !matches!(filter, ObjectFilter::Any) { filters.push(filter.clone()); }
+                objects = ObjectSet::Matching {
+                    objects: Box::new(ObjectSet::InZone {
+                        objects: Box::new(ObjectSet::Observed(result.clone())),
+                        zone: EventZone::Hand,
+                    }),
+                    filter: if filters.len() == 1 { filters.pop().unwrap() } else { ObjectFilter::All(filters) },
                 };
-                let offered_set = ObjectSet::Selected(result.clone());
-                instructions.push(offered);
-                instructions.push(self.effect(Operation::Reveal {
-                    objects: offered_set.clone(),
-                }));
-                objects = match filter {
-                    ObjectFilter::Any => offered_set,
-                    filter => ObjectSet::Matching {
-                        objects: Box::new(offered_set),
-                        filter,
-                    },
-                };
+                instructions.push(reveal);
             }
             HandShown::Looked(viewer) => {
                 instructions.push(self.effect(Operation::LookAt {

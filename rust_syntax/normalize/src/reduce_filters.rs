@@ -148,7 +148,10 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
             ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),
         ]),
         ("CanBeEnchantedByDeadGuest", []) => {
-            ObjectFilter::CouldEnchant(Box::new(ObjectSet::One(ObjectRef::Source)))
+            ObjectFilter::CouldBeEnchantedBy(ObjectRef::AuraAfterEnchantedLeft {
+                aura: Box::new(ObjectRef::Source),
+                host: Box::new(ObjectRef::EventSubject),
+            })
         }
         ("IsAttackingTheSamePlayerOrPlaneswalkerAsCreature", [Operand::Object(object)]) => {
             ObjectFilter::AttackingSame(object.clone())

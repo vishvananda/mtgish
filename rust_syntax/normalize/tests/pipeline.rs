@@ -2878,7 +2878,9 @@ fn a_hand_pick_is_a_reveal_a_choice_and_a_fate() {
     assert!(exile.contains("ChooseObjects"), "{exile}");
     assert!(exile.contains("\"destination\":{\"Exile\":"), "{exile}");
     let partial = ability_json("SpellActions(Targeted([TargetPlayer(Opponent)],ActionList([PlayerAction(Ref_TargetPlayer,RevealANumberOfCardsFromHandAndPlayerChoosesACardToDiscard(Integer(2),You))])))");
-    assert_eq!(partial.matches("ChooseObjects").count(), 2, "{partial}");
+    assert_eq!(partial.matches("ChooseObjects").count(), 1, "{partial}");
+    assert!(partial.contains("RevealFromHand"), "{partial}");
+    assert!(partial.contains("Observed"), "{partial}");
     assert!(partial.contains("Selected"), "{partial}");
     let look = ability_json("SpellActions(Targeted([TargetPlayer(Opponent)],ActionList([LookAtPlayersHandAndChooseACardToDiscard(Ref_TargetPlayer,AnyCard)])))");
     assert!(look.contains("LookAt"), "{look}");

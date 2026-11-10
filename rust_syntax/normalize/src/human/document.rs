@@ -148,7 +148,7 @@ impl Document {
         let mut value = crate::json_input::wrapped_value(input)?;
         if matches!(
             value["card"]["schema_version"].as_u64(),
-            Some(180 | 181 | 182 | 183 | 184 | 185 | 186)
+            Some(180 | 181 | 182 | 183 | 184 | 185 | 186 | 187)
         ) {
             migration::upgrade_schema(&mut value)?;
         }

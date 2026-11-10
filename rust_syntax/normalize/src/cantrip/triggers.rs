@@ -1985,14 +1985,39 @@ impl Compiler {
         let gate = self.trigger_gate.take();
         let conditional = self.ability_guard.take();
         if conditional.is_some()
-            && (matches!(event, EventSpec::State { .. }) || announcement.modes.is_some())
+            && (matches!(event, EventSpec::State { .. } | EventSpec::StateWithPlayer { .. }) || announcement.modes.is_some())
         {
             return Err(gap("conditional Triggered"));
         }
         if gate.is_some()
-            && (announcement.modes.is_some() || matches!(event, EventSpec::State { .. }))
+            && (announcement.modes.is_some() || matches!(event, EventSpec::State { .. } | EventSpec::StateWithPlayer { .. }))
         {
             return Err(gap("modal or state trigger that works from a level"));
+        }
+        if let EventSpec::StateWithPlayer { condition, player } = event {
+            if intervening_if.is_some() {
+                return Err(gap("captured state trigger with intervening condition"));
+            }
+            let state = self.condition_function(condition, &format!("{label}_state"))?;
+            let saved = (self.reader, self.event_at, self.frame);
+            (self.reader, self.event_at, self.frame) = (Reader::Query, EventAt::Nowhere, Frame::default());
+            let capture = self.player(player);
+            (self.reader, self.event_at, self.frame) = saved;
+            let capture = capture?;
+            let player_fn = format!("{label}_player");
+            writeln!(self.functions, "fn {player_fn}(q: &dyn Query, asker: &Asker) -> Option<PlayerId> {{ {capture} }}").unwrap();
+            let frame = Frame { player: Some(Carried::Subject), ..Frame::default() };
+            let targets = self.targets_for(announcement, label, frame)?;
+            let outer_frame = std::mem::replace(&mut self.frame, frame);
+            let effect = self.effect(body, label);
+            self.frame = outer_frame;
+            let effect = effect?;
+            let text = self.said(lane_k::Said::Triggered, "When this state holds".into());
+            let mut def = planned::planned_value("state-trigger-player-capture", "todo!()", &format!("state_triggered_with_player({state}, {player_fn}, {effect}, {}).targets({targets})", quoted(&text)));
+            if let Some(per_turn) = limits.per_turn {
+                def.push_str(&format!(".triggers_each_turn({per_turn})"));
+            }
+            return Ok(def);
         }
         if let EventSpec::State { condition } = event {
             let state = self.condition_function(condition, &format!("{label}_state"))?;

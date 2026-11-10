@@ -3200,6 +3200,17 @@ impl Compiler {
                     &[Change::GrantKeyword(k.clone())],
                     parts,
                 ),
+                // Conditional presence is a layer grant, not merely an event
+                // predicate. This also makes ability inspection and copying
+                // distinguish an absent ability (for example an unharnessed
+                // Infinity Stone) from an ability whose event cannot fire.
+                Ability::Triggered { .. } if scope.is_none() => self.static_ability(
+                    &label,
+                    &StaticKind::Ordinary,
+                    &EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                    &[Change::GrantAbility(Box::new(inner.clone()))],
+                    parts,
+                ),
                 Ability::Triggered { .. }
                 | Ability::Replacement { .. }
                 | Ability::TriggerRule { .. } => {

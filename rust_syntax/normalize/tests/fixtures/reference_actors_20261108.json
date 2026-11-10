@@ -601,10 +601,34 @@
                                             },
                                             "kind": "Card",
                                             "filter": {
-                                              "kind": "ExiledWith",
-                                              "args": {
-                                                "kind": "Source"
-                                              }
+                                              "kind": "All",
+                                              "args": [
+                                                {
+                                                  "kind": "ExiledWith",
+                                                  "args": {
+                                                    "kind": "Source"
+                                                  }
+                                                },
+                                                {
+                                                  "kind": "Not",
+                                                  "args": {
+                                                    "kind": "InSet",
+                                                    "args": {
+                                                      "kind": "CostObjects",
+                                                      "args": {
+                                                        "payment": {
+                                                          "Resolution": 0
+                                                        },
+                                                        "component": [
+                                                          0
+                                                        ],
+                                                        "view": "Performed",
+                                                        "phase": "After"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
                                             }
                                           }
                                         },

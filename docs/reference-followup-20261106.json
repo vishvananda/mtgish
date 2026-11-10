@@ -284,11 +284,13 @@
     },
     {
       "name": "Kharasha Foothills",
-      "family": "selector-domains",
+      "family": "reference58-20261110",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "summary": "Native loop includes attacked opponent instead of only each other opponent. Parser shares that error and additionally makes tokens attack AbilityController.",
-      "evidence": "reference-audit/batch-010.json"
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/loop-player-roles/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mire's Toll",
@@ -893,10 +895,13 @@
     },
     {
       "name": "The Dalek Emperor",
-      "family": "choice-recipient",
+      "family": "reference58-20261110",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/loop-player-roles/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Portal to Phyrexia",
@@ -1370,14 +1375,13 @@
     {
       "name": "Knowledge Pool",
       "family": "source-actor-references",
-      "reported_classification": "reference_error",
+      "reported_classification": "source-reference-error",
       "review_status": "fixed_current_producer",
-      "summary": "Actor-only repair: the cast-event player pays exile, makes the optional decision and casts the linked card. The triggering spell ObjectRef and all other operands are retained.",
+      "summary": "Exclude the performed exile payment component after its zone transition.",
       "evidence": "reference-issues/knowledge-pool-actor/actor-only-review.json",
-      "upstream_report": "https://github.com/i5jb/mtgish/issues/237",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
       "fix_notes": "Source templates and all three data formats corrected in 160d35d. See reference-actors-20261108.md.",
-      "validation": "Full Go suite; 1335 AST tests; 24 native runtime tests; 33529 complete records with exactly these two changed; 182 unchanged audit findings and use evidence.",
-      "remaining_question": "The linked-set exclusion for other cards is unchanged and unresolved. Actor correctness does not certify the whole card."
+      "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
     },
     {
       "name": "Damocles Base, Sword of Kang",
@@ -1538,6 +1542,654 @@
       "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
       "upstream_report": "Fork Rust lowering only; Source already carries the required meaning.",
       "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Angel's Tomb",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Ardbert, Warrior of Darkness",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Atarka Monument",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Azorius Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Boros Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Bounding Felidar",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Cabal Interrogator",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/cabal-interrogator/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Captain America, Skybound",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Cemetery Protector",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/cemetery-protector-actor/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Chimeric Coils",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Dancing Sword",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Depth Defiler",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/required-both-modes/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Dimir Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Bahamut, Warden of Light",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Domri, City Smasher",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Dromoka Monument",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Golgari Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Gruul Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Haunted Plate Mail",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Hunted by The Family",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/loop-player-roles/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Imagecrafter",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Izzet Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Jade Statue",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Kolaghan Monument",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Lifecraft Awakening",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Dreamer",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Mask",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Mutant",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Seaswift",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Shrieker",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Skyreaver",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Stalker",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Wakecaster",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Wall",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Mistform Warchief",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Now for Wrath, Now for Ruin!",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Ojutai Monument",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Orzhov Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Phyrexian Totem",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Prophetic Titan",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/required-both-modes/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Proteus Machine",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Rakdos Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Sandstorm Salvager",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Selesnya Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Silumgar Monument",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Simic Keyrune",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Spider-Man, Miles Morales",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Surge of Acclaim",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/required-both-modes/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Tezzeret, Cruel Captain",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "The Fifth Doctor",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Unnatural Selection",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Ranger's Merit",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Virtue of Loyalty",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Vronos, Masked Inquisitor",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Welcome to . . .",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "You Exist Only to Amuse",
+      "family": "reference58-20261110",
+      "reported_classification": "reference_error",
+      "review_status": "fixed_current_producer",
+      "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
+      "evidence": "reports/analysis/reference-issues/required-both-modes/report.md",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+    },
+    {
+      "name": "Ancestral Mask",
+      "family": "reference-questions-20261110",
+      "reported_classification": "source-reference-error",
+      "review_status": "fixed_current_producer",
+      "summary": "Exclude the source Aura, not its host.",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
+    },
+    {
+      "name": "Hero of Bretagard",
+      "family": "reference-questions-20261110",
+      "reported_classification": "source-reference-error",
+      "review_status": "fixed_current_producer",
+      "summary": "One written ability; group simultaneous alternative exile origins. Grouping is an explicit rules interpretation, reported with its evidence limits.",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
+    },
+    {
+      "name": "Ranar the Ever-Watchful",
+      "family": "reference-questions-20261110",
+      "reported_classification": "source-reference-error",
+      "review_status": "fixed_current_producer",
+      "summary": "One written ability; group simultaneous alternative exile origins. Grouping is an explicit rules interpretation, reported with its evidence limits.",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
+    },
+    {
+      "name": "Infectious Rage",
+      "family": "reference-questions-20261110",
+      "reported_classification": "fork-lowering-error",
+      "review_status": "fixed_current_producer",
+      "summary": "Candidate is the host; use inverse enchant legality against the exact graveyard Aura incarnation.",
+      "upstream_report": "Fork lowering/representation only; no upstream parser error claimed.",
+      "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
+    },
+    {
+      "name": "Takklemaggot",
+      "family": "reference-questions-20261110",
+      "reported_classification": "fork-lowering-error",
+      "review_status": "fixed_current_producer",
+      "summary": "Candidate is the host; use inverse enchant legality against the exact graveyard Aura incarnation.",
+      "upstream_report": "Fork lowering/representation only; no upstream parser error claimed.",
+      "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
+    },
+    {
+      "name": "Overseer of Vault 76",
+      "family": "reference-questions-20261110",
+      "reported_classification": "representation-cleanup",
+      "review_status": "normalized_consistently",
+      "summary": "Capture the original population; no legal distinguishing witness for the old requery was established.",
+      "upstream_report": "Fork lowering/representation only; no upstream parser error claimed.",
+      "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
+    },
+    {
+      "name": "The Soul Stone",
+      "family": "reference-questions-20261110",
+      "reported_classification": "source-reference-error",
+      "review_status": "fixed_current_producer",
+      "summary": "Conditional actual ability presence on the battlefield while harnessed; existing engine layer grants suffice.",
+      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
+    },
+    {
+      "name": "Zabaz, the Glimmerwasp",
+      "family": "reference-questions-20261110",
+      "reported_classification": "representation-cleanup",
+      "review_status": "normalized_consistently",
+      "summary": "Retain the explicit battlefield/permanent domain; no proven gameplay defect under its modular-trigger cause.",
+      "upstream_report": "Fork lowering/representation only; no upstream parser error claimed.",
+      "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
+    },
+    {
+      "name": "Mirror Shield",
+      "family": "upstream-advice-corrections",
+      "reported_classification": "our_prior_report_wrong",
+      "review_status": "fixed_current_producer",
+      "summary": "Maintainer correct: original Source reference is retained. Our fork binding/capture fix is covered by reference69_20261110 tests.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/81"
+    },
+    {
+      "name": "Bronze Bombshell",
+      "family": "upstream-advice-corrections",
+      "reported_classification": "our_prior_report_wrong",
+      "review_status": "fixed_current_producer",
+      "summary": "Maintainer correct: original Source reference is retained. Our fork binding/capture fix is covered by reference69_20261110 tests.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/82"
     }
   ],
   "normalization_questions": [
@@ -1567,5 +2219,14 @@
     "adjacent_source_cards": 7,
     "all_confirmed_fixed": 32,
     "schema": 187
+  },
+  "reference69_20261110": {
+    "routing": "reference69-20261110.json",
+    "confirmed_packet_cards": 58,
+    "question_cards": 9,
+    "retracted_advice": 2,
+    "schema": 188,
+    "source_changes": 71,
+    "native_changes": 84
   }
 }

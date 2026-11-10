@@ -557,6 +557,10 @@ impl<'a> Scope<'a> {
                 }
             }
             EventSpec::State { condition } => self.condition(condition),
+            EventSpec::StateWithPlayer { condition, player } => {
+                self.condition(condition)?;
+                self.player(player)
+            },
             EventSpec::Either(events) => {
                 if events.is_empty() {
                     return Err("alternative event matcher is empty".into());
@@ -1485,6 +1489,7 @@ impl<'a> Scope<'a> {
                 self.players(players)
             }
             ObjectFilter::CouldEnchant(objects) => self.objects(objects),
+            ObjectFilter::CouldBeEnchantedBy(aura) => self.object(aura),
             ObjectFilter::CouldProduce(operand) => self.operand(operand),
             ObjectFilter::ExiledBy { player, with, .. } => {
                 self.player(player)?;

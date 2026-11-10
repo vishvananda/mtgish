@@ -983,7 +983,7 @@ impl Context {
             // A pair's primary subject is the first creature in its trigger,
             // which may be the attacker or the blocker. The dedicated creature
             // roles below continue to distinguish the two combat participants.
-            S::Trigger_ThatPermanent if self.event.block_pair => {
+            S::Trigger_ThatPermanent | S::Trigger_ThatCreature if self.event.block_pair => {
                 return Ok(ObjectRef::EventSubject)
             }
             S::Trigger_ThatVehicle if self.event.other => return Ok(ObjectRef::EventOther),
@@ -1026,9 +1026,6 @@ impl Context {
                 if self.event.other =>
             {
                 return Ok(ObjectRef::EventOther)
-            }
-            S::Trigger_ThatCreature if self.event.block_pair => {
-                return Ok(ObjectRef::BlockPair(BlockRole::Blocker))
             }
             S::Trigger_ThatOtherPermanent | S::Trigger_ThatOtherCreature
                 if self.event.block_pair =>

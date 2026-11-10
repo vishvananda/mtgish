@@ -74,7 +74,7 @@ fn pool_cast_choice_and_free_spell_belong_to_the_triggering_opponent() {
         let (mut g, _) = game(&knowledge_pool::CARD, &[&POOL_OFFER, &POOL_HAND_SPELL]);
         let pool = put(&mut g, &knowledge_pool::CARD, A, Zone::BATTLEFIELD);
         // Seed a legal, different card in Pool's linked exile, without invoking
-        // its independent ETB trigger or assuming the unresolved "other" exclusion.
+        // its independent ETB trigger. The new hand spell must be excluded below.
         let offered = put(&mut g, &POOL_OFFER, A, Zone::exile(A));
         let link = g.text_linked(pool);
         g.state.update_obj(offered, |o| {
@@ -113,7 +113,7 @@ fn pool_cast_choice_and_free_spell_belong_to_the_triggering_opponent() {
                 } => {
                     choices += 1;
                     assert_eq!(r.player, B);
-                    assert!(cards.contains(&offered));
+                    assert_eq!(cards.as_slice(), &[offered], "only other linked cards may be offered");
                     Answer::Cards(if accept { vec![offered] } else { vec![] })
                 }
                 RequestKind::May {

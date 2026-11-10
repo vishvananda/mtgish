@@ -481,6 +481,14 @@ pub enum EventSpec {
         players: PlayerSet,
         abilities: ObjectFilter,
     },
+    /// A state trigger with one player captured when the state becomes true.
+    /// `condition` and `player` are evaluated before the event's binding exists.
+    /// The body reads that captured player through PlayerRef::EventSubject,
+    /// even if control changes before resolution (CR 603.8, Bronze Bombshell).
+    StateWithPlayer {
+        condition: Condition,
+        player: PlayerRef,
+    },
 }
 
 #[derive(

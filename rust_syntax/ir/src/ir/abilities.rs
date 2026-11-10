@@ -54,6 +54,10 @@ pub enum Ability {
         affected: EffectSubjects,
         changes: Vec<Change>,
     },
+    /// Conditional presence of the enclosed abilities, including ability
+    /// inspection/copying. A triggered ability already on the stack does not
+    /// disappear when this condition stops holding; use intervening_if for a
+    /// condition checked again on resolution.
     Conditional {
         condition: Condition,
         then: Vec<Ability>,

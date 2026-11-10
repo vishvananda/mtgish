@@ -1,0 +1,174 @@
+{
+  "baseline": "ca9565f072059bbaf3665e6b20a528d2132e1782",
+  "packet_reference": "31026c732ca55122efeb7c504fbad7a5cfc5f4da",
+  "schema": 188,
+  "confirmed_packet_cards": 58,
+  "confirmed_packet_names": [
+    "Angel's Tomb",
+    "Ardbert, Warrior of Darkness",
+    "Atarka Monument",
+    "Azorius Keyrune",
+    "Boros Keyrune",
+    "Bounding Felidar",
+    "Cabal Interrogator",
+    "Captain America, Skybound",
+    "Cemetery Protector",
+    "Chimeric Coils",
+    "Dancing Sword",
+    "Depth Defiler",
+    "Dimir Keyrune",
+    "Bahamut, Warden of Light",
+    "Domri, City Smasher",
+    "Dromoka Monument",
+    "Golgari Keyrune",
+    "Gruul Keyrune",
+    "Haunted Plate Mail",
+    "Hunted by The Family",
+    "Imagecrafter",
+    "Izzet Keyrune",
+    "Jade Statue",
+    "Kharasha Foothills",
+    "Kolaghan Monument",
+    "Lifecraft Awakening",
+    "Mistform Dreamer",
+    "Mistform Mask",
+    "Mistform Mutant",
+    "Mistform Seaswift",
+    "Mistform Shrieker",
+    "Mistform Skyreaver",
+    "Mistform Stalker",
+    "Mistform Wakecaster",
+    "Mistform Wall",
+    "Mistform Warchief",
+    "Now for Wrath, Now for Ruin!",
+    "Ojutai Monument",
+    "Orzhov Keyrune",
+    "Phyrexian Totem",
+    "Prophetic Titan",
+    "Proteus Machine",
+    "Rakdos Keyrune",
+    "Sandstorm Salvager",
+    "Selesnya Keyrune",
+    "Silumgar Monument",
+    "Simic Keyrune",
+    "Spider-Man, Miles Morales",
+    "Surge of Acclaim",
+    "Tezzeret, Cruel Captain",
+    "The Dalek Emperor",
+    "The Fifth Doctor",
+    "Unnatural Selection",
+    "Ranger's Merit",
+    "Virtue of Loyalty",
+    "Vronos, Masked Inquisitor",
+    "Welcome to . . .",
+    "You Exist Only to Amuse"
+  ],
+  "question_answers": [
+    {
+      "name": "Ancestral Mask",
+      "classification": "source-reference-error",
+      "answer": "Exclude the source Aura, not its host.",
+      "status": "fixed_current_producer"
+    },
+    {
+      "name": "Hero of Bretagard",
+      "classification": "source-reference-error",
+      "answer": "One written ability; group simultaneous alternative exile origins. Grouping is an explicit rules interpretation, reported with its evidence limits.",
+      "status": "fixed_current_producer"
+    },
+    {
+      "name": "Ranar the Ever-Watchful",
+      "classification": "source-reference-error",
+      "answer": "One written ability; group simultaneous alternative exile origins. Grouping is an explicit rules interpretation, reported with its evidence limits.",
+      "status": "fixed_current_producer"
+    },
+    {
+      "name": "Infectious Rage",
+      "classification": "fork-lowering-error",
+      "answer": "Candidate is the host; use inverse enchant legality against the exact graveyard Aura incarnation.",
+      "status": "fixed_current_producer"
+    },
+    {
+      "name": "Takklemaggot",
+      "classification": "fork-lowering-error",
+      "answer": "Candidate is the host; use inverse enchant legality against the exact graveyard Aura incarnation.",
+      "status": "fixed_current_producer"
+    },
+    {
+      "name": "Knowledge Pool",
+      "classification": "source-reference-error",
+      "answer": "Exclude the performed exile payment component after its zone transition.",
+      "status": "fixed_current_producer"
+    },
+    {
+      "name": "Overseer of Vault 76",
+      "classification": "representation-cleanup",
+      "answer": "Capture the original population; no legal distinguishing witness for the old requery was established.",
+      "status": "normalized_consistently"
+    },
+    {
+      "name": "The Soul Stone",
+      "classification": "source-reference-error",
+      "answer": "Conditional actual ability presence on the battlefield while harnessed; existing engine layer grants suffice.",
+      "status": "fixed_current_producer"
+    },
+    {
+      "name": "Zabaz, the Glimmerwasp",
+      "classification": "representation-cleanup",
+      "answer": "Retain the explicit battlefield/permanent domain; no proven gameplay defect under its modular-trigger cause.",
+      "status": "normalized_consistently"
+    }
+  ],
+  "retracted_advice": [
+    {
+      "name": "Mirror Shield",
+      "issue": 81,
+      "answer": "Original Trigger_ThatCreature Source is correct; bind the first combat participant."
+    },
+    {
+      "name": "Bronze Bombshell",
+      "issue": 82,
+      "answer": "Original Trigger_ThatPlayer Source is correct; capture its controller at trigger time."
+    }
+  ],
+  "source_records_changed": 71,
+  "native_records_changed": 84,
+  "new_unreduced_records": 0,
+  "adjacent_source_cards": [
+    "Brilliance Unleashed",
+    "Elspeth, Storm Slayer",
+    "Iron Man Armor",
+    "Olinda the Oblivious",
+    "The Mind Stone"
+  ],
+  "engine_changes": false,
+  "numeric_width_changes": false,
+  "browser_workspace_migration_work": false,
+  "backend": {
+    "planned_player_capture": "state-trigger-player-capture",
+    "infinity_presence": "existing conditional layer grants; no new engine interface",
+    "conditional_required_modes": [
+      "Depth Defiler",
+      "Prophetic Titan"
+    ],
+    "conditional_required_modes_status": "Held on pinned backend; exact conditional minimum needs its already-planned choose_counted interface, not the old optional maximum."
+  },
+  "validation": {
+    "native_passed": 1517,
+    "native_failed": 0,
+    "native_ignored": 21,
+    "go": "full suite passes",
+    "typescript_rows": 71,
+    "browser_suites": 16,
+    "catalog_records": 33529,
+    "independent_whole_card_proposals": 58,
+    "unchanged_controls": 19,
+    "guarded_grammar_evidence_unchanged": 37,
+    "native_runtime_tests": 2,
+    "native_runtime_scenarios": 4,
+    "native_negative_controls": 2,
+    "artifact_sha256": "4be2e9996fd2e84ed21b034b3d68dd2e656433a6cdc83a4c3ba8b35c4bd88a5f"
+  },
+  "upstream_reports": [],
+  "evidence_root": "/mnt/vizier/reference60-20261110"
+}

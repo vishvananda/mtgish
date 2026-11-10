@@ -66,6 +66,7 @@ pub enum ModeBounds {
     UpToSource(Quantity),
     RepeatSource(Quantity),
     OneOrBothIf(source::Condition),
+    BothIf(source::Condition),
     Unchosen(bool),
     UnchosenLastCombat(source::Player),
     Random,

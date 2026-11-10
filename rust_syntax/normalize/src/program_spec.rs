@@ -56,6 +56,7 @@ pub enum Bounds {
     UpToSource { argument: usize },
     RepeatSource { argument: usize },
     OneOrBothIf { argument: usize },
+    BothIf { argument: usize },
     OneOrMoreIf { argument: usize },
     Either { argument: usize },
     Chooser { argument: usize },
@@ -161,6 +162,7 @@ impl Bounds {
             Self::UpToSource { argument }
             | Self::RepeatSource { argument }
             | Self::OneOrBothIf { argument }
+            | Self::BothIf { argument }
             | Self::OneOrMoreIf { argument }
             | Self::Either { argument }
             | Self::Chooser { argument }
@@ -186,6 +188,9 @@ impl Bounds {
             }
             Self::OneOrBothIf { argument } => {
                 format!("ModeBounds::OneOrBothIf(source::Condition::clone(a{argument}))")
+            }
+            Self::BothIf { argument } => {
+                format!("ModeBounds::BothIf(source::Condition::clone(a{argument}))")
             }
             Self::OneOrMoreIf { argument } => {
                 format!("ModeBounds::OneOrMoreIf(source::Condition::clone(a{argument}))")

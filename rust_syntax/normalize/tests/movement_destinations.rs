@@ -19,12 +19,26 @@ fn authentic_movement_records_upgrade_to_exact_source_and_preserve_all_binding_o
             let fresh = unified::lower(&source);
             assert!(fresh.diagnostics.is_empty(), "{:?}", fresh.diagnostics);
             let after = serde_json::to_value(&mapped.card).unwrap();
-            assert_eq!(
-                after,
-                serde_json::to_value(&fresh.card).unwrap(),
-                "{}",
-                before["faces"]
-            );
+            let mut historical_source = serde_json::to_value(&fresh.card).unwrap();
+            if fresh.card.faces[0].name == "Takklemaggot" {
+                // Schema188 fixes the newly produced card's inverse enchant
+                // relation. Migrating a saved185 card preserves its old meaning;
+                // migration must not silently apply this separate reference fix.
+                fn original_relation(value: &mut Value) -> usize {
+                    match value {
+                        Value::Object(fields) if fields.get("kind").and_then(Value::as_str) == Some("CouldBeEnchantedBy") => {
+                            assert_eq!(fields["args"], serde_json::json!({"kind":"AuraAfterEnchantedLeft","args":{"aura":{"kind":"Source"},"host":{"kind":"EventSubject"}}}));
+                            *value = serde_json::json!({"kind":"CouldEnchant","args":{"kind":"One","args":{"kind":"Source"}}});
+                            1
+                        },
+                        Value::Object(fields) => fields.values_mut().map(original_relation).sum(),
+                        Value::Array(items) => items.iter_mut().map(original_relation).sum(),
+                        _ => 0,
+                    }
+                }
+                assert_eq!(original_relation(&mut historical_source), 1);
+            }
+            assert_eq!(after, historical_source, "{}", before["faces"]);
             assert!(mapped.map.introduced.is_empty());
             for (from, to) in mapped.map.sites {
                 for to in to {
