@@ -1,0 +1,180 @@
+[
+  {
+    "kind": "Triggered",
+    "args": {
+      "event": {
+        "Object": {
+          "event": "Attacks",
+          "objects": {
+            "kind": "SameObject",
+            "args": {
+              "kind": "Source"
+            }
+          }
+        }
+      },
+      "intervening_if": null,
+      "limits": {
+        "per_turn": null,
+        "total": null
+      },
+      "announcement": {
+        "targets": [
+          {
+            "slot": 0,
+            "kind": {
+              "Object": {
+                "kind": "Permanent",
+                "zones": [
+                  "Battlefield"
+                ]
+              }
+            },
+            "count": {
+              "UpTo": {
+                "kind": "Constant",
+                "args": 1
+              }
+            },
+            "filter": {
+              "kind": "All",
+              "args": [
+                {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "EventSubject"
+                    }
+                  }
+                },
+                {
+                  "kind": "All",
+                  "args": [
+                    {
+                      "kind": "Attacking"
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  ]
+                }
+              ]
+            },
+            "players": null,
+            "distribute": null,
+            "constraints": [],
+            "chooser": null
+          }
+        ],
+        "modes": null
+      },
+      "body": {
+        "instructions": [
+          {
+            "kind": "Effect",
+            "args": {
+              "result": 0,
+              "operation": {
+                "kind": "PutCounters",
+                "args": {
+                  "placements": [
+                    {
+                      "recipients": {
+                        "kind": "Objects",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        }
+                      },
+                      "kind": {
+                        "PowerToughness": [
+                          1,
+                          1
+                        ]
+                      },
+                      "amount": {
+                        "kind": "Constant",
+                        "args": 1
+                      },
+                      "selection": null
+                    },
+                    {
+                      "recipients": {
+                        "kind": "Objects",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        }
+                      },
+                      "kind": {
+                        "PowerToughness": [
+                          1,
+                          1
+                        ]
+                      },
+                      "amount": {
+                        "kind": "Constant",
+                        "args": 1
+                      },
+                      "selection": null
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "kind": "Effect",
+            "args": {
+              "result": 2,
+              "operation": {
+                "kind": "CreateContinuousEffect",
+                "args": {
+                  "source": {
+                    "kind": "Source"
+                  },
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Target",
+                        "args": {
+                          "slot": 0,
+                          "index": 0
+                        }
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Rule",
+                      "args": {
+                        "Prohibit": {
+                          "BeBlocked": {
+                            "kind": "Any"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "duration": "EndOfTurn",
+                  "evaluation": "LiveObjects"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+]

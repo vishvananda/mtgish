@@ -1,0 +1,29 @@
+{
+  "evidence_directory": "/mnt/vizier/trygon-counter-20261110",
+  "source": {
+    "records": 33529,
+    "changed_names": [
+      "Trygon Prime"
+    ],
+    "unchanged_records": 33528,
+    "source_sha256": "39c67da144f28280672c8110bb80395c543fe92bbcd1168a957c28d6587de424"
+  },
+  "native": {
+    "records": 33529,
+    "schema": 188,
+    "schema_unchanged": true,
+    "changed_names": [
+      "Trygon Prime"
+    ],
+    "unchanged_records": 33528
+  },
+  "audit": {
+    "review_entries_unchanged": true,
+    "changed_template_overlaps_saved_findings": false,
+    "old_grammar_hash": "b259fe2f770c3effe34b8f4d5063fab3906b6db95603e0c27dfb29ed34b462aa",
+    "new_grammar_hash": "7793accf78efe2de0683d635982859aa9fb782be6d6b12b398a5bfb25272d044"
+  },
+  "followup_uses_original_target": true,
+  "engine_changes": false,
+  "schema_changes": false
+}

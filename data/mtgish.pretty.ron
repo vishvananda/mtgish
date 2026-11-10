@@ -1414281,8 +1414281,6 @@ Card(
               ),
               Trigger_ThatCreature,
             ),
-          ]),
-          PutCounters([
             ACounterOfTypeOnPermanent(
               PTCounter(
                 1,
