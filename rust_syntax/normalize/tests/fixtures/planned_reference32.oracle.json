@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Deification",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Deification",
+        "manaCost": "{1}{W}",
+        "type": "Enchantment",
+        "text": "As this enchantment enters, choose a planeswalker type.\nPlaneswalkers you control of the chosen type have hexproof.\nAs long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters on it being removed, instead all but one of those counters are removed."
+      }
+    ]
+  },
+  {
+    "name": "Hofri Ghostforge",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Hofri Ghostforge",
+        "manaCost": "{3}{R}{W}",
+        "type": "Legendary Creature — Dwarf Cleric",
+        "text": "Spirits you control get +1/+1 and have trample and haste.\nWhenever another nontoken creature you control dies, exile it. If you do, create a token that's a copy of that creature, except it's a Spirit in addition to its other types and it has \"When this token leaves the battlefield, return the exiled card to its owner's graveyard.\"",
+        "power": "4",
+        "toughness": "5"
+      }
+    ]
+  }
+]

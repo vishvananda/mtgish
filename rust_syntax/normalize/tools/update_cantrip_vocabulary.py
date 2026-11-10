@@ -56,6 +56,11 @@ def switched_features():
     if not entries:
         raise ValueError('cannot locate SWITCHED in planned.rs')
     api = '\n'.join(p.read_text() for p in inputs)
+    api_compact = re.sub(r'\s+', '', api)
+    creation_links = all(re.sub(r'\s+', '', marker).rstrip(';') in api_compact for marker in (
+        'fn creation_linked_exiled(&self, source: ObjectId) -> Vec<ObjectId>;',
+        'fn create_token_copies_linked_to_exiled(&mut self, values: Copiable, controller: PlayerId, count: u32, tapped: bool, cards: &[ObjectId]) -> Result<Vec<ObjectId>, Suspend>;',
+    ))
     from native_quantity_contract import FEATURE, BOUNDED_32, present, ceiling_present, typed_prevention_present
     quantity_source = Path(__file__).resolve().parents[1].joinpath('src/cantrip/quantity.rs').read_text()
     wide = present(checkout, quantity_source)
@@ -67,6 +72,7 @@ def switched_features():
             if (wide if name == FEATURE else
                 bounded_32 if name == BOUNDED_32 else
                 typed_prevention if name == 'typed-prevention-amount' else
+                creation_links if name == 'creation-exile-links' else
                 ceiling_present(checkout, wide=wide, bounded_32=bounded_32) if name == 'counter-placement-ceiling' else
                 json.loads(f'"{shown}"') in api)]
 

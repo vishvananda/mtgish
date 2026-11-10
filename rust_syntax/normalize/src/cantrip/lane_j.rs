@@ -5176,6 +5176,14 @@ impl Compiler {
         let entry: &EntrySpec = &entry_view;
         let tapped = entry.tapped;
         Ok(match entry.states.as_slice() {
+            [EntryState::LinkExiledCards(cards)] => {
+                // The receipt is installed atomically on every original token,
+                // including multiplicity replacements, before entry is observed.
+                let cards = self.fetch(self.objects(cards)?);
+                planned::planned_value("noncopiable creation exile links",
+                    "Ok::<Vec<ObjectId>, Suspend>(Vec::new())",
+                    &format!("g.create_token_copies_linked_to_exiled({values}, {player}, {count}, {tapped}, &({cards}))"))
+            }
             [EntryState::Attacking {
                 player: defender,
                 or_planeswalker: false,
@@ -5200,6 +5208,10 @@ impl Compiler {
     ) -> Result<()> {
         let entry_view = entry.entry_view();
         let entry: &EntrySpec = &entry_view;
+        if matches!(entry.states.as_slice(), [EntryState::LinkExiledCards(_)]) {
+            // copy_token_creation passes this receipt through its atomic API.
+            return Ok(());
+        }
         if matches!(
             entry.states.as_slice(),
             [EntryState::Attacking {

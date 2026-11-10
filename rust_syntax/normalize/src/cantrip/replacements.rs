@@ -300,6 +300,13 @@ impl Compiler {
                     number(self, n)?.quantity(Quantity::Prevention)?
                 )
             }
+            ("Damage", EventChange::LeaveLoyalty(minimum)) => {
+                let minimum = number(self, minimum)?.amount(u32::MAX.into(), "u32")?;
+                // Change only damage's loyalty-removal consequence, retaining
+                // its full amount, lifelink and other damage consequences.
+                planned::planned_value("damage loyalty floor", "()",
+                    &format!("{{ e.leave_loyalty({minimum}); }}")) + ";"
+            }
             ("Damage", EventChange::Cancel) => "e.amount = 0;".into(),
             ("Damage", EventChange::RedirectDamage(recipients)) => {
                 if names_target(recipients) && self.outer.is_none() {

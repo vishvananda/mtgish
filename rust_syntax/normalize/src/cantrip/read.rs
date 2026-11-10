@@ -873,6 +873,13 @@ impl Compiler {
                 };
                 format!("({paid}).into_iter().{then}.collect::<Vec<ObjectId>>()")
             }
+            ObjectSet::CreationLinkedCards(_) if self.reader == Reader::Layer => {
+                return Err(gap("creation exile links in a layer callback"));
+            }
+            ObjectSet::CreationLinkedCards(source) => planned::planned_value(
+                "noncopiable creation exile links", "Vec::<ObjectId>::new()",
+                &format!("{}.map_or_else(Vec::new, |source: ObjectId| q.creation_linked_exiled(source))", self.object(source)?),
+            ),
             ObjectSet::Created(result) => self.created(result)?,
             ObjectSet::Transition { result, phase } => self.transition(result, phase)?,
             ObjectSet::Matching { objects, filter } => format!(

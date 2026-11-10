@@ -73,6 +73,8 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("multiple-blocks", "pub const fn block_allowance(", &[]),
     ("cost-object-receipts", "fn mana_ability_cost_objects(&self,", &["cost-object-receipts"]),
     ("game-draw-legality", "fn cant_draw(&self, player: PlayerId, n: u32) -> bool;", &[]),
+    ("damage-loyalty-floor", "pub fn leave_loyalty(&mut self, minimum: u32)", &["damage-loyalty-floor"]),
+    ("creation-exile-links", "fn creation_linked_exiled(&self, source: ObjectId) -> Vec<ObjectId>;", &["noncopiable-creation-exile-links"]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

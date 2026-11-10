@@ -235,6 +235,41 @@
       "native_runtime_cases": 6,
       "native_negative_controls": 2,
       "test_thread_stack_bytes": 16777216
+    },
+    "planned_interfaces": {
+      "Deification": {
+        "capability": "damage-loyalty-floor",
+        "api": [
+          "DamageEvent::leave_loyalty(minimum: u32)"
+        ]
+      },
+      "Hofri Ghostforge": {
+        "capability": "creation-exile-links",
+        "api": [
+          "Query::creation_linked_exiled(source: ObjectId) -> Vec<ObjectId>",
+          "Game::create_token_copies_linked_to_exiled(values: Copiable, controller: PlayerId, count: u32, tapped: bool, cards: &[ObjectId]) -> Result<Vec<ObjectId>, Suspend>"
+        ]
+      }
+    },
+    "future_contract_typechecked": true,
+    "planned_cards_publishable_on_current_profile": false,
+    "planned_validation": {
+      "ast_generator_passed": 1502,
+      "failed": 0,
+      "ignored": 18,
+      "suites": 170,
+      "test_thread_stack_bytes": 16777216,
+      "new_features": [
+        "damage-loyalty-floor",
+        "creation-exile-links"
+      ],
+      "pinned_api_unchanged": true,
+      "engine_implementation_added": false,
+      "schema_changed": false,
+      "opt_in_proof_tests_passed": 7,
+      "native_runtime_cases_passed": 6,
+      "contract_modules_typechecked": 4,
+      "current_api_snapshot_check": "passed"
     }
   }
 }
