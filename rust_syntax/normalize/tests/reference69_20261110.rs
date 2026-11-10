@@ -184,7 +184,14 @@ fn captured_state_player_is_an_honestly_gated_planned_interface() {
         for (name,feature,call) in [
             ("Bronze Bombshell","state-trigger-player-capture","state_triggered_with_player("),
         ] {
-            let card=card(name);
+            let mut card=card(name);
+            // An arbitrary captured player still needs the general future API.
+            // The source controller uses the engine's existing frozen controller.
+            let current = cantrip::module(&card).unwrap();
+            assert!(current.contains("state_triggered("));
+            assert!(!current.contains("state_triggered_with_player("));
+            let Ability::Triggered { event: EventSpec::StateWithPlayer { player, .. }, .. } = &mut card.abilities[0] else { panic!() };
+            *player = PlayerRef::OwnerOf(Box::new(ObjectRef::Source));
             let old=cantrip::module(&card).unwrap_err();
             let code=cantrip::planned::with_additional_features(&[feature],||cantrip::module(&card))
                 .unwrap_or_else(|e|panic!("{name}: {e:?}; old {old:?}"));

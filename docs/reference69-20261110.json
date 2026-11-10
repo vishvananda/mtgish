@@ -145,13 +145,14 @@
   "numeric_width_changes": false,
   "browser_workspace_migration_work": false,
   "backend": {
-    "planned_player_capture": "state-trigger-player-capture",
+    "planned_player_capture": "Generic captures only; source-controller captures use the existing frozen ability controller.",
     "infinity_presence": "existing conditional layer grants; no new engine interface",
     "conditional_required_modes": [
       "Depth Defiler",
       "Prophetic Titan"
     ],
-    "conditional_required_modes_status": "Held on pinned backend; exact conditional minimum needs its already-planned choose_counted interface, not the old optional maximum."
+    "conditional_required_modes_status": "Held on pinned backend; exact conditional minimum needs its already-planned choose_counted interface, not the old optional maximum.",
+    "bronze_bombshell": "Supported on the pinned engine; native control-change response passes."
   },
   "validation": {
     "native_passed": 1517,
@@ -164,9 +165,9 @@
     "independent_whole_card_proposals": 58,
     "unchanged_controls": 19,
     "guarded_grammar_evidence_unchanged": 37,
-    "native_runtime_tests": 2,
-    "native_runtime_scenarios": 4,
-    "native_negative_controls": 2,
+    "native_runtime_tests": 3,
+    "native_runtime_scenarios": 5,
+    "native_negative_controls": 3,
     "artifact_sha256": "4be2e9996fd2e84ed21b034b3d68dd2e656433a6cdc83a4c3ba8b35c4bd88a5f"
   },
   "upstream_reports": [],

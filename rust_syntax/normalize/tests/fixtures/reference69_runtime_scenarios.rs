@@ -305,3 +305,28 @@ fn infinity_stones_gain_an_actual_ability_only_after_harnessing() {
         assert_eq!(count(&g,departed),0,"off-battlefield {} retains its infinity ability",stone.name);
     }
 }
+
+fn regain_bombshell(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    let object=g.state().target(item,0).object().unwrap();
+    g.add_effect(item.object,object,EffectKind::Control(A),Duration::Indefinite);
+    Ok(())
+}
+static REGAIN_BOMBSHELL:CardDef=CardDef {
+    name:"Regain Bombshell response",spell:spell(&[target(stone_target)],regain_bombshell),
+    ..HARNESS_CALLBACK
+};
+#[test]
+fn bombshell_remembers_the_controller_when_it_triggered() {
+    let (mut g,response)=game(&REGAIN_BOMBSHELL,&[&bombshell::CARD]);
+    let object=put(&mut g,&bombshell::CARD,A,Zone::BATTLEFIELD);
+    g.state.update_obj(object,|o|o.controller=B);
+    // The state trigger is stacked before A receives priority for this response.
+    announce(&mut g,response,ActionKind::CastSpell,0,vec![Target::Object(object)]);
+    assert!(g.state.stack.iter().any(|item|item.object==object&&item.controller==B));
+    finish(&mut g,true);
+    assert!(g.state.obj(object).zone.is(ZoneKind::Battlefield));
+    assert!(g.state.obj(object).became.is_none(), "Bombshell must remain on the battlefield after control changes");
+    assert_eq!(g.controller(object),A);
+    assert_eq!(g.state.player(A).life,20);
+    assert_eq!(g.state.player(B).life,20);
+}

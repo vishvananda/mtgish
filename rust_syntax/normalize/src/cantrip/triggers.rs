@@ -1999,21 +1999,33 @@ impl Compiler {
                 return Err(gap("captured state trigger with intervening condition"));
             }
             let state = self.condition_function(condition, &format!("{label}_state"))?;
-            let saved = (self.reader, self.event_at, self.frame);
-            (self.reader, self.event_at, self.frame) = (Reader::Query, EventAt::Nowhere, Frame::default());
-            let capture = self.player(player);
-            (self.reader, self.event_at, self.frame) = saved;
-            let capture = capture?;
-            let player_fn = format!("{label}_player");
-            writeln!(self.functions, "fn {player_fn}(q: &dyn Query, asker: &Asker) -> Option<PlayerId> {{ {capture} }}").unwrap();
-            let frame = Frame { player: Some(Carried::Subject), ..Frame::default() };
+            let own_controller = matches!(player, PlayerRef::ControllerOf(object) if matches!(**object, ObjectRef::Source));
+            let player_fn = if own_controller {
+                // The ordinary trigger already freezes its controller. For this
+                // capture that is exactly the named player, even after a response
+                // changes control of the permanent (Bronze Bombshell).
+                None
+            } else {
+                let saved = (self.reader, self.event_at, self.frame);
+                (self.reader, self.event_at, self.frame) = (Reader::Query, EventAt::Nowhere, Frame::default());
+                let capture = self.player(player);
+                (self.reader, self.event_at, self.frame) = saved;
+                let capture = capture?;
+                let player_fn = format!("{label}_player");
+                writeln!(self.functions, "fn {player_fn}(q: &dyn Query, asker: &Asker) -> Option<PlayerId> {{ {capture} }}").unwrap();
+                Some(player_fn)
+            };
+            let frame = Frame { player: (!own_controller).then_some(Carried::Subject), player_is_controller: own_controller, ..Frame::default() };
             let targets = self.targets_for(announcement, label, frame)?;
             let outer_frame = std::mem::replace(&mut self.frame, frame);
             let effect = self.effect(body, label);
             self.frame = outer_frame;
             let effect = effect?;
             let text = self.said(lane_k::Said::Triggered, "When this state holds".into());
-            let mut def = planned::planned_value("state-trigger-player-capture", "todo!()", &format!("state_triggered_with_player({state}, {player_fn}, {effect}, {}).targets({targets})", quoted(&text)));
+            let mut def = match player_fn {
+                Some(player_fn) => planned::planned_value("state-trigger-player-capture", "todo!()", &format!("state_triggered_with_player({state}, {player_fn}, {effect}, {}).targets({targets})", quoted(&text))),
+                None => format!("state_triggered({state}, {effect}, {}).targets({targets})", quoted(&text)),
+            };
             if let Some(per_turn) = limits.per_turn {
                 def.push_str(&format!(".triggers_each_turn({per_turn})"));
             }

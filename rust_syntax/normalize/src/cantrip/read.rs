@@ -98,6 +98,9 @@ pub(super) enum Carried {
 pub(super) struct Frame {
     pub object: Option<Carried>,
     pub player: Option<Carried>,
+    /// A state capture of this source's controller equals the ability controller
+    /// already frozen in the stack item; it must not query live control.
+    pub player_is_controller: bool,
     pub destination: Option<Carried>,
     pub other: Option<Carried>,
     pub other_player: Option<Carried>,
@@ -138,6 +141,7 @@ impl Frame {
         Self {
             object: same(self.object, other.object),
             player: same(self.player, other.player),
+            player_is_controller: self.player_is_controller && other.player_is_controller,
             destination: same(self.destination, other.destination),
             other: same(self.other, other.other),
             other_player: same(self.other_player, other.other_player),
@@ -688,6 +692,7 @@ impl Compiler {
                 }
                 format!("t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.player())")
             }
+            PlayerRef::EventSubject if self.frame.player_is_controller => "Some(asker.controller)".into(),
             PlayerRef::EventSubject => self.carried_player(self.frame.player)?,
             PlayerRef::EventOtherPlayer => self.carried_player(self.frame.other_player)?,
             PlayerRef::Bound(binding) if self.bound_players.contains(&binding.0) => {
@@ -728,7 +733,7 @@ impl Compiler {
         let is_certain = match player {
             PlayerRef::AbilityController | PlayerRef::Active | PlayerRef::Bound(_) => true,
             PlayerRef::Target { slot, index } => c_slot_is_fixed(self, slot, *index),
-            PlayerRef::EventSubject => self.frame.player.is_some(),
+            PlayerRef::EventSubject => self.frame.player.is_some() || self.frame.player_is_controller,
             PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
             PlayerRef::ControllerOf(object) | PlayerRef::OwnerOf(object) => certain(self, object),
             PlayerRef::Chosen => self.chosen_local(ValueKind::Player).is_ok(),

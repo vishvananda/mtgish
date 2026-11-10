@@ -18,7 +18,7 @@ fn pool_exclusion_and_infinity_presence_execute_in_cantrip() {
         let source:OracleCard=ron::from_str(line).unwrap();cards.extend(unified::lower(&source).card.faces);
     }
     let mut lib=String::new();
-    for (module,name) in [("knowledge_pool","Knowledge Pool"),("soul_stone","The Soul Stone"),("mind_stone","The Mind Stone")] {
+    for (module,name) in [("knowledge_pool","Knowledge Pool"),("soul_stone","The Soul Stone"),("mind_stone","The Mind Stone"),("bombshell","Bronze Bombshell")] {
         let card:&Card=cards.iter().find(|c|c.name==name).unwrap();
         lib.push_str(&format!("mod {module} {{\n{}\n}}\n",cantrip::module(card).unwrap()));
     }

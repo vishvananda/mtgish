@@ -766,7 +766,7 @@ impl Compiler {
                 }
                 _ => true,
             },
-            PlayerRef::EventSubject => self.frame.player.is_some(),
+            PlayerRef::EventSubject => self.frame.player.is_some() || self.frame.player_is_controller,
             PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
             // A player chosen in the body around this ability goes with it.
             PlayerRef::Chosen => {
