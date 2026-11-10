@@ -19,7 +19,8 @@
     "test:sections": "node test_sections.cjs",
     "test:properties": "node test_properties.cjs",
     "test:named-abilities": "node test_named_abilities.cjs",
-    "test:loyalty": "node test_loyalty.cjs"
+    "test:loyalty": "node test_loyalty.cjs",
+    "test:selectors": "node test_selectors.cjs"
   },
   "devDependencies": {
     "playwright": "1.65.0"

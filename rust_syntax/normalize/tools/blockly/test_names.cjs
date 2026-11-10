@@ -45,6 +45,8 @@ let browser,page;
  assert.deepEqual(choices.map(([name])=>name).sort(),['first','second']);
  const rejected=await page.evaluate(async()=>{const d=window.cardBlocks,p=d.bindings.ports(d.workspace.getTopBlocks(false)[0]).find(p=>p.definition&&p.kind==='Target');try{await d.bindings.rename(d.bindings.metadata(p).key,'second');return false;}catch(_){return true;}});assert.equal(rejected,true);
  assert.match(await page.locator('#human-editor').inputValue(),/Targets\(first\)/);
+ await page.evaluate(async()=>{const d=window.cardBlocks,p=d.bindings.ports(d.workspace.getTopBlocks(false)[0]).find(p=>!p.definition&&p.kind==='Target');d.selectors.expand(p.block);await Blockly.renderManagement.finishQueuedRenders();d.workspace.centerOnBlock(p.block.id);});
+ await page.waitForFunction(()=>window.cardBlocks.valid());
  await page.evaluate(()=>{const d=window.cardBlocks,p=d.bindings.ports(d.workspace.getTopBlocks(false)[0]).find(p=>!p.definition&&p.kind==='Target');p.block.getField('REF:'+p.key).showEditor_();});
  await page.getByRole('option',{name:'second',exact:true}).click();
  await page.waitForFunction(()=>window.cardBlocks.valid()&&document.getElementById('human-editor').value.includes('Targets(second)'));

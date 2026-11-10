@@ -73,6 +73,21 @@ nonstandard rules remain visible. **IR details** exposes the discriminator as
 **mechanic identity**. Imported cards retain their original costs, programs,
 targets, scope, IDs, and keyword identity.
 
+Object selectors appear as compact chips such as **all creatures you control ▸**.
+Click the chip (or focus it and press Enter/Space) to expand the original typed
+blocks; its compact button folds them again. Summaries distinguish announced
+targets, saved choices, and live queries, and retain existing reference names.
+Unknown forms say **details** and incomplete forms remain repairable. The full
+selector tree, conditions, bindings, and IDs remain in the IR.
+
+Object sockets have a **Choose…** menu with compatible starters, scoped announced
+targets, search, and **Edit current selector in blocks**. Choosing a starter
+fills that socket directly; replacement is undoable. Dragging remains available:
+compatible visible sockets get amber outlines, and the pending connection gets
+a green outline and a Connect/Replace label. Blockly's original type checks,
+connection preview, and displaced-block behavior remain active. Common query
+starters are also under **Targets & selections**, searchable by their captions.
+
 **Sequence of instructions** (`Group`) keeps a separate result for each child
 instruction. **In Order** and **Together** contain action clauses under one
 instruction/result boundary; one is ordered and the other simultaneous. The
