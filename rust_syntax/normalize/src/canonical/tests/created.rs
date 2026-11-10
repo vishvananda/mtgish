@@ -183,24 +183,28 @@ fn sibling_created_triggers_have_independent_target_definitions() {
 
 fn return_entry(operation: Value) -> Value {
     json!({"kind":"Move","args":{"objects":{"kind":"One","args":{"kind":"Source"}},
-    "destination":"Exile","face_down":false,
-    "terms":{"order":"DestinationDefault","placement":"DestinationDefault","qualifiers":[]},
-    "entry":{"controller":null,"tapped":false,"counters":[],"states":[{"ExiledForWith":{
+    "destination":{"Exile":{"visibility":"FaceUp","arrival":{"counters":[],"states":[{"ExiledForWith":{
         "until":"EndOfTurn","objects":{"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":{"kind":"Any"}}},
         "body":{"instructions":[effect(0,operation)]}
-    }}]}}})
+    }}]}}},"qualifiers":[]}})
 }
 fn reveal(object: Value) -> Value {
     json!({"kind":"Reveal","args":{"objects":{"kind":"One","args":object}}})
 }
 fn returned_body(value: &Value) -> &Value {
-    &value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["entry"]["states"][0]["ExiledForWith"]["body"]
+    &value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["destination"]
+        ["Exile"]["arrival"]["states"][0]["ExiledForWith"]["body"]
 }
 
 #[test]
 fn a_return_trigger_keeps_its_subject_instead_of_becoming_the_creating_source() {
-    let mut value = ability(self_event(), return_entry(reveal(json!({"kind":"EventSubject"}))));
-    value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["entry"]["states"][0]["ExiledForWith"]["objects"] = json!({"kind":"One","args":{"kind":"EventSubject"}});
+    let mut value = ability(
+        self_event(),
+        return_entry(reveal(json!({"kind":"EventSubject"}))),
+    );
+    value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["destination"]
+        ["Exile"]["arrival"]["states"][0]["ExiledForWith"]["objects"] =
+        json!({"kind":"One","args":{"kind":"EventSubject"}});
     assert!(valid(&value));
     canonical::abilities(&mut value).unwrap();
     assert!(valid(&value));
@@ -210,8 +214,8 @@ fn a_return_trigger_keeps_its_subject_instead_of_becoming_the_creating_source() 
         "EventSubject"
     );
     assert_eq!(
-        value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["entry"]["states"]
-            [0]["ExiledForWith"]["objects"]["args"]["kind"],
+        value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["destination"]
+            ["Exile"]["arrival"]["states"][0]["ExiledForWith"]["objects"]["args"]["kind"],
         "EventSubject"
     );
     let once = value.clone();
@@ -235,7 +239,10 @@ fn a_return_trigger_has_an_event_even_when_a_spell_created_it() {
 
 #[test]
 fn a_return_trigger_cannot_inherit_its_creators_damage_event() {
-    let value = ability(damage_event("Recipient"),return_entry(reveal(json!({"kind":"Damage","args":"Recipient"}))));
+    let value = ability(
+        damage_event("Recipient"),
+        return_entry(reveal(json!({"kind":"Damage","args":"Recipient"}))),
+    );
     assert!(!valid(&value));
 }
 

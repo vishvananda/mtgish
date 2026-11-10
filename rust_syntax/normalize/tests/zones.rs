@@ -44,10 +44,8 @@ fn effect(operation: Operation, result: u32) -> Instruction {
 fn movement(objects: ObjectSet, destination: Destination) -> Operation {
     Operation::Move {
         objects,
-        destination,
-        entry: EntrySpec::default(),
-        face_down: false,
-        terms: mtgish_ast::ir::MovementTerms::default(),
+        destination: destination.into(),
+        qualifiers: vec![],
     }
 }
 fn library(players: PlayerSet) -> ObjectSet {
@@ -204,7 +202,10 @@ fn graveyard_returns_keep_entry_properties_and_new_object_bindings() {
         [
             Instruction::Effect {
                 operation: Operation::Move {
-                    destination: Destination::Battlefield(PlayerRef::AbilityController),
+                    destination: MovementDestination::Battlefield {
+                        controller: EntryController::Player(PlayerRef::AbilityController),
+                        ..
+                    },
                     ..
                 },
                 ..
@@ -223,7 +224,7 @@ fn graveyard_returns_keep_entry_properties_and_new_object_bindings() {
     ));
     let c = card("Victimize");
     assert!(
-        matches!(&spell(&c).1.instructions[1], Instruction::If { condition: Condition::PaymentChosen(_), then, .. } if matches!(then.instructions.as_slice(), [Instruction::Effect { operation: Operation::Move { entry: EntrySpec { tapped: true, .. }, objects: ObjectSet::Targets(_), .. }, .. }]))
+        matches!(&spell(&c).1.instructions[1], Instruction::If { condition: Condition::PaymentChosen(_), then, .. } if matches!(then.instructions.as_slice(), [Instruction::Effect { operation: Operation::Move { destination:MovementDestination::Battlefield{arrival:BattlefieldArrival{tapped:true,..},..}, objects: ObjectSet::Targets(_), .. }, .. }]))
     );
     let c = custom("SpellActions(Targeted([TargetGraveyardCard(AnyCardInAnyGraveyard)], ActionList([PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersTapped, EntersUnderOwnersControl]), TapPermanent(ThePermanentPutOnTheBattlefieldThisWay)])))").unwrap();
     validate::card(&c).unwrap();
@@ -233,8 +234,10 @@ fn graveyard_returns_keep_entry_properties_and_new_object_bindings() {
             Instruction::Effect {
                 result: ResultId(0),
                 operation: Operation::Move {
-                    destination: Destination::OwnersBattlefield,
-                    entry: EntrySpec { tapped: true, .. },
+                    destination: MovementDestination::Battlefield {
+                        controller: EntryController::Owner,
+                        arrival: BattlefieldArrival { tapped: true, .. }
+                    },
                     ..
                 }
             },
@@ -261,7 +264,7 @@ fn exile_choices_precede_one_batch_and_transition_bindings_are_scoped() {
         panic!()
     };
     assert!(
-        matches!(group.instructions.as_slice(), [Instruction::Effect { operation: Operation::ChooseObjects { count: Count::AsManyAsCan(Expr::Constant(1)), .. }, .. }, Instruction::Effect { operation: Operation::ChooseObjects { .. }, .. }, Instruction::Effect { result: ResultId(2), operation: Operation::Move { objects: ObjectSet::Union(sets), destination: Destination::Exile, .. } }] if sets.len() == 2)
+        matches!(group.instructions.as_slice(), [Instruction::Effect { operation: Operation::ChooseObjects { count: Count::AsManyAsCan(Expr::Constant(1)), .. }, .. }, Instruction::Effect { operation: Operation::ChooseObjects { .. }, .. }, Instruction::Effect { result: ResultId(2), operation: Operation::Move { objects: ObjectSet::Union(sets), destination: MovementDestination::Exile{..}, .. } }] if sets.len() == 2)
     );
     assert!(
         matches!(&spell(&c).1.instructions[1], Instruction::Effect { operation: Operation::GainLife { amount: Expr::CountObjects(objects), .. }, .. } if matches!(objects.as_ref(), ObjectSet::Transition { result: ResultId(2), phase: ObjectPhase::Before }))

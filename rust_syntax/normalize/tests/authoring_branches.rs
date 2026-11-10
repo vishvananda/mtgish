@@ -1,3 +1,5 @@
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 use mtgish_ast::{
     canonical,
     human::{
@@ -64,8 +66,9 @@ fn branch_locals_do_not_become_ordinary_reads_outside_or_in_siblings() {
     }
 }
 fn reused_receipts() -> UnifiedCard {
-    let cases: Vec<Value> =
+    let mut cases: Vec<Value> =
         serde_json::from_str(include_str!("fixtures/canonical_join_results.json")).unwrap();
+    cases.iter_mut().for_each(legacy_entries::json);
     let mut abilities = cases[0]["a"].clone();
     abilities[0]["args"]["body"]["instructions"][0]["args"]["options"][1]["instructions"][0]
         ["args"]["result"] = json!(11);
@@ -212,7 +215,13 @@ fn saved_v1_branch_documents_upgrade_names_without_changing_the_card() {
         let original: Value = serde_json::from_str(input).unwrap();
         let mut doc = Document::from_json(input).unwrap();
         assert_eq!(doc.version, 2);
-        assert_eq!(serde_json::to_value(doc.card()).unwrap(), serde_json::to_value(mtgish_ast::migrate::read_json(&original["card"].to_string()).unwrap()).unwrap());
+        assert_eq!(
+            serde_json::to_value(doc.card()).unwrap(),
+            serde_json::to_value(
+                mtgish_ast::migrate::read_json(&original["card"].to_string()).unwrap()
+            )
+            .unwrap()
+        );
         let picked: Vec<_> = doc
             .bindings()
             .iter()
@@ -234,8 +243,9 @@ fn saved_v1_branch_documents_upgrade_names_without_changing_the_card() {
 
 #[test]
 fn all_native_join_regressions_support_distinct_names_for_actual_definitions() {
-    let cases: Vec<Value> =
+    let mut cases: Vec<Value> =
         serde_json::from_str(include_str!("fixtures/canonical_join_results.json")).unwrap();
+    cases.iter_mut().for_each(legacy_entries::json);
     for case in cases {
         for side in ["a", "b"] {
             let mut c = human::read(&card("")).unwrap();

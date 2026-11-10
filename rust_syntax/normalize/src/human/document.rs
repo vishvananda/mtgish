@@ -146,7 +146,10 @@ impl Document {
     }
     pub fn from_json(input: &str) -> Result<Self, String> {
         let mut value = crate::json_input::wrapped_value(input)?;
-        if matches!(value["card"]["schema_version"].as_u64(), Some(180 | 181 | 182 | 183 | 184)) {
+        if matches!(
+            value["card"]["schema_version"].as_u64(),
+            Some(180 | 181 | 182 | 183 | 184 | 185)
+        ) {
             migration::upgrade_schema(&mut value)?;
         }
         let mut doc: Self = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;

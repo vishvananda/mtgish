@@ -112,7 +112,10 @@ fn decode_step<T: serde::de::DeserializeOwned>(value: &serde_json::Value) -> Res
 }
 
 /// The same form under the enum another family uses for it.
-fn as_family<T: serde::de::DeserializeOwned>(value: &impl Serialize, family: &'static str) -> Option<T> {
+fn as_family<T: serde::de::DeserializeOwned>(
+    value: &impl Serialize,
+    family: &'static str,
+) -> Option<T> {
     let mut inspected = crate::inspect::value(value).ok()?;
     let name = inspected["enum"].as_str()?.to_string();
     retag(&mut inspected, &|n: &str| (n == name).then_some(family));
@@ -126,7 +129,10 @@ fn cast<T: serde::de::DeserializeOwned>(
 ) -> Option<T> {
     let mut inspected = crate::inspect::value(value).ok()?;
     retag(&mut inspected, &|n: &str| {
-        families.iter().find(|(from, _)| *from == n).map(|(_, to)| *to)
+        families
+            .iter()
+            .find(|(from, _)| *from == n)
+            .map(|(_, to)| *to)
     });
     crate::pipeline::source_tree::decode(&inspected).ok()
 }
@@ -152,7 +158,11 @@ impl Context {
                     DamageKind::Noncombat,
                 )
                 .map(ReplacementEvent::Damage),
-            S::AnAmountOfDamageWouldBeDealtByASourceToARecipient(comparison, sources, recipients) => {
+            S::AnAmountOfDamageWouldBeDealtByASourceToARecipient(
+                comparison,
+                sources,
+                recipients,
+            ) => {
                 let shape = self.damage_shape(
                     DamageFrom::Sources(sources),
                     DamageTo::List(recipients),
@@ -236,7 +246,10 @@ impl Context {
                 (card(self.card_filter(cards)?, self.players(owners)?), None)
             }
             S::WouldPutACardInPlayersGraveyardFromAnywhere(cards, owner) => (
-                card(self.card_filter(cards)?, PlayerSet::One(self.player(owner)?)),
+                card(
+                    self.card_filter(cards)?,
+                    PlayerSet::One(self.player(owner)?),
+                ),
                 None,
             ),
             _ => return Err(unsupported(value)),
@@ -281,9 +294,9 @@ impl Context {
             S::PlayerWouldDrawACardForTheFirstTimeEachPlayersTurn(player, _) => {
                 (player, ReplacedPlayerEvent::Draw)
             }
-            S::PlayerWouldDrawACardForTheFirstTimeEachPlayersTurnExceptFirstDrawStepDraw(player) => {
-                (player, ReplacedPlayerEvent::DrawExceptFirstInDrawStep)
-            }
+            S::PlayerWouldDrawACardForTheFirstTimeEachPlayersTurnExceptFirstDrawStepDraw(
+                player,
+            ) => (player, ReplacedPlayerEvent::DrawExceptFirstInDrawStep),
             _ => return None,
         };
         let players = PlayerSet::One(self.player(player).ok()?);
@@ -352,13 +365,19 @@ impl Context {
         Ok(Some(match variant {
             "ContinueDealingDamage" => vec![],
             "ShuffleItIntoLibraryInstead" => {
-                vec![EventChange::SetDestination(Destination::OwnersLibraryShuffled)]
+                vec![EventChange::SetDestination(
+                    Destination::OwnersLibraryShuffled,
+                )]
             }
             "CancelThatDamage" | "SkipThatDraw" | "SkipTurn" | "CancelDestroy"
             | "GainNoLifeInstead" => vec![EventChange::Cancel],
-            "DealDamageInstead" | "PutNewAmount" => vec![EventChange::SetAmount(
-                self.number(&decode_step::<source::GameNumber>(args)?)?,
-            )],
+            "DealDamageInstead" | "PutNewAmount" => {
+                vec![EventChange::SetAmount(self.number(&decode_step::<
+                    source::GameNumber,
+                >(
+                    args
+                )?)?)]
+            }
             "WouldProduceMana_ProduceMultiple" => vec![EventChange::SetAmount(Expr::multiply(
                 self.number(&decode_step::<source::GameNumber>(args)?)?,
                 Expr::EventAmount,
@@ -392,9 +411,9 @@ impl Context {
                 vec![EventChange::IgnoreCounters(crate::counter::lower(&kind))]
             }
             "WouldProduceMana_ReplaceColorWithTheChosenColor" => {
-                vec![EventChange::ReplaceColoredMana(
-                    self.mana_production(&source::ManaProduce::ManaOfTheChosenColor)?,
-                )]
+                vec![EventChange::ReplaceColoredMana(self.mana_production(
+                    &source::ManaProduce::ManaOfTheChosenColor,
+                )?)]
             }
             "WouldProduceMana_ReplaceColor" => {
                 let color: source::Color = decode_step(args)?;
@@ -410,7 +429,9 @@ impl Context {
                     .iter()
                     .map(decode_step)
                     .collect::<Result<Vec<source::LayerEffect>>>()?;
-                vec![EventChange::Entry(EntryState::Changes(self.changes(&effects)?))]
+                vec![EventChange::Entry(BattlefieldState::Changes(
+                    self.changes(&effects)?,
+                ))]
             }
             "RollThatManyPlusOneAndIgnoreLowestInstead" => {
                 vec![EventChange::RollExtraDie(DiceIgnore::Lowest)]
@@ -435,7 +456,7 @@ impl Context {
                         self.changes(&effects)
                     })
                     .collect::<Result<_>>()?;
-                vec![EventChange::Entry(EntryState::ChooseChanges(options))]
+                vec![EventChange::Entry(BattlefieldState::ChooseChanges(options))]
             }
             "CreateTokensInstead" => {
                 let mut copies = 0;
@@ -473,9 +494,13 @@ impl Context {
                     _ => return Err(unsupported(&recipient)),
                 })]
             }
-            "CreateTokensUnderPlayersControlInstead" => vec![EventChange::SetController(
-                self.player(&decode_step::<source::Player>(&args[1])?)?,
-            )],
+            "CreateTokensUnderPlayersControlInstead" => {
+                vec![EventChange::SetController(self.player(&decode_step::<
+                    source::Player,
+                >(
+                    &args[1]
+                )?)?)]
+            }
             "ExileItInstead" | "ExileSpell" => {
                 self.replaced_exile = true;
                 vec![exile]
@@ -506,6 +531,8 @@ impl Context {
                     .collect::<Result<Vec<source::EnterFlag>>>()?;
                 let you = self.player(&source::Player::You)?;
                 let (_, entry) = self.move_entry(&flags, you)?;
+                let entry = crate::movement::battlefield_from_parts(&entry)
+                    .map_err(|message| invalid(&message))?;
                 let mut changes = vec![EventChange::SetDestination(Destination::OwnersBattlefield)];
                 if entry.tapped {
                     changes.push(EventChange::SetTapped(true));
@@ -523,7 +550,9 @@ impl Context {
                 vec![EventChange::SetDestination(Destination::OwnersLibraryTop)]
             }
             "PutItOnBottomOfOwnersLibraryInstead" => {
-                vec![EventChange::SetDestination(Destination::OwnersLibraryBottom)]
+                vec![EventChange::SetDestination(
+                    Destination::OwnersLibraryBottom,
+                )]
             }
             "ExileItWithACounterInstead" => vec![
                 exile,
@@ -705,8 +734,9 @@ impl Context {
                         retag(&mut ordinary, &|name| {
                             (name == "DamageRecipients").then_some("DamageRecipient")
                         });
-                        let action = crate::pipeline::source_tree::decode::<source::Action>(&ordinary)
-                            .map_err(|_| unsupported_step(step))?;
+                        let action =
+                            crate::pipeline::source_tree::decode::<source::Action>(&ordinary)
+                                .map_err(|_| unsupported_step(step))?;
                         self.action(&action, &PlayerSet::One(actor.clone()))?
                     }
                     Err(_) => {
@@ -801,7 +831,10 @@ impl Context {
                     from: None,
                     to: EventZone::Graveyard,
                 };
-                let steps: Vec<_> = steps.iter().filter_map(|s| crate::inspect::value(s).ok()).collect();
+                let steps: Vec<_> = steps
+                    .iter()
+                    .filter_map(|s| crate::inspect::value(s).ok())
+                    .collect();
                 let body = self.replacement_body(&event, &steps)?;
                 Ok(Ability::Replacement {
                     active: ReplacementActive::Everywhere,
@@ -845,7 +878,10 @@ impl Context {
             return None;
         }
         let args = inspected["args"].as_array()?;
-        args.first()?["enum"].as_str()?.contains("ReplacableEvent").then_some(())?;
+        args.first()?["enum"]
+            .as_str()?
+            .contains("ReplacableEvent")
+            .then_some(())?;
         Some((|| {
             let (event, limit, duration) = match args.as_slice() {
                 [event, _, expiration] if !future => (

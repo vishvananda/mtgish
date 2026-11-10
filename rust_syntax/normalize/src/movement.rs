@@ -4,9 +4,18 @@ use crate::{
     visit::{Visitor, VisitorMut, Walk, WalkMut},
 };
 use std::collections::{BTreeMap, BTreeSet};
+pub mod legacy;
+pub(crate) use legacy::{EntrySpec, EntryState};
+mod destination;
 mod transfer;
+pub(crate) use destination::{
+    battlefield_from_parts, battlefield_state_from_parts, battlefield_state_view, can_move_plain,
+    can_move_to, conjure_from_parts, conjure_to, conjure_view, cost_move, cost_move_plain,
+    counter_with, destination_from_parts, destination_view, entry_destination_view, move_plain,
+    move_to, move_top_card, ArrivalView, DestinationView,
+};
 
-/// Grammar entry flags end here. Validated operations carry only `EntrySpec`.
+/// Grammar entry flags end here. Validated operations carry destination-specific arrivals.
 /// Unknown source material remains an invalid draft instead of being
 /// discarded or accepted as a complete typed arrival.
 pub fn entry_from_source(flags: &[Operand]) -> EntrySpec {
@@ -41,6 +50,9 @@ impl VisitorMut for Normalize {
     fn operation_end(&mut self, operation: &mut Operation) {
         if matches!(operation, Operation::DraftChangeZone { .. }) {
             *operation = transfer::canonical_move(operation);
+            if matches!(operation, Operation::DraftChangeZone { .. }) {
+                return;
+            }
             operation.walk_mut(self);
             return;
         }

@@ -6,6 +6,7 @@ impl Context {
                 operation:
                     Operation::FlipCoin {
                         player: PlayerRef::Bound(who),
+                        ..
                     },
                 ..
             }] => who.0 == binding.0,
@@ -51,6 +52,7 @@ impl Context {
         };
         let flip = self.effect(Operation::FlipCoin {
             player: player.clone(),
+            protocol: CoinProtocol::Called,
         });
         let Instruction::Effect { result, .. } = &flip else {
             unreachable!()
@@ -91,7 +93,17 @@ impl Context {
             S::FlipACoin_OnHeadAndOnTails(heads, tails) => (Heads, heads, tails),
             _ => return Ok(None),
         };
-        let (flip, result) = self.coin_flip(actor)?;
+        let (mut flip, result) = self.coin_flip(actor)?;
+        if matches!(outcome, Heads) {
+            let Instruction::Effect {
+                operation: Operation::FlipCoin { protocol, .. },
+                ..
+            } = &mut flip
+            else {
+                unreachable!()
+            };
+            *protocol = CoinProtocol::Uncalled;
+        }
         let branch = self.conditional(
             Condition::CoinFlip { result, outcome },
             |context| context.action_list(then, actor),

@@ -145,7 +145,11 @@ fn had_to_show_hand(player: &PlayerRef, program: &Program) -> Option<Program> {
     };
     let their_hand = |objects: &ObjectSet| -> Option<ObjectSet> {
         let ObjectSet::Zone {
-            scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(PlayerRef::AbilityController) },
+            scope:
+                ZoneScope::Players {
+                    zone: EventZone::Hand,
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                },
             kind,
             filter,
         } = objects
@@ -153,17 +157,30 @@ fn had_to_show_hand(player: &PlayerRef, program: &Program) -> Option<Program> {
             return None;
         };
         Some(ObjectSet::Zone {
-            scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(player.clone()) },
+            scope: ZoneScope::Players {
+                zone: EventZone::Hand,
+                players: PlayerSet::One(player.clone()),
+            },
             kind: kind.clone(),
             filter: filter.clone(),
         })
     };
-    let Instruction::Effect { result: shown, operation: Operation::Reveal { objects } } = first else {
+    let Instruction::Effect {
+        result: shown,
+        operation: Operation::Reveal { objects },
+    } = first
+    else {
         return None;
     };
     let Instruction::Effect {
         result: picked,
-        operation: Operation::ChooseObjects { player: PlayerRef::AbilityController, objects: pool, count, constraints },
+        operation:
+            Operation::ChooseObjects {
+                player: PlayerRef::AbilityController,
+                objects: pool,
+                count,
+                constraints,
+            },
     } = second
     else {
         return None;
@@ -171,7 +188,9 @@ fn had_to_show_hand(player: &PlayerRef, program: &Program) -> Option<Program> {
     let mut steps = vec![
         Instruction::Effect {
             result: shown.clone(),
-            operation: Operation::Reveal { objects: their_hand(objects)? },
+            operation: Operation::Reveal {
+                objects: their_hand(objects)?,
+            },
         },
         Instruction::Effect {
             result: picked.clone(),
@@ -286,9 +305,20 @@ enum AttachShape {
 
 /// `Game::attach`, which leaves in place what can't go there (CR 701.3b). What
 /// goes where is the actor's as the instruction is followed, one at a time.
-fn attach_each(id: usize, player: &str, attachments: &str, hosts: &str, shape: AttachShape, out: &mut String) {
+fn attach_each(
+    id: usize,
+    player: &str,
+    attachments: &str,
+    hosts: &str,
+    shape: AttachShape,
+    out: &mut String,
+) {
     let one = format!("{M}::select::Selection::of({M}::select::up_to(1), &[])");
-    let ask = |cards: &str| format!("{M}::choose::select(g, player_{id}, asker.source, Purpose::Attach, {cards}, {one})?");
+    let ask = |cards: &str| {
+        format!(
+            "{M}::choose::select(g, player_{id}, asker.source, Purpose::Attach, {cards}, {one})?"
+        )
+    };
     write!(out, "let player_{id} = {player}; let attachments_{id} = {attachments}; let hosts_{id} = {hosts}; ").unwrap();
     match shape {
         AttachShape::AllToTheChosen => writeln!(out, "let _ = player_{id}; if let Some(&host) = hosts_{id}.first() {{ cantrip_api::instruction(g, |g| {{ for &attachment in &attachments_{id} {{ g.attach(attachment, host); }} }}); }}"),
@@ -318,7 +348,10 @@ fn total_rule(functions: &mut String, name: &str, read: &str, words: &str, most:
 fn pays_by_the_time(cost: &Cost) -> bool {
     matches!(
         cost.parts.as_slice(),
-        [CostPart::Mana(_) | CostPart::Life(_) | CostPart::Discard { .. } | CostPart::Sacrifice { .. }]
+        [CostPart::Mana(_)
+            | CostPart::Life(_)
+            | CostPart::Discard { .. }
+            | CostPart::Sacrifice { .. }]
     )
 }
 
@@ -416,10 +449,15 @@ pub(super) fn chooses_what_pays(cost: &Cost) -> bool {
         }] => true,
         [CostPart::Move {
             selections,
-            face_down: false,
-            ..
-        }]
-        | [CostPart::ChangeTapState {
+            destination,
+        }] if !destination.hidden() => matches!(
+            selections.as_slice(),
+            [CostObjectSelection {
+                choose: Some(Count::AnyNumber),
+                ..
+            }]
+        ),
+        [CostPart::ChangeTapState {
             selections,
             tapped: true,
             symbol: false,
@@ -516,7 +554,9 @@ impl Compiler {
             // player can have, asked of this ability's controller among those
             // the player has, as a permanent's kind is asked.
             if let (C::One, true, None, None) = (copies, from == to, kind, &self.wanted_labels) {
-                self.wanted_labels = Some("&[\"Poison counter\", \"Energy counter\", \"Experience counter\"]".into());
+                self.wanted_labels = Some(
+                    "&[\"Poison counter\", \"Energy counter\", \"Experience counter\"]".into(),
+                );
                 writeln!(out, "for player in {from} {{ let have = {{ let counters = g.state().player(player); [counters.poison() > 0, counters.energy() > 0, counters.experience() > 0] }}; let offered: Vec<u8> = (0..3u8).filter(|&i| have[usize::from(i)]).collect(); if !offered.is_empty() {{ let card = g.card_id(&CARD); let pick = offered[{M}::choose::one_of(g, asker.controller, asker.source, offered.iter().map(|&i| Label::Card(card, i)).collect())? as usize]; match pick {{ 0 => g.give_poison(player, 1), 1 => g.change_energy(player, 1), _ => g.give_experience(player, 1) }} }} }}").unwrap();
                 return Ok(());
             }
@@ -614,7 +654,10 @@ impl Compiler {
     /// after the mana is made (CR 601.2g-h), so a discard a mana ability cost comes
     /// earlier than the last ones.
     pub(super) fn paid_discard(&self, cost: &Cost, result: &ResultId) -> Option<u32> {
-        let mut parts = cost.parts.iter().filter(|p| !matches!(p, CostPart::Mana(_)));
+        let mut parts = cost
+            .parts
+            .iter()
+            .filter(|p| !matches!(p, CostPart::Mana(_)));
         match (parts.next(), parts.next()) {
             (
                 Some(CostPart::Discard {
@@ -648,7 +691,8 @@ impl Compiler {
             true => FOLLOWS_GAP,
             false => "objects that paid a cost at resolution",
         };
-        let paid = planned::planned_value(feature, "Vec::<ObjectId>::new()", "g.objects_that_paid()");
+        let paid =
+            planned::planned_value(feature, "Vec::<ObjectId>::new()", "g.objects_that_paid()");
         writeln!(out, "let paid_objects_{id}: Vec<ObjectId> = {paid};").unwrap();
         self.moved.insert(result.0, format!("paid_objects_{id}"));
         self.before
@@ -697,11 +741,18 @@ impl Compiler {
                 self.moved.insert(result.0, format!("countered_{id}"));
                 return;
             }
-            Operation::Keyword {action,..} => match crate::keyword_actions::parts(action).object {
-                None=>"true".to_string(),
-                Some(object)=>match self.object(object) {Ok(code)=>format!("({}).is_some()",self.fetch(code)),Err(_)=>return},
+            Operation::Keyword { action, .. } => match crate::keyword_actions::parts(action).object
+            {
+                None => "true".to_string(),
+                Some(object) => match self.object(object) {
+                    Ok(code) => format!("({}).is_some()", self.fetch(code)),
+                    Err(_) => return,
+                },
             },
-            Operation::Attach {host:object,..}=>match self.object(object) {Ok(code)=>format!("({}).is_some()",self.fetch(code)),Err(_)=>return},
+            Operation::Attach { host: object, .. } => match self.object(object) {
+                Ok(code) => format!("({}).is_some()", self.fetch(code)),
+                Err(_) => return,
+            },
             _ => return,
         };
         let id = self.fresh();
@@ -845,18 +896,24 @@ impl Compiler {
         const FEATURE: &str = "targets chosen by another player";
         const ASKED: &str = "q: &dyn Query, asker: &Asker";
         let (method, ret, body) = match chooser {
-            PlayerRef::OneOf(players) => ("chosen_by_one_of", "Vec<PlayerId>", self.players(players)?),
+            PlayerRef::OneOf(players) => {
+                ("chosen_by_one_of", "Vec<PlayerId>", self.players(players)?)
+            }
             _ => match self.certain_player(chooser) {
                 Ok(player) => ("chosen_by", "PlayerId", player),
                 Err(_) => (
                     "chosen_by_one_of",
                     "Vec<PlayerId>",
-                    format!("{}.into_iter().collect::<Vec<PlayerId>>()", self.player(chooser)?),
+                    format!(
+                        "{}.into_iter().collect::<Vec<PlayerId>>()",
+                        self.player(chooser)?
+                    ),
                 ),
             },
         };
         let function = self.rule_fn(FEATURE, "target_chooser", ASKED, ret, &body);
-        rule.planned.push((FEATURE.to_string(), format!(".{method}({function})")));
+        rule.planned
+            .push((FEATURE.to_string(), format!(".{method}({function})")));
         Ok(())
     }
     /// A slot's count no plain slot has.
@@ -878,10 +935,14 @@ impl Compiler {
                 // counts of each additional cost paid, are no such count.
                 let code = read(n)?;
                 if code.contains(".kicked") {
-                    return Err(gap("a spell's target count of times kicked, beside an X or added to"));
+                    return Err(gap(
+                        "a spell's target count of times kicked, beside an X or added to",
+                    ));
                 }
                 if code.contains("additional_cost_paid") {
-                    return Err(gap("a spell's target count of an additional cost paid any number of times"));
+                    return Err(gap(
+                        "a spell's target count of an additional cost paid any number of times",
+                    ));
                 }
                 let n = planned::planned_value("target cardinality Exactly", "1u32", &code);
                 format!(".between({n}, {n})")
@@ -894,15 +955,22 @@ impl Compiler {
         })
     }
     /// What `ModalDef` has no word for yet.
-    pub(super) fn modes_to_come(&mut self, selection: &ModeSelection, modal: String) -> Result<String> {
-        let mut modal=modal;
+    pub(super) fn modes_to_come(
+        &mut self,
+        selection: &ModeSelection,
+        modal: String,
+    ) -> Result<String> {
+        let mut modal = modal;
         let mut planned: Vec<(&str, String)> = Vec::new();
         // Modes each open only under a requirement are told apart by it
         // (`ModalDef::allowed`), not by a target.
         let flat = lane_p::flat_modes(selection);
-        let selection=crate::mode_policies::parts(selection);
-        let told_by_requirements =
-            flat.as_ref().unwrap_or(&selection.modes).iter().all(|mode| mode.requires.is_some());
+        let selection = crate::mode_policies::parts(selection);
+        let told_by_requirements = flat
+            .as_ref()
+            .unwrap_or(&selection.modes)
+            .iter()
+            .all(|mode| mode.requires.is_some());
         if selection.implied && !told_by_requirements {
             planned.push((
                 "modes implied by the target chosen",
@@ -927,7 +995,8 @@ impl Compiler {
             const FEATURE: &str = "modes chosen by another player";
             let players = self.players(chooser)?;
             let params = "q: &dyn Query, asker: &Asker";
-            let function = self.rule_fn(FEATURE, "mode_choosers", params, "Vec<PlayerId>", &players);
+            let function =
+                self.rule_fn(FEATURE, "mode_choosers", params, "Vec<PlayerId>", &players);
             planned.push((FEATURE, format!(".chosen_by({function})")));
         }
         if selection.random {
@@ -1113,7 +1182,9 @@ impl Compiler {
                 // The choice is up to X, even if replacements would reduce it.
                 // Only the native placement authority applies the total ceiling.
                 if amount.max > Quantity::CounterPlacement.max() {
-                    return Err(gap("counter placement cannot represent the full chosen range"));
+                    return Err(gap(
+                        "counter placement cannot represent the full chosen range",
+                    ));
                 }
                 let amount = amount.choice_amount()?;
                 let cap = cap.quantity(Quantity::CounterPlacement)?;
@@ -1165,16 +1236,22 @@ impl Compiler {
             Operation::FightEach { fighters, others } => {
                 writeln!(out, "let fighters_{id} = {}; let others_{id} = {}; for &first in &fighters_{id} {{ for &second in &others_{id} {{ g.fight(first, second); }} }}", self.fetch(self.objects(fighters)?), self.fetch(self.objects(others)?)).unwrap();
             }
-            Operation::FlipCoins { actor, count } => {
-                let player = self.one_actor(actor, "operation FlipCoins")?;
+            Operation::FlipCoins {
+                players,
+                count,
+                protocol,
+            } => {
+                let player = self.one_actor(players, "operation FlipCoins")?;
                 let count = self.number(count)?.amount(u32::MAX.into(), "u32")?;
-                let call = self.flip_call()?;
+                let call = crate::coin_policies::call(*protocol);
                 writeln!(out, "let player_{id} = {player}; let count_{id} = {}; let mut done_{id}: i64 = 0; for _ in 0..count_{id} {{ if g.{call}(player_{id}) {{ done_{id} += 1; }} }}", self.fetch(count)).unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
-                self.coins = Some((
+                self.note_coins(
+                    result.0,
+                    *protocol,
                     format!("done_{id}"),
                     format!("(i64::from(count_{id}) - done_{id})"),
-                ));
+                );
             }
             Operation::EachObject { objects, action } => {
                 writeln!(
@@ -2739,12 +2816,10 @@ impl Compiler {
                     }
                 }
             }
-            Operation::CounterWith {
-                object,
-                when,
-                destination,
-                entry,
-            } => {
+            Operation::CounterWith {object,when,destination} => {
+                let view=crate::movement::entry_destination_view(destination);
+                if !view.terms.is_default() {return Err(gap("counter destination with explicit library ordering or chooser"));}
+                let (destination,entry)=(&view.destination,&view.entry);
                 let spell = self.fetch(self.object(object)?);
                 let test = match when {
                     Some(filter) => {
@@ -2838,65 +2913,31 @@ impl Compiler {
                 let count = self.fetch(self.select_count(count)?);
                 self.plan_code(&feature, &format!("{M}::attach::chosen(g, {player}, asker.source, {attachments}, {count}, {hosts})?"), out);
             }
-            Operation::CoinFlips {
-                actor,
-                times,
-                each,
-                until_lost,
-                may_stop,
-                called,
-            } => {
-                let player = self.one_actor(actor, &feature)?;
-                if let (None, Some(each), false, false, false) =
-                    (times, each, *until_lost, *may_stop, *called)
-                {
-                    let call = self.flip_call()?;
-                    let each = self.fetch(self.objects(each)?);
-                    writeln!(out, "let player_{id} = {player}; let mut flips_{id}: Vec<(ObjectId, bool)> = Vec::new(); let mut done_{id}: i64 = 0; for object in {each} {{ let flip = g.{call}(player_{id}); if flip {{ done_{id} += 1; }} flips_{id}.push((object, flip)); }}").unwrap();
-                    self.performed.insert(result.0, format!("done_{id}"));
-                    self.coins = Some((
-                        format!("done_{id}"),
-                        format!("(flips_{id}.len() as i64 - done_{id})"),
-                    ));
-                    self.coin_objects = Some(format!("flips_{id}"));
-                    return Ok(());
+            Operation::FlipCoinSeries { players, protocol, repetition } => {
+                let player=self.one_actor(players,&feature)?;
+                let call=crate::coin_policies::call(*protocol);
+                let series=crate::coin_policies::series(repetition);
+                let until_lost=matches!(series.stop,Some(CoinStop::Lose|CoinStop::LoseOrPlayerStops));
+                let may_stop=matches!(series.stop,Some(CoinStop::PlayerStops|CoinStop::LoseOrPlayerStops));
+                if until_lost {Self::coin_channel(*protocol,&CoinOutcome::Lost)?;}
+                if let CoinRepetition::EachObject(each)=repetition {
+                    let each=self.fetch(self.objects(each)?);
+                    writeln!(out,"let player_{id} = {player}; let mut flips_{id}: Vec<(ObjectId, bool)> = Vec::new(); let mut done_{id}: i64 = 0; for object in {each} {{ let flip = g.{call}(player_{id}); if flip {{ done_{id} += 1; }} flips_{id}.push((object, flip)); }}").unwrap();
+                    self.performed.insert(result.0,format!("done_{id}"));
+                    self.note_coins(result.0,*protocol,format!("done_{id}"),format!("(flips_{id}.len() as i64 - done_{id})"));
+                    self.coin_objects=Some((format!("flips_{id}"),*protocol));return Ok(());
                 }
-                let times = match (times, each) {
-                    (Some(times), None) => {
-                        let n = self.number(times)?.amount(u32::MAX.into(), "u32")?;
-                        format!("Some({})", self.fetch(n))
-                    }
-                    (None, Some(each)) => {
-                        format!("Some({}.len() as u32)", self.fetch(self.objects(each)?))
-                    }
-                    (None, None) => "None".to_string(),
-                    (Some(_), Some(_)) => return Err(gap(feature)),
-                };
-                // "Flip a coin until you lose a flip or choose to stop flipping":
-                // after each flip won, the flipper may stop (CR 705).
-                if *may_stop && *until_lost && !*called && times == "None" {
-                    let call = self.flip_call()?;
-                    writeln!(out, "let player_{id} = {player}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; loop {{ static ASK: Question = Question::new(\"Flip\", \"flip again?\", \"\", \"Flip\", \"Stop\"); flips_{id} += 1; if !g.{call}(player_{id}) {{ break; }} done_{id} += 1; if !{M}::effects::ask_may(g, player_{id}, asker.source, Purpose::Ask(&ASK))? {{ break; }} }}").unwrap();
-                    self.performed.insert(result.0, format!("done_{id}"));
-                    self.coins = Some((
-                        format!("done_{id}"),
-                        format!("(i64::from(flips_{id}) - done_{id})"),
-                    ));
-                    return Ok(());
+                if series.each.is_some() {return Err(gap("per-object coin associations with an early stop"));}
+                let times=if let Some(n)=series.times {let n=self.number(n)?.amount(u32::MAX.into(),"u32")?;format!("Some({})",self.fetch(n))}else{"None".into()};
+                if matches!(repetition,CoinRepetition::Until(CoinStop::LoseOrPlayerStops)) {
+                    writeln!(out,"let player_{id} = {player}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; loop {{ static ASK: Question = Question::new(\"Flip\", \"flip again?\", \"\", \"Flip\", \"Stop\"); flips_{id} += 1; if !g.{call}(player_{id}) {{ break; }} done_{id} += 1; if !{M}::effects::ask_may(g, player_{id}, asker.source, Purpose::Ask(&ASK))? {{ break; }} }}").unwrap();
+                } else if may_stop {
+                    return Err(gap("coin-series player-stop timing with a finite extent or no loss stop"));
+                } else {
+                    writeln!(out,"let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.{call}(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
                 }
-                if *may_stop {
-                    self.plan_code(&feature, &format!("{M}::coins::flips(g, {player}, {times}, {until_lost}, {may_stop}, {called})?"), out);
-                    return Ok(());
-                }
-                // A called flip is won or lost (CR 705.2), whatever its line says of
-                // heads or tails.
-                let call = if *called { "flip_coin" } else { self.flip_call()? };
-                writeln!(out, "let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.{call}(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
-                self.performed.insert(result.0, format!("done_{id}"));
-                self.coins = Some((
-                    format!("done_{id}"),
-                    format!("(i64::from(flips_{id}) - done_{id})"),
-                ));
+                self.performed.insert(result.0,format!("done_{id}"));
+                self.note_coins(result.0,*protocol,format!("done_{id}"),format!("(i64::from(flips_{id}) - done_{id})"));
             }
             Operation::MillUntil {
                 actor,
@@ -3011,9 +3052,7 @@ impl Compiler {
             NewTargets::Must => ("NewTargets::Must".to_string(), none),
             NewTargets::To(those) => ("NewTargets::To".to_string(), objects(those)?),
             NewTargets::Each(those) => ("NewTargets::Each".to_string(), objects(those)?),
-            NewTargets::ToPlayers(those) => {
-                ("NewTargets::ToPlayers".to_string(), players(those)?)
-            }
+            NewTargets::ToPlayers(those) => ("NewTargets::ToPlayers".to_string(), players(those)?),
             NewTargets::Random(_) => ("NewTargets::Random".to_string(), none),
             NewTargets::EachLegal => ("NewTargets::EachLegal".to_string(), none),
             NewTargets::EachPlayer(those) => (
@@ -3062,7 +3101,8 @@ impl Compiler {
                 let operands: Vec<String> = operands.iter().map(|o| self.operand_code(o)).collect();
                 // A variant of one list holds the list ("And" of any number of
                 // filters), not as many fields.
-                let listed = crate::lower::LIST_VARIANTS.contains(&(family.as_str(), form.as_str()));
+                let listed =
+                    crate::lower::LIST_VARIANTS.contains(&(family.as_str(), form.as_str()));
                 match operands.is_empty() {
                     _ if listed => format!("{family}::{form}(&[{}])", operands.join(", ")),
                     true => format!("{family}::{form}"),
@@ -3171,7 +3211,11 @@ impl Compiler {
             SelectionConstraint::DifferentProperty(Property::Power) => distinct_rule(
                 &mut self.functions,
                 "different_powers",
-                if planned::switched_on(quantity::BOUNDED_32) { "i32" } else { "i16" },
+                if planned::switched_on(quantity::BOUNDED_32) {
+                    "i32"
+                } else {
+                    "i16"
+                },
                 "q.chars(id).power.unwrap_or(0)",
                 "with different powers",
             ),
@@ -3225,7 +3269,9 @@ impl Compiler {
                     // "When you do, ... with total mana value X or less, where X is
                     // the result": the number a reflexive ability was given, which
                     // its `COUNTED` reads (CR 603.12; Fire Lord Sozin).
-                    Expr::Performed(result) | Expr::CountersRemoved(result) | Expr::DieResult(result)
+                    Expr::Performed(result)
+                    | Expr::CountersRemoved(result)
+                    | Expr::DieResult(result)
                         if self.counted == Some(result.0)
                             && self.slot_counts == target_counts::SlotCounts::Delayed =>
                     {
@@ -3359,7 +3405,8 @@ impl Compiler {
         let chooser = self.fetch(self.certain_player(player)?);
         let pool = self.fetch(self.objects(objects)?);
         if let SelectionConstraint::OneForEach(filters) = constraint {
-            let picked = self.choose_filter_parts_local(id, &chooser, &pool, count, filters, purpose, out)?;
+            let picked =
+                self.choose_filter_parts_local(id, &chooser, &pool, count, filters, purpose, out)?;
             self.selections.insert(result.0, picked);
             return Ok(());
         }
@@ -3396,11 +3443,20 @@ impl Compiler {
         // A card for each color pair there is one of: as many as can be, of the ten.
         let pairs = Count::AsManyAsCan(Expr::Constant(10));
         let count = match (constraint, count) {
-            (SelectionConstraint::NoCommonProperty(DistinctProperty::ColorPairs), Count::AnyNumber) => &pairs,
+            (
+                SelectionConstraint::NoCommonProperty(DistinctProperty::ColorPairs),
+                Count::AnyNumber,
+            ) => &pairs,
             _ => count,
         };
         let exactly = match count {
-            Count::Exactly(Expr::Constant(n)) if self.line_text().is_some_and(|line| line.contains(" exactly ")) => Some(*n),
+            Count::Exactly(Expr::Constant(n))
+                if self
+                    .line_text()
+                    .is_some_and(|line| line.contains(" exactly ")) =>
+            {
+                Some(*n)
+            }
             _ => None,
         };
         let count = self.fetch(self.select_count(count)?);
@@ -3433,11 +3489,9 @@ impl Compiler {
                 choose: None,
             }, Operation::Move {
                 objects: ObjectSet::One(ObjectRef::Target { .. }),
-                destination: Destination::OwnersBattlefield,
-                face_down: false,
-                entry,
-                terms,
-            }] if effects::plain_entry(entry) && terms.is_default()
+                destination: destination @ MovementDestination::Battlefield {controller:EntryController::Owner,..},
+                qualifiers,
+            }] if destination.is_plain() && qualifiers.is_empty()
         )
     }
     /// `chosen_{id}`: a permanent `player_{id}` controls for each of `slots`, the
@@ -3465,13 +3519,11 @@ impl Compiler {
             Some(Instruction::Effect {
                 operation: Operation::Move {
                     objects: ObjectSet::Observed(seen),
-                    destination: Destination::Exile,
-                    entry,
-                    face_down: false,
-                    terms,
+                    destination: destination @ MovementDestination::Exile {..},
+                    qualifiers,
                 },
                 ..
-            }) if terms.is_default() && seen.0 == result.0 && !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
+            }) if destination.is_plain() && qualifiers.is_empty() && seen.0 == result.0
         )
     }
     /// "Your choice of a reach, vigilance or trample counter", "a counter of a
@@ -3487,7 +3539,10 @@ impl Compiler {
     ) -> Result<bool> {
         let objects = self.fetch(self.objects(objects)?);
         let list = |kinds: &[crate::counter::CounterKind]| -> Result<String> {
-            let kinds = kinds.iter().map(counter_kind).collect::<Result<Vec<String>>>()?;
+            let kinds = kinds
+                .iter()
+                .map(counter_kind)
+                .collect::<Result<Vec<String>>>()?;
             Ok(format!("[{}]", kinds.join(", ")))
         };
         match choice {
@@ -3500,7 +3555,9 @@ impl Compiler {
                     .iter()
                     .map(|kind| {
                         let code = counter_kind(kind)?;
-                        let word = code.trim_start_matches("CounterKind::").to_ascii_lowercase();
+                        let word = code
+                            .trim_start_matches("CounterKind::")
+                            .to_ascii_lowercase();
                         Ok(format!("{word} counter"))
                     })
                     .collect::<Result<_>>()?;
@@ -3601,7 +3658,12 @@ impl Compiler {
     /// "As this enters, choose two abilities from among first strike, vigilance,
     /// and lifelink" (Greymond): choosing `k` of them is choosing one set of `k`,
     /// each set one of the card's words (CR 607.2f), kept as `chosen_option`.
-    fn abilities_as_enters(&mut self, k: usize, options: &[Operand], out: &mut String) -> Result<()> {
+    fn abilities_as_enters(
+        &mut self,
+        k: usize,
+        options: &[Operand],
+        out: &mut String,
+    ) -> Result<()> {
         let failure = || gap("a choice of several abilities as it enters");
         if self.entering_labels.is_some() || !self.choice_labels.is_empty() {
             return Err(failure());
@@ -3609,8 +3671,12 @@ impl Compiler {
         let mut abilities = Vec::new();
         let mut names = Vec::new();
         for option in options {
-            let Operand::Ability(ability) = option else { return Err(failure()) };
-            let Ability::Keyword(word) = &**ability else { return Err(failure()) };
+            let Operand::Ability(ability) = option else {
+                return Err(failure());
+            };
+            let Ability::Keyword(word) = &**ability else {
+                return Err(failure());
+            };
             keyword(word)?;
             names.push(super::lane_h::keyword_words(word).ok_or_else(failure)?);
             abilities.push((**ability).clone());
@@ -3633,7 +3699,12 @@ impl Compiler {
             })
             .collect();
         self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
-        writeln!(out, "{M}::choose::option_as_enters(g, entering, &CARD, 0..{})?;", sets.len()).unwrap();
+        writeln!(
+            out,
+            "{M}::choose::option_as_enters(g, entering, &CARD, 0..{})?;",
+            sets.len()
+        )
+        .unwrap();
         self.ability_choice = abilities;
         self.ability_sets = sets;
         Ok(())
@@ -3894,7 +3965,13 @@ impl Compiler {
         }
     }
     /// Objects exiled with counters: the counters come with them, as they arrive.
-    pub(super) fn exile_with_counters(&mut self, id: usize, entry: &EntrySpec) -> Result<String> {
+    pub(super) fn exile_with_counters(
+        &mut self,
+        id: usize,
+        entry: &dyn crate::movement::ArrivalView,
+    ) -> Result<String> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         // "With a number of time counters on it equal to its mana value": each
         // card's own, read as it arrives.
         self.moving_one = Some("moved_o".into());
@@ -3919,7 +3996,13 @@ impl Compiler {
         Ok(format!("{{ let counters: Vec<(CounterKind, {counter_ty})> = vec![{}]; let exiled = g.exile_all(&objects_{id}); let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = exiled.iter().flat_map(|&o| counters.iter().map(move |&(kind, n)| (o, kind, n))).collect(); g.add_counters_together(&puts); exiled }}", counters.join(", "), counter_ty = Quantity::CounterPlacement.kind()))
     }
     /// What `arrival_in_state` has no arm for: one object, for `moved`.
-    pub(super) fn arrival_rest(&mut self, entry: &EntrySpec, counters: &str) -> Result<String> {
+    pub(super) fn arrival_rest(
+        &mut self,
+        entry: &dyn crate::movement::ArrivalView,
+        counters: &str,
+    ) -> Result<String> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         let tapped = entry.tapped;
         Ok(match entry.states.as_slice() {
             [EntryState::AttachedTo(host)] if counters.is_empty() && !tapped => {
@@ -3979,7 +4062,12 @@ impl Compiler {
             ),
             EffectSubject::EachSpell(filter) => {
                 let test = self.filter(filter, &Candidate::of("id"))?;
-                ("effect_on", format!("EffectOn::EachSpell(|q: &dyn Query, asker: &Asker, id: ObjectId| {test})"))
+                (
+                    "effect_on",
+                    format!(
+                        "EffectOn::EachSpell(|q: &dyn Query, asker: &Asker, id: ObjectId| {test})"
+                    ),
+                )
             }
             EffectSubject::NextSpell {
                 spells,
@@ -4046,7 +4134,9 @@ impl Compiler {
         let deal = if self.read_later(result) {
             self.report_quantity(result.0, format!("done_{id}"), Quantity::Damage);
             format!("let dealt_{id} = g.damage_together(&batch_{id}); let done_{id}: i64 = dealt_{id}.iter().map(|&n| i64::from(n)).{damage_sum};", damage_sum = if planned::switched_on(quantity::FEATURE) { Quantity::Damage.sum_i64() } else { "sum()" })
-        } else { format!("g.damage_together(&batch_{id});") };
+        } else {
+            format!("g.damage_together(&batch_{id});")
+        };
         writeln!(out, "let sources_{id} = {}; let mut batch_{id}: Vec<(ObjectId, Target, {damage_ty})> = Vec::new(); for &source in &sources_{id} {{ let amount = {amount}; for t in {targets} {{ batch_{id}.push((source, t, amount)); }} }} {deal}", self.fetch(self.objects(sources)?), damage_ty = Quantity::Damage.kind()).unwrap();
         Ok(())
     }
@@ -4137,9 +4227,14 @@ impl Compiler {
             }
             // "A random color that it isn't": one of the colors none of them has, each
             // as likely; none when they are all colors.
-            (ValueKind::Color, [Operand::Term { family, form, operands }])
-                if family == "ChoosableColor" && form == "NotColorAmoungPermanents" =>
-            {
+            (
+                ValueKind::Color,
+                [Operand::Term {
+                    family,
+                    form,
+                    operands,
+                }],
+            ) if family == "ChoosableColor" && form == "NotColorAmoungPermanents" => {
                 let [Operand::Objects(objects)] = operands.as_slice() else {
                     return Err(gap("operation ChooseAtRandom"));
                 };

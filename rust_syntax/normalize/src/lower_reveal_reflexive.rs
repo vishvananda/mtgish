@@ -114,7 +114,7 @@ impl Context {
                         operation:
                             Operation::Move {
                                 objects: ObjectSet::Selected(pick),
-                                destination: Destination::Exile,
+                                destination: MovementDestination::Exile { .. },
                                 ..
                             },
                     } => moves.push((result.0, pick.0)),

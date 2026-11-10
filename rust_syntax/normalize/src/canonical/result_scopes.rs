@@ -90,8 +90,7 @@ fn payment_action_parts_have_private_definitions_and_publish_receipts_at_the_end
     fn payment(first: u32, last: u32) -> Value {
         let move_to = |destination: &str| {
             json!({"kind":"Move","args":{
-            "objects":{"kind":"One","args":{"kind":"Source"}},"destination":destination,
-            "entry":crate::ir::EntrySpec::default(),"face_down":false,"terms":crate::ir::MovementTerms::default()}})
+            "objects":{"kind":"One","args":{"kind":"Source"}},"destination":{destination:crate::ir::CardArrival::default()},"qualifiers":[]}})
         };
         let part = |id, destination| json!({"PlayerAction":{"player":{"kind":"AbilityController"},"body":{"instructions":[effect(id,move_to(destination))]}}});
         json!([{"kind":"Spell","args":{"announcement":{"targets":[],"modes":null},"body":{"instructions":[

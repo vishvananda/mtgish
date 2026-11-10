@@ -38,7 +38,9 @@ impl Context {
                 ]))
             }
             S::SharesANameWithAnExiled(c) => {
-                return Ok(ObjectFilter::SharesNameWithAny(Box::new(self.exile_cards(c)?)))
+                return Ok(ObjectFilter::SharesNameWithAny(Box::new(
+                    self.exile_cards(c)?,
+                )))
             }
             S::And(v) => {
                 return Ok(ObjectFilter::All(
@@ -73,7 +75,9 @@ impl Context {
             }
             _ => self
                 .as_card_filter(value, unsupported(value))
-                .or_else(|error| self.rescue(error, || self.primitive_predicate("CardsInLibrary", value))),
+                .or_else(|error| {
+                    self.rescue(error, || self.primitive_predicate("CardsInLibrary", value))
+                }),
         }
     }
     fn search_find(
@@ -292,16 +296,13 @@ impl Context {
                     // "The rest" are what the later steps name.
                     found = ObjectSet::Unselected(chosen.clone());
                     self.found = Some(found.clone());
-                    Operation::Move {
-                        objects: ObjectSet::Selected(chosen),
-                        destination: match action {
+                    crate::movement::move_plain(
+                        ObjectSet::Selected(chosen),
+                        match action {
                             S::PutChosenFoundCardsIntoGraveyard => Destination::OwnersGraveyard,
                             _ => Destination::OwnersHand,
                         },
-                        entry: EntrySpec::default(),
-                        face_down: false,
-                        terms: crate::ir::MovementTerms::default(),
-                    }
+                    )
                 }
                 S::If(condition, then) | S::IfElse(condition, then, _) => {
                     let condition = self.condition(condition)?;
@@ -397,26 +398,28 @@ impl Context {
                 S::PutFoundCardsIntoHand
                 | S::PutFoundCardsIntoGraveyard
                 | S::ExileFoundCards
-                | S::ExileFoundCardsFaceDown => Operation::Move {
-                    objects: found.clone(),
-                    destination: match action {
+                | S::ExileFoundCardsFaceDown => crate::movement::move_to(
+                    found.clone(),
+                    match action {
                         S::PutFoundCardsIntoHand => Destination::OwnersHand,
                         S::PutFoundCardsIntoGraveyard => Destination::OwnersGraveyard,
                         _ => Destination::Exile,
                     },
-                    entry: EntrySpec::default(),
-                    face_down: matches!(action, S::ExileFoundCardsFaceDown),
-                    terms: crate::ir::MovementTerms::default(),
-                },
+                    EntrySpec::default(),
+                    matches!(action, S::ExileFoundCardsFaceDown),
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?,
                 S::PutFoundCardsOntoBattlefield(flags) => {
                     let (destination, entry) = self.move_entry(flags, player.clone())?;
-                    Operation::Move {
-                        objects: found.clone(),
+                    crate::movement::move_to(
+                        found.clone(),
                         destination,
                         entry,
-                        face_down: false,
-                        terms: crate::ir::MovementTerms::default(),
-                    }
+                        false,
+                        crate::ir::MovementTerms::default(),
+                    )
+                    .map_err(|message| invalid(&message))?
                 }
                 S::PutAFoundCardIntoHand | S::PutAFoundCardOntoBattlefield(_) => {
                     let choice = self.effect(Operation::ChooseObjects {
@@ -436,13 +439,14 @@ impl Context {
                         _ => (Destination::OwnersHand, EntrySpec::default()),
                     };
                     instructions.push(choice);
-                    Operation::Move {
+                    crate::movement::move_to(
                         objects,
                         destination,
                         entry,
-                        face_down: false,
-                        terms: crate::ir::MovementTerms::default(),
-                    }
+                        false,
+                        crate::ir::MovementTerms::default(),
+                    )
+                    .map_err(|message| invalid(&message))?
                 }
                 S::SetAsideFoundCards => {
                     *aside = Some(found.clone());
@@ -459,19 +463,16 @@ impl Context {
                     // "Shuffle the rest into your library": those found outside
                     // the game are not there yet.
                     if self.search_outside && picked.is_some() {
-                        let arrive = self.effect(Operation::Move {
-                            objects: ObjectSet::Difference {
+                        let arrive = self.effect(crate::movement::move_plain(
+                            ObjectSet::Difference {
                                 objects: Box::new(found.clone()),
                                 excluding: Box::new(ObjectSet::InZone {
                                     objects: Box::new(found.clone()),
                                     zone: EventZone::Library,
                                 }),
                             },
-                            destination: Destination::OwnersLibraryTop,
-                            entry: EntrySpec::default(),
-                            face_down: false,
-                            terms: crate::ir::MovementTerms::default(),
-                        });
+                            Destination::OwnersLibraryTop,
+                        ));
                         instructions.push(arrive);
                     }
                     let shuffle = self.effect(Operation::Shuffle {
@@ -512,26 +513,24 @@ impl Context {
                     end: SequenceEnd::Bottom,
                     order: CardOrder::Chosen,
                 },
-                S::PutSetAsideCardsIntoHand => Operation::Move {
-                    objects: aside
+                S::PutSetAsideCardsIntoHand => crate::movement::move_plain(
+                    aside
                         .clone()
                         .ok_or_else(|| invalid("set-aside reference has no declaration"))?,
-                    destination: Destination::OwnersHand,
-                    entry: EntrySpec::default(),
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                },
+                    Destination::OwnersHand,
+                ),
                 S::PutSetAsideCardsOntoBattlefield(flags) => {
                     let (destination, entry) = self.move_entry(flags, player.clone())?;
-                    Operation::Move {
-                        objects: aside
+                    crate::movement::move_to(
+                        aside
                             .clone()
                             .ok_or_else(|| invalid("set-aside reference has no declaration"))?,
                         destination,
                         entry,
-                        face_down: false,
-                        terms: crate::ir::MovementTerms::default(),
-                    }
+                        false,
+                        crate::ir::MovementTerms::default(),
+                    )
+                    .map_err(|message| invalid(&message))?
                 }
                 S::DiscardACardAtRandom => Operation::Discard {
                     players: PlayerSet::One(player.clone()),
@@ -567,8 +566,10 @@ impl Context {
                 }
             };
             let step = self.effect(operation);
-            if let (S::ExileFoundCards | S::ExileFoundCardsFaceDown, Instruction::Effect { result, .. }) =
-                (action, &step)
+            if let (
+                S::ExileFoundCards | S::ExileFoundCardsFaceDown,
+                Instruction::Effect { result, .. },
+            ) = (action, &step)
             {
                 self.exiled = Some(result.clone());
                 self.exiled_permanents = false;
@@ -608,13 +609,7 @@ impl Context {
                 self.effect(Operation::Reveal {
                     objects: found.clone(),
                 }),
-                self.effect(Operation::Move {
-                    objects: found,
-                    destination: Destination::OwnersHand,
-                    entry: EntrySpec::default(),
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }),
+                self.effect(crate::movement::move_plain(found, Destination::OwnersHand)),
                 self.effect(Operation::Shuffle {
                     players: PlayerSet::One(player),
                     excluding: None,

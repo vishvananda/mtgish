@@ -223,7 +223,9 @@ fn reduce_play_rule(bare: &str, operands: &[Operand]) -> Option<PlayerRule> {
     let others = || PlayerSet::OthersThan(PlayerRef::Affected);
     if let Some(rest) = bare.strip_prefix("MayCastGraveyardCardUsing") {
         let keyword = using_keyword(rest.strip_suffix("Ability")?)?;
-        let [Object(card)] = operands else { return None };
+        let [Object(card)] = operands else {
+            return None;
+        };
         return Some(play_rule(
             ObjectSet::One(card.clone()),
             Z::Graveyard,
@@ -707,14 +709,12 @@ fn reduce_prohibition(bare: &str, operands: &[Operand]) -> Option<PlayerRule> {
         ("CanOnlyCastSpellsFromThierHand", []) => {
             prohibit(PlayerAction::CastOutside(EventZone::Hand))
         }
-        ("CantActivateAbilitiesOfCardsInGraveyards", []) => {
-            prohibit(PlayerAction::Activate(ActivationFilter::Of(Box::new(
-                ObjectFilter::InZone(ZoneScope::Players {
-                    zone: EventZone::Graveyard,
-                    players: PlayerSet::All,
-                }),
-            ))))
-        }
+        ("CantActivateAbilitiesOfCardsInGraveyards", []) => prohibit(PlayerAction::Activate(
+            ActivationFilter::Of(Box::new(ObjectFilter::InZone(ZoneScope::Players {
+                zone: EventZone::Graveyard,
+                players: PlayerSet::All,
+            }))),
+        )),
         ("CantPlayCardInHand", [Operand::Object(card)]) => prohibit(PlayerAction::PlayCard(
             ObjectFilter::SameObject(card.clone()),
         )),
@@ -769,9 +769,7 @@ fn reduce_player_static(bare: &str, operands: &[Operand]) -> Option<PlayerRule> 
         return Some(rule);
     }
     Some(match (bare, operands) {
-        ("OnceEachTurnMayAction", [body]) => {
-            special_action(body, None, each_turn(), None, false)
-        }
+        ("OnceEachTurnMayAction", [body]) => special_action(body, None, each_turn(), None, false),
         ("MayActionOnce", [body]) => {
             special_action(body, None, Some(PlayLimit::Total(1)), None, false)
         }
@@ -901,16 +899,17 @@ fn reduce_player_static(bare: &str, operands: &[Operand]) -> Option<PlayerRule> 
                 },
             }
         }
-        ("MayCastASpellForAlternateCostOnceDuringEachPlayersTurn", [Operand::Filter(spells), cost, Players(players)]) => {
-            PlayerRule::SpellCost {
-                spells: spells.clone(),
-                modifier: SpellCostModifier::AlternateDuring {
-                    cost: PlayCost::Alternate(cost.clone()),
-                    limit: each_turn(),
-                    during: players.clone(),
-                },
-            }
-        }
+        (
+            "MayCastASpellForAlternateCostOnceDuringEachPlayersTurn",
+            [Operand::Filter(spells), cost, Players(players)],
+        ) => PlayerRule::SpellCost {
+            spells: spells.clone(),
+            modifier: SpellCostModifier::AlternateDuring {
+                cost: PlayCost::Alternate(cost.clone()),
+                limit: each_turn(),
+                during: players.clone(),
+            },
+        },
         ("MayPayAdditionalCostToCastSpellsForEffect", [Operand::Filter(spells), cost, effects]) => {
             PlayerRule::SpellCost {
                 spells: spells.clone(),
@@ -1035,12 +1034,12 @@ fn reduce_object_static(bare: &str, operands: &[Operand]) -> Option<RuleChange> 
         ("CanBlockCreaturesWithLandwalkAbilitiesAsThoughTheyDidntHaveThem", []) => {
             despite(ObjectFilter::Any, BlockEvasion::Landwalk)
         }
-        ("CantBeEnchantedByAnEnchantment", [Objects(set)]) => {
-            attached(event_filter(set)?, false)
-        }
+        ("CantBeEnchantedByAnEnchantment", [Objects(set)]) => attached(event_filter(set)?, false),
         ("CantBeEnchantedAndDoesntRemove", [Objects(set)]) => attached(event_filter(set)?, true),
         ("CantBeEnchanted", []) => attached(with_keyword(crate::mtg_types::SubType::Aura), false),
-        ("CantBeEquipped", []) => attached(with_keyword(crate::mtg_types::SubType::Equipment), false),
+        ("CantBeEquipped", []) => {
+            attached(with_keyword(crate::mtg_types::SubType::Equipment), false)
+        }
         ("CrewsVehiclesUsingToughnessRatherThanPower", []) => {
             Some(R::TapCostUsesToughness(TapPowerCost::Crew))
         }
@@ -1289,7 +1288,11 @@ fn reduce_x_keyword(bare: &str, operands: &[Operand]) -> Option<Ability> {
             modifier,
         )),
         ("KickerXWithModifiers", [symbols, modifier]) => Some(modified(
-            keyword_for(M::Kicker, Some(mana_cost(std::slice::from_ref(symbols))?), None),
+            keyword_for(
+                M::Kicker,
+                Some(mana_cost(std::slice::from_ref(symbols))?),
+                None,
+            ),
             modifier,
         )),
         ("FlashbackWithModifier", [Operand::Cost(cost), modifier]) => Some(modified(
@@ -1624,18 +1627,19 @@ fn reduce_rule_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
 /// A cost a row names, past the ones `reduce_cost` already reads.
 fn reduce_cost_part(bare: &str, operands: &[Operand]) -> Option<CostPart> {
     use Operand::{Filter, List, Number, Object, Objects, Player, Players};
-    let bottom = |objects: ObjectSet, choose| CostPart::Move {
-        selections: vec![CostObjectSelection {
-            objects,
-            choose: Some(choose),
-        }],
-        destination: Destination::OwnersLibraryBottom,
-        entry: EntrySpec::default(),
-        face_down: false,
+    let bottom = |objects: ObjectSet, choose| {
+        crate::movement::cost_move_plain(
+            vec![CostObjectSelection {
+                objects,
+                choose: Some(choose),
+            }],
+            Destination::OwnersLibraryBottom,
+        )
     };
     let exactly = |n: &Expr| Count::Exactly(n.clone());
     let one = || Count::Exactly(Expr::Constant(1));
-    let graveyard = |players: &PlayerSet| zone_set(EventZone::Graveyard, players.clone(), ObjectFilter::Any);
+    let graveyard =
+        |players: &PlayerSet| zone_set(EventZone::Graveyard, players.clone(), ObjectFilter::Any);
     let object_cost = |objects: &ObjectSet, action| {
         Some(CostPart::ObjectAction {
             objects: objects.clone(),
@@ -1644,7 +1648,9 @@ fn reduce_cost_part(bare: &str, operands: &[Operand]) -> Option<CostPart> {
     };
     Some(match (bare, operands) {
         ("PayLifeEqualToItsManaValue", []) => CostPart::LifeEqualToOwnManaValue,
-        ("PayManaAnyNumberOfTimes", symbols) => CostPart::ManaAnyNumberOfTimes(mana_terms(symbols)?),
+        ("PayManaAnyNumberOfTimes", symbols) => {
+            CostPart::ManaAnyNumberOfTimes(mana_terms(symbols)?)
+        }
         ("ItsManaCostReducedBy", [reduction]) => CostPart::ManaCostReduced {
             object: None,
             reduction: Box::new(reduction.clone()),
@@ -1685,9 +1691,10 @@ fn reduce_cost_part(bare: &str, operands: &[Operand]) -> Option<CostPart> {
         ("PutNumberCardsFromPlayersGraveyardOnBottomOfLibrary", [Number(n), Player(player)]) => {
             bottom(graveyard(&PlayerSet::One(player.clone())), exactly(n))
         }
-        ("PutNumberCardsFromASinglePlayersGraveyardOnBottomOfLibrary", [Number(n), Players(players)]) => {
-            CostPart::SinglePlayersCards(Box::new(bottom(graveyard(players), exactly(n))))
-        }
+        (
+            "PutNumberCardsFromASinglePlayersGraveyardOnBottomOfLibrary",
+            [Number(n), Players(players)],
+        ) => CostPart::SinglePlayersCards(Box::new(bottom(graveyard(players), exactly(n)))),
         ("SacrificeUptoNumberPermanents", [Number(n), Objects(objects)]) => CostPart::Sacrifice {
             objects: objects.clone(),
             choose: Some(Count::UpTo(n.clone())),

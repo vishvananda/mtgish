@@ -117,13 +117,7 @@ fn retarget_return_actions(body: &mut Program, original: &ObjectRef, group: &Obj
 mod return_followup_tests {
     use super::*;
     fn moved(objects: ObjectSet, destination: Destination) -> Operation {
-        Operation::Move {
-            objects,
-            destination,
-            entry: EntrySpec::default(),
-            face_down: false,
-            terms: MovementTerms::default(),
-        }
+        crate::movement::move_plain(objects, destination)
     }
     fn returned() -> Context {
         let mut c = Context::default();

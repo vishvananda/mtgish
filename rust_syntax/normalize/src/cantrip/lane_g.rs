@@ -1,7 +1,7 @@
 //! Keywords the engine has by another road, and the final form of those it does
 //! not: each planned entry here is the call the card makes once Cantrip has it.
-use crate::keyword_actions::KeywordKind;
 use super::*;
+use crate::keyword_actions::KeywordKind;
 
 const M: &str = "cantrip_mechanics";
 /// The change an object keeps through every zone for the rest of the game.
@@ -14,22 +14,30 @@ pub(super) const MANA_COUNTERS_X: &str = "removing X counters to activate a mana
 
 /// The scalar is this activation's one variable counter-removal component.
 pub(super) fn mana_counter_component(cost: &Cost, payment: &PaymentRef, path: &[u32]) -> bool {
-    if !matches!(payment, PaymentRef::Activation) { return false; }
+    if !matches!(payment, PaymentRef::Activation) {
+        return false;
+    }
     let [index] = path else { return false };
-    let variable = |part: &CostPart| matches!(part, CostPart::RemoveCounters { removals }
-        if removals.iter().any(|r| matches!(r.amount, CounterAmount::Count(Count::AnyNumber | Count::Exactly(Expr::AnnouncedX)))));
-    if cost.parts.iter().filter(|part| variable(part)).count() != 1 { return false; }
+    let variable = |part: &CostPart| {
+        matches!(part, CostPart::RemoveCounters { removals }
+        if removals.iter().any(|r| matches!(r.amount, CounterAmount::Count(Count::AnyNumber | Count::Exactly(Expr::AnnouncedX)))))
+    };
+    if cost.parts.iter().filter(|part| variable(part)).count() != 1 {
+        return false;
+    }
     matches!(cost.parts.get(*index as usize), Some(CostPart::RemoveCounters { removals })
-        if matches!(removals.as_slice(), [CounterRemoval {
-            player: PlayerRef::AbilityController,
-            recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)), kind: Some(_),
-            amount: CounterAmount::Count(Count::AnyNumber | Count::Exactly(Expr::AnnouncedX)), selection: None, ..
-        }]))
+    if matches!(removals.as_slice(), [CounterRemoval {
+        player: PlayerRef::AbilityController,
+        recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)), kind: Some(_),
+        amount: CounterAmount::Count(Count::AnyNumber | Count::Exactly(Expr::AnnouncedX)), selection: None, ..
+    }]))
 }
 
 pub(super) fn has_mana_counter_x(cost: &Cost) -> bool {
-    cost.parts.iter().enumerate().any(|(index, _)|
-        mana_counter_component(cost, &PaymentRef::Activation, &[index as u32]))
+    cost.parts
+        .iter()
+        .enumerate()
+        .any(|(index, _)| mana_counter_component(cost, &PaymentRef::Activation, &[index as u32]))
 }
 
 /// Positive X changes only the amount of these productions, not their possible types.
@@ -39,7 +47,9 @@ pub(super) fn x_is_mana_amount(body: &Program, cost: &Cost) -> bool {
         match n {
             Expr::Constant(n) => *n >= 0,
             Expr::AnnouncedX => true,
-            Expr::PaidCountersRemoved { payment, component } => mana_counter_component(cost, payment, component),
+            Expr::PaidCountersRemoved { payment, component } => {
+                mana_counter_component(cost, payment, component)
+            }
             Expr::Add(a, b) | Expr::Multiply(a, b) => amount(a, cost) && amount(b, cost),
             _ => false,
         }
@@ -47,8 +57,14 @@ pub(super) fn x_is_mana_amount(body: &Program, cost: &Cost) -> bool {
     fn production(mana: &ManaProduction, cost: &Cost) -> bool {
         match mana {
             ManaProduction::Amount { amount: n, .. } => amount(n, cost),
-            ManaProduction::All(parts) | ManaProduction::ChooseOne(parts) => !parts.is_empty() && parts.iter().all(|part| production(part, cost)),
-            ManaProduction::Repeat { amount: n, production: inner, .. } => amount(n, cost) && production(inner, cost),
+            ManaProduction::All(parts) | ManaProduction::ChooseOne(parts) => {
+                !parts.is_empty() && parts.iter().all(|part| production(part, cost))
+            }
+            ManaProduction::Repeat {
+                amount: n,
+                production: inner,
+                ..
+            } => amount(n, cost) && production(inner, cost),
             _ => false,
         }
     }
@@ -62,20 +78,36 @@ mod mana_counter_tests {
 
     #[test]
     fn counter_payment_reads_require_the_exact_activation_component() {
-        let cost = Cost { parts: vec![CostPart::TapSymbol, CostPart::RemoveCounters {
-            removals: vec![CounterRemoval {
-                player: PlayerRef::AbilityController,
-                recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
-                kind: Some(crate::counter::CounterKind::Named(crate::counter::CounterName::ChargeCounter)),
-                amount: CounterAmount::Count(Count::AnyNumber), selection: None,
-            }],
-        }] };
+        let cost = Cost {
+            parts: vec![
+                CostPart::TapSymbol,
+                CostPart::RemoveCounters {
+                    removals: vec![CounterRemoval {
+                        player: PlayerRef::AbilityController,
+                        recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
+                        kind: Some(crate::counter::CounterKind::Named(
+                            crate::counter::CounterName::ChargeCounter,
+                        )),
+                        amount: CounterAmount::Count(Count::AnyNumber),
+                        selection: None,
+                    }],
+                },
+            ],
+        };
         assert!(mana_counter_component(&cost, &PaymentRef::Activation, &[1]));
-        for payment in [PaymentRef::Casting { ability: 0 }, PaymentRef::Resolution(ResultId(1)), PaymentRef::Branch] {
+        for payment in [
+            PaymentRef::Casting { ability: 0 },
+            PaymentRef::Resolution(ResultId(1)),
+            PaymentRef::Branch,
+        ] {
             assert!(!mana_counter_component(&cost, &payment, &[1]));
         }
         for path in [vec![], vec![0], vec![1, 0], vec![2]] {
-            assert!(!mana_counter_component(&cost, &PaymentRef::Activation, &path));
+            assert!(!mana_counter_component(
+                &cost,
+                &PaymentRef::Activation,
+                &path
+            ));
         }
         let mut fixed = cost.clone();
         if let CostPart::RemoveCounters { removals } = &mut fixed.parts[1] {
@@ -84,7 +116,11 @@ mod mana_counter_tests {
         assert!(!has_mana_counter_x(&fixed));
         let mut duplicate = cost.clone();
         duplicate.parts.push(cost.parts[1].clone());
-        assert!(!mana_counter_component(&duplicate, &PaymentRef::Activation, &[1]));
+        assert!(!mana_counter_component(
+            &duplicate,
+            &PaymentRef::Activation,
+            &[1]
+        ));
     }
 }
 
@@ -108,7 +144,6 @@ fn fixed_selection(selection: &CostObjectSelection) -> Option<Option<&Expr>> {
         _ => None,
     }
 }
-
 
 /// Whether a cost is "tap an untapped creature you control" and nothing else.
 fn taps_a_creature_you_control(cost: &Cost) -> bool {
@@ -238,13 +273,11 @@ fn moves_self_to_bottom(body: &Program) -> bool {
         [Instruction::Effect {
             operation: Operation::Move {
                 objects: ObjectSet::One(ObjectRef::Source),
-                destination: Destination::OwnersLibraryBottom,
-                entry,
-                face_down: false,
-                terms,
+                destination: destination @ MovementDestination::Library {position:LibraryPosition::Bottom,..},
+                qualifiers,
             },
             ..
-        }] if terms.is_default() && !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
+        }] if destination.is_plain() && qualifiers.is_empty()
     )
 }
 /// Collect evidence as the action of a player action, as the cost part it is.
@@ -253,7 +286,10 @@ fn evidence_of(body: &Program) -> Option<CostPart> {
         [Instruction::Effect {
             operation:
                 Operation::Keyword {
-                    action: KeywordAction::CollectEvidence {amount:amount @ Expr::Constant(_)},
+                    action:
+                        KeywordAction::CollectEvidence {
+                            amount: amount @ Expr::Constant(_),
+                        },
                     ..
                 },
             ..
@@ -274,14 +310,8 @@ pub(super) fn exile_beside_a_price(cost: &Cost) -> Option<(&ObjectRef, Cost)> {
         match part {
             CostPart::Move {
                 selections,
-                destination: Destination::Exile,
-                entry,
-                face_down: false,
-            } if exiled.is_none()
-                && !entry.tapped
-                && entry.counters.is_empty()
-                && entry.states.is_empty() =>
-            {
+                destination: destination @ MovementDestination::Exile { .. },
+            } if exiled.is_none() && destination.is_plain() => {
                 let [CostObjectSelection {
                     objects: ObjectSet::One(object),
                     choose: None,
@@ -679,20 +709,30 @@ fn priced(
 /// What "as an additional cost, you may sacrifice any number of these, and when you
 /// do, copy this spell for each" sacrifices, if `cost` is that.
 fn sacrifices_to_copy(cost: &Cost) -> Option<ObjectFilter> {
-    let [CostPart::PlayerAction { player: PlayerRef::AbilityController, body }] = cost.parts.as_slice() else {
+    let [CostPart::PlayerAction {
+        player: PlayerRef::AbilityController,
+        body,
+    }] = cost.parts.as_slice()
+    else {
         return None;
     };
     let mut steps = Vec::new();
     lane_m::flat_groups(&body.instructions, &mut steps);
     let [Instruction::Effect {
-        operation: Operation::Sacrifice {
-            objects: crate::battlefield_query!(filter),
-            choose: Some(Count::AnyNumber),
-            ..
-        },
+        operation:
+            Operation::Sacrifice {
+                objects: crate::battlefield_query!(filter),
+                choose: Some(Count::AnyNumber),
+                ..
+            },
         ..
     }, Instruction::Effect {
-        operation: Operation::ReflexiveTrigger { condition: None, body, .. },
+        operation:
+            Operation::ReflexiveTrigger {
+                condition: None,
+                body,
+                ..
+            },
         ..
     }] = steps.as_slice()
     else {
@@ -804,7 +844,14 @@ impl Compiler {
             // "You may behold an Elf. If you do, ..." (CR 701.4a, 608.2d): nobody is
             // asked with nothing to behold (Elven Passage, Sarkhan); "as this enters"
             // leaves the entering card out (Theorist's Sanctum).
-            _ if matches!(beholds.as_slice(), [CostPart::Behold { count: Expr::Constant(1), .. }]) => {
+            _ if matches!(
+                beholds.as_slice(),
+                [CostPart::Behold {
+                    count: Expr::Constant(1),
+                    ..
+                }]
+            ) =>
+            {
                 let [CostPart::Behold { what, .. }] = beholds.as_slice() else {
                     unreachable!("one behold");
                 };
@@ -812,8 +859,14 @@ impl Compiler {
                 let function = format!("behold_{}", self.fresh());
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {test} }}").unwrap();
                 match self.pending == Pending::Entering {
-                    true => format!("{M}::behold::as_enters(g, entering, {function}, {})?", quoted(&quality)),
-                    false => format!("{M}::behold::on_resolution(g, payer_{id}, asker.source, {function}, {})?", quoted(&quality)),
+                    true => format!(
+                        "{M}::behold::as_enters(g, entering, {function}, {})?",
+                        quoted(&quality)
+                    ),
+                    false => format!(
+                        "{M}::behold::on_resolution(g, payer_{id}, asker.source, {function}, {})?",
+                        quoted(&quality)
+                    ),
                 }
             }
             [CostPart::Choice(_)]
@@ -957,7 +1010,11 @@ impl Compiler {
         // Determine the whole cost before any component changes the state.
         writeln!(out, "let payer_{id} = {payer}; let draw_count_{id} = {count}; let paid_{id} = !g.cant_draw(payer_{id}, draw_count_{id}) && {M}::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?; if paid_{id} {{").unwrap();
         self.block(body, out, true)?;
-        writeln!(out, "g.draw(payer_{id}, draw_count_{id}); g.end_sentence();").unwrap();
+        writeln!(
+            out,
+            "g.draw(payer_{id}, draw_count_{id}); g.end_sentence();"
+        )
+        .unwrap();
         writeln!(out, "}}").unwrap();
         self.moved.remove(&result.0);
         self.performed.insert(result.0, format!("paid_{id}"));
@@ -1086,7 +1143,10 @@ impl Compiler {
                     format!("g.add_restricted_mana(asker.controller, color.mana(), 1, {rule});"),
                     format!(".only_for({rule})"),
                 ),
-                None => ("g.add_mana(asker.controller, color.mana(), 1);".to_string(), String::new()),
+                None => (
+                    "g.add_mana(asker.controller, color.mana(), 1);".to_string(),
+                    String::new(),
+                ),
             };
             writeln!(self.functions, "fn {label}(g: &mut dyn Game, asker: &Asker, _: Option<Color>) -> Result<(), Suspend> {{ let mut left = ColorSet(0b11111); for _ in 0..{n} {{ let color = cantrip_mechanics::choose_colors(g, asker.controller, asker.source, left, 1)?[0]; left = ColorSet(left.0 & !ColorSet::of(color).0); {add} }} Ok(()) }}").unwrap();
             return Ok(Some(format!("add_by({label}).yields_any({n}){only}")));
@@ -1205,7 +1265,11 @@ impl Compiler {
         let item = planned::planned_fn(feature, &function, params, "bool", &body);
         writeln!(self.functions, "{item}").unwrap();
         let id = planned::requirement(feature);
-        writeln!(self.holes, "planned_item!({id:?} => protection_rules: {function});").unwrap();
+        writeln!(
+            self.holes,
+            "planned_item!({id:?} => protection_rules: {function});"
+        )
+        .unwrap();
         Ok(Some(format!(
             "ProtectionQuality::Rule {{ card: {}, index: {index}, about: {about} }}",
             self.source_card()
@@ -1258,17 +1322,19 @@ impl Compiler {
                 },
             },
             // An effect has one kind for each player: `continuous` adds them.
-            Protection::Players(players) => match self.players(players) {
-                Ok(list) => {
-                    let kind = format!("EffectKind::ProtectionFrom(ProtectionQuality::Players(|q, asker| {list}))");
-                    grants.push((
+            Protection::Players(players) => {
+                match self.players(players) {
+                    Ok(list) => {
+                        let kind = format!("EffectKind::ProtectionFrom(ProtectionQuality::Players(|q, asker| {list}))");
+                        grants.push((
                         planned_kind(FEATURE, kind),
                         format!("for player in {list} {{ chars.protection_players |= 1 << player.0; }}"),
                     ));
-                    return Ok(());
+                        return Ok(());
+                    }
+                    Err(_) => return Err(hole),
                 }
-                Err(_) => return Err(hole),
-            },
+            }
             _ => return Err(hole),
         };
         grants.push((
@@ -1289,11 +1355,18 @@ impl Compiler {
     /// each object read has been through the layers before abilities. Colors of
     /// a card that moved are the card's, not those it had as "that creature".
     fn protection_read_from(&mut self, quality: &Protection) -> Result<Option<(String, String)>> {
-        let Protection::Objects { kind: ObjectKind::Any, filter } = quality else {
+        let Protection::Objects {
+            kind: ObjectKind::Any,
+            filter,
+        } = quality
+        else {
             return Ok(None);
         };
         let own_colors = self.reader == Reader::Layer
-            && self.lines_said().iter().any(|line| line.contains("from each of its colors"));
+            && self
+                .lines_said()
+                .iter()
+                .any(|line| line.contains("from each of its colors"));
         let colors = match filter {
             ObjectFilter::SharesColorWith(ObjectRef::Source) if own_colors => "chars.colors".to_string(),
             ObjectFilter::SharesColorWith(object) => format!(
@@ -1433,12 +1506,16 @@ impl Compiler {
             // nothing moves and "you do" is false.
             CostPart::Move {
                 selections,
-                destination: Destination::Exile,
-                entry,
-                face_down: true,
-            } if entry.tapped == false
-                && entry.counters.is_empty()
-                && entry.states.iter().all(|s| matches!(s, EntryState::ExilePile { .. }))
+                destination:
+                    MovementDestination::Exile {
+                        visibility: ExileVisibility::FaceDown,
+                        arrival,
+                    },
+            } if arrival.counters.is_empty()
+                && arrival
+                    .states
+                    .iter()
+                    .all(|s| matches!(s, ExileState::ExilePile { .. }))
                 && selections.iter().all(|s| fixed_selection(s).is_some()) =>
             {
                 let mut parts = Vec::new();
@@ -1482,7 +1559,12 @@ impl Compiler {
                     }]
                 ) =>
             {
-                let [CounterRemoval { player: remover, recipients: Recipients::Objects(objects), .. }] = removals.as_slice() else {
+                let [CounterRemoval {
+                    player: remover,
+                    recipients: Recipients::Objects(objects),
+                    ..
+                }] = removals.as_slice()
+                else {
                     unreachable!("one counter off one of a set");
                 };
                 let remover = self.fetch(self.certain_player(remover)?);
@@ -1546,7 +1628,9 @@ impl Compiler {
                     p.selection.is_none() && !matches!(p.recipients, Recipients::Players(_))
                 }) =>
             {
-                let operation = Operation::PutCounters { placements: placements.clone() };
+                let operation = Operation::PutCounters {
+                    placements: placements.clone(),
+                };
                 self.operation(&operation, result, out)?;
                 let Some(applied) = self.selections.get(&result.0).cloned() else {
                     return Err(gap(format!("resolution cost {}", form(part))));
@@ -1567,7 +1651,11 @@ impl Compiler {
                 let sources = self.acted_on(from)?;
                 let recipient = self.acted_on(to)?;
                 let stored = Quantity::StoredCounter.kind();
-                let most_read = if planned::switched_on(quantity::BOUNDED_32) { "max(0)" } else { "clamp(0, 255)" };
+                let most_read = if planned::switched_on(quantity::BOUNDED_32) {
+                    "max(0)"
+                } else {
+                    "clamp(0, 255)"
+                };
                 writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let from_{id}: Option<ObjectId> = ({sources}).first().copied(); let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let (Some(from), Some(to)) = (from_{id}, to_{id}) {{ let kinds: Vec<CounterKind> = CounterKind::ALL.into_iter().filter(|&kind| g.state().obj(from).counters(kind) > 0).collect(); let last = kinds.len(); for (i, kind) in kinds.into_iter().enumerate() {{ let most = g.state().obj(from).counters(kind).{most_read} as u32; let least = u32::from(done_{id} == 0 && i + 1 == last); if most >= least {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, least, most, \"Move counters\")? as {stored}; done_{id} += i64::from(g.move_counters(from, to, kind, amount)); }} }} }} let paid_{id} = done_{id} > 0;").unwrap();
             }
             other => {
@@ -1618,7 +1706,8 @@ impl Compiler {
                 Some(Count::Exactly(n)) => {
                     let n = self.asked_number(n)?;
                     let params = "q: &dyn Query, asker: &Asker";
-                    let count = self.rule_fn(FEATURE, &format!("{label}_moved_count"), params, "i64", &n);
+                    let count =
+                        self.rule_fn(FEATURE, &format!("{label}_moved_count"), params, "i64", &n);
                     format!("CostCount::Reading({count})")
                 }
                 Some(other) => return Err(gap(format!("move cost counted {}", form(other)))),
@@ -1670,7 +1759,9 @@ impl Compiler {
                 let kind = kind.ok_or_else(|| gap(SHAPE))?;
                 // A mana ability announces only its {X} (`activate_mana_as`): no
                 // number of counters to remove, nor an X its effect could read.
-                if self.paid_for == lane_j::PaidFor::Mana && !planned::switched_on("mana-counter-costs") {
+                if self.paid_for == lane_j::PaidFor::Mana
+                    && !planned::switched_on("mana-counter-costs")
+                {
                     return Ok(planned::planned_value(
                         MANA_COUNTERS_X,
                         "Cost::NONE",
@@ -1969,7 +2060,9 @@ impl Compiler {
             // control" (Dragon's Fire): a cost no `Cost` pays (a reveal, card.rs
             // `Cost`) can't be one of the choices, whatever offers the choice.
             CostPart::Choice(costs)
-                if costs.iter().any(|c| c.parts.iter().any(|p| matches!(p, CostPart::Reveal { .. }))) =>
+                if costs
+                    .iter()
+                    .any(|c| c.parts.iter().any(|p| matches!(p, CostPart::Reveal { .. }))) =>
             {
                 return Err(gap("engine: no reveal cost"));
             }
@@ -2005,7 +2098,10 @@ impl Compiler {
                     _ => {
                         let once = self.cost(&once, label)?;
                         let n = self.asked_number(times)?;
-                        self.reading_cost(&format!("({once}).times(({n}).clamp(0, 255) as u8)"), label)
+                        self.reading_cost(
+                            &format!("({once}).times(({n}).clamp(0, 255) as u8)"),
+                            label,
+                        )
                     }
                 }
             }
@@ -2058,7 +2154,11 @@ impl Compiler {
             CostPart::ObjectAction {
                 action: CostObjectAction::PayManaCost,
                 ..
-            } => return Err(gap("a mana cost paid for one creature and a sacrifice choosing again")),
+            } => {
+                return Err(gap(
+                    "a mana cost paid for one creature and a sacrifice choosing again",
+                ))
+            }
             other => return Err(gap(format!("cost part {}", form(other)))),
         })
     }
@@ -2115,7 +2215,11 @@ impl Compiler {
                 format!(".activated_by({function})")
             }
         };
-        Ok(planned::planned_value(FEATURE, &def, &format!("{def}{rule}")))
+        Ok(planned::planned_value(
+            FEATURE,
+            &def,
+            &format!("{def}{rule}"),
+        ))
     }
     /// What an ability's limits say beyond the engine's own methods.
     pub(super) fn activation_rule_beyond(
@@ -2227,7 +2331,11 @@ impl Compiler {
                     let filter = self.cost_filter(&filter, label)?;
                     writeln!(self.functions, "#[allow(unused_variables)] fn {label}_sacrificed(q: &dyn Query, asker: &Asker) -> bool {{ q.obj(asker.source).paid > 0 }}\nfn {label}_copies(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ for _ in 0..g.obj(item.object).paid {{ g.copy_spell(item.object, item.controller, false)?; }} Ok(()) }}").unwrap();
                     parts.field("optional_cost", format!("Some(OptionalCost::new(Cost {{ variable: Some(VariableCost::SacrificeOneOrMore({filter})), ..Cost::NONE }}))"));
-                    parts.field("labels", "&[\"Cast without sacrificing\", \"Sacrifice one or more creatures\"]".to_string());
+                    parts.field(
+                        "labels",
+                        "&[\"Cast without sacrificing\", \"Sacrifice one or more creatures\"]"
+                            .to_string(),
+                    );
                     parts.entry("abilities", format!("triggered(cantrip_mechanics::triggers::CAST_THIS_SPELL, {label}_copies, \"When you do, copy this spell for each creature sacrificed this way.\").condition({label}_sacrificed)"));
                     return Ok(());
                 }
@@ -2330,7 +2438,13 @@ impl Compiler {
                         let test = self.spending_test(filter, "source")?;
                         let params = "q: &dyn Query, asker: &Asker, source: ObjectId";
                         let feature = "engine: no rule on the mana spent on a spell";
-                        let produced = self.rule_fn(feature, &format!("{label}_mana_source"), params, "bool", &test);
+                        let produced = self.rule_fn(
+                            feature,
+                            &format!("{label}_mana_source"),
+                            params,
+                            "bool",
+                            &test,
+                        );
                         format!("ManaSpendRule::ProducedBy({produced})")
                     }
                 };
@@ -2397,7 +2511,7 @@ impl Compiler {
             }
             [CostPart::Move {
                 selections,
-                destination: Destination::Exile,
+                destination: MovementDestination::Exile { .. },
                 ..
             }] => match selections.as_slice() {
                 [CostObjectSelection {
@@ -2488,7 +2602,8 @@ impl Compiler {
                     let (Expr::Constant(least), Expr::Constant(most), true) = (
                         &paid_modes.count.minimum,
                         &paid_modes.count.maximum,
-                        format!("{:?}", paid_modes.options) == format!("{:?}", unpaid_modes.options),
+                        format!("{:?}", paid_modes.options)
+                            == format!("{:?}", unpaid_modes.options),
                     ) else {
                         return Err(gap(format!("cost branch {keyword} that changes its modes")));
                     };
@@ -2654,14 +2769,18 @@ impl Compiler {
                 );
                 parts.statics.push(statics);
             }
-            Protection::Objects { kind: ObjectKind::Any, filter: ObjectFilter::Any } => {
+            Protection::Objects {
+                kind: ObjectKind::Any,
+                filter: ObjectFilter::Any,
+            } => {
                 self.printed_protection("everything", "chars.protection_everything = true;", parts);
             }
-            Protection::Objects { kind: ObjectKind::Any, .. }
-                if self
-                    .lines_said()
-                    .iter()
-                    .any(|line| line.contains("protection from spells that are one or more colors")) =>
+            Protection::Objects {
+                kind: ObjectKind::Any,
+                ..
+            } if self.lines_said().iter().any(|line| {
+                line.contains("protection from spells that are one or more colors")
+            }) =>
             {
                 self.printed_protection(
                     "spells that are one or more colors",

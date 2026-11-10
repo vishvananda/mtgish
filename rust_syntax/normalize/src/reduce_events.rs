@@ -95,9 +95,10 @@ fn reduce_event_number(form: &str, operands: &[Operand]) -> Option<Expr> {
         });
     }
     match (form, operands) {
-        ("TheNumberOfDiceResults", [Compare(comparison, value)]) => {
-            dice(DiceMeasure::Matching(comparison.clone(), Box::new(value.clone())))
-        }
+        ("TheNumberOfDiceResults", [Compare(comparison, value)]) => dice(DiceMeasure::Matching(
+            comparison.clone(),
+            Box::new(value.clone()),
+        )),
         ("TheTotalOfTheDiceResults", []) => dice(DiceMeasure::Total),
         ("TheDiceResult" | "TriggerTheDiceResult", []) => dice(DiceMeasure::Result),
         ("TheFirstDiceResult", []) => dice(DiceMeasure::Nth(1)),
@@ -105,9 +106,15 @@ fn reduce_event_number(form: &str, operands: &[Operand]) -> Option<Expr> {
         ("TheNumberOfDifferentDiceResults", []) => dice(DiceMeasure::Different),
         ("TheGreatestNumberOfStoredDiceResultsThatAreEqual", []) => dice(DiceMeasure::MostEqual),
         ("NumCoinFlipsWon" | "FlipACoinUntilLose_NumFlipsWon", []) => {
-            Some(Expr::CoinFlipsWon(true))
+            Some(Expr::CountCoinOutcomes {
+                source: CoinCountSource::Latest,
+                outcome: CoinOutcome::Won,
+            })
         }
-        ("NumCoinFlipsLost", []) => Some(Expr::CoinFlipsWon(false)),
+        ("NumCoinFlipsLost", []) => Some(Expr::CountCoinOutcomes {
+            source: CoinCountSource::Latest,
+            outcome: CoinOutcome::Lost,
+        }),
         ("CurrentStake", []) => value(G::Stake),
         ("TheWinningBid", []) => value(G::WinningBid),
         ("TheLifePaid" | "WhenAPlayerPaysLife_AmountOfLifePaid", []) => value(G::LifePaid),
@@ -125,15 +132,19 @@ fn reduce_event_number(form: &str, operands: &[Operand]) -> Option<Expr> {
         ("NumberOfCreatureTypesNotedByPermanent", [Object(o)]) => {
             noted(o, NotedMeasure::CreatureTypes)
         }
-        ("TheNumberOfUnlockedDoorsAmongPermanents", [Objects(set)]) => Some(Expr::CountObjects(
-            Box::new(matching(set, &ObjectFilter::State(ObjectState::UnlockedDoor))),
-        )),
-        ("TheTotalPowerOfAllStickersOnPermanents" | "TheTotalToughnessOfAllStickersOnPermanents", [Objects(set)]) => {
-            Some(Expr::Stickers {
-                objects: Box::new(set.clone()),
-                measure: sticker_measure(form, &[])?,
-            })
+        ("TheNumberOfUnlockedDoorsAmongPermanents", [Objects(set)]) => {
+            Some(Expr::CountObjects(Box::new(matching(
+                set,
+                &ObjectFilter::State(ObjectState::UnlockedDoor),
+            ))))
         }
+        (
+            "TheTotalPowerOfAllStickersOnPermanents" | "TheTotalToughnessOfAllStickersOnPermanents",
+            [Objects(set)],
+        ) => Some(Expr::Stickers {
+            objects: Box::new(set.clone()),
+            measure: sticker_measure(form, &[])?,
+        }),
         (_, [Object(object), rest @ ..]) if form.contains("Sticker") => Some(Expr::Stickers {
             objects: Box::new(ObjectSet::One(object.clone())),
             measure: sticker_measure(form, rest)?,
@@ -210,23 +221,42 @@ fn reduce_event_condition(form: &str, operands: &[Operand]) -> Option<Condition>
         ("GuestWasUnattachedFromAPermanentThisWay", rest) => {
             Some(some_of(earlier_among(E::Unattached, rest)?))
         }
-        ("NumCoinFlipsWonIs", [Compare(comparison, value)]) => {
-            Some(compare(Expr::CoinFlipsWon(true), comparison, value))
-        }
-        ("NumCoinFlipsLostIs", [Compare(comparison, value)]) => {
-            Some(compare(Expr::CoinFlipsWon(false), comparison, value))
-        }
-        ("YouWonTheCoinFlip", []) => Some(some_of(Expr::CoinFlipsWon(true))),
-        ("YouLostTheCoinFlip", []) => Some(some_of(Expr::CoinFlipsWon(false))),
-        ("ADiceResultIs" | "WhenAPlayerRollsAnyNumberOfDice_AnyDiceResultIs", [Compare(c, value)]) => {
-            Some(some_of(Expr::Dice(DiceMeasure::Matching(
-                c.clone(),
-                Box::new(value.clone()),
-            ))))
-        }
-        ("NumberDiceAreEqual", [Compare(comparison, value)]) => {
-            Some(compare(Expr::Dice(DiceMeasure::MostEqual), comparison, value))
-        }
+        ("NumCoinFlipsWonIs", [Compare(comparison, value)]) => Some(compare(
+            Expr::CountCoinOutcomes {
+                source: CoinCountSource::Latest,
+                outcome: CoinOutcome::Won,
+            },
+            comparison,
+            value,
+        )),
+        ("NumCoinFlipsLostIs", [Compare(comparison, value)]) => Some(compare(
+            Expr::CountCoinOutcomes {
+                source: CoinCountSource::Latest,
+                outcome: CoinOutcome::Lost,
+            },
+            comparison,
+            value,
+        )),
+        ("YouWonTheCoinFlip", []) => Some(some_of(Expr::CountCoinOutcomes {
+            source: CoinCountSource::Latest,
+            outcome: CoinOutcome::Won,
+        })),
+        ("YouLostTheCoinFlip", []) => Some(some_of(Expr::CountCoinOutcomes {
+            source: CoinCountSource::Latest,
+            outcome: CoinOutcome::Lost,
+        })),
+        (
+            "ADiceResultIs" | "WhenAPlayerRollsAnyNumberOfDice_AnyDiceResultIs",
+            [Compare(c, value)],
+        ) => Some(some_of(Expr::Dice(DiceMeasure::Matching(
+            c.clone(),
+            Box::new(value.clone()),
+        )))),
+        ("NumberDiceAreEqual", [Compare(comparison, value)]) => Some(compare(
+            Expr::Dice(DiceMeasure::MostEqual),
+            comparison,
+            value,
+        )),
         ("ANumberDiceValuesAre", [Compare(count, n), Compare(c, value)]) => Some(compare(
             Expr::Dice(DiceMeasure::Matching(c.clone(), Box::new(value.clone()))),
             count,
@@ -246,14 +276,13 @@ fn reduce_event_condition(form: &str, operands: &[Operand]) -> Option<Condition>
         ("AllVotesWereForWord", [Text(word)]) => {
             Some(Condition::AllVotedFor(VoteOption::Word(word.clone())))
         }
-        (
-            "AColorIsTheMostCommonOrTiedForMostCommonColorAmongPermanents",
-            [color, Objects(set)],
-        ) => Some(Condition::MostCommonColor {
-            color: Box::new(color.clone()),
-            objects: set.clone(),
-            tied: true,
-        }),
+        ("AColorIsTheMostCommonOrTiedForMostCommonColorAmongPermanents", [color, Objects(set)]) => {
+            Some(Condition::MostCommonColor {
+                color: Box::new(color.clone()),
+                objects: set.clone(),
+                tied: true,
+            })
+        }
         (
             "AColorIsTheMostCommonColorAmongPermanentsButNotTiedForTheMostComon",
             [color, Objects(set)],
@@ -302,9 +331,11 @@ fn reduce_event_condition(form: &str, operands: &[Operand]) -> Option<Condition>
                 n,
             ))
         }
-        ("ANumberOfPlayersHaveLostTheGame", [Compare(comparison, n)]) => {
-            Some(compare(Expr::Game(GameValue::PlayersWhoLost), comparison, n))
-        }
+        ("ANumberOfPlayersHaveLostTheGame", [Compare(comparison, n)]) => Some(compare(
+            Expr::Game(GameValue::PlayersWhoLost),
+            comparison,
+            n,
+        )),
         _ => None,
     }
 }
@@ -398,19 +429,20 @@ fn state_event(form: &str, operands: &[Operand]) -> Option<EventSpec> {
                 ObjectFilter::Any,
             ))),
         ),
-        ("WhenAPlayerControlsNumberPermanents", [Players(players), Objects(set), Compare(c, n)]) => {
-            any_player(
-                players,
-                Condition::Compare {
-                    left: count(matching(
-                        set,
-                        &ObjectFilter::ControlledBy(PlayerSet::One(player())),
-                    )),
-                    comparison: c.clone(),
-                    right: n.clone(),
-                },
-            )
-        }
+        (
+            "WhenAPlayerControlsNumberPermanents",
+            [Players(players), Objects(set), Compare(c, n)],
+        ) => any_player(
+            players,
+            Condition::Compare {
+                left: count(matching(
+                    set,
+                    &ObjectFilter::ControlledBy(PlayerSet::One(player())),
+                )),
+                comparison: c.clone(),
+                right: n.clone(),
+            },
+        ),
         ("WhenPlayersControlsNoPermanents", [Players(players), Objects(set)]) => any_player(
             players,
             none_of(count(matching(
@@ -456,7 +488,11 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         },
         ("WhenASpellOrAbilityExilesAnyNumberOfPermanents", [cause, Objects(set)]) => caused(
             stack_filter(cause)?,
-            whole(zone_change(objects_filter(set), Some(Z::Battlefield), Z::Exile)),
+            whole(zone_change(
+                objects_filter(set),
+                Some(Z::Battlefield),
+                Z::Exile,
+            )),
         ),
         ("WhenASpellOrAbilityDestroysAPermanent", [cause, Objects(set)]) => caused(
             stack_filter(cause)?,
@@ -527,13 +563,12 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         ("WhenACardIsPutIntoTheCommandZoneFromAnywhere", [Filter(cards)]) => {
             zone_change(cards.clone(), None, Z::Command)
         }
-        (
-            "WhenAPermanentEntersTheBattlefieldDuringTheDeclareAttacksStep",
-            [Objects(set)],
-        ) => EventSpec::Filtered {
-            event: Box::new(zone_change(objects_filter(set), None, Z::Battlefield)),
-            condition: Condition::Window(TurnWindow::DeclareAttackers),
-        },
+        ("WhenAPermanentEntersTheBattlefieldDuringTheDeclareAttacksStep", [Objects(set)]) => {
+            EventSpec::Filtered {
+                event: Box::new(zone_change(objects_filter(set), None, Z::Battlefield)),
+                condition: Condition::Window(TurnWindow::DeclareAttackers),
+            }
+        }
         (
             "WhenAnyNumberOfPermanentsEnterTheBattlefieldUnderAPlayersControl",
             [Objects(set), Players(players)],
@@ -542,13 +577,14 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
             None,
             Z::Battlefield,
         )),
-        ("WhenAnyNumberOfPermanentsArePutIntoAPlayersGraveyards", [Objects(set), Players(players)]) => {
-            whole(zone_change(
-                owned_among(objects_filter(set), players),
-                Some(Z::Battlefield),
-                Z::Graveyard,
-            ))
-        }
+        (
+            "WhenAnyNumberOfPermanentsArePutIntoAPlayersGraveyards",
+            [Objects(set), Players(players)],
+        ) => whole(zone_change(
+            owned_among(objects_filter(set), players),
+            Some(Z::Battlefield),
+            Z::Graveyard,
+        )),
         (
             "WhenAnyNumberOfPermanentsAndOrGraveyardCardsArePutIntoExile",
             [Objects(set), Filter(cards)],
@@ -560,8 +596,16 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
             "WhenAnyNumberOfCardsArePutIntoExileFromAPlayersGraveyardAndOrLibrary",
             [Filter(cards), Players(players)],
         ) => whole(EventSpec::Either(vec![
-            zone_change(owned_among(cards.clone(), players), Some(Z::Graveyard), Z::Exile),
-            zone_change(owned_among(cards.clone(), players), Some(Z::Library), Z::Exile),
+            zone_change(
+                owned_among(cards.clone(), players),
+                Some(Z::Graveyard),
+                Z::Exile,
+            ),
+            zone_change(
+                owned_among(cards.clone(), players),
+                Some(Z::Library),
+                Z::Exile,
+            ),
         ])),
         ("WhenAPlayerDrawsTheirNthCardDuringTheirDrawStep", [Players(players), Compare(c, n)]) => {
             EventSpec::Filtered {
@@ -610,7 +654,10 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
             player(
                 PlayerEvent::PlaysLandFromExile,
                 players,
-                Some(ObjectFilter::All(vec![set_filter(lands)?, objects_filter(set)])),
+                Some(ObjectFilter::All(vec![
+                    set_filter(lands)?,
+                    objects_filter(set),
+                ])),
             )
         }
         (
@@ -651,13 +698,14 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
                 defenders: AttackDefenders::Objects(objects_filter(set)),
             })
         }
-        ("WhenAnyNumberOfCreaturesAttackAnyNumberOfPlayers", [Objects(set), Players(defenders)]) => {
-            whole(EventSpec::Attack {
-                attackers: objects_filter(set),
-                by: None,
-                defenders: AttackDefenders::Players(defenders.clone()),
-            })
-        }
+        (
+            "WhenAnyNumberOfCreaturesAttackAnyNumberOfPlayers",
+            [Objects(set), Players(defenders)],
+        ) => whole(EventSpec::Attack {
+            attackers: objects_filter(set),
+            by: None,
+            defenders: AttackDefenders::Players(defenders.clone()),
+        }),
         (
             "WhenAPlayerAttacksAPlaneswalkerWithAnyNumberOfCreatures",
             [Players(by), Objects(defenders), Objects(set)],
@@ -684,14 +732,20 @@ fn earlier_reference(form: &str) -> Option<EarlierObjects> {
         "TheCardsConjuredIntoHandThisWay" => E::Conjured,
         "TheLastCardDrawnThisTurn" => E::LastDrawn,
         "TheCardRevealedFromHandThisWay" => E::Revealed,
-        "TheLastGraveyardCardChosenThisWay" | "TheChosenCardsInHand" | "TheChosenPermanentForPlayer" => {
-            E::Selected
-        }
-        "ThePermanentChosenThisWay" | "TheExiledCardChosenThisWay" | "TheChosenExiledCard"
-        | "TheChosenPermanents" | "ThePermanentsChosenThisWay" | "TheGraveyardCardsChosenThisWay"
+        "TheLastGraveyardCardChosenThisWay"
+        | "TheChosenCardsInHand"
+        | "TheChosenPermanentForPlayer" => E::Selected,
+        "ThePermanentChosenThisWay"
+        | "TheExiledCardChosenThisWay"
+        | "TheChosenExiledCard"
+        | "TheChosenPermanents"
+        | "ThePermanentsChosenThisWay"
+        | "TheGraveyardCardsChosenThisWay"
         | "TheSecretlyChosenPermanents" => E::Selected,
         "TheLastExiledCard" => E::LastExiled,
-        "TheCardExiledThisWay" | "TheCardsExiledThisWay" | "TheCardsExiledByPlayerThisWay"
+        "TheCardExiledThisWay"
+        | "TheCardsExiledThisWay"
+        | "TheCardsExiledByPlayerThisWay"
         | "ThePermanentExiledByPlayerThisWay" => E::Exiled,
         "TheCreatureUnequippedThisWay" => E::Unattached,
         "TheCopiedSpell" => E::CopiedSpell,
@@ -739,17 +793,15 @@ pub fn reduce_object(name: String, operands: Vec<Operand>) -> ObjectRef {
             ObjectRef::SourceOf(Box::new(ability.clone()))
         }
         ("ThisExiledPermanentCard", [], _) => ObjectRef::Source,
-        (
-            "Trigger_ThatPermanent" | "ThatSpell",
-            [],
-            _,
-        ) => ObjectRef::Scoped,
+        ("Trigger_ThatPermanent" | "ThatSpell", [], _) => ObjectRef::Scoped,
         // In the filter of the damage event that names it: what would deal the damage.
         ("WouldDealDamage_ThatPermanent", [], _) => ObjectRef::Damage(DamageSubject::Source),
         // The card an instruction on each exiled card is looking at.
         ("EachableExiled", [], _) => ObjectRef::Affected,
         ("Trigger_ThatSpellOrAbility", [], _) => ObjectRef::EventStackObject,
-        ("PlayersRingBearer", [Operand::Player(player)], _) => ObjectRef::RingBearer(player.clone()),
+        ("PlayersRingBearer", [Operand::Player(player)], _) => {
+            ObjectRef::RingBearer(player.clone())
+        }
         ("TheCreatureHauntedByExiledCard", [Operand::Object(object)], _) => {
             ObjectRef::HauntedBy(Box::new(object.clone()))
         }
@@ -801,7 +853,9 @@ pub fn reduce_objects(name: String, operands: Vec<Operand>) -> ObjectSet {
 fn earlier_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> {
     if let [.., Operand::Result(result)] = operands {
         if earlier_reference(form).is_some() {
-            return Some(ObjectFilter::InSet(Box::new(ObjectSet::Recorded(result.clone()))));
+            return Some(ObjectFilter::InSet(Box::new(ObjectSet::Recorded(
+                result.clone(),
+            ))));
         }
     }
     let what = earlier_reference(form)?;
@@ -811,7 +865,10 @@ fn earlier_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> {
         [Operand::Players(players)] => Some(players.clone()),
         _ => return None,
     };
-    Some(ObjectFilter::InSet(Box::new(ObjectSet::Earlier { what, by })))
+    Some(ObjectFilter::InSet(Box::new(ObjectSet::Earlier {
+        what,
+        by,
+    })))
 }
 
 /// A player read off the step that named them.

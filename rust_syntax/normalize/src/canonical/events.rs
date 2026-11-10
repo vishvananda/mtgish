@@ -16,7 +16,10 @@ pub(super) fn subject(event: &Value) -> super::Subject {
 }
 
 pub(super) fn created(owner: &str, args: &Value) -> Option<Frame> {
-    if owner == "EntryState::ExiledForWith" {
+    if matches!(
+        owner,
+        "EntryState::ExiledForWith" | "ExileState::ExiledForWith"
+    ) {
         let event = serde_json::to_value(crate::semantics::entry_return_event())
             .expect("typed returning entry event");
         return Some(Frame {

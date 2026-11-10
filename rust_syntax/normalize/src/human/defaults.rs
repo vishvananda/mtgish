@@ -3,8 +3,14 @@ use crate::{ir::*, ir_schema::Ty};
 use serde_json::{json, Value};
 pub fn type_value(name: &str) -> Option<Value> {
     Some(match name {
-        "ModeCount" => json!({"minimum":{"kind":"Constant","args":1},"maximum":{"kind":"Constant","args":1}}),
-        "ModeRules" => json!({"repetition":"OnceEach","availability":"Any","surcharge":null,"targets":"MayShare","acceptance":"Required"}),
+        "CoinProtocol" => json!("Called"),
+        "CoinCountSource" => json!("Latest"),
+        "ModeCount" => {
+            json!({"minimum":{"kind":"Constant","args":1},"maximum":{"kind":"Constant","args":1}})
+        }
+        "ModeRules" => {
+            json!({"repetition":"OnceEach","availability":"Any","surcharge":null,"targets":"MayShare","acceptance":"Required"})
+        }
         "ModeMechanism" => json!({"Announced":{"chooser":"Controller","method":"PlayerChoice"}}),
         "ModeChooser" => json!("Controller"),
         "ModePicking" => json!("PlayerChoice"),
@@ -15,13 +21,22 @@ pub fn type_value(name: &str) -> Option<Value> {
         "Announcement" => json!({"targets":[],"modes":null}),
         "ActivationLimits" => serde_json::to_value(ActivationLimits::unrestricted()).unwrap(),
         "TriggerLimits" => json!({"per_turn":null,"total":null}),
-        "EntrySpec" => serde_json::to_value(EntrySpec::default()).unwrap(),
+        "EntrySpec" => serde_json::to_value(crate::movement::legacy::EntrySpec::default()).unwrap(),
+        "BattlefieldArrival" => serde_json::to_value(BattlefieldArrival::default()).unwrap(),
+        "ExileArrival" => serde_json::to_value(ExileArrival::default()).unwrap(),
+        "CardArrival" => serde_json::to_value(CardArrival::default()).unwrap(),
+        "LibraryChooser" => json!("Owners"),
+        "ExileVisibility" => json!("FaceUp"),
+        "ConjurePosition" => json!("Random"),
+        "MovementOrder" => json!("DestinationDefault"),
         "MovementTerms" => serde_json::to_value(MovementTerms::default()).unwrap(),
         _ => return None,
     })
 }
 pub fn field(owner: &str, key: &str, ty: &Ty) -> Option<Value> {
-    if owner=="KeywordAction::Amass" && key=="creature_type" {return Some(json!("Zombie"));}
+    if owner == "KeywordAction::Amass" && key == "creature_type" {
+        return Some(json!("Zombie"));
+    }
     if key == "schema_version" && matches!(owner, "Card" | "UnifiedCard") {
         return Some(json!(SCHEMA_VERSION));
     }
@@ -31,7 +46,14 @@ pub fn field(owner: &str, key: &str, ty: &Ty) -> Option<Value> {
     if owner == "TargetSpec" && key == "count" {
         return Some(json!({"Exactly":{"kind":"Constant","args":1}}));
     }
-    if owner == "EntryState::Optional" && key == "decider" {
+    if matches!(
+        owner,
+        "EntryState::Optional"
+            | "BattlefieldState::Optional"
+            | "ExileState::Optional"
+            | "CardArrivalState::Optional"
+    ) && key == "decider"
+    {
         return Some(json!({"kind":"AbilityController"}));
     }
     if owner == "FaceDownAs" && key == "artifact" {
@@ -44,7 +66,7 @@ pub fn field(owner: &str, key: &str, ty: &Ty) -> Option<Value> {
         return Some(json!(true));
     }
     if ty == &Ty::Named("bool".into())
-        && (owner == "EntrySpec"
+        && (matches!(owner, "EntrySpec" | "BattlefieldArrival")
             || owner == "ActivationLimits"
             || matches!(key, "face_down" | "random" | "into_exile"))
     {

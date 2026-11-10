@@ -284,7 +284,7 @@ pub(super) struct Notes {
     /// Cardinality of the pre-action choice view, independent of the action's
     /// own transition/creation result with the same instruction id.
     pub implicit_single: BTreeSet<u32>,
-    pub implicit_each: BTreeMap<u32,(String,String)>,
+    pub implicit_each: BTreeMap<u32, (String, String)>,
     /// For a step of a `ForEachPlayer`: the list of its players, and the test
     /// over `at`, an index into it, of whether that player's run did the step.
     pub took: BTreeMap<u32, (String, String)>,
@@ -359,11 +359,13 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         // "If you gain control of a creature this way, tap it" (Midnight Crusader
         // Shuttle).
         Operation::CreateContinuousEffect { changes, .. }
-            if changes.iter().any(|change| matches!(change, Change::SetController(_))) =>
+            if changes
+                .iter()
+                .any(|change| matches!(change, Change::SetController(_))) =>
         {
             &["GainedControl"]
         }
-        Operation::Move { destination, .. } => match destination {
+        Operation::Move { destination, .. } => match destination.address() {
             Destination::Exile => &["Exiled", "LastExiled"],
             Destination::OwnersGraveyard => &["PutInGraveyard"],
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
@@ -567,7 +569,13 @@ impl Compiler {
         // one chose, carried to it as its other objects are.
         if step.is_none() && matches!(what, EarlierObjects::Selected) {
             let outer = self.carrying().and_then(|outer| {
-                outer.compiler.notes.earlier.iter().rev().find(|(w, _)| *w == word)
+                outer
+                    .compiler
+                    .notes
+                    .earlier
+                    .iter()
+                    .rev()
+                    .find(|(w, _)| *w == word)
             });
             if let Some((_, result)) = outer {
                 if let Some(code) = self.outside_objects(&ObjectSet::Selected(result.clone()))? {
@@ -587,8 +595,13 @@ impl Compiler {
         if let (EarlierObjects::Found, Some(found)) = (what, self.reveal_matches.get(&result.0)) {
             // Jhoira: "You put that card onto the battlefield under your control and
             // lose life" is in the data the revealing opponent's own action.
-            if self.line_text().is_some_and(|line| line.contains("under your control and lose life")) {
-                return Err(gap("the life you lose read as the revealing player's, in the data"));
+            if self
+                .line_text()
+                .is_some_and(|line| line.contains("under your control and lose life"))
+            {
+                return Err(gap(
+                    "the life you lose read as the revealing player's, in the data",
+                ));
             }
             return Ok(format!("{found}.iter().map(|&id| q.state().obj(id).became.filter(|&now| q.state().obj(now).zone.is(ZoneKind::Battlefield)).unwrap_or(id)).collect::<Vec<ObjectId>>()"));
         }
@@ -624,7 +637,11 @@ impl Compiler {
             }
             _ => return None,
         };
-        let me = if self.stack_item { "item.object" } else { "asker.source" };
+        let me = if self.stack_item {
+            "item.object"
+        } else {
+            "asker.source"
+        };
         Some(format!(
             "{{ let records = q.history().all(); let spell = q.history().original_spell(records.iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ old, new, reason: ZoneReason::Resolve, .. }} if new == {me} => Some(old), _ => None }}).unwrap_or({me})); records.iter().rposition(|r| matches!(r.event, Event::Cast(c) if c.spell == spell)).map_or_else(Vec::new, |cast| records[..cast].iter().rev().filter_map(|r| match r.event {{ {event}, _ => None }}).take(1).collect::<Vec<ObjectId>>()) }}"
         ))
@@ -664,11 +681,18 @@ impl Compiler {
         let word = form(what);
         let (_, result) = self.notes.earlier.iter().rev().find(|(w, _)| *w == word)?;
         let chosen = self.notes.acted_of.get(&result.0).unwrap_or(&result.0);
-        let walked = if matches!(what,EarlierObjects::Selected) && self.implicit_selections.contains_key(&result.0) {
+        let walked = if matches!(what, EarlierObjects::Selected)
+            && self.implicit_selections.contains_key(&result.0)
+        {
             // A pre-action pick keeps its own rows: transition rows contain new
             // identities and may omit choices that could not actually move.
             self.notes.implicit_each.get(&result.0)
-        } else {self.notes.each.get(chosen).or(self.notes.each.get(&result.0))};
+        } else {
+            self.notes
+                .each
+                .get(chosen)
+                .or(self.notes.each.get(&result.0))
+        };
         // "Choose a different opponent": each pick shuts out the rest, which a walk
         // of independent picks doesn't.
         if lane_k::printed_otherwise(self.line_text(), "a different") {
@@ -704,7 +728,7 @@ impl Compiler {
             (
                 EarlierObjects::Returned,
                 CostPart::Move {
-                    destination: Destination::OwnersHand,
+                    destination: MovementDestination::OwnersHand(_),
                     ..
                 },
             ) => true,
@@ -712,7 +736,7 @@ impl Compiler {
             (
                 EarlierObjects::Exiled,
                 CostPart::Move {
-                    destination: Destination::Exile,
+                    destination: MovementDestination::Exile { .. },
                     ..
                 },
             ) => true,
@@ -751,7 +775,11 @@ impl Compiler {
             || self.casting_costs.values().any(chooses)
             || self.option_cost.as_ref().is_some_and(chooses);
         if matches!(what, EarlierObjects::Selected) && chose_as_cost {
-            return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+            return Ok(planned::planned_value(
+                FOLLOWS_GAP,
+                NO_OBJECTS,
+                "Vec::<ObjectId>::new()",
+            ));
         }
         let Some((payment, at)) = by_activation.or(by_casting) else {
             if exiled {
@@ -799,9 +827,15 @@ impl Compiler {
             // becomes attached: the choice is that ability's, whose own hole says
             // what the file waits on.
             if matches!(what, EarlierObjects::Selected)
-                && self.functions.contains("AttachAction::ChooseAnExiledCardToCopy")
+                && self
+                    .functions
+                    .contains("AttachAction::ChooseAnExiledCardToCopy")
             {
-                return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+                return Ok(planned::planned_value(
+                    FOLLOWS_GAP,
+                    NO_OBJECTS,
+                    "Vec::<ObjectId>::new()",
+                ));
             }
             // Read by a static or a trigger's event: an ability that resolved chose
             // it ("When Zenos enters, choose a creature ... When the chosen creature
@@ -983,7 +1017,12 @@ impl Compiler {
         else {
             return Ok(false);
         };
-        let Ability::Scoped { zones, condition: None, ability } = &**ability else {
+        let Ability::Scoped {
+            zones,
+            condition: None,
+            ability,
+        } = &**ability
+        else {
             return Ok(false);
         };
         let Ability::Static {
@@ -1426,17 +1465,16 @@ impl Compiler {
                 "numeric expression DraftNoted".into(),
                 &format!("q.draft_note_count(asker.controller, {})", one_line(n)),
             ),
-            Expr::HeadsFlipped(result) if self.performed.contains_key(&result.0) => {
-                counted(self.performed[&result.0].clone())
-            }
-            Expr::CoinFlipsWon(won) if self.coins.is_some() => {
-                let (wins, losses) = self.coins.as_ref().expect("flipped");
-                counted(if *won { wins.clone() } else { losses.clone() })
-            }
-            Expr::CoinFlipsWon(won) => held_number(
-                "numeric expression CoinFlipsWon".into(),
-                &format!("g.coin_flips(asker.controller, {won})"),
-            ),
+            Expr::CountCoinOutcomes {source,outcome} => {
+                let receipt=match source {
+                    CoinCountSource::Receipt(result)=>self.coin_receipts.get(&result.0),
+                    CoinCountSource::Latest=>self.coins.as_ref().map(|(_,r)|r),
+                };
+                match receipt {
+                    Some(r)=>counted(if Self::coin_channel(r.protocol,outcome)? {r.positive.clone()}else{r.negative.clone()}),
+                    None=>held_number("coin tally outside generated scope".into(),&format!("g.coin_outcomes(asker.controller, {outcome:?})")),
+                }
+            },
             Expr::TimesMutated(object) => held_number(
                 "numeric expression TimesMutated".into(),
                 &format!(
@@ -1796,7 +1834,7 @@ fn granted_escape(changes: &[Change]) -> Option<u8> {
     };
     let [CostPart::ManaCostOf(ObjectRef::Source), CostPart::Move {
         selections,
-        destination: Destination::Exile,
+        destination: MovementDestination::Exile { .. },
         ..
     }] = cost.parts.as_slice()
     else {

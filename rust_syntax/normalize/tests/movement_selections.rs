@@ -1,7 +1,7 @@
-#[path = "support/legacy_entries.rs"]
-mod legacy_entries;
 #[path = "support/generated_locals.rs"]
 mod generated_locals;
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 use mtgish_ast::{
     ir::*,
     movement,
@@ -388,10 +388,8 @@ fn per_player_choices_are_gathered_before_one_simultaneous_move() {
             0,
             Operation::Move {
                 objects: selected,
-                destination: Destination::Exile,
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: mtgish_ast::ir::MovementTerms::default(),
+                destination: (Destination::Exile).into(),
+                qualifiers: vec![],
             },
         )]),
     }]);
@@ -483,10 +481,8 @@ fn a_movement_result_keeps_pre_action_choice_and_new_identity_in_separate_views(
             0,
             Operation::Move {
                 objects: picked(field()),
-                destination: Destination::Exile,
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: mtgish_ast::ir::MovementTerms::default(),
+                destination: (Destination::Exile).into(),
+                qualifiers: vec![],
             },
         ),
         effect(
@@ -551,10 +547,8 @@ fn player_gathering_uses_prepared_pool_ownership_and_retains_choice_views() {
                             objects: Box::new(pool),
                             count: Count::Exactly(Expr::Constant(1)),
                         },
-                        destination: Destination::Battlefield(player),
-                        entry: EntrySpec::default(),
-                        face_down: false,
-                        terms: mtgish_ast::ir::MovementTerms::default(),
+                        destination: (Destination::Battlefield(player)).into(),
+                        qualifiers: vec![],
                     },
                 )]),
             },
@@ -601,7 +595,7 @@ fn player_gathering_uses_prepared_pool_ownership_and_retains_choice_views() {
 #[test]
 fn player_local_entry_values_remain_a_batching_gap_instead_of_leaking_the_binding() {
     let who = PlayerSet::One(PlayerRef::Bound(LoopBinding(0)));
-    let entry = EntrySpec {
+    let entry = BattlefieldArrival {
         controller: None,
         tapped: false,
         states: vec![],
@@ -632,10 +626,11 @@ fn player_local_entry_values_remain_a_batching_gap_instead_of_leaking_the_bindin
                     kind: ObjectKind::Card,
                     filter: ObjectFilter::Any,
                 },
-                destination: Destination::OwnersBattlefield,
-                entry,
-                face_down: false,
-                terms: mtgish_ast::ir::MovementTerms::default(),
+                destination: MovementDestination::Battlefield {
+                    controller: EntryController::Owner,
+                    arrival: entry,
+                },
+                qualifiers: vec![],
             },
         )]),
     }]);
@@ -660,11 +655,9 @@ fn optional_chooser_exports_the_choice_view_with_the_action_result() {
         effect(
             0,
             Operation::Move {
-                objects,
-                destination: Destination::Exile,
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: mtgish_ast::ir::MovementTerms::default(),
+                objects: objects,
+                destination: (Destination::Exile).into(),
+                qualifiers: vec![],
             },
         ),
         effect(
@@ -870,10 +863,8 @@ fn an_individual_players_implicit_choices_use_pre_action_rows() {
                         objects: Box::new(pool),
                         count: Count::Exactly(Expr::Constant(1)),
                     },
-                    destination: Destination::Exile,
-                    entry: EntrySpec::default(),
-                    face_down: false,
-                    terms: mtgish_ast::ir::MovementTerms::default(),
+                    destination: (Destination::Exile).into(),
+                    qualifiers: vec![],
                 },
             )]),
         },

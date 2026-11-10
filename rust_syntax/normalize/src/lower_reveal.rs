@@ -4,15 +4,33 @@ const REVEAL_ALIASES: [(&str, &str); 13] = [
     ("PutTheChosenPileIntoHand", "PutFoundCardIntoHand"),
     ("PutTheChosenCardIntoHand", "PutFoundCardIntoHand"),
     ("PutTheChosenCardsIntoHand", "PutFoundCardIntoHand"),
-    ("PutTheChosenCardOntoTheBattlefield", "PutFoundCardOntoBattlefield"),
+    (
+        "PutTheChosenCardOntoTheBattlefield",
+        "PutFoundCardOntoBattlefield",
+    ),
     ("PutTheCardFoundThisWayIntoHand", "PutFoundCardIntoHand"),
-    ("PutTheCardFoundThisWayOntoTheBattlefield", "PutFoundCardOntoBattlefield"),
+    (
+        "PutTheCardFoundThisWayOntoTheBattlefield",
+        "PutFoundCardOntoBattlefield",
+    ),
     ("PutTheCardsFoundThisWayIntoHand", "PutFoundCardIntoHand"),
-    ("PutTheCardsFoundThisWayOntoTheBattlefield", "PutFoundCardOntoBattlefield"),
-    ("MayPutTheCardFoundThisWayOntoTheBattlefield", "MayPutFoundCardOntoBattlefield"),
+    (
+        "PutTheCardsFoundThisWayOntoTheBattlefield",
+        "PutFoundCardOntoBattlefield",
+    ),
+    (
+        "MayPutTheCardFoundThisWayOntoTheBattlefield",
+        "MayPutFoundCardOntoBattlefield",
+    ),
     ("PutTheRemainingCardsIntoHand", "PutRemainingCardsInHand"),
-    ("LeaveTheRemainingCardsOnTopOfLibraryInTheSameOrder", "LeaveRemainingCardsOnTopOfLibraryInSameOrder"),
-    ("MayPutMultipleCardsOfTypeIntoHand", "MayRevealMultipleCardsOfTypeAndPutIntoHand"),
+    (
+        "LeaveTheRemainingCardsOnTopOfLibraryInTheSameOrder",
+        "LeaveRemainingCardsOnTopOfLibraryInSameOrder",
+    ),
+    (
+        "MayPutMultipleCardsOfTypeIntoHand",
+        "MayRevealMultipleCardsOfTypeAndPutIntoHand",
+    ),
 ];
 
 fn look_step(
@@ -61,13 +79,7 @@ impl Context {
         state: &mut InspectionState,
         instructions: &mut Vec<Instruction>,
     ) {
-        let operation = Operation::Move {
-            objects,
-            destination,
-            entry: EntrySpec::default(),
-            face_down: false,
-            terms: crate::ir::MovementTerms::default(),
-        };
+        let operation = crate::movement::move_plain(objects, destination);
         self.inspection_assignment(operation, state, instructions);
     }
     /// A revealed cohort is an inspected cohort every player saw, so reveal steps
@@ -203,7 +215,12 @@ impl Context {
                 return Ok(());
             }
             S::PutTheCardsFoundThisWayIntoGraveyard => {
-                self.reveal_move(found(state)?, Destination::OwnersGraveyard, state, instructions);
+                self.reveal_move(
+                    found(state)?,
+                    Destination::OwnersGraveyard,
+                    state,
+                    instructions,
+                );
                 return Ok(());
             }
             S::PutTheCardsNotFoundThisWayIntoGraveyard => {
@@ -226,16 +243,17 @@ impl Context {
                 return Ok(());
             }
             S::ExileTheCardFoundThisWayWithNumberCountersOfType(amount, kind) => {
-                let operation = Operation::Move {
-                    objects: found(state)?,
-                    destination: Destination::Exile,
-                    entry: EntrySpec {
+                let operation = crate::movement::move_to(
+                    found(state)?,
+                    Destination::Exile,
+                    EntrySpec {
                         counters: vec![(crate::counter::lower(kind), self.number(amount)?)],
                         ..EntrySpec::default()
                     },
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                };
+                    false,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?;
                 self.inspection_assignment(operation, state, instructions);
                 return Ok(());
             }
@@ -245,13 +263,14 @@ impl Context {
                     filter: self.card_filter(cards)?,
                 };
                 let (destination, entry) = self.move_entry(flags, player.clone())?;
-                let operation = Operation::Move {
+                let operation = crate::movement::move_to(
                     objects,
                     destination,
                     entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                };
+                    false,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?;
                 self.inspection_assignment(operation, state, instructions);
                 return Ok(());
             }
@@ -265,24 +284,24 @@ impl Context {
                     chosen.clone(),
                     ObjectFilter::Any,
                     Count::AsManyAsCan(one()),
-                    vec![SelectionConstraint::CanMoveTo {
-                        destination: destination.clone(),
-                        entry: entry.clone(),
-                        face_down: false,
-                    }],
+                    vec![
+                        crate::movement::can_move_to(destination.clone(), entry.clone(), false)
+                            .map_err(|message| invalid(&message))?,
+                    ],
                     instructions,
                 );
                 state.found = Some(ObjectSet::Difference {
                     objects: Box::new(chosen),
                     excluding: Box::new(objects.clone()),
                 });
-                let operation = Operation::Move {
+                let operation = crate::movement::move_to(
                     objects,
                     destination,
                     entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                };
+                    false,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?;
                 self.inspection_assignment(operation, state, instructions);
                 return Ok(());
             }
@@ -444,13 +463,7 @@ impl Context {
                     .found
                     .clone()
                     .ok_or_else(|| invalid("inspection has no preceding found-card choice"))?;
-                let operation = Operation::Move {
-                    objects,
-                    destination: Destination::Exile,
-                    entry: EntrySpec::default(),
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                };
+                let operation = crate::movement::move_plain(objects, Destination::Exile);
                 self.inspection_assignment(operation, state, instructions);
                 return Ok(());
             }
@@ -487,11 +500,10 @@ impl Context {
                 state.remaining(),
                 filter,
                 count,
-                vec![SelectionConstraint::CanMoveTo {
-                    destination: destination.clone(),
-                    entry: entry.clone(),
-                    face_down: false,
-                }],
+                vec![
+                    crate::movement::can_move_to(destination.clone(), entry.clone(), false)
+                        .map_err(|message| invalid(&message))?,
+                ],
                 instructions,
             ),
             None => ObjectSet::Matching {
@@ -499,13 +511,14 @@ impl Context {
                 filter,
             },
         };
-        let operation = Operation::Move {
+        let operation = crate::movement::move_to(
             objects,
             destination,
             entry,
-            face_down: false,
-            terms: crate::ir::MovementTerms::default(),
-        };
+            false,
+            crate::ir::MovementTerms::default(),
+        )
+        .map_err(|message| invalid(&message))?;
         self.inspection_assignment(operation, state, instructions);
         Ok(())
     }

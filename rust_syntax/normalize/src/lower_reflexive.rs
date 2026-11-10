@@ -87,7 +87,9 @@ fn base_forms(name: &str, args: &serde_json::Value) -> Option<Vec<Base>> {
         if let Some(count) = count {
             use crate::pipeline::source_tree::decode;
             let mut cards = wrapper["args"].clone();
-            retag(&mut cards, &|n: &str| (n == "Cards").then_some("CardsInLibrary"));
+            retag(&mut cards, &|n: &str| {
+                (n == "Cards").then_some("CardsInLibrary")
+            });
             return Some(vec![Base::Looked {
                 cards: decode(&cards).ok()?,
                 count,
@@ -119,8 +121,7 @@ fn base_forms(name: &str, args: &serde_json::Value) -> Option<Vec<Base>> {
 fn last_result(instruction: &Instruction) -> Option<ResultId> {
     match instruction {
         Instruction::Effect { result, .. } => Some(result.clone()),
-        Instruction::Group(program)
-        | Instruction::ForEachPlayer { body: program, .. } => {
+        Instruction::Group(program) | Instruction::ForEachPlayer { body: program, .. } => {
             program.instructions.last().and_then(last_result)
         }
         _ => None,
@@ -134,15 +135,27 @@ impl Context {
         }
         let [Instruction::Effect {
             result,
-            operation: Operation::PayCost { player, cost, optional },
+            operation:
+                Operation::PayCost {
+                    player,
+                    cost,
+                    optional,
+                },
         }, Instruction::Effect {
-            operation: Operation::ReflexiveTrigger { performed: Some(paid), .. },
+            operation:
+                Operation::ReflexiveTrigger {
+                    performed: Some(paid),
+                    ..
+                },
             ..
-        }] = body.instructions.as_mut_slice() else {
+        }] = body.instructions.as_mut_slice()
+        else {
             return false;
         };
-        if !matches!(cost.parts.as_slice(), [CostPart::PlayerAction { .. }, CostPart::Draw { .. }])
-            || result.0 != paid.0
+        if !matches!(
+            cost.parts.as_slice(),
+            [CostPart::PlayerAction { .. }, CostPart::Draw { .. }]
+        ) || result.0 != paid.0
             || !crate::semantics::same_player(player, decider)
         {
             return false;
@@ -178,9 +191,13 @@ impl Context {
                             parts: vec![
                                 CostPart::PlayerAction {
                                     player: player.clone(),
-                                    body: Program { instructions: vec![discard] },
+                                    body: Program {
+                                        instructions: vec![discard],
+                                    },
                                 },
-                                CostPart::Draw { count: self.number(count)? },
+                                CostPart::Draw {
+                                    count: self.number(count)?,
+                                },
                             ],
                         },
                     });
@@ -334,9 +351,10 @@ impl Context {
                     let mut context = self.clone();
                     context.payer = Some(payer.clone());
                     let cost = context.cost(cost)?;
-                    let chooses_x = cost.parts.iter().any(|part| {
-                        matches!(part, CostPart::ManaWithX { x: None, .. })
-                    });
+                    let chooses_x = cost
+                        .parts
+                        .iter()
+                        .any(|part| matches!(part, CostPart::ManaWithX { x: None, .. }));
                     let payment = self.effect(Operation::PayCost {
                         cost,
                         player: payer.clone(),
@@ -373,7 +391,10 @@ impl Context {
                 }
             });
         }
-        let is_reveal = matches!(condition, Some(source::Condition::ACardWasRevealedThisWay(_)));
+        let is_reveal = matches!(
+            condition,
+            Some(source::Condition::ACardWasRevealedThisWay(_))
+        );
         let condition = condition.map(|c| self.condition(c)).transpose()?;
         if is_reveal {
             if let Some(condition) = condition {
@@ -408,20 +429,24 @@ impl Context {
             },
             filter,
             count.map_or(Count::AnyNumber, |n| Count::AsManyAsCan(n.clone())),
-            vec![SelectionConstraint::CanMoveTo {
-                destination: destination.clone(),
-                entry: entry.clone(),
-                face_down: false,
-            }],
+            vec![
+                crate::movement::can_move_to(destination.clone(), entry.clone(), false)
+                    .map_err(|message| invalid(&message))?,
+            ],
             &mut instructions,
         );
-        instructions.push(self.effect(Operation::Move {
-            objects,
-            destination,
-            entry,
-            face_down: false,
-            terms: crate::ir::MovementTerms::default(),
-        }));
+        instructions.push(
+            self.effect(
+                crate::movement::move_to(
+                    objects,
+                    destination,
+                    entry,
+                    false,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?,
+            ),
+        );
         Ok(Instruction::Group(Program { instructions }))
     }
 

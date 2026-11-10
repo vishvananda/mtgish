@@ -21,7 +21,7 @@ pub struct MappedMigration {
 pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
     let value = crate::json_input::value(input)?;
     match value["schema_version"].as_u64() {
-        Some(180 | 181 | 182 | 183 | 184) => upgrade(value, true),
+        Some(180 | 181 | 182 | 183 | 184 | 185) => upgrade(value, true),
         Some(v) if v == u64::from(SCHEMA_VERSION) => {
             let card = super::checked(value.clone())?;
             let sites = binding_map::sites(
@@ -38,14 +38,17 @@ pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
                 },
             })
         }
-        _ => Err("mapped migration requires schema 180, 181, 182, 183, 184 or the current epoch".into()),
+        _ => Err(
+            "mapped migration requires schema 180, 181, 182, 183, 184, 185 or the current epoch"
+                .into(),
+        ),
     }
 }
 pub(super) fn upgrade(mut value: Value, track: bool) -> Result<MappedMigration, String> {
     let version = value["schema_version"]
         .as_u64()
         .ok_or("legacy IR requires a schema version")? as u32;
-    if !matches!(version, 179 | 180 | 181 | 182 | 183 | 184)
+    if !matches!(version, 179 | 180 | 181 | 182 | 183 | 184 | 185)
         || value["faces"]
             .as_array()
             .ok_or("legacy IR requires faces")?
@@ -69,9 +72,12 @@ pub(super) fn upgrade(mut value: Value, track: bool) -> Result<MappedMigration, 
         map,
         version,
         work: 0,
+        coin_calls: BTreeSet::new(),
     };
     walker.node(&ty, &mut value, "")?;
-    let card = super::checked(value.clone())?;
+    let mut card = super::checked(value.clone())?;
+    crate::coin_policies::infer(&mut card, false, walker.coin_calls.clone())?;
+    value = serde_json::to_value(&card).map_err(|e| e.to_string())?;
     let map = walker.map.unwrap_or_default();
     if track {
         map.validate(
@@ -98,6 +104,7 @@ struct Walker<'a> {
     map: Option<SiteMap>,
     version: u32,
     work: usize,
+    coin_calls: BTreeSet<String>,
 }
 impl Walker<'_> {
     fn node(&mut self, ty: &Ty, value: &mut Value, path: &str) -> Result<(), String> {
@@ -137,22 +144,24 @@ impl Walker<'_> {
                 };
                 match descriptor {
                     TypeDef::Struct(fields) => {
-                        if name=="UnifiedCard" {
-                            let layout=value["layout"].as_str().ok_or("legacy layout requires a string")?;
+                        if self.version <= 184 && name == "UnifiedCard" {
+                            let layout = value["layout"]
+                                .as_str()
+                                .ok_or("legacy layout requires a string")?;
                             Layout::from_name(layout)?;
                         }
                         self.fields(fields, value, path)?;
                         if matches!(name.as_str(), "Card" | "UnifiedCard") {
                             value["schema_version"] = json!(SCHEMA_VERSION);
                         }
-                        if self.version<=183 {
-                            let regions=super::mode_payloads::structure(name,value,path)?;
+                        if self.version <= 183 {
+                            let regions = super::mode_payloads::structure(name, value, path)?;
                             self.regions(regions);
                         }
                         if self.version == 179 && name == "EntrySpec" {
                             value["controller"] = Value::Null;
                         }
-                        if self.version<=181 {
+                        if self.version <= 181 {
                             let regions = super::entry_payloads::structure(name, value, path)?;
                             self.regions(regions);
                         }
@@ -181,8 +190,14 @@ impl Walker<'_> {
                             {
                                 return Err(format!("{path}: unexpected unit-variant fields"));
                             }
-                            let regions=super::api_names::variant(&format!("{name}::{variant}"),value,path)?;
-                            self.regions(regions);
+                            if self.version <= 184 {
+                                let regions = super::api_names::variant(
+                                    &format!("{name}::{variant}"),
+                                    value,
+                                    path,
+                                )?;
+                                self.regions(regions);
+                            }
                             return Ok(());
                         }
                         if *adjacent && value.as_object().is_none_or(|o| o.len() != 2) {
@@ -209,15 +224,24 @@ impl Walker<'_> {
                                 serde_json::to_value(crate::movement::entry_from_source(&flags))
                                     .map_err(|e| e.to_string())?;
                         }
-                        if self.version<=181 {
+                        if self.version <= 181 {
                             let regions = super::entry_payloads::variant(&owner, value, path)?;
                             self.regions(regions);
                         }
-                        if self.version<=182 {
-                            let regions = super::keyword_payloads::variant(&owner,value,path)?;
+                        if self.version <= 182 {
+                            let regions = super::keyword_payloads::variant(&owner, value, path)?;
                             self.regions(regions);
                         }
-                        let regions=super::api_names::variant(&owner,value,path)?;
+                        if self.version <= 184 {
+                            let regions = super::api_names::variant(&owner, value, path)?;
+                            self.regions(regions);
+                        }
+                        let (regions, forced) = super::coin_payloads::variant(&owner, value, path)?;
+                        self.regions(regions);
+                        if forced {
+                            self.coin_calls.insert(path.into());
+                        }
+                        let regions = super::movement_payloads::variant(&owner, value, path)?;
                         self.regions(regions);
                     }
                 }
@@ -251,11 +275,26 @@ impl Walker<'_> {
         Ok(())
     }
     fn regions(&mut self, regions: Vec<super::entry_payloads::Region>) {
-        if let Some(map) = &mut self.map {
-            for region in regions {
-                remap(map, &region.source, &region.moves);
-            }
+        for region in regions {
+            self.remap(&region.source, &region.moves);
         }
+    }
+    fn remap(&mut self, source: &str, moves: &[(String, String)]) {
+        if let Some(map) = &mut self.map {
+            remap(map, source, moves);
+        }
+        // Explicit calls are semantic evidence, so they must travel through
+        // exactly the same structural rewrites as binding origins.
+        let mut calls = SiteMap {
+            sites: self
+                .coin_calls
+                .iter()
+                .map(|p| (p.clone(), vec![p.clone()]))
+                .collect(),
+            introduced: vec![],
+        };
+        remap(&mut calls, source, moves);
+        self.coin_calls = calls.sites.into_values().flatten().collect();
     }
     fn copy(
         &mut self,
@@ -278,7 +317,7 @@ impl Walker<'_> {
             crate::copying::convert(&operands).map_err(|e| format!("{path}/{field}: {e}"))?;
         let source = binding_map::pointer(path, field);
         let target = binding_map::pointer(path, "exceptions");
-        if let Some(map) = &mut self.map {
+        {
             let moves = converted
                 .moves
                 .iter()
@@ -292,7 +331,7 @@ impl Walker<'_> {
                     Ok((format!("{source}{a}"), format!("{target}{b}")))
                 })
                 .collect::<Result<Vec<_>, String>>()?;
-            remap(map, &source, &moves);
+            self.remap(&source, &moves);
         }
         let fields = args
             .as_object_mut()

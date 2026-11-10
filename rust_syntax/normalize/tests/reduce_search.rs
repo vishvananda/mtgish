@@ -221,7 +221,10 @@ fn a_search_reaches_outside_the_game_for_cards_owned() {
     assert!(matches!(
         ops[shuffle - 1],
         Operation::Move {
-            destination: Destination::OwnersLibraryTop,
+            destination: MovementDestination::Library {
+                position: LibraryPosition::Top,
+                ..
+            },
             ..
         }
     ));
@@ -239,7 +242,9 @@ fn each_player_library_is_searched_by_one_player() {
     let text = format!("{:?}", steps(&c, 2)[0]);
     assert!(text.starts_with("ForEachPlayer"), "{text}");
     let Some(Operation::Search {
-        searcher: player, library_owner: library, ..
+        searcher: player,
+        library_owner: library,
+        ..
     }) = operations(&c, 2).first().copied()
     else {
         panic!()
@@ -257,7 +262,7 @@ fn each_player_reveals_then_one_set_of_steps_reads_every_reveal() {
     assert!(matches!(
         ops[3],
         Operation::Move {
-            destination: Destination::OwnersGraveyard,
+            destination: MovementDestination::OwnersGraveyard(_),
             ..
         }
     ));
@@ -294,7 +299,7 @@ fn cards_stay_only_when_paid_for() {
                 objects: ObjectSet::Unpaid(_),
                 destination,
                 ..
-            } => Some(format!("{destination:?}")),
+            } => Some(format!("{:?}", destination.address())),
             _ => None,
         });
         assert_eq!(moved.as_deref(), Some(destination), "{name}");
@@ -357,7 +362,7 @@ fn a_look_repeats_on_the_cards_then_on_top() {
 fn a_card_exiled_face_down_carries_its_counter() {
     let c = card("The Dragon-Kami Reborn");
     let text = format!("{c:?}");
-    assert!(text.contains("face_down: true"), "{text}");
+    assert!(text.contains("visibility: FaceDown"), "{text}");
     assert!(text.contains("HatchingCounter"), "{text}");
 }
 
@@ -388,7 +393,7 @@ fn a_chosen_card_from_a_graveyard_top_leaves_the_other_one() {
         ops[2],
         Operation::Move {
             objects: ObjectSet::Unselected(_),
-            destination: Destination::OwnersHand,
+            destination: MovementDestination::OwnersHand(_),
             ..
         }
     ));

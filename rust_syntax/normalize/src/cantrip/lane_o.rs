@@ -4,15 +4,16 @@
 //! while: `object_rule(applies, rule)` and `player_rule(applies, rule)` in a
 //! card's `statics`, `EffectKind::Rule(rule)` and `EffectKind::PlayerRule(rule)`
 //! on the stack. Every operand is read here, as the tests and amounts it will be.
-use crate::keyword_actions::KeywordKind;
 use super::*;
+use crate::keyword_actions::KeywordKind;
 
 const M: &str = "cantrip_mechanics";
 /// A cost's read of the card it is paid for, which the cost is asked with.
 pub(super) const CARD_IT_IS_PAID_FOR: &str = "a cost reading the card it is paid for";
 /// `CardDef::becomes_aura_enchant` of an Aura that enchants the creature it put
 /// onto the battlefield (Necromancy).
-const AURA_PUT_WITH_THIS: &str = "Some(cantrip_mechanics::targets::CREATURE_PUT_ONTO_THE_BATTLEFIELD_WITH_THIS)";
+const AURA_PUT_WITH_THIS: &str =
+    "Some(cantrip_mechanics::targets::CREATURE_PUT_ONTO_THE_BATTLEFIELD_WITH_THIS)";
 
 /// The player a player rule is asked of, in a test of what they are doing.
 fn players_card(id: &str) -> Candidate {
@@ -336,7 +337,10 @@ impl Compiler {
             .unwrap_or_else(|| effects_rule_name(rule));
         self.made_object_rules.push((
             feature.clone(),
-            format!("LastingObjectRule {{ text: {}, rule: {code} }}", quoted(&text)),
+            format!(
+                "LastingObjectRule {{ text: {}, rule: {code} }}",
+                quoted(&text)
+            ),
         ));
         Ok(vec![planned::planned_value(
             &feature,
@@ -389,7 +393,11 @@ impl Compiler {
         // whoever is defending against that attacker (CR 506.2).
         if let RuleChange::BlockedByDefender { players, unless } = rule {
             let member = self.player_member(players).map_err(|_| gap(&feature))?;
-            let allowed = if *unless { member } else { format!("!({member})") };
+            let allowed = if *unless {
+                member
+            } else {
+                format!("!({member})")
+            };
             let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
             writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
             writeln!(self.functions, "#[allow(unused_variables)] fn {function}_block(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ let asker = &Asker::new(source, q.controller(source)); !{function}(q, asker, attacker) || q.defending_player(attacker).is_none_or(|player| {allowed}) }}").unwrap();
@@ -418,7 +426,9 @@ impl Compiler {
         // change, the target read as the total cost is determined (CR 601.2f).
         if let RuleChange::OwnActivationCost { abilities, change } = rule {
             if let Some(reduced) = self.own_equip_cost(function, affected, abilities, change)? {
-                let equips: Vec<usize> = (0..parts.abilities.len()).filter(|&i| parts.abilities[i].contains(".equip()")).collect();
+                let equips: Vec<usize> = (0..parts.abilities.len())
+                    .filter(|&i| parts.abilities[i].contains(".equip()"))
+                    .collect();
                 if let [one] = equips.as_slice() {
                     parts.abilities[*one].push_str(&format!(".cost_change({reduced})"));
                     return Ok(true);
@@ -449,20 +459,33 @@ impl Compiler {
         if !matches!(affected, ObjectSet::One(ObjectRef::Source)) || self.static_guard.is_some() {
             return Ok(None);
         }
-        let ObjectFilter::All(filters) = abilities else { return Ok(None) };
+        let ObjectFilter::All(filters) = abilities else {
+            return Ok(None);
+        };
         let [ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Equip)), ObjectFilter::TargetsAny(recipients)] =
             filters.as_slice()
         else {
             return Ok(None);
         };
-        let Recipients::Objects(crate::battlefield_query!(filter)) = &**recipients else { return Ok(None) };
-        let ActivationCostChange::Reduce(amount) = change else { return Ok(None) };
-        let Operand::List(symbols) = &**amount else { return Ok(None) };
-        let [Operand::Term { form, operands, .. }] = symbols.as_slice() else { return Ok(None) };
-        let ("CostReduceGeneric", [Operand::Integer(n)]) = (form.as_str(), operands.as_slice()) else {
+        let Recipients::Objects(crate::battlefield_query!(filter)) = &**recipients else {
             return Ok(None);
         };
-        let Ok(n) = u8::try_from(*n) else { return Ok(None) };
+        let ActivationCostChange::Reduce(amount) = change else {
+            return Ok(None);
+        };
+        let Operand::List(symbols) = &**amount else {
+            return Ok(None);
+        };
+        let [Operand::Term { form, operands, .. }] = symbols.as_slice() else {
+            return Ok(None);
+        };
+        let ("CostReduceGeneric", [Operand::Integer(n)]) = (form.as_str(), operands.as_slice())
+        else {
+            return Ok(None);
+        };
+        let Ok(n) = u8::try_from(*n) else {
+            return Ok(None);
+        };
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let test = self.filter(filter, &Candidate::of("id"));
@@ -527,18 +550,27 @@ impl Compiler {
         let crate::battlefield_query!(filter) = affected else {
             return Ok(false);
         };
-        if !changes.iter().all(|change| matches!(change, Change::Rule(_))) {
+        if !changes
+            .iter()
+            .all(|change| matches!(change, Change::Rule(_)))
+        {
             return Ok(false);
         }
         // A rule `LastingRuleKind` has no word for is proposed in its shape
         // (`lasting_kind_beyond`), a hole of its own whatever the Cantrip.
-        let beyond = changes.iter().find(|change| lasting_rule_kind(change).is_none());
+        let beyond = changes
+            .iter()
+            .find(|change| lasting_rule_kind(change).is_none());
         let refused = |failed: Diagnostic| match beyond {
             Some(change) => gap(beyond_lasting_rules(change)),
             None => failed,
         };
-        let capture_targets = changes.iter().any(|change| matches!(change, Change::Rule(RuleChange::BlockCapacity(_))));
-        if capture_targets { *self.captured_rule_targets.borrow_mut() = Some(Vec::new()); }
+        let capture_targets = changes
+            .iter()
+            .any(|change| matches!(change, Change::Rule(RuleChange::BlockCapacity(_))));
+        if capture_targets {
+            *self.captured_rule_targets.borrow_mut() = Some(Vec::new());
+        }
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let asked = self.filter(filter, &Candidate::of("id"));
@@ -555,25 +587,44 @@ impl Compiler {
             }
             asked => asked.map_err(refused),
         };
-        let targets = self.captured_rule_targets.borrow_mut().take().unwrap_or_default();
+        let targets = self
+            .captured_rule_targets
+            .borrow_mut()
+            .take()
+            .unwrap_or_default();
         let test = test?;
-        let (test, mut about) = self.named_as_resolved_targets(&test, capture_targets.then_some(targets.as_slice())).map_err(refused)?;
+        let (test, mut about) = self
+            .named_as_resolved_targets(&test, capture_targets.then_some(targets.as_slice()))
+            .map_err(refused)?;
         // (the kind's code, its requirement, whether #897 has it, its words)
         let mut kinds: Vec<(String, String, bool, &str)> = Vec::new();
         for change in changes {
             if let Change::Rule(RuleChange::BlockCapacity(capacity)) = change {
                 let value = match capacity {
-                    BlockCapacity::Additional(Expr::Constant(n)) if *n >= 0 && *n <= u32::MAX as i64 => n.to_string(),
+                    BlockCapacity::Additional(Expr::Constant(n))
+                        if *n >= 0 && *n <= u32::MAX as i64 =>
+                    {
+                        n.to_string()
+                    }
                     BlockCapacity::Unlimited => "u32::MAX".to_string(),
                     _ => return Err(gap("dynamic lasting block allowance")),
                 };
                 let feature = "continuous rule BlockCapacity".to_string();
-                kinds.push((format!("LastingRuleKind::AdditionalBlocks({value})"), feature, !planned::switched_on("multiple-blocks"), "AdditionalBlocks"));
+                kinds.push((
+                    format!("LastingRuleKind::AdditionalBlocks({value})"),
+                    feature,
+                    !planned::switched_on("multiple-blocks"),
+                    "AdditionalBlocks",
+                ));
                 continue;
             }
             if let Some(kind) = lasting_rule_kind(change) {
                 let present = crate::cantrip_vocab::LASTING_RULE_KINDS.contains(&kind);
-                let feature = if present { open_set_feature(change) } else { format!("engine: no lasting rule {kind}") };
+                let feature = if present {
+                    open_set_feature(change)
+                } else {
+                    format!("engine: no lasting rule {kind}")
+                };
                 kinds.push((format!("LastingRuleKind::{kind}"), feature, !present, kind));
                 continue;
             }
@@ -608,7 +659,11 @@ impl Compiler {
             other => self.stated_until(other)?,
         };
         let first = self.made_lasting_rules.len();
-        writeln!(out, "let about_{first} = {about}; let until_{first} = {until};").unwrap();
+        writeln!(
+            out,
+            "let about_{first} = {about}; let until_{first} = {until};"
+        )
+        .unwrap();
         // The rules of one instruction begin together.
         let mut made = Vec::new();
         let mut features = Vec::new();
@@ -616,7 +671,12 @@ impl Compiler {
             let index = self.made_lasting_rules.len();
             let function = format!("lasting_rule_{index}");
             let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, about: Target, id: ObjectId) -> bool {{ let source = asker.source; {test} }}");
-            writeln!(self.functions, "{}", planned::switched_item(planned::LASTING_RULES, &feature, &item)).unwrap();
+            writeln!(
+                self.functions,
+                "{}",
+                planned::switched_item(planned::LASTING_RULES, &feature, &item)
+            )
+            .unwrap();
             self.made_lasting_rules.push((
                 feature.clone(),
                 format!(
@@ -625,7 +685,9 @@ impl Compiler {
                 ),
                 beyond,
             ));
-            made.push(format!("g.add_lasting_rule(item, {index}, about_{first}, until_{first});"));
+            made.push(format!(
+                "g.add_lasting_rule(item, {index}, about_{first}, until_{first});"
+            ));
             features.push((feature, beyond));
         }
         let code = match made.as_slice() {
@@ -678,7 +740,9 @@ impl Compiler {
                 let attacker = self.fetch(self.object(attacker)?);
                 return Ok((
                     "LastingRuleKind::MustBlockAbout".into(),
-                    Some(format!("{attacker}.map(Target::Object).unwrap_or(Target::None)")),
+                    Some(format!(
+                        "{attacker}.map(Target::Object).unwrap_or(Target::None)"
+                    )),
                     "block",
                 ));
             }
@@ -688,9 +752,11 @@ impl Compiler {
                 amount,
             } if attack_one(amount) => {
                 return Ok(match player {
-                    PlayerRef::AbilityController => {
-                        ("LastingRuleKind::MustAttackController".into(), None, "attack")
-                    }
+                    PlayerRef::AbilityController => (
+                        "LastingRuleKind::MustAttackController".into(),
+                        None,
+                        "attack",
+                    ),
                     other => {
                         let player = self.fetch(self.certain_player(other)?);
                         (
@@ -716,7 +782,11 @@ impl Compiler {
         }
         if self.made_block_rules.len() > blocks {
             let index = self.made_block_rules.len() - 1;
-            return Ok((format!("LastingRuleKind::BlockRestriction({index})"), None, "block"));
+            return Ok((
+                format!("LastingRuleKind::BlockRestriction({index})"),
+                None,
+                "block",
+            ));
         }
         if self.made_object_rules.len() > objects {
             let index = self.made_object_rules.len() - 1;
@@ -735,26 +805,50 @@ impl Compiler {
         self.named_as_resolved_targets(test, None)
     }
 
-    fn named_as_resolved_targets(&self, test: &str, typed: Option<&[(usize, u16, &'static str)]>) -> Result<(String, String)> {
+    fn named_as_resolved_targets(
+        &self,
+        test: &str,
+        typed: Option<&[(usize, u16, &'static str)]>,
+    ) -> Result<(String, String)> {
         let mut test = test.to_string();
         let mut about: Option<String> = None;
         // Lasting-rule filters record the actual typed target reads, without a slot or index limit.
         let reads: Vec<(usize, u16, &str)> = match typed {
             Some(reads) => reads.to_vec(),
-            None => (0..8).flat_map(|slot| (0..8).flat_map(move |index| [(slot, index, "player"), (slot, index, "object")])).collect(),
+            None => (0..8)
+                .flat_map(|slot| {
+                    (0..8).flat_map(move |index| [(slot, index, "player"), (slot, index, "object")])
+                })
+                .collect(),
         };
         for (slot, index, what) in reads {
-            let wrap = if what == "player" { "Target::Player" } else { "Target::Object" };
+            let wrap = if what == "player" {
+                "Target::Player"
+            } else {
+                "Target::Object"
+            };
             let legal = format!("t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t)).and_then(|t: Target| t.{what}())");
-            let raw = format!("t_{slot}_raw.get({index}).copied().and_then(|t: Target| t.{what}())");
+            let raw =
+                format!("t_{slot}_raw.get({index}).copied().and_then(|t: Target| t.{what}())");
             let was_legal = test.contains(&legal);
-            if !was_legal && !test.contains(&raw) { continue; }
-            if about.is_some() { return Err(gap("a lasting rule reading two things its ability chose")); }
+            if !was_legal && !test.contains(&raw) {
+                continue;
+            }
+            if about.is_some() {
+                return Err(gap("a lasting rule reading two things its ability chose"));
+            }
             test = test.replace(&legal, &format!("about.{what}()"));
             test = test.replace(&raw, &format!("about.{what}()"));
             // Partial legality still permits resolution, but an illegal target selects nothing.
-            let read = if typed.is_some() || was_legal { &legal } else { &raw };
-            about = Some(format!("{}.map({wrap}).unwrap_or(Target::None)", self.fetch(read)));
+            let read = if typed.is_some() || was_legal {
+                &legal
+            } else {
+                &raw
+            };
+            about = Some(format!(
+                "{}.map({wrap}).unwrap_or(Target::None)",
+                self.fetch(read)
+            ));
         }
         // What a trigger's event named ("that player"), as the item holds it.
         for what in ["player", "object"] {
@@ -812,7 +906,10 @@ impl Compiler {
                         Some((cost, rest))
                             if cost.contains('{')
                                 || cost.contains("Sacrifice")
-                                || cost.trim_start_matches(['+', '−', '-']).parse::<u32>().is_ok() =>
+                                || cost
+                                    .trim_start_matches(['+', '−', '-'])
+                                    .parse::<u32>()
+                                    .is_ok() =>
                         {
                             rest
                         }
@@ -824,7 +921,13 @@ impl Compiler {
                     // Past an ability word, "Choose one" or a mode's name.
                     .map(|s| s.rsplit_once(" — ").map_or(s, |(_, rest)| rest).trim())
                     .find(|sentence| says.iter().any(|w| sentence.contains(w)))
-                    .map(|s| if s.ends_with('.') { s.to_string() } else { format!("{s}.") })
+                    .map(|s| {
+                        if s.ends_with('.') {
+                            s.to_string()
+                        } else {
+                            format!("{s}.")
+                        }
+                    })
             })
             .unwrap_or_else(|| said.trim().to_string())
     }
@@ -959,7 +1062,8 @@ impl Compiler {
                     items.push(self.stated(item)?);
                 }
                 // As `operand_code` writes a variant of one list.
-                let listed = crate::lower::LIST_VARIANTS.contains(&(family.as_str(), form.as_str()));
+                let listed =
+                    crate::lower::LIST_VARIANTS.contains(&(family.as_str(), form.as_str()));
                 match items.is_empty() {
                     _ if listed => format!("{family}::{form}(&[{}])", items.join(", ")),
                     true => format!("{family}::{form}"),
@@ -1056,8 +1160,12 @@ impl Compiler {
         const NOT_MANA: &str = "!(def.is_some_and(|d| d.is_mana_ability()))";
         Ok(match on {
             ManaPayment::Anything => "true".to_string(),
-            ManaPayment::Spells(ObjectFilter::Any) => "matches!(costing, CostFor::Spell)".to_string(),
-            ManaPayment::Abilities(ObjectFilter::Any) => "!matches!(costing, CostFor::Spell)".to_string(),
+            ManaPayment::Spells(ObjectFilter::Any) => {
+                "matches!(costing, CostFor::Spell)".to_string()
+            }
+            ManaPayment::Abilities(ObjectFilter::Any) => {
+                "!matches!(costing, CostFor::Spell)".to_string()
+            }
             ManaPayment::Abilities(filter) if self.ability_test(filter)? == NOT_MANA => {
                 "matches!(costing, CostFor::Ability)".to_string()
             }
@@ -1254,7 +1362,9 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        let open = |set: &ObjectSet| set.battlefield_filter().is_none() && matches!(set, ObjectSet::Zone { .. });
+        let open = |set: &ObjectSet| {
+            set.battlefield_filter().is_none() && matches!(set, ObjectSet::Zone { .. })
+        };
         if !matches!(self.reader, Reader::Resolution)
             || open(cards)
             || matches!(cards, ObjectSet::Take { objects, .. } if open(objects))
@@ -1296,7 +1406,11 @@ impl Compiler {
             ) => "Expiry::UntilAnotherExiledWith(asker.source)".to_string(),
             (Err(_), _) => format!("Expiry::Lasting({})", self.stated_until(duration)?),
         };
-        let grant = grant.replacen("PlayGrant { ", &format!("PlayGrant {{ expiry: {expiry}, "), 1);
+        let grant = grant.replacen(
+            "PlayGrant { ",
+            &format!("PlayGrant {{ expiry: {expiry}, "),
+            1,
+        );
         Ok(Some(format!(
             "let cards = {cards}; let players = {players}; cantrip_api::instruction(g, |g| {{ for &card in &cards {{ if g.obj(card).zone.is({zone}) {{ for &player in &players {{ g.allow_play(card, player, {grant}); }} }} }} }});"
         )))
@@ -1331,7 +1445,9 @@ impl Compiler {
             } if matches!(theirs(self, objects), Some(EventZone::Library)) => {
                 format!("VisibleCards::LibraryTop({n})")
             }
-            set if matches!(theirs(self, set), Some(EventZone::Hand)) => "VisibleCards::Hand".into(),
+            set if matches!(theirs(self, set), Some(EventZone::Hand)) => {
+                "VisibleCards::Hand".into()
+            }
             // One card it names as it resolves: the card, a Copy value.
             ObjectSet::One(object) => {
                 format!("VisibleCards::Card({})", self.fetch(self.object(object)?))
@@ -1960,9 +2076,7 @@ impl Compiler {
             (
                 PlayerRule::PlayPermission { .. } | PlayerRule::PlayPermissionWith { .. },
                 D::WhileExiled(_) | D::WhileAnyExiled(_),
-            ) => {
-                "Duration::Indefinite".to_string()
-            }
+            ) => "Duration::Indefinite".to_string(),
             _ => self.stated_until(duration)?,
         };
         let players = self.fetch(self.players(players)?);
@@ -2077,36 +2191,64 @@ impl Compiler {
         // identity so losing abilities removes it at the correct timestamp.
         let bans = grown.tables.remove("regeneration_bans").unwrap_or_default();
         if !bans.is_empty()
-            && entries.is_empty() && grown.only_abilities() && grown.abilities.is_empty()
-            && grown.spell == "None" && grown.enchant == "None" && grown.protection == 0
+            && entries.is_empty()
+            && grown.only_abilities()
+            && grown.abilities.is_empty()
+            && grown.spell == "None"
+            && grown.enchant == "None"
+            && grown.protection == 0
             && planned::switched_on("regeneration-bans")
         {
             let mut refs = Vec::new();
             for function in bans {
-                self.delayed.push(format!("granted_regeneration_ban({function}, {})", quoted(&granted_text)));
+                self.delayed.push(format!(
+                    "granted_regeneration_ban({function}, {})",
+                    quoted(&granted_text)
+                ));
                 let index = self.delayed.len() - 1;
-                refs.push(if tabled { format!("GrantedAbility::Delayed({index})") }
-                    else { format!("AbilityRef::delayed({card}, {index})") });
+                refs.push(if tabled {
+                    format!("GrantedAbility::Delayed({index})")
+                } else {
+                    format!("AbilityRef::delayed({card}, {index})")
+                });
             }
             return Ok(refs);
         }
-        if !bans.is_empty() { grown.tables.insert("regeneration_bans".into(), bans); }
+        if !bans.is_empty() {
+            grown.tables.insert("regeneration_bans".into(), bans);
+        }
         // Cantrip's delayed table can also hold a granted static in layers
         // 6-7. Keep the layer, reach, callback and text of the compiled static.
         let statics = std::mem::take(&mut grown.statics);
         let simple_statics = entries.is_empty()
-            && grown.only_abilities() && grown.abilities.is_empty()
-            && grown.spell == "None" && grown.enchant == "None" && grown.protection == 0
+            && grown.only_abilities()
+            && grown.abilities.is_empty()
+            && grown.spell == "None"
+            && grown.enchant == "None"
+            && grown.protection == 0
             && !statics.is_empty()
-            && statics.iter().all(|definition| ["Ability", "PtDefine", "PtSet", "PtModify", "PtSwitch"].iter()
-                .any(|layer| definition.starts_with(&format!("static_ability(Layer::{layer}, ")) && definition.ends_with(')')));
+            && statics.iter().all(|definition| {
+                ["Ability", "PtDefine", "PtSet", "PtModify", "PtSwitch"]
+                    .iter()
+                    .any(|layer| {
+                        definition.starts_with(&format!("static_ability(Layer::{layer}, "))
+                            && definition.ends_with(')')
+                    })
+            });
         if simple_statics {
             let mut refs = Vec::new();
             for definition in statics {
-                self.delayed.push(definition.replacen("static_ability(", "granted_static_ability(", 1));
+                self.delayed.push(definition.replacen(
+                    "static_ability(",
+                    "granted_static_ability(",
+                    1,
+                ));
                 let index = self.delayed.len() - 1;
-                refs.push(if tabled { format!("GrantedAbility::Delayed({index})") }
-                    else { format!("AbilityRef::delayed({card}, {index})") });
+                refs.push(if tabled {
+                    format!("GrantedAbility::Delayed({index})")
+                } else {
+                    format!("AbilityRef::delayed({card}, {index})")
+                });
             }
             return Ok(refs);
         }
@@ -2176,7 +2318,9 @@ impl Compiler {
     /// as the object's own, so it is asked as the object.
     fn granted_attack_limit(&mut self, rules: &str, card: &str) -> Option<String> {
         const EMPTY: &str = "CardDef { keywords: Keywords::of(&[]), abilities: &[], statics: &[], replacements: &[], preventions: &[], block_rules: &[], block_requirements: &[], attack_rules: &[], untap_bans: &[], enters: None, attack_limits: &[";
-        let limit = rules.strip_prefix(EMPTY)?.strip_suffix("], ..CardDef::BLANK }")?;
+        let limit = rules
+            .strip_prefix(EMPTY)?
+            .strip_suffix("], ..CardDef::BLANK }")?;
         if limit.is_empty() || !limit.chars().all(|c| c.is_alphanumeric() || c == '_') {
             return None;
         }
@@ -2189,7 +2333,8 @@ impl Compiler {
         ));
         let index = self.delayed.len() - 1;
         writeln!(self.functions, "#[allow(unused_variables)] fn {limit}_held(q: &dyn Query, asker: &Asker, attacked: Target) -> Option<u32> {{ let Target::Object(id) = attacked else {{ return None; }}; let source = q.obj(asker.source); let granted = AbilityRef::delayed(source.copied_card().unwrap_or(source.card), {index}); if !q.chars(id).abilities.contains(&Some(granted)) {{ return None; }} {limit}(q, &Asker::new(id, q.controller(id)), attacked) }}").unwrap();
-        self.late_tables.push(("attack_limits", format!("{limit}_held")));
+        self.late_tables
+            .push(("attack_limits", format!("{limit}_held")));
         Some(match self.tabled {
             true => format!("GrantedAbility::Delayed({index})"),
             false => format!("AbilityRef::delayed({card}, {index})"),
@@ -2198,7 +2343,10 @@ impl Compiler {
     /// The statement that gives a layer's `chars` these abilities.
     pub(super) fn grant_in_layer(&mut self, ability: &Ability) -> Result<statics::LayerChange> {
         if let Some(n) = lane_n::toxic_of(ability) {
-            return Ok(statics::LayerChange::of("Ability", format!("chars.toxic += {n};")));
+            return Ok(statics::LayerChange::of(
+                "Ability",
+                format!("chars.toxic += {n};"),
+            ));
         }
         let card = self.source_card();
         let mut body = format!("let card = {card}; let _ = card;");
@@ -2222,7 +2370,13 @@ impl Compiler {
         // as a `PlayGrant`, which has a mana cost to pay instead but no cards to exile
         // and no escape to cast it by (CR 702.138a-c); `granted_ways` are a
         // permanent's, while it's on the battlefield.
-        if matches!(ability, Ability::Mechanic { mechanic: Mechanic::Escape, .. }) {
+        if matches!(
+            ability,
+            Ability::Mechanic {
+                mechanic: Mechanic::Escape,
+                ..
+            }
+        ) {
             return Err(gap("escape given by a resolving effect"));
         }
         Ok(self
@@ -2244,8 +2398,12 @@ impl Compiler {
         // that follows is `put_onto_battlefield_with_aura` (CR 303.4f).
         let words = format!("{filter:?}");
         if words.contains("MadeBy") {
-            if !(words.starts_with("All([CardType(Creature), MadeBy(Source)") || words == "All([CardType(Creature), MadeBy(Source)])") {
-                return Err(gap("an Aura that enchants what it put onto the battlefield"));
+            if !(words.starts_with("All([CardType(Creature), MadeBy(Source)")
+                || words == "All([CardType(Creature), MadeBy(Source)])")
+            {
+                return Err(gap(
+                    "an Aura that enchants what it put onto the battlefield",
+                ));
             }
             self.aura = Some(AURA_PUT_WITH_THIS.to_string());
             return Ok(vec![format!("EffectKind::Enchant({})", self.source_card())]);
@@ -2347,7 +2505,10 @@ impl Compiler {
             return Err(failed);
         };
         if let Some(lost) = lost_keyword(lost) {
-            return Ok(vec![format!("EffectKind::LoseKeywords({})", lane_k::keyword_mask(&lost, "asker.source"))]);
+            return Ok(vec![format!(
+                "EffectKind::LoseKeywords({})",
+                lane_k::keyword_mask(&lost, "asker.source")
+            )]);
         }
         match word.as_str() {
             "AnyLandwalk" => Ok(vec!["EffectKind::LoseKeywords(Keywords::LANDWALKS)".into()]),
@@ -2375,7 +2536,8 @@ impl Compiler {
                         i.to_string()
                     };
                     arms.push(format!(
-                        "{pattern} => EffectKind::LoseKeywords({}),", lane_k::keyword_mask(&lost, "asker.source")
+                        "{pattern} => EffectKind::LoseKeywords({}),",
+                        lane_k::keyword_mask(&lost, "asker.source")
                     ));
                 }
                 Ok(vec![format!("match {local} {{ {} }}", arms.join(" "))])
@@ -2395,8 +2557,12 @@ impl Compiler {
         lost: &Operand,
         failed: Diagnostic,
     ) -> Result<statics::LayerChange> {
-        if matches!(lost, Operand::Term { form, operands, .. } if form == "AnyLandwalk" && operands.is_empty()) {
-            return Ok(statics::LayerChange::of("Ability", "chars.keywords = Keywords(chars.keywords.0 & !Keywords::LANDWALKS.0);".into()));
+        if matches!(lost, Operand::Term { form, operands, .. } if form == "AnyLandwalk" && operands.is_empty())
+        {
+            return Ok(statics::LayerChange::of(
+                "Ability",
+                "chars.keywords = Keywords(chars.keywords.0 & !Keywords::LANDWALKS.0);".into(),
+            ));
         }
         if let Some(lost) = lost_keyword(lost) {
             let and = match lost.as_str() {
@@ -2405,7 +2571,10 @@ impl Compiler {
             };
             return Ok(statics::LayerChange::of(
                 "Ability",
-                format!("chars.keywords = Keywords(chars.keywords.0 & !({}).for_effect().0);{and}", lane_k::keyword_mask(&lost, "source")),
+                format!(
+                    "chars.keywords = Keywords(chars.keywords.0 & !({}).for_effect().0);{and}",
+                    lane_k::keyword_mask(&lost, "source")
+                ),
             ));
         }
         let word = self.lost_word(lost).map_err(|_| failed.clone())?;
@@ -2698,7 +2867,11 @@ impl Compiler {
             .queried(|c| {
                 let (guard, test) = (c.guard()?, c.rule_subject(affected, "id")?);
                 let tabled = std::mem::replace(&mut c.tabled, true);
-                let more = match change { Change::CopyOf { exceptions, .. } => c.copy_callback(exceptions), Change::TextOf { plus, .. } => c.stated(plus), _ => unreachable!("checked copy/text change") };
+                let more = match change {
+                    Change::CopyOf { exceptions, .. } => c.copy_callback(exceptions),
+                    Change::TextOf { plus, .. } => c.stated(plus),
+                    _ => unreachable!("checked copy/text change"),
+                };
                 c.tabled = tabled;
                 Ok((format!("{guard}{test}"), c.object(object)?, more?))
             })
@@ -2903,7 +3076,10 @@ impl Compiler {
         if self.present.borrow().is_none() {
             return Err(gap(FEATURE));
         }
-        let Some((ask, detail)) = self.lines_said().iter().find_map(|line| any_player_may(line))
+        let Some((ask, detail)) = self
+            .lines_said()
+            .iter()
+            .find_map(|line| any_player_may(line))
         else {
             return Err(gap(FEATURE));
         };
@@ -2913,7 +3089,9 @@ impl Compiler {
             .any(|line| line.to_lowercase().contains("any opponent may"));
         let among = match opponents {
             // The source says "any player" of these. In turn order either way.
-            true => self.fetch(self.players(&PlayerSet::OpponentsOf(PlayerRef::AbilityController))?),
+            true => {
+                self.fetch(self.players(&PlayerSet::OpponentsOf(PlayerRef::AbilityController))?)
+            }
             false => self.fetch(self.players(players)?),
         };
         let mut picked = self.picked.borrow_mut();
@@ -3019,7 +3197,13 @@ impl Compiler {
         })
     }
     /// How a moved thing arrives, for the plain ways it can.
-    fn moved_arrival(&self, entry: &EntrySpec, face_down: bool) -> Result<String> {
+    fn moved_arrival(
+        &self,
+        entry: &dyn crate::movement::ArrivalView,
+        face_down: bool,
+    ) -> Result<String> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         if !entry.counters.is_empty() {
             return Err(gap("cost that moves with counters"));
         }
@@ -3031,9 +3215,9 @@ impl Compiler {
         }
         for state in &entry.states {
             match state {
-                EntryState::ExilePile { shuffled } => {
-                    states.push(format!("ArrivalState::ExilePile {{ shuffled: {shuffled} }}"))
-                }
+                EntryState::ExilePile { shuffled } => states.push(format!(
+                    "ArrivalState::ExilePile {{ shuffled: {shuffled} }}"
+                )),
                 other => return Err(gap(format!("cost that moves into {}", form(other)))),
             }
         }
@@ -3133,14 +3317,20 @@ impl Compiler {
             P::Move {
                 selections,
                 destination,
-                entry,
-                face_down,
-            } => format!(
-                "Cost::moves({}, {}, {})",
-                self.selections(selections)?,
-                self.stated_destination(destination)?,
-                self.moved_arrival(entry, *face_down)?
-            ),
+            } => {
+                let view = crate::movement::destination_view(destination, &[]);
+                if !view.terms.is_default() {
+                    return Err(gap(
+                        "movement cost with explicit library ordering or chooser",
+                    ));
+                }
+                format!(
+                    "Cost::moves({}, {}, {})",
+                    self.selections(selections)?,
+                    self.stated_destination(&view.destination)?,
+                    self.moved_arrival(&view.entry, view.face_down)?
+                )
+            }
             P::Choice(options) => {
                 let mut costs = Vec::new();
                 for (i, option) in options.iter().enumerate() {
@@ -3247,9 +3437,10 @@ impl Compiler {
             P::LifeEqualToOwnManaValue => "Cost::life_equal_to_mana_value()".to_string(),
             // An X read of the card the cost is paid for ("where X is its mana
             // value") is asked with that card.
-            P::ManaWithX { mana: symbols, x: Some(x) }
-                if self.card_costed && self.asked(x)?.contains(CARD_IT_IS_PAID_FOR) =>
-            {
+            P::ManaWithX {
+                mana: symbols,
+                x: Some(x),
+            } if self.card_costed && self.asked(x)?.contains(CARD_IT_IS_PAID_FOR) => {
                 format!(
                     "Cost::mana_with_x_of_card({}, |q: &dyn Query, asker: &Asker, card: ObjectId| {})",
                     mana(symbols)?,
@@ -3333,16 +3524,21 @@ impl Compiler {
                 let tabled = std::mem::replace(&mut self.tabled, true);
                 let action = self.stated(action);
                 self.tabled = tabled;
-                format!("Cost::each_player(|q: &dyn Query, asker: &Asker| {players}, {})", action?)
+                format!(
+                    "Cost::each_player(|q: &dyn Query, asker: &Asker| {players}, {})",
+                    action?
+                )
             }
             // Cantrip has no ante zone (Jeweled Bird), and `Game::attach` takes an
             // object for the host: nothing attaches an Aura to a player (Lynde).
-            P::ObjectAction { action: CostObjectAction::Ante, .. } => {
-                return Err(gap("move to ante"))
-            }
-            P::ObjectAction { action: CostObjectAction::AttachToPlayer(_), .. } => {
-                return Err(gap("an Aura attached to a player by an effect"))
-            }
+            P::ObjectAction {
+                action: CostObjectAction::Ante,
+                ..
+            } => return Err(gap("move to ante")),
+            P::ObjectAction {
+                action: CostObjectAction::AttachToPlayer(_),
+                ..
+            } => return Err(gap("an Aura attached to a player by an effect")),
             P::ObjectAction { objects, action } => {
                 let action = match action {
                     CostObjectAction::AttachToPlayer(players) => format!(
@@ -3396,9 +3592,13 @@ impl Compiler {
     ) -> Result<String> {
         // What a part does that Cantrip has no place for is its own requirement.
         let own = ["move to ante", "an Aura attached to a player by an effect"];
-        let code = self
-            .cost_part_code(part, label)
-            .map_err(|e| if own.contains(&e.feature.as_str()) { e } else { failed.clone() })?;
+        let code = self.cost_part_code(part, label).map_err(|e| {
+            if own.contains(&e.feature.as_str()) {
+                e
+            } else {
+                failed.clone()
+            }
+        })?;
         Ok(planned::planned_value(&failed.feature, "Cost::NONE", &code))
     }
     /// Paying a whole cost as an effect, which `Game` has a way to only for parts.
@@ -3498,7 +3698,15 @@ impl Compiler {
                 self.moved.insert(result.0, format!("entered_{id}"));
             }
             K::Skip(SkippedPart::Turn) => {
-                let n = self.action_amount(&action, if planned::switched_on(quantity::BOUNDED_32) { u32::MAX.into() } else { i16::MAX.into() }, "u32")?;
+                let n = self.action_amount(
+                    &action,
+                    if planned::switched_on(quantity::BOUNDED_32) {
+                        u32::MAX.into()
+                    } else {
+                        i16::MAX.into()
+                    },
+                    "u32",
+                )?;
                 let player = self.actor(&action)?;
                 writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; g.skip_next_turns(asker.source, player_{id}, amount_{id} as _);").unwrap();
             }
@@ -4178,10 +4386,12 @@ impl Compiler {
         exceptions: &[CopyException],
         amount: &Expr,
         players: &PlayerSet,
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         if entry.tapped || !entry.states.is_empty() {
             return Err(gap("token copies for several players"));
         }
@@ -4264,7 +4474,10 @@ impl Compiler {
                 kind: ObjectKind::Any,
                 filter: ObjectFilter::SharesColorWith(ObjectRef::Source),
             } if self.reader == Reader::Layer
-                && self.lines_said().iter().any(|line| line.contains("hexproof from each of its colors")) =>
+                && self
+                    .lines_said()
+                    .iter()
+                    .any(|line| line.contains("hexproof from each of its colors")) =>
             {
                 return Ok("HexproofFrom(chars.colors.0 as u32)".to_string());
             }
@@ -4330,10 +4543,9 @@ impl Compiler {
                                 "Protection::FromPlayer({})",
                                 self.read(self.player(player)?)
                             ),
-                            _ => format!(
-                                "Protection::These({})",
-                                self.read(self.players(players)?)
-                            ),
+                            _ => {
+                                format!("Protection::These({})", self.read(self.players(players)?))
+                            }
                         }
                     }
                 }
@@ -4387,7 +4599,13 @@ impl Compiler {
     /// A stated list of actions (`listed`), done as the event happens by the
     /// function a table names, with `g` and `asker` to read the game: one
     /// signature whatever the actions are, which `module::perform` takes.
-    fn read_as_it_happens(&mut self, feature: &str, function: &str, module: &str, list: &str) -> String {
+    fn read_as_it_happens(
+        &mut self,
+        feature: &str,
+        function: &str,
+        module: &str,
+        list: &str,
+    ) -> String {
         self.plan_item(feature, &format!("#[allow(unused_variables)] fn {function}(g: &mut dyn Game, asker: &Asker) -> Result<(), Suspend> {{ {M}::{module}::perform(g, asker, {list}) }}"));
         function.to_string()
     }
@@ -4519,17 +4737,29 @@ impl Compiler {
                 // happens, so the table names functions that read them.
                 let object_fn = format!("{label}_as_object");
                 self.plan_item(&feature, &format!("#[allow(unused_variables)] fn {object_fn}(g: &mut dyn Game, asker: &Asker) -> Option<ObjectId> {{ {object} }}"));
-                let actions = self.read_as_it_happens(&feature, &format!("{label}_as_actions"), "as_events", &actions);
+                let actions = self.read_as_it_happens(
+                    &feature,
+                    &format!("{label}_as_actions"),
+                    "as_events",
+                    &actions,
+                );
                 self.plan_entry(
                     &feature,
                     "as_events",
-                    &format!("AsEventDef {{ event: {event}, object: {object_fn}, actions: {actions} }}"),
+                    &format!(
+                        "AsEventDef {{ event: {event}, object: {object_fn}, actions: {actions} }}"
+                    ),
                     parts,
                 );
             }
             Ability::BeforeGame { when, body } => {
                 let body = self.listed(body)?;
-                let body = self.read_as_it_happens(&feature, &format!("{label}_before_game"), "before_game", &body);
+                let body = self.read_as_it_happens(
+                    &feature,
+                    &format!("{label}_before_game"),
+                    "before_game",
+                    &body,
+                );
                 self.plan_entry(
                     &feature,
                     "before_game",
@@ -4759,15 +4989,16 @@ fn lost_keyword(lost: &Operand) -> Option<String> {
     };
     match (word.as_str(), operands.as_slice()) {
         ("AnyHexproof", []) => Some("Keyword::Hexproof".to_string()),
-        ("Landwalk", [Operand::Objects(crate::battlefield_query!(ObjectFilter::Subtype(land)))]) => {
-            match name(land).as_str() {
-                "Plains" => Some("Keyword::Plainswalk".to_string()),
-                "Island" | "Swamp" | "Mountain" | "Forest" => {
-                    Some(format!("Keyword::{}walk", name(land)))
-                }
-                _ => None,
+        (
+            "Landwalk",
+            [Operand::Objects(crate::battlefield_query!(ObjectFilter::Subtype(land)))],
+        ) => match name(land).as_str() {
+            "Plains" => Some("Keyword::Plainswalk".to_string()),
+            "Island" | "Swamp" | "Mountain" | "Forest" => {
+                Some(format!("Keyword::{}walk", name(land)))
             }
-        }
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -4878,8 +5109,10 @@ pub(super) fn untaps_by_their_controllers(
     affected: &EffectSubjects,
     duration: &crate::ir::Duration,
 ) -> bool {
-    matches!(duration, crate::ir::Duration::DuringControllersNextUntapStep)
-        && matches!(affected, EffectSubjects::Objects(crate::battlefield_query!(filter)) if single_controller(filter).is_none())
+    matches!(
+        duration,
+        crate::ir::Duration::DuringControllersNextUntapStep
+    ) && matches!(affected, EffectSubjects::Objects(crate::battlefield_query!(filter)) if single_controller(filter).is_none())
 }
 
 #[cfg(test)]
@@ -4889,7 +5122,9 @@ mod lasting_target_capture_tests {
     #[test]
     fn unresolved_target_collections_are_not_silently_captured() {
         let c = Compiler::new();
-        assert!(c.named_as_resolved_targets("t_9.iter().any(|t| t.object() == Some(id))", Some(&[])).is_err());
+        assert!(c
+            .named_as_resolved_targets("t_9.iter().any(|t| t.object() == Some(id))", Some(&[]))
+            .is_err());
     }
 
     #[test]
@@ -4897,18 +5132,33 @@ mod lasting_target_capture_tests {
         for (slot, index) in [(8, 0), (0, 8), (12, 19)] {
             let mut c = Compiler::new();
             c.stack_item = true;
-            let spec = TargetSpec { slot: TargetSlot(slot), kind: TargetKind::Object(ObjectDomain::permanent()),
-                count: Count::AnyNumber, filter: ObjectFilter::Any, players: None,
-                distribute: None, constraints: vec![], chooser: None };
+            let spec = TargetSpec {
+                slot: TargetSlot(slot),
+                kind: TargetKind::Object(ObjectDomain::permanent()),
+                count: Count::AnyNumber,
+                filter: ObjectFilter::Any,
+                players: None,
+                distribute: None,
+                constraints: vec![],
+                chooser: None,
+            };
             c.slots.insert(slot, (slot as usize, spec));
             *c.captured_rule_targets.borrow_mut() = Some(Vec::new());
-            let filter = ObjectFilter::SameObject(ObjectRef::Target { slot: TargetSlot(slot), index });
+            let filter = ObjectFilter::SameObject(ObjectRef::Target {
+                slot: TargetSlot(slot),
+                index,
+            });
             let test = c.filter(&filter, &Candidate::of("id")).unwrap();
             let reads = c.captured_rule_targets.borrow_mut().take().unwrap();
             assert_eq!(reads, [(slot as usize, index, "object")]);
             let (predicate, about) = c.named_as_resolved_targets(&test, Some(&reads)).unwrap();
             assert!(predicate.contains("about.object()"), "{predicate}");
-            assert!(about.contains(&format!("t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t))")), "{about}");
+            assert!(
+                about.contains(&format!(
+                    "t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t))"
+                )),
+                "{about}"
+            );
             syn::parse_str::<syn::Expr>(&about).unwrap();
         }
     }

@@ -269,20 +269,23 @@ impl Context {
                         (Destination::OwnersLibraryBottomRandom, EntrySpec::default())
                     }
                     DestinationInput::OwnersLibraryNth => {
-                        let depth = depth.as_ref().ok_or_else(|| invalid("no library position"))?;
+                        let depth = depth
+                            .as_ref()
+                            .ok_or_else(|| invalid("no library position"))?;
                         (
                             Destination::OwnersLibraryFromTop(self.pipeline_quantity(depth)?),
                             EntrySpec::default(),
                         )
                     }
                 };
-                Operation::Move {
+                crate::movement::move_to(
                     objects,
                     destination,
                     entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                    false,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?
             }
             R::ObjectEffect { operation, .. } => match operation {
                 O::Tap { tapped } => Operation::SetTapped { objects, tapped },

@@ -10,10 +10,18 @@ fn source_tapped_duration(duration: &crate::ir::Duration) -> Option<&'static str
     use crate::ir::Duration as D;
     fn flags(duration: &D) -> Option<u8> {
         match duration {
-            D::WhileMatches { object: ObjectRef::Source, filter: ObjectFilter::Tapped } => Some(1),
-            D::WhileControlled { player: PlayerRef::AbilityController, object: ObjectRef::Source } => Some(2),
+            D::WhileMatches {
+                object: ObjectRef::Source,
+                filter: ObjectFilter::Tapped,
+            } => Some(1),
+            D::WhileControlled {
+                player: PlayerRef::AbilityController,
+                object: ObjectRef::Source,
+            } => Some(2),
             D::WhileOnBattlefield(ObjectRef::Source) => Some(0),
-            D::Either(parts) if !parts.is_empty() => parts.iter().try_fold(0, |all, part| Some(all | flags(part)?)),
+            D::Either(parts) if !parts.is_empty() => parts
+                .iter()
+                .try_fold(0, |all, part| Some(all | flags(part)?)),
             _ => None,
         }
     }
@@ -248,7 +256,7 @@ pub(super) fn enters_as_copy(program: &Program) -> bool {
                         change: EventChange::Entry(state),
                     },
                 ..
-            } => states(state),
+            } => states(&crate::movement::battlefield_state_view(state)),
             Instruction::Optional { body, .. } | Instruction::Group(body) => enters_as_copy(body),
             Instruction::If {
                 then, otherwise, ..
@@ -268,7 +276,7 @@ pub(super) fn asks_to_copy(body: &Program) -> bool {
         flat.first(),
         Some(Instruction::Effect {
             operation: Operation::ModifyEvent {
-                change: EventChange::Entry(EntryState::CopyOf { .. }),
+                change: EventChange::Entry(BattlefieldState::CopyOf { .. }),
             },
             ..
         })
@@ -595,7 +603,9 @@ impl Compiler {
                 line.contains("Spend this mana") && !line.contains("creature spell")
             });
             if printed_any && code.contains("CHOSEN_TYPE_CREATURE_SPELLS_OR_ABILITIES") {
-                return Err(gap("a chosen type mana rule that names creatures it doesn't print"));
+                return Err(gap(
+                    "a chosen type mana rule that names creatures it doesn't print",
+                ));
             }
             return Ok(code);
         }
@@ -833,13 +843,16 @@ impl Compiler {
                 let mut test = test;
                 let mut held = None;
                 for n in 0..8 {
-                    let read = format!("Some(ObjectId(item.data[{n}])).filter(|o| *o != ObjectId::NONE)");
+                    let read =
+                        format!("Some(ObjectId(item.data[{n}])).filter(|o| *o != ObjectId::NONE)");
                     if test.contains(&read) {
                         if held.is_some() {
                             return Err(gap(&feature));
                         }
                         test = test.replace(&read, "about.object()");
-                        held = Some(format!("{read}.map(Target::Object).unwrap_or(Target::None)"));
+                        held = Some(format!(
+                            "{read}.map(Target::Object).unwrap_or(Target::None)"
+                        ));
                     }
                 }
                 let (test, about) = self.named_as_resolved(&test)?;
@@ -856,7 +869,12 @@ impl Compiler {
         let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, e: &ContinuousEffect, about: Target) -> bool {{ let asker = &Asker::new(e.source, e.controller); {test} }}");
         match planned::landed(&feature) {
             true => writeln!(self.functions, "{item}").unwrap(),
-            false => writeln!(self.functions, "planned_item!({:?} => {item});", planned::requirement(&feature)).unwrap(),
+            false => writeln!(
+                self.functions,
+                "planned_item!({:?} => {item});",
+                planned::requirement(&feature)
+            )
+            .unwrap(),
         }
         self.made_lasting_about.push((
             feature.clone(),
@@ -1412,9 +1430,7 @@ impl Compiler {
             crate::ir::Duration::UntilCast(_) => "Expiry::Never".to_string(),
             // "They may play those cards until the end of their next turn": the
             // next turn of the player the permission is for.
-            crate::ir::Duration::UntilEndOfNextTurn(whose)
-                if matches!(players, PlayerSet::One(p) if form(p) == form(whose)) =>
-            {
+            crate::ir::Duration::UntilEndOfNextTurn(whose) if matches!(players, PlayerSet::One(p) if form(p) == form(whose)) => {
                 "Expiry::EndOfYourNextTurn".to_string()
             }
             other => play_expiry(other)?,
@@ -1490,12 +1506,20 @@ impl Compiler {
                 const FEATURE: &str = "play permission on a condition";
                 let index = self.holes.matches("=> play_conditions:").count();
                 let id = planned::requirement(FEATURE);
-                writeln!(self.holes, "planned_item!({id:?} => play_conditions: {test});").unwrap();
+                writeln!(
+                    self.holes,
+                    "planned_item!({id:?} => play_conditions: {test});"
+                )
+                .unwrap();
                 let card = match self.stack_item {
                     true => "item.ability.card",
                     false => "g.card_id(&CARD)",
                 };
-                write!(grant, "when: Some(PlayCondition::Rule {{ card: {card}, index: {index} }}), ").unwrap();
+                write!(
+                    grant,
+                    "when: Some(PlayCondition::Rule {{ card: {card}, index: {index} }}), "
+                )
+                .unwrap();
                 planned_feature = Some(FEATURE);
             }
         }
@@ -1556,9 +1580,17 @@ impl Compiler {
         if let ObjectSet::Take { objects, .. } = cards {
             if matches!(
                 &**objects,
-                ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Graveyard, players: PlayerSet::One(PlayerRef::Affected) }, .. }
+                ObjectSet::Zone {
+                    scope: ZoneScope::Players {
+                        zone: EventZone::Graveyard,
+                        players: PlayerSet::One(PlayerRef::Affected)
+                    },
+                    ..
+                }
             ) {
-                return Err(gap("a lasting permission to cast from the top of a graveyard"));
+                return Err(gap(
+                    "a lasting permission to cast from the top of a graveyard",
+                ));
             }
         }
         // "Until end of turn, you may play cards from the top of your library"
@@ -1566,7 +1598,9 @@ impl Compiler {
         // rule a static ability has (`PlayRule::LibraryTop`) has no effect to
         // give it for a while.
         if top_of_their(cards, EventZone::Library) {
-            return Err(gap("a lasting permission to play from the top of a library"));
+            return Err(gap(
+                "a lasting permission to play from the top of a library",
+            ));
         }
         let chosen = match filter {
             ObjectFilter::Any => cards.clone(),
@@ -1638,7 +1672,13 @@ impl Compiler {
                 let test = self.filter(permanents, &Candidate::of("id"))?;
                 let applies = self.player_test(players, FEATURE, &format!("{label}_untaps"))?;
                 let params = "q: &dyn Query, asker: &Asker, id: ObjectId";
-                let permanents = self.rule_fn(FEATURE, &format!("{label}_untapping"), params, "bool", &test);
+                let permanents = self.rule_fn(
+                    FEATURE,
+                    &format!("{label}_untapping"),
+                    params,
+                    "bool",
+                    &test,
+                );
                 self.plan_entry(
                     FEATURE,
                     "untap_limits",
@@ -1754,8 +1794,20 @@ impl Compiler {
         const FEATURE: &str = "a keyword's cost changed";
         let params = "q: &dyn Query, asker: &Asker, player: PlayerId, card: ObjectId";
         let body = format!("{guard}{member} && {test}");
-        let applies = self.rule_fn(FEATURE, &format!("{label}_keyword_cards"), params, "bool", &body);
-        let per = self.rule_fn(FEATURE, &format!("{label}_keyword_per"), "q: &dyn Query, asker: &Asker", "i64", &per);
+        let applies = self.rule_fn(
+            FEATURE,
+            &format!("{label}_keyword_cards"),
+            params,
+            "bool",
+            &body,
+        );
+        let per = self.rule_fn(
+            FEATURE,
+            &format!("{label}_keyword_per"),
+            "q: &dyn Query, asker: &Asker",
+            "i64",
+            &per,
+        );
         self.plan_entry(
             FEATURE,
             "keyword_costs",
@@ -2078,7 +2130,9 @@ impl Compiler {
                 }
                 other => match self.grants_keyword(other) {
                     Some(keyword) => {
-                        vec![format!("EffectKind::AddKeywords(Keywords::of(&[{keyword}]))")]
+                        vec![format!(
+                            "EffectKind::AddKeywords(Keywords::of(&[{keyword}]))"
+                        )]
                     }
                     None => return Err(gap("continuous change ChosenAbility")),
                 },
@@ -2136,12 +2190,7 @@ impl Compiler {
             } else {
                 "PlayRule::LooksAtLibraryTop"
             };
-            self.plan_entry(
-                FEATURE,
-                "play_rules",
-                &format!("{rule}({applies})"),
-                parts,
-            );
+            self.plan_entry(FEATURE, "play_rules", &format!("{rule}({applies})"), parts);
             return Ok(());
         }
         if everyone && affected_zone(objects, &EventZone::Hand) {
@@ -2164,7 +2213,12 @@ impl Compiler {
         let params = "q: &dyn Query, asker: &Asker, player: PlayerId, card: ObjectId";
         let body = format!("{guard}{member} && ({cards}).contains(&card)");
         let applies = self.rule_fn(FEATURE, "may_look_at", params, "bool", &body);
-        self.plan_entry(FEATURE, "play_rules", &format!("PlayRule::MayLookAt({applies})"), parts);
+        self.plan_entry(
+            FEATURE,
+            "play_rules",
+            &format!("PlayRule::MayLookAt({applies})"),
+            parts,
+        );
         Ok(())
     }
     /// "You can't cast more than one spell each turn": the spells this player
@@ -2323,7 +2377,13 @@ impl Compiler {
                 let test = self.ability_test(abilities)?;
                 const FEATURE: &str = "an ability activated more times each turn";
                 let body = format!("{ASKED_ABILITY} {guard}{member} && {test}");
-                let applies = self.rule_fn(FEATURE, &format!("{label}_abilities"), ABILITY_PARAMS, "bool", &body);
+                let applies = self.rule_fn(
+                    FEATURE,
+                    &format!("{label}_abilities"),
+                    ABILITY_PARAMS,
+                    "bool",
+                    &body,
+                );
                 self.plan_entry(
                     FEATURE,
                     "extra_activations",
@@ -2335,7 +2395,13 @@ impl Compiler {
                 let test = self.ability_test(abilities)?;
                 const FEATURE: &str = "an ability activated as though it had not been";
                 let body = format!("{ASKED_ABILITY} {guard}{member} && {test}");
-                let applies = self.rule_fn(FEATURE, &format!("{label}_abilities"), ABILITY_PARAMS, "bool", &body);
+                let applies = self.rule_fn(
+                    FEATURE,
+                    &format!("{label}_abilities"),
+                    ABILITY_PARAMS,
+                    "bool",
+                    &body,
+                );
                 self.plan_entry(FEATURE, "activate_again", &applies, parts);
             }
             other => return Err(gap(format!("player rule ActivationGrant {}", form(other)))),
@@ -2371,7 +2437,10 @@ impl Compiler {
                 // "The exiled cards used to craft it" are linked to the craft card
                 // as it waited in exile, which became this (CR 702.167c), not to an
                 // ability of this object.
-                if self.line_text().is_some_and(|line| line.contains("used to craft")) {
+                if self
+                    .line_text()
+                    .is_some_and(|line| line.contains("used to craft"))
+                {
                     return Ok(format!("cantrip_mechanics::craft::used_to_craft(q.state(), source).into_iter().filter(|&id| {keep}).collect::<Vec<ObjectId>>()"));
                 }
                 return Ok(format!("q.exiled_with(q.linked_to(source)).into_iter().filter(|&id| {keep}).collect::<Vec<ObjectId>>()"));
@@ -2395,11 +2464,18 @@ impl Compiler {
         // as the layer's effects applied so far leave it (CR 613.8, `LayerQuery::chars`).
         // "You may spend mana as though it were mana of any color to activate those
         // abilities" is a spending rule the caller writes (`spend_handled`).
-        if let Change::GainAbilitiesOf { objects, kinds, once_each_turn, spend_as } = change {
+        if let Change::GainAbilitiesOf {
+            objects,
+            kinds,
+            once_each_turn,
+            spend_as,
+        } = change
+        {
             let on_battlefield = matches!(objects, crate::battlefield_query!(_));
             let asked = format!("{kinds:?}");
             let permanents = on_battlefield || asked.contains("AbilityOfPermanent");
-            let activated = asked.contains("ActivatedAbility") || asked.contains("AbilityOfPermanent");
+            let activated =
+                asked.contains("ActivatedAbility") || asked.contains("AbilityOfPermanent");
             if permanents && activated {
                 if *once_each_turn || (spend_as.is_some() && !spend_handled) {
                     return Err(gap("the activated abilities of other permanents"));
@@ -2411,17 +2487,21 @@ impl Compiler {
                             .map(kept)
                             .collect::<Option<Vec<_>>>()
                             .map(|tests| format!("({})", tests.join(" || "))),
-                        Operand::Term { form, operands, .. } => match (form.as_str(), operands.as_slice()) {
-                            ("ActivatedAbility", []) | ("AbilityOfPermanent", [_]) => Some("true".into()),
-                            ("NonManaAbility", []) => Some("!d.is_mana_ability()".into()),
-                            ("NonLoyaltyAbility", []) => Some("!d.is_loyalty_ability()".into()),
-                            ("And", parts) => parts
-                                .iter()
-                                .map(kept)
-                                .collect::<Option<Vec<_>>>()
-                                .map(|tests| format!("({})", tests.join(" && "))),
-                            _ => None,
-                        },
+                        Operand::Term { form, operands, .. } => {
+                            match (form.as_str(), operands.as_slice()) {
+                                ("ActivatedAbility", []) | ("AbilityOfPermanent", [_]) => {
+                                    Some("true".into())
+                                }
+                                ("NonManaAbility", []) => Some("!d.is_mana_ability()".into()),
+                                ("NonLoyaltyAbility", []) => Some("!d.is_loyalty_ability()".into()),
+                                ("And", parts) => parts
+                                    .iter()
+                                    .map(kept)
+                                    .collect::<Option<Vec<_>>>()
+                                    .map(|tests| format!("({})", tests.join(" && "))),
+                                _ => None,
+                            }
+                        }
                         _ => None,
                     }
                 }
@@ -2558,12 +2638,17 @@ impl Compiler {
         };
         let index = self.holes.matches("=> lasting_spell_rules:").count();
         let function = format!("lasting_spell_rule_{index}");
-        let params = "q: &dyn Query, asker: &Asker, about: Target, player: PlayerId, spell: ObjectId";
+        let params =
+            "q: &dyn Query, asker: &Asker, about: Target, player: PlayerId, spell: ObjectId";
         let body = format!("let source = asker.source; {test}");
         let item = planned::planned_fn(feature, &function, params, "bool", &body);
         writeln!(self.functions, "{item}").unwrap();
         let id = planned::requirement(feature);
-        writeln!(self.holes, "planned_item!({id:?} => lasting_spell_rules: {function});").unwrap();
+        writeln!(
+            self.holes,
+            "planned_item!({id:?} => lasting_spell_rules: {function});"
+        )
+        .unwrap();
         Ok(format!(
             "EffectKind::CantCast {{ player, card: item.ability.card, index: {index}, about: {about} }}"
         ))
@@ -3131,7 +3216,11 @@ impl Compiler {
                 None,
                 "flash_rules",
                 &format!("{label}_flash"),
-                ("q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId", "q, asker, card, player", "bool"),
+                (
+                    "q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId",
+                    "q, asker, card, player",
+                    "bool",
+                ),
                 &body,
                 |rule| rule.to_string(),
                 parts,
@@ -3167,9 +3256,12 @@ impl Compiler {
             return Err(gap("static play permission on other terms"));
         }
         // The data has the once and not whose turns it's during, which the line says.
-        let own_turns = matches!(terms.limit, Some(PlayLimit::EachTurn(_))) && terms.during.is_none();
+        let own_turns =
+            matches!(terms.limit, Some(PlayLimit::EachTurn(_))) && terms.during.is_none();
         if own_turns
-            && !self.line_text().is_some_and(|line| line.contains("during each of your turns"))
+            && !self
+                .line_text()
+                .is_some_and(|line| line.contains("during each of your turns"))
         {
             return Err(gap("play permission from a hand once each turn"));
         }
@@ -3267,8 +3359,15 @@ impl Compiler {
                 if test == "true" && matches!(terms.cost, PlayCost::Normal) {
                     return self.play_rule(label, "PlayRule::LibraryTopLands".into(), parts);
                 }
-                const FEATURE: &str = "play permission for lands from the top of a library with a filter";
-                let applies = self.rule_fn(FEATURE, &format!("{label}_cards"), card_params, "bool", &test);
+                const FEATURE: &str =
+                    "play permission for lands from the top of a library with a filter";
+                let applies = self.rule_fn(
+                    FEATURE,
+                    &format!("{label}_cards"),
+                    card_params,
+                    "bool",
+                    &test,
+                );
                 self.plan_entry(
                     FEATURE,
                     "play_rules",
@@ -3294,7 +3393,13 @@ impl Compiler {
                     );
                 }
                 const FEATURE: &str = "play permission from the top of a library on other terms";
-                let applies = self.rule_fn(FEATURE, &format!("{label}_cards"), card_params, "bool", &test);
+                let applies = self.rule_fn(
+                    FEATURE,
+                    &format!("{label}_cards"),
+                    card_params,
+                    "bool",
+                    &test,
+                );
                 self.plan_entry(
                     FEATURE,
                     "play_rules",
@@ -3319,10 +3424,9 @@ impl Compiler {
         let failure = || gap(format!("source-zone scope on {}", form(ability)));
         match (ability, zones) {
             // Corrupted flashback: a card's own way from its graveyard, on a condition.
-            (
-                Ability::Casting(rule @ CastingRule::Permission { .. }),
-                [EventZone::Graveyard],
-            ) => return self.casting(rule, label, parts, condition),
+            (Ability::Casting(rule @ CastingRule::Permission { .. }), [EventZone::Graveyard]) => {
+                return self.casting(rule, label, parts, condition)
+            }
             // Nothing on the card: the spell it names counts it (`read::counted_as_named`).
             (Ability::CountsAsNamed { name, for_spells }, [EventZone::Graveyard])
                 if condition.is_none() && name == for_spells =>
@@ -3544,7 +3648,7 @@ impl Compiler {
             operation:
                 Operation::ModifyEvent {
                     change:
-                        EventChange::Entry(EntryState::CopyOf {
+                        EventChange::Entry(BattlefieldState::CopyOf {
                             objects,
                             exceptions,
                             until,
@@ -3567,10 +3671,7 @@ impl Compiler {
             self.fetch(self.objects(objects)?)
         )
         .unwrap();
-        let values = self.copy_values(
-            &format!("Some(chosen_{id})"),
-            exceptions,
-        )?;
+        let values = self.copy_values(&format!("Some(chosen_{id})"), exceptions)?;
         writeln!(
             out,
             "entering.copy = {values}; let picked_{id} = vec![chosen_{id}];"
@@ -3620,7 +3721,8 @@ impl Compiler {
         // An entering copy already has its chosen copiable values, including
         // exceptions and previous entry choices (CR 707.9a). Modify those rather
         // than rebuilding from the underlying card in its previous zone.
-        let mut values = "entering.copy.unwrap_or_else(|| q.copiable_values(entering.object))".to_string();
+        let mut values =
+            "entering.copy.unwrap_or_else(|| q.copiable_values(entering.object))".to_string();
         for change in changes {
             let Change::Copiable(list) = change else {
                 return Err(gap("event change as it enters Copiable mixed"));
@@ -3686,7 +3788,11 @@ impl Compiler {
             // option_as_enters returns only after storing a valid index. The
             // last valid option is exhaustive; an extra empty arm is unreachable
             // and cannot be exercised by a legal scenario.
-            let pattern = if i + 1 == count { "_".to_string() } else { format!("Some({i})") };
+            let pattern = if i + 1 == count {
+                "_".to_string()
+            } else {
+                format!("Some({i})")
+            };
             writeln!(out, "{pattern} => {{ {arm} }}").unwrap();
         }
         writeln!(out, "}}").unwrap();
@@ -3826,7 +3932,9 @@ impl Compiler {
         if let [Change::SetPower(power), Change::SetToughness(toughness)] = changes {
             let (minimum, maximum, size_type) = if planned::switched_on(quantity::BOUNDED_32) {
                 (i32::MIN.into(), i32::MAX.into(), "i32")
-            } else { (i16::MIN.into(), i16::MAX.into(), "i16") };
+            } else {
+                (i16::MIN.into(), i16::MAX.into(), "i16")
+            };
             let power = self.number(power)?.fit(minimum, maximum, size_type)?;
             let toughness = self.number(toughness)?.fit(minimum, maximum, size_type)?;
             self.plan_code(
@@ -3879,9 +3987,8 @@ impl Compiler {
                 self.entering_as.0.join(", "),
                 self.entering_as.1.join(", ")
             );
-            chosen = format!(
-                "if entering.becomes.is_some() {{ &WHAT_{id}_TOO }} else {{ &WHAT_{id} }}"
-            );
+            chosen =
+                format!("if entering.becomes.is_some() {{ &WHAT_{id}_TOO }} else {{ &WHAT_{id} }}");
         }
         writeln!(
             out,
@@ -4184,35 +4291,64 @@ impl Compiler {
             R::BlockCapacity(capacity) => {
                 let feature = "static rule BlockCapacity";
                 let more = match capacity {
-                    BlockCapacity::Additional(Expr::Constant(n)) if *n >= 0 && *n <= u32::MAX as i64 => n.to_string(),
+                    BlockCapacity::Additional(Expr::Constant(n))
+                        if *n >= 0 && *n <= u32::MAX as i64 =>
+                    {
+                        n.to_string()
+                    }
                     BlockCapacity::Unlimited => "u32::MAX".to_string(),
-                    BlockCapacity::Additional(n) => self.number(n)?.amount(u32::MAX.into(), "u32")?,
+                    BlockCapacity::Additional(n) => {
+                        self.number(n)?.amount(u32::MAX.into(), "u32")?
+                    }
                     _ => return Err(gap("dynamic or conditional self block allowance")),
                 };
                 if matches!(affected, ObjectSet::One(ObjectRef::Source)) {
-                    let dynamic = self.static_guard.is_some() || matches!(capacity, BlockCapacity::Additional(n) if !matches!(n, Expr::Constant(_)));
+                    let dynamic = self.static_guard.is_some()
+                        || matches!(capacity, BlockCapacity::Additional(n) if !matches!(n, Expr::Constant(_)));
                     let fallback = match capacity {
                         BlockCapacity::Unlimited => "This creature can block any number of creatures.".to_string(),
                         BlockCapacity::Additional(Expr::Constant(1)) => "This creature can block an additional creature each combat.".to_string(),
                         BlockCapacity::Additional(Expr::Constant(n)) => format!("This creature can block {n} additional creatures each combat."),
                         BlockCapacity::Additional(_) => "This creature can block additional creatures as determined by the game state.".to_string(),
                     };
-                    let fallback = if self.static_guard.is_some() { format!("{fallback} This applies while the ability's condition is met.") } else { fallback };
+                    let fallback = if self.static_guard.is_some() {
+                        format!("{fallback} This applies while the ability's condition is met.")
+                    } else {
+                        fallback
+                    };
                     let text = self.line_text().unwrap_or(&fallback).to_string();
                     let ability = if dynamic {
                         let guard = self.guard()?;
                         let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> u32 {{ let source = asker.source; if {guard}true {{ {more} }} else {{ 0 }} }}");
-                        writeln!(self.functions, "{}", planned::switched_item("multiple-blocks", feature, &item)).unwrap();
+                        writeln!(
+                            self.functions,
+                            "{}",
+                            planned::switched_item("multiple-blocks", feature, &item)
+                        )
+                        .unwrap();
                         format!("block_allowance_by({function}, {})", quoted(&text))
-                    } else { format!("block_allowance({more}, {})", quoted(&text)) };
-                    if planned::switched_on("multiple-blocks") { parts.abilities.push(ability); }
-                    else { self.plan_entry(feature, "abilities", &ability, parts); }
+                    } else {
+                        format!("block_allowance({more}, {})", quoted(&text))
+                    };
+                    if planned::switched_on("multiple-blocks") {
+                        parts.abilities.push(ability);
+                    } else {
+                        self.plan_entry(feature, "abilities", &ability, parts);
+                    }
                 } else {
                     let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
                     let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, id: ObjectId) -> u32 {{ let asker = &Asker::new(source, q.controller(source)); if {guard}{test} {{ {more} }} else {{ 0 }} }}");
-                    writeln!(self.functions, "{}", planned::switched_item("multiple-blocks", feature, &item)).unwrap();
-                    if planned::switched_on("multiple-blocks") { parts.table("additional_blocks", function.to_string()); }
-                    else { self.plan_entry(feature, "additional_blocks", function, parts); }
+                    writeln!(
+                        self.functions,
+                        "{}",
+                        planned::switched_item("multiple-blocks", feature, &item)
+                    )
+                    .unwrap();
+                    if planned::switched_on("multiple-blocks") {
+                        parts.table("additional_blocks", function.to_string());
+                    } else {
+                        self.plan_entry(feature, "additional_blocks", function, parts);
+                    }
                 }
             }
             R::BlockedAsThoughLacking(_) => self.object_plan(

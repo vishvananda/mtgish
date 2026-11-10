@@ -187,7 +187,7 @@ fn later_choices_and_the_rest_use_one_captured_cohort_and_actual_placement_resul
         result: moved,
         operation:
             Operation::Move {
-                destination: Destination::OwnersHand,
+                destination: MovementDestination::OwnersHand(_),
                 ..
             },
     } = &p.instructions[2]
@@ -254,7 +254,7 @@ fn optional_filtered_placements_keep_revelation_legality_entry_flags_and_group_b
             },
             Operation::Reveal { .. },
             Operation::Move {
-                destination: Destination::OwnersHand,
+                destination: MovementDestination::OwnersHand(_),
                 ..
             },
             Operation::ReorderLibrary {
@@ -264,7 +264,7 @@ fn optional_filtered_placements_keep_revelation_legality_entry_flags_and_group_b
         ]
     ));
     let c = card("Elvish Rejuvenator");
-    assert!(operations(&c).iter().any(|op|matches!(op,Operation::ChooseObjects {constraints,..} if matches!(constraints.as_slice(),[SelectionConstraint::CanMoveTo {destination:Destination::Battlefield(PlayerRef::AbilityController),entry:EntrySpec {tapped:true,..},face_down:false}]))));
+    assert!(operations(&c).iter().any(|op|matches!(op,Operation::ChooseObjects {constraints,..} if matches!(constraints.as_slice(),[SelectionConstraint::CanMoveTo {destination:MovementDestination::Battlefield{controller:EntryController::Player(PlayerRef::AbilityController),arrival:BattlefieldArrival{tapped:true,..}}}]))));
     let c = card("Collected Company");
     assert!(operations(&c).iter().any(|op| matches!(
         op,
@@ -286,7 +286,7 @@ fn several_type_clauses_choose_distinct_cards_before_one_reveal_and_one_move() {
         ..
     }, Operation::ChooseObjects { objects, .. }, Operation::Reveal { .. }, Operation::Move {
         objects: placed,
-        destination: Destination::OwnersHand,
+        destination: MovementDestination::OwnersHand(_),
         ..
     }, Operation::ReorderLibrary { .. }] = ops.as_slice()
     else {
@@ -319,7 +319,10 @@ fn viewer_library_owner_and_ordering_player_remain_distinct_and_other_zones_shar
             objects: ObjectSet::Zone {
                 scope: ZoneScope::Players {
                     zone: EventZone::Hand,
-                    players: PlayerSet::One(PlayerRef::Target { slot: TargetSlot(0), .. })
+                    players: PlayerSet::One(PlayerRef::Target {
+                        slot: TargetSlot(0),
+                        ..
+                    })
                 },
                 ..
             }
@@ -342,7 +345,7 @@ fn hand_status_uses_actual_movements_and_conditional_remainders_do_not_leak_bran
                 result,
                 operation:
                     Operation::Move {
-                        destination: Destination::OwnersHand,
+                        destination: MovementDestination::OwnersHand(_),
                         ..
                     },
             } = i

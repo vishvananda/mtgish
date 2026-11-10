@@ -38,11 +38,15 @@ fn delay_retains_time_counters_and_granted_suspend() {
     struct Find(bool);
     impl mtgish_ast::visit::Visitor for Find {
         fn operation(&mut self, operation: &Operation) -> bool {
-            if let Operation::CounterWith { entry, .. } = operation {
+            if let Operation::CounterWith {
+                destination: MovementDestination::Exile { arrival: entry, .. },
+                ..
+            } = operation
+            {
                 assert_eq!(entry.counters.len(), 1);
                 assert!(matches!(entry.counters[0].1, Expr::Constant(3)));
                 assert!(
-                    matches!(entry.states.as_slice(), [EntryState::Changes(changes)]
+                    matches!(entry.states.as_slice(), [ExileState::Changes(changes)]
                     if matches!(changes.as_slice(), [Change::GrantAbility(ability)]
                         if matches!(&**ability, Ability::Mechanic {mechanic: Mechanic::BasicSuspend, ..})))
                 );

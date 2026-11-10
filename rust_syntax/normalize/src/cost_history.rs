@@ -17,11 +17,11 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
             PaymentAction::Untap
         }),
         CostPart::Move {
-            destination: Destination::Exile,
+            destination: MovementDestination::Exile { .. },
             ..
         } => Some(PaymentAction::Exile),
         CostPart::Move {
-            destination: Destination::Battlefield(_) | Destination::OwnersBattlefield,
+            destination: MovementDestination::Battlefield { .. },
             ..
         } => Some(PaymentAction::Enter),
         CostPart::RemoveCounters { .. } => Some(PaymentAction::RemoveCounters),
@@ -43,7 +43,7 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
             [Instruction::Effect {
                 operation:
                     Operation::Keyword {
-                        action: KeywordAction::Blight {..},
+                        action: KeywordAction::Blight { .. },
                         ..
                     }
                     | Operation::AttachChosen {
@@ -55,7 +55,7 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
             [Instruction::Effect {
                 operation:
                     Operation::Move {
-                        destination: Destination::OwnersHand,
+                        destination: MovementDestination::OwnersHand(_),
                         ..
                     },
                 ..
@@ -167,11 +167,11 @@ pub fn zone(part: &CostPart, phase: &ObjectPhase) -> Option<EventZone> {
             Some(EventZone::Battlefield)
         }
         CostPart::Move {
-            destination: Destination::Exile,
+            destination: MovementDestination::Exile { .. },
             ..
         } if matches!(phase, ObjectPhase::After) => Some(EventZone::Exile),
         CostPart::Move {
-            destination: Destination::Battlefield(_) | Destination::OwnersBattlefield,
+            destination: MovementDestination::Battlefield { .. },
             ..
         } if matches!(phase, ObjectPhase::After) => Some(EventZone::Battlefield),
         CostPart::Reveal { .. } if matches!(phase, ObjectPhase::Before) => Some(EventZone::Hand),

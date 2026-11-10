@@ -117,9 +117,11 @@ impl Compiler {
     pub(super) fn own_share_tokens(
         &mut self,
         tokens: &[TokenSpec],
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         out: &mut String,
     ) -> Result<()> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         let result = own_share(tokens).expect("a read of an own share");
         let shares = self.notes.shares[&result.0].clone();
         let binding = LoopBinding(OWN_SHARE_BINDING + result.0);
@@ -137,7 +139,8 @@ impl Compiler {
                 operation: Operation::CreateTokens {
                     players: PlayerSet::One(PlayerRef::Bound(binding.clone())),
                     tokens: tokens.to_vec(),
-                    entry: entry.clone(),
+                    entry: crate::movement::battlefield_from_parts(entry)
+                        .map_err(|e| gap(format!("token arrival: {e}")))?,
                 },
             }],
         };
@@ -256,20 +259,13 @@ impl Compiler {
     ) -> Result<Option<String>> {
         let [TokenSpec {
             amount: Expr::EventAmount,
-            recipe:
-                TokenRecipe::Copy {
-                    object,
-                    exceptions,
-                },
+            recipe: TokenRecipe::Copy { object, exceptions },
             ..
         }] = tokens
         else {
             return Ok(None);
         };
-        if copies != 0
-            || !exceptions.is_empty()
-            || matches!(object, ObjectRef::Result { .. })
-        {
+        if copies != 0 || !exceptions.is_empty() || matches!(object, ObjectRef::Result { .. }) {
             return Ok(None);
         }
         let object = self.matching(frame, |c| c.object(object))?;

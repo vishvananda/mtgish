@@ -68,7 +68,10 @@ fn random_returns_use_your_graveyard_and_keep_type_randomness_and_actual_receipt
         assert_eq!(choose["constraints"], json!(["AtRandom"]));
         let movement = operation(&card, "Move");
         assert_eq!(movement["objects"], json!({"kind":"Selected","args":0}));
-        assert_eq!(movement["destination"], json!("OwnersHand"));
+        assert_eq!(
+            movement["destination"],
+            json!({"OwnersHand":{"counters":[],"states":[]}})
+        );
     }
 }
 

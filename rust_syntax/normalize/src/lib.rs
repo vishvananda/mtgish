@@ -8,20 +8,21 @@ mod binding_roles;
 pub mod canonical;
 pub use mtgish_ir::{battlefield_query, counter, declarations, ir, ir_schema, visit};
 pub mod change_lists;
+pub mod coin_policies;
 mod complete;
 pub mod copying;
 pub mod json_input;
+pub mod keyword_actions;
 #[cfg(feature = "legacy")]
 pub mod lower;
 pub mod migrate;
+pub mod mode_policies;
 pub mod movement;
 pub mod presentation;
 #[cfg(feature = "legacy")]
 pub mod report;
 pub mod result_reads;
 mod source_values;
-pub mod keyword_actions;
-pub mod mode_policies;
 pub mod validate;
 
 mod subtype;

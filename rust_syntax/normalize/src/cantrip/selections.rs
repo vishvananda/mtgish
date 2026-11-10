@@ -19,13 +19,14 @@ impl Compiler {
         let Operation::Move {
             objects,
             destination,
-            entry,
-            face_down,
-            terms,
+            qualifiers,
         } = operation
         else {
             return Err(gap("typed movement terms"));
         };
+        let view = crate::movement::destination_view(destination, qualifiers);
+        let (destination, entry, face_down, terms) =
+            (&view.destination, &view.entry, &view.face_down, &view.terms);
         if !terms.qualifiers.is_empty() {
             return Err(gap("a movement qualification without a selection"));
         }
@@ -155,7 +156,9 @@ impl Compiler {
                 false => String::new(),
                 true => format!(".filter(|id| !picked_{id}.contains(id))"),
             };
-            let open = self.fetch(format!("pool_{id}.iter().copied(){again}.filter(|&id| {test}).collect::<Vec<ObjectId>>()"));
+            let open = self.fetch(format!(
+                "pool_{id}.iter().copied(){again}.filter(|&id| {test}).collect::<Vec<ObjectId>>()"
+            ));
             writeln!(out, "{{ let open = {open}; let one = {M}::choose::cards(g, player_{id}, asker.source, Purpose::{purpose}, open, 1, {up_to})?; for o in one {{ if !picked_{id}.contains(&o) {{ picked_{id}.push(o); }} }} }}").unwrap();
         }
         Ok(format!("picked_{id}"))
@@ -169,7 +172,9 @@ impl Compiler {
     ) -> Result<String> {
         let inferred = if step.constraints.is_empty() {
             and_or_parts(&step.objects, &step.count, self.line_text())
-        } else { None };
+        } else {
+            None
+        };
         let filters = match step.constraints.as_slice() {
             [SelectionConstraint::OneForEach(filters)] => Some(filters.as_slice()),
             [] => inferred.as_deref(),
@@ -178,7 +183,15 @@ impl Compiler {
         if let Some(filters) = filters {
             let id = self.fresh();
             let pool = self.fetch(self.objects(&step.objects)?);
-            return self.choose_filter_parts_local(id, chooser, &pool, &step.count, filters, purpose, out);
+            return self.choose_filter_parts_local(
+                id,
+                chooser,
+                &pool,
+                &step.count,
+                filters,
+                purpose,
+                out,
+            );
         }
         if matches!(step.count, Count::AnyNumber) {
             match step.constraints.as_slice() {
@@ -221,14 +234,19 @@ impl Compiler {
                     // subset (notably only the cards just milled) is not the
                     // whole graveyard printed by the card. Inspect typed pools,
                     // never the spelling of generated locals or quoted text.
-                    if self.line_text().is_some_and(|line|line.contains("from your graveyard"))
-                        && !queries_graveyard(&step.objects) {
-                        return Err(gap("a narrowed choice pool where the card says from your graveyard"));
+                    if self
+                        .line_text()
+                        .is_some_and(|line| line.contains("from your graveyard"))
+                        && !queries_graveyard(&step.objects)
+                    {
+                        return Err(gap(
+                            "a narrowed choice pool where the card says from your graveyard",
+                        ));
                     }
                     self.set_rule(constraint).ok_or_else(|| {
                         gap(format!("local selection constraint {}", form(constraint)))
                     })?
-                },
+                }
             };
             write!(rules, ".with({part})").unwrap();
         }
@@ -353,20 +371,39 @@ impl Compiler {
 }
 
 fn queries_graveyard(objects: &ObjectSet) -> bool {
-    use crate::visit::{Visitor,Walk};
+    use crate::visit::{Visitor, Walk};
     struct Query(bool);
     impl Visitor for Query {
-        fn ability(&mut self,_:&Ability)->bool {false}
-        fn object_set(&mut self,objects:&ObjectSet)->bool {
-            self.0 |= matches!(objects,ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Graveyard,..},..});
+        fn ability(&mut self, _: &Ability) -> bool {
+            false
+        }
+        fn object_set(&mut self, objects: &ObjectSet) -> bool {
+            self.0 |= matches!(
+                objects,
+                ObjectSet::Zone {
+                    scope: ZoneScope::Players {
+                        zone: EventZone::Graveyard,
+                        ..
+                    },
+                    ..
+                }
+            );
             !self.0
         }
-        fn object_filter(&mut self,filter:&ObjectFilter)->bool {
-            self.0 |= matches!(filter,ObjectFilter::InZone(ZoneScope::Players {zone:EventZone::Graveyard,..}));
+        fn object_filter(&mut self, filter: &ObjectFilter) -> bool {
+            self.0 |= matches!(
+                filter,
+                ObjectFilter::InZone(ZoneScope::Players {
+                    zone: EventZone::Graveyard,
+                    ..
+                })
+            );
             !self.0
         }
     }
-    let mut query=Query(false);objects.walk(&mut query);query.0
+    let mut query = Query(false);
+    objects.walk(&mut query);
+    query.0
 }
 #[cfg(test)]
 mod transfer_reference_tests {
@@ -374,8 +411,18 @@ mod transfer_reference_tests {
     #[test]
     fn an_earlier_milled_subset_and_literal_text_do_not_become_the_whole_graveyard() {
         assert!(!queries_graveyard(&ObjectSet::Recorded(ResultId(0))));
-        assert!(!queries_graveyard(&ObjectSet::Primitive {name:"contains Zone::graveyard".into(),operands:vec![Operand::Text("Zone::graveyard".into())]}));
-        assert!(queries_graveyard(&ObjectSet::Zone {scope:ZoneScope::Players {players:PlayerSet::One(PlayerRef::AbilityController),zone:EventZone::Graveyard},kind:ObjectKind::Card,filter:ObjectFilter::Any}));
+        assert!(!queries_graveyard(&ObjectSet::Primitive {
+            name: "contains Zone::graveyard".into(),
+            operands: vec![Operand::Text("Zone::graveyard".into())]
+        }));
+        assert!(queries_graveyard(&ObjectSet::Zone {
+            scope: ZoneScope::Players {
+                players: PlayerSet::One(PlayerRef::AbilityController),
+                zone: EventZone::Graveyard
+            },
+            kind: ObjectKind::Card,
+            filter: ObjectFilter::Any
+        }));
     }
 }
 
@@ -391,7 +438,7 @@ pub(super) fn selection_purpose(action: &Operation) -> &'static str {
             "Keep"
         }
         _ => match action.action() {
-            Operation::Move { destination, .. } => match destination {
+            Operation::Move { destination, .. } => match destination.address() {
                 Destination::OwnersHand | Destination::Hand(_) => "PutIntoHand",
                 Destination::OwnersGraveyard => "PutIntoGraveyard",
                 Destination::Exile => "Exile",

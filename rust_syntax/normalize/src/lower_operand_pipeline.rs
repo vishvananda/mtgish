@@ -130,15 +130,13 @@ impl Context {
                     self.cost_object_selection(subjects, selection.as_ref())?;
                 vec![CostPart::Sacrifice { objects, choose }]
             }
-            R::Return { subjects, amount } => vec![CostPart::Move {
-                selections: vec![CostObjectSelection {
+            R::Return { subjects, amount } => vec![crate::movement::cost_move_plain(
+                vec![CostObjectSelection {
                     objects: self.objects(subjects)?,
                     choose: Some(Count::Exactly(self.pipeline_quantity(amount)?)),
                 }],
-                destination: Destination::OwnersHand,
-                entry: EntrySpec::default(),
-                face_down: false,
-            }],
+                Destination::OwnersHand,
+            )],
             R::Discard {
                 amount,
                 filter,
@@ -154,9 +152,8 @@ impl Context {
             }],
             R::Exile { items, flags } => {
                 let (entry, face_down) = self.exile_entry(flags)?;
-                let exile = CostPart::Move {
-                    destination: Destination::Exile,
-                    selections: items
+                let exile = crate::movement::cost_move(
+                    items
                         .iter()
                         .enumerate()
                         .map(|(i, c)| {
@@ -164,9 +161,11 @@ impl Context {
                                 .map_err(|e| e.at(format!("selections[{i}]")))
                         })
                         .collect::<Result<_>>()?,
+                    Destination::Exile,
                     entry,
                     face_down,
-                };
+                )
+                .map_err(|message| invalid(&message))?;
                 let mut constraints = vec![];
                 for item in items {
                     use source::ExilableCost as E;
@@ -175,8 +174,9 @@ impl Context {
                         | E::NumberOrMoreGroupPermanents(_, _, group) => {
                             constraints.extend(self.group_constraints(group)?);
                         }
-                        E::NumberCardsInASingleGraveyard(..) => constraints
-                            .push(SelectionConstraint::CommonProperty(DistinctProperty::Owners)),
+                        E::NumberCardsInASingleGraveyard(..) => constraints.push(
+                            SelectionConstraint::CommonProperty(DistinctProperty::Owners),
+                        ),
                         _ => {}
                     }
                 }
@@ -233,23 +233,30 @@ impl Context {
                         return Ok(condition);
                     }
                 }
-                let result = self.payment.clone()
+                let result = self
+                    .payment
+                    .clone()
                     .ok_or_else(|| invalid("payment reference has no cost in this scope"))?;
                 let paid = match self.required_effect_outcomes.get(&result.0) {
                     Some(outcome) => {
-                        let objects = ObjectSet::Transition { result, phase: ObjectPhase::After };
+                        let objects = ObjectSet::Transition {
+                            result,
+                            phase: ObjectPhase::After,
+                        };
                         let objects = match outcome {
                             RequiredEffectOutcome::Destroyed => objects,
                             RequiredEffectOutcome::ReturnedToHand => ObjectSet::Matching {
                                 objects: Box::new(objects),
                                 filter: ObjectFilter::InZone(ZoneScope::Players {
-                                    zone: EventZone::Hand, players: PlayerSet::All,
+                                    zone: EventZone::Hand,
+                                    players: PlayerSet::All,
                                 }),
                             },
                         };
                         Condition::Compare {
                             left: Expr::CountObjects(Box::new(objects)),
-                            comparison: Comparison::Greater, right: Expr::Constant(0),
+                            comparison: Comparison::Greater,
+                            right: Expr::Constant(0),
                         }
                     }
                     None => Condition::PaymentChosen(result),

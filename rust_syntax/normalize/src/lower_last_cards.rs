@@ -53,13 +53,10 @@ impl Context {
                 ),
                 S::PutTheRemainingCardOnTopInAnyOrder => (remaining, SequenceEnd::Top),
             };
-            let put = self.effect(Operation::Move {
+            let put = self.effect(crate::movement::move_plain(
                 objects,
-                destination: Destination::OwnersPlanarDeck(end),
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            });
+                Destination::OwnersPlanarDeck(end),
+            ));
             let Instruction::Effect { result, .. } = &put else {
                 unreachable!()
             };

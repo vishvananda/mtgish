@@ -293,7 +293,7 @@ fn exact_exiled_incarnations_are_not_live_permissions_for_future_exiled_cards() 
         result,
         operation:
             Operation::Move {
-                destination: Destination::Exile,
+                destination: MovementDestination::Exile { .. },
                 ..
             },
     }, Instruction::Effect {

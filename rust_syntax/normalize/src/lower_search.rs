@@ -234,13 +234,7 @@ impl Context {
                 vec![],
                 &mut body,
             );
-            let exile = child.effect(Operation::Move {
-                objects: picked,
-                destination: Destination::Exile,
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            });
+            let exile = child.effect(crate::movement::move_plain(picked, Destination::Exile));
             if let Instruction::Effect { result, .. } = &exile {
                 turns.push((player, result.clone()));
             }
@@ -263,7 +257,10 @@ impl Context {
         self.adopt_loop(&child);
         self.exile_turns = turns;
         Ok(Instruction::Group(Program {
-            instructions: vec![reveal, Instruction::Repeatable(Program { instructions: body })],
+            instructions: vec![
+                reveal,
+                Instruction::Repeatable(Program { instructions: body }),
+            ],
         }))
     }
 
@@ -461,11 +458,7 @@ impl Context {
                     Count::UpTo(Expr::Constant(filters.len() as i64)),
                     vec![
                         SelectionConstraint::OneForEach(filters),
-                        SelectionConstraint::CanMoveTo {
-                            destination: Destination::Exile,
-                            entry: EntrySpec::default(),
-                            face_down: false,
-                        },
+                        crate::movement::can_move_plain(Destination::Exile),
                     ],
                     instructions,
                 );
@@ -488,20 +481,20 @@ impl Context {
                     chosen.clone(),
                     ObjectFilter::Any,
                     Count::AnyNumber,
-                    vec![SelectionConstraint::CanMoveTo {
-                        destination: destination.clone(),
-                        entry: entry.clone(),
-                        face_down: false,
-                    }],
+                    vec![
+                        crate::movement::can_move_to(destination.clone(), entry.clone(), false)
+                            .map_err(|message| invalid(&message))?,
+                    ],
                     instructions,
                 );
-                let operation = Operation::Move {
-                    objects: entering.clone(),
+                let operation = crate::movement::move_to(
+                    entering.clone(),
                     destination,
                     entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                };
+                    false,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?;
                 self.inspection_assignment(operation, state, instructions);
                 let rest = ObjectSet::Difference {
                     objects: Box::new(chosen),
@@ -554,20 +547,20 @@ impl Context {
                     state.remaining(),
                     ObjectFilter::Any,
                     Count::AsManyAsCan(Expr::Constant(1)),
-                    vec![SelectionConstraint::CanMoveTo {
-                        destination: Destination::Exile,
-                        entry: entry.clone(),
-                        face_down: true,
-                    }],
+                    vec![
+                        crate::movement::can_move_to(Destination::Exile, entry.clone(), true)
+                            .map_err(|message| invalid(&message))?,
+                    ],
                     instructions,
                 );
-                let operation = Operation::Move {
+                let operation = crate::movement::move_to(
                     objects,
-                    destination: Destination::Exile,
+                    Destination::Exile,
                     entry,
-                    face_down: true,
-                    terms: crate::ir::MovementTerms::default(),
-                };
+                    true,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?;
                 self.inspection_assignment(operation, state, instructions);
                 Ok(())
             }
@@ -603,7 +596,8 @@ impl Context {
                 Ok(())
             }
             S::LookAtTheNextNumberCardsOnTopOfLibrary(amount) => {
-                let top = self.library_slice(library.clone(), self.number(amount)?, SequenceEnd::Top);
+                let top =
+                    self.library_slice(library.clone(), self.number(amount)?, SequenceEnd::Top);
                 instructions.push(self.effect(Operation::LookAt {
                     player: player.clone(),
                     objects: top.clone(),

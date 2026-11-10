@@ -286,7 +286,7 @@ pub enum Operation {
     CreateTokens {
         players: PlayerSet,
         tokens: Vec<TokenSpec>,
-        entry: EntrySpec,
+        entry: BattlefieldArrival,
     },
     /// Resolution-time choice. Its result is the selected current objects;
     /// it does not announce targets or mutate the selected objects.
@@ -348,11 +348,9 @@ pub enum Operation {
     },
     Move {
         objects: ObjectSet,
-        destination: Destination,
-        entry: EntrySpec,
-        face_down: bool,
-        #[serde(default)]
-        terms: MovementTerms,
+        destination: MovementDestination,
+        /// Qualifications on the moved set never introduce a subset choice.
+        qualifiers: Vec<SelectionConstraint>,
     },
     SetTapped {
         objects: ObjectSet,
@@ -408,6 +406,7 @@ pub enum Operation {
     /// One flip of one coin (705). Branches read it through `Condition::CoinFlip`.
     FlipCoin {
         player: PlayerRef,
+        protocol: CoinProtocol,
     },
     /// One receipt standing for whichever of these alternative branch results
     /// was made. Operands must belong to one compatible enclosing choice group;
@@ -446,12 +445,10 @@ pub enum Operation {
         actor: PlayerSet,
         card: ConjuredCard,
         count: Expr,
-        zone: EventZone,
-        /// Whose zone, when it isn't `actor`'s.
+        /// Whose card/zone, when it isn't `actor`'s. Separate from an entering
+        /// controller override in the battlefield arrival.
         owner: Option<PlayerRef>,
-        /// Where in a library. None is a random position.
-        spot: Option<ConjureSpot>,
-        entry: EntrySpec,
+        destination: ConjureDestination,
     },
     /// Choose values under explicit cardinality and terms. Reads go through
     /// `ObjectFilter::Chosen`, `Change::ChosenType` or `Expr::ChosenNumber`.
@@ -483,8 +480,7 @@ pub enum Operation {
         actor: PlayerSet,
         cards: ObjectFilter,
         reveal: bool,
-        destination: Destination,
-        entry: EntrySpec,
+        destination: MovementDestination,
     },
     /// Pay as much of this as `actor` chooses, for later "that much".
     PayAnyAmount {
@@ -549,7 +545,7 @@ pub enum Operation {
         actor: PlayerSet,
         source: ManifestSource,
         cloak: bool,
-        entry: EntrySpec,
+        entry: BattlefieldArrival,
     },
     AbandonScheme {
         actor: PlayerSet,
@@ -605,9 +601,12 @@ pub enum Operation {
         cards: ObjectFilter,
         owner: PlayerRef,
     },
+    /// A fixed-size batch, including a counted single coin. Its receipt is a
+    /// collection, distinct from the scalar receipt of FlipCoin.
     FlipCoins {
-        actor: PlayerSet,
+        players: PlayerSet,
         count: Expr,
+        protocol: CoinProtocol,
     },
     /// Finds a matching card from outside the game and puts it into hand.
     Wish {
@@ -700,14 +699,12 @@ pub enum Operation {
     RevealChoices {
         kind: ValueKind,
     },
-    /// `times` flips, one flip for each of `each`, or flips until `until_lost`.
-    CoinFlips {
-        actor: PlayerSet,
-        times: Option<Expr>,
-        each: Option<ObjectSet>,
-        until_lost: bool,
-        may_stop: bool,
-        called: bool,
+    /// A coin series with explicit repetition and stopping. Per-object series
+    /// retain the association of each object with its own coin.
+    FlipCoinSeries {
+        players: PlayerSet,
+        protocol: CoinProtocol,
+        repetition: CoinRepetition,
     },
     /// `hosts` may be objects or players; with `each_host`, each gets `count`.
     AttachEach {
@@ -795,7 +792,7 @@ pub enum Operation {
     Meld {
         objects: ObjectSet,
         into: String,
-        entry: EntrySpec,
+        entry: BattlefieldArrival,
     },
     PutStickers {
         actor: PlayerSet,
@@ -907,12 +904,11 @@ pub enum Operation {
     CounterWith {
         object: ObjectRef,
         when: Option<ObjectFilter>,
-        destination: Destination,
-        entry: EntrySpec,
+        destination: MovementDestination,
     },
     Populate {
         actor: PlayerSet,
-        entry: EntrySpec,
+        entry: BattlefieldArrival,
     },
     ReduceSpeed {
         player: PlayerRef,
@@ -998,4 +994,36 @@ impl Operation {
             other => other,
         }
     }
+}
+
+/// A procedure, not an exclusive universe of observable outcomes. Called coins
+/// have physical faces too, and replacement effects can change winning/losing.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum CoinProtocol {
+    Called,
+    Uncalled,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CoinExtent {
+    Count(Expr),
+    Objects(ObjectSet),
+}
+
+/// Checked after a flip. LoseOrPlayerStops offers a choice only after a win.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CoinStop {
+    Lose,
+    PlayerStops,
+    LoseOrPlayerStops,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CoinRepetition {
+    Count(Expr),
+    EachObject(ObjectSet),
+    UpTo { extent: CoinExtent, stop: CoinStop },
+    Until(CoinStop),
 }

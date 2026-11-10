@@ -16,9 +16,6 @@ fn spell(operation: Operation) -> Card {
     });
     card
 }
-fn missing_target() -> Operand {
-    Operand::Objects(ObjectSet::Targets(TargetSlot(99)))
-}
 fn shape() -> FaceDownAs {
     FaceDownAs {
         power: Expr::Constant(2),
@@ -27,23 +24,24 @@ fn shape() -> FaceDownAs {
         artifact: false,
     }
 }
-fn moving(state: EntryState) -> Card {
+fn moving(state: BattlefieldState) -> Card {
     spell(Operation::Move {
         objects: ObjectSet::One(ObjectRef::Source),
-        destination: Destination::Exile,
-        entry: EntrySpec {
-            states: vec![state],
-            ..EntrySpec::default()
+        destination: MovementDestination::Battlefield {
+            controller: EntryController::Owner,
+            arrival: BattlefieldArrival {
+                states: vec![state],
+                ..BattlefieldArrival::default()
+            },
         },
-        face_down: false,
-        terms: MovementTerms::default(),
+        qualifiers: vec![],
     })
 }
 
 #[test]
 fn entry_payloads_cannot_hide_missing_references() {
     for state in [
-        EntryState::ChangesUntil {
+        BattlefieldState::ChangesUntil {
             changes: vec![Change::Rule(RuleChange::RequireCombat {
                 action: ObjectAction::Attack(AttackDefenders::Objects(ObjectFilter::InSet(
                     Box::new(ObjectSet::Targets(TargetSlot(99))),
@@ -52,17 +50,17 @@ fn entry_payloads_cannot_hide_missing_references() {
             })],
             duration: Duration::EndOfTurn,
         },
-        EntryState::Optional {
+        BattlefieldState::Optional {
             decider: PlayerRef::AbilityController,
-            entry: Box::new(EntrySpec {
-                states: vec![EntryState::FaceDownAs(FaceDownAs {
+            entry: Box::new(BattlefieldArrival {
+                states: vec![BattlefieldState::FaceDownAs(FaceDownAs {
                     power: Expr::CountObjects(Box::new(ObjectSet::Targets(TargetSlot(99)))),
                     ..shape()
                 })],
-                ..EntrySpec::default()
+                ..BattlefieldArrival::default()
             }),
         },
-        EntryState::FaceDownWith {
+        BattlefieldState::FaceDownWith {
             face_down: shape(),
             abilities: vec![Ability::Spell {
                 announcement: Announcement::empty(),
@@ -77,55 +75,66 @@ fn entry_payloads_cannot_hide_missing_references() {
             }],
             noted: None,
         },
-        EntryState::FaceDownAs(FaceDownAs {
+        BattlefieldState::FaceDownAs(FaceDownAs {
             power: Expr::CountObjects(Box::new(ObjectSet::Targets(TargetSlot(99)))),
             ..shape()
         }),
-        EntryState::ExiledForWith {
-            until: Duration::EndOfTurn,
-            objects: ObjectSet::One(ObjectRef::Source),
-            body: Program {
-                instructions: vec![Instruction::Effect {
-                    result: ResultId(0),
-                    operation: Operation::Reveal { objects: ObjectSet::Targets(TargetSlot(99)) },
-                }],
-            },
-        },
     ] {
         assert!(validate::card(&moving(state))
             .unwrap_err()
             .contains("unbound target slot 99"));
     }
+    let card = spell(Operation::Move {
+        objects: ObjectSet::One(ObjectRef::Source),
+        destination: MovementDestination::Exile {
+            visibility: ExileVisibility::FaceUp,
+            arrival: ExileArrival {
+                states: vec![ExileState::ExiledForWith {
+                    until: Duration::EndOfTurn,
+                    objects: ObjectSet::One(ObjectRef::Source),
+                    body: Program {
+                        instructions: vec![Instruction::Effect {
+                            result: ResultId(0),
+                            operation: Operation::Reveal {
+                                objects: ObjectSet::Targets(TargetSlot(99)),
+                            },
+                        }],
+                    },
+                }],
+                ..ExileArrival::default()
+            },
+        },
+        qualifiers: vec![],
+    });
+    assert!(validate::card(&card)
+        .unwrap_err()
+        .contains("unbound target slot 99"));
 }
 
 #[test]
 fn countering_checks_destination_and_entry_scopes() {
-    for (destination, entry) in [
-        (
-            Destination::OwnersHand,
-            EntrySpec {
-                states: vec![EntryState::ChangesUntil {
-                    changes: vec![],
-                    duration: Duration::WhileItMatches(ObjectFilter::InSet(Box::new(
-                        ObjectSet::Targets(TargetSlot(99)),
-                    ))),
-                }],
-                ..EntrySpec::default()
-            },
-        ),
-        (
-            Destination::Battlefield(PlayerRef::Target {
+    for destination in [
+        MovementDestination::OwnersHand(CardArrival {
+            states: vec![CardArrivalState::ChangesUntil {
+                changes: vec![],
+                duration: Duration::WhileItMatches(ObjectFilter::InSet(Box::new(
+                    ObjectSet::Targets(TargetSlot(99)),
+                ))),
+            }],
+            ..CardArrival::default()
+        }),
+        MovementDestination::Battlefield {
+            controller: EntryController::Player(PlayerRef::Target {
                 slot: TargetSlot(99),
                 index: 0,
             }),
-            EntrySpec::default(),
-        ),
+            arrival: BattlefieldArrival::default(),
+        },
     ] {
         let card = spell(Operation::CounterWith {
             object: ObjectRef::Source,
             when: None,
             destination,
-            entry,
         });
         assert!(validate::card(&card)
             .unwrap_err()
@@ -135,7 +144,7 @@ fn countering_checks_destination_and_entry_scopes() {
 
 #[test]
 fn duration_operands_validate_their_captured_references() {
-    let card = moving(EntryState::ChangesUntil {
+    let card = moving(BattlefieldState::ChangesUntil {
         changes: vec![],
         duration: Duration::WhileItMatches(ObjectFilter::InSet(Box::new(ObjectSet::Targets(
             TargetSlot(99),

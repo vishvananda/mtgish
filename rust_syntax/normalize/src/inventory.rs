@@ -1,6 +1,7 @@
 //! Count every semantic family, rather than presenting operation count alone
 //! as the size of the normalized language. Vocabulary values are counted too.
 use crate::ir::*;
+use crate::movement::legacy::{EntrySpec, EntryState};
 use serde::Serialize;
 use std::collections::BTreeMap;
 pub type Forms = BTreeMap<String, BTreeMap<String, usize>>;
@@ -509,10 +510,18 @@ impl Inventory<'_> {
                     self.change(change);
                 }
             }
-            Operation::KeywordEach {actor,action,objects} => {
-                let (kind,until)=crate::keyword_actions::each_parts(action);
-                self.form("KeywordAction",&kind);self.players(actor);self.objects(objects);
-                if let Some(until)=until {self.duration(until);}
+            Operation::KeywordEach {
+                actor,
+                action,
+                objects,
+            } => {
+                let (kind, until) = crate::keyword_actions::each_parts(action);
+                self.form("KeywordAction", &kind);
+                self.players(actor);
+                self.objects(objects);
+                if let Some(until) = until {
+                    self.duration(until);
+                }
             }
             Operation::MoveTopCard { actor, cards, .. } => {
                 self.players(actor);
@@ -572,20 +581,31 @@ impl Inventory<'_> {
                     self.duration(until);
                 }
             }
-            Operation::ChooseValue { choosers: actor, kind, .. } => {
+            Operation::ChooseValue {
+                choosers: actor,
+                kind,
+                ..
+            } => {
                 self.players(actor);
                 self.form("ValueKind", kind);
             }
             Operation::RevealChoices { kind } => self.form("ValueKind", kind),
-            Operation::CoinFlips {
-                actor, times, each, ..
+            Operation::FlipCoinSeries {
+                players,
+                repetition,
+                protocol,
             } => {
-                self.players(actor);
-                if let Some(times) = times {
-                    self.expr(times);
-                }
-                if let Some(each) = each {
-                    self.objects(each);
+                self.players(players);
+                self.form("CoinProtocol", protocol);
+                self.form("CoinRepetition", repetition);
+                match repetition {
+                    CoinRepetition::Count(n) => self.expr(n),
+                    CoinRepetition::EachObject(objects) => self.objects(objects),
+                    CoinRepetition::UpTo { extent, .. } => match extent {
+                        CoinExtent::Count(n) => self.expr(n),
+                        CoinExtent::Objects(objects) => self.objects(objects),
+                    },
+                    CoinRepetition::Until(_) => {}
                 }
             }
             Operation::AttachEach {
@@ -704,8 +724,8 @@ impl Inventory<'_> {
                 self.filter(cards);
                 self.player(owner);
             }
-            Operation::FlipCoins { actor, count } => {
-                self.players(actor);
+            Operation::FlipCoins { players, count, .. } => {
+                self.players(players);
                 self.expr(count);
             }
             Operation::Wish { actor, filter, .. } => {
@@ -714,7 +734,9 @@ impl Inventory<'_> {
             }
             Operation::DuplicateCounters { from, to, .. } => {
                 self.form("CounterSource", from);
-                if let CounterSource::On(recipients) = from { self.recipients(recipients); }
+                if let CounterSource::On(recipients) = from {
+                    self.recipients(recipients);
+                }
                 self.recipients(to);
             }
             Operation::PutSticker { actor, objects, .. } => {
@@ -806,11 +828,12 @@ impl Inventory<'_> {
                 actor,
                 card,
                 count,
-                zone,
                 owner,
-                spot,
+                destination,
                 ..
             } => {
+                let (zone, spot, _entry) = crate::movement::conjure_view(destination);
+                let (zone, spot) = (&zone, &spot);
                 self.form("EventZone", zone);
                 self.form("ConjuredCard", card);
                 self.players(actor);
@@ -891,12 +914,16 @@ impl Inventory<'_> {
             }
             Operation::ChooseAtRandom { kind, .. } => self.form("ValueKind", kind),
             Operation::ChooseAction { actor, .. } => self.players(actor),
-            Operation::Keyword {actor,action} => {
+            Operation::Keyword { actor, action } => {
                 self.players(actor);
-                let parts=crate::keyword_actions::parts(action);
+                let parts = crate::keyword_actions::parts(action);
                 self.form("KeywordAction", &parts.kind);
-                for object in parts.object.into_iter().chain(parts.other) { self.object(object); }
-                if let Some(amount)=parts.amount { self.expr(amount); }
+                for object in parts.object.into_iter().chain(parts.other) {
+                    self.object(object);
+                }
+                if let Some(amount) = parts.amount {
+                    self.expr(amount);
+                }
             }
             Operation::CreateDelayedTrigger {
                 event,
@@ -922,7 +949,7 @@ impl Inventory<'_> {
                 self.player(player);
                 self.objects(objects);
             }
-            Operation::FlipCoin { player } => self.player(player),
+            Operation::FlipCoin { player, .. } => self.player(player),
             Operation::CreateRegenerationShields { objects } => self.objects(objects),
             Operation::Search {
                 searcher: player,
@@ -1278,12 +1305,16 @@ impl Inventory<'_> {
             Operation::Move {
                 objects,
                 destination,
-                entry,
-                terms,
-                ..
+                qualifiers,
             } => {
+                let crate::movement::DestinationView {
+                    destination,
+                    entry,
+                    terms,
+                    ..
+                } = crate::movement::destination_view(destination, qualifiers);
                 self.objects(objects);
-                self.destination(destination);
+                self.destination(&destination);
                 self.form("MovementOrder", &terms.order);
                 self.form("MovementPlacement", &terms.placement);
                 terms
@@ -1293,7 +1324,7 @@ impl Inventory<'_> {
                 if let MovementPlacement::By(players) = &terms.placement {
                     self.players(players);
                 }
-                self.entry_states(entry);
+                self.entry_states(&entry);
                 for (k, n) in &entry.counters {
                     self.counter(k);
                     self.expr(n);
@@ -1385,10 +1416,9 @@ impl Inventory<'_> {
         if let SelectionConstraint::NamedAfterOneEach(objects) = c {
             self.objects(objects);
         }
-        if let SelectionConstraint::CanMoveTo {
-            destination, entry, ..
-        } = c
-        {
+        if let SelectionConstraint::CanMoveTo { destination } = c {
+            let view = crate::movement::entry_destination_view(destination);
+            let (destination, entry) = (&view.destination, &view.entry);
             self.destination(destination);
             self.entry_states(entry);
             for (kind, amount) in &entry.counters {
@@ -1528,10 +1558,10 @@ impl Inventory<'_> {
                 CostPart::ManaCostOf(object) => self.object(object),
                 CostPart::Move {
                     selections,
-                    entry,
                     destination,
-                    ..
                 } => {
+                    let view = crate::movement::destination_view(destination, &[]);
+                    let (destination, entry) = (&view.destination, &view.entry);
                     self.destination(destination);
                     for s in selections {
                         self.objects(&s.objects);
@@ -2330,7 +2360,12 @@ impl Inventory<'_> {
                     self.player(by);
                 }
             }
-            Expr::Dice(_) | Expr::CoinFlipsWon(_) | Expr::Game(_) => {}
+            Expr::Dice(_)
+            | Expr::Game(_)
+            | Expr::CountCoinOutcomes {
+                source: CoinCountSource::Latest,
+                ..
+            } => {}
             Expr::Stickers { objects, .. } => self.objects(objects),
             Expr::Noted { object, .. } => {
                 if let Some(object) = object {
@@ -2398,7 +2433,10 @@ impl Inventory<'_> {
             | Expr::DieResultAt { .. }
             | Expr::DistributedShare(_)
             | Expr::DieResult(_)
-            | Expr::HeadsFlipped(_) => {}
+            | Expr::CountCoinOutcomes {
+                source: CoinCountSource::Receipt(_),
+                ..
+            } => {}
             Expr::ExcessDamage { to, .. } => self.filter(to),
             Expr::Primitive { name, .. } => self.primitive(name),
             Expr::EventHistory {
@@ -2922,7 +2960,9 @@ impl Inventory<'_> {
             Duration::Either(durations) => durations.iter().for_each(|d| self.duration(d)),
         }
     }
-    fn entry_states(&mut self, entry: &EntrySpec) {
+    fn entry_states(&mut self, entry: &dyn crate::movement::ArrivalView) {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         for state in &entry.states {
             if let EntryState::Draft { name, .. } = state {
                 self.primitive(name);

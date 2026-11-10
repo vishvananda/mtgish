@@ -407,9 +407,7 @@ pub enum CostPart {
     /// Counts are strict: no as-many-as-possible effect choices.
     Move {
         selections: Vec<CostObjectSelection>,
-        destination: Destination,
-        entry: EntrySpec,
-        face_down: bool,
+        destination: MovementDestination,
     },
     /// One option is announced as part of choosing how to pay this cost.
     Choice(Vec<Cost>),

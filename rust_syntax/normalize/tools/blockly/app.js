@@ -12,7 +12,7 @@
   const newtype = t => {const d=descriptor(t);return d?.kind==='struct' && d.fields.kind==='tuple' && d.fields.items.length===1 ? d.fields.items[0]:null;};
   const scalar = t => !!t.named && (!types[t.named] || (newtype(t) && scalar(newtype(t))) || (types[t.named].kind === 'enum' && !types[t.named].adjacent && types[t.named].variants.every(v => v.fields.kind === 'unit')));
   const excluded = v => /^(Draft|Named$)/.test(v.name) || ['Primitive','Form'].includes(v.name);
-  const preferred = {Ability:'Spell',Instruction:'Effect',Operation:'Draw',Expr:'Constant',PlayerRef:'AbilityController',PlayerSet:'One',ObjectRef:'Source',ObjectSet:'One',ManaSymbol:'Generic',Keyword:'Flying',Count:'Exactly',Destination:'Exile',TargetKind:'Object',ObjectKind:'Permanent'};
+  const preferred = {Ability:'Spell',Instruction:'Effect',Operation:'Draw',Expr:'Constant',PlayerRef:'AbilityController',PlayerSet:'One',ObjectRef:'Source',ObjectSet:'One',ManaSymbol:'Generic',Keyword:'Flying',Count:'Exactly',Destination:'Exile',MovementDestination:'Exile',ConjureDestination:'Exile',TargetKind:'Object',ObjectKind:'Permanent'};
   const pickVariant = (d,name) => d.variants.find(v => v.wire === preferred[name] || v.name === preferred[name]) || d.variants.find(v => v.fields.kind === 'unit' && !excluded(v)) || d.variants.find(v => !excluded(v)) || d.variants[0];
   // JSON numbers outside JavaScript's safe range are retained as BigInt, never rounded.
   function parseExact(text) {
@@ -274,7 +274,7 @@
     }
     const variant=viewVariant(state);
     if(variant && !scalar(t))result.fields.VARIANT=variant.wire;
-    if(outline && ['Characteristics','EntrySpec','MovementTerms'].includes(t.named))result.collapsed=true;
+    if(outline && ['Characteristics','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival'].includes(t.named))result.collapsed=true;
     return result;
   }
   function colour(t) {
@@ -302,7 +302,7 @@
     if(Array.isArray(v))return v.length===0;
     return !!v && typeof v==='object' && Object.values(v).every(isMetadataEmpty);
   }
-  const defaultStructures=new Set(['Announcement','TriggerLimits','ActivationLimits','EntrySpec','MovementTerms','ModeCount','ModeRules','ModeMechanism']);
+  const defaultStructures=new Set(['Announcement','TriggerLimits','ActivationLimits','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival','ModeCount','ModeRules','ModeMechanism']);
   function hiddenReason(b,p) {
     if(b.state.shown?.includes(p.key))return false;
     if(p.key==='RESULT'||(b.state.ty.named==='Instruction'&&b.state.variant==='Effect'&&p.key==='F_result'))return true;
@@ -465,7 +465,20 @@
         }
         if(e.type===Blockly.Events.BLOCK_CHANGE && e.blockId===this.id && e.name==='VARIANT') {
           const v=this.getFieldValue('VARIANT'),key=this.state.pr==='effect'?'op':this.state.pr==='keyword'?'keyword':'variant';
-          if(v && v!==this.state[key]){this.state[key]=v;this.rebuild();}
+          if(v && v!==this.state[key]){
+            const destination=['MovementDestination','ConjureDestination','LibraryPosition'].includes(this.state.ty.named);
+            // Empty arrivals are structural defaults. Keep nonempty children
+            // recoverable if the new zone cannot accept their type.
+            const emptyArrivals=destination?this.getChildren(false).filter(b=>{
+              if(!['BattlefieldArrival','ExileArrival','CardArrival'].includes(b.state?.ty.named))return false;
+              try{return same(fromBlock(b),defaultValue(b.state.ty));}catch(_){return false;}
+            }):[];
+            this.state[key]=v;this.rebuild();
+            if(destination){
+              for(const b of emptyArrivals)if(!b.getParent())b.dispose(false);
+              for(const p of parts(this.state))if(!scalarType(p)&&!p.flow&&!this.getInputTargetBlock(p.key))insertDefault(this,p);
+            }
+          }
         }
       });
     },
@@ -648,7 +661,7 @@
       {kind:'label',text:'Stack actions inside an ability'},
       ...['Draw','GainLife','LoseLife'].map(n=>flyoutBlock('Instruction',actionValue(n,{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}}))),
       flyoutBlock('Instruction',actionValue('DealDamage',{source:{kind:'Source'},recipients:{kind:'Targets',args:0},amount:{kind:'Constant',args:3},preventable:true})),
-      flyoutBlock('Instruction',actionValue('Move',{objects:{kind:'One',args:{kind:'Source'}},destination:'Exile'}))
+      flyoutBlock('Instruction',actionValue('Move',{objects:{kind:'One',args:{kind:'Source'}},destination:{Exile:{visibility:'FaceUp',arrival:{counters:[],states:[]}}}}))
     ]},
     {kind:'category',name:'All actions',colour:'#b46b4f',contents:actionGroups()},
     {kind:'category',name:'Control',colour:'#9b7a42',contents:controlGroups()},
@@ -923,7 +936,7 @@
   $('fit').onclick=()=>workspace.zoomToFit();$('zoom-in').onclick=()=>workspace.zoomCenter(1);$('zoom-out').onclick=()=>workspace.zoomCenter(-1);
   $('undo').onclick=()=>workspace.undo(false);$('redo').onclick=()=>workspace.undo(true);
   $('expand').onclick=()=>{workspace.getAllBlocks(false).forEach(b=>b.setCollapsed(false));workspace.zoomToFit();};
-  $('collapse').onclick=()=>{workspace.getAllBlocks(false).filter(b=>['Characteristics','Announcement','EntrySpec','MovementTerms','TargetSpec'].includes(b.state.ty.named)).forEach(b=>b.setCollapsed(true));workspace.zoomToFit();};
+  $('collapse').onclick=()=>{workspace.getAllBlocks(false).filter(b=>['Characteristics','Announcement','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival','TargetSpec'].includes(b.state.ty.named)).forEach(b=>b.setCollapsed(true));workspace.zoomToFit();};
   $('export').onclick=()=>{
     if(!lastValid)return;
     try {if(encode(generated())!==lastSubmittedIR){changed();notice('Checking the latest edit before exporting.');return;}bindingEditor.document();}

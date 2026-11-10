@@ -31,8 +31,16 @@ fn custom(rule: &str) -> Result<Card, Vec<lower::Diagnostic>> {
 }
 fn value_choice(rule: &str) -> (ValueKind, ChoiceTerms) {
     let card = custom(rule).unwrap();
-    let Ability::Spell { body, .. } = &card.abilities[0] else { panic!("{card:?}") };
-    let Instruction::Effect {operation:Operation::ChooseValue {kind,terms,..},..} = &body.instructions[0] else {panic!("{body:?}")};
+    let Ability::Spell { body, .. } = &card.abilities[0] else {
+        panic!("{card:?}")
+    };
+    let Instruction::Effect {
+        operation: Operation::ChooseValue { kind, terms, .. },
+        ..
+    } = &body.instructions[0]
+    else {
+        panic!("{body:?}")
+    };
     (*kind, terms.clone())
 }
 fn inner(a: &Ability) -> &Ability {
@@ -169,7 +177,7 @@ fn cycling_retains_its_identity_exact_source_cost_and_hand_activation_scope() {
 fn graveyard_and_command_scopes_do_not_replace_intervening_conditions() {
     let c = card("Reassembling Skeleton");
     assert!(
-        matches!(&c.abilities[0], Ability::Scoped { zones, ability, .. } if zones == &[EventZone::Graveyard] && matches!(ability.as_ref(), Ability::Activated { body, .. } if matches!(body.instructions.as_slice(), [Instruction::Effect { operation: Operation::Move { destination: Destination::Battlefield(PlayerRef::AbilityController), entry: EntrySpec { tapped: true, .. }, .. }, .. }])))
+        matches!(&c.abilities[0], Ability::Scoped { zones, ability, .. } if zones == &[EventZone::Graveyard] && matches!(ability.as_ref(), Ability::Activated { body, .. } if matches!(body.instructions.as_slice(), [Instruction::Effect { operation: Operation::Move { destination: MovementDestination::Battlefield{controller:EntryController::Player(PlayerRef::AbilityController),arrival:BattlefieldArrival{tapped:true,..}}, .. }, .. }])))
     );
     let c = card("Anger");
     assert!(
@@ -348,7 +356,10 @@ fn a_reference_cannot_pass_as_a_vocabulary_word() {
     let bound = lowered(
         "SpellActions(Targeted([TargetAbility(AnyAbility)], ActionList([CounterAbility(Ref_TargetAbility)])))",
     );
-    assert!(bound.contains("One(Target { slot: TargetSlot(0)"), "{bound}");
+    assert!(
+        bound.contains("One(Target { slot: TargetSlot(0)"),
+        "{bound}"
+    );
     assert!(!bound.contains("\"Ref_TargetAbility\""), "{bound}");
 }
 
@@ -525,9 +536,12 @@ fn a_deck_rule_is_typed_and_names_its_partner() {
 #[test]
 fn choosing_a_player_or_an_ability_is_a_chosen_value() {
     let (kind, terms) = value_choice("SpellActions(ActionList([ChooseAPlayer(Opponent)]))");
-    assert_eq!(kind, ValueKind::Player); assert!(terms.exactly_one());
-    let (kind, terms) = value_choice("SpellActions(ActionList([ChooseAnAbility([Flying, Haste])]))");
-    assert_eq!(kind, ValueKind::Ability); assert!(terms.exactly_one());
+    assert_eq!(kind, ValueKind::Player);
+    assert!(terms.exactly_one());
+    let (kind, terms) =
+        value_choice("SpellActions(ActionList([ChooseAnAbility([Flying, Haste])]))");
+    assert_eq!(kind, ValueKind::Ability);
+    assert!(terms.exactly_one());
 }
 
 #[test]
@@ -645,7 +659,8 @@ fn a_change_to_a_spell_names_the_spell_and_ordinary_changes() {
 #[test]
 fn a_chosen_value_is_one_choice_read_by_kind() {
     let (kind, terms) = value_choice("SpellActions(ActionList([ChooseACreatureType]))");
-    assert_eq!(kind, ValueKind::CreatureType); assert!(terms.exactly_one());
+    assert_eq!(kind, ValueKind::CreatureType);
+    assert!(terms.exactly_one());
     let body = lowered(
         "PermanentLayerEffect(HostPermanent, [AddCreatureTypeVariable(TheChosenCreatureType)])",
     );
@@ -722,14 +737,28 @@ fn counter_moves_say_how_many_of_what_from_where() {
 fn a_keyword_row_keeps_its_result_when_conjuring() {
     let body = lowered(r#"SpellActions(ActionList([ConjureCardIntoHand("Nettlecyst")]))"#);
     assert!(body.contains("Conjure"), "{body}");
-    assert!(body.contains("zone: Hand"), "{body}");
+    assert!(body.contains("destination: Hand("), "{body}");
 }
 
 #[test]
 fn rolling_a_die_says_how_many_sides() {
-    let c=custom("SpellActions(ActionList([RollAD6]))").unwrap();
-    let Ability::Spell {body,..}=&c.abilities[0] else {panic!()};
-    assert!(matches!(body.instructions.as_slice(),[Instruction::Effect {operation:Operation::Keyword {action:KeywordAction::RollDie {sides:6,times:None},..},..}]));
+    let c = custom("SpellActions(ActionList([RollAD6]))").unwrap();
+    let Ability::Spell { body, .. } = &c.abilities[0] else {
+        panic!()
+    };
+    assert!(matches!(
+        body.instructions.as_slice(),
+        [Instruction::Effect {
+            operation: Operation::Keyword {
+                action: KeywordAction::RollDie {
+                    sides: 6,
+                    times: None
+                },
+                ..
+            },
+            ..
+        }]
+    ));
 }
 
 #[test]
@@ -757,13 +786,40 @@ fn object_event_rows_reduce_and_keep_what_they_bind() {
 
 #[test]
 fn a_keyword_action_keeps_its_count_type_and_result_boundary() {
-    let c=custom("SpellActions(ActionList([Investigate]))").unwrap();
-    let Ability::Spell {body,..}=&c.abilities[0] else {panic!()};
-    assert!(matches!(body.instructions.as_slice(),[Instruction::Effect {operation:Operation::Keyword {action:KeywordAction::Investigate {times:None},..},..}]));
+    let c = custom("SpellActions(ActionList([Investigate]))").unwrap();
+    let Ability::Spell { body, .. } = &c.abilities[0] else {
+        panic!()
+    };
+    assert!(matches!(
+        body.instructions.as_slice(),
+        [Instruction::Effect {
+            operation: Operation::Keyword {
+                action: KeywordAction::Investigate { times: None },
+                ..
+            },
+            ..
+        }]
+    ));
     let c=custom("SpellActions(ActionList([Amass(Integer(2), Zombie), PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1, +1), TheArmyAmassedThisWay)])]))").unwrap();
-    let Ability::Spell {body,..}=&c.abilities[0] else {panic!()};
-    assert!(matches!(&body.instructions[0],Instruction::Effect {result:ResultId(0),operation:Operation::Keyword {action:KeywordAction::Amass {amount:Expr::Constant(2),creature_type:source::CreatureType::Zombie},..}}));
-    assert!(matches!(&body.instructions[1],Instruction::Effect {operation:Operation::PutCounters {placements},..} if matches!(placements.as_slice(),[CounterPlacement {recipients:Recipients::Objects(ObjectSet::One(ObjectRef::Result {result:ResultId(0),phase:ObjectPhase::After,index:0})),..}])));
+    let Ability::Spell { body, .. } = &c.abilities[0] else {
+        panic!()
+    };
+    assert!(matches!(
+        &body.instructions[0],
+        Instruction::Effect {
+            result: ResultId(0),
+            operation: Operation::Keyword {
+                action: KeywordAction::Amass {
+                    amount: Expr::Constant(2),
+                    creature_type: source::CreatureType::Zombie
+                },
+                ..
+            }
+        }
+    ));
+    assert!(
+        matches!(&body.instructions[1],Instruction::Effect {operation:Operation::PutCounters {placements},..} if matches!(placements.as_slice(),[CounterPlacement {recipients:Recipients::Objects(ObjectSet::One(ObjectRef::Result {result:ResultId(0),phase:ObjectPhase::After,index:0})),..}]))
+    );
 }
 
 #[test]
@@ -1017,7 +1073,10 @@ fn conjuring_names_the_card_the_count_and_the_place() {
     );
     assert!(body.contains("card: Named(\"Seven Dwarves\")"), "{body}");
     assert!(body.contains("count: Constant(7)"), "{body}");
-    assert!(body.contains("spot: Some(Top)"), "{body}");
+    assert!(
+        body.contains("destination: Library { position: Top"),
+        "{body}"
+    );
     let body = lowered(
         "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([ConjureACardOfChoiceFromSpellBookIntoHand(\"Paradigm\")]))",
     );
@@ -1029,7 +1088,7 @@ fn conjuring_names_the_card_the_count_and_the_place() {
         "TriggerA(WhenACreatureAttacks(SinglePermanent(ThisPermanent)), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([ConjureDuplicateOfPermanentIntoHand(Ref_TargetPermanent)])))",
     );
     assert!(body.contains("card: Duplicate("), "{body}");
-    assert!(body.contains("zone: Hand"), "{body}");
+    assert!(body.contains("destination: Hand("), "{body}");
 }
 
 #[test]
@@ -1070,7 +1129,8 @@ fn a_chosen_colors_read_any_number() {
     let (kind, terms) = value_choice(
         "SpellActions(Targeted([TargetPermanent(AnyPermanent)], ActionList([ChooseColors, CreatePermanentLayerEffect(Ref_TargetPermanent, [SetColor(TheChosenColors)])])))",
     );
-    assert_eq!(kind, ValueKind::Color); assert!(matches!(terms.count, ChoiceCount::AnyNumber));
+    assert_eq!(kind, ValueKind::Color);
+    assert!(matches!(terms.count, ChoiceCount::AnyNumber));
 }
 
 #[test]
@@ -1626,7 +1686,7 @@ fn flipped_heads_shared_colors_and_replaced_players() {
     let coins = lowered(
         "SpellActions(ActionList([FlipCoins(Integer(5)), TakeANumberOfExtraTurns(TheNumberOfCoinsThatCameUpHeads)]))",
     );
-    assert!(coins.contains("HeadsFlipped"), "{coins}");
+    assert!(coins.contains("CountCoinOutcomes"), "{coins}");
     let colors = lowered(
         "Protection(FromColor(ColorsOfPermanents(ControlledByAPlayer(SinglePlayer(You)))))",
     );

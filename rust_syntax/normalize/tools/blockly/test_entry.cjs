@@ -33,7 +33,7 @@ let browser;
   }
   await page.locator('#file').setInputFiles({name:'named-entry-workspace.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(old))});
   await checked();
-  if(fixture==='return') assert.equal(await page.evaluate(()=>{const b=window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.ty.named==='EntryState'&&b.state.variant==='ExiledForWith');return b.getInputTargetBlock('F_body')?.state.ty.named;}),'Instruction');
+  if(fixture==='return') assert.equal(await page.evaluate(()=>{const b=window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.ty.named==='ExileState'&&b.state.variant==='ExiledForWith');return b.getInputTargetBlock('F_body')?.state.ty.named;}),'Instruction');
   await page.evaluate(old=>localStorage.setItem('mtgish.blockly.workspace.v1',JSON.stringify(old)),old);
   await page.reload();await checked();
  }

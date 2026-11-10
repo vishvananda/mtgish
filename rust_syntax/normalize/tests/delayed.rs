@@ -180,7 +180,11 @@ fn returned_objects_use_exact_captured_post_exile_incarnations() {
                         objects,
                         zone: EventZone::Exile,
                     },
-                destination: Destination::OwnersBattlefield,
+                destination:
+                    MovementDestination::Battlefield {
+                        controller: EntryController::Owner,
+                        ..
+                    },
                 ..
             },
         ..
@@ -204,7 +208,10 @@ fn returned_objects_use_exact_captured_post_exile_incarnations() {
         &program(&c).instructions[1],
         Instruction::Effect {
             operation: Operation::Move {
-                destination: Destination::Battlefield(PlayerRef::AbilityController),
+                destination: MovementDestination::Battlefield {
+                    controller: EntryController::Player(PlayerRef::AbilityController),
+                    ..
+                },
                 ..
             },
             ..
@@ -269,7 +276,7 @@ fn captured_target_properties_remain_resolution_time_expressions() {
         panic!()
     };
     assert!(
-        matches!(&body.instructions[0],Instruction::Effect {operation:Operation::Move {entry:EntrySpec {counters,..},..},..} if counters.len()==1),
+        matches!(&body.instructions[0],Instruction::Effect {operation:Operation::Move {destination:MovementDestination::Battlefield {arrival:BattlefieldArrival {counters,..},..},..},..} if counters.len()==1),
         "return-with-counter retains the entry counter, rather than adding it after entry"
     );
 }

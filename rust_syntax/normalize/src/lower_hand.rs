@@ -99,13 +99,8 @@ impl Context {
                 instructions.push(self.effect(Operation::DiscardObjects { objects }));
             }
             HandFate::Exile(period) => {
-                let movement = self.effect(Operation::Move {
-                    objects,
-                    destination: Destination::Exile,
-                    entry: EntrySpec::default(),
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                });
+                let movement =
+                    self.effect(crate::movement::move_plain(objects, Destination::Exile));
                 self.exiled_permanents = false;
                 let Instruction::Effect { result, .. } = &movement else {
                     unreachable!()
@@ -160,7 +155,13 @@ impl Context {
                 let Ok(filter) = self.hand_filter(cards) else {
                     return Ok(None);
                 };
-                (actor.clone(), HandShown::Hidden, filter, None, HandFate::Discard)
+                (
+                    actor.clone(),
+                    HandShown::Hidden,
+                    filter,
+                    None,
+                    HandFate::Discard,
+                )
             }
             S::SeekACard(cards) => return self.seek(cards, Expr::Constant(1), actor),
             S::SeekNumberCards(number, cards) => {
@@ -333,13 +334,10 @@ impl Context {
             unreachable!()
         };
         let objects = ObjectSet::Selected(result.clone());
-        let movement = self.effect(Operation::Move {
+        let movement = self.effect(crate::movement::move_plain(
             objects,
-            destination: Destination::OwnersHand,
-            entry: EntrySpec::default(),
-            face_down: false,
-            terms: crate::ir::MovementTerms::default(),
-        });
+            Destination::OwnersHand,
+        ));
         let Instruction::Effect { result, .. } = &movement else {
             unreachable!()
         };

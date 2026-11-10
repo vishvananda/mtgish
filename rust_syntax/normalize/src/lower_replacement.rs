@@ -151,18 +151,19 @@ impl Context {
                 }
                 S::ExileTwoCardsFromAmongPlayersGraveyards(c, players) => {
                     let (entry, face_down) = self.exile_entry(&[])?;
-                    CostPart::Move {
-                        destination: Destination::Exile,
-                        selections: vec![CostObjectSelection {
+                    crate::movement::cost_move(
+                        vec![CostObjectSelection {
                             objects: ObjectSet::Matching {
                                 objects: Box::new(self.grave_cards(c)?),
                                 filter: ObjectFilter::OwnedBy(self.players(players)?),
                             },
                             choose: Some(Count::Exactly(Expr::Constant(2))),
                         }],
+                        Destination::Exile,
                         entry,
                         face_down,
-                    }
+                    )
+                    .map_err(|message| invalid(&message))?
                 }
                 _ => {
                     return as_family::<source::Cost>(value, "Cost")
@@ -271,10 +272,14 @@ impl Context {
             }
             _ => {
                 let actor = self.player(&source::Player::You)?;
-                if let Some((name, operands)) = self.primitive("ReplacementActionWouldEnter", value) {
+                if let Some((name, operands)) = self.primitive("ReplacementActionWouldEnter", value)
+                {
                     if let Some(state) = crate::semantics::reduce_entry(&name, &operands) {
                         let step = self.effect(Operation::ModifyEvent {
-                            change: EventChange::Entry(state),
+                            change: EventChange::Entry(
+                                crate::movement::battlefield_state_from_parts(&state)
+                                    .map_err(|message| invalid(&message))?,
+                            ),
                         });
                         if let Instruction::Effect { result, operation } = &step {
                             self.note_yield(operation, result);

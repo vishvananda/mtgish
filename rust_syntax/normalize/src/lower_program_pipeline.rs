@@ -73,7 +73,8 @@ impl Context {
     /// A loop's runs add up, so what its body did reads as a set afterward.
     fn adopt_loop(&mut self, child: &Self) {
         self.did.extend(child.did.clone());
-        self.looped.extend(child.did.values().map(|result| result.0));
+        self.looped
+            .extend(child.did.values().map(|result| result.0));
         for (action, result) in &child.acted {
             self.acted.insert(*action, result.clone());
         }
@@ -245,12 +246,19 @@ impl Context {
                         return Ok(Instruction::Group(body));
                     }
                     let guard = Self::optional_fixed_exile_guard(&body);
-                    let optional = Instruction::Optional { decider: decider.clone(), body };
+                    let optional = Instruction::Optional {
+                        decider: decider.clone(),
+                        body,
+                    };
                     Ok(match guard {
                         Some(condition) => Instruction::If {
                             condition,
-                            then: Program { instructions: vec![optional] },
-                            otherwise: Program { instructions: vec![] },
+                            then: Program {
+                                instructions: vec![optional],
+                            },
+                            otherwise: Program {
+                                instructions: vec![],
+                            },
                         },
                         None => optional,
                     })
@@ -309,21 +317,31 @@ impl Context {
                     match body.instructions.as_slice() {
                         [Instruction::Group(body)] => required_effect(body),
                         [Instruction::Effect { operation, .. }] => match operation.action() {
-                            Operation::Destroy { .. } => Some((operation, RequiredEffectOutcome::Destroyed)),
-                            Operation::Move { destination: Destination::OwnersHand, .. }
-                                => Some((operation, RequiredEffectOutcome::ReturnedToHand)),
+                            Operation::Destroy { .. } => {
+                                Some((operation, RequiredEffectOutcome::Destroyed))
+                            }
+                            Operation::Move {
+                                destination: MovementDestination::OwnersHand(_),
+                                ..
+                            } => Some((operation, RequiredEffectOutcome::ReturnedToHand)),
                             _ => None,
                         },
                         _ => None,
                     }
                 }
-                if let (false, [CostPart::PlayerAction { body, .. }]) = (*optional, cost.parts.as_slice()) {
+                if let (false, [CostPart::PlayerAction { body, .. }]) =
+                    (*optional, cost.parts.as_slice())
+                {
                     if let Some((operation, outcome)) = required_effect(body) {
                         let step = self.effect(operation.clone());
-                        let Instruction::Effect { result, .. } = &step else { unreachable!() };
+                        let Instruction::Effect { result, .. } = &step else {
+                            unreachable!()
+                        };
                         self.payment = Some(result.clone());
                         self.required_effect_outcomes.insert(result.0, outcome);
-                        return Ok(Program { instructions: vec![step] });
+                        return Ok(Program {
+                            instructions: vec![step],
+                        });
                     }
                 }
                 // The amount chosen while paying {X} is X from here on.
@@ -335,8 +353,11 @@ impl Context {
                     |part| matches!(part, CostPart::Primitive { name, .. } if name == "Cost::RevealTopCardOfLibrary"),
                 );
                 if reveals_top {
-                    self.revealed =
-                        Some(self.library_slice(payer.clone(), Expr::Constant(1), SequenceEnd::Top));
+                    self.revealed = Some(self.library_slice(
+                        payer.clone(),
+                        Expr::Constant(1),
+                        SequenceEnd::Top,
+                    ));
                 }
                 // A forced choice among exiled cards has nothing to decline, so
                 // it counts as paid and later steps name what it chose.
@@ -519,31 +540,35 @@ impl Context {
                     B::Escalate(cost) => Some(self.proposal().cost(cost)?),
                     _ => None,
                 };
-                self.modes = Some(crate::mode_policies::LegacyModeSelection {
-                    unchosen,
-                    surcharge,
-                    distinct_targets: matches!(
-                        bounds,
-                        B::DifferentTargets
-                            | B::ExactlyDifferentTargets(_)
-                            | B::MayDifferentTargets(_)
-                    ),
-                    chooser: match bounds {
-                        B::Chooser(players) => Some(self.proposal().players(players)?),
-                        _ => None,
-                    },
-                    random: matches!(bounds, B::Random),
-                    budget: match bounds {
-                        B::Budget(n) => Some(self.proposal().pipeline_quantity(n)?),
-                        _ => None,
-                    },
-                    may_decline: matches!(bounds, B::MayDifferentTargets(_)),
-                    minimum,
-                    maximum,
-                    repeat,
-                    modes,
-                    implied: matches!(bounds, B::Implied | B::Either(_)),
-                }.current().map_err(|e| invalid(&e))?);
+                self.modes = Some(
+                    crate::mode_policies::LegacyModeSelection {
+                        unchosen,
+                        surcharge,
+                        distinct_targets: matches!(
+                            bounds,
+                            B::DifferentTargets
+                                | B::ExactlyDifferentTargets(_)
+                                | B::MayDifferentTargets(_)
+                        ),
+                        chooser: match bounds {
+                            B::Chooser(players) => Some(self.proposal().players(players)?),
+                            _ => None,
+                        },
+                        random: matches!(bounds, B::Random),
+                        budget: match bounds {
+                            B::Budget(n) => Some(self.proposal().pipeline_quantity(n)?),
+                            _ => None,
+                        },
+                        may_decline: matches!(bounds, B::MayDifferentTargets(_)),
+                        minimum,
+                        maximum,
+                        repeat,
+                        modes,
+                        implied: matches!(bounds, B::Implied | B::Either(_)),
+                    }
+                    .current()
+                    .map_err(|e| invalid(&e))?,
+                );
                 return Ok(Program::empty());
             }
         };

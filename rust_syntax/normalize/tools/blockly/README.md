@@ -91,6 +91,24 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- card
 cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- read-card-code /tmp/example.card
 ```
 
+Movement destinations carry the modifiers that belong to their zone.
+`OwnersHand` needs no empty arrival block. `Battlefield {controller: Owner}` can
+add `arrival: {tapped: true}` or permanent entry states. `Exile` can add
+`visibility: FaceDown`, counters or return terms. `Library {position: Top}` can
+add ordering; a placement chooser belongs to `TopOrBottom`. The normal view
+hides empty arrival fields. Conjuring keeps its owner separate from the
+battlefield controller and library position. Move costs and movement legality
+constraints use the same destination types. Old saved IR, named documents,
+workspaces and card code upgrade through the native checked migration.
+
+Coin procedures state whether the player calls the flip. A single `FlipCoin`
+keeps its own receipt; `FlipCoins` has a fixed count and `FlipCoinSeries` names
+its repetition and stopping rule. `CountCoinOutcomes` states the outcome
+(`Heads`, `Tails`, `Won` or `Lost`) and whether it reads a named `Receipt` or the
+current program's `Latest` tally. Faces and winning are distinct observations.
+Native validation checks these contracts; generator capability diagnostics
+remain separate from whether an IR program is valid.
+
 Save workspace preserves the block layout; Export valid IR saves the actual IR.
 Import accepts `.card` files, IR JSON and saved workspaces. Edits are also saved to browser-local storage. Undo
 and redo use complete workspace snapshots so structural edits include their

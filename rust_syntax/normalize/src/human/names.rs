@@ -71,7 +71,7 @@ pub fn category(wire: &str) -> &'static str {
         | "Vote"
         | "FlipCoin"
         | "FlipCoins"
-        | "CoinFlips"
+        | "FlipCoinSeries"
         | "Clash"
         | "ChooseAndPay"
         | "ChooseDefender"
@@ -156,18 +156,51 @@ pub fn action(wire: &str) -> Value {
     json!({"name":action_name(wire),"label":label(action_name(wire)),"category":category,"control":control})
 }
 /// Specific keyword starters use the same topic names as ordinary actions.
-pub fn keyword_action(wire:&str,each:bool)->Value {
-    let category=match wire {
-        "Fight"|"RemoveAllDamage"=>"Damage & life",
-        "Investigate"|"Amass"|"ManifestDread"|"Incubate"|"Populate"=>"Copies & tokens",
-        "Proliferate"|"Monstrosity"|"EmpowerJace"|"Adapt"|"Bolster"|"Endure"|"Blight"|"TimeTravel"|"Intensify"|"GainEnergy"|"GetTickets"=>"Counters & changes",
-        "RollDie"|"RollKeepHighest"|"RollTwoInOrder"|"RollPlanarDie"|"VisitAttractions"|"ChooseDamageNumber"|"ChooseSector"|"ChooseProtection"|"ChooseCopy"|"SetStake"|"DoubleStake"|"RerollStoredDice"|"RollAndStoreD6"=>"Choices & values",
-        "Explore"|"Connive"|"Discover"|"Learn"|"Fateseal"|"CollectEvidence"|"ShuffleGraveyard"|"ShuffleIfSearched"|"ReorderGraveyard"|"DiscardAnyNumberAtRandom"|"RemainingToBottomAtRandom"|"TurnPileFaceUp"=>"Cards & libraries",
-        "Transform"|"Convert"|"Prepare"|"Unprepare"|"PhaseIn"|"PhaseOut"|"TapOrUntap"|"ExchangeControl"|"Airbend"|"Flip"|"Awaken"|"TurnFaceUp"|"TurnFaceDown"|"Unattach"|"UnlockDoor"|"LockOrUnlockDoor"|"SetSchemeInMotion"=>"Objects & movement",
-        "Goad"|"Ungoad"|"Suspect"|"Unsuspect"|"Detain"|"Saddle"|"Harness"|"BecomeBlocked"|"RemoveFromCombat"|"RemoveFromCombatUnblocking"=>"Combat & restrictions",
-        _=>"Game & keyword actions",
+pub fn keyword_action(wire: &str, each: bool) -> Value {
+    let category = match wire {
+        "Fight" | "RemoveAllDamage" => "Damage & life",
+        "Investigate" | "Amass" | "ManifestDread" | "Incubate" | "Populate" => "Copies & tokens",
+        "Proliferate" | "Monstrosity" | "EmpowerJace" | "Adapt" | "Bolster" | "Endure"
+        | "Blight" | "TimeTravel" | "Intensify" | "GainEnergy" | "GetTickets" => {
+            "Counters & changes"
+        }
+        "RollDie" | "RollKeepHighest" | "RollTwoInOrder" | "RollPlanarDie" | "VisitAttractions"
+        | "ChooseDamageNumber" | "ChooseSector" | "ChooseProtection" | "ChooseCopy"
+        | "SetStake" | "DoubleStake" | "RerollStoredDice" | "RollAndStoreD6" => "Choices & values",
+        "Explore"
+        | "Connive"
+        | "Discover"
+        | "Learn"
+        | "Fateseal"
+        | "CollectEvidence"
+        | "ShuffleGraveyard"
+        | "ShuffleIfSearched"
+        | "ReorderGraveyard"
+        | "DiscardAnyNumberAtRandom"
+        | "RemainingToBottomAtRandom"
+        | "TurnPileFaceUp" => "Cards & libraries",
+        "Transform" | "Convert" | "Prepare" | "Unprepare" | "PhaseIn" | "PhaseOut"
+        | "TapOrUntap" | "ExchangeControl" | "Airbend" | "Flip" | "Awaken" | "TurnFaceUp"
+        | "TurnFaceDown" | "Unattach" | "UnlockDoor" | "LockOrUnlockDoor" | "SetSchemeInMotion" => {
+            "Objects & movement"
+        }
+        "Goad"
+        | "Ungoad"
+        | "Suspect"
+        | "Unsuspect"
+        | "Detain"
+        | "Saddle"
+        | "Harness"
+        | "BecomeBlocked"
+        | "RemoveFromCombat"
+        | "RemoveFromCombatUnblocking" => "Combat & restrictions",
+        _ => "Game & keyword actions",
     };
-    let label=if each {format!("{} each object",label(wire))}else{label(wire)};
+    let label = if each {
+        format!("{} each object", label(wire))
+    } else {
+        label(wire)
+    };
     json!({"name":wire,"label":label,"category":category})
 }
 /// Instruction discovery shares the action families without conflating their
@@ -203,10 +236,12 @@ pub fn field(owner: &str, name: &str) -> String {
 /// Read-only compatibility aliases. Writers and editor metadata use the
 /// current semantic roles, so aliases cannot reintroduce the old wire fields.
 pub fn legacy_field<'a>(owner: &str, field: &'a str) -> Option<&'a str> {
-    match (owner,field) {
-        ("Operation::Search","searcher") | ("Operation::ReorderLibrary","chooser") => Some("player"),
-        ("Operation::Search" | "Operation::ReorderLibrary","library_owner") => Some("library"),
-        ("Operation::ChooseValue","choosers") => Some("actor"),
+    match (owner, field) {
+        ("Operation::Search", "searcher") | ("Operation::ReorderLibrary", "chooser") => {
+            Some("player")
+        }
+        ("Operation::Search" | "Operation::ReorderLibrary", "library_owner") => Some("library"),
+        ("Operation::ChooseValue", "choosers") => Some("actor"),
         _ => None,
     }
 }

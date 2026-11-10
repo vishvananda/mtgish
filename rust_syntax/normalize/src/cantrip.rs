@@ -1,5 +1,6 @@
 //! Compile portable semantic data to named Rust callbacks. Capability failures
 //! are separate from AST lowering failures; no source node is interpreted here.
+use crate::movement::legacy::{EntrySpec, EntryState};
 use crate::{corpus, ir::*, validate};
 use std::{
     cell::RefCell,
@@ -21,7 +22,6 @@ mod entry;
 mod faces;
 mod first_printed;
 mod keywords;
-mod selections;
 mod lane_f;
 mod lane_g;
 mod lane_h;
@@ -36,14 +36,15 @@ mod lane_p;
 mod lane_q;
 mod mechanics;
 mod option_words;
-mod target_counts;
 pub mod planned;
 mod players;
 mod playing;
 pub mod pr_cache;
 pub mod pr_form;
-mod read;
 mod quantity;
+mod read;
+mod selections;
+mod target_counts;
 use quantity::Domain as Quantity;
 mod recipes;
 mod replacements;
@@ -130,9 +131,18 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
-            ("cantrip/quantity.rs", include_bytes!("cantrip/quantity.rs").as_slice()),
-            ("cantrip/selections.rs", include_bytes!("cantrip/selections.rs").as_slice()),
-            ("cantrip/recipes.rs", include_bytes!("cantrip/recipes.rs").as_slice()),
+            (
+                "cantrip/quantity.rs",
+                include_bytes!("cantrip/quantity.rs").as_slice(),
+            ),
+            (
+                "cantrip/selections.rs",
+                include_bytes!("cantrip/selections.rs").as_slice(),
+            ),
+            (
+                "cantrip/recipes.rs",
+                include_bytes!("cantrip/recipes.rs").as_slice(),
+            ),
             (
                 "cantrip/lane_h.rs",
                 include_bytes!("cantrip/lane_h.rs").as_slice(),
@@ -186,7 +196,10 @@ fn generator_fingerprint() -> &'static str {
                 include_bytes!("cantrip/triggers.rs").as_slice(),
             ),
             ("semantics.rs", include_bytes!("semantics.rs").as_slice()),
-            ("keyword_actions.rs",include_bytes!("keyword_actions.rs").as_slice()),
+            (
+                "keyword_actions.rs",
+                include_bytes!("keyword_actions.rs").as_slice(),
+            ),
             (
                 "source_values.rs",
                 include_bytes!("source_values.rs").as_slice(),
@@ -267,9 +280,17 @@ fn generator_fingerprint() -> &'static str {
             ),
         ]
         .into_iter()
-        .chain(crate::declarations::fingerprint_sources().map(|(path, text)| (path, text.as_bytes())))
-        .chain(std::iter::once(("validate/bounds.rs", include_bytes!("validate/bounds.rs").as_slice())))
-        .chain(std::iter::once(("cantrip/entry.rs", include_bytes!("cantrip/entry.rs").as_slice())))
+        .chain(
+            crate::declarations::fingerprint_sources().map(|(path, text)| (path, text.as_bytes())),
+        )
+        .chain(std::iter::once((
+            "validate/bounds.rs",
+            include_bytes!("validate/bounds.rs").as_slice(),
+        )))
+        .chain(std::iter::once((
+            "cantrip/entry.rs",
+            include_bytes!("cantrip/entry.rs").as_slice(),
+        )))
         .map(|(name, bytes)| (name, corpus::digest(bytes)))
         .collect();
         corpus::digest(&serde_json::to_vec(&inputs).expect("generator input hashes"))
@@ -567,6 +588,13 @@ impl Number {
 fn type_max(kind: &str) -> Option<i128> {
     quantity::integer_range(kind).map(|(_, max)| max)
 }
+#[derive(Clone, Debug)]
+struct CoinReceipt {
+    protocol: CoinProtocol,
+    positive: String,
+    negative: String,
+}
+
 #[derive(Clone)]
 struct Compiler {
     /// The file's holes for what has no place in its code: see `planned`.
@@ -801,16 +829,17 @@ struct Compiler {
     /// The players a damage instruction dealt damage to.
     hurt_players: BTreeMap<u32, String>,
     /// The flips a coin-flipping instruction won and lost.
-    coins: Option<(String, String)>,
+    coins: Option<(u32, CoinReceipt)>,
     /// The players who each flipped a coin, and how each came up.
-    coin_turns: Option<(String, String)>,
+    coin_turns: Option<(String, String, CoinProtocol)>,
     /// A coin flipped for each object: `(object, flip)`.
-    coin_objects: Option<String>,
+    coin_objects: Option<(String, CoinProtocol)>,
     /// A damage instruction's excess (CR 120.10): the list of what each recipient
     /// took past lethal, its recipients' local, and the one object it aimed at.
     excess: BTreeMap<u32, (String, String, Option<String>)>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
+    coin_receipts: BTreeMap<u32, CoinReceipt>,
     /// The local of the object a change is being applied to, while its value
     /// is read per object.
     affected_object: Option<&'static str>,
@@ -1288,6 +1317,7 @@ impl Compiler {
             excess: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
+            coin_receipts: BTreeMap::new(),
             affected_object: None,
             bestow: None,
             bestow_extra: None,
@@ -1477,7 +1507,10 @@ impl Compiler {
             ObjectKind::Permanent if domain.zones == [EventZone::Battlefield] => {
                 "cantrip_mechanics::targets::permanent(q, id)".into()
             }
-            ObjectKind::Card => format!("{} && !q.state().obj(id).token && !q.state().obj(id).card_copy", zones(&domain.zones)?),
+            ObjectKind::Card => format!(
+                "{} && !q.state().obj(id).token && !q.state().obj(id).card_copy",
+                zones(&domain.zones)?
+            ),
             ObjectKind::Spell if domain.zones == [EventZone::Stack] => zones(&domain.zones)?,
             // "Target spell or permanent": whatever is in those zones.
             ObjectKind::Any => zones(&domain.zones)?,
@@ -1502,23 +1535,45 @@ impl Compiler {
         let mut attacking = false;
         let mut creature = false;
         let shared = terms.iter().all(|f| match f {
-            ObjectFilter::Attacking => { attacking = true; true }
-            ObjectFilter::CardType(t) if name(t) == "Creature" => { creature = true; true }
+            ObjectFilter::Attacking => {
+                attacking = true;
+                true
+            }
+            ObjectFilter::CardType(t) if name(t) == "Creature" => {
+                creature = true;
+                true
+            }
             ObjectFilter::Not(inner) => match inner.as_ref() {
-                ObjectFilter::SameObject(ObjectRef::Source) => { other = true; true }
-                ObjectFilter::SameObject(ObjectRef::EventSubject) if self.frame.subject_is_source => { other = true; true }
+                ObjectFilter::SameObject(ObjectRef::Source) => {
+                    other = true;
+                    true
+                }
+                ObjectFilter::SameObject(ObjectRef::EventSubject)
+                    if self.frame.subject_is_source =>
+                {
+                    other = true;
+                    true
+                }
                 _ => false,
             },
             _ => false,
         });
-        if shared && other && attacking && creature
+        if shared
+            && other
+            && attacking
+            && creature
             && matches!(&spec.kind, TargetKind::Object(d) if d.kind == ObjectKind::Permanent && d.zones == [EventZone::Battlefield])
         {
-            return Ok("(cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE.filter)(q, asker, t)".into());
+            return Ok(
+                "(cantrip_mechanics::targets::ANOTHER_ATTACKING_CREATURE.filter)(q, asker, t)"
+                    .into(),
+            );
         }
         let id = Candidate::of("id");
         Ok(match &selector {
-            crate::targets::TargetSelector::Objects { domain, filter } if lane_i::on_the_stack(domain) => {
+            crate::targets::TargetSelector::Objects { domain, filter }
+                if lane_i::on_the_stack(domain) =>
+            {
                 self.stack_target_test(domain, filter)?
             }
             crate::targets::TargetSelector::Objects { domain, filter } => format!(
@@ -1533,7 +1588,10 @@ impl Compiler {
                 ),
                 None => "matches!(t, Target::Player(_))".into(),
             },
-            crate::targets::TargetSelector::Damageable { objects: filter, players } => {
+            crate::targets::TargetSelector::Damageable {
+                objects: filter,
+                players,
+            } => {
                 let players = match players {
                     Some(players) => self.player_in(players, "p")?,
                     None => "true".into(),
@@ -1595,9 +1653,15 @@ impl Compiler {
                 format!(
                     ".between(0, {})",
                     planned::planned_value(
-                        target_counts::up_to_feature(self.slot_counts, self.activation_cost.is_some(), &read),
+                        target_counts::up_to_feature(
+                            self.slot_counts,
+                            self.activation_cost.is_some(),
+                            &read
+                        ),
                         "1u32",
-                        &format!("TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {read})"),
+                        &format!(
+                            "TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {read})"
+                        ),
                     )
                 )
             }
@@ -1674,7 +1738,10 @@ impl Compiler {
                 let test = self.slot_test(spec, &rule).map_err(|e| e.at(&at));
                 self.choosing = None;
                 let test = test?;
-                let (first, second) = (format!("{label}_target_{i}"), format!("{label}_target_{i}_same_graveyard"));
+                let (first, second) = (
+                    format!("{label}_target_{i}"),
+                    format!("{label}_target_{i}_same_graveyard"),
+                );
                 writeln!(self.functions, "#[allow(unused_variables)] fn {first}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}").unwrap();
                 writeln!(self.functions, "#[allow(unused_variables)] fn {second}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {} }}", faces::same_graveyard_as_first(&test)).unwrap();
                 targets.push(format!("target({first}).optional()"));
@@ -1724,7 +1791,11 @@ impl Compiler {
                     .map_err(|e| e.at(&at))?;
                 self.dividing = Some(planned::planned_value(
                     "target with a divided amount",
-                    if planned::switched_on("divide-reads-context") { "Divide { total: 1, reads: None }" } else { "Divide { total: 1, of_x: None }" },
+                    if planned::switched_on("divide-reads-context") {
+                        "Divide { total: 1, reads: None }"
+                    } else {
+                        "Divide { total: 1, of_x: None }"
+                    },
                     &format!("Divide::of_slot({i}, {total})"),
                 ));
             } else if let Some(total) = &spec.distribute {
@@ -1741,9 +1812,7 @@ impl Compiler {
                 let total = match total {
                     _ if of_x.is_some() => "TargetSpec::COUNTED".to_string(),
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
-                    Expr::AnnouncedX
-                        if i == 0 && self.slot_counts == Default::default() =>
-                    {
+                    Expr::AnnouncedX if i == 0 && self.slot_counts == Default::default() => {
                         "TargetSpec::COUNTED".to_string()
                     }
                     other if i == 0 && self.counts_own_x(other) => {
@@ -1766,8 +1835,7 @@ impl Compiler {
                         "TargetSpec::COUNTED".to_string()
                     }
                     Expr::AnnouncedX => {
-                        return Err(gap("target with a divided amount of an X it can't read")
-                            .at(at))
+                        return Err(gap("target with a divided amount of an X it can't read").at(at))
                     }
                     other if i == 0 => {
                         let total = self
@@ -1783,7 +1851,11 @@ impl Compiler {
                     _ => return Err(gap("target with a divided amount").at(at)),
                 };
                 let of_x = of_x.map_or_else(|| "None".to_string(), |f| format!("Some({f})"));
-                let field = if planned::switched_on("divide-reads-context") { "reads" } else { "of_x" };
+                let field = if planned::switched_on("divide-reads-context") {
+                    "reads"
+                } else {
+                    "of_x"
+                };
                 self.dividing = Some(format!("Divide {{ total: {total}, {field}: {of_x} }}"));
             }
             self.choosing = Some(i);
@@ -1804,14 +1876,18 @@ impl Compiler {
             const ANY: &str = ".between(0, cantrip_api::TargetSpec::ANY_NUMBER)";
             let read = match divided_any {
                 true if self.slot_counts == Default::default() => Some(ANY.to_string()),
-                true => Some(match self.counted_read(&spec.count, &format!("{label}_{i}")) {
-                    Some(count) => count,
-                    None => match self.target_count(&spec.count) {
-                        Ok(count) if !count.contains("planned_value!") => count,
-                        _ => ANY.to_string(),
+                true => Some(
+                    match self.counted_read(&spec.count, &format!("{label}_{i}")) {
+                        Some(count) => count,
+                        None => match self.target_count(&spec.count) {
+                            Ok(count) if !count.contains("planned_value!") => count,
+                            _ => ANY.to_string(),
+                        },
                     },
-                }),
-                false => self.slot_up_to_read(spec, i, label).filter(|_| together.is_empty()),
+                ),
+                false => self
+                    .slot_up_to_read(spec, i, label)
+                    .filter(|_| together.is_empty()),
             };
             let count = match read {
                 Some(count) => Ok(count),
@@ -2255,7 +2331,7 @@ fn ability_text(body: &Program) -> String {
                 Operation::SetTapped { tapped: true, .. } => "Tap the chosen permanents.".into(),
                 Operation::SetTapped { tapped: false, .. } => "Untap the chosen permanents.".into(),
                 Operation::Destroy { .. } => "Destroy the chosen permanents.".into(),
-                Operation::Move { destination, .. } => match destination {
+                Operation::Move { destination, .. } => match destination.address() {
                     Destination::OwnersHand | Destination::Hand(_) => {
                         "Return the chosen permanents to their owners' hands."
                     }
@@ -2314,15 +2390,27 @@ fn oracle_texts(oracle: &Path) -> corpus::Result<BTreeMap<String, String>> {
         .map(|card| {
             let faces = card["cards"].as_array().into_iter().flatten();
             faces
-                .filter_map(|face| Some((face["name"].as_str()?, face["text"].as_str().unwrap_or_default())))
+                .filter_map(|face| {
+                    Some((
+                        face["name"].as_str()?,
+                        face["text"].as_str().unwrap_or_default(),
+                    ))
+                })
                 .collect()
         })
         .collect();
     let mut texts = BTreeMap::new();
-    for faces in cards.iter().filter(|faces| faces.len() > 1).chain(cards.iter().filter(|faces| faces.len() == 1)) {
+    for faces in cards
+        .iter()
+        .filter(|faces| faces.len() > 1)
+        .chain(cards.iter().filter(|faces| faces.len() == 1))
+    {
         for &(name, text) in faces {
             if faces.len() > 1 {
-                texts.insert(face_key(faces.iter().map(|face| face.0), name), text.to_string());
+                texts.insert(
+                    face_key(faces.iter().map(|face| face.0), name),
+                    text.to_string(),
+                );
             }
             texts.insert(name.to_string(), text.to_string());
         }
@@ -2339,9 +2427,15 @@ fn face_key<'a>(faces: impl IntoIterator<Item = &'a str>, face: &str) -> String 
 }
 
 /// The printed text of `face`, one of the card's `faces`, from `oracle_texts`.
-pub(crate) fn printed_face<'a>(oracle: &'a BTreeMap<String, String>, faces: &[&str], face: &str) -> Option<&'a String> {
+pub(crate) fn printed_face<'a>(
+    oracle: &'a BTreeMap<String, String>,
+    faces: &[&str],
+    face: &str,
+) -> Option<&'a String> {
     match faces.len() > 1 {
-        true => oracle.get(&face_key(faces.iter().copied(), face)).or_else(|| oracle.get(face)),
+        true => oracle
+            .get(&face_key(faces.iter().copied(), face))
+            .or_else(|| oracle.get(face)),
         false => oracle.get(face),
     }
 }
@@ -2638,7 +2732,14 @@ fn emit_face(
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
             c.casting_costs.insert(i as u32, cost.clone());
         }
-        if matches!(a, Ability::Casting(CastingRule::AdditionalCost { optional: false, repetition: CostRepetition::Once, .. })) {
+        if matches!(
+            a,
+            Ability::Casting(CastingRule::AdditionalCost {
+                optional: false,
+                repetition: CostRepetition::Once,
+                ..
+            })
+        ) {
             c.printed_additional_costs.insert(i as u32);
         }
     }
@@ -2669,7 +2770,10 @@ fn emit_face(
     });
     for (i, a) in card.abilities.iter().enumerate() {
         // A list of what each player chose is a local of the ability that asked (Null Chamber's names).
-        let earlier: Vec<ValueKind> = std::mem::take(&mut c.chosen_lists).into_iter().map(|(kind, _)| kind).collect();
+        let earlier: Vec<ValueKind> = std::mem::take(&mut c.chosen_lists)
+            .into_iter()
+            .map(|(kind, _)| kind)
+            .collect();
         c.earlier_chosen_lists.extend(earlier);
         c.on_ability(i);
         let failure = c.attempt(format!("abilities[{i}]"), |c| {
@@ -2894,8 +2998,12 @@ fn emit_face(
             .unwrap(),
         }
     }
-    let lasting_about = std::mem::take(&mut c.made_lasting_about).into_iter().map(|made| ("lasting_about", made));
-    let lasting_until = std::mem::take(&mut c.made_lasting_until).into_iter().map(|made| ("lasting_until", made));
+    let lasting_about = std::mem::take(&mut c.made_lasting_about)
+        .into_iter()
+        .map(|made| ("lasting_about", made));
+    let lasting_until = std::mem::take(&mut c.made_lasting_until)
+        .into_iter()
+        .map(|made| ("lasting_until", made));
     for (table, (feature, made)) in lasting_about.chain(lasting_until).collect::<Vec<_>>() {
         match planned::landed(&feature) {
             true => parts.table(table, made),
@@ -2912,8 +3020,14 @@ fn emit_face(
     // a static can't be.
     let lasting_rules = std::mem::take(&mut c.made_lasting_rules);
     if let Some((feature, _, _)) = lasting_rules.first() {
-        let entries: Vec<&str> = lasting_rules.iter().map(|(_, rule, _)| rule.as_str()).collect();
-        let table = format!("static LASTING_RULES: &[LastingRule] = &[{}];", entries.join(","));
+        let entries: Vec<&str> = lasting_rules
+            .iter()
+            .map(|(_, rule, _)| rule.as_str())
+            .collect();
+        let table = format!(
+            "static LASTING_RULES: &[LastingRule] = &[{}];",
+            entries.join(",")
+        );
         match lasting_rules.iter().find(|(_, _, beyond)| *beyond) {
             Some((beyond, _, _)) => writeln!(
                 c.functions,
@@ -2922,7 +3036,12 @@ fn emit_face(
             )
             .unwrap(),
             None => {
-                writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
+                writeln!(
+                    c.functions,
+                    "{}",
+                    planned::switched_item(planned::LASTING_RULES, feature, &table)
+                )
+                .unwrap();
                 if planned::switched_on(planned::LASTING_RULES) {
                     parts.field("lasting_rules", "LASTING_RULES".to_string());
                 }
@@ -2953,7 +3072,11 @@ fn emit_face(
     // with in loyalty counters, and with none put onto the battlefield uncast (CR
     // 306.5b, 107.3m), as an artifact enters with X charge counters (Chalice of the Void).
     let loyalty_x = matches!(ch.loyalty, Some(Expr::AnnouncedX))
-        && ch.mana_cost.iter().flatten().any(|s| matches!(s, ManaSymbol::X));
+        && ch
+            .mana_cost
+            .iter()
+            .flatten()
+            .any(|s| matches!(s, ManaSymbol::X));
     if loyalty_x {
         writeln!(c.functions, "fn enters_with_x_loyalty(_: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ entering.counters[CounterKind::Loyalty as usize] += entering.x as i16; Ok(()) }}").unwrap();
         parts.enters.push("enters_with_x_loyalty".into());

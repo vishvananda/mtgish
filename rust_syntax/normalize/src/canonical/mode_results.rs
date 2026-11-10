@@ -1,7 +1,7 @@
 //! Synthetic IR only: mode-local labels are not definition identities.
 use crate::{
     canonical,
-    ir::{Ability, Destination, EntrySpec, MovementTerms, ObjectRef, ObjectSet, Operation},
+    ir::{Ability, Destination, ObjectRef, ObjectSet, Operation},
     validate,
 };
 use serde_json::{json, Value};
@@ -126,10 +126,8 @@ fn immediate_optional_receipt_exports_survive_mode_scope() {
     let body = |id| {
         let movement = serde_json::to_value(Operation::Move {
             objects: ObjectSet::One(ObjectRef::Source),
-            destination: Destination::Exile,
-            entry: EntrySpec::default(),
-            face_down: false,
-            terms: MovementTerms::default(),
+            destination: (Destination::Exile).into(),
+            qualifiers: vec![],
         })
         .unwrap();
         vec![
@@ -215,7 +213,8 @@ fn independent_mode_target_slots_are_alpha_equivalent() {
 #[test]
 fn mode_target_definitions_cannot_supply_sibling_reads_or_hide_duplicates() {
     let mut leaking = targeted_modal([7, 7]);
-    leaking[0]["args"]["announcement"]["modes"]["options"][1]["announcement"]["targets"] = json!([]);
+    leaking[0]["args"]["announcement"]["modes"]["options"][1]["announcement"]["targets"] =
+        json!([]);
     assert!(valid(&leaking).is_err());
     canonical::abilities(&mut leaking).unwrap();
     assert!(valid(&leaking).is_err());

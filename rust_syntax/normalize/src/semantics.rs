@@ -1,7 +1,8 @@
 //! Rules-derived properties of complete typed programs. Keep these separate
 //! from Cantrip capabilities and avoid a serialized flag that can become stale.
-use crate::keyword_actions::KeywordKind;
 use crate::ir::*;
+use crate::keyword_actions::KeywordKind;
+use crate::movement::legacy::EntryState;
 use serde::Serialize;
 
 /// Structural equality of typed references, without imposing Eq on the entire
@@ -205,7 +206,9 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
         Operation::Sacrifice {
             objects, choose, ..
         } => choose.as_ref().map_or_else(|| chosen(objects), one),
-        Operation::SetTapped { objects, .. } | Operation::Destroy { objects, .. } => chosen(objects),
+        Operation::SetTapped { objects, .. } | Operation::Destroy { objects, .. } => {
+            chosen(objects)
+        }
         Operation::Discard {
             players: PlayerSet::One(_),
             amount: Expr::Constant(1),
@@ -272,7 +275,7 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
     let name = match operation {
         Operation::Primitive { name, .. } => name.as_str(),
         Operation::ModifyEvent {
-            change: EventChange::Entry(EntryState::CopyOf { .. }),
+            change: EventChange::Entry(BattlefieldState::CopyOf { .. }),
         } => "ReplacementActionWouldEnter::EnterAsACopyOfACardInAPlayersGraveyard",
         Operation::Reveal {
             objects: ObjectSet::One(_) | ObjectSet::LibraryTops(_) | ObjectSet::Take { .. },
@@ -293,11 +296,11 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             KEYWORD_ACTIONS.iter().find(|(_, row)| *row == crate::keyword_actions::parts(action).kind)?.0
         }
         Operation::Conjure {
-            zone: EventZone::Hand,
+            destination: ConjureDestination::Hand(_),
             ..
         } => "Action::ConjureCardIntoHand",
         Operation::Conjure {
-            zone: EventZone::Battlefield,
+            destination: ConjureDestination::Battlefield(_),
             ..
         } => "Action::ConjureCardOntoBattlefield",
         Operation::KeywordEach {
@@ -358,7 +361,9 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
 }
 
 /// Action rows that are one keyword action. Each keeps its reviewed `yields`.
-pub(crate) fn requires_typed_keyword(name:&str)->bool {KEYWORD_ACTIONS.iter().any(|(row,_)|*row==name)}
+pub(crate) fn requires_typed_keyword(name: &str) -> bool {
+    KEYWORD_ACTIONS.iter().any(|(row, _)| *row == name)
+}
 const KEYWORD_ACTIONS: &[(&str, KeywordKind)] = &[
     ("Action::ChooseADamageNumber", KeywordKind::ChooseDamageNumber),
     ("Action::ChooseASector", KeywordKind::ChooseSector),
@@ -893,7 +898,9 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         [Operand::Object(object), Operand::Number(amount)] => {
             (Some(object.clone()), None, Some(amount.clone()), None)
         }
-        [Operand::Number(amount), Operand::Vocabulary { family, form }] if family=="CreatureType" => {
+        [Operand::Number(amount), Operand::Vocabulary { family, form }]
+            if family == "CreatureType" =>
+        {
             (None, None, Some(amount.clone()), Some(form.clone()))
         }
         [Operand::Number(amount), Operand::Object(object)] => {
@@ -908,7 +915,9 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         }
     };
     match action {
-        Some(action) => crate::keyword_actions::operation(&actor,action,object,other,amount,subtype),
+        Some(action) => {
+            crate::keyword_actions::operation(&actor, action, object, other, amount, subtype)
+        }
         None => Operation::Primitive {
             actor,
             name,
@@ -997,9 +1006,10 @@ fn reduce_manifest(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Optio
     };
     Some(Operation::Manifest {
         actor: actor.clone(),
-        source,
-        cloak,
-        entry: crate::movement::entry_from_source(&[]),
+        source: source,
+        cloak: cloak,
+        entry: crate::movement::battlefield_from_parts(&(crate::movement::entry_from_source(&[])))
+            .ok()?,
     })
 }
 
@@ -1199,8 +1209,9 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         }
         ("Action::FlipCoins", [Number(count)]) => {
             return Some(Operation::FlipCoins {
-                actor: actor.clone(),
+                players: actor.clone(),
                 count: count.clone(),
+                protocol: CoinProtocol::Called,
             })
         }
         ("Action::RevealCardFromOutsideGameAndPutInHand", [Operand::Filter(filter)]) => {
@@ -1250,7 +1261,9 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         spellbook: spellbook.clone(),
         times,
     };
-    let each = |action,objects:&ObjectSet,until:Option<&crate::ir::Duration>| crate::keyword_actions::each_operation(actor,action,objects.clone(),until.cloned());
+    let each = |action, objects: &ObjectSet, until: Option<&crate::ir::Duration>| {
+        crate::keyword_actions::each_operation(actor, action, objects.clone(), until.cloned())
+    };
     let pay = |resource| Operation::PayAnyAmount {
         actor: actor.clone(),
         resource,
@@ -1295,9 +1308,7 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
             &ObjectSet::One(object.clone()),
             Some(until),
         ),
-        ("PhaseOutEachPermanent", [Objects(objects)]) => {
-            each(KeywordKind::PhaseOut, objects, None)
-        }
+        ("PhaseOutEachPermanent", [Objects(objects)]) => each(KeywordKind::PhaseOut, objects, None),
         ("PhaseOutEachPermanentUntil", [Objects(objects), Duration(until)]) => {
             each(KeywordKind::PhaseOut, objects, Some(until))
         }
@@ -1323,22 +1334,24 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
             double(o.clone(), true, true)
         }
         ("PutTopCardOfLibraryOfTypeOnBattlefield", [Operand::Filter(cards), flags @ ..]) => {
-            Operation::MoveTopCard {
-                actor: actor.clone(),
-                cards: cards.clone(),
-                reveal: false,
-                destination: Destination::OwnersBattlefield,
-                entry: crate::movement::entry_from_source(flags),
-            }
+            crate::movement::move_top_card(
+                actor.clone(),
+                cards.clone(),
+                false,
+                Destination::OwnersBattlefield,
+                crate::movement::entry_from_source(flags),
+            )
+            .ok()?
         }
         ("RevealTopCardOfLibraryAndPutIntoHand", [Operand::Filter(cards)]) => {
-            Operation::MoveTopCard {
-                actor: actor.clone(),
-                cards: cards.clone(),
-                reveal: true,
-                destination: Destination::OwnersHand,
-                entry: crate::movement::entry_from_source(&[]),
-            }
+            crate::movement::move_top_card(
+                actor.clone(),
+                cards.clone(),
+                true,
+                Destination::OwnersHand,
+                crate::movement::entry_from_source(&[]),
+            )
+            .ok()?
         }
         ("PayAnyAmountOfMana", []) => pay(PaidResource::Mana),
         ("PayAnyAmountOfEnergy", []) => pay(PaidResource::Energy),
@@ -1545,15 +1558,18 @@ fn reduce_conjure(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option
             }
             _ => return reduce_more_conjure(actor, form, operands),
         };
-    Some(Operation::Conjure {
-        actor: actor.clone(),
-        card,
-        count,
-        zone,
-        owner: owner.cloned(),
-        spot,
-        entry: crate::movement::entry_from_source(entry),
-    })
+    Some(
+        crate::movement::conjure_to(
+            actor.clone(),
+            card,
+            count,
+            zone,
+            owner.cloned(),
+            spot,
+            crate::movement::entry_from_source(entry),
+        )
+        .ok()?,
+    )
 }
 
 /// Copying and retargeting a spell or ability, as Forge has one of each.
@@ -1561,15 +1577,16 @@ fn reduce_stack_copy(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Opt
     use NewTargets as T;
     use Operand::{List, Number, Object, Objects, Players};
     let one = || Expr::Constant(1);
-    let copy =
-        |object: &ObjectRef, times: Expr, targets, effects: &[Operand]| Some(Operation::CopyOnStack {
+    let copy = |object: &ObjectRef, times: Expr, targets, effects: &[Operand]| {
+        Some(Operation::CopyOnStack {
             actor: actor.clone(),
             object: object.clone(),
             times,
             targets,
             exceptions: crate::copying::from_source(effects).ok()?,
             card: None,
-        });
+        })
+    };
     let retarget = |object: &ObjectRef, targets| Operation::Retarget {
         actor: actor.clone(),
         object: object.clone(),
@@ -2399,7 +2416,10 @@ fn reduce_single_change(name: String, operands: Vec<Operand>) -> Change {
         ("LayerEffect::SetLandType", [land]) => Change::SetLandType(Box::new(land.clone())),
         ("LayerEffect::SetName", [Operand::Text(name)]) => Change::SetName(name.clone()),
         ("LayerEffect::IsACopyOfExiledCard", [Operand::Object(object), effects]) => {
-            copy_of(object.clone(), effects).unwrap_or_else(|| Change::Primitive { name:name.clone(),operands:operands.clone() })
+            copy_of(object.clone(), effects).unwrap_or_else(|| Change::Primitive {
+                name: name.clone(),
+                operands: operands.clone(),
+            })
         }
         ("SpellEffect::Convoke", []) => Change::GrantAbility(Box::new(Ability::Mechanic {
             mechanic: Mechanic::Convoke,
@@ -2411,9 +2431,23 @@ fn reduce_single_change(name: String, operands: Vec<Operand>) -> Change {
         (
             "LayerEffect::IsACopyOfLibraryCard",
             [Operand::Objects(ObjectSet::Selected(result)), effects],
-        ) => copy_of(ObjectRef::Result { result:result.clone(),phase:ObjectPhase::After,index:0 },effects).unwrap_or_else(||Change::Primitive{name:name.clone(),operands:operands.clone()}),
+        ) => copy_of(
+            ObjectRef::Result {
+                result: result.clone(),
+                phase: ObjectPhase::After,
+                index: 0,
+            },
+            effects,
+        )
+        .unwrap_or_else(|| Change::Primitive {
+            name: name.clone(),
+            operands: operands.clone(),
+        }),
         ("LayerEffect::IsACopyOfGraveyardCard", [Operand::Object(object), effects]) => {
-            copy_of(object.clone(), effects).unwrap_or_else(|| Change::Primitive { name:name.clone(),operands:operands.clone() })
+            copy_of(object.clone(), effects).unwrap_or_else(|| Change::Primitive {
+                name: name.clone(),
+                operands: operands.clone(),
+            })
         }
         (
             "StaticLayerEffect::AddAbilityFromCardsInGraveyardsHasable",
@@ -2451,7 +2485,12 @@ fn reduce_single_change(name: String, operands: Vec<Operand>) -> Change {
         ("LayerEffect::AddEnchantmentType", [kind]) => {
             Change::AddEnchantmentType(Box::new(kind.clone()))
         }
-        ("LayerEffect::IsACopyOfPermanent", [Operand::Object(object), effects]) => copy_of(object.clone(),effects).unwrap_or_else(||Change::Primitive{name:name.clone(),operands:operands.clone()}),
+        ("LayerEffect::IsACopyOfPermanent", [Operand::Object(object), effects]) => {
+            copy_of(object.clone(), effects).unwrap_or_else(|| Change::Primitive {
+                name: name.clone(),
+                operands: operands.clone(),
+            })
+        }
         _ => {
             let layer = name
                 .split_once("::")
@@ -5901,8 +5940,13 @@ impl Effects {
                         objects,
                         destination,
                         ..
+                    } => {
+                        let before = self.objects_library(objects);
+                        let after = Self::destination_library(&destination.address());
+                        self.library |= before || after;
+                        self.objects.insert(result.0, (before, after));
                     }
-                    | Operation::DraftChangeZone {
+                    Operation::DraftChangeZone {
                         cards: objects,
                         destination,
                         ..
@@ -5988,7 +6032,7 @@ impl Effects {
                     | Operation::TurnFaceDownAs { .. }
                     | Operation::Exchange { .. }
                     | Operation::RevealChoices { .. }
-                    | Operation::CoinFlips { .. }
+                    | Operation::FlipCoinSeries { .. }
                     | Operation::AttachEach { .. }
                     | Operation::CopyEach { .. }
                     | Operation::RetargetEach { .. }
@@ -6196,7 +6240,7 @@ impl Effects {
                     destination,
                     ..
                 } => {
-                    self.library |= Self::destination_library(destination)
+                    self.library |= Self::destination_library(&destination.address())
                         || selections.iter().any(|s| self.objects_library(&s.objects));
                 }
                 CostPart::Choice(options) => {

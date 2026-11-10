@@ -9,6 +9,7 @@ fn effect(id: u32, operation: Operation) -> Instruction {
 fn scalar() -> Operation {
     Operation::FlipCoin {
         player: PlayerRef::AbilityController,
+        protocol: CoinProtocol::Called,
     }
 }
 fn check(id: u32, outcome: CoinOutcome) -> Instruction {
@@ -26,7 +27,10 @@ fn count(id: u32) -> Instruction {
         99,
         Operation::Draw {
             players: PlayerSet::One(PlayerRef::AbilityController),
-            amount: Expr::HeadsFlipped(ResultId(id)),
+            amount: Expr::CountCoinOutcomes {
+                source: CoinCountSource::Receipt(ResultId(id)),
+                outcome: CoinOutcome::Heads,
+            },
         },
     )
 }
@@ -101,16 +105,14 @@ fn a_scalar_flip_has_faces_and_win_loss_observations_without_backend_restriction
 fn even_a_counted_single_coin_remains_a_batch_receipt() {
     for operation in [
         Operation::FlipCoins {
-            actor: PlayerSet::One(PlayerRef::AbilityController),
+            players: PlayerSet::One(PlayerRef::AbilityController),
             count: Expr::Constant(1),
+            protocol: CoinProtocol::Called,
         },
-        Operation::CoinFlips {
-            actor: PlayerSet::One(PlayerRef::AbilityController),
-            times: Some(Expr::Constant(1)),
-            each: None,
-            until_lost: false,
-            may_stop: false,
-            called: true,
+        Operation::FlipCoinSeries {
+            players: PlayerSet::One(PlayerRef::AbilityController),
+            repetition: CoinRepetition::Count(Expr::Constant(1)),
+            protocol: CoinProtocol::Called,
         },
     ] {
         validate(&card(vec![effect(7, operation.clone()), count(7)])).unwrap();
@@ -141,6 +143,7 @@ fn loops_gather_coins_without_exposing_an_arbitrary_scalar() {
                     7,
                     Operation::FlipCoin {
                         player: PlayerRef::Bound(LoopBinding(0)),
+                        protocol: CoinProtocol::Uncalled,
                     },
                 ),
                 check(7, CoinOutcome::Heads),

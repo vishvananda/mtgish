@@ -137,7 +137,11 @@ fn an_exiled_card_goes_on_the_stack_as_its_spell() {
 fn a_restart_keeps_the_exiled_cards_for_the_new_game() {
     says(
         "Karn Liberated",
-        &["RestartGame { keep: Zone", "then: Move", "destination: Battlefield(AbilityController)"],
+        &[
+            "RestartGame { keep: Zone",
+            "then: Move",
+            "destination: Battlefield { controller: Player(AbilityController)",
+        ],
     );
 }
 
@@ -186,7 +190,7 @@ fn costs_spelled_as_one_form_become_their_parts() {
         "Manabond",
         &[
             "Reveal { count: Exactly(CountObjects",
-            "destination: OwnersBattlefield",
+            "destination: Battlefield { controller: Owner",
         ],
     );
 }

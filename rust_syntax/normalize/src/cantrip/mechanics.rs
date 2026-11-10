@@ -30,7 +30,7 @@ fn escape_cost(cost: Option<&Cost>) -> Result<(String, i64)> {
     let unlike = || gap("Escape cost other than exiling other graveyard cards");
     let [CostPart::Mana(symbols), CostPart::Move {
         selections,
-        destination: Destination::Exile,
+        destination: MovementDestination::Exile { .. },
         ..
     }] = cost.map_or(&[][..], |c| &c.parts)
     else {
@@ -179,7 +179,8 @@ impl Compiler {
             _ => None,
         };
         // "Freerunning—Return a blue creature you control to its owner's hand."
-        let freerunning_cost = matches!(mechanic, K::Freerunning) && mana_alone(cost, mechanic).is_err();
+        let freerunning_cost =
+            matches!(mechanic, K::Freerunning) && mana_alone(cost, mechanic).is_err();
         // "Warp—{B}, Pay 2 life" (Timeline Culler): warp::way_with_cost.
         let warp_cost = matches!(mechanic, K::Warp) && mana_alone(cost, mechanic).is_err();
         if warp_cost {
@@ -578,7 +579,8 @@ impl Compiler {
                     return Err(gap("Reconfigure cost other than mana"));
                 }
                 parts.field("reconfigure", "true".into());
-                let (unattach, attached) = (format!("{label}_unattach"), format!("{label}_attached"));
+                let (unattach, attached) =
+                    (format!("{label}_unattach"), format!("{label}_attached"));
                 writeln!(self.functions, "fn {unattach}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ g.unattach(item.object); Ok(()) }}").unwrap();
                 writeln!(self.functions, "fn {attached}(q: &dyn Query, asker: &Asker) -> bool {{ q.obj(asker.source).attached_to.is_some() }}").unwrap();
                 for (i, (option, printed)) in options.iter().zip(&prices).enumerate() {
@@ -594,7 +596,10 @@ impl Compiler {
                     );
                     ability(
                         parts,
-                        format!("ability({code}, {unattach}, {}).sorcery_speed().condition({attached})", quoted(&unattach_text)),
+                        format!(
+                            "ability({code}, {unattach}, {}).sorcery_speed().condition({attached})",
+                            quoted(&unattach_text)
+                        ),
                     );
                 }
                 parts
@@ -641,10 +646,14 @@ impl Compiler {
                 // "Bestow—{R}, Collect evidence 6" (Detective's Phoenix): the mana is
                 // the bestow cost, the rest an additional cost of casting it bestowed.
                 let parts = cost.map(|c| c.parts.as_slice()).unwrap_or_default();
-                let (mana_parts, rest): (Vec<CostPart>, Vec<CostPart>) =
-                    parts.iter().cloned().partition(|part| matches!(part, CostPart::Mana(_)));
+                let (mana_parts, rest): (Vec<CostPart>, Vec<CostPart>) = parts
+                    .iter()
+                    .cloned()
+                    .partition(|part| matches!(part, CostPart::Mana(_)));
                 let mana_cost = match mana_parts.as_slice() {
-                    [mana_part] => Cost { parts: vec![mana_part.clone()] },
+                    [mana_part] => Cost {
+                        parts: vec![mana_part.clone()],
+                    },
                     _ => return Err(gap(format!("{mechanic:?} cost other than mana"))),
                 };
                 let mana_code = mana_alone(Some(&mana_cost), mechanic)?;

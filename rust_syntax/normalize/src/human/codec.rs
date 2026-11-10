@@ -276,6 +276,19 @@ impl Writer<'_> {
                         } else {
                             names::reference_name(n, variant).unwrap_or(variant)
                         };
+                        // Empty arrival payloads add no authoring information. The
+                        // reader accepts the bare destination with its typed default.
+                        if let Fields::Tuple(ts) = fields {
+                            if let [Ty::Named(arrival)] = ts.as_slice() {
+                                if matches!(
+                                    arrival.as_str(),
+                                    "CardArrival" | "BattlefieldArrival" | "ExileArrival"
+                                ) && defaults::type_value(arrival).as_ref() == Some(args)
+                                {
+                                    return Ok(Node::Name(display.into()));
+                                }
+                            }
+                        }
                         self.fields(Some(display), &format!("{n}::{variant}"), fields, args)
                     }
                 };
@@ -940,7 +953,15 @@ impl Reader {
                         return Err("only an action can bind a result".into());
                     }
                 }
-                let Some(d) = schema().types.get(name) else {
+                if name == "MovementDestination" && super::movement::old_address(n) {
+                    let old = self.node(&named("Destination"), n)?;
+                    return super::movement::address(old);
+                }
+                let Some(d) = schema()
+                    .types
+                    .get(name)
+                    .or_else(|| super::movement::legacy_type(name))
+                else {
                     return raw_value(n);
                 };
                 match d {
@@ -957,8 +978,15 @@ impl Reader {
                             .iter()
                             .find(|(v, _)| v == variant)
                             .ok_or_else(|| format!("unknown {name} constructor {raw}"))?;
-                        let args =
-                            self.fields(&format!("{name}::{variant}"), Some(raw), fields, n)?;
+                        let owner = format!("{name}::{variant}");
+                        if let Some(old) = super::movement::legacy_fields(name, variant, n) {
+                            let args = self.fields(&owner, Some(raw), old, n)?;
+                            return super::movement::upgrade(
+                                &owner,
+                                pack(*adjacent, variant, old, args),
+                            );
+                        }
+                        let args = self.fields(&owner, Some(raw), fields, n)?;
                         Ok(pack(*adjacent, variant, fields, args))
                     }
                 }
@@ -993,6 +1021,18 @@ impl Reader {
                 _ => Err("unit constructor takes no operands".into()),
             },
             Fields::Tuple(ts) => {
+                if ts.len() == 1 && matches!(n, Node::Name(_) | Node::Scalar(Value::String(_))) {
+                    if let Ty::Named(ty) = &ts[0] {
+                        if matches!(
+                            ty.as_str(),
+                            "CardArrival" | "BattlefieldArrival" | "ExileArrival"
+                        ) {
+                            if let Some(value) = defaults::type_value(ty) {
+                                return Ok(value);
+                            }
+                        }
+                    }
+                }
                 let ns = match n {
                     Node::Call(_, ns) | Node::List(ns) => ns,
                     _ => return Err(format!("{owner} needs tuple operands")),
@@ -1072,7 +1112,11 @@ impl Reader {
                     let alias = names::field(owner, key);
                     let candidates: Vec<_> = values
                         .iter()
-                        .filter(|(k, _)| k == key || k == &alias || names::legacy_field(owner,key)==Some(k.as_str()))
+                        .filter(|(k, _)| {
+                            k == key
+                                || k == &alias
+                                || names::legacy_field(owner, key) == Some(k.as_str())
+                        })
                         .collect();
                     if candidates.len() > 1 {
                         return Err(format!("duplicate aliases for {owner}.{key}"));
@@ -1106,7 +1150,11 @@ impl Reader {
                             && key == "results"
                         {
                             self.join_receipts(n)
-                        } else if owner == "EntryState::ExiledForWith" && key == "body" {
+                        } else if matches!(
+                            owner,
+                            "EntryState::ExiledForWith" | "ExileState::ExiledForWith"
+                        ) && key == "body"
+                        {
                             self.scoped_node(t, n, true)
                         } else if owner == "Instruction::Effect" && key == "operation" {
                             self.operation_input(n)

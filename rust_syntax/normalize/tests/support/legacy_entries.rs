@@ -1,6 +1,6 @@
 //! Explicit entry/copy/characteristic upgrades for immutable historical captures.
 #![allow(dead_code)]
-use mtgish_ast::{copying, ir::*, movement,keyword_actions,mode_policies};
+use mtgish_ast::{copying, ir::*, keyword_actions, mode_policies, movement};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -24,23 +24,116 @@ impl OldShape {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct OldKeyword {
-    actor:PlayerSet, action:keyword_actions::KeywordKind,
-    object:Option<ObjectRef>, other:Option<ObjectRef>, amount:Option<Expr>, subtype:Option<String>,
+    actor: PlayerSet,
+    action: keyword_actions::KeywordKind,
+    object: Option<ObjectRef>,
+    other: Option<ObjectRef>,
+    amount: Option<Expr>,
+    subtype: Option<String>,
 }
 #[derive(Serialize)]
-struct KeywordArgs { actor:PlayerSet,action:KeywordAction }
+struct KeywordArgs {
+    actor: PlayerSet,
+    action: KeywordAction,
+}
 impl OldKeyword {
-    fn current(self)->KeywordArgs {KeywordArgs {actor:self.actor,action:keyword_actions::from_parts(self.action,self.object,self.other,self.amount,self.subtype).unwrap()}}
+    fn current(self) -> KeywordArgs {
+        KeywordArgs {
+            actor: self.actor,
+            action: keyword_actions::from_parts(
+                self.action,
+                self.object,
+                self.other,
+                self.amount,
+                self.subtype,
+            )
+            .unwrap(),
+        }
+    }
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct OldEach { actor:PlayerSet, action:keyword_actions::KeywordKind, objects:ObjectSet,until:Option<Duration> }
+struct OldEach {
+    actor: PlayerSet,
+    action: keyword_actions::KeywordKind,
+    objects: ObjectSet,
+    until: Option<Duration>,
+}
 #[derive(Serialize)]
-struct EachArgs {actor:PlayerSet,action:ObjectKeywordAction,objects:ObjectSet}
+struct EachArgs {
+    actor: PlayerSet,
+    action: ObjectKeywordAction,
+    objects: ObjectSet,
+}
 impl OldEach {
-    fn current(self)->EachArgs {EachArgs {actor:self.actor,action:keyword_actions::each_from_parts(self.action,self.until).unwrap(),objects:self.objects}}
+    fn current(self) -> EachArgs {
+        EachArgs {
+            actor: self.actor,
+            action: keyword_actions::each_from_parts(self.action, self.until).unwrap(),
+            objects: self.objects,
+        }
+    }
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OldMove {
+    objects: ObjectSet,
+    destination: Destination,
+    entry: movement::legacy::EntrySpec,
+    face_down: bool,
+    #[serde(default)]
+    terms: MovementTerms,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OldTopCard {
+    actor: PlayerSet,
+    cards: ObjectFilter,
+    reveal: bool,
+    destination: Destination,
+    entry: movement::legacy::EntrySpec,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OldCounter {
+    object: ObjectRef,
+    when: Option<ObjectFilter>,
+    destination: Destination,
+    entry: movement::legacy::EntrySpec,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OldConjure {
+    actor: PlayerSet,
+    card: ConjuredCard,
+    count: Expr,
+    zone: EventZone,
+    owner: Option<PlayerRef>,
+    spot: Option<ConjureSpot>,
+    entry: movement::legacy::EntrySpec,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "kind", content = "args")]
+enum OldMovement {
+    Move(OldMove),
+    MoveTopCard(OldTopCard),
+    CounterWith(OldCounter),
+    Conjure(OldConjure),
+}
+impl OldMovement {
+    fn current(self) -> Operation {
+        let owner = match &self {
+            Self::Move(_) => "Operation::Move",
+            Self::MoveTopCard(_) => "Operation::MoveTopCard",
+            Self::CounterWith(_) => "Operation::CounterWith",
+            Self::Conjure(_) => "Operation::Conjure",
+        };
+        let mut value = serde_json::to_value(self).unwrap();
+        movement::legacy::upgrade_fields(owner, &mut value).unwrap();
+        serde_json::from_value(value).unwrap()
+    }
+}
 const OPERATIONS: &[&str] = &[
     "Conjure",
     "MoveTopCard",
@@ -74,8 +167,9 @@ pub fn json(value: &mut Value) {
     }
     api_names(value);
     if value.get("minimum").is_some() && value.get("modes").is_some() {
-        let old:mode_policies::LegacyModeSelection=serde_json::from_value(value.clone()).unwrap();
-        *value=serde_json::to_value(old.current().unwrap()).unwrap();
+        let old: mode_policies::LegacyModeSelection =
+            serde_json::from_value(value.clone()).unwrap();
+        *value = serde_json::to_value(old.current().unwrap()).unwrap();
     }
     if value
         .get("kind")
@@ -90,13 +184,13 @@ pub fn json(value: &mut Value) {
         }
     }
     let kind = value.get("kind").and_then(Value::as_str).map(str::to_owned);
-    if kind.as_deref()==Some("Keyword") && value["args"].get("object").is_some() {
-        let args:OldKeyword=serde_json::from_value(value["args"].clone()).unwrap();
-        value["args"]=serde_json::to_value(args.current()).unwrap();
+    if kind.as_deref() == Some("Keyword") && value["args"].get("object").is_some() {
+        let args: OldKeyword = serde_json::from_value(value["args"].clone()).unwrap();
+        value["args"] = serde_json::to_value(args.current()).unwrap();
     }
-    if kind.as_deref()==Some("KeywordEach") && value["args"].get("until").is_some() {
-        let args:OldEach=serde_json::from_value(value["args"].clone()).unwrap();
-        value["args"]=serde_json::to_value(args.current()).unwrap();
+    if kind.as_deref() == Some("KeywordEach") && value["args"].get("until").is_some() {
+        let args: OldEach = serde_json::from_value(value["args"].clone()).unwrap();
+        value["args"] = serde_json::to_value(args.current()).unwrap();
     }
 
     if matches!(kind.as_deref(), Some("CopyOnStack" | "CopyOf")) {
@@ -132,10 +226,76 @@ pub fn json(value: &mut Value) {
             fields.entry("controller").or_insert(json!(null));
         }
     }
+    if let Some(kind) = value
+        .get("kind")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+    {
+        if matches!(
+            kind.as_str(),
+            "Move" | "MoveTopCard" | "CounterWith" | "Conjure"
+        ) && value["args"].get("entry").is_some()
+        {
+            if kind == "Move" {
+                value["args"]
+                    .as_object_mut()
+                    .unwrap()
+                    .entry("terms")
+                    .or_insert_with(|| serde_json::to_value(MovementTerms::default()).unwrap());
+            }
+            movement::legacy::upgrade_fields(&format!("Operation::{kind}"), value).unwrap();
+        }
+    }
+    for variant in ["Move", "CanMoveTo"] {
+        if value.get(variant).and_then(|v| v.get("entry")).is_some() {
+            movement::legacy::upgrade_fields(
+                if variant == "Move" {
+                    "CostPart::Move"
+                } else {
+                    "SelectionConstraint::CanMoveTo"
+                },
+                value,
+            )
+            .unwrap();
+        }
+    }
+}
+
+// This immutable pre-policy capture is Amulet of Quoz, whose procedure
+// explicitly observes winning. Its missing historical policy is called.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OldScalarCoin {
+    player: PlayerRef,
+}
+#[derive(Serialize)]
+struct ScalarCoin {
+    player: PlayerRef,
+    protocol: CoinProtocol,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OldCostMove {
+    selections: Vec<CostObjectSelection>,
+    destination: Destination,
+    entry: movement::legacy::EntrySpec,
+    face_down: bool,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OldMoveConstraint {
+    destination: Destination,
+    entry: movement::legacy::EntrySpec,
+    face_down: bool,
 }
 
 #[derive(Clone, Copy)]
 enum Upgrade {
+    CostMove,
+    MoveConstraint,
+    ScalarCoin,
+    Movement,
     Entry,
     Copy(bool),
     Shape,
@@ -157,14 +317,37 @@ fn owner(input: &str, open: usize) -> Option<&str> {
     (start < before.len()).then_some(&before[start..])
 }
 
-fn has_legacy_keyword_field(input:&str,each:bool)->bool {
-    let field=if each {"until:"}else{"other:"};
-    let (mut depth,mut quoted,mut escaped)=(0usize,false,false);
-    for (i,c) in input.char_indices() {
-        if quoted {if escaped {escaped=false;}else if c=='\\' {escaped=true;}else if c=='"' {quoted=false;}continue;}
-        if c=='"' {quoted=true;continue;}
-        if depth==1 && input[i..].starts_with(field) {return true;}
-        match c {'('| '['|'{' =>depth+=1,')'|']'|'}'=>{depth-=1;if depth==0 {return false;}},_=>{}}
+fn has_legacy_keyword_field(input: &str, each: bool) -> bool {
+    let field = if each { "until:" } else { "other:" };
+    let (mut depth, mut quoted, mut escaped) = (0usize, false, false);
+    for (i, c) in input.char_indices() {
+        if quoted {
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == '"' {
+                quoted = false;
+            }
+            continue;
+        }
+        if c == '"' {
+            quoted = true;
+            continue;
+        }
+        if depth == 1 && input[i..].starts_with(field) {
+            return true;
+        }
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return false;
+                }
+            }
+            _ => {}
+        }
     }
     false
 }
@@ -201,29 +384,88 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
                 i += input[i..].chars().next().unwrap().len_utf8();
                 continue;
             }
-            let field = ["entry:", "effects:", "adjustments:", "power_toughness:", "actor:", "minimum:"]
-                .into_iter()
-                .find(|f| input[i..].starts_with(f));
+            let field = [
+                "player:",
+                "entry:",
+                "effects:",
+                "adjustments:",
+                "power_toughness:",
+                "actor:",
+                "minimum:",
+            ]
+            .into_iter()
+            .find(|f| input[i..].starts_with(f));
             if let Some(field) = field {
                 let value_start = i + field.len();
                 let context = stack.iter().rev().find_map(|&open| owner(&input, open));
                 let upgrade = match (field, context) {
-                    ("minimum:",_) if stack.last().is_some_and(|&open| {
-                        input[open+1..].trim_start().starts_with("minimum:") && {
-                            let mut de=ron::de::Deserializer::from_str(&input[open..]).unwrap();
-                            mode_policies::LegacyModeSelection::deserialize(&mut de).is_ok()
-                        }
-                    }) => Some(Upgrade::Modes),
-                    ("actor:",Some("Keyword"|"KeywordEach")) if stack.last().is_some_and(|&open| {
-                        if !has_legacy_keyword_field(&input[open..],context==Some("KeywordEach")) {return false;}
-                        let mut de=ron::de::Deserializer::from_str(&input[open..]).unwrap();
-                        if context==Some("Keyword") {OldKeyword::deserialize(&mut de).is_ok()} else {OldEach::deserialize(&mut de).is_ok()}
-                    })=>Some(Upgrade::Keyword(context==Some("KeywordEach"))),
+                    ("minimum:", _)
+                        if stack.last().is_some_and(|&open| {
+                            input[open + 1..].trim_start().starts_with("minimum:") && {
+                                let mut de =
+                                    ron::de::Deserializer::from_str(&input[open..]).unwrap();
+                                mode_policies::LegacyModeSelection::deserialize(&mut de).is_ok()
+                            }
+                        }) =>
+                    {
+                        Some(Upgrade::Modes)
+                    }
+                    ("actor:", Some("Keyword" | "KeywordEach"))
+                        if stack.last().is_some_and(|&open| {
+                            if !has_legacy_keyword_field(
+                                &input[open..],
+                                context == Some("KeywordEach"),
+                            ) {
+                                return false;
+                            }
+                            let mut de = ron::de::Deserializer::from_str(&input[open..]).unwrap();
+                            if context == Some("Keyword") {
+                                OldKeyword::deserialize(&mut de).is_ok()
+                            } else {
+                                OldEach::deserialize(&mut de).is_ok()
+                            }
+                        }) =>
+                    {
+                        Some(Upgrade::Keyword(context == Some("KeywordEach")))
+                    }
+                    ("player:", Some("FlipCoin"))
+                        if stack.last().is_some_and(|&open| {
+                            let mut de = ron::de::Deserializer::from_str(&input[open..]).unwrap();
+                            OldScalarCoin::deserialize(&mut de).is_ok()
+                        }) =>
+                    {
+                        Some(Upgrade::ScalarCoin)
+                    }
+                    ("entry:", Some("Move" | "CanMoveTo"))
+                        if stack.last().is_some_and(|&open| {
+                            let mut de = ron::de::Deserializer::from_str(&input[open..]).unwrap();
+                            if context == Some("Move") {
+                                OldCostMove::deserialize(&mut de).is_ok()
+                            } else {
+                                OldMoveConstraint::deserialize(&mut de).is_ok()
+                            }
+                        }) =>
+                    {
+                        Some(if context == Some("Move") {
+                            Upgrade::CostMove
+                        } else {
+                            Upgrade::MoveConstraint
+                        })
+                    }
                     ("entry:", Some(name))
                         if OPERATIONS.contains(&name)
                             && input[value_start..].trim_start().starts_with('[') =>
                     {
                         Some(Upgrade::Entry)
+                    }
+                    ("entry:", Some("Move" | "MoveTopCard" | "CounterWith" | "Conjure"))
+                        if stack.len() >= 2 && {
+                            let open = stack[stack.len() - 2];
+                            let mut de = ron::de::Deserializer::from_str(&input[open..]).unwrap();
+                            OldMovement::deserialize(&mut de).is_ok()
+                        } =>
+                    {
+                        Some(Upgrade::Movement)
                     }
                     ("effects:", Some("CopyOnStack")) => Some(Upgrade::Copy(false)),
                     ("effects:", Some("CopyOf")) => Some(Upgrade::Copy(true)),
@@ -243,7 +485,18 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
                     _ => None,
                 };
                 if let Some(upgrade) = upgrade {
-                    let (start, value_start) = if matches!(upgrade, Upgrade::Shape|Upgrade::Keyword(_)|Upgrade::Modes) {
+                    let (start, value_start) = if matches!(upgrade, Upgrade::Movement) {
+                        let open = stack[stack.len() - 2];
+                        (open, open)
+                    } else if matches!(
+                        upgrade,
+                        Upgrade::Shape
+                            | Upgrade::Keyword(_)
+                            | Upgrade::Modes
+                            | Upgrade::ScalarCoin
+                            | Upgrade::CostMove
+                            | Upgrade::MoveConstraint
+                    ) {
                         let open = *stack.last().unwrap();
                         (open, open)
                     } else {
@@ -272,8 +525,56 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
         let tail = &input[value_start..];
         let mut de = ron::de::Deserializer::from_str(tail).unwrap();
         let (name, replacement) = match upgrade {
-            Upgrade::Modes => ("",ron::to_string(&mode_policies::LegacyModeSelection::deserialize(&mut de).unwrap().current().unwrap()).unwrap()),
-            Upgrade::Keyword(each) => ("",if each {ron::to_string(&OldEach::deserialize(&mut de).unwrap().current()).unwrap()}else{ron::to_string(&OldKeyword::deserialize(&mut de).unwrap().current()).unwrap()}),
+            Upgrade::CostMove => {
+                let old = OldCostMove::deserialize(&mut de).unwrap();
+                let mut value = json!({"Move":{"selections":old.selections,"destination":old.destination,"entry":old.entry,"face_down":old.face_down}});
+                movement::legacy::upgrade_fields("CostPart::Move", &mut value).unwrap();
+                let cost: CostPart = serde_json::from_value(value).unwrap();
+                let rendered = ron::to_string(&cost).unwrap();
+                ("", rendered.strip_prefix("Move").unwrap().to_string())
+            }
+            Upgrade::MoveConstraint => {
+                let old = OldMoveConstraint::deserialize(&mut de).unwrap();
+                let mut value = json!({"CanMoveTo":{"destination":old.destination,"entry":old.entry,"face_down":old.face_down}});
+                movement::legacy::upgrade_fields("SelectionConstraint::CanMoveTo", &mut value)
+                    .unwrap();
+                let constraint: SelectionConstraint = serde_json::from_value(value).unwrap();
+                let rendered = ron::to_string(&constraint).unwrap();
+                ("", rendered.strip_prefix("CanMoveTo").unwrap().to_string())
+            }
+            Upgrade::ScalarCoin => {
+                let old = OldScalarCoin::deserialize(&mut de).unwrap();
+                (
+                    "",
+                    ron::to_string(&ScalarCoin {
+                        player: old.player,
+                        protocol: CoinProtocol::Called,
+                    })
+                    .unwrap(),
+                )
+            }
+            Upgrade::Movement => (
+                "",
+                ron::to_string(&OldMovement::deserialize(&mut de).unwrap().current()).unwrap(),
+            ),
+            Upgrade::Modes => (
+                "",
+                ron::to_string(
+                    &mode_policies::LegacyModeSelection::deserialize(&mut de)
+                        .unwrap()
+                        .current()
+                        .unwrap(),
+                )
+                .unwrap(),
+            ),
+            Upgrade::Keyword(each) => (
+                "",
+                if each {
+                    ron::to_string(&OldEach::deserialize(&mut de).unwrap().current()).unwrap()
+                } else {
+                    ron::to_string(&OldKeyword::deserialize(&mut de).unwrap().current()).unwrap()
+                },
+            ),
             Upgrade::Shape => (
                 "",
                 ron::to_string(&OldShape::deserialize(&mut de).unwrap().current()).unwrap(),
@@ -307,25 +608,49 @@ pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
 /// Unlike the live migration, these captures have several older schema shapes;
 /// change only the enumerated aliases and retain every other subtree verbatim.
 fn api_names(value: &mut Value) {
-    let Some(kind)=value.get("kind").and_then(Value::as_str).map(str::to_string) else {return;};
-    let rename=match kind.as_str() {
-        "Tap"=>Some("SetTapped"), "KeywordHost"=>Some("AbilityHolder"), "Granter"=>Some("GrantingObject"),
-        "Power" if value["args"].as_array().is_some_and(|a|a.len()==2)=>Some("Exponentiate"),
-        "Named" if value["args"].is_number() || (value["args"].get("result").is_some()&&value["args"].get("by").is_some())=>Some("Recorded"),
-        _=>None,
+    let Some(kind) = value
+        .get("kind")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+    else {
+        return;
     };
-    if let Some(new)=rename {value["kind"]=json!(new);}
-    let roles:&[(&str,&str)]=match kind.as_str() {
-        "Search"=>&[("player","searcher"),("library","library_owner")],
-        "ReorderLibrary"=>&[("player","chooser"),("library","library_owner")],
-        "ChooseValue"|"ChooseValueWith"=>&[("actor","choosers")],_=>&[],
+    let rename = match kind.as_str() {
+        "Tap" => Some("SetTapped"),
+        "KeywordHost" => Some("AbilityHolder"),
+        "Granter" => Some("GrantingObject"),
+        "Power" if value["args"].as_array().is_some_and(|a| a.len() == 2) => Some("Exponentiate"),
+        "Named"
+            if value["args"].is_number()
+                || (value["args"].get("result").is_some() && value["args"].get("by").is_some()) =>
+        {
+            Some("Recorded")
+        }
+        _ => None,
     };
-    for (old,new) in roles {
-        if let Some(args)=value["args"].as_object_mut() {if let Some(v)=args.remove(*old) {args.insert((*new).into(),v);}}
+    if let Some(new) = rename {
+        value["kind"] = json!(new);
     }
-    if kind=="DuplicateCounters" && value["args"]["from"].get("kind").is_some() {
-        let from=value["args"]["from"].take();
-        value["args"]["from"]=if from["kind"]=="CountersTheEventPut" {json!("EventPut")}else{json!({"On":from})};
+    let roles: &[(&str, &str)] = match kind.as_str() {
+        "Search" => &[("player", "searcher"), ("library", "library_owner")],
+        "ReorderLibrary" => &[("player", "chooser"), ("library", "library_owner")],
+        "ChooseValue" | "ChooseValueWith" => &[("actor", "choosers")],
+        _ => &[],
+    };
+    for (old, new) in roles {
+        if let Some(args) = value["args"].as_object_mut() {
+            if let Some(v) = args.remove(*old) {
+                args.insert((*new).into(), v);
+            }
+        }
+    }
+    if kind == "DuplicateCounters" && value["args"]["from"].get("kind").is_some() {
+        let from = value["args"]["from"].take();
+        value["args"]["from"] = if from["kind"] == "CountersTheEventPut" {
+            json!("EventPut")
+        } else {
+            json!({"On":from})
+        };
     }
 }
 
@@ -333,41 +658,102 @@ fn api_names(value: &mut Value) {
 /// fixtures. Quoted text and unrelated enums (e.g. CounterKind::Named) retain
 /// their original bytes; operation role fields are changed only at args depth 1.
 fn ron_api_names(input: &str) -> String {
-    let mut out=input.to_string();
-    if let Some(start)=out.find("layout:") {
-        let start=start+"layout:".len();let tail=&out[start..];
-        let mut de=ron::de::Deserializer::from_str(tail).unwrap();
-        let name=String::deserialize(&mut de).unwrap();
-        let end=start+tail.len()-de.remainder().len();
-        out.replace_range(start..end,&ron::to_string(&Layout::from_name(&name).unwrap()).unwrap());
+    let mut out = input.to_string();
+    if let Some(start) = out.find("layout:") {
+        let start = start + "layout:".len();
+        let tail = &out[start..];
+        let mut de = ron::de::Deserializer::from_str(tail).unwrap();
+        let name = String::deserialize(&mut de).unwrap();
+        let end = start + tail.len() - de.remainder().len();
+        out.replace_range(
+            start..end,
+            &ron::to_string(&Layout::from_name(&name).unwrap()).unwrap(),
+        );
     }
-    let mut mask=out.as_bytes().to_vec();let(mut quoted,mut escaped)=(false,false);
+    let mut mask = out.as_bytes().to_vec();
+    let (mut quoted, mut escaped) = (false, false);
     for b in &mut mask {
-        let c=*b;
-        if quoted {if escaped {escaped=false;}else if c==b'\\' {escaped=true;}else if c==b'"' {quoted=false;}*b=b' ';}
-        else if c==b'"' {quoted=true;*b=b' ';}
-    }
-    let mask=String::from_utf8(mask).unwrap();let mut edits=vec![];
-    for (old,new) in [("Tap","SetTapped"),("Granter","GrantingObject"),("KeywordHost","AbilityHolder"),("Power","Exponentiate"),("Named","Recorded")] {
-        let pattern=format!("kind:{old},args:");
-        for (at,_) in mask.match_indices(&pattern) {
-            let payload=&mask[at+pattern.len()..];
-            if old=="Named" && !(payload.starts_with("(result:")||payload.starts_with("((")||payload.as_bytes().get(1).is_some_and(u8::is_ascii_digit)) {continue;}
-            edits.push((at+5,at+5+old.len(),new.to_string()));
+        let c = *b;
+        if quoted {
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                quoted = false;
+            }
+            *b = b' ';
+        } else if c == b'"' {
+            quoted = true;
+            *b = b' ';
         }
-        if matches!(old,"Granter"|"KeywordHost") {for (at,_) in mask.match_indices(&format!("kind:{old})")) {edits.push((at+5,at+5+old.len(),new.to_string()));}}
     }
-    for (op,roles) in [("Search",vec![("player","searcher"),("library","library_owner")]),("ReorderLibrary",vec![("player","chooser"),("library","library_owner")]),("ChooseValue",vec![("actor","choosers")])] {
-        let pattern=format!("kind:{op},args:(");
-        for (at,_) in mask.match_indices(&pattern) {
-            let mut depth=1;let mut i=at+pattern.len();let bytes=mask.as_bytes();
-            while i<bytes.len() && depth>0 {
-                if depth==1 {for (old,new) in &roles {if mask[i..].starts_with(&format!("{old}:")) && (bytes[i-1]==b'('||bytes[i-1]==b',') {edits.push((i,i+old.len(),(*new).into()));}}}
-                match bytes[i] {b'('|b'['|b'{'=>depth+=1,b')'|b']'|b'}'=>depth-=1,_=>{}}i+=1;
+    let mask = String::from_utf8(mask).unwrap();
+    let mut edits = vec![];
+    for (old, new) in [
+        ("Tap", "SetTapped"),
+        ("Granter", "GrantingObject"),
+        ("KeywordHost", "AbilityHolder"),
+        ("Power", "Exponentiate"),
+        ("Named", "Recorded"),
+    ] {
+        let pattern = format!("kind:{old},args:");
+        for (at, _) in mask.match_indices(&pattern) {
+            let payload = &mask[at + pattern.len()..];
+            if old == "Named"
+                && !(payload.starts_with("(result:")
+                    || payload.starts_with("((")
+                    || payload.as_bytes().get(1).is_some_and(u8::is_ascii_digit))
+            {
+                continue;
+            }
+            edits.push((at + 5, at + 5 + old.len(), new.to_string()));
+        }
+        if matches!(old, "Granter" | "KeywordHost") {
+            for (at, _) in mask.match_indices(&format!("kind:{old})")) {
+                edits.push((at + 5, at + 5 + old.len(), new.to_string()));
             }
         }
     }
-    edits.sort_by_key(|(a,_,_)|*a);edits.dedup();
-    for (a,b,v) in edits.into_iter().rev(){out.replace_range(a..b,&v);}
+    for (op, roles) in [
+        (
+            "Search",
+            vec![("player", "searcher"), ("library", "library_owner")],
+        ),
+        (
+            "ReorderLibrary",
+            vec![("player", "chooser"), ("library", "library_owner")],
+        ),
+        ("ChooseValue", vec![("actor", "choosers")]),
+    ] {
+        let pattern = format!("kind:{op},args:(");
+        for (at, _) in mask.match_indices(&pattern) {
+            let mut depth = 1;
+            let mut i = at + pattern.len();
+            let bytes = mask.as_bytes();
+            while i < bytes.len() && depth > 0 {
+                if depth == 1 {
+                    for (old, new) in &roles {
+                        if mask[i..].starts_with(&format!("{old}:"))
+                            && (bytes[i - 1] == b'(' || bytes[i - 1] == b',')
+                        {
+                            edits.push((i, i + old.len(), (*new).into()));
+                        }
+                    }
+                }
+                match bytes[i] {
+                    b'(' | b'[' | b'{' => depth += 1,
+                    b')' | b']' | b'}' => depth -= 1,
+                    _ => {}
+                }
+                i += 1;
+            }
+        }
+    }
+    edits.sort_by_key(|(a, _, _)| *a);
+    edits.dedup();
+    for (a, b, v) in edits.into_iter().rev() {
+        out.replace_range(a..b, &v);
+    }
     out
 }

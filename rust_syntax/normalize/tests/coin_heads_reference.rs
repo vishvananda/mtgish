@@ -19,7 +19,11 @@ fn both_heads_and_both_tails_read_the_flip_receipt_without_winner_aliases() {
             let Instruction::If {
                 condition:
                     Condition::Compare {
-                        left: Expr::HeadsFlipped(receipt),
+                        left:
+                            Expr::CountCoinOutcomes {
+                                source: CoinCountSource::Receipt(receipt),
+                                outcome: CoinOutcome::Heads,
+                            },
                         comparison: Comparison::Equal,
                         right: Expr::Constant(n),
                     },

@@ -166,8 +166,10 @@ fn move_expansion_preserves_exile_incarnations_entry_flags_and_followup_results(
                     zone: EventZone::Exile,
                     ..
                 },
-                destination: Destination::OwnersBattlefield,
-                entry: EntrySpec { tapped: true, .. },
+                destination: MovementDestination::Battlefield {
+                    controller: EntryController::Owner,
+                    arrival: BattlefieldArrival { tapped: true, .. }
+                },
                 ..
             },
             ..
@@ -455,7 +457,10 @@ fn shared_quantities_compose_arithmetic_and_keep_actor_and_event_verbs() {
         &body.instructions[0],
         Instruction::Effect {
             operation: Operation::GainLife {
-                players: PlayerSet::One(PlayerRef::Target { slot: TargetSlot(0), .. }),
+                players: PlayerSet::One(PlayerRef::Target {
+                    slot: TargetSlot(0),
+                    ..
+                }),
                 amount: Expr::Constant(14)
             },
             ..
@@ -778,7 +783,10 @@ fn numeric_binding_preserves_target_domains_zone_membership_and_last_known_prope
     assert!(matches!(
         power.as_ref(),
         Expr::ObjectProperty {
-            object: ObjectRef::Target { slot: TargetSlot(0), .. },
+            object: ObjectRef::Target {
+                slot: TargetSlot(0),
+                ..
+            },
             property: Property::Power,
             information: Information::CurrentOrLastKnown
         }
@@ -1189,7 +1197,10 @@ fn optional_multi_instruction_recipes_keep_one_decider_and_do_not_bind_player_as
         panic!()
     };
     let Instruction::Optional {
-        decider: PlayerRef::Target { slot: TargetSlot(0), .. },
+        decider: PlayerRef::Target {
+            slot: TargetSlot(0),
+            ..
+        },
         body,
     } = &body.instructions[0]
     else {
@@ -1200,14 +1211,20 @@ fn optional_multi_instruction_recipes_keep_one_decider_and_do_not_bind_player_as
         [
             Instruction::Effect {
                 operation: Operation::Draw {
-                    players: PlayerSet::One(PlayerRef::Target { slot: TargetSlot(0), .. }),
+                    players: PlayerSet::One(PlayerRef::Target {
+                        slot: TargetSlot(0),
+                        ..
+                    }),
                     ..
                 },
                 ..
             },
             Instruction::Effect {
                 operation: Operation::GainLife {
-                    players: PlayerSet::One(PlayerRef::Target { slot: TargetSlot(0), .. }),
+                    players: PlayerSet::One(PlayerRef::Target {
+                        slot: TargetSlot(0),
+                        ..
+                    }),
                     ..
                 },
                 ..
@@ -1323,7 +1340,10 @@ fn program_payment_retains_explicit_payer_and_unless_uses_the_payment_result() {
         Instruction::Effect {
             result: ResultId(0),
             operation: Operation::PayCost {
-                player: PlayerRef::Target { slot: TargetSlot(0), .. },
+                player: PlayerRef::Target {
+                    slot: TargetSlot(0),
+                    ..
+                },
                 optional: true,
                 ..
             }
@@ -1345,7 +1365,11 @@ fn program_modes_preserve_announcement_targets_and_reset_result_and_reference_sc
     assert!(announcement.targets.is_empty());
     let modes = announcement.modes.as_ref().unwrap();
     assert!(matches!(
-        (&modes.count.minimum, &modes.count.maximum, modes.rules.repetition==ModeRepetition::MayRepeat),
+        (
+            &modes.count.minimum,
+            &modes.count.maximum,
+            modes.rules.repetition == ModeRepetition::MayRepeat
+        ),
         (&Expr::Constant(1), &Expr::Constant(2), false)
     ));
     assert_eq!(modes.options[0].announcement.targets[0].slot.0, 0);
@@ -1460,7 +1484,7 @@ fn cost_selection_remains_strict_while_effect_selection_does_as_much_as_possible
         panic!()
     };
     assert!(
-        matches!(cost.parts.as_slice(),[CostPart::Move {selections,destination:Destination::OwnersHand,..}] if matches!(selections.as_slice(),[CostObjectSelection {choose:Some(Count::Exactly(Expr::Constant(2))),..}]))
+        matches!(cost.parts.as_slice(),[CostPart::Move {selections,destination:MovementDestination::OwnersHand(_),..}] if matches!(selections.as_slice(),[CostObjectSelection {choose:Some(Count::Exactly(Expr::Constant(2))),..}]))
     );
 }
 
@@ -1506,7 +1530,11 @@ fn resolving_counter_cost_uses_the_payer_and_payment_choice_has_lexical_scope() 
         result,
         operation:
             Operation::PayCost {
-                player: PlayerRef::Target { slot: TargetSlot(0), .. },
+                player:
+                    PlayerRef::Target {
+                        slot: TargetSlot(0),
+                        ..
+                    },
                 cost,
                 ..
             },
@@ -1582,7 +1610,10 @@ fn condition_numeric_and_predicate_children_expand_without_announcing_new_target
     assert!(matches!(
         &conditions[0],
         Condition::ObjectMatches {
-            object: ObjectRef::Target { slot: TargetSlot(0), .. },
+            object: ObjectRef::Target {
+                slot: TargetSlot(0),
+                ..
+            },
             filter: ObjectFilter::CardType(source::CardType::Creature)
         }
     ));
@@ -1686,7 +1717,7 @@ fn exact_any_and_all_object_payments_preserve_cardinality_without_announcing_tar
     };
     assert!(announcement.targets.is_empty());
     assert!(matches!(cost.parts.as_slice(),[
-        CostPart::ChangeTapState {selections:x,..},CostPart::ChangeTapState {selections:any,..},CostPart::ChangeTapState {tapped:false,selections:all,..},CostPart::Move {selections:ret,destination:Destination::OwnersHand,..}
+        CostPart::ChangeTapState {selections:x,..},CostPart::ChangeTapState {selections:any,..},CostPart::ChangeTapState {tapped:false,selections:all,..},CostPart::Move {selections:ret,destination:MovementDestination::OwnersHand(_),..}
     ] if matches!(x.as_slice(),[CostObjectSelection {choose:Some(Count::Exactly(Expr::AnnouncedX)),..}]) && matches!(any.as_slice(),[CostObjectSelection {choose:Some(Count::AnyNumber),..}]) && matches!(all.as_slice(),[CostObjectSelection {choose:None,..}]) && matches!(ret.as_slice(),[CostObjectSelection {choose:Some(Count::Exactly(Expr::Constant(1))),..}])));
 }
 
@@ -1952,7 +1983,10 @@ fn cant_attack_unless_asks_about_each_defending_player() {
 #[test]
 fn an_explicit_player_or_planeswalker_restriction_does_not_include_battles() {
     let text=ability_json("PermanentRuleEffect(ThisPermanent,[CantAttackAnyPlayerOrPlaneswalkerControlledBy(Opponent)])");
-    assert!(text.contains("PlayersAndPlaneswalkers") && !text.contains("DefendingPlayers"),"{text}");
+    assert!(
+        text.contains("PlayersAndPlaneswalkers") && !text.contains("DefendingPlayers"),
+        "{text}"
+    );
 }
 
 #[test]
@@ -2049,11 +2083,11 @@ fn a_target_that_decides_its_mode_announces_no_mode_and_a_shuffle_is_one_destina
         panic!()
     };
     let modes = announcement.modes.as_ref().unwrap();
-    assert!(matches!(modes.mechanism,ModeMechanism::Implied));
+    assert!(matches!(modes.mechanism, ModeMechanism::Implied));
     assert_eq!(modes.options.len(), 2);
     let text = serde_json::to_string(&modes.options).unwrap();
     assert!(text.contains("OwnersHand"), "{text}");
-    assert!(text.contains("OwnersLibraryShuffled"), "{text}");
+    assert!(text.contains("\"position\":\"Shuffled\""), "{text}");
 }
 
 #[test]
@@ -2064,12 +2098,24 @@ fn counts_and_primitive_rule_families_keep_their_operands() {
         "Activated(TapPermanent(ThisPermanent),ActionList([InvestigateTimes(Integer(2))]))",
     );
     let ability: Ability = serde_json::from_str(&text).unwrap();
-    let Ability::Activated { body, .. } = ability else { panic!("{text}") };
-    assert!(matches!(body.instructions.as_slice(), [Instruction::Effect {
-        operation: Operation::Keyword { action: KeywordAction::Investigate {
-            times: Some(Expr::Constant(2))
-        }, .. }, ..
-    }]), "{text}");
+    let Ability::Activated { body, .. } = ability else {
+        panic!("{text}")
+    };
+    assert!(
+        matches!(
+            body.instructions.as_slice(),
+            [Instruction::Effect {
+                operation: Operation::Keyword {
+                    action: KeywordAction::Investigate {
+                        times: Some(Expr::Constant(2))
+                    },
+                    ..
+                },
+                ..
+            }]
+        ),
+        "{text}"
+    );
 }
 
 #[test]
@@ -2317,8 +2363,13 @@ fn another_player_acting_can_be_a_cost() {
 fn a_chosen_ability_is_a_change_after_the_choice() {
     let text = ability_json("SpellActions(ActionList([ChooseAnAbility([Flying,Haste]),CreatePermanentLayerEffectUntil(ThisPermanent,[AddAbilityVariable(TheChosenAbility)],UntilEndOfTurn)]))");
     let ability: Ability = serde_json::from_str(&text).unwrap();
-    let Ability::Spell {body,..} = ability else { panic!("{text}") };
-    assert!(matches!(&body.instructions[0], Instruction::Effect {operation:Operation::ChooseValue {kind:ValueKind::Ability,terms,..},..} if terms.exactly_one()), "{text}");
+    let Ability::Spell { body, .. } = ability else {
+        panic!("{text}")
+    };
+    assert!(
+        matches!(&body.instructions[0], Instruction::Effect {operation:Operation::ChooseValue {kind:ValueKind::Ability,terms,..},..} if terms.exactly_one()),
+        "{text}"
+    );
     assert!(text.contains("ChosenAbility"), "{text}");
 }
 
@@ -2475,7 +2526,7 @@ fn a_cost_shaped_like_an_action_is_that_action_by_the_payer() {
 #[test]
 fn a_card_can_go_a_set_depth_into_its_owners_library() {
     let text = ability_json("TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)),ActionList([PutGraveyardCardInOwnersLibraryNthFromTheTop(ThisGraveyardCard,Integer(2))]))");
-    assert!(text.contains("OwnersLibraryFromTop"), "{text}");
+    assert!(text.contains("\"position\":{\"FromTop\""), "{text}");
 }
 
 #[test]
@@ -2495,7 +2546,7 @@ fn life_lost_is_the_event_amount() {
 #[test]
 fn a_chosen_hand_card_can_go_to_the_bottom_of_the_library() {
     let text = ability_json("SpellActions(ActionList([PutACardFromHandOnBottomOfLibrary]))");
-    assert!(text.contains("OwnersLibraryBottom"), "{text}");
+    assert!(text.contains("\"position\":\"Bottom\""), "{text}");
 }
 
 #[test]
@@ -2627,14 +2678,14 @@ fn a_random_move_is_picked_by_the_game() {
 #[test]
 fn a_random_bottom_order_is_part_of_the_destination() {
     let text = ability_json("SpellActions(ActionList([ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder(AnyExiledCard)]))");
-    assert!(text.contains("OwnersLibraryBottomRandom"), "{text}");
+    assert!(text.contains("\"position\":\"BottomRandom\""), "{text}");
 }
 
 #[test]
 fn a_whole_hand_moves_as_one_set() {
     let text = ability_json("SpellActions(ActionList([ShuffleHandIntoLibrary]))");
     assert!(text.contains("\"Hand\""), "{text}");
-    assert!(text.contains("OwnersLibraryShuffled"), "{text}");
+    assert!(text.contains("\"position\":\"Shuffled\""), "{text}");
 }
 
 #[test]
@@ -2642,7 +2693,7 @@ fn an_nth_position_keeps_its_number() {
     let text = ability_json(
         "SpellActions(ActionList([PutSpellInOwnersLibraryNthFromTheTop(ThisSpell,Integer(7))]))",
     );
-    assert!(text.contains("OwnersLibraryFromTop"), "{text}");
+    assert!(text.contains("\"position\":{\"FromTop\""), "{text}");
     assert!(text.contains('7'), "{text}");
 }
 
@@ -2825,11 +2876,7 @@ fn a_hand_pick_is_a_reveal_a_choice_and_a_fate() {
     assert!(!exile.contains("Primitive"), "{exile}");
     assert!(exile.contains("Reveal"), "{exile}");
     assert!(exile.contains("ChooseObjects"), "{exile}");
-    assert!(
-        exile.contains("\"destination\":{\"kind\":\"Exile\"")
-            || exile.contains("\"destination\":\"Exile\""),
-        "{exile}"
-    );
+    assert!(exile.contains("\"destination\":{\"Exile\":"), "{exile}");
     let partial = ability_json("SpellActions(Targeted([TargetPlayer(Opponent)],ActionList([PlayerAction(Ref_TargetPlayer,RevealANumberOfCardsFromHandAndPlayerChoosesACardToDiscard(Integer(2),You))])))");
     assert_eq!(partial.matches("ChooseObjects").count(), 2, "{partial}");
     assert!(partial.contains("Selected"), "{partial}");
@@ -2877,7 +2924,10 @@ fn a_populated_token_and_an_investigation_leave_their_antecedents_readable() {
     let populated = ability_json("SpellActions(ActionList([Populate,CreateEachPermanentRuleEffectUntil(TheTokensCreatedThisWay,[CantBlock],UntilEndOfTurn)]))");
     assert!(populated.contains("Created"), "{populated}");
     let kept = ability_json("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))],ActionList([Exile([Permanent(Ref_TargetPermanent)],[]),Investigate,PutExiledCardOntoBattlefield(TheCardExiledThisWay,[EntersNormally])])))");
-    assert!(kept.contains("\"kind\":\"Transition\",\"args\":{\"result\":0,\"phase\":\"After\"}"), "{kept}");
+    assert!(
+        kept.contains("\"kind\":\"Transition\",\"args\":{\"result\":0,\"phase\":\"After\"}"),
+        "{kept}"
+    );
 }
 
 #[test]
@@ -2900,9 +2950,9 @@ fn a_target_says_how_many_who_chooses_and_what_it_avoids() {
 #[test]
 fn moves_name_the_owners_choice_and_the_depth_under_cards() {
     let choice = ability_json("SpellActions(Targeted([TargetSpell(AnySpell)],ActionList([ReturnSpellToTopOrBottomOfLibrary(Ref_TargetSpell)])))");
-    assert!(choice.contains("OwnersLibraryTopOrBottom"), "{choice}");
+    assert!(choice.contains("\"position\":{\"TopOrBottom\""), "{choice}");
     let under = ability_json("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))],ActionList([PutPermanentInOwnersLibraryBeneathNumberCards(Ref_TargetPermanent,Integer(2))])))");
-    assert!(under.contains("OwnersLibraryFromTop"), "{under}");
+    assert!(under.contains("\"position\":{\"FromTop\""), "{under}");
     assert!(under.contains("\"kind\":\"Add\""), "{under}");
 }
 
@@ -3042,7 +3092,7 @@ fn a_replacement_reveals_and_shuffles_the_card_it_saves() {
         "AsPutIntoAGraveyardFromAnywhere(ThisCard, [RevealItAndShuffleItIntoLibraryInstead])",
     );
     assert!(text.contains("Reveal"), "{text}");
-    assert!(text.contains("OwnersLibraryShuffled"), "{text}");
+    assert!(text.contains("\"SetDestination\":\"OwnersLibraryShuffled\""), "{text}");
 }
 
 #[test]

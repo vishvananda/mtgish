@@ -3,6 +3,7 @@
 mod codec;
 pub mod defaults;
 pub mod document;
+mod movement;
 pub mod names;
 mod syntax;
 use crate::{
@@ -84,8 +85,8 @@ pub fn editor_metadata() -> Value {
     let mut values = serde_json::Map::new();
     let mut actions = serde_json::Map::new();
     let mut instructions = serde_json::Map::new();
-    let mut keyword_actions=serde_json::Map::new();
-    let mut object_keyword_actions=serde_json::Map::new();
+    let mut keyword_actions = serde_json::Map::new();
+    let mut object_keyword_actions = serde_json::Map::new();
     let mut add = |owner: String, fields: &Fields| {
         if let Fields::Named(fields) = fields {
             let defaults: serde_json::Map<_, _> = fields
@@ -107,10 +108,12 @@ pub fn editor_metadata() -> Value {
                         actions.insert(variant.clone(), names::action(variant));
                     } else if name == "Instruction" && variant != "Effect" {
                         instructions.insert(variant.clone(), names::instruction(variant));
-                    } else if name=="KeywordAction" {
-                        keyword_actions.insert(variant.clone(),names::keyword_action(variant,false));
-                    } else if name=="ObjectKeywordAction" {
-                        object_keyword_actions.insert(variant.clone(),names::keyword_action(variant,true));
+                    } else if name == "KeywordAction" {
+                        keyword_actions
+                            .insert(variant.clone(), names::keyword_action(variant, false));
+                    } else if name == "ObjectKeywordAction" {
+                        object_keyword_actions
+                            .insert(variant.clone(), names::keyword_action(variant, true));
                     }
                 }
             }

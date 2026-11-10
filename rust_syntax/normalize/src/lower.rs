@@ -1,6 +1,7 @@
 //! Lower legacy Rust syntax into semantic operations. A record is complete only
 //! when every part lowers; unsupported forms are reported with an AST path.
 
+use crate::movement::legacy::{EntrySpec, EntryState};
 use crate::{ir::*, mtg_types as source};
 use serde::{Deserialize, Serialize};
 
@@ -110,6 +111,8 @@ struct Context {
     result: u32,
     /// This list's instructions so far; children read but do not extend it.
     reported: Vec<(ResultId, String)>,
+    /// Controller of each reported battlefield move, independent of Debug spelling.
+    battlefield_reports: std::collections::BTreeMap<u32, PlayerRef>,
     affected: bool,
     keyword_host: bool,
     candidate: bool,
@@ -295,7 +298,7 @@ impl Done {
             Operation::Mill { .. } => Self::Milled,
             Operation::Discard { .. } | Operation::DiscardObjects { .. } => Self::Discarded,
             Operation::Sacrifice { .. } => Self::Sacrificed,
-            Operation::Move { destination, .. } => match destination {
+            Operation::Move { destination, .. } => match destination.address() {
                 Destination::OwnersHand | Destination::Hand(_) => Self::Returned,
                 Destination::CommandZone | Destination::Ante | Destination::OwnersPlanarDeck(_) => {
                     return None
@@ -417,14 +420,22 @@ impl Context {
 
     /// What a move leaves for a later "this way" to name.
     fn note_move(&mut self, operation: &Operation, result: ResultId) {
-        let (Operation::Move { destination, objects, .. }
-        | Operation::Counter { destination, objects, .. }) = operation
-        else {
-            return;
+        let (destination, objects) = match operation {
+            Operation::Move {
+                destination,
+                objects,
+                ..
+            } => (destination.address(), objects),
+            Operation::Counter {
+                destination,
+                objects,
+            } => (destination.clone(), objects),
+            _ => return,
         };
         match destination {
             Destination::Exile => {
-                self.exiled_one_input = matches!(objects, ObjectSet::One(_)).then(|| result.clone());
+                self.exiled_one_input =
+                    matches!(objects, ObjectSet::One(_)).then(|| result.clone());
                 self.exiled = Some(result);
                 self.exiled_permanents = false;
             }
@@ -475,9 +486,22 @@ impl Context {
     }
 
     fn note_done(&mut self, operation: &Operation, result: &ResultId) {
+        if let Operation::Move {
+            destination:
+                MovementDestination::Battlefield {
+                    controller: EntryController::Player(player),
+                    ..
+                },
+            ..
+        } = operation.action()
+        {
+            self.battlefield_reports.insert(result.0, player.clone());
+        }
         if matches!(
             operation,
-            Operation::FlipCoin { .. } | Operation::FlipCoins { .. } | Operation::CoinFlips { .. }
+            Operation::FlipCoin { .. }
+                | Operation::FlipCoins { .. }
+                | Operation::FlipCoinSeries { .. }
         ) {
             self.coin_players = None;
         }
@@ -499,8 +523,11 @@ impl Context {
             Operation::CreateTokens { entry, .. } => {
                 for state in &entry.states {
                     match state {
-                        EntryState::AttachedTo(host) => self.attachment_host = Some(host.clone()),
-                        EntryState::AttachedToChosen(_) | EntryState::AttachedToPlayer(_) => {
+                        BattlefieldState::AttachedTo(host) => {
+                            self.attachment_host = Some(host.clone())
+                        }
+                        BattlefieldState::AttachedToChosen(_)
+                        | BattlefieldState::AttachedToPlayer(_) => {
                             self.attachment_host = None;
                         }
                         _ => {}
@@ -565,14 +592,19 @@ impl Context {
         // read again, which is another card by then.
         if let Operation::Move { objects, .. } = &operation {
             let same = |revealed: &ObjectSet| format!("{revealed:?}") == format!("{objects:?}");
-            if matches!(objects, ObjectSet::Take { .. }) && self.revealed.as_ref().is_some_and(same) {
+            if matches!(objects, ObjectSet::Take { .. }) && self.revealed.as_ref().is_some_and(same)
+            {
                 self.revealed = Some(ObjectSet::Transition {
                     result: ResultId(self.result),
                     phase: ObjectPhase::Before,
                 });
             }
         }
-        if let Operation::Search { library_owner: library, .. } = &operation {
+        if let Operation::Search {
+            library_owner: library,
+            ..
+        } = &operation
+        {
             self.open_searches.push(library.clone());
         }
         if let Operation::Reveal { objects } = &operation {
@@ -737,9 +769,10 @@ impl Context {
     fn reduced_object(&self, value: &source::Permanent) -> Result<ObjectRef> {
         use source::Permanent as S;
         if matches!(value, S::ThePermanentAttachedToThisWay) {
-            return self.attachment_host.clone().ok_or_else(|| {
-                invalid("no explicit attachment host is available in this scope")
-            });
+            return self
+                .attachment_host
+                .clone()
+                .ok_or_else(|| invalid("no explicit attachment host is available in this scope"));
         }
         if let S::ThePermanentDestroyedThisWay = value {
             return Ok(ObjectRef::Result {
@@ -935,7 +968,9 @@ impl Context {
             // A pair's primary subject is the first creature in its trigger,
             // which may be the attacker or the blocker. The dedicated creature
             // roles below continue to distinguish the two combat participants.
-            S::Trigger_ThatPermanent if self.event.block_pair => return Ok(ObjectRef::EventSubject),
+            S::Trigger_ThatPermanent if self.event.block_pair => {
+                return Ok(ObjectRef::EventSubject)
+            }
             S::Trigger_ThatVehicle if self.event.other => return Ok(ObjectRef::EventOther),
             S::Trigger_ThatPermanent
             | S::Trigger_ThatCreature
@@ -1907,11 +1942,14 @@ impl Context {
                 property: DistinctProperty::Names,
             },
             S::TheDiceResult => self.die_result()?,
-            S::TheNumberOfCoinsThatCameUpHeads => Expr::HeadsFlipped(
-                self.flipped
-                    .clone()
-                    .ok_or_else(|| invalid("no coins were flipped in this scope"))?,
-            ),
+            S::TheNumberOfCoinsThatCameUpHeads => Expr::CountCoinOutcomes {
+                source: CoinCountSource::Receipt(
+                    self.flipped
+                        .clone()
+                        .ok_or_else(|| invalid("no coins were flipped in this scope"))?,
+                ),
+                outcome: CoinOutcome::Heads,
+            },
             S::TheFirstDiceResult | S::TheSecondDiceResult => {
                 let Expr::DieResult(result) = self.die_result()? else {
                     unreachable!()
@@ -2609,14 +2647,13 @@ impl Context {
                     _ => return Err(unsupported(value)),
                 })
             })();
-            let changes = changes.or_else(|error| {
-                self.rescue(error, || {
-                    self.primitive_changes(value)
-                })
-            });
+            let changes =
+                changes.or_else(|error| self.rescue(error, || self.primitive_changes(value)));
             result.extend(changes.map_err(|e| e.at(format!("changes[{index}]")))?);
         }
-        Ok(crate::change_lists::coalesce_creature_type_additions(result))
+        Ok(crate::change_lists::coalesce_creature_type_additions(
+            result,
+        ))
     }
 
     fn static_changes(&self, values: &[source::StaticLayerEffect]) -> Result<Vec<Change>> {
@@ -2660,7 +2697,9 @@ impl Context {
                     .map_err(|e| e.at(format!("static[{i}]")))?,
             );
         }
-        Ok(crate::change_lists::coalesce_creature_type_additions(changes))
+        Ok(crate::change_lists::coalesce_creature_type_additions(
+            changes,
+        ))
     }
 
     fn counter_placement(
@@ -2884,9 +2923,9 @@ impl Context {
 
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
         if let source::Action::CreatePerpetualTriggeredCardEffect(_) = value {
-            let operation = self
-                .perpetual(value, None)
-                .ok_or_else(|| invalid("a perpetual triggered-card effect requires a moved card"))?;
+            let operation = self.perpetual(value, None).ok_or_else(|| {
+                invalid("a perpetual triggered-card effect requires a moved card")
+            })?;
             return Ok(self.effect(operation));
         }
         if let source::Action::PutTriggeredCardOntoBattlefield(flags) = value {
@@ -2901,13 +2940,16 @@ impl Context {
                 return Err(invalid("putting this card requires one player"));
             };
             let (destination, entry) = self.move_entry(flags, player.clone())?;
-            return Ok(self.effect(Operation::Move {
-                objects: ObjectSet::One(object),
-                destination,
-                entry,
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            }));
+            return Ok(self.effect(
+                crate::movement::move_to(
+                    ObjectSet::One(object),
+                    destination,
+                    entry,
+                    false,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?,
+            ));
         }
         if let source::Action::ExileTriggeredCard(flags) = value {
             let object = if self.event.discarded {
@@ -2918,13 +2960,16 @@ impl Context {
                 return Err(invalid("this event produces no moved card"));
             };
             let (entry, face_down) = self.exile_entry(flags)?;
-            return Ok(self.effect(Operation::Move {
-                objects: ObjectSet::One(object),
-                destination: Destination::Exile,
-                entry,
-                face_down,
-                terms: crate::ir::MovementTerms::default(),
-            }));
+            return Ok(self.effect(
+                crate::movement::move_to(
+                    ObjectSet::One(object),
+                    Destination::Exile,
+                    entry,
+                    face_down,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?,
+            ));
         }
         if let source::Action::ReturnDiscardedCardToHand = value {
             if !self.event.discarded {
@@ -2932,32 +2977,32 @@ impl Context {
             }
             // CR 400.7e: the discard's new object can be in any public
             // destination. A replacement does not imply a graveyard guard.
-            return Ok(self.effect(Operation::Move {
-                objects: ObjectSet::One(ObjectRef::Discarded),
-                destination: Destination::OwnersHand,
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            }));
+            return Ok(self.effect(crate::movement::move_plain(
+                ObjectSet::One(ObjectRef::Discarded),
+                Destination::OwnersHand,
+            )));
         }
         if let source::Action::ReturnSpellOrPermanentToOwnersHand(object) = value {
             let objects = ObjectSet::One(self.spell_or_permanent(object)?);
-            return Ok(self.effect(Operation::Move {
+            return Ok(self.effect(crate::movement::move_plain(
                 objects,
-                destination: Destination::OwnersHand,
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            }));
+                Destination::OwnersHand,
+            )));
         }
         // "Reveal exactly two cards you own with different names from outside the
         // game": the cards are chosen, then revealed (Extrapolate the Impossible).
         if let source::Action::RevealNumberGroupCardsFromOutsideGame(..) = value {
             let choice = self.acted_by(actor, |context| context.acted_action(value, actor))?;
-            if let Instruction::Effect { result, operation: Operation::ChooseObjects { .. } } = &choice {
+            if let Instruction::Effect {
+                result,
+                operation: Operation::ChooseObjects { .. },
+            } = &choice
+            {
                 let objects = ObjectSet::Selected(result.clone());
                 let reveal = self.effect(Operation::Reveal { objects });
-                return Ok(Instruction::Group(Program { instructions: vec![choice, reveal] }));
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![choice, reveal],
+                }));
             }
             return Ok(choice);
         }
@@ -3479,21 +3524,9 @@ impl Context {
                     return Err(invalid("putting a card from hand needs one player"));
                 };
                 let (destination, entry) = self.move_entry(flags, player.clone())?;
-                Operation::Move {
-                    objects: ObjectSet::One(self.hand_card(card)?),
-                    destination,
-                    entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                crate::movement::move_to(ObjectSet::One(self.hand_card(card)?), destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?
             }
-            S::ShuffleEachPermanentIntoLibrary(objects) => Operation::Move {
-                objects: self.objects(objects)?,
-                destination: Destination::OwnersLibraryShuffled,
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            },
+            S::ShuffleEachPermanentIntoLibrary(objects) => crate::movement::move_plain(self.objects(objects)?, Destination::OwnersLibraryShuffled),
             S::PutAGraveyardCardOntoBattlefield(cards, flags) => {
                 let objects = self.grave_cards(cards)?;
                 return self.choose_and_enter(objects, flags, actor);
@@ -3548,13 +3581,7 @@ impl Context {
                     self.card_filter(cards)?,
                     ObjectFilter::ArrivedThisTurn { from },
                 ]);
-                Operation::Move {
-                    objects: self.private_cards(EventZone::Graveyard, actor.clone(), filter),
-                    destination: Destination::OwnersHand,
-                    entry: EntrySpec::default(),
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                crate::movement::move_plain(self.private_cards(EventZone::Graveyard, actor.clone(), filter), Destination::OwnersHand)
             }
             S::ReturnEachCardFromPlayersGraveyardToBattlefieldThatWasPutThereFromBattlefieldThisTurn(
                 cards,
@@ -3725,36 +3752,18 @@ impl Context {
                     Ok(Instruction::Group(Program { instructions }))
                 });
             }
-            S::PutGraveyardCardInOwnersLibraryNthFromTheTop(card, n) => Operation::Move {
-                objects: ObjectSet::One(self.grave_card(card)?),
-                destination: Destination::OwnersLibraryFromTop(self.number(n)?),
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            },
-            S::PutPermanentInOwnersLibraryNthFromTheTop(object, n) => Operation::Move {
-                objects: ObjectSet::One(self.object(object)?),
-                destination: Destination::OwnersLibraryFromTop(self.number(n)?),
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            },
+            S::PutGraveyardCardInOwnersLibraryNthFromTheTop(card, n) => crate::movement::move_plain(ObjectSet::One(self.grave_card(card)?), Destination::OwnersLibraryFromTop(self.number(n)?)),
+            S::PutPermanentInOwnersLibraryNthFromTheTop(object, n) => crate::movement::move_plain(ObjectSet::One(self.object(object)?), Destination::OwnersLibraryFromTop(self.number(n)?)),
             S::PutEachCardFromEachPlayersGraveyardOntoTheBattlefield(cards, players, flags) => {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("moving graveyard cards needs one player"));
                 };
                 let (destination, entry) = self.move_entry(flags, player.clone())?;
-                Operation::Move {
-                    objects: self.private_cards(
+                crate::movement::move_to(self.private_cards(
                         EventZone::Graveyard,
                         self.players(players)?,
                         self.card_filter(cards)?,
-                    ),
-                    destination,
-                    entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                    ), destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?
             }
             S::PutACardFromPlayersGraveyardOnBattlefield(cards, owner, flags) => {
                 let PlayerSet::One(player) = actor else {
@@ -3774,13 +3783,7 @@ impl Context {
                     unreachable!()
                 };
                 let (destination, entry) = self.move_entry(flags, player.clone())?;
-                let movement = self.effect(Operation::Move {
-                    objects: ObjectSet::Selected(result.clone()),
-                    destination,
-                    entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                });
+                let movement = self.effect(crate::movement::move_to(ObjectSet::Selected(result.clone()), destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?);
                 return Ok(Instruction::Group(Program {
                     instructions: vec![choice, movement],
                 }));
@@ -3790,17 +3793,11 @@ impl Context {
                     as_family(cards, "CardsInHand").ok_or_else(|| unsupported(value))?;
                 return self.put_from_hand(&cards, flags, Some(Count::AnyNumber), actor);
             }
-            S::ReturnEachCardFromGraveyardToHand(cards) => Operation::Move {
-                objects: self.private_cards(
+            S::ReturnEachCardFromGraveyardToHand(cards) => crate::movement::move_plain(self.private_cards(
                     EventZone::Graveyard,
                     actor.clone(),
                     self.card_filter(cards)?,
-                ),
-                destination: Destination::OwnersHand,
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            },
+                ), Destination::OwnersHand),
             S::DiscardCards(cards) => Operation::DiscardObjects {
                 objects: self.private_cards(
                     EventZone::Hand,
@@ -3813,50 +3810,26 @@ impl Context {
                 host: self.object(host)?,
             },
             S::ReturnEnchantingGraveyardCardToHand | S::ReturnDeadGuestGraveyardCardToHand => {
-                Operation::Move {
-                    objects: ObjectSet::One(self.departed_aura()?),
-                    destination: Destination::OwnersHand,
-                    entry: EntrySpec::default(),
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                crate::movement::move_plain(ObjectSet::One(self.departed_aura()?), Destination::OwnersHand)
             }
             // "This card" went to the graveyard; the Aura returns itself.
             S::ReturnEnchantingGraveyardCardToBattlefield(flags)
             | S::ReturnDeadGuestGraveyardCardToBattlefield(flags) => {
                 let (destination, entry) = self.move_entry(flags, PlayerRef::AbilityController)?;
-                Operation::Move {
-                    objects: ObjectSet::One(self.departed_aura()?),
-                    destination,
-                    entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                crate::movement::move_to(ObjectSet::One(self.departed_aura()?), destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?
             }
             S::ReturnPermanentToLibraryUnderNumberCards(object, n)
-            | S::PutPermanentInOwnersLibraryBeneathNumberCards(object, n) => Operation::Move {
-                objects: ObjectSet::One(self.object(object)?),
-                destination: Destination::OwnersLibraryFromTop(Expr::Add(
+            | S::PutPermanentInOwnersLibraryBeneathNumberCards(object, n) => crate::movement::move_plain(ObjectSet::One(self.object(object)?), Destination::OwnersLibraryFromTop(Expr::Add(
                     Box::new(self.number(n)?),
                     Box::new(Expr::Constant(1)),
-                )),
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            },
+                ))),
             S::ShuffleHandGraveyardAndPermanentsIntoLibrary => {
                 let owned = ObjectSet::battlefield(ObjectFilter::OwnedBy(actor.clone()));
-                let movement = self.effect(Operation::Move {
-                    objects: ObjectSet::Union(vec![
+                let movement = self.effect(crate::movement::move_plain(ObjectSet::Union(vec![
                         self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
                         self.private_cards(EventZone::Graveyard, actor.clone(), ObjectFilter::Any),
                         owned,
-                    ]),
-                    destination: Destination::OwnersLibraryTop,
-                    entry: EntrySpec::default(),
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                });
+                    ]), Destination::OwnersLibraryTop));
                 let shuffle = self.effect(Operation::Shuffle {
                     players: actor.clone(),
                     excluding: None,
@@ -3865,13 +3838,7 @@ impl Context {
                     instructions: vec![movement, shuffle],
                 }));
             }
-            S::ReturnGraveyardCardsToTopOfLibraryInAnyOrder(cards) => Operation::Move {
-                objects: self.grave_cards(cards)?,
-                destination: Destination::OwnersLibraryTop,
-                entry: EntrySpec::default(),
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            },
+            S::ReturnGraveyardCardsToTopOfLibraryInAnyOrder(cards) => crate::movement::move_plain(self.grave_cards(cards)?, Destination::OwnersLibraryTop),
             S::ReturnACardFromGraveyardToBattlefield(cards, _)
             | S::PutACardFromHandOrGraveyardOnBattlefield(cards, _, _)
             | S::PutUptoNumberCardsFromGraveyardToHand(_, cards)
@@ -3915,13 +3882,7 @@ impl Context {
                     }
                     _ => (Destination::OwnersHand, EntrySpec::default()),
                 };
-                let movement = self.effect(Operation::Move {
-                    objects: ObjectSet::Selected(result.clone()),
-                    destination,
-                    entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                });
+                let movement = self.effect(crate::movement::move_to(ObjectSet::Selected(result.clone()), destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?);
                 return Ok(Instruction::Group(Program {
                     instructions: vec![choice, movement],
                 }));
@@ -3953,17 +3914,11 @@ impl Context {
                 let after = self.effect(if matches!(value, S::DiscardUptoNumberCards(_)) {
                     Operation::DiscardObjects { objects: chosen }
                 } else {
-                    Operation::Move {
-                        objects: chosen,
-                        destination: if matches!(value, S::PutACardFromHandOnBottomOfLibrary) {
+                    crate::movement::move_plain(chosen, if matches!(value, S::PutACardFromHandOnBottomOfLibrary) {
                             Destination::OwnersLibraryBottom
                         } else {
                             Destination::OwnersLibraryTop
-                        },
-                        entry: EntrySpec::default(),
-                        face_down: false,
-                        terms: crate::ir::MovementTerms::default(),
-                    }
+                        })
                 });
                 return Ok(Instruction::Group(Program {
                     instructions: vec![choice, after],
@@ -3989,17 +3944,11 @@ impl Context {
                     }
                     _ => unreachable!(),
                 };
-                Operation::Move {
-                    objects: self.library_slice(
+                crate::movement::move_to(self.library_slice(
                         player.clone(),
                         Expr::Constant(1),
                         SequenceEnd::Top,
-                    ),
-                    destination,
-                    entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                    ), destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?
             }
             S::DiscardAnyNumberOfCards | S::DiscardAnyNumberOfCardsOfType(_) => {
                 let PlayerSet::One(player) = actor else {
@@ -4217,13 +4166,7 @@ impl Context {
                     unreachable!()
                 };
                 let (destination, entry) = self.move_entry(flags, player.clone())?;
-                let movement = self.effect(Operation::Move {
-                    objects: ObjectSet::Selected(result.clone()),
-                    destination,
-                    entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                });
+                let movement = self.effect(crate::movement::move_to(ObjectSet::Selected(result.clone()), destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?);
                 return Ok(Instruction::Group(Program {
                     instructions: vec![choice, movement],
                 }));
@@ -4307,9 +4250,7 @@ impl Context {
             S::EachPlayerCreatesTokens(players, tokens, flags) => {
                 let players = self.players(players)?;
                 let create = |context: &mut Self, players: &PlayerSet| {
-                    Ok(context.effect(Operation::CreateTokens {
-                        players: players.clone(),
-                        tokens: tokens
+                    Ok(context.effect(Operation::CreateTokens { players: players.clone(), tokens: tokens
                             .iter()
                             .enumerate()
                             .map(|(i, token)| {
@@ -4317,9 +4258,7 @@ impl Context {
                                     .token(token, 0)
                                     .map_err(|e| e.at(format!("tokens[{i}]")))
                             })
-                            .collect::<Result<_>>()?,
-                        entry: context.token_entry(flags)?,
-                    }))
+                            .collect::<Result<_>>()?, entry: crate::movement::battlefield_from_parts(&(context.token_entry(flags)?)).map_err(|message|invalid(&message))? }))
                 };
                 // Tokens counted per player need that player bound.
                 let per_player = format!("{tokens:?}");
@@ -4392,17 +4331,11 @@ impl Context {
             S::ReturnEachCardFromPlayersGraveyardToBattlefield(cards, player, flags) => {
                 let (destination, entry) = self.move_entry(flags, self.actor_or_you(actor)?)?;
                 let players = PlayerSet::One(self.player(player)?);
-                Operation::Move {
-                    objects: self.private_cards(
+                crate::movement::move_to(self.private_cards(
                         EventZone::Graveyard,
                         players,
                         self.grave_filter(cards)?,
-                    ),
-                    destination,
-                    entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                    ), destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?
             }
             S::AttachPermanentToAPermanent(attachment, hosts) => {
                 let PlayerSet::One(player) = actor else {
@@ -4604,18 +4537,14 @@ impl Context {
                 attachments: ObjectSet::One(self.object(attachment)?),
                 host: self.object(host)?,
             },
-            S::CreateTokens(tokens, flags) => Operation::CreateTokens {
-                players: actor.clone(),
-                tokens: tokens
+            S::CreateTokens(tokens, flags) => Operation::CreateTokens { players: actor.clone(), tokens: tokens
                     .iter()
                     .enumerate()
                     .map(|(i, token)| {
                         self.token(token, 0)
                             .map_err(|e| e.at(format!("tokens[{i}]")))
                     })
-                    .collect::<Result<_>>()?,
-                entry: self.token_entry(flags)?,
-            },
+                    .collect::<Result<_>>()?, entry: crate::movement::battlefield_from_parts(&(self.token_entry(flags)?)).map_err(|message|invalid(&message))? },
             S::PutCounters(placements)
                 if matches!(placements.as_slice(), [only]
                     if self.counter_placement(only, actor).is_err()
@@ -5142,8 +5071,15 @@ impl Context {
         use source::Target as S;
         for (i, value) in values.iter().enumerate() {
             let mut target = crate::targets::TargetSelector::Objects {
-                domain: ObjectDomain::permanent(), filter: ObjectFilter::Any,
-            }.into_spec(TargetSlot(self.targets.len().try_into().map_err(|_|invalid("too many target slots"))?));
+                domain: ObjectDomain::permanent(),
+                filter: ObjectFilter::Any,
+            }
+            .into_spec(TargetSlot(
+                self.targets
+                    .len()
+                    .try_into()
+                    .map_err(|_| invalid("too many target slots"))?,
+            ));
             match value {
                 S::TargetSpellOrAbility(_) | S::UptoNumberTargetSpellsOrAbilities(..) => {
                     target.kind = TargetKind::Object(ObjectDomain {
@@ -5746,15 +5682,13 @@ impl Context {
             }
             source::Cost::PutPermanentIntoItsOwnersHand(permanent) => {
                 return Ok(Cost {
-                    parts: vec![CostPart::Move {
-                        selections: vec![CostObjectSelection {
+                    parts: vec![crate::movement::cost_move_plain(
+                        vec![CostObjectSelection {
                             objects: ObjectSet::One(self.object(permanent)?),
                             choose: None,
                         }],
-                        destination: Destination::OwnersHand,
-                        entry: EntrySpec::default(),
-                        face_down: false,
-                    }],
+                        Destination::OwnersHand,
+                    )],
                 })
             }
             source::Cost::PutACardFromGraveyardIntoHand(cards) => {
@@ -5763,15 +5697,13 @@ impl Context {
                     .clone()
                     .unwrap_or(self.player(&source::Player::You)?);
                 return Ok(Cost {
-                    parts: vec![CostPart::Move {
-                        selections: vec![CostObjectSelection {
+                    parts: vec![crate::movement::cost_move_plain(
+                        vec![CostObjectSelection {
                             objects: Self::own_graveyard(self.grave_cards(cards)?, &payer),
                             choose: Some(Count::Exactly(Expr::Constant(1))),
                         }],
-                        destination: Destination::OwnersHand,
-                        entry: EntrySpec::default(),
-                        face_down: false,
-                    }],
+                        Destination::OwnersHand,
+                    )],
                 });
             }
             source::Cost::PutACardFromHandOnBattlefield(cards, flags) => {
@@ -5782,8 +5714,8 @@ impl Context {
                 let (destination, entry) = self.move_entry(flags, payer.clone())?;
                 let filter = self.card_filter(cards)?;
                 return Ok(Cost {
-                    parts: vec![CostPart::Move {
-                        selections: vec![CostObjectSelection {
+                    parts: vec![crate::movement::cost_move(
+                        vec![CostObjectSelection {
                             objects: self.private_cards(
                                 EventZone::Hand,
                                 PlayerSet::One(payer),
@@ -5793,8 +5725,9 @@ impl Context {
                         }],
                         destination,
                         entry,
-                        face_down: false,
-                    }],
+                        false,
+                    )
+                    .map_err(|message| invalid(&message))?],
                 });
             }
             source::Cost::PayManaForEach(mana, times) => {
@@ -5862,13 +5795,16 @@ impl Context {
         let Instruction::Effect { result, .. } = &choice else {
             unreachable!()
         };
-        let movement = self.effect(Operation::Move {
-            objects: ObjectSet::Selected(result.clone()),
-            destination,
-            entry,
-            face_down: false,
-            terms: crate::ir::MovementTerms::default(),
-        });
+        let movement = self.effect(
+            crate::movement::move_to(
+                ObjectSet::Selected(result.clone()),
+                destination,
+                entry,
+                false,
+                crate::ir::MovementTerms::default(),
+            )
+            .map_err(|message| invalid(&message))?,
+        );
         Ok(Instruction::Group(Program {
             instructions: vec![choice, movement],
         }))
@@ -6566,7 +6502,11 @@ fn keyword(value: &source::Rule) -> Result<Keyword> {
 }
 
 pub fn card(value: &source::OracleCard) -> std::result::Result<Card, Vec<Diagnostic>> {
-    crate::corpus::on_large_stack(|| crate::pipeline::lower(value)).map(crate::movement::normalize_card)
+    crate::corpus::on_large_stack(|| crate::pipeline::lower(value)).and_then(|card| {
+        let mut card = crate::movement::normalize_card(card);
+        crate::coin_policies::source_card(&mut card).map_err(|message| vec![invalid(&message)])?;
+        Ok(card)
+    })
 }
 pub(crate) fn bind_card(
     value: &source::OracleCard,

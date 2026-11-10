@@ -216,7 +216,8 @@ fn crew_validation_preserves_other_untapped_controlled_creatures_and_resolution_
         };
         match case {
             0..=3 => {
-                let mtgish_ast::battlefield_query!(ObjectFilter::All(filters)) = &mut selections[0].objects
+                let mtgish_ast::battlefield_query!(ObjectFilter::All(filters)) =
+                    &mut selections[0].objects
                 else {
                     panic!()
                 };
@@ -366,9 +367,7 @@ fn constrained_costs_remain_visible_to_mana_ability_classification() {
             },
             choose: Some(Count::Exactly(Expr::Constant(2))),
         }],
-        destination: Destination::Exile,
-        entry: EntrySpec::default(),
-        face_down: false,
+        destination: Destination::Exile.into(),
     });
     assert_eq!(
         mtgish_ast::semantics::activation_kind(cost, announcement, body),

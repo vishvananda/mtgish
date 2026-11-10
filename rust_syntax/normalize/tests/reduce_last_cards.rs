@@ -157,8 +157,14 @@ fn susan_foreman_looks_in_her_planar_deck_then_planeswalks() {
     assert!(matches!(
         moved.as_slice(),
         [
-            Destination::OwnersPlanarDeck(SequenceEnd::Bottom),
-            Destination::OwnersPlanarDeck(SequenceEnd::Top)
+            MovementDestination::OwnersPlanarDeck {
+                end: SequenceEnd::Bottom,
+                ..
+            },
+            MovementDestination::OwnersPlanarDeck {
+                end: SequenceEnd::Top,
+                ..
+            }
         ]
     ));
     let Instruction::Effect {
@@ -275,7 +281,12 @@ fn davriel_offers_eight_typed_programs() {
     }
     let text = |n: usize| serde_json::to_string(&offers[n]).unwrap();
     assert!(text(1).contains("Manor Guardian"));
-    for shape in ["\"AtRandom\"", "\"OwnersHand\"", "\"InSet\"", "\"Recorded\""] {
+    for shape in [
+        "\"AtRandom\"",
+        "\"OwnersHand\"",
+        "\"InSet\"",
+        "\"Recorded\"",
+    ] {
         assert!(text(2).contains(shape), "{shape}: {}", text(2));
     }
     for shape in [

@@ -254,7 +254,7 @@ impl Context {
         let into_hand = matches!(
             operation,
             Operation::Move {
-                destination: Destination::OwnersHand,
+                destination: MovementDestination::OwnersHand(_),
                 ..
             }
         );
@@ -333,11 +333,7 @@ impl Context {
                     pool,
                     self.library_filter(filter)?,
                     Count::UpTo(Expr::Constant(1)),
-                    vec![SelectionConstraint::CanMoveTo {
-                        destination: Destination::OwnersHand,
-                        entry: EntrySpec::default(),
-                        face_down: false,
-                    }],
+                    vec![crate::movement::can_move_plain(Destination::OwnersHand)],
                     instructions,
                 ));
             }
@@ -347,13 +343,7 @@ impl Context {
             }));
             state.found = Some(objects.clone());
             self.inspection_assignment(
-                Operation::Move {
-                    objects,
-                    destination: Destination::OwnersHand,
-                    entry: EntrySpec::default(),
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                },
+                crate::movement::move_plain(objects, Destination::OwnersHand),
                 state,
                 instructions,
             );
@@ -559,11 +549,10 @@ impl Context {
         if let Some((filter, c, reveal, movement, order)) = choice {
             let mut constraints = vec![];
             if let Some((destination, entry, face_down)) = &movement {
-                constraints.push(SelectionConstraint::CanMoveTo {
-                    destination: destination.clone(),
-                    entry: entry.clone(),
-                    face_down: *face_down,
-                });
+                constraints.push(
+                    crate::movement::can_move_to(destination.clone(), entry.clone(), *face_down)
+                        .map_err(|message| invalid(&message))?,
+                );
             }
             if let S::MayPutUptoNumberGroupCardsOntoTheBattlefield(_, _, group, _)
             | S::MayPutAnyNumberOfGroupCardsOntoTheBattlefield(_, group, _) = action
@@ -580,13 +569,14 @@ impl Context {
             }
             if let Some((destination, entry, face_down)) = movement {
                 self.inspection_assignment(
-                    Operation::Move {
-                        objects: selected,
+                    crate::movement::move_to(
+                        selected,
                         destination,
                         entry,
                         face_down,
-                        terms: crate::ir::MovementTerms::default(),
-                    },
+                        crate::ir::MovementTerms::default(),
+                    )
+                    .map_err(|message| invalid(&message))?,
                     state,
                     instructions,
                 );
@@ -632,13 +622,14 @@ impl Context {
                     }
                     _ => Destination::OwnersHand,
                 };
-                Operation::Move {
-                    objects: remaining,
+                crate::movement::move_to(
+                    remaining,
                     destination,
-                    entry: EntrySpec::default(),
-                    face_down: matches!(action, S::ExileTheRemainingCardsFaceDown),
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                    EntrySpec::default(),
+                    matches!(action, S::ExileTheRemainingCardsFaceDown),
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?
             }
             S::PutTheRemainingCardsOnTopOfLibraryInAnyOrder
             | S::PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder
@@ -721,21 +712,23 @@ impl Context {
                         objects,
                         ObjectFilter::Any,
                         Count::UpTo(one()),
-                        vec![SelectionConstraint::CanMoveTo {
-                            destination: destination.clone(),
-                            entry: entry.clone(),
-                            face_down: false,
-                        }],
+                        vec![crate::movement::can_move_to(
+                            destination.clone(),
+                            entry.clone(),
+                            false,
+                        )
+                        .map_err(|message| invalid(&message))?],
                         instructions,
                     );
                 }
-                Operation::Move {
+                crate::movement::move_to(
                     objects,
                     destination,
                     entry,
-                    face_down: false,
-                    terms: crate::ir::MovementTerms::default(),
-                }
+                    false,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?
             }
             S::GainLife(n) => Operation::GainLife {
                 players: PlayerSet::One(player.clone()),

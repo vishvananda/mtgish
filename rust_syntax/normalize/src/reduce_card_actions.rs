@@ -46,15 +46,18 @@ fn reduce_card_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         ) => Operation::EachNumber {
             from: from.clone(),
             to: to.clone(),
-            action: Box::new(Operation::Conjure {
-                actor: actor.clone(),
-                card: ConjuredCard::Random(Box::new(cards.clone())),
-                count: Expr::Constant(1),
-                zone: EventZone::Battlefield,
-                owner: None,
-                spot: None,
-                entry: crate::movement::entry_from_source(entry),
-            }),
+            action: Box::new(
+                crate::movement::conjure_to(
+                    actor.clone(),
+                    ConjuredCard::Random(Box::new(cards.clone())),
+                    Expr::Constant(1),
+                    EventZone::Battlefield,
+                    None,
+                    None,
+                    crate::movement::entry_from_source(entry),
+                )
+                .ok()?,
+            ),
         },
         (
             "PlayALandFromTopOfLibraryOrCastASpellFromTopOfLibraryWithTrigger",
@@ -172,11 +175,8 @@ pub fn reduce_card_cost(
     payer: &PlayerRef,
 ) -> Option<Vec<CostPart>> {
     use Operand::{Filter, List, Players};
-    let moved = |objects, choose, destination| CostPart::Move {
-        selections: vec![CostObjectSelection { objects, choose }],
-        destination,
-        entry: EntrySpec::default(),
-        face_down: false,
+    let moved = |objects, choose, destination| {
+        crate::movement::cost_move_plain(vec![CostObjectSelection { objects, choose }], destination)
     };
     Some(match (name.strip_prefix("Cost::")?, operands) {
         ("ExileACardInGraveyardsAndPayItsManaCost", [Filter(cards)]) => vec![

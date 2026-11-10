@@ -195,14 +195,20 @@ impl Context {
         }
         match &self.exiled {
             Some(result)
-                if self.exiled_one_input.as_ref().is_some_and(|one| one.0 == result.0) =>
+                if self
+                    .exiled_one_input
+                    .as_ref()
+                    .is_some_and(|one| one.0 == result.0) =>
             {
                 Some(ObjectSet::Transition {
                     result: result.clone(),
                     phase: ObjectPhase::After,
                 })
             }
-            None => self.paid_exile().filter(|(_, one)| *one).map(|(objects, _)| objects),
+            None => self
+                .paid_exile()
+                .filter(|(_, one)| *one)
+                .map(|(objects, _)| objects),
             _ => None,
         }
     }
@@ -249,11 +255,11 @@ impl Context {
                 if self.event.moved =>
             {
                 Ok(ObjectRef::Query {
-                objects: Box::new(ObjectSet::InZone {
-                    objects: Box::new(ObjectSet::One(ObjectRef::EventDestination)),
-                    zone: EventZone::Exile,
-                }),
-                index: 0,
+                    objects: Box::new(ObjectSet::InZone {
+                        objects: Box::new(ObjectSet::One(ObjectRef::EventDestination)),
+                        zone: EventZone::Exile,
+                    }),
+                    index: 0,
                 })
             }
             // Played from exile, it has left by then; the event still names the card.
@@ -578,7 +584,11 @@ impl Context {
             S::Permanent(p) => (ObjectSet::One(self.object(p)?), None),
             S::EachPermanent(p) => (self.objects(p)?, None),
             S::EachCardInLibrary(cards) => (
-                self.private_cards(EventZone::Library, actor.clone(), self.library_filter(cards)?),
+                self.private_cards(
+                    EventZone::Library,
+                    actor.clone(),
+                    self.library_filter(cards)?,
+                ),
                 None,
             ),
             S::APermanent(p) => (
@@ -616,7 +626,11 @@ impl Context {
                 Some(Count::AsManyAsCan(Expr::Constant(1))),
             ),
             S::AllCardsOfTypeFromLibrary(cards) => (
-                self.private_cards(EventZone::Library, actor.clone(), self.library_filter(cards)?),
+                self.private_cards(
+                    EventZone::Library,
+                    actor.clone(),
+                    self.library_filter(cards)?,
+                ),
                 None,
             ),
             S::ACardFromPlayersLibraryAtRandom(player) => (
@@ -700,11 +714,7 @@ impl Context {
                 None,
             ),
             S::TheTopNumberCardsOfLibrary(n) => (
-                self.library_slice(
-                    self.actor_or_you(actor)?,
-                    self.number(n)?,
-                    SequenceEnd::Top,
-                ),
+                self.library_slice(self.actor_or_you(actor)?, self.number(n)?, SequenceEnd::Top),
                 None,
             ),
             S::TheBottomNumberCardsOfLibrary(n) => (
@@ -779,7 +789,10 @@ impl Context {
         item: &source::Exilable,
         flags: &[source::ExileFlag],
     ) -> Option<source::Action> {
-        use source::{Action as A, CardsInGraveyards as C, Exilable as S, GameNumber as N, Player as P, Players as Ps};
+        use source::{
+            Action as A, CardsInGraveyards as C, Exilable as S, GameNumber as N, Player as P,
+            Players as Ps,
+        };
         let exile = |item| A::Exile(vec![item], flags.to_vec());
         let in_graveyard = |cards: &C| {
             Box::new(C::And(vec![
@@ -790,7 +803,9 @@ impl Context {
         Some(match item {
             S::TheBottomCardOfEachPlayersLibraries(players) => A::EachPlayerAction(
                 players.clone(),
-                Box::new(exile(S::TheBottomNumberCardsOfLibrary(Box::new(N::Integer(1))))),
+                Box::new(exile(S::TheBottomNumberCardsOfLibrary(Box::new(
+                    N::Integer(1),
+                )))),
             ),
             S::TheTopNumberCardsOfEachPlayersLibrary(n, players) => A::EachPlayerAction(
                 players.clone(),
@@ -848,7 +863,9 @@ impl Context {
                     let (name, operands) = self
                         .primitive("ExileFlag", flag)
                         .ok_or_else(|| unsupported(flag).at(format!("flags[{i}]")))?;
-                    entry.states.push(crate::semantics::reduce_entry_flag(name, operands));
+                    entry
+                        .states
+                        .push(crate::semantics::reduce_entry_flag(name, operands));
                 }
             }
         }
@@ -881,7 +898,8 @@ impl Context {
         let mut sets = Vec::new();
         self.exile_found = None;
         for (i, item) in items.iter().enumerate() {
-            if let source::Exilable::CardsFromTheTopOfLibraryUntilGroupCardsAreExiled(group) = item {
+            if let source::Exilable::CardsFromTheTopOfLibraryUntilGroupCardsAreExiled(group) = item
+            {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("exiling from a library needs one player"));
                 };
@@ -898,7 +916,9 @@ impl Context {
                 continue;
             }
             if let source::Exilable::CardsFromTheTopOfLibraryUntilACardOfTypeIsExiled(_)
-            | source::Exilable::CardsFromTheTopOfLibraryUntilANumberOfCardsOfTypeAreExiled(..) = item
+            | source::Exilable::CardsFromTheTopOfLibraryUntilANumberOfCardsOfTypeAreExiled(
+                ..,
+            ) = item
             {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("exiling from a library needs one player"));
@@ -973,13 +993,16 @@ impl Context {
         } else {
             ObjectSet::Union(sets)
         };
-        let movement = self.effect(Operation::Move {
-            objects,
-            destination: Destination::Exile,
-            entry,
-            face_down,
-            terms: crate::ir::MovementTerms::default(),
-        });
+        let movement = self.effect(
+            crate::movement::move_to(
+                objects,
+                Destination::Exile,
+                entry,
+                face_down,
+                crate::ir::MovementTerms::default(),
+            )
+            .map_err(|message| invalid(&message))?,
+        );
         self.exiled_permanents = items.iter().all(|item| {
             matches!(
                 item,
@@ -1041,7 +1064,9 @@ impl Context {
         actor: &PlayerSet,
     ) -> Result<Instruction> {
         let PlayerSet::One(player) = actor else {
-            return Err(invalid("returning a card from a graveyard needs one player"));
+            return Err(invalid(
+                "returning a card from a graveyard needs one player",
+            ));
         };
         let objects = Self::own_graveyard(self.grave_cards(cards)?, player);
         let choice = self.effect(Operation::ChooseObjects {
@@ -1054,13 +1079,10 @@ impl Context {
             unreachable!()
         };
         let objects = ObjectSet::Selected(result.clone());
-        let movement = self.effect(Operation::Move {
+        let movement = self.effect(crate::movement::move_plain(
             objects,
-            destination: Destination::OwnersHand,
-            entry: EntrySpec::default(),
-            face_down: false,
-            terms: crate::ir::MovementTerms::default(),
-        });
+            Destination::OwnersHand,
+        ));
         Ok(Instruction::Group(Program {
             instructions: vec![choice, movement],
         }))
@@ -1075,13 +1097,10 @@ impl Context {
             .iter()
             .map(|zone| self.private_cards(zone.clone(), actor.clone(), ObjectFilter::Any))
             .collect();
-        let movement = self.effect(Operation::Move {
-            objects: ObjectSet::Union(objects),
-            destination: Destination::OwnersLibraryTop,
-            entry: EntrySpec::default(),
-            face_down: false,
-            terms: crate::ir::MovementTerms::default(),
-        });
+        let movement = self.effect(crate::movement::move_plain(
+            ObjectSet::Union(objects),
+            Destination::OwnersLibraryTop,
+        ));
         let shuffle = self.effect(Operation::Shuffle {
             players: actor.clone(),
             excluding: None,
@@ -1108,13 +1127,16 @@ impl Context {
         let filter = self.hand_filter(cards)?;
         let objects = self.private_cards(EventZone::Hand, actor.clone(), filter);
         let Some(count) = count else {
-            let movement = self.effect(Operation::Move {
-                objects,
-                destination,
-                entry,
-                face_down: false,
-                terms: crate::ir::MovementTerms::default(),
-            });
+            let movement = self.effect(
+                crate::movement::move_to(
+                    objects,
+                    destination,
+                    entry,
+                    false,
+                    crate::ir::MovementTerms::default(),
+                )
+                .map_err(|message| invalid(&message))?,
+            );
             self.note_moves(&Program {
                 instructions: vec![movement.clone()],
             });
@@ -1130,13 +1152,16 @@ impl Context {
             unreachable!()
         };
         let objects = ObjectSet::Selected(result.clone());
-        let movement = self.effect(Operation::Move {
-            objects,
-            destination,
-            entry,
-            face_down: false,
-            terms: crate::ir::MovementTerms::default(),
-        });
+        let movement = self.effect(
+            crate::movement::move_to(
+                objects,
+                destination,
+                entry,
+                false,
+                crate::ir::MovementTerms::default(),
+            )
+            .map_err(|message| invalid(&message))?,
+        );
         let body = Program {
             instructions: vec![choice, movement],
         };
@@ -1237,9 +1262,9 @@ impl Context {
                 source::EnterFlag::EntersAttachedToPlayer(p) => entry
                     .states
                     .push(EntryState::AttachedToPlayer(self.player(p)?)),
-                source::EnterFlag::EntersWithLayerEffect(changes) => {
-                    entry.states.push(EntryState::Changes(self.changes(changes)?))
-                }
+                source::EnterFlag::EntersWithLayerEffect(changes) => entry
+                    .states
+                    .push(EntryState::Changes(self.changes(changes)?)),
                 source::EnterFlag::EntersWithLayerEffectUntil(changes, duration) => {
                     entry.states.push(EntryState::ChangesUntil {
                         changes: self.changes(changes)?,
@@ -1250,7 +1275,9 @@ impl Context {
                     let (name, operands) = self
                         .primitive("EnterFlag", flag)
                         .ok_or_else(|| unsupported(flag).at(format!("entry[{i}]")))?;
-                    entry.states.push(crate::semantics::reduce_entry_flag(name, operands));
+                    entry
+                        .states
+                        .push(crate::semantics::reduce_entry_flag(name, operands));
                 }
             }
         }

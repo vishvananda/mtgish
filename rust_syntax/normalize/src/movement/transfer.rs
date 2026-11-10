@@ -69,12 +69,10 @@ pub(super) fn canonical_move(operation: &Operation) -> Operation {
             terms.order = MovementOrder::Random;
         }
     }
-    let action = Operation::Move {
-        objects,
-        destination,
-        entry: arrival,
-        face_down: hidden,
-        terms,
+    let Ok(action) = move_to(objects, destination, arrival, hidden, terms) else {
+        // Preserve an unreduced Source form on an illegal destination payload.
+        // Validation rejects it, rather than manufacturing complete semantics.
+        return operation.clone();
     };
     if extraction.steps.is_empty() {
         action
@@ -103,7 +101,12 @@ pub(super) fn entry_from_source(flags: &[Operand]) -> EntrySpec {
     for flag in flags {
         entry_flag(flag, &mut destination, &mut entry, &mut hidden);
     }
-    if hidden && !entry.states.iter().any(|state| matches!(state, EntryState::FaceDown)) {
+    if hidden
+        && !entry
+            .states
+            .iter()
+            .any(|state| matches!(state, EntryState::FaceDown))
+    {
         entry.states.push(EntryState::FaceDown);
     }
     entry
@@ -156,7 +159,9 @@ fn entry_flag(
         }
         ("EnterFlag", "EntersUnderAPlayersControl", [Operand::Players(players)]) => {
             *destination = Destination::Battlefield(PlayerRef::OneOf(Box::new(players.clone())));
-            entry.controller = Some(EntryController::Player(PlayerRef::OneOf(Box::new(players.clone()))));
+            entry.controller = Some(EntryController::Player(PlayerRef::OneOf(Box::new(
+                players.clone(),
+            ))));
         }
         ("EnterFlag", "EntersUnderOwnersControl", []) => {
             *destination = Destination::OwnersBattlefield;
@@ -195,7 +200,11 @@ fn entry_flag(
         ("EnterFlag", "EntersFaceDown", []) => entry.states.push(EntryState::FaceDown),
         ("EntryState", "FaceDown", []) => entry.states.push(EntryState::FaceDown),
         ("ExiledCardEffect", "AddAbility", [Operand::Ability(ability)]) => {
-            entry.states.push(EntryState::Changes(vec![Change::GrantAbility(ability.clone())]));
+            entry
+                .states
+                .push(EntryState::Changes(vec![Change::GrantAbility(
+                    ability.clone(),
+                )]));
         }
         ("EnterFlag", "EntersFlipped", []) => entry.states.push(EntryState::Flipped),
         ("EnterFlag", "EntersAttacking", []) => entry.states.push(EntryState::Attacking {

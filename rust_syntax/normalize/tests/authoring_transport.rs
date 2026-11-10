@@ -1,3 +1,5 @@
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 use mtgish_ast::{binding_map::SiteMap, canonical, human::document, ir::*};
 fn card(body: &str) -> String {
     format!("Card{{name:\"Mapped names\",properties:{{card_types:[Instant]}},abilities:[Spell{{do:[{body}]}}]}}")
@@ -195,8 +197,9 @@ fn captured_names_survive_hoisting_through_nested_and_future_scopes() {
 
 #[test]
 fn joined_branch_receipts_report_each_cloned_origin() {
-    let cases: Vec<serde_json::Value> =
+    let mut cases: Vec<serde_json::Value> =
         serde_json::from_str(include_str!("fixtures/canonical_join_results.json")).unwrap();
+    cases.iter_mut().for_each(legacy_entries::json);
     let mut value = cases[0]["a"].clone();
     value[0]["args"]["body"]["instructions"][0]["args"]["options"][1]["instructions"][0]["args"]
         ["result"] = serde_json::json!(11);
@@ -302,7 +305,10 @@ fn metadata_only_single_abilities_use_the_same_typed_canonicalizer() {
     .unwrap();
     let card = UnifiedCard {
         schema_version: SCHEMA_VERSION,
-        layout: mtgish_ast::ir::Layout::Extension {namespace:"tests.mtgish".into(),name:"SingleAbility".into()},
+        layout: mtgish_ast::ir::Layout::Extension {
+            namespace: "tests.mtgish".into(),
+            name: "SingleAbility".into(),
+        },
         faces: vec![],
         data: vec![Field {
             name: "Ability".into(),

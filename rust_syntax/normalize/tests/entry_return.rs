@@ -9,9 +9,13 @@ use mtgish_ast::{
 struct ReturnRecipients(Vec<serde_json::Value>);
 impl Visitor for ReturnRecipients {
     fn operation(&mut self, operation: &Operation) -> bool {
-        if let Operation::Move { entry, .. } = operation {
+        if let Operation::Move {
+            destination: MovementDestination::Exile { arrival: entry, .. },
+            ..
+        } = operation
+        {
             for state in &entry.states {
-                if let EntryState::ExiledForWith { body, .. } = state {
+                if let ExileState::ExiledForWith { body, .. } = state {
                     for instruction in &body.instructions {
                         if let Instruction::Effect {
                             operation: Operation::PutCounters { placements },

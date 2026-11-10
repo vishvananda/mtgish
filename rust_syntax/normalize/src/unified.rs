@@ -45,6 +45,14 @@ struct Walk {
 pub fn lower(value: &OracleCard) -> Lowered {
     let mut lowered = crate::corpus::on_large_stack(|| lower_record(value));
     crate::movement::normalize_unified(&mut lowered.card);
+    if let Err(message) = crate::coin_policies::source_unified(&mut lowered.card) {
+        lowered.diagnostics.push(Diagnostic {
+            path: "".into(),
+            source_type: "CoinProtocol".into(),
+            form: "SourceInference".into(),
+            message,
+        });
+    }
     lowered
 }
 
@@ -71,12 +79,13 @@ fn data_record(value: &OracleCard) -> Option<Lowered> {
         }
         _ => return None,
     };
-    let card = UnifiedCard {
+    let mut card = UnifiedCard {
         schema_version: SCHEMA_VERSION,
         layout: Layout::from_name(layout).expect("known Source layout"),
         faces,
         data,
     };
+    crate::coin_policies::source_unified(&mut card).ok()?;
     crate::validate::unified(&card).ok()?;
     Some(Lowered {
         card,
@@ -98,7 +107,8 @@ fn lower_record(value: &OracleCard) -> Lowered {
     );
     let card = UnifiedCard {
         schema_version: SCHEMA_VERSION,
-        layout: Layout::from_name(inspected["variant"].as_str().expect("layout")).expect("known Source layout"),
+        layout: Layout::from_name(inspected["variant"].as_str().expect("layout"))
+            .expect("known Source layout"),
         faces: walk.faces,
         data: walk.data,
     };

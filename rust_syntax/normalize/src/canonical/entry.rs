@@ -113,7 +113,8 @@ fn safe(value: &Value, ty: &Ty, schema: &Schema, guard: Guard) -> bool {
                         types,
                         schema,
                         name == "Operation" && variant == Some("CreateTrigger")
-                            || name == "EntryState" && variant == Some("ExiledForWith"),
+                            || matches!(name.as_str(), "EntryState" | "ExileState")
+                                && variant == Some("ExiledForWith"),
                         guard,
                     )
                 }
@@ -139,7 +140,11 @@ fn fields(value: &Value, types: &Fields, schema: &Schema, future: bool, guard: G
             }
         }
         Fields::Named(types) => types.iter().all(|(field, ty)| {
-            future && matches!(field.as_str(), "body" | "announcement" | "intervening_if" | "objects")
+            future
+                && matches!(
+                    field.as_str(),
+                    "body" | "announcement" | "intervening_if" | "objects"
+                )
                 || value
                     .get(field)
                     .is_none_or(|item| safe(item, ty, schema, guard))

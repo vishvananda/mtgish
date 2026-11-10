@@ -243,7 +243,10 @@ pub(super) fn remembered(rust: String) -> String {
 /// "Choose one. If this spell was kicked, choose any number instead.": the same
 /// modes, and how many of them if it is kicked.
 pub(super) fn kicked_choice(paid: &Announcement, unpaid: &Announcement) -> Option<(u8, u8)> {
-    let (paid, unpaid) = (crate::mode_policies::parts(paid.modes.as_ref()?), crate::mode_policies::parts(unpaid.modes.as_ref()?));
+    let (paid, unpaid) = (
+        crate::mode_policies::parts(paid.modes.as_ref()?),
+        crate::mode_policies::parts(unpaid.modes.as_ref()?),
+    );
     let (Expr::Constant(min), Expr::Constant(max)) = (&paid.minimum, &paid.maximum) else {
         return None;
     };
@@ -284,7 +287,9 @@ pub(super) fn only_their_own(objects: &ObjectSet) -> bool {
         // "Each player exiles the top card of their library" (Rocco, Street Chef).
         ObjectSet::Zone { scope, .. } if theirs(&ObjectFilter::InZone(scope.clone())) => true,
         ObjectSet::Take { objects, .. } => only_their_own(objects),
-        _ => matches!(objects, ObjectSet::Zone { filter, .. } | crate::battlefield_query!(filter) if theirs(filter)),
+        _ => {
+            matches!(objects, ObjectSet::Zone { filter, .. } | crate::battlefield_query!(filter) if theirs(filter))
+        }
     }
 }
 
@@ -305,8 +310,14 @@ const CARD_TYPES: [&str; 9] = [
 /// The colors, in the order of `Color`.
 pub(super) const COLORS: [&str; 5] = ["White", "Blue", "Black", "Red", "Green"];
 /// The permanent types (CR 110.4b).
-const PERMANENT_TYPES: [&str; 6] =
-    ["Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"];
+const PERMANENT_TYPES: [&str; 6] = [
+    "Artifact",
+    "Battle",
+    "Creature",
+    "Enchantment",
+    "Land",
+    "Planeswalker",
+];
 /// The types a card offers as it enters, each spelled as a `CardType`.
 pub(super) fn entering_types(options: &[Operand]) -> Vec<String> {
     let listed: Vec<String> = options
@@ -317,7 +328,10 @@ pub(super) fn entering_types(options: &[Operand]) -> Vec<String> {
         })
         .collect();
     match listed.is_empty() {
-        true => CARD_TYPES.iter().map(|word| format!("CardType::{word}")).collect(),
+        true => CARD_TYPES
+            .iter()
+            .map(|word| format!("CardType::{word}"))
+            .collect(),
         false => listed,
     }
 }
@@ -337,7 +351,13 @@ pub(super) fn cast_pays(card: &Card) -> Vec<&'static str> {
                 cost: Some(cost),
                 ..
             } if cost.parts.iter().any(|part| {
-                matches!(part, CostPart::Discard { count: Expr::Constant(1), .. })
+                matches!(
+                    part,
+                    CostPart::Discard {
+                        count: Expr::Constant(1),
+                        ..
+                    }
+                )
             }) =>
             {
                 pays.push("Discarded")
@@ -362,7 +382,9 @@ pub(super) fn damages_once(card: &Card) -> bool {
             .instructions
             .iter()
             .map(|i| match i {
-                Instruction::If { then, otherwise, .. } => most(then).max(most(otherwise)),
+                Instruction::If {
+                    then, otherwise, ..
+                } => most(then).max(most(otherwise)),
                 Instruction::Group(inner) => most(inner),
                 other => format!("{other:?}").matches("DealDamage").count(),
             })
@@ -378,9 +400,10 @@ pub(super) fn damages_once(card: &Card) -> bool {
         .collect();
     types.iter().any(|t| matches!(t, T::Instant | T::Sorcery))
         && matches!(spells.as_slice(), [body] if most(body) == 1)
-        && card.abilities.iter().all(|a| {
-            matches!(a, Ability::Spell { .. }) || !format!("{a:?}").contains("Damage")
-        })
+        && card
+            .abilities
+            .iter()
+            .all(|a| matches!(a, Ability::Spell { .. }) || !format!("{a:?}").contains("Damage"))
         && !words.contains("Fight")
 }
 
@@ -445,7 +468,9 @@ pub(super) fn entering_card_types_but(terms: &ChoiceTerms) -> Option<Vec<Operand
     else {
         return None;
     };
-    (options.is_empty() && !except.is_empty()).then(|| card_types_but(except)).flatten()
+    (options.is_empty() && !except.is_empty())
+        .then(|| card_types_but(except))
+        .flatten()
 }
 
 pub(super) fn entering_card_type(card: &Card) -> Option<Vec<String>> {
@@ -458,13 +483,26 @@ pub(super) fn entering_card_type(card: &Card) -> Option<Vec<String>> {
         else {
             return None;
         };
-        body.instructions.iter().find_map(|instruction| match instruction {
-            Instruction::Effect { operation: Operation::ChooseValue {kind: ValueKind::CardType, terms, ..}, .. } => {
-                if terms.ordinary_count().is_some() { Some(entering_types(&terms.options)) }
-                else { entering_card_types_but(terms).map(|options| entering_types(&options)) }
-            }
-            _ => None,
-        })
+        body.instructions
+            .iter()
+            .find_map(|instruction| match instruction {
+                Instruction::Effect {
+                    operation:
+                        Operation::ChooseValue {
+                            kind: ValueKind::CardType,
+                            terms,
+                            ..
+                        },
+                    ..
+                } => {
+                    if terms.ordinary_count().is_some() {
+                        Some(entering_types(&terms.options))
+                    } else {
+                        entering_card_types_but(terms).map(|options| entering_types(&options))
+                    }
+                }
+                _ => None,
+            })
     })
 }
 
@@ -500,7 +538,9 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        if terms.ordinary_count() != Some(1) { return Ok(None); }
+        if terms.ordinary_count() != Some(1) {
+            return Ok(None);
+        }
         let options = &terms.options;
 
         let [Operand::Term { form, operands, .. }] = options.as_slice() else {
@@ -520,7 +560,9 @@ impl Compiler {
         writeln!(self.functions, "#[allow(unused_variables)] fn {label}_colors(q: &dyn Query, asker: &Asker) -> ColorSet {{ {colors} }}").unwrap();
         self.mana_colors = Some((format!(".colors_from({label}_colors)"), None));
         writeln!(self.functions, "fn {label}(g: &mut dyn Game, asker: &Asker, chosen: Option<Color>) -> Result<(), Suspend> {{ if let Some(color) = chosen {{ g.add_mana(asker.controller, color.mana(), 1); }} Ok(()) }}").unwrap();
-        Ok(Some(format!("add_by({label}).choose_color().yields_any(1)")))
+        Ok(Some(format!(
+            "add_by({label}).choose_color().yields_any(1)"
+        )))
     }
     /// Leaves word for `remembered`, where a resolving ability made this choice.
     pub(super) fn remember_choice(&mut self, kind: ValueKind, local: &str, out: &mut String) {
@@ -552,7 +594,10 @@ impl Compiler {
         };
         // Chosen as the source entered: the permanent keeps it for its linked
         // abilities (CR 607.2d), and the engine reads it there.
-        let code = format!("q.state().{read}({}).expect(\"it chose one\")", self.linked());
+        let code = format!(
+            "q.state().{read}({}).expect(\"it chose one\")",
+            self.linked()
+        );
         if self.enters_choosing.contains(&kind) && kind != ValueKind::Ability {
             return Ok(code);
         }
@@ -646,7 +691,10 @@ impl Compiler {
             ValueKind::CardType if self.stack_item && !entering => {
                 let words = listed("CardType")?;
                 let words: Vec<String> = match words.is_empty() {
-                    true => CARD_TYPES.iter().map(|word| format!("CardType::{word}")).collect(),
+                    true => CARD_TYPES
+                        .iter()
+                        .map(|word| format!("CardType::{word}"))
+                        .collect(),
                     false => words,
                 };
                 let base = self.choice_labels.len();
@@ -683,11 +731,15 @@ impl Compiler {
             ValueKind::PermanentType if self.stack_item => {
                 let words = PERMANENT_TYPES;
                 let base = self.choice_labels.len();
-                self.choice_labels.extend(words.iter().map(|word| word.to_string()));
+                self.choice_labels
+                    .extend(words.iter().map(|word| word.to_string()));
                 let end = self.choice_labels.len();
                 let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
                 self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
-                let words: Vec<String> = words.iter().map(|word| format!("CardType::{word}")).collect();
+                let words: Vec<String> = words
+                    .iter()
+                    .map(|word| format!("CardType::{word}"))
+                    .collect();
                 writeln!(
                     out,
                     "let player_{id} = {player}; let {local}: CardType = [{}][usize::from({M}::choose::option(g, player_{id}, asker.source, item.ability.card, {base}..{end})? - {base})];",
@@ -765,9 +817,13 @@ impl Compiler {
                         _ => None,
                     })
                     .collect();
-                let pairs = pairs.filter(|pairs| !pairs.is_empty()).ok_or_else(|| gap(feature.as_str()))?;
+                let pairs = pairs
+                    .filter(|pairs| !pairs.is_empty())
+                    .ok_or_else(|| gap(feature.as_str()))?;
                 self.choice_labels.extend(
-                    pairs.iter().map(|(color, kind)| format!("{} {kind}", color.to_lowercase())),
+                    pairs
+                        .iter()
+                        .map(|(color, kind)| format!("{} {kind}", color.to_lowercase())),
                 );
                 let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
                 self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
@@ -826,7 +882,9 @@ impl Compiler {
                 _ => false,
             });
         if destroy_choice {
-            for label in &mut labels { *label = format!("Destroy all {label}s"); }
+            for label in &mut labels {
+                *label = format!("Destroy all {label}s");
+            }
         }
         if !self.stack_item || (self.entering_labels.is_some() && self.choice_labels.is_empty()) {
             return Err(failure());
@@ -1806,7 +1864,8 @@ impl Compiler {
                 player: Some(player),
                 outcome: outcome @ (CoinOutcome::Heads | CoinOutcome::Tails),
             } if self.coin_turns.is_some() => {
-                let (players, flips) = self.coin_turns.clone().expect("flipped");
+                let (players, flips, protocol) = self.coin_turns.clone().expect("flipped");
+                Self::coin_channel(protocol,outcome)?;
                 let player = self.player(player)?;
                 let heads = matches!(outcome, CoinOutcome::Heads);
                 format!("{players}.iter().zip(&{flips}).any(|(&flipper, &heads)| Some(flipper) == {player} && heads == {heads})")
@@ -1816,7 +1875,8 @@ impl Compiler {
                 player: None,
                 outcome: outcome @ (CoinOutcome::Heads | CoinOutcome::Tails),
             } if self.coin_objects.is_some() => {
-                let flips = self.coin_objects.clone().expect("flipped");
+                let (flips,protocol) = self.coin_objects.clone().expect("flipped");
+                Self::coin_channel(protocol,outcome)?;
                 let candidate = self.candidates.borrow().last().map(|c| c.id.clone());
                 let candidate = candidate.ok_or_else(|| gap(feature.as_str()))?;
                 let heads = matches!(outcome, CoinOutcome::Heads);
@@ -2074,9 +2134,14 @@ impl Compiler {
 /// Whether a printed landwalk of `land` is a rule of the block of its own: of a
 /// land type Cantrip has no word for, or a type and a supertype together.
 pub(super) fn landwalk_rule(land: &ObjectFilter) -> bool {
-    if native_landwalk(land).is_some() { return false; }
+    if native_landwalk(land).is_some() {
+        return false;
+    }
     let snow = |f: &ObjectFilter| {
-        matches!(f, ObjectFilter::Supertype(crate::mtg_types::SuperType::Snow))
+        matches!(
+            f,
+            ObjectFilter::Supertype(crate::mtg_types::SuperType::Snow)
+        )
     };
     let of_a_type = |f: &ObjectFilter| matches!(f, ObjectFilter::Subtype(_));
     match land {
@@ -2096,7 +2161,9 @@ pub(super) fn landwalk_rule(land: &ObjectFilter) -> bool {
 }
 /// "Nonbasic landwalk", and landwalk of what no word of Cantrip's names (CR 702.14).
 pub(super) fn landwalk(land: &ObjectFilter) -> Result<String> {
-    if let Some(word) = native_landwalk(land) { return Ok(format!("Keyword::{word}")); }
+    if let Some(word) = native_landwalk(land) {
+        return Ok(format!("Keyword::{word}"));
+    }
     let feature = format!("landwalk of {}", form(land));
     if let ObjectFilter::Not(inner) = land {
         if matches!(
@@ -2132,7 +2199,9 @@ fn native_landwalk(land: &ObjectFilter) -> Option<&'static str> {
         ObjectFilter::Subtype(T::Desert) => "Desertwalk",
         ObjectFilter::Supertype(S::Legendary) => "LegendaryLandwalk",
         ObjectFilter::Supertype(S::Snow) => "SnowLandwalk",
-        ObjectFilter::Not(inner) if matches!(**inner, ObjectFilter::Supertype(S::Basic)) => "NonbasicLandwalk",
+        ObjectFilter::Not(inner) if matches!(**inner, ObjectFilter::Supertype(S::Basic)) => {
+            "NonbasicLandwalk"
+        }
         ObjectFilter::All(parts) if parts.len() == 2 => {
             let snow = |f: &ObjectFilter| matches!(f, ObjectFilter::Supertype(S::Snow));
             let ty = match parts.as_slice() {
@@ -2151,7 +2220,9 @@ fn native_landwalk(land: &ObjectFilter) -> Option<&'static str> {
         }
         _ => return None,
     };
-    crate::cantrip_vocab::KEYWORDS.contains(&word).then_some(word)
+    crate::cantrip_vocab::KEYWORDS
+        .contains(&word)
+        .then_some(word)
 }
 fn land_filter(land: &ObjectFilter) -> Option<String> {
     Some(match land {
@@ -2246,8 +2317,14 @@ impl Compiler {
                 let function = format!("{label}_hand_size");
                 let n = self.number(n)?.code;
                 let (ty, value) = match adjust {
-                    true => ("i32", format!("({n}).clamp(i32::MIN.into(), i32::MAX.into()) as i32")),
-                    false => ("Option<u32>", format!("Some(({n}).clamp(0, u32::MAX.into()) as u32)")),
+                    true => (
+                        "i32",
+                        format!("({n}).clamp(i32::MIN.into(), i32::MAX.into()) as i32"),
+                    ),
+                    false => (
+                        "Option<u32>",
+                        format!("Some(({n}).clamp(0, u32::MAX.into()) as u32)"),
+                    ),
                 };
                 self.plan_item(&feature, &format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> {ty} {{ {value} }}"));
                 match adjust {
@@ -2359,7 +2436,8 @@ impl Compiler {
             if let Some(line) = modal.filter(|_| parts.spell == "Some(SpellDef::MODAL)") {
                 if let Some(at) = self.functions.find(&line) {
                     let end = at + self.functions[at..].find(";\n").unwrap_or(0);
-                    self.functions.insert_str(end, &format!(".shared({effect})"));
+                    self.functions
+                        .insert_str(end, &format!(".shared({effect})"));
                     return Ok(());
                 }
             }
@@ -2382,7 +2460,9 @@ impl Compiler {
         // Only a triggered ability has a count of modes to read (`ModalDef::COUNTED`):
         // Doomsday Confluence's "Choose X" is a spell's.
         if !matches!(self.slot_counts, target_counts::SlotCounts::Trigger { .. }) {
-            return Err(gap("a count of modes a spell or an activated ability reads"));
+            return Err(gap(
+                "a count of modes a spell or an activated ability reads",
+            ));
         }
         let told = |code: String| code.replace("i64::from(item.x)", "q.told_amount(asker)");
         let none_least = matches!(least, Expr::Constant(0));
@@ -2418,8 +2498,16 @@ impl Compiler {
         })
     }
     /// How something enters, as code: an `Arrival` the engine doesn't have yet.
-    fn arrival_code(&mut self, entry: &EntrySpec, failed: &str) -> Result<String> {
-        if entry.controller.is_some() { return Err(gap(format!("{failed}: controller override"))); }
+    fn arrival_code(
+        &mut self,
+        entry: &dyn crate::movement::ArrivalView,
+        failed: &str,
+    ) -> Result<String> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
+        if entry.controller.is_some() {
+            return Err(gap(format!("{failed}: controller override")));
+        }
         let mut counters = Vec::new();
         for (kind, n) in &entry.counters {
             counters.push(format!(
@@ -2552,10 +2640,12 @@ impl Compiler {
         id: usize,
         players: &PlayerSet,
         tokens: &[TokenSpec],
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         let mut code = String::new();
         let failed = match self.create_tokens(id, players, tokens, entry, result, &mut code) {
             Ok(()) => {
@@ -2583,10 +2673,11 @@ impl Compiler {
         // made for one object at a time, as `TokenRecipe::Copy` names one.
         if let [TokenSpec {
             amount,
-            recipe: TokenRecipe::CopyEach {
-                objects,
-                exceptions,
-            },
+            recipe:
+                TokenRecipe::CopyEach {
+                    objects,
+                    exceptions,
+                },
             ..
         }] = tokens
         {
@@ -2609,10 +2700,7 @@ impl Compiler {
             let recipe = match &token.recipe {
                 TokenRecipe::Defined(definition) => self.stated_definition(definition)?,
                 TokenRecipe::Named(name) => format!("TokenRecipe::Named({})", quoted(name)),
-                TokenRecipe::Copy {
-                    object,
-                    exceptions,
-                } => format!(
+                TokenRecipe::Copy { object, exceptions } => format!(
                     "TokenRecipe::Copy({}, {})",
                     self.fetch(self.object(object)?),
                     self.copy_callback(exceptions)?
@@ -2665,10 +2753,12 @@ impl Compiler {
         id: usize,
         players: &PlayerSet,
         tokens: &[TokenSpec],
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         result: &ResultId,
         out: &mut String,
     ) -> Result<Option<()>> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         let [token] = tokens else { return Ok(None) };
         let TokenRecipe::Defined(definition) = &token.recipe else {
             return Ok(None);
@@ -2686,7 +2776,10 @@ impl Compiler {
         let mut values = String::new();
         if let Some((p, t)) = &definition.power_toughness {
             if !matches!((p, t), (Expr::Constant(_), Expr::Constant(_))) {
-                let (p, t) = (self.fetch(self.number(p)?.code), self.fetch(self.number(t)?.code));
+                let (p, t) = (
+                    self.fetch(self.number(p)?.code),
+                    self.fetch(self.number(t)?.code),
+                );
                 let (pt, _, _) = quantity::pt_kind();
                 values.push_str(&format!(".sized(({p}).clamp(0, i64::from({pt}::MAX)) as {pt}, ({t}).clamp(0, i64::from({pt}::MAX)) as {pt})"));
                 plain.power_toughness = None;
@@ -2698,9 +2791,7 @@ impl Compiler {
         }
         if definition.chosen_creature_type {
             let kind = self.fetch(self.chosen_read(ValueKind::CreatureType)?);
-            values.push_str(&format!(
-                ".with_subtype(kind_{id}).named(kind_{id}.name())"
-            ));
+            values.push_str(&format!(".with_subtype(kind_{id}).named(kind_{id}.name())"));
             writeln!(out, "let kind_{id}: Subtype = {kind};").unwrap();
         }
         let path = self.token_definition(&plain)?;
@@ -2717,13 +2808,21 @@ impl Compiler {
         id: usize,
         objects: &ObjectSet,
         destination: &Destination,
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         face_down: bool,
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
-        if entry.states.iter().any(|state|matches!(state,EntryState::FaceDownAs(_))) {
-            return Err(gap("put onto the battlefield face down as a stated creature"));
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
+        if entry
+            .states
+            .iter()
+            .any(|state| matches!(state, EntryState::FaceDownAs(_)))
+        {
+            return Err(gap(
+                "put onto the battlefield face down as a stated creature",
+            ));
         }
         let mut code = String::new();
         // "Exile them in a face-down pile, shuffle that pile": the pile's order, which
@@ -2749,7 +2848,8 @@ impl Compiler {
                     (false, _) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_all(&objects_{id});").unwrap(),
                 }
                 self.moved.insert(result.0, format!("moved_{id}"));
-                self.exile_piles_made.push((format!("moved_{id}"), face_down));
+                self.exile_piles_made
+                    .push((format!("moved_{id}"), face_down));
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
                 return Ok(());
             }
@@ -2769,7 +2869,13 @@ impl Compiler {
             let mut counters = String::new();
             for (kind, n) in &entry.counters {
                 let n = self.fetch(self.number(n)?.code);
-                write!(counters, "g.add_counters(o, {}, ({n}) as {counter_ty}); ", counter_kind(kind)?, counter_ty = Quantity::CounterPlacement.kind()).unwrap();
+                write!(
+                    counters,
+                    "g.add_counters(o, {}, ({n}) as {counter_ty}); ",
+                    counter_kind(kind)?,
+                    counter_ty = Quantity::CounterPlacement.kind()
+                )
+                .unwrap();
             }
             // The last player this resolution had look at cards, who chose among them.
             let looked = out
@@ -2856,7 +2962,9 @@ impl Compiler {
             || failed.feature == "search with cards from outside the game"
             || failed.feature == "cards found in two zones put on top of a library"
             || failed.feature == "search with several find clauses"
-            || failed.feature.starts_with("the chosen cards of a search of more than the library")
+            || failed
+                .feature
+                .starts_with("the chosen cards of a search of more than the library")
             || failed.feature.starts_with("search constraint ");
         if !planned {
             return Err(failed);
@@ -3048,10 +3156,14 @@ fn snake(word: &str) -> String {
 /// "Target permanent or suspended card" in a "choose one": a choice of target
 /// inside a mode is that many modes among those of the card (CR 700.2).
 pub(super) fn flat_modes(selection: &ModeSelection) -> Option<Vec<Mode>> {
-    let selection=crate::mode_policies::parts(selection);
+    let selection = crate::mode_policies::parts(selection);
     let one = |n: &Expr| matches!(n, Expr::Constant(1));
     let inner = |mode: &Mode| match &mode.announcement.modes {
-        Some(inner) if one(&inner.count.minimum) && one(&inner.count.maximum) && !crate::mode_policies::parts(inner).random => {
+        Some(inner)
+            if one(&inner.count.minimum)
+                && one(&inner.count.maximum)
+                && !crate::mode_policies::parts(inner).random =>
+        {
             Some(inner.options.clone())
         }
         _ => None,
@@ -3149,7 +3261,10 @@ impl Compiler {
             }
             // Enlist taps a creature (CR 702.154a), whatever it has become since.
             H::Enlisted(filter)
-                if matches!(**filter, ObjectFilter::CardType(crate::mtg_types::CardType::Creature)) =>
+                if matches!(
+                    **filter,
+                    ObjectFilter::CardType(crate::mtg_types::CardType::Creature)
+                ) =>
             {
                 return Ok(format!(
                     "{}.any(|r| matches!(r.event, Event::PaidToAttack {{ attacker, option: AttackOption::Enlist, tapped, .. }} if attacker == {id} && tapped != ObjectId::NONE))",
@@ -3712,7 +3827,7 @@ impl Compiler {
         Ok(match operation {
             Operation::Keyword {
                 actor,
-                action: KeywordAction::Earthbend {object,amount},
+                action: KeywordAction::Earthbend { object, amount },
                 ..
             } => {
                 let actors = self.stated_players(actor)?;
@@ -3722,10 +3837,22 @@ impl Compiler {
             }
             Operation::Keyword {
                 actor,
-                action: KeywordAction::TakeExtraTurn {times:Some(Expr::HeadsFlipped(result))},
+                action:
+                    KeywordAction::TakeExtraTurn {
+                        times:
+                            Some(Expr::CountCoinOutcomes {
+                                source: CoinCountSource::Receipt(result),
+                                outcome: CoinOutcome::Heads,
+                            }),
+                    },
                 ..
             } if self.flips.contains_key(&result.0) => {
                 let actors = self.stated_players(actor)?;
+                let receipt = self
+                    .coin_receipts
+                    .get(&result.0)
+                    .ok_or_else(|| gap("gathered coin protocol"))?;
+                Self::coin_channel(receipt.protocol, &CoinOutcome::Heads)?;
                 let heads = self.flips[&result.0].clone();
                 format!("for player in {actors} {{ for _ in 0..{heads}.iter().filter(|won| **won).count() {{ g.take_extra_turn(player); }} }}")
             }
@@ -3733,11 +3860,11 @@ impl Compiler {
                 actor,
                 card,
                 count,
-                zone,
                 owner,
-                spot,
-                entry,
+                destination,
             } => {
+                let (zone, spot, entry) = crate::movement::conjure_view(destination);
+                let (zone, spot, entry) = (&zone, &spot, &entry);
                 let actors = self.stated_players(actor)?;
                 let what = match card {
                     ConjuredCard::Named(name) => format!("Conjured::Named({name:?})"),
@@ -3844,12 +3971,18 @@ impl Compiler {
                 let [CostPart::Move {
                     selections,
                     destination,
-                    entry,
-                    face_down,
                 }] = cost.parts.as_slice()
                 else {
                     return Err(refused());
                 };
+                let view = crate::movement::destination_view(destination, &[]);
+                if !view.terms.is_default() {
+                    return Err(gap(
+                        "movement cost with explicit library ordering or chooser",
+                    ));
+                }
+                let (destination, entry, face_down) =
+                    (&view.destination, &view.entry, view.face_down);
                 let player = self.fetch(self.certain_player(player)?);
                 let mut each = Vec::new();
                 for selection in selections {
@@ -4073,15 +4206,28 @@ impl Compiler {
                 let spells = self.fetch(self.objects(objects)?);
                 format!("{M}::effects::counter_onto(g, {source}, {spells}, CounterDestination::{destination:?})?")
             }
-            Operation::ChooseValue { choosers: actor, kind, terms } => {
+            Operation::ChooseValue {
+                choosers: actor,
+                kind,
+                terms,
+            } => {
                 let actors = self.stated_players(actor)?;
                 let options = self.stated_operands(&terms.options);
                 let except = self.stated_operands(&terms.except);
                 let count = match &terms.count {
                     ChoiceCount::AnyNumber => "None".to_string(),
-                    ChoiceCount::Exactly(n) | ChoiceCount::UpTo(n) => format!("Some({})", self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?)),
+                    ChoiceCount::Exactly(n) | ChoiceCount::UpTo(n) => format!(
+                        "Some({})",
+                        self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?)
+                    ),
                 };
-                let ChoiceTerms {secret, unchosen, random, ordered, ..} = terms;
+                let ChoiceTerms {
+                    secret,
+                    unchosen,
+                    random,
+                    ordered,
+                    ..
+                } = terms;
                 let up_to = matches!(terms.count, ChoiceCount::UpTo(_));
                 format!("{M}::choose::value(g, {actors}, {source}, ChoiceKind::{kind:?}, ChoiceTerms {{ options: {options}, except: {except}, count: {count}, secret: {secret}, unchosen: {unchosen}, random: {random}, ordered: {ordered}, up_to: {up_to} }})?")
             }
@@ -4142,7 +4288,7 @@ impl Compiler {
                 }
                 SelectionConstraint::CanMoveTo { destination, .. } => format!(
                     "SelectionRule::CanMoveTo({})",
-                    self.destination_code(destination)?
+                    self.destination_code(&destination.address())?
                 ),
                 other => format!("SelectionRule::{}", form(other)),
             });
@@ -4237,7 +4383,10 @@ impl Compiler {
                     feature.clone(),
                     format!("LastingUntil {{ text: {}, ends: {ends} }}", quoted(&phrase)),
                 ));
-                self.fetch(format!("Duration::UntilEvent({}, {index})", self.source_card()))
+                self.fetch(format!(
+                    "Duration::UntilEvent({}, {index})",
+                    self.source_card()
+                ))
             }
             other => return lane_m::duration_more(other),
         };

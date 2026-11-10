@@ -1,14 +1,10 @@
 //! Check zone-specific arrival state after its ordinary lexical references.
-//! These checks precede the destination-payload migration. Counters and granted
-//! rules can belong to exiled cards (Delay); they are not battlefield-only.
+//! Counters and granted rules can belong to exiled cards (Delay). Views of
+//! typed destination payloads retain the same reference and zone checks.
 use super::*;
 
 pub(super) fn destination(entry: &EntrySpec, destination: &Destination) -> Result {
     at_destination(entry, destination, true)
-}
-
-pub(super) fn movement(entry: &EntrySpec, destination: &Destination) -> Result {
-    at_destination(entry, destination, false)
 }
 
 fn at_destination(
@@ -34,8 +30,9 @@ fn at_destination(
     check(entry, &zone, visibility_in_entry)
 }
 
-pub(super) fn battlefield(entry: &EntrySpec) -> Result {
-    check(entry, &EventZone::Battlefield, false)
+pub(super) fn battlefield(entry: &dyn crate::movement::ArrivalView) -> Result {
+    let entry = entry.entry_view();
+    check(&entry, &EventZone::Battlefield, false)
 }
 
 pub(super) fn conjure(entry: &EntrySpec, zone: &EventZone, spot: &Option<ConjureSpot>) -> Result {

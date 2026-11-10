@@ -72,7 +72,7 @@ fn selection_ids_and_instruction_result_ids_have_separate_namespaces() {
                 selection,
                 pool("Permanent"),
                 json!({"kind":"Move","args":{"objects":picked(selection),
-                "destination":"OwnersHand","entry":{"tapped":false,"counters":[],"states":[]},"face_down":false}}),
+                "destination":{"OwnersHand":{"counters":[],"states":[]}},"qualifiers":[]}}),
             ),
             reveal(json!({"kind":"Transition","args":{"result":0,"phase":"After"}})),
         ]);
@@ -105,13 +105,14 @@ fn permanent_type_reduction_keeps_other_query_domains_distinct() {
 }
 
 #[test]
-fn an_omitted_default_movement_term_has_the_native_default_meaning() {
-    let bare = spell(vec![
-        json!({"kind":"Move","args":{"objects":{"kind":"One","args":{"kind":"Source"}},
-        "destination":"OwnersHand","entry":{"tapped":false,"counters":[],"states":[]},"face_down":false}}),
-    ]);
-    let mut explicit = bare.clone();
-    explicit[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["terms"] =
-        json!({"order":"DestinationDefault","placement":"DestinationDefault","qualifiers":[]});
-    assert_eq!(normalized(bare), normalized(explicit));
+fn an_omitted_default_arrival_has_the_native_default_meaning() {
+    let code = |destination| {
+        format!("Card{{name:\"Default arrival\",properties:{{card_types:[Instant]}},abilities:[Spell{{do:[MoveObjects{{objects:One(This),destination:{destination}}}]}}]}}")
+    };
+    let bare = mtgish_ast::human::read(&code("OwnersHand")).unwrap();
+    let explicit = mtgish_ast::human::read(&code("OwnersHand({counters:[],states:[]})")).unwrap();
+    assert_eq!(
+        normalized(json!(bare.faces[0].abilities)),
+        normalized(json!(explicit.faces[0].abilities))
+    );
 }

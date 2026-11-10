@@ -5,9 +5,16 @@
 use super::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Cardinality { OneAtMost, Many }
+enum Cardinality {
+    OneAtMost,
+    Many,
+}
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum CaptureRole { EventSubject, Value, AuraCard }
+enum CaptureRole {
+    EventSubject,
+    Value,
+    AuraCard,
+}
 
 /// A creator-scope expression and its proved bound, not a packed group of runtime IDs.
 struct ObjectCapture {
@@ -25,11 +32,21 @@ impl StepCaptures {
         let mut captures = self.objects.borrow_mut();
         let index = match captures.iter().position(|c| c.code == code) {
             Some(index) => {
-                if cardinality == Cardinality::OneAtMost { captures[index].cardinality = cardinality; }
+                if cardinality == Cardinality::OneAtMost {
+                    captures[index].cardinality = cardinality;
+                }
                 captures[index].priority = captures[index].priority.min(priority);
                 index
             }
-            None => { let index = captures.len(); captures.push(ObjectCapture { code, cardinality, priority }); index }
+            None => {
+                let index = captures.len();
+                captures.push(ObjectCapture {
+                    code,
+                    cardinality,
+                    priority,
+                });
+                index
+            }
         };
         format!("{}_capture_{index}(q, item)", self.label)
     }
@@ -73,7 +90,10 @@ fn direct_watched(filter: &ObjectFilter) -> Option<bool> {
         ObjectFilter::SameObject(object) if !matches!(object, ObjectRef::Source) => Some(true),
         ObjectFilter::All(filters) => filters.iter().find_map(direct_watched),
         ObjectFilter::Condition(condition) => match &**condition {
-            Condition::Compare { left: Expr::EventHistory { event, .. }, .. } => match &**event {
+            Condition::Compare {
+                left: Expr::EventHistory { event, .. },
+                ..
+            } => match &**event {
                 EventSpec::Damage(damage) => direct_watched(&damage.sources).map(|_| false),
                 _ => None,
             },
@@ -86,14 +106,21 @@ fn direct_watched(filter: &ObjectFilter) -> Option<bool> {
 /// Whether the event subject can carry the watched identity (including its last-known identity).
 pub(super) fn watched_is_event_subject(event: &EventSpec) -> bool {
     match event {
-        EventSpec::ZoneChange { objects, from: Some(_), to } if *to != EventZone::Battlefield => direct_watched(objects) == Some(true),
+        EventSpec::ZoneChange {
+            objects,
+            from: Some(_),
+            to,
+        } if *to != EventZone::Battlefield => direct_watched(objects) == Some(true),
         EventSpec::Object { objects, .. } => direct_watched(objects) == Some(true),
         EventSpec::Attack { attackers, .. } => direct_watched(attackers) == Some(true),
         EventSpec::Damage(damage) => match direct_watched(&damage.sources) {
             Some(true) => damage.subject == DamageSubject::Source,
             Some(false) => false,
             None => match &damage.recipients {
-                DamageRecipients::Objects(objects) => direct_watched(objects) == Some(true) && damage.subject == DamageSubject::Recipient,
+                DamageRecipients::Objects(objects) => {
+                    direct_watched(objects) == Some(true)
+                        && damage.subject == DamageSubject::Recipient
+                }
                 _ => false,
             },
         },
@@ -113,12 +140,17 @@ fn source_is_event_subject(event: &EventSpec) -> bool {
         }
     }
     match event {
-        EventSpec::ZoneChange { objects, from: Some(_), to } if *to != EventZone::Battlefield => direct(objects),
+        EventSpec::ZoneChange {
+            objects,
+            from: Some(_),
+            to,
+        } if *to != EventZone::Battlefield => direct(objects),
         EventSpec::Object { objects, .. } => direct(objects),
         EventSpec::Attack { attackers, .. } => direct(attackers),
         EventSpec::Damage(d) if d.subject == DamageSubject::Source => direct(&d.sources),
-        EventSpec::Damage(d) if d.subject == DamageSubject::Recipient =>
-            matches!(&d.recipients, DamageRecipients::Objects(objects) if direct(objects)),
+        EventSpec::Damage(d) if d.subject == DamageSubject::Recipient => {
+            matches!(&d.recipients, DamageRecipients::Objects(objects) if direct(objects))
+        }
         _ => false,
     }
 }
@@ -184,7 +216,9 @@ impl Compiler {
     /// an API that preserves their boundaries without placing non-objects in `event_objects`.
     fn carried_objects(&self, lists: &[String]) -> Result<String> {
         let [list] = lists else {
-            return Err(gap("a triggered ability carrying separate groups of objects"));
+            return Err(gap(
+                "a triggered ability carrying separate groups of objects",
+            ));
         };
         Ok(format!("let about: Vec<ObjectId> = {}; ", self.fetch(list)))
     }
@@ -319,7 +353,10 @@ impl Compiler {
     fn outside_result(&self, result: &ResultId) -> bool {
         self.bound_outside(result)
             || (!self.failed.contains(&result.0)
-                && self.outer.as_ref().is_some_and(|outer| outer.compiler.failed.contains(&result.0)))
+                && self
+                    .outer
+                    .as_ref()
+                    .is_some_and(|outer| outer.compiler.failed.contains(&result.0)))
     }
     fn reads_itself(&self, object: &ObjectRef) -> bool {
         match object {
@@ -396,9 +433,7 @@ impl Compiler {
         let Some(outer) = self.carrying() else {
             return Ok(None);
         };
-        if !outer.reflexive
-            || self.event_at == EventAt::TargetFilter
-            || self.list_is_local(objects)
+        if !outer.reflexive || self.event_at == EventAt::TargetFilter || self.list_is_local(objects)
         {
             return Ok(None);
         }
@@ -438,7 +473,9 @@ impl Compiler {
                 return Ok(Some("Some(asker.source)".into()));
             }
             if !outer.watched_is_event_subject.get() {
-                return Err(gap("delayed ability retaining both watched object and a different event subject"));
+                return Err(gap(
+                    "delayed ability retaining both watched object and a different event subject",
+                ));
             }
             return match self.event_at {
                 EventAt::Item => Ok(Some("item.subject.object()".into())),
@@ -450,10 +487,20 @@ impl Compiler {
             if self.event_at == EventAt::TargetFilter {
                 return Err(gap("step-delayed target filter reading captured objects"));
             }
-            let code = format!("{}.into_iter().collect::<Vec<ObjectId>>()", outer.compiler.object(object)?);
-            let priority = match object { ObjectRef::EventSubject => CaptureRole::EventSubject, ObjectRef::AuraAfterEnchantedLeft { .. } => CaptureRole::AuraCard, _ => CaptureRole::Value };
+            let code = format!(
+                "{}.into_iter().collect::<Vec<ObjectId>>()",
+                outer.compiler.object(object)?
+            );
+            let priority = match object {
+                ObjectRef::EventSubject => CaptureRole::EventSubject,
+                ObjectRef::AuraAfterEnchantedLeft { .. } => CaptureRole::AuraCard,
+                _ => CaptureRole::Value,
+            };
             // ObjectRef is singular by construction; the helper may read its subject or its sole list member.
-            return Ok(Some(format!("{}.first().copied()", step.read(code, Cardinality::OneAtMost, priority))));
+            return Ok(Some(format!(
+                "{}.first().copied()",
+                step.read(code, Cardinality::OneAtMost, priority)
+            )));
         }
         if let Some(subject) = &outer.subject {
             let code = outer.compiler.object(object)?;
@@ -540,10 +587,26 @@ impl Compiler {
             return Ok(None);
         };
         let local = match objects {
-            ObjectSet::Prepared(binding)=>self.prepared_selection(binding).is_ok(),
-            ObjectSet::Earlier {what:EarlierObjects::Selected,by:None}=> {
-                let own=self.notes.earlier.iter().any(|(word,_)|*word=="Selected");
-                let implicit_outer=outer.compiler.notes.earlier.iter().rev().find(|(word,_)|*word=="Selected").is_some_and(|(_,result)|outer.compiler.implicit_selections.contains_key(&result.0));
+            ObjectSet::Prepared(binding) => self.prepared_selection(binding).is_ok(),
+            ObjectSet::Earlier {
+                what: EarlierObjects::Selected,
+                by: None,
+            } => {
+                let own = self
+                    .notes
+                    .earlier
+                    .iter()
+                    .any(|(word, _)| *word == "Selected");
+                let implicit_outer = outer
+                    .compiler
+                    .notes
+                    .earlier
+                    .iter()
+                    .rev()
+                    .find(|(word, _)| *word == "Selected")
+                    .is_some_and(|(_, result)| {
+                        outer.compiler.implicit_selections.contains_key(&result.0)
+                    });
                 own || !implicit_outer
             }
             ObjectSet::Selected(result) | ObjectSet::Observed(result) => {
@@ -574,7 +637,9 @@ impl Compiler {
             let watched = if !outer.separate_watcher || self.event_at == EventAt::Matcher {
                 "Some(asker.source)"
             } else if !outer.watched_is_event_subject.get() {
-                return Err(gap("delayed ability retaining both watched object and a different event subject"));
+                return Err(gap(
+                    "delayed ability retaining both watched object and a different event subject",
+                ));
             } else {
                 match self.event_at {
                     EventAt::Item => "item.subject.object()",
@@ -582,18 +647,32 @@ impl Compiler {
                     _ => return Err(gap("delayed condition reading its watched object")),
                 }
             };
-            return Ok(Some(format!("{watched}.into_iter().collect::<Vec<ObjectId>>()")));
+            return Ok(Some(format!(
+                "{watched}.into_iter().collect::<Vec<ObjectId>>()"
+            )));
         }
         if let Some(step) = &outer.step {
             if let ObjectSet::One(object) = objects {
-                return Ok(Some(format!("{}.into_iter().collect::<Vec<ObjectId>>()", self.outside_object(object)?.expect("nonlocal object"))));
+                return Ok(Some(format!(
+                    "{}.into_iter().collect::<Vec<ObjectId>>()",
+                    self.outside_object(object)?.expect("nonlocal object")
+                )));
             }
             if self.event_at == EventAt::TargetFilter {
                 return Err(gap("step-delayed target filter reading captured objects"));
             }
-            let one = outer.compiler.one_object(objects) || outer.compiler.single_carried_selection(objects);
-            let cardinality = if one { Cardinality::OneAtMost } else { Cardinality::Many };
-            return Ok(Some(step.read(outer.compiler.objects(objects)?, cardinality, CaptureRole::Value)));
+            let one = outer.compiler.one_object(objects)
+                || outer.compiler.single_carried_selection(objects);
+            let cardinality = if one {
+                Cardinality::OneAtMost
+            } else {
+                Cardinality::Many
+            };
+            return Ok(Some(step.read(
+                outer.compiler.objects(objects)?,
+                cardinality,
+                CaptureRole::Value,
+            )));
         }
         if let Some(read) = self.read_by_matcher(outer, || outer.compiler.objects(objects))? {
             return Ok(Some(planned::planned_value(
@@ -626,18 +705,22 @@ impl Compiler {
                     self.outside_object(object)?.expect("carried")
                 ))),
                 // What can only be one thing is what a subject holds.
-                objects if outer.compiler.single_carried_selection(objects) =>
-                {
+                objects if outer.compiler.single_carried_selection(objects) => {
                     let code = format!("({}).first().copied()", outer.compiler.objects(objects)?);
                     let mut carried = subject.borrow_mut();
                     if carried.as_ref().is_some_and(|c| *c != code) {
                         return Err(gap("reflexive ability about two objects"));
                     }
                     *carried = Some(code);
-                    Ok(Some(match self.event_at == EventAt::TargetFilter {
-                        true => "q.event_subject().object().into_iter().collect::<Vec<ObjectId>>()",
-                        false => "item.subject.object().into_iter().collect::<Vec<ObjectId>>()",
-                    }.to_string()))
+                    Ok(Some(
+                        match self.event_at == EventAt::TargetFilter {
+                            true => {
+                                "q.event_subject().object().into_iter().collect::<Vec<ObjectId>>()"
+                            }
+                            false => "item.subject.object().into_iter().collect::<Vec<ObjectId>>()",
+                        }
+                        .to_string(),
+                    ))
                 }
                 // A list the reflexive ability is about goes with it as a part
                 // of its own (`reflexive_trigger_about`), as a delayed one's.
@@ -657,7 +740,10 @@ impl Compiler {
         // move must use one capture. The general collection reader adds
         // different wrappers for the same Option<ObjectId>.
         let code = match objects {
-            ObjectSet::One(object) => format!("{}.into_iter().collect::<Vec<ObjectId>>()", outer.compiler.object(object)?),
+            ObjectSet::One(object) => format!(
+                "{}.into_iter().collect::<Vec<ObjectId>>()",
+                outer.compiler.object(object)?
+            ),
             _ => outer.compiler.objects(objects)?,
         };
         Ok(Some(self.carried_list(outer, code)))
@@ -668,7 +754,11 @@ impl Compiler {
             return Ok(None);
         };
         let local = match player {
-            PlayerRef::Active if outer.made.is_none() && outer.compiler.active_player_named_later() => false,
+            PlayerRef::Active
+                if outer.made.is_none() && outer.compiler.active_player_named_later() =>
+            {
+                false
+            }
             PlayerRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
             PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
                 Recipients::Target { slot, .. } | Recipients::Targets(slot) => {
@@ -753,8 +843,12 @@ impl Compiler {
         // player's own precombat main phase or combat it is that turn's
         // postcombat main phase, from anywhere else their next precombat main
         // phase (CR 505.1), as `delayed::at_your_next_main_phase` reads it.
-        if let (TurnPoint::MainPhaseBegins, PlayerSet::One(player), DelayedStart::Immediately, None) =
-            (point, players, start, expires)
+        if let (
+            TurnPoint::MainPhaseBegins,
+            PlayerSet::One(player),
+            DelayedStart::Immediately,
+            None,
+        ) = (point, players, start, expires)
         {
             let me = self.fetch(self.certain_player(player)?);
             return Ok(format!("DelayedWhen::Step {{ step: {{ let q: &dyn Query = g; let turn = q.state().turn; if turn.active == {me} && (Step::PrecombatMain as u8..Step::PostcombatMain as u8).contains(&(turn.step() as u8)) {{ Step::PostcombatMain }} else {{ Step::PrecombatMain }} }}, on_turn_of: Some({me}) }}"));
@@ -888,7 +982,10 @@ impl Compiler {
         compile: impl FnOnce(&mut Self) -> Result<T>,
     ) -> Result<(Rc<Outer>, T)> {
         let outer = Rc::new(Outer {
-            step: step.map(|label| StepCaptures { label: label.into(), objects: RefCell::new(Vec::new()) }),
+            step: step.map(|label| StepCaptures {
+                label: label.into(),
+                objects: RefCell::new(Vec::new()),
+            }),
             compiler: self.clone(),
             objects: RefCell::new(Vec::new()),
             player: RefCell::new(None),
@@ -899,7 +996,9 @@ impl Compiler {
             source_moved: std::mem::take(&mut self.source_moved),
             watches: self.watching_object.take(),
             separate_watcher: std::mem::take(&mut self.watching_separately),
-            watched_is_event_subject: std::cell::Cell::new(std::mem::take(&mut self.watched_is_event_subject)),
+            watched_is_event_subject: std::cell::Cell::new(std::mem::take(
+                &mut self.watched_is_event_subject,
+            )),
             reflexive: std::mem::take(&mut self.reflexing),
             count: RefCell::new(None),
         });
@@ -963,7 +1062,9 @@ impl Compiler {
         if let (EventSpec::Turn { .. }, D::WhileExiled(_) | D::WhileAnyExiled(_), false) =
             (event, duration, once)
         {
-            return Err(gap("a delayed ability at each step for as long as cards remain exiled"));
+            return Err(gap(
+                "a delayed ability at each step for as long as cards remain exiled",
+            ));
         }
         let when = match (duration, once) {
             (D::EndOfTurn, false) => "DelayedWhen::ThisTurn".to_string(),
@@ -993,22 +1094,36 @@ impl Compiler {
         let (maker, _, _) = self.maker();
         let separate = source != format!("Some({maker})");
         if separate && original_event_reads_source {
-            return Err(gap("delayed event reading both its creator and watched object"));
+            return Err(gap(
+                "delayed event reading both its creator and watched object",
+            ));
         }
         let indefinite_once = matches!((duration, once), (D::Indefinite, true));
         if !separate && indefinite_once && !watched_is_subject {
-            return Err(gap("one-shot delayed trigger without a proven event subject"));
+            return Err(gap(
+                "one-shot delayed trigger without a proven event subject",
+            ));
         }
-        if separate && !(matches!((duration, once), (D::EndOfTurn, false))
-            || (indefinite_once && watched_is_subject && intervening_if.is_none())) {
-            return Err(gap("delayed trigger with a separate watched object and unsupported duration"));
+        if separate
+            && !(matches!((duration, once), (D::EndOfTurn, false))
+                || (indefinite_once && watched_is_subject && intervening_if.is_none()))
+        {
+            return Err(gap(
+                "delayed trigger with a separate watched object and unsupported duration",
+            ));
         }
-        let when = if separate && indefinite_once { "DelayedWhen::WhenEvent".to_string() } else { when };
+        let when = if separate && indefinite_once {
+            "DelayedWhen::WhenEvent".to_string()
+        } else {
+            when
+        };
         self.watching_separately = separate;
         self.watched_is_event_subject = watched_is_subject;
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();
-        if !separate { self.watching_for_another(&source, body)?; }
+        if !separate {
+            self.watching_for_another(&source, body)?;
+        }
         let (outer, def) = self.closing_for_matcher(false, |c| {
             // Its matcher is a function of its own: no local reaches it.
             c.reset_results();
@@ -1056,7 +1171,11 @@ impl Compiler {
     /// The watched target must still be legal as the ability resolves.
     fn watched_object(&self, object: &ObjectRef) -> Result<String> {
         if let ObjectRef::Target { slot, index } = object {
-            if self.slots.contains_key(&slot.0) && !self.stack_slot(slot) && self.choosing.is_none() && !self.costing_targets {
+            if self.slots.contains_key(&slot.0)
+                && !self.stack_slot(slot)
+                && self.choosing.is_none()
+                && !self.costing_targets
+            {
                 let i = self.slot(slot)?;
                 return Ok(format!("t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object())"));
             }
@@ -1109,12 +1228,20 @@ impl Compiler {
         let objects = outer.objects.borrow();
         let player = outer.player.borrow();
         let subject = outer.subject.as_ref().and_then(|s| s.borrow().clone());
-        if trigger_semantics && !outer.separate_watcher && when == "DelayedWhen::UntilEvent"
-            && (!objects.is_empty() || player.is_some() || subject.is_some()) {
-            return Err(gap("one-shot delayed trigger with independent captured values"));
+        if trigger_semantics
+            && !outer.separate_watcher
+            && when == "DelayedWhen::UntilEvent"
+            && (!objects.is_empty() || player.is_some() || subject.is_some())
+        {
+            return Err(gap(
+                "one-shot delayed trigger with independent captured values",
+            ));
         }
-        if outer.separate_watcher && (!objects.is_empty() || player.is_some() || subject.is_some()) {
-            return Err(gap("delayed ability with separate watched object and additional captured values"));
+        if outer.separate_watcher && (!objects.is_empty() || player.is_some() || subject.is_some())
+        {
+            return Err(gap(
+                "delayed ability with separate watched object and additional captured values",
+            ));
         }
         if objects.is_empty() {
             let target = match (subject, player.as_ref()) {
@@ -1133,23 +1260,38 @@ impl Compiler {
                 }
                 _ => return Err(gap("reflexive ability about an object and a player")),
             };
-            if outer.subject.is_some() || target == "Target::None"
-                || (!trigger_semantics && when == "DelayedWhen::WhenEvent" && player.is_some()) {
+            if outer.subject.is_some()
+                || target == "Target::None"
+                || (!trigger_semantics && when == "DelayedWhen::WhenEvent" && player.is_some())
+            {
                 if outer.separate_watcher {
                     let (maker, _, _) = self.maker();
-                    if target != "Target::None" { return Err(gap("delayed ability retaining a separate subject")); }
+                    if target != "Target::None" {
+                        return Err(gap("delayed ability retaining a separate subject"));
+                    }
                     let (when, target) = if when == "DelayedWhen::WhenEvent" {
                         if !outer.watched_is_event_subject.get() {
-                            return Err(gap("one-shot delayed trigger retaining a different event subject"));
+                            return Err(gap(
+                                "one-shot delayed trigger retaining a different event subject",
+                            ));
                         }
                         ("DelayedWhen::WhenEvent", "Target::Object(watched)")
-                    } else { ("DelayedWhen::ThisTurnWatching(watched)", "Target::None") };
+                    } else {
+                        ("DelayedWhen::ThisTurnWatching(watched)", "Target::None")
+                    };
                     let code = format!("if let Some(watched) = {source} {{ g.delayed_trigger({when}, {maker}, {controller}, {ability}, {target}); }}");
-                    self.plan_switched("delayed-watched-source", "delayed ability with separate source and watched object", &code, out);
+                    self.plan_switched(
+                        "delayed-watched-source",
+                        "delayed ability with separate source and watched object",
+                        &code,
+                        out,
+                    );
                 } else {
                     let (when, target) = if trigger_semantics && when == "DelayedWhen::UntilEvent" {
                         ("DelayedWhen::WhenEvent", "Target::Object(source)")
-                    } else { (when, target.as_str()) };
+                    } else {
+                        (when, target.as_str())
+                    };
                     writeln!(out, "if let Some(source) = {source} {{ g.delayed_trigger({when}, source, {controller}, {ability}, {target}); }}").unwrap();
                 }
                 return Ok(());
@@ -1158,7 +1300,11 @@ impl Compiler {
         self.helpers.insert("about");
         let about = self.carried_objects(&objects)?;
         if !trigger_semantics && !outer.separate_watcher && when == "DelayedWhen::WhenEvent" {
-            if player.is_some() { return Err(gap("one-shot delayed trigger with object and player captures")); }
+            if player.is_some() {
+                return Err(gap(
+                    "one-shot delayed trigger with object and player captures",
+                ));
+            }
             writeln!(out, "if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}").unwrap();
             return Ok(());
         }
@@ -1224,7 +1370,9 @@ impl Compiler {
         };
         // Asked again as the reflexive resolves only when it reads the game, not what
         // the instruction did, which is gone by then.
-        let intervening = condition.as_ref().filter(|c| !format!("{c:?}").contains("ResultId("));
+        let intervening = condition
+            .as_ref()
+            .filter(|c| !format!("{c:?}").contains("ResultId("));
         let condition = condition
             .as_ref()
             .map(|c| Ok::<_, Diagnostic>(self.fetch(self.condition(c)?)))
@@ -1384,11 +1532,21 @@ impl Compiler {
         let step = outer.step.as_ref().expect("step-delayed closure");
         let captures = step.objects.borrow();
         // Solve after all reads, including nested closures. Discovery order cannot change the selected role.
-        let subject = if player.is_some() || captures.len() <= 1 { None } else {
-            captures.iter().enumerate().filter(|(_, c)| c.cardinality == Cardinality::OneAtMost)
-                .min_by(|(_, a), (_, b)| (a.priority, &a.code).cmp(&(b.priority, &b.code))).map(|(i, _)| i)
+        let subject = if player.is_some() || captures.len() <= 1 {
+            None
+        } else {
+            captures
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| c.cardinality == Cardinality::OneAtMost)
+                .min_by(|(_, a), (_, b)| (a.priority, &a.code).cmp(&(b.priority, &b.code)))
+                .map(|(i, _)| i)
         };
-        let lists: Vec<_> = captures.iter().enumerate().filter(|(i, _)| Some(*i) != subject).collect();
+        let lists: Vec<_> = captures
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| Some(*i) != subject)
+            .collect();
         if lists.len() > 1 {
             return Err(gap("step-delayed ability carrying more than one plural object group or excess independent references"));
         }
@@ -1398,14 +1556,22 @@ impl Compiler {
             } else if captures.len() == 1 && player.is_none() {
                 self.helpers.insert("about");
                 "about(q, item, 0)"
-            } else { "q.event_objects(item).to_vec()" };
+            } else {
+                "q.event_objects(item).to_vec()"
+            };
             writeln!(self.functions, "#[allow(unused_variables)] fn {}_capture_{i}(q: &dyn Query, item: &StackItem) -> Vec<ObjectId> {{ {read} }}", step.label).unwrap();
         }
         let subject_code = match (player.as_ref(), subject) {
-            (Some(player), _) => format!("{}.map_or(Target::None, Target::Player)", self.fetch(player)),
+            (Some(player), _) => format!(
+                "{}.map_or(Target::None, Target::Player)",
+                self.fetch(player)
+            ),
             (None, Some(i)) => {
                 debug_assert!(captures[i].cardinality == Cardinality::OneAtMost);
-                format!("({}).into_iter().next().map_or(Target::None, Target::Object)", self.fetch(&captures[i].code))
+                format!(
+                    "({}).into_iter().next().map_or(Target::None, Target::Object)",
+                    self.fetch(&captures[i].code)
+                )
             }
             _ => "Target::None".into(),
         };
@@ -1417,7 +1583,7 @@ impl Compiler {
                     let code = format!("{open}{{ let about: Vec<ObjectId> = {about}; let subject = {subject_code}; g.delayed_trigger_with({when}, {source}, {controller}, {ability}, subject, &about); }}{close}");
                     self.plan_switched("delayed-subject-members", "step-delayed ability retaining an independent subject and object list", &code, out);
                 } else {
-                    let guard = if matches!(body.instructions.as_slice(), [Instruction::Effect { operation: Operation::Move { destination: Destination::Exile | Destination::OwnersHand, .. }, .. }]) {
+                    let guard = if matches!(body.instructions.as_slice(), [Instruction::Effect { operation: Operation::Move { destination: MovementDestination::Exile {..} | MovementDestination::OwnersHand(_), .. }, .. }]) {
                         "if !about.is_empty()"
                     } else { "" };
                     writeln!(out, "{open}{{ let about: Vec<ObjectId> = {about}; {guard} {{ g.delayed_trigger_about({when}, {source}, {controller}, {ability}, &about); }} }}{close}").unwrap();

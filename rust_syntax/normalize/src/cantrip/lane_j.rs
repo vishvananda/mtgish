@@ -22,7 +22,9 @@ pub(super) fn without_the_event(test: &str) -> String {
     let mut out = String::with_capacity(test.len());
     let mut rest = test;
     while let Some(at) = rest.find(SHOWN_FROM) {
-        let Some(end) = rest[at..].find(SHOWN_THEN) else { break };
+        let Some(end) = rest[at..].find(SHOWN_THEN) else {
+            break;
+        };
         out.push_str(&rest[..at]);
         out.push('(');
         rest = &rest[at + end + SHOWN_THEN.len()..];
@@ -123,18 +125,20 @@ fn begins_with_terms(body: &Program) -> Option<(Option<&Condition>, Option<Strin
                 operation:
                     Operation::Move {
                         objects: ObjectSet::Selected(moved),
-                        destination: Destination::Exile,
-                        face_down: false,
-                        entry,
-                        terms,
+                        destination: destination @ MovementDestination::Exile { .. },
+                        qualifiers,
                     },
                 ..
             }] = steps
             else {
                 return None;
             };
-            if !terms.is_default() || !effects::plain_entry(entry)
-                || moved.0 != picked.0 || !constraints.is_empty() || !(1..=7).contains(n) {
+            if !destination.is_plain()
+                || !qualifiers.is_empty()
+                || moved.0 != picked.0
+                || !constraints.is_empty()
+                || !(1..=7).contains(n)
+            {
                 return None;
             }
             *n
@@ -1390,12 +1394,22 @@ impl Compiler {
     }
 
     /// The first such event in `scope`, of its own subject when `by_subject`.
-    pub(super) fn first_of(&mut self, event: &EventSpec, scope: &str, by_subject: bool) -> Result<Matched> {
+    pub(super) fn first_of(
+        &mut self,
+        event: &EventSpec,
+        scope: &str,
+        by_subject: bool,
+    ) -> Result<Matched> {
         if self.history.is_some() {
             return Err(gap("an ordinal event in a history question"));
         }
         let mut matched = self.event(event)?;
-        if let EventSpec::AttacksAsGroup { by, attackers, group } = event {
+        if let EventSpec::AttacksAsGroup {
+            by,
+            attackers,
+            group,
+        } = event
+        {
             let test = self.attacked_as_group_before(by, attackers, group, scope)?;
             for arm in &mut matched.arms {
                 arm.tests.push(test.clone());
@@ -1770,8 +1784,11 @@ impl Compiler {
             return Err(gap(FEATURE));
         };
         // Every attacker is a creature (CR 508.1a): no filter to read as it was.
-        let ("TotalPowerIs", [Operand::Comparison(comparison, value)], ObjectFilter::CardType(CardType::Creature)) =
-            (form.as_str(), operands.as_slice(), attackers)
+        let (
+            "TotalPowerIs",
+            [Operand::Comparison(comparison, value)],
+            ObjectFilter::CardType(CardType::Creature),
+        ) = (form.as_str(), operands.as_slice(), attackers)
         else {
             return Err(gap(FEATURE));
         };
@@ -2985,7 +3002,10 @@ impl Compiler {
         Ok(match option {
             VoteOption::Word(word) => format!("cantrip_mechanics::vote::Vote::Word({word:?})"),
             VoteOption::Player(player) => {
-                format!("cantrip_mechanics::vote::Vote::Player({})", self.certain_player(player)?)
+                format!(
+                    "cantrip_mechanics::vote::Vote::Player({})",
+                    self.certain_player(player)?
+                )
             }
             VoteOption::Object(object) => format!(
                 "cantrip_mechanics::vote::Vote::Object({}.unwrap_or(ObjectId::NONE))",
@@ -3071,10 +3091,12 @@ impl Compiler {
         id: usize,
         players: &PlayerSet,
         tokens: &[TokenSpec],
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         result: &ResultId,
         out: &mut String,
     ) -> Result<bool> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         let [TokenSpec {
             amount,
             words,
@@ -3111,7 +3133,12 @@ impl Compiler {
             TokenWords::Rules => "Words::NONE",
             TokenWords::CreatingEffect => "g.words(asker.source)",
         };
-        let creation = self.copy_token_creation(&format!("values_{id}"), "player", &format!("count_{id}"), entry)?;
+        let creation = self.copy_token_creation(
+            &format!("values_{id}"),
+            "player",
+            &format!("count_{id}"),
+            entry,
+        )?;
         writeln!(
             out,
             "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend({creation}?); }}",
@@ -3158,12 +3185,20 @@ impl Compiler {
             optional: true,
         };
         let done = self.operation(&ask, result, out);
-        self.picked.borrow_mut().named.retain(|(name, _)| *name != key);
+        self.picked
+            .borrow_mut()
+            .named
+            .retain(|(name, _)| *name != key);
         self.bound_players.remove(&binding.0);
         done?;
         let inner = self.performed.insert(result.0, format!("paid_{id}"));
         let inner = inner.ok_or_else(|| gap("possibly absent player FirstWilling"))?;
-        writeln!(out, "if {inner} {{ paid_{id} = true; who_{id} = Some(bound_{}); break; }} }}", binding.0).unwrap();
+        writeln!(
+            out,
+            "if {inner} {{ paid_{id} = true; who_{id} = Some(bound_{}); break; }} }}",
+            binding.0
+        )
+        .unwrap();
         self.moved.remove(&result.0);
         self.before.remove(&result.0);
         self.selections.remove(&result.0);
@@ -3207,7 +3242,7 @@ fn gift_kind(gift: &[Program]) -> Option<(&'static str, Option<&'static str>, &'
         } if gifted(players) => Some(("CARD", None, "the chosen opponent draws a card")),
         Operation::Keyword {
             actor,
-            action: KeywordAction::TakeExtraTurn {..},
+            action: KeywordAction::TakeExtraTurn { .. },
             ..
         } if gifted(actor) => Some((
             "EXTRA_TURN",
@@ -3389,16 +3424,30 @@ pub(super) fn blights(placements: &[CounterPlacement]) -> Option<u8> {
 }
 /// A resolving cost that puts counters on one object chosen by its payer.
 /// Similar placement instructions do not perform the blight keyword action.
-pub(super) fn chosen_counter_cost<'a>(player: &PlayerRef, cost: &'a Cost) -> Option<&'a CounterPlacement> {
-    let [CostPart::PutCounters(placements)] = cost.parts.as_slice() else { return None };
+pub(super) fn chosen_counter_cost<'a>(
+    player: &PlayerRef,
+    cost: &'a Cost,
+) -> Option<&'a CounterPlacement> {
+    let [CostPart::PutCounters(placements)] = cost.parts.as_slice() else {
+        return None;
+    };
     let [CounterPlacement {
         recipients: Recipients::Objects(_),
         amount: Expr::Constant(n),
-        selection: Some(SelectionChoice { player: chooser, count: Count::Exactly(Expr::Constant(1)) }),
+        selection:
+            Some(SelectionChoice {
+                player: chooser,
+                count: Count::Exactly(Expr::Constant(1)),
+            }),
         ..
-    }] = placements.as_slice() else { return None };
-    (format!("{chooser:?}") == format!("{player:?}") && *n >= 0 && i128::from(*n) <= Quantity::StoredCounter.max())
-        .then_some(&placements[0])
+    }] = placements.as_slice()
+    else {
+        return None;
+    };
+    (format!("{chooser:?}") == format!("{player:?}")
+        && *n >= 0
+        && i128::from(*n) <= Quantity::StoredCounter.max())
+    .then_some(&placements[0])
 }
 /// "You may put a stun counter on it. If you do, ...": no cost Cantrip can pay, but
 /// the same thing as an optional instruction whose doing the next one reads.
@@ -3489,7 +3538,11 @@ fn opponent_gains(body: &Program) -> Option<u8> {
 fn two_to_the_bottom(part: &CostPart) -> bool {
     let CostPart::Move {
         selections,
-        destination: Destination::OwnersLibraryBottom,
+        destination:
+            MovementDestination::Library {
+                position: LibraryPosition::Bottom,
+                ..
+            },
         ..
     } = part
     else {
@@ -3848,10 +3901,14 @@ impl Compiler {
             Ok(()) => {
                 // A field's value made by the helper of its name (`kicker(..)`)
                 // names the field already.
-                let fields = grown.fields.iter().map(|(k, v)| match v.starts_with(&format!("{k}(")) {
-                    true => v.clone(),
-                    false => format!("{k}({v})"),
-                });
+                let fields =
+                    grown
+                        .fields
+                        .iter()
+                        .map(|(k, v)| match v.starts_with(&format!("{k}(")) {
+                            true => v.clone(),
+                            false => format!("{k}({v})"),
+                        });
                 grown
                     .abilities
                     .iter()
@@ -4139,10 +4196,12 @@ impl Compiler {
         id: usize,
         players: &PlayerSet,
         tokens: &[TokenSpec],
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         if !entry.counters.is_empty() || !entry.states.is_empty() {
             return Err(gap("tokens entering in a special state"));
         }
@@ -4476,7 +4535,9 @@ impl Compiler {
                 }
                 None => "|_, _| true".into(),
             };
-            let counter = counter.map_or("None".into(), |kind| format!("Some((CounterKind::{kind}, 1))"));
+            let counter = counter.map_or("None".into(), |kind| {
+                format!("Some((CounterKind::{kind}, 1))")
+            });
             parts.field(
                 "opening_hand",
                 format!("Some(OpeningHandAction {{ condition: {condition}, counter: {counter}, exile_from_hand: {exiled} }})"),
@@ -4683,9 +4744,11 @@ impl Compiler {
     pub(super) fn arriving_together(
         &mut self,
         id: usize,
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         controller: &str,
     ) -> Result<String> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         const NOTHING: &str = "Vec::<ObjectId>::new()";
         let mut counters = Vec::new();
         for (kind, n) in &entry.counters {
@@ -4833,10 +4896,16 @@ impl Compiler {
                 }
                 Change::GrantKeyword(k) => keywords.push(keyword(k)?),
                 Change::GrantAbility(ability) => {
-                    if let Some(index) = self.entry_ability(ability)? { abilities.push(index.to_string()); }
+                    if let Some(index) = self.entry_ability(ability)? {
+                        abilities.push(index.to_string());
+                    }
                 }
-                Change::RemoveAllAbilities => fields.push("loses_other_abilities: true".to_string()),
-                Change::AddEnchantmentType(kind) if matches!(kind.as_ref(), Operand::Vocabulary {family,form} if family == "EnchantmentType" && form == "Aura") => fields.push("aura: true".to_string()),
+                Change::RemoveAllAbilities => {
+                    fields.push("loses_other_abilities: true".to_string())
+                }
+                Change::AddEnchantmentType(kind) if matches!(kind.as_ref(), Operand::Vocabulary {family,form} if family == "EnchantmentType" && form == "Aura") => {
+                    fields.push("aura: true".to_string())
+                }
                 Change::Colors {
                     mode: ChangeMode::Add,
                     colors,
@@ -4931,9 +5000,7 @@ impl Compiler {
         let spell = self.paid_for == PaidFor::Spell;
         let variable = match choose {
             // Asked of a payer as it resolves, the size is known by then.
-            Some(Count::Exactly(n))
-                if label == lane_g::PAID && !matches!(n, Expr::AnnouncedX) =>
-            {
+            Some(Count::Exactly(n)) if label == lane_g::PAID && !matches!(n, Expr::AnnouncedX) => {
                 let n = self.fetch(self.number(n)?.code);
                 let filter = self.cost_filter(filter, label)?;
                 return Ok(format!("Cost::sacrifice(({n}).max(0) as u32, {filter})"));
@@ -5098,12 +5165,26 @@ impl Compiler {
         Ok(())
     }
     /// Establish a copy's attacking state in its entry operation, before ETB matching (CR 508.4, 603.6a).
-    pub(super) fn copy_token_creation(&self, values: &str, player: &str, count: &str, entry: &EntrySpec) -> Result<String> {
+    pub(super) fn copy_token_creation(
+        &self,
+        values: &str,
+        player: &str,
+        count: &str,
+        entry: &dyn crate::movement::ArrivalView,
+    ) -> Result<String> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         let tapped = entry.tapped;
         Ok(match entry.states.as_slice() {
-            [EntryState::Attacking { player: defender, or_planeswalker: false }] => {
+            [EntryState::Attacking {
+                player: defender,
+                or_planeswalker: false,
+            }] => {
                 let defender = match defender {
-                    Some(defender) => format!("Some(Target::Player({}))", self.fetch(self.certain_player(defender)?)),
+                    Some(defender) => format!(
+                        "Some(Target::Player({}))",
+                        self.fetch(self.certain_player(defender)?)
+                    ),
                     None => "None".to_string(),
                 };
                 format!("g.create_token_copies_attacking({values}, {player}, {count}, {tapped}, {defender})")
@@ -5111,8 +5192,21 @@ impl Compiler {
             _ => format!("g.create_token_copies_tapped({values}, {player}, {count}, {tapped})"),
         })
     }
-    pub(super) fn copy_token_state(&mut self, id: usize, entry: &EntrySpec, out: &mut String) -> Result<()> {
-        if matches!(entry.states.as_slice(), [EntryState::Attacking { or_planeswalker: false, .. }]) {
+    pub(super) fn copy_token_state(
+        &mut self,
+        id: usize,
+        entry: &dyn crate::movement::ArrivalView,
+        out: &mut String,
+    ) -> Result<()> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
+        if matches!(
+            entry.states.as_slice(),
+            [EntryState::Attacking {
+                or_planeswalker: false,
+                ..
+            }]
+        ) {
             return Ok(());
         }
         self.token_state(id, entry, out)
@@ -5121,9 +5215,11 @@ impl Compiler {
     pub(super) fn token_state(
         &mut self,
         id: usize,
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         out: &mut String,
     ) -> Result<()> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         match entry.states.as_slice() {
             [] => {}
             [EntryState::Attacking {
@@ -5167,7 +5263,9 @@ impl Compiler {
             return Ok(local.clone());
         }
         if !self.stack_item || self.reader != Reader::Resolution {
-            return self.picked_elsewhere(players).map(|player| format!("Some({player})"));
+            return self
+                .picked_elsewhere(players)
+                .map(|player| format!("Some({player})"));
         }
         if self.present.borrow().is_none() {
             return Err(gap("player reference OneOf"));
@@ -5220,11 +5318,19 @@ impl Compiler {
         // reference. None leaves its carried results empty and execution
         // continues with the next instruction. Keep nonlocal control flow in
         // the enclosing function rather than moving it into a closure.
-        if !inside && present.len() == 1
-            && !["return ", "break", "continue"].iter().any(|word| inner.contains(word))
+        if !inside
+            && present.len() == 1
+            && !["return ", "break", "continue"]
+                .iter()
+                .any(|word| inner.contains(word))
         {
             let (local, read) = &present[0];
-            write!(out, "{}.map(|{local}| -> Result<(), Suspend> {{ ", self.fetch(read)).unwrap();
+            write!(
+                out,
+                "{}.map(|{local}| -> Result<(), Suspend> {{ ",
+                self.fetch(read)
+            )
+            .unwrap();
             out.push_str(&inner);
             if !names.is_empty() {
                 write!(out, "({},) = ({},);", names.join(", "), reads.join(", ")).unwrap();

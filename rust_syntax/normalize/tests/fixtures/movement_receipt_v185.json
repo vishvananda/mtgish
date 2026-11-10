@@ -1,0 +1,590 @@
+{
+  "schema_version": 185,
+  "layout": "Card",
+  "faces": [
+    {
+      "schema_version": 185,
+      "name": "Guild Feud",
+      "characteristics": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 5
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "abilities": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "Target",
+                                              "args": {
+                                                "slot": 0,
+                                                "index": 0
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "Constant",
+                                    "args": 3
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              },
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "CardType",
+                                    "args": "Creature"
+                                  }
+                                }
+                              },
+                              "count": {
+                                "UpTo": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                {
+                                  "CanMoveTo": {
+                                    "destination": {
+                                      "Battlefield": {
+                                        "kind": "Target",
+                                        "args": {
+                                          "slot": 0,
+                                          "index": 0
+                                        }
+                                      }
+                                    },
+                                    "entry": {
+                                      "controller": null,
+                                      "tapped": false,
+                                      "counters": [],
+                                      "states": []
+                                    },
+                                    "face_down": false
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "Battlefield": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              },
+                              "entry": {
+                                "controller": null,
+                                "tapped": false,
+                                "counters": [],
+                                "states": []
+                              },
+                              "face_down": false,
+                              "terms": {
+                                "order": "DestinationDefault",
+                                "placement": "DestinationDefault",
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "destination": "OwnersGraveyard",
+                              "entry": {
+                                "controller": null,
+                                "tapped": false,
+                                "counters": [],
+                                "states": []
+                              },
+                              "face_down": false,
+                              "terms": {
+                                "order": "DestinationDefault",
+                                "placement": "DestinationDefault",
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "Constant",
+                                    "args": 3
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 5,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 4
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "CardType",
+                                    "args": "Creature"
+                                  }
+                                }
+                              },
+                              "count": {
+                                "UpTo": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                {
+                                  "CanMoveTo": {
+                                    "destination": {
+                                      "Battlefield": {
+                                        "kind": "AbilityController"
+                                      }
+                                    },
+                                    "entry": {
+                                      "controller": null,
+                                      "tapped": false,
+                                      "counters": [],
+                                      "states": []
+                                    },
+                                    "face_down": false
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 6,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 5
+                              },
+                              "destination": {
+                                "Battlefield": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "entry": {
+                                "controller": null,
+                                "tapped": false,
+                                "counters": [],
+                                "states": []
+                              },
+                              "face_down": false,
+                              "terms": {
+                                "order": "DestinationDefault",
+                                "placement": "DestinationDefault",
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 7,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 4
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 6,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "destination": "OwnersGraveyard",
+                              "entry": {
+                                "controller": null,
+                                "tapped": false,
+                                "counters": [],
+                                "states": []
+                              },
+                              "face_down": false,
+                              "terms": {
+                                "order": "DestinationDefault",
+                                "placement": "DestinationDefault",
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "All",
+                      "args": [
+                        {
+                          "kind": "Compare",
+                          "args": {
+                            "left": {
+                              "kind": "Earlier",
+                              "args": {
+                                "what": "Entered",
+                                "measure": "Count",
+                                "result": 6,
+                                "filter": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                "by": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            },
+                            "comparison": "GreaterOrEqual",
+                            "right": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Compare",
+                          "args": {
+                            "left": {
+                              "kind": "Earlier",
+                              "args": {
+                                "what": "Entered",
+                                "measure": "Count",
+                                "result": 2,
+                                "filter": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                "by": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            },
+                            "comparison": "GreaterOrEqual",
+                            "right": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 8,
+                            "operation": {
+                              "kind": "Keyword",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": {
+                                  "Fight": {
+                                    "first": {
+                                      "kind": "Recorded",
+                                      "args": {
+                                        "result": 6,
+                                        "by": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    },
+                                    "second": {
+                                      "kind": "Recorded",
+                                      "args": {
+                                        "result": 2,
+                                        "by": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "data": []
+}

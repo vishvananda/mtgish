@@ -54,7 +54,15 @@ const THIS_WAY: &[(&[&str], &[&str])] = &[
     // last move of exiled cards (Abstract Performance).
     (
         &["PileChosen", "PileNotChosen"],
-        &["ChoosePile", "ChooseAnExiledPile", "ChooseAPermanentPile", "ChooseAGraveyardPile", "SeparatePiles", "IntoTwoPiles", "IntoNumberPiles"],
+        &[
+            "ChoosePile",
+            "ChooseAnExiledPile",
+            "ChooseAPermanentPile",
+            "ChooseAGraveyardPile",
+            "SeparatePiles",
+            "IntoTwoPiles",
+            "IntoNumberPiles",
+        ],
     ),
     (&["Exploited"], &["Exploit"]),
     (&["CountersOfType"], &["Counters"]),
@@ -88,7 +96,10 @@ const THIS_WAY: &[(&[&str], &[&str])] = &[
     (&["Subgame"], &["Subgame"]),
     (&["Votes"], &["Vote"]),
     (&["Lost"], &["Lose"]),
-    (&["Returned", "PutInto", "PutOn", "Left"], &["Move", "Return"]),
+    (
+        &["Returned", "PutInto", "PutOn", "Left"],
+        &["Move", "Return"],
+    ),
     (&["RemovedFromCombat"], &["FromCombat"]),
 ];
 
@@ -143,7 +154,8 @@ pub fn operand(value: &serde_json::Value) -> Operand {
 }
 
 fn standalone_operand(ty: &str, value: &serde_json::Value) -> Option<Operand> {
-    let result = Context::default().typed_operand(ty, value)?;
+    let mut result = Context::default().typed_operand(ty, value)?;
+    crate::coin_policies::source_operand(&mut result).ok()?;
     crate::validate::operand(&result).ok()?;
     Some(result)
 }
@@ -189,9 +201,7 @@ impl Context {
                 use source::DamageRecipientsList as List;
                 let list: List = decode(value).ok()?;
                 Operand::Recipients(match list {
-                    List::APermanent(objects) => {
-                        Recipients::Objects(self.objects(&objects).ok()?)
-                    }
+                    List::APermanent(objects) => Recipients::Objects(self.objects(&objects).ok()?),
                     List::APlayer(players) => Recipients::Players(self.players(&players).ok()?),
                     List::APlayerOrAPermanent(players, objects) => Recipients::Union(vec![
                         Recipients::Players(self.players(&players).ok()?),
@@ -207,10 +217,8 @@ impl Context {
             "Cost" => Operand::Cost(self.cost(&decode(value).ok()?).ok()?),
             // A rule named whole, as "this creature loses" one.
             "CheckHasable" if value["variant"] == "PreventDamage" => {
-                let rule: source::Rule = as_family(
-                    &decode::<source::CheckHasable>(value).ok()?,
-                    "Rule",
-                )?;
+                let rule: source::Rule =
+                    as_family(&decode::<source::CheckHasable>(value).ok()?, "Rule")?;
                 Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?))
             }
             "Spells" => Operand::Filter(self.spell_filter(&decode(value).ok()?).ok()?),
@@ -265,7 +273,9 @@ impl Context {
                 }
                 _ => return None,
             },
-            "CardsInHand" if scoped => Operand::Filter(self.hand_filter(&decode(value).ok()?).ok()?),
+            "CardsInHand" if scoped => {
+                Operand::Filter(self.hand_filter(&decode(value).ok()?).ok()?)
+            }
             "CardsInGraveyards" if scoped => {
                 Operand::Objects(self.grave_cards(&decode(value).ok()?).ok()?)
             }
@@ -447,8 +457,13 @@ impl Context {
         let (name, operands) = self.primitive_inspected(ty, value)?;
         Some(match ty {
             "Permanent" | "Spell" | "SpellOrAbility" | "CardInExile" | "CardInHand"
-            | "CardInGraveyards" => Operand::Object(crate::semantics::reduce_object(name, operands)),
-            "Permanents" | "CardsInExile" | "CardsInHand" | "CardsInGraveyards"
+            | "CardInGraveyards" => {
+                Operand::Object(crate::semantics::reduce_object(name, operands))
+            }
+            "Permanents"
+            | "CardsInExile"
+            | "CardsInHand"
+            | "CardsInGraveyards"
             | "CardsOutsideTheGame" => {
                 Operand::Objects(crate::semantics::reduce_objects(name, operands))
             }
@@ -459,7 +474,10 @@ impl Context {
                 crate::semantics::reduce_duration(&name, &operands)
                     .unwrap_or(Duration::Primitive { name, operands }),
             ),
-            "Cards" | "CardsInOracle" | "CardsInLibrary" | "CreatureTypeVariable"
+            "Cards"
+            | "CardsInOracle"
+            | "CardsInLibrary"
+            | "CreatureTypeVariable"
             | "CheckHasable" => Operand::Filter(crate::semantics::reduce_filter(name, operands)),
             _ => return None,
         })
@@ -693,11 +711,12 @@ impl Context {
             (S::CreatePerpetualCardsInHandEffect(cards, _), _) => {
                 hand(self.hand_filter(cards).ok()?)?
             }
-            (S::CreatePerpetualCardsInPlayersHandEffect(cards, player, _), _) => self.private_cards(
-                EventZone::Hand,
-                PlayerSet::One(self.player(player).ok()?),
-                self.hand_filter(cards).ok()?,
-            ),
+            (S::CreatePerpetualCardsInPlayersHandEffect(cards, player, _), _) => self
+                .private_cards(
+                    EventZone::Hand,
+                    PlayerSet::One(self.player(player).ok()?),
+                    self.hand_filter(cards).ok()?,
+                ),
             (S::CreatePerpetualCardsInEachPlayersHandEffect(cards, players, _), _) => self
                 .private_cards(
                     EventZone::Hand,
@@ -810,9 +829,7 @@ impl Context {
                 amount: self.number(amount).ok()?,
             },
             S::DecreaseManaCost(symbols) => reduced(symbols, Expr::Constant(1))?,
-            S::DecreaseManaCostForEach(symbols, each) => {
-                reduced(symbols, self.number(each).ok()?)?
-            }
+            S::DecreaseManaCostForEach(symbols, each) => reduced(symbols, self.number(each).ok()?)?,
             S::IncreaseManaCost(mana) => Change::SpellCost(SpellCostModifier::Increase(Cost {
                 parts: vec![CostPart::Mana(
                     mana.iter().map(mana_symbol).collect::<Result<_>>().ok()?,
@@ -875,12 +892,18 @@ impl Context {
             self.singular.insert(result.0);
         }
         self.note_done(&operation, &result);
-        if let Operation::Keyword {action,..}=&operation {
+        if let Operation::Keyword { action, .. } = &operation {
             match action {
-                KeywordAction::PhaseOut {object}=>self.phased=Some(object.clone()),
-                KeywordAction::Transform {object}=>self.acted_on=Some(object.clone()),
-                KeywordAction::Bolster {..}=>self.acted_on=Some(ObjectRef::Result {result:result.clone(),phase:ObjectPhase::After,index:0}),
-                _=>{}
+                KeywordAction::PhaseOut { object } => self.phased = Some(object.clone()),
+                KeywordAction::Transform { object } => self.acted_on = Some(object.clone()),
+                KeywordAction::Bolster { .. } => {
+                    self.acted_on = Some(ObjectRef::Result {
+                        result: result.clone(),
+                        phase: ObjectPhase::After,
+                        index: 0,
+                    })
+                }
+                _ => {}
             }
         }
         Some(Instruction::Effect { result, operation })
@@ -926,7 +949,9 @@ impl Context {
                 .iter()
                 .map(|source::TriggerAndActions(trigger, actions)| {
                     let rule = source::Rule::TriggerA(trigger.clone(), actions.clone());
-                    Some(Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?)))
+                    Some(Operand::Ability(Box::new(
+                        self.fresh().ability(&rule).ok()?,
+                    )))
                 })
                 .collect::<Option<_>>()?;
             return Some(crate::semantics::reduce_ability(
@@ -1181,7 +1206,10 @@ impl Context {
     /// A scalar-only source position (for example one characteristic type).
     fn primitive_change(&self, value: &source::LayerEffect) -> Option<Change> {
         let changes = self.primitive_changes(value)?;
-        match changes.as_slice() { [one] => Some(one.clone()), _ => None }
+        match changes.as_slice() {
+            [one] => Some(one.clone()),
+            _ => None,
+        }
     }
 
     fn primitive_changes(&self, value: &source::LayerEffect) -> Option<Vec<Change>> {
@@ -1252,13 +1280,23 @@ impl Context {
         if form.contains("Battlefield") {
             let onto: Vec<_> = candidates
                 .clone()
-                .filter(|(_, text)| text.contains("destination: Battlefield("))
+                .filter(|(result, _)| self.battlefield_reports.contains_key(&result.0))
                 .collect();
             let by = operands.iter().find_map(|operand| match operand {
-                Operand::Player(player) => Some(format!("destination: Battlefield({player:?})")),
+                Operand::Player(player) => {
+                    Some(serde_json::to_value(player).expect("typed player"))
+                }
                 _ => None,
             });
-            let theirs = by.and_then(|by| onto.iter().find(|(_, text)| text.contains(&by)));
+            let theirs = by.and_then(|by| {
+                onto.iter().find(|(result, _)| {
+                    self.battlefield_reports
+                        .get(&result.0)
+                        .is_some_and(|player| {
+                            serde_json::to_value(player).expect("typed player") == by
+                        })
+                })
+            });
             if let Some((result, _)) = theirs.or(onto.first()) {
                 return Some(result.clone());
             }
@@ -1270,7 +1308,8 @@ impl Context {
         self.forget_results();
         let result = ResultId(self.result);
         self.result += 1;
-        self.reported.push((result.clone(), format!("{:?}", named_value(value))));
+        self.reported
+            .push((result.clone(), format!("{:?}", named_value(value))));
         Instruction::Effect {
             result,
             operation: Operation::Named {

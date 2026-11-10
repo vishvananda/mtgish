@@ -11,7 +11,15 @@ pub(super) const COST_FILTER_X: &str = "a cost's filter reading the X announced"
 /// it remains exiled": Cantrip's `land_until_cast`, which all six that print it take.
 fn land_until_cast<'a>(cost: &Cost, body: &'a Program) -> Option<&'a Ability> {
     use crate::ir::Duration as D;
-    let moves = |part: &CostPart| matches!(part, CostPart::Move { destination: Destination::Exile, .. });
+    let moves = |part: &CostPart| {
+        matches!(
+            part,
+            CostPart::Move {
+                destination: MovementDestination::Exile { .. },
+                ..
+            }
+        )
+    };
     if cost.parts.iter().filter(|part| moves(part)).count() != 1 {
         return None;
     }
@@ -34,12 +42,15 @@ fn land_until_cast<'a>(cost: &Cost, body: &'a Program) -> Option<&'a Ability> {
     else {
         return None;
     };
-    let ([Change::GrantAbility(gained)], [Change::PlayerRule(PlayerRule::PlayPermission {
-        cards: ObjectSet::One(ObjectRef::Source),
-        from: EventZone::Exile,
-        action: CardPlayAction::CastSpell,
-        filter: ObjectFilter::Any,
-    })]) = (gains.as_slice(), permission.as_slice())
+    let (
+        [Change::GrantAbility(gained)],
+        [Change::PlayerRule(PlayerRule::PlayPermission {
+            cards: ObjectSet::One(ObjectRef::Source),
+            from: EventZone::Exile,
+            action: CardPlayAction::CastSpell,
+            filter: ObjectFilter::Any,
+        })],
+    ) = (gains.as_slice(), permission.as_slice())
     else {
         return None;
     };
@@ -198,7 +209,9 @@ pub(super) fn worded_apart(printed: &str) -> Option<(String, String)> {
     if two.contains(" or ") {
         return None;
     }
-    let keyword = ["Equip\u{2014}", "Equip "].iter().find(|word| one.starts_with(**word));
+    let keyword = ["Equip\u{2014}", "Equip "]
+        .iter()
+        .find(|word| one.starts_with(**word));
     let two = match keyword {
         Some(word) => {
             let mut letters = two.chars();
@@ -226,10 +239,14 @@ fn alternative_prices(
     if !free || format!("{body:?}").contains("Paid") {
         return None;
     }
-    let mut choices = cost.parts.iter().enumerate().filter_map(|(at, part)| match part {
-        CostPart::Choice(options) => Some((at, options)),
-        _ => None,
-    });
+    let mut choices = cost
+        .parts
+        .iter()
+        .enumerate()
+        .filter_map(|(at, part)| match part {
+            CostPart::Choice(options) => Some((at, options)),
+            _ => None,
+        });
     let (at, options) = choices.next()?;
     if choices.next().is_some() {
         return None;
@@ -422,15 +439,18 @@ impl Compiler {
             CostPart::Move {
                 selections,
                 destination,
-                entry,
-                face_down: false,
-            } if entry.counters.is_empty() && entry.states.is_empty() && !entry.tapped => {
+            } if destination.is_plain() => {
+                let address = destination.address();
+                let destination = &address;
                 if self.links_exile && matches!(destination, Destination::Exile) {
                     // A permanent spell's own cost, which CR 607.2q links to the
                     // permanent: Cantrip links only behold's exile so.
                     let printed = format!("{part:?}");
                     if self.spell_cost
-                        || self.casting_costs.values().any(|cost| format!("{cost:?}").contains(&printed))
+                        || self
+                            .casting_costs
+                            .values()
+                            .any(|cost| format!("{cost:?}").contains(&printed))
                     {
                         return Err(gap("a card exiled to pay a permanent spell's cost, read as exiled with the permanent"));
                     }
@@ -440,7 +460,10 @@ impl Compiler {
                     // creatures you control ... cards exiled with this Vehicle". What
                     // it exiles from a graveyard or a hand is not linked.
                     let permanents = selections.iter().all(|s| {
-                        matches!(s.objects, crate::battlefield_query!(_) | ObjectSet::One(ObjectRef::Source))
+                        matches!(
+                            s.objects,
+                            crate::battlefield_query!(_) | ObjectSet::One(ObjectRef::Source)
+                        )
                     });
                     if !(permanents && self.activation_cost.is_some()) {
                         return Err(gap("exile cost an ability reads as exiled with its source"));
@@ -461,10 +484,9 @@ impl Compiler {
                                 "return_tapped_to_hand({n}, {})",
                                 self.cost_filter(&rest, label)?
                             ),
-                            None => format!(
-                                "return_to_hand({n}, {})",
-                                self.cost_filter(filter, label)?
-                            ),
+                            None => {
+                                format!("return_to_hand({n}, {})", self.cost_filter(filter, label)?)
+                            }
                         }
                     }
                     (Destination::Exile, crate::battlefield_query!(filter)) => {
@@ -522,10 +544,11 @@ impl Compiler {
             if let CostPart::Move {
                 selections,
                 destination,
-                entry,
-                face_down: false,
             } = part
             {
+                let plain = destination.is_plain();
+                let address = destination.address();
+                let destination = &address;
                 // The source itself is no choice of how many.
                 if let (
                     [CostObjectSelection {
@@ -533,10 +556,8 @@ impl Compiler {
                         choose: None,
                     }],
                     true,
-                ) = (
-                    selections.as_slice(),
-                    entry.counters.is_empty() && entry.states.is_empty() && !entry.tapped,
-                ) {
+                ) = (selections.as_slice(), plain)
+                {
                     match destination {
                         Destination::Exile => {
                             others.push("EXILE_THIS".to_string());
@@ -692,9 +713,8 @@ impl Compiler {
         let listed = format!("modes(&[{}])", defs.join(","));
         // "When this enters, choose up to one \u{2014}": the source reads it as one.
         let up_to = ["one", "two", "three"].iter().any(|n| {
-            self.line_text().is_some_and(|line| {
-                line.contains(&format!("choose up to {n} \u{2014}"))
-            })
+            self.line_text()
+                .is_some_and(|line| line.contains(&format!("choose up to {n} \u{2014}")))
         });
         let fewest = match up_to || lane_k::printed_otherwise(self.line_text(), "Choose up to") {
             true => Some(0),
@@ -978,7 +998,9 @@ impl Compiler {
         parts: &mut Parts,
     ) -> Result<()> {
         let (_, low, high) = quantity::pt_kind();
-        if !(low..=high).contains(&i128::from(amount)) { return Err(gap("backup beyond counter domain")); }
+        if !(low..=high).contains(&i128::from(amount)) {
+            return Err(gap("backup beyond counter domain"));
+        }
         let n = amount;
         let mut keywords = Vec::new();
         let mut granted = None;
@@ -1212,8 +1234,14 @@ impl Compiler {
                 ability,
             } => {
                 // "Max speed — ..." on a card in a graveyard: its scope, conditioned.
-                if let (None, Ability::Conditional { condition: held, then, otherwise }) =
-                    (condition, &**ability)
+                if let (
+                    None,
+                    Ability::Conditional {
+                        condition: held,
+                        then,
+                        otherwise,
+                    },
+                ) = (condition, &**ability)
                 {
                     if let ([only], true) = (then.as_slice(), otherwise.is_empty()) {
                         let scoped = Ability::Scoped {
@@ -1292,7 +1320,12 @@ impl Compiler {
             } => {
                 if let Some(gained) = land_until_cast(cost, body) {
                     let rest = Cost {
-                        parts: cost.parts.iter().filter(|part| !matches!(part, CostPart::Move { .. })).cloned().collect(),
+                        parts: cost
+                            .parts
+                            .iter()
+                            .filter(|part| !matches!(part, CostPart::Move { .. }))
+                            .cloned()
+                            .collect(),
                     };
                     let price = self.cost(&rest, label)?;
                     let text = self.said(lane_k::Said::Activated, ability_text(body));
@@ -1330,7 +1363,9 @@ impl Compiler {
                     // As Transmogrant's Crown's two equips: the same ability at
                     // the other price, each worded with its own.
                     if let [other] = others {
-                        let printed = before.clone().said(lane_k::Said::Activated, ability_text(body));
+                        let printed = before
+                            .clone()
+                            .said(lane_k::Said::Activated, ability_text(body));
                         let first = before.clone().cost(cost, label)?;
                         // An activated ability has one cost (`ActivatedDef::cost`); only a
                         // spell offers a choice of costs (`additional_choice`).
@@ -1342,9 +1377,11 @@ impl Compiler {
                             return Err(unlike);
                         }
                         let code = self.cost(other, &format!("{label}_or_1"))?;
-                        let second = def
-                            .replacen(&first, &code, 1)
-                            .replacen(&quoted(&printed), &quoted(&two), 1);
+                        let second = def.replacen(&first, &code, 1).replacen(
+                            &quoted(&printed),
+                            &quoted(&two),
+                            1,
+                        );
                         def = def.replacen(&quoted(&printed), &quoted(&one), 1);
                         parts.abilities.push(def);
                         parts.abilities.push(second);
@@ -1362,23 +1399,37 @@ impl Compiler {
                 announcement,
                 body,
             } => {
-                if planned::switched_on("damage-poison") && scope.is_none()
-                    && self.trigger_gate.is_none() && self.ability_guard.is_none()
-                    && self.static_guard.is_none() && intervening_if.is_none()
-                    && limits.per_turn.is_none() && limits.total.is_none()
-                    && announcement.targets.is_empty() && announcement.modes.is_none()
+                if planned::switched_on("damage-poison")
+                    && scope.is_none()
+                    && self.trigger_gate.is_none()
+                    && self.ability_guard.is_none()
+                    && self.static_guard.is_none()
+                    && intervening_if.is_none()
+                    && limits.per_turn.is_none()
+                    && limits.total.is_none()
+                    && announcement.targets.is_empty()
+                    && announcement.modes.is_none()
                 {
                     if let Some(amount) = recipes::damage_poison_amount(event, body) {
                         let counter = if amount == 1 { "counter" } else { "counters" };
                         let text = self.said(lane_k::Said::Triggered,
                             format!("Whenever this creature deals damage to a player, that player gets {amount} poison {counter}."));
                         parts.abilities.push(format!(
-                            "cantrip_mechanics::poison::on_damage_to_player::<{amount}>({})", quoted(&text)));
+                            "cantrip_mechanics::poison::on_damage_to_player::<{amount}>({})",
+                            quoted(&text)
+                        ));
                         return Ok(());
                     }
                 }
                 self.event_object = lane_j::event_object(event);
-                self.source_entered = matches!(event, EventSpec::ZoneChange { objects: ObjectFilter::SameObject(ObjectRef::Source), to: EventZone::Battlefield, .. });
+                self.source_entered = matches!(
+                    event,
+                    EventSpec::ZoneChange {
+                        objects: ObjectFilter::SameObject(ObjectRef::Source),
+                        to: EventZone::Battlefield,
+                        ..
+                    }
+                );
                 let def = self.triggered(
                     label,
                     event,
@@ -1397,16 +1448,24 @@ impl Compiler {
                     // (CR 113.6k, 702.29c). Its matcher already declares WHERE_A_DISCARD_ENDS; keep a narrower explicit
                     // scope, but do not replace that declaration with every zone, including the stack.
                     Some(scope)
-                        if matches!(event, EventSpec::Discard { source_only: true, .. })
-                            && [
-                                EventZone::Battlefield,
-                                EventZone::Graveyard,
-                                EventZone::Hand,
-                                EventZone::Library,
-                                EventZone::Exile,
-                            ]
-                            .iter()
-                            .all(|zone| scope.zones.contains(zone)) => def,
+                        if matches!(
+                            event,
+                            EventSpec::Discard {
+                                source_only: true,
+                                ..
+                            }
+                        ) && [
+                            EventZone::Battlefield,
+                            EventZone::Graveyard,
+                            EventZone::Hand,
+                            EventZone::Library,
+                            EventZone::Exile,
+                        ]
+                        .iter()
+                        .all(|zone| scope.zones.contains(zone)) =>
+                    {
+                        def
+                    }
                     Some(scope) => {
                         let zones = zone_list(scope.zones);
                         def.and_then(|def| Ok(format!("{def}.functions_in({})", zones?)))

@@ -85,7 +85,7 @@ let browser,page;
    if(!entry)throw Error('Missing '+name);
    const card=(await d.shard(entry.shard))[entry.index],formatted=await d.formatCode(d.encode(card));
    if(!formatted.valid)throw Error(name+': '+formatted.error);
-   if(name==='Two-Headed Giant'){if((formatted.code.match(/HeadsFlipped/g)||[]).length!==2||formatted.code.includes('CoinFlipsWon'))throw Error('Coin faces became called wins');}
+   if(name==='Two-Headed Giant'){if((formatted.code.match(/CountCoinOutcomes/g)||[]).length!==2||formatted.code.includes('CoinFlipsWon'))throw Error('Coin faces became called wins');}
    if(name==='Mana Clash'&&(formatted.code.includes('CoinFlipsWon')||!formatted.code.includes('Heads')||!formatted.code.includes('CoinCameUp')))throw Error('Collective coin faces became a win/loss tally');
    const parsed=await d.parseCode(formatted.code);if(!parsed.valid)throw Error(name+': '+parsed.error);
    const again=await d.formatCode(parsed.ir);if(again.code!==formatted.code)throw Error(name+': unstable card code');
@@ -99,8 +99,8 @@ let browser,page;
   ...['Primitive{name:"Condition::AllCoinsCameUpHeads",operands:[]}','Primitive{name:"Condition::NumCoinFlipsWonIs",operands:[Term{family:"Condition",form:"AllCoinsCameUpHeads",operands:[]}]}'].map(condition=>'Card{name:"Coin participants",properties:{card_types:[Instant]},abilities:[Spell{do:[If{condition:'+condition+',then:[],otherwise:[]}]}]}'),
   ...[
    'drawn=DrawCards{players:You,amount:1},If{condition:CoinFlip{result:drawn,outcome:Heads},then:[],otherwise:[]}',
-   'drawn=DrawCards{players:You,amount:1},DrawCards{players:You,amount:HeadsFlipped(drawn)}',
-   'batch=FlipCoins{actor:You,count:1},If{condition:CoinFlip{result:batch,outcome:Heads},then:[],otherwise:[]}'
+   'drawn=DrawCards{players:You,amount:1},DrawCards{players:You,amount:CountCoinOutcomes{source:Receipt(drawn),outcome:Heads}}',
+   'batch=FlipCoins{players:You,count:1},If{condition:CoinFlip{result:batch,outcome:Heads},then:[],otherwise:[]}'
   ].map(body=>'Card{name:"Coin receipts",properties:{card_types:[Instant]},abilities:[Spell{do:['+body+']}]}')
  ];
  for(const code of malformed)assert.equal((await page.evaluate(code=>window.cardBlocks.parseCode(code),code)).valid,false);

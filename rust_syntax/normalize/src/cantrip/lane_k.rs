@@ -392,14 +392,25 @@ impl Printed {
                 (l, used) = (l + 1, 0);
             }
         }
-        if abilities.iter().filter(|ability| matches!(ability, Ability::Spell { .. })).count() == 1 {
+        if abilities
+            .iter()
+            .filter(|ability| matches!(ability, Ability::Spell { .. }))
+            .count()
+            == 1
+        {
             for (ability, line) in abilities.iter().zip(&mut aligned) {
                 if matches!(ability, Ability::Spell { .. }) {
                     if let Some(line) = line {
-                        line.spell_paragraphs = self.lines.iter().enumerate()
-                            .filter(|(at, paragraph)| !claimed.contains(at)
-                                && matches!(paragraph.kind, Said::Sentence | Said::Triggered))
-                            .map(|(_, paragraph)| (paragraph.kind, paragraph.head.clone())).collect();
+                        line.spell_paragraphs = self
+                            .lines
+                            .iter()
+                            .enumerate()
+                            .filter(|(at, paragraph)| {
+                                !claimed.contains(at)
+                                    && matches!(paragraph.kind, Said::Sentence | Said::Triggered)
+                            })
+                            .map(|(_, paragraph)| (paragraph.kind, paragraph.head.clone()))
+                            .collect();
                     }
                 }
             }
@@ -587,11 +598,17 @@ pub(super) fn shuffled_in_though_gone<'a>(
 }
 /// "A permanent", "three permanents": a number as a card prints it.
 fn printed_many(n: i64, noun: &str) -> String {
-    const WORDS: [&str; 9] = ["two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+    const WORDS: [&str; 9] = [
+        "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    ];
     match usize::try_from(n - 2).ok().and_then(|at| WORDS.get(at)) {
         Some(word) => format!("{word} {noun}s"),
         None if n == 1 => {
-            let article = if noun.starts_with(|c| "aeiou".contains(c)) { "an" } else { "a" };
+            let article = if noun.starts_with(|c| "aeiou".contains(c)) {
+                "an"
+            } else {
+                "a"
+            };
             format!("{article} {noun}")
         }
         None => format!("{n} {noun}s"),
@@ -604,7 +621,11 @@ pub(super) fn discard_or_pay(costs: &[Cost]) -> Option<u8> {
     let discard = |c: &Cost| {
         matches!(
             c.parts.as_slice(),
-            [CostPart::Discard { count: Expr::Constant(1), filter: ObjectFilter::Any, random: false }]
+            [CostPart::Discard {
+                count: Expr::Constant(1),
+                filter: ObjectFilter::Any,
+                random: false
+            }]
         )
     };
     let generic = |c: &Cost| match c.parts.as_slice() {
@@ -639,9 +660,10 @@ pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
         (ObjectFilter::Subtype(subtype), 1) if name(subtype) == "Food" => {
             call("ward_sacrifice_a_food".into(), "a Food")
         }
-        (ObjectFilter::Any, n) => {
-            call(format!("ward_sacrifice::<{n}>"), &printed_many(n, "permanent"))
-        }
+        (ObjectFilter::Any, n) => call(
+            format!("ward_sacrifice::<{n}>"),
+            &printed_many(n, "permanent"),
+        ),
         (ObjectFilter::Not(inner), n)
             if matches!(
                 **inner,
@@ -672,9 +694,8 @@ pub(super) fn paid_by_a_choice(cost: &Cost) -> bool {
         }] => true,
         [CostPart::Move {
             selections,
-            face_down: false,
-            ..
-        }] => matches!(
+            destination,
+        }] if !destination.hidden() => matches!(
             selections.as_slice(),
             [CostObjectSelection {
                 choose: Some(Count::Exactly(Expr::Constant(1))),
@@ -738,11 +759,13 @@ fn chooses_first_after(decider: &PlayerRef, body: &Program, mut looked: bool) ->
             Instruction::Effect {
                 operation: Operation::WithSelections { steps, .. },
                 ..
-            } => return matches!(steps.first(), Some(SelectionStep {
+            } => {
+                return matches!(steps.first(), Some(SelectionStep {
                 chooser: SelectionChooser::Players(PlayerSet::One(player)),
                 count: Count::UpTo(_) | Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1)),
                 ..
-            }) if format!("{player:?}") == format!("{decider:?}")),
+            }) if format!("{player:?}") == format!("{decider:?}"))
+            }
             Instruction::Effect {
                 operation:
                     Operation::ChooseObjects {
@@ -754,7 +777,9 @@ fn chooses_first_after(decider: &PlayerRef, body: &Program, mut looked: bool) ->
                 ..
             } if matches!(
                 count,
-                Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1)) | Count::AnyNumber
+                Count::Exactly(Expr::Constant(1))
+                    | Count::AsManyAsCan(Expr::Constant(1))
+                    | Count::AnyNumber
             ) || (!looked && matches!(count, Count::UpTo(_))) =>
             {
                 // "You may discard up to two cards": the choice is the may, none is
@@ -765,7 +790,7 @@ fn chooses_first_after(decider: &PlayerRef, body: &Program, mut looked: bool) ->
                     && !matches!(objects, ObjectSet::Created(_))
                     && !constraints
                         .iter()
-                        .any(|c| matches!(c, SelectionConstraint::AtRandom))
+                        .any(|c| matches!(c, SelectionConstraint::AtRandom));
             }
             _ => return false,
         }
@@ -788,7 +813,9 @@ struct Taking<'a> {
 
 /// `body` as a `Taking`, what `looker` looked at.
 fn taking_from<'a>(looker: &PlayerRef, body: &'a [Instruction], id: usize) -> Option<Taking<'a>> {
-    if !effects::only_plain_moves(body) { return None; }
+    if !effects::only_plain_moves(body) {
+        return None;
+    }
     let steps: Vec<(&ResultId, &Operation)> = body
         .iter()
         .map(|instruction| match instruction {
@@ -818,10 +845,9 @@ fn taking_from<'a>(looker: &PlayerRef, body: &'a [Instruction], id: usize) -> Op
         put,
         Operation::Move {
             objects: ObjectSet::Selected(selected),
-            destination: Destination::OwnersHand,
-            entry,
-            face_down: false,
-         .. },
+            destination: destination @ MovementDestination::OwnersHand(_),
+            ..
+        },
     ), (
         _,
         Operation::ReorderLibrary {
@@ -856,8 +882,7 @@ fn taking_from<'a>(looker: &PlayerRef, body: &'a [Instruction], id: usize) -> Op
     };
     let plain = format!("{looker:?}") == format!("{chooser:?}")
         && selected.0 == chosen.0
-        && entry.counters.is_empty()
-        && !entry.tapped
+        && destination.is_plain()
         && !constraints
             .iter()
             .any(|c| !matches!(c, SelectionConstraint::CanMoveTo { .. }));
@@ -1014,7 +1039,7 @@ pub(super) fn tap_or_untap_only(body: &Program) -> bool {
         body.instructions.as_slice(),
         [Instruction::Effect {
             operation: Operation::Keyword {
-                action: KeywordAction::TapOrUntap {..},
+                action: KeywordAction::TapOrUntap { .. },
                 ..
             },
             ..
@@ -1033,7 +1058,8 @@ pub(super) fn looks_then_may(body: &Program) -> Option<Program> {
     else {
         return None;
     };
-    let [looks @ .., Instruction::Optional { decider: inner, .. }] = offered.instructions.as_slice()
+    let [looks @ .., Instruction::Optional { decider: inner, .. }] =
+        offered.instructions.as_slice()
     else {
         return None;
     };
@@ -1097,15 +1123,30 @@ pub(super) fn asked_if(decider: &PlayerRef, local: &str, body: &Program) -> Stri
     // Legacy compound optional actions can begin with a hand discard. A draw
     // prohibition still rules out choosing the entire conjunction (121.3).
     // Read this before discarding anything; replacement is not prohibition.
-    if let [Instruction::Effect { operation: Operation::Discard { players: PlayerSet::One(discarder),
-        amount: Expr::CountObjects(hand), random: false }, .. },
-        Instruction::Effect { operation: Operation::Draw { players: PlayerSet::One(drawer),
-            amount: Expr::Constant(n) }, .. }, ..] = first.instructions.as_slice()
+    if let [Instruction::Effect {
+        operation:
+            Operation::Discard {
+                players: PlayerSet::One(discarder),
+                amount: Expr::CountObjects(hand),
+                random: false,
+            },
+        ..
+    }, Instruction::Effect {
+        operation:
+            Operation::Draw {
+                players: PlayerSet::One(drawer),
+                amount: Expr::Constant(n),
+            },
+        ..
+    }, ..] = first.instructions.as_slice()
     {
-        if same(discarder) && same(drawer) && matches!(hand.as_ref(), ObjectSet::Zone {
+        if same(discarder)
+            && same(drawer)
+            && matches!(hand.as_ref(), ObjectSet::Zone {
             scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(owner) },
             kind: ObjectKind::Card, filter: ObjectFilter::Any
-        } if same(owner)) {
+        } if same(owner))
+        {
             return format!("!{} && ", planned::cant_draw(local, *n));
         }
     }
@@ -1173,7 +1214,10 @@ pub(super) fn blights(player: &PlayerRef, body: &Program) -> Option<u8> {
         operation:
             Operation::Keyword {
                 actor: PlayerSet::One(actor),
-                action: KeywordAction::Blight {amount:Expr::Constant(n)},
+                action:
+                    KeywordAction::Blight {
+                        amount: Expr::Constant(n),
+                    },
             },
         ..
     }] = body.instructions.as_slice()
@@ -1189,7 +1233,9 @@ pub(super) fn blights(player: &PlayerRef, body: &Program) -> Option<u8> {
 /// a word of the text, which an effect may have changed (612.2).
 pub(super) fn keyword_granted(keyword: &str) -> String {
     match landwalk_named_by(keyword, "source") {
-        Some(walk) => format!("if let Some(walk) = {walk} {{ chars.keywords = chars.keywords.with(walk); }}"),
+        Some(walk) => {
+            format!("if let Some(walk) = {walk} {{ chars.keywords = chars.keywords.with(walk); }}")
+        }
         None => format!("chars.keywords = chars.keywords.with({keyword});"),
     }
 }
@@ -1197,10 +1243,19 @@ pub(super) fn keyword_granted(keyword: &str) -> String {
 /// A named landwalk's type word follows text changes; its snow qualifier stays.
 pub(super) fn landwalk_named_by(keyword: &str, source: &str) -> Option<String> {
     let name = keyword.strip_prefix("Keyword::")?;
-    let (snow, name) = match name.strip_prefix("Snow") { Some(name) => (true, name), None => (false, name) };
-    let land = ["Plains", "Island", "Swamp", "Mountain", "Forest"].into_iter().find(|land| name == format!("{land}walk"))?;
+    let (snow, name) = match name.strip_prefix("Snow") {
+        Some(name) => (true, name),
+        None => (false, name),
+    };
+    let land = ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+        .into_iter()
+        .find(|land| name == format!("{land}walk"))?;
     let plain = format!("Keyword::landwalk(q.words({source}).subtype(Subtype::{land}))");
-    Some(if snow { format!("{plain}.and_then(Keyword::snow_landwalk)") } else { plain })
+    Some(if snow {
+        format!("{plain}.and_then(Keyword::snow_landwalk)")
+    } else {
+        plain
+    })
 }
 
 /// A resolving keyword grant or removal reads the type word when it resolves
@@ -1355,9 +1410,13 @@ fn fit(ability: &Ability, line: &Line) -> Option<i32> {
     match ability {
         Ability::Scoped { ability, .. } => fit(ability, line),
         // "Max speed — {3}, Exile this card ...: ..." is the ability's own line.
-        Ability::Conditional { then, otherwise, .. }
-            if otherwise.is_empty()
-                && matches!(then.as_slice(), [Ability::Activated { .. } | Ability::Triggered { .. }]) =>
+        Ability::Conditional {
+            then, otherwise, ..
+        } if otherwise.is_empty()
+            && matches!(
+                then.as_slice(),
+                [Ability::Activated { .. } | Ability::Triggered { .. }]
+            ) =>
         {
             fit(&then[0], line)
         }
@@ -1484,9 +1543,10 @@ impl Compiler {
         });
         let test = asked.matching(Frame::default(), |c| c.filter(objects, &entered));
         // A filter on the event being matched has to come through the record.
-        Ok(test.ok().filter(|test| !test.contains("subject") && !test.contains("data")).map(|test| {
-            format!("q.history().entered().filter(|e| {test}).count() as i64")
-        }))
+        Ok(test
+            .ok()
+            .filter(|test| !test.contains("subject") && !test.contains("data"))
+            .map(|test| format!("q.history().entered().filter(|e| {test}).count() as i64")))
     }
     fn as_it_entered(&self, filter: &ObjectFilter, tests: &mut Vec<String>) -> Result<bool> {
         match filter {
@@ -1690,7 +1750,9 @@ impl Compiler {
     /// the rest on the bottom": one question (Cantrip's `look_at_top`), the cards
     /// going to each place, not a choice and then an order. Whether `group` was it.
     pub(super) fn dig(&mut self, group: &Program, out: &mut String) -> Result<bool> {
-        if !effects::only_plain_moves(group) { return Ok(false); }
+        if !effects::only_plain_moves(group) {
+            return Ok(false);
+        }
         if self.rest_to_graveyard(group, out)? {
             return Ok(true);
         }
@@ -1786,7 +1848,7 @@ impl Compiler {
                 operation:
                     Operation::Move {
                         objects: ObjectSet::Selected(hand),
-                        destination: Destination::OwnersHand,
+                        destination: MovementDestination::OwnersHand(_),
                         ..
                     },
                 ..
@@ -1811,7 +1873,7 @@ impl Compiler {
                 operation:
                     Operation::Move {
                         objects: ObjectSet::InZone { .. },
-                        destination: Destination::Exile,
+                        destination: MovementDestination::Exile { .. },
                         ..
                     },
             }] if hand.0 == to_hand.0 && bottom.0 == to_bottom.0 => {
@@ -1856,7 +1918,9 @@ impl Compiler {
     /// "Reveal the top four cards. You may put a land card from among them into
     /// your hand. Put the rest into your graveyard": Cantrip's one question.
     fn rest_to_graveyard(&mut self, group: &Program, out: &mut String) -> Result<bool> {
-        if !effects::only_plain_moves(group) { return Ok(false); }
+        if !effects::only_plain_moves(group) {
+            return Ok(false);
+        }
         if group.instructions.last().is_some_and(
             |last| matches!(last, Instruction::Effect { result, .. } if self.read_later(result)),
         ) {
@@ -1877,15 +1941,14 @@ impl Compiler {
             operation:
                 Operation::Move {
                     objects: ObjectSet::Selected(selected),
-                    destination: Destination::OwnersHand,
-                    entry,
-                    face_down: false,
-                 .. },
+                    destination: destination @ MovementDestination::OwnersHand(_),
+                    ..
+                },
             ..
         }, Instruction::Effect {
             operation:
                 Operation::Move {
-                    destination: Destination::OwnersGraveyard,
+                    destination: MovementDestination::OwnersGraveyard(_),
                     ..
                 },
             ..
@@ -1929,8 +1992,7 @@ impl Compiler {
         let plain = format!("{from:?}") == "Top"
             && library
             && selected.0 == chosen.0
-            && entry.counters.is_empty()
-            && !entry.tapped
+            && destination.is_plain()
             && !constraints
                 .iter()
                 .any(|c| !matches!(c, SelectionConstraint::CanMoveTo { .. }));
@@ -1976,7 +2038,12 @@ impl Compiler {
             test,
             rest,
         } = taking;
-        writeln!(out, "let player_{id} = {looker}; let depth_{id} = {depth}; {}", lets.join(" ")).unwrap();
+        writeln!(
+            out,
+            "let player_{id} = {looker}; let depth_{id} = {depth}; {}",
+            lets.join(" ")
+        )
+        .unwrap();
         if most == 1 {
             // A single pick uses the existing selection interaction. Keep the
             // looked-at cards visible and restrict which one may be revealed.
@@ -2093,9 +2160,16 @@ impl Compiler {
         };
         let makes = |sentence: &str| {
             let sentence = sentence.to_lowercase();
-            ["prevent", "would", "instead", "the next time", "enters with", "enter with"]
-                .iter()
-                .any(|word| sentence.contains(word))
+            [
+                "prevent",
+                "would",
+                "instead",
+                "the next time",
+                "enters with",
+                "enter with",
+            ]
+            .iter()
+            .any(|word| sentence.contains(word))
         };
         // A mode prints on a line of its own, which is what Oracle text holds.
         if let Some(mode) = line.modes.iter().find(|mode| makes(mode)) {
@@ -2136,11 +2210,24 @@ impl Compiler {
             return self.said(Said::Triggered, fallback);
         };
         let blocks: Vec<(Said, String, bool)> = match self.granting {
-            true => line.quotes.iter().map(|(kind, words)| (*kind, words.clone(), true)).collect(),
+            true => line
+                .quotes
+                .iter()
+                .map(|(kind, words)| (*kind, words.clone(), true))
+                .collect(),
             false => {
-                let modes = line.modes.iter().map(|mode| (Said::Sentence, mode.clone(), true));
-                modes.chain([(line.kind, line.head.clone(), true)])
-                    .chain(line.spell_paragraphs.iter().map(|(kind, words)| (*kind, words.clone(), false))).collect()
+                let modes = line
+                    .modes
+                    .iter()
+                    .map(|mode| (Said::Sentence, mode.clone(), true));
+                modes
+                    .chain([(line.kind, line.head.clone(), true)])
+                    .chain(
+                        line.spell_paragraphs
+                            .iter()
+                            .map(|(kind, words)| (*kind, words.clone(), false)),
+                    )
+                    .collect()
             }
         };
         let makes = |sentence: &str| {
@@ -2180,17 +2267,6 @@ impl Compiler {
         }
         first.unwrap_or_else(|| self.said(Said::Triggered, fallback))
     }
-    /// A flip whose line speaks of heads or tails has no winner (CR 705.2), and
-    /// the rest are won or lost. The AST says the same words either way.
-    pub(super) fn flip_call(&self) -> Result<&'static str> {
-        let line = self
-            .line_text()
-            .ok_or_else(|| gap("a coin flip with no printed line"))?;
-        let called = line
-            .split(|c: char| !c.is_alphabetic())
-            .any(|word| word.eq_ignore_ascii_case("heads") || word.eq_ignore_ascii_case("tails"));
-        Ok(if called { "flip_coin_for_heads" } else { "flip_coin" })
-    }
     /// The printed line being compiled.
     pub(super) fn line_text(&self) -> Option<&str> {
         self.line.as_ref().map(|line| line.text.as_str())
@@ -2198,7 +2274,9 @@ impl Compiler {
     /// An instruction named the active player, and a later printed sentence
     /// refers back to "that player". A delayed ability keeps that identity.
     pub(super) fn active_player_named_later(&self) -> bool {
-        self.face_text.find("active player").zip(self.face_text.find("that player"))
+        self.face_text
+            .find("active player")
+            .zip(self.face_text.find("that player"))
             .is_some_and(|(active, later)| active < later)
     }
     /// "Look at the top three cards of your library, then put them back in any
@@ -2216,7 +2294,12 @@ impl Compiler {
             operation:
                 Operation::LookAt {
                     player: PlayerRef::AbilityController,
-                    objects: ObjectSet::Take { objects: looked, count, from },
+                    objects:
+                        ObjectSet::Take {
+                            objects: looked,
+                            count,
+                            from,
+                        },
                 },
             ..
         }, Instruction::Effect {
@@ -2610,7 +2693,10 @@ impl Compiler {
             // What a stage's line quotes, for what it grants: Joraga Treespeaker's
             // "LEVEL 5+: Elves you control have "{T}: Add {G}{G}."".
             if next.is_none() && self.granting {
-                let quoted = lines.iter().flat_map(|line| &line.quotes).find(|(said, _)| *said == kind);
+                let quoted = lines
+                    .iter()
+                    .flat_map(|line| &line.quotes)
+                    .find(|(said, _)| *said == kind);
                 if let Some((_, quote)) = quoted {
                     return quote.clone();
                 }
@@ -2662,7 +2748,12 @@ impl Compiler {
             }
             return vec![line.text.clone()];
         }
-        let staged = self.stage_lines.iter().flatten().filter(|line| !line.said).map(|line| line.text.clone());
+        let staged = self
+            .stage_lines
+            .iter()
+            .flatten()
+            .filter(|line| !line.said)
+            .map(|line| line.text.clone());
         let chapters = self.chapters.values().cloned();
         staged.chain(chapters).collect()
     }

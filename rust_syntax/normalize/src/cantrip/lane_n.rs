@@ -413,7 +413,11 @@ fn only_changes(program: &Program) -> Option<Vec<EventChange>> {
 /// the state triggers judge once it is all done (CR 603.8, 611.2c), not one creature at a time. Code that can suspend or
 /// return stays as it is: a closure of `instruction` can do neither.
 pub(super) fn one_instruction_for_each(each: Option<u32>, code: String) -> String {
-    if each.is_none() || code.contains('?') || code.contains("return") || !code.starts_with("for bound_") {
+    if each.is_none()
+        || code.contains('?')
+        || code.contains("return")
+        || !code.starts_with("for bound_")
+    {
         return code;
     }
     format!("cantrip_api::instruction(g, |g| {{ {code} }});\n")
@@ -491,7 +495,12 @@ impl Compiler {
         let mut adds = String::new();
         for (kind, n) in counters {
             let n = self.number(n)?.quantity(Quantity::CounterPlacement)?;
-            write!(adds, "z.counters[{} as usize] += {n}; ", counter_kind(kind)?).unwrap();
+            write!(
+                adds,
+                "z.counters[{} as usize] += {n}; ",
+                counter_kind(kind)?
+            )
+            .unwrap();
         }
         writeln!(self.functions, "#[allow(unused_variables)] fn arrival_{id}_applies(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &Proposal) -> bool {{ matches!(proposal, Proposal::ZoneChange(z) if z.object == affected && z.to.is(ZoneKind::Battlefield)) && {test} }}").unwrap();
         writeln!(self.functions, "#[allow(unused_variables)] fn arrival_{id}_apply(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &mut Proposal) {{ if let Proposal::ZoneChange(z) = proposal {{ {adds}}} }}").unwrap();
@@ -588,19 +597,12 @@ impl Compiler {
                         Operation::Move {
                             objects: ObjectSet::One(ObjectRef::EventSubject),
                             destination,
-                            entry,
-                            face_down: false,
-                            terms,
+                            qualifiers,
                         },
                     result,
-                } if kind == "ZoneChange"
-                    && terms.is_default()
-                    && !entry.tapped
-                    && entry.counters.is_empty()
-                    && entry.states.is_empty() =>
-                {
+                } if kind == "ZoneChange" && destination.is_plain() && qualifiers.is_empty() => {
                     self.replacing.changed.push(result.0);
-                    changes.push(EventChange::SetDestination(destination));
+                    changes.push(EventChange::SetDestination(destination.address()));
                 }
                 // "Regenerate it", of what would be destroyed: no shield, the
                 // replacement a shield makes (CR 701.19a).
@@ -617,7 +619,10 @@ impl Compiler {
                 Instruction::Effect {
                     operation:
                         Operation::Keyword {
-                            action: KeywordAction::RemoveAllDamage {object:ObjectRef::EventSubject},
+                            action:
+                                KeywordAction::RemoveAllDamage {
+                                    object: ObjectRef::EventSubject,
+                                },
                             ..
                         },
                     ..
@@ -709,7 +714,11 @@ impl Compiler {
         let locals = arms[0].locals.clone();
         self.replacing.event = Some(("Damage", "e", frame));
         let prevented = self.replacing.prevented;
-        let out = self.then_steps(frame, rest, prevented.map(|r| (r, "done_prevented", Quantity::Prevention)))?;
+        let out = self.then_steps(
+            frame,
+            rest,
+            prevented.map(|r| (r, "done_prevented", Quantity::Prevention)),
+        )?;
         let (subject_alone, second_alone) = match frame.damage_source {
             Some(Carried::Subject) => alone,
             _ => (alone.1, alone.0),
@@ -717,7 +726,9 @@ impl Compiler {
         let pass = if about.is_empty() { "" } else { "affected, " };
         let (quantity_param, quantity_arg) = if frame.quantity.is_some() {
             (", event_quantity: i64", ", event_quantity")
-        } else { ("", "") };
+        } else {
+            ("", "")
+        };
         writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2], done_prevented: {prevention_ty}{quantity_param}) -> Result<(), Suspend> {{ {out} Ok(()) }}", prevention_ty = Quantity::Prevention.kind()).unwrap();
         // Words that read "that source" or "that creature" where the parts have
         // several are about each one (Comeuppance: each creature is dealt the
@@ -747,7 +758,9 @@ impl Compiler {
         let ObjectRef::Result { result, .. } = object else {
             return None;
         };
-        self.damage_sources.get(self.selections.get(&result.0)?).cloned()
+        self.damage_sources
+            .get(self.selections.get(&result.0)?)
+            .cloned()
     }
     /// "A source of your choice", as damage is about to be dealt: that object or
     /// the permanent it became, if it still has the quality it was chosen for
@@ -908,7 +921,8 @@ impl Compiler {
             }
             ("PlayerCounters", C::SetAmount(n)) => {
                 if let Some(field) = self.replacing.player_counter {
-                    let n = self.matching(frame, |c| c.number(n))?
+                    let n = self
+                        .matching(frame, |c| c.number(n))?
                         .quantity(Quantity::player_counter(field))?;
                     format!("c.{field} = {n};")
                 } else if planned::switched_on(quantity::FEATURE) {
@@ -917,13 +931,15 @@ impl Compiler {
                     // against that kind, never manufacture homogeneous references.
                     let mut edits = String::new();
                     for field in ["poison", "energy", "experience"] {
-                        let n = self.matching(frame, |c| c.number(n))?
+                        let n = self
+                            .matching(frame, |c| c.number(n))?
                             .quantity(Quantity::player_counter(field))?;
                         write!(edits, "if c.{field} > 0 {{ let event_quantity = i64::from(c.{field}); c.{field} = {n}; }} ").unwrap();
                     }
                     edits
                 } else {
-                    let n = self.matching(frame, |c| c.number(n))?
+                    let n = self
+                        .matching(frame, |c| c.number(n))?
                         .quantity(Quantity::SmallPlayerCounter)?;
                     format!("for kind in [&mut c.poison, &mut c.energy, &mut c.experience] {{ if *kind > 0 {{ let data = [u32::from(*kind), u32::MAX]; *kind = {n}; }} }}")
                 }
@@ -940,7 +956,9 @@ impl Compiler {
                     .quantity(Quantity::player_counter(field))?;
                 format!("c.{field} = c.{field}.saturating_add({n});")
             }
-            ("ZoneChange", C::Entry(state)) => self.entry_change(state, frame)?,
+            ("ZoneChange", C::Entry(state)) => {
+                self.entry_change(&crate::movement::battlefield_state_view(state), frame)?
+            }
             ("ManaProduction", C::SetAmount(n)) => {
                 let n = self
                     .matching(frame, |c| c.number(n))?
@@ -1435,8 +1453,8 @@ impl Compiler {
         field: Option<&'static str>,
         players: &PlayerSet,
     ) -> Result<Option<(Vec<Watched>, Frame)>> {
-        let wide_amount = planned::switched_on(quantity::FEATURE)
-            && field.is_none_or(|field| field == "poison");
+        let wide_amount =
+            planned::switched_on(quantity::FEATURE) && field.is_none_or(|field| field == "poison");
         let frame = Frame {
             quantity: wide_amount.then_some(Quantity::PoisonProposal),
             player: Some(Carried::Subject),
@@ -1450,8 +1468,11 @@ impl Compiler {
             Some(field) => (format!("c.{field} > 0"), format!("u32::from(c.{field})")),
             None => (
                 "c.poison > 0 || c.energy > 0 || c.experience > 0".to_string(),
-                if wide_amount { "c.poison.max(0).saturating_add(i64::from(c.energy)).saturating_add(i64::from(c.experience))".into() }
-                else { "u32::from(c.poison) + u32::from(c.energy) + u32::from(c.experience)".into() },
+                if wide_amount {
+                    "c.poison.max(0).saturating_add(i64::from(c.energy)).saturating_add(i64::from(c.experience))".into()
+                } else {
+                    "u32::from(c.poison) + u32::from(c.energy) + u32::from(c.experience)".into()
+                },
             ),
         };
         Ok(Some((
@@ -1461,7 +1482,11 @@ impl Compiler {
                 binding: "c",
                 locals: if wide_amount {
                     format!("let event_quantity = {amount}; let subject = Target::Player(c.player); let data = [u32::try_from(event_quantity).unwrap_or(u32::MAX), u32::MAX];")
-                } else { format!("let subject = Target::Player(c.player); let data = [{amount}, u32::MAX];") },
+                } else {
+                    format!(
+                        "let subject = Target::Player(c.player); let data = [{amount}, u32::MAX];"
+                    )
+                },
                 tests: vec![some, test],
             }],
             frame,
@@ -1505,7 +1530,9 @@ impl Compiler {
             // Seraph's "dealt damage by this creature this turn" is the trigger's own.
             None if self.line_text().is_some_and(|line| {
                 line.split(". ").any(|sentence| {
-                    sentence.find("next").is_some_and(|at| sentence[at..].contains("this turn"))
+                    sentence
+                        .find("next")
+                        .is_some_and(|at| sentence[at..].contains("this turn"))
                 })
             }) =>
             {
@@ -1525,22 +1552,43 @@ impl Compiler {
         let (watched, source, each) = self.watching_source(event, body)?;
         let (maker, _, _) = self.maker();
         let separate = source != format!("Some({maker})");
-        if each.is_some() { return Err(gap("delayed trigger on an event")); }
-        if separate && !(expires.is_none() && intervening_if.is_none() && watched_is_subject && !reads_creator) {
-            return Err(gap("one-shot delayed trigger with a separate watched object"));
+        if each.is_some() {
+            return Err(gap("delayed trigger on an event"));
         }
-        let when = if separate { "DelayedWhen::WhenEvent" } else { when.as_str() };
+        if separate
+            && !(expires.is_none()
+                && intervening_if.is_none()
+                && watched_is_subject
+                && !reads_creator)
+        {
+            return Err(gap(
+                "one-shot delayed trigger with a separate watched object",
+            ));
+        }
+        let when = if separate {
+            "DelayedWhen::WhenEvent"
+        } else {
+            when.as_str()
+        };
         // A mixed spell/activation matcher carries the spell in Fired.subject.
         // WhenEvent reserves that field for its stored capture instead, so it
         // cannot represent this future-event read even with no other captures.
-        if when == "DelayedWhen::WhenEvent" && matches!(event, EventSpec::SpellOrActivation { .. })
+        if when == "DelayedWhen::WhenEvent"
+            && matches!(event, EventSpec::SpellOrActivation { .. })
             && (super::delayed::reads_event_stack_object(body)
-                || intervening_if.as_ref().is_some_and(super::delayed::reads_event_stack_object)) {
-            return Err(gap("one-shot delayed trigger reading a mixed future stack subject"));
+                || intervening_if
+                    .as_ref()
+                    .is_some_and(super::delayed::reads_event_stack_object))
+        {
+            return Err(gap(
+                "one-shot delayed trigger reading a mixed future stack subject",
+            ));
         }
         self.watching_separately = separate;
         self.watched_is_event_subject = watched_is_subject;
-        if !separate { self.watching_for_another(&source, body)?; }
+        if !separate {
+            self.watching_for_another(&source, body)?;
+        }
         let saved = self.clone();
         let mark = out.len();
         // WhenEvent watches an object subject when present. Independent object
@@ -1551,7 +1599,9 @@ impl Compiler {
                 c.reset_results();
                 let matched = c.event(&watched)?;
                 if let Some(outer) = c.outer.as_ref().filter(|outer| outer.separate_watcher) {
-                    if matched.frame.object != Some(Carried::Subject) { outer.watched_is_event_subject.set(false); }
+                    if matched.frame.object != Some(Carried::Subject) {
+                        outer.watched_is_event_subject.set(false);
+                    }
                 }
                 let targets = c.targets_for(
                     &Announcement {
@@ -1567,7 +1617,8 @@ impl Compiler {
                     Some(condition) => c.guarded_effect(condition, body, &label),
                     None => c.effect(body, &label),
                 }?;
-                let text = c.delayed_words(false, format!("{}, {}", matched.phrase, ability_text(body)));
+                let text =
+                    c.delayed_words(false, format!("{}, {}", matched.phrase, ability_text(body)));
                 Ok(format!(
                     "triggered({trigger}, {label}, {}).targets({targets})",
                     quoted(&text)
@@ -1600,7 +1651,8 @@ impl Compiler {
         body: &Program,
         out: &mut String,
     ) -> Result<bool> {
-        let (ReplacementEvent::Damage(damage), ReplacementLimit::DamageToEach(share)) = (event, limit)
+        let (ReplacementEvent::Damage(damage), ReplacementLimit::DamageToEach(share)) =
+            (event, limit)
         else {
             return Ok(false);
         };
@@ -1719,7 +1771,9 @@ impl Compiler {
             }
             _ => None,
         };
-        let to = to.or(those.as_ref().map(|_| "vec![Target::Object(each)]".to_string()));
+        let to = to.or(those
+            .as_ref()
+            .map(|_| "vec![Target::Object(each)]".to_string()));
         let each = each.or(those);
         let about = about.or(each.as_ref().map(|_| "Some(each)".to_string()));
         let hint = quoted(&ability_text(body));
@@ -1835,11 +1889,19 @@ impl Compiler {
             .into_iter()
             .find(|r| damaged_to_bound(objects, *r, &each))?;
         if moving && !format!("{objects:?}").contains("CardType(Creature)") {
-            let dying = [crate::mtg_types::CardType::Creature, crate::mtg_types::CardType::Planeswalker];
+            let dying = [
+                crate::mtg_types::CardType::Creature,
+                crate::mtg_types::CardType::Planeswalker,
+            ];
             let dying = ObjectFilter::Either(dying.map(ObjectFilter::CardType).to_vec());
             *objects = ObjectFilter::All(vec![dying, objects.clone()]);
         }
-        writeln!(out, "for bound_{binding} in {}.clone() {{", self.moved[&result]).unwrap();
+        writeln!(
+            out,
+            "for bound_{binding} in {}.clone() {{",
+            self.moved[&result]
+        )
+        .unwrap();
         self.bound_objects.insert(binding);
         Some(binding)
     }
@@ -1922,7 +1984,7 @@ impl Compiler {
                 Err(_) => return false,
             },
             Operation::Keyword {
-                action: KeywordAction::Proliferate {..},
+                action: KeywordAction::Proliferate { .. },
                 ..
             } => planned::planned_value(
                 "what a proliferate chose",
@@ -2039,7 +2101,9 @@ impl Compiler {
             ) => {
                 let lasting = match duration {
                     crate::ir::Duration::Indefinite => true,
-                    crate::ir::Duration::WhileOnBattlefield(on) => format!("{on:?}") == format!("{object:?}"),
+                    crate::ir::Duration::WhileOnBattlefield(on) => {
+                        format!("{on:?}") == format!("{object:?}")
+                    }
                     _ => false,
                 };
                 let object = self.fetch(self.object(object)?);
@@ -2230,7 +2294,10 @@ impl Compiler {
         writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {targets}.into_iter().filter_map(|t| {{ let stack = &g.state().stack; stack.iter().position(|e| {test}).map(|at| (stack[at].object, at)) }}).collect(); let abilities_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind != StackKind::Spell).map(|&(o, _)| o).filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect(); let spells_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind == StackKind::Spell).map(|&(o, _)| o).collect(); let countered_{id} = g.counter_items(&items_{id}); let mut moved_{id}: Vec<ObjectId> = if countered_{id} > 0 {{ abilities_{id} }} else {{ Vec::new() }}; moved_{id}.extend(spells_{id}.into_iter().filter_map(|o| g.state().obj(o).became));").unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
         // That spell, countered or not: a spell that can't be countered still is one.
-        self.left_behind(result, format!("items_{id}.iter().map(|&(o, _)| o).collect::<Vec<ObjectId>>()"));
+        self.left_behind(
+            result,
+            format!("items_{id}.iter().map(|&(o, _)| o).collect::<Vec<ObjectId>>()"),
+        );
     }
     /// A damage event's recipient a made effect keeps, as a test of `target`.
     pub(super) fn named_recipient(&self, recipients: &Recipients) -> Result<String> {
@@ -2402,8 +2469,8 @@ pub(super) fn reads_graveyard_part(after: &[Instruction], result: &ResultId) -> 
 pub(super) fn moves_named_objects(cost: &Cost) -> bool {
     matches!(
         cost.parts.as_slice(),
-        [CostPart::Move { selections, face_down: false, .. }]
-            if matches!(selections.as_slice(), [CostObjectSelection { choose: None, .. }])
+        [CostPart::Move { selections, destination }]
+            if !destination.hidden() && matches!(selections.as_slice(), [CostObjectSelection { choose: None, .. }])
     )
 }
 
@@ -2427,8 +2494,12 @@ pub(super) fn keyword_until_end_of_turn(states: &[EntryState]) -> Option<&Keywor
 /// A power and a toughness set by one effect are the one thing the engine sets
 /// (CR 613.4b). `None` where the list does not say both.
 pub(super) fn power_with_toughness(changes: &[Change]) -> Option<Vec<Change>> {
-    let power = changes.iter().position(|c| matches!(c, Change::SetPower(_)))?;
-    let toughness = changes.iter().position(|c| matches!(c, Change::SetToughness(_)))?;
+    let power = changes
+        .iter()
+        .position(|c| matches!(c, Change::SetPower(_)))?;
+    let toughness = changes
+        .iter()
+        .position(|c| matches!(c, Change::SetToughness(_)))?;
     let (Change::SetPower(p), Change::SetToughness(t)) = (&changes[power], &changes[toughness])
     else {
         return None;
@@ -2449,9 +2520,23 @@ pub(super) fn power_with_toughness(changes: &[Change]) -> Option<Vec<Change>> {
 /// what `AnyHexproof` asks of it has no bit.
 pub(super) fn plain_keywords(kinds: &Operand) -> Option<Vec<String>> {
     const PLAIN: [&str; 17] = [
-        "Deathtouch", "Defender", "DoubleStrike", "Fear", "FirstStrike", "Flying", "Haste",
-        "Hexproof", "Indestructible", "Infect", "Lifelink", "Menace", "Reach", "Shroud",
-        "Skulk", "Trample", "Vigilance",
+        "Deathtouch",
+        "Defender",
+        "DoubleStrike",
+        "Fear",
+        "FirstStrike",
+        "Flying",
+        "Haste",
+        "Hexproof",
+        "Indestructible",
+        "Infect",
+        "Lifelink",
+        "Menace",
+        "Reach",
+        "Shroud",
+        "Skulk",
+        "Trample",
+        "Vigilance",
     ];
     let one = std::slice::from_ref(kinds);
     let list = match kinds {

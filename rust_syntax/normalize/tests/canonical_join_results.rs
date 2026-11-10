@@ -1,3 +1,5 @@
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 use mtgish_ast::{canonical, ir::Ability, validate};
 use serde_json::{json, Value};
 fn valid(v: &Value) -> bool {
@@ -14,7 +16,10 @@ fn normalized(mut v: Value) -> Value {
     v
 }
 fn cases() -> Vec<Value> {
-    serde_json::from_str(include_str!("fixtures/canonical_join_results.json")).unwrap()
+    let mut cases: Value =
+        serde_json::from_str(include_str!("fixtures/canonical_join_results.json")).unwrap();
+    legacy_entries::json(&mut cases);
+    serde_json::from_value(cases).unwrap()
 }
 #[test]
 fn explicit_joins_retain_renamed_branch_receipts_and_restore_native_matches() {

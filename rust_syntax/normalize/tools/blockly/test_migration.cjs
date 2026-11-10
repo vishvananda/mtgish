@@ -15,12 +15,12 @@ let browser;
  const state=await page.evaluate(()=>{
   const d=window.cardBlocks,ir=d.generated(),spell=ir.faces[0].abilities.find(a=>a.kind==='Spell');
   const operations=spell.args.body.instructions.map(i=>i.args.operation),counter=operations.find(o=>o.kind==='CounterWith');
-  return {schema:ir.schema_version,entry:counter.args.entry,
+  return {schema:ir.schema_version,destination:counter.args.destination,
    saved:JSON.parse(localStorage.getItem('mtgish.blockly.v1')),
    backup:JSON.parse(localStorage.getItem('mtgish.blockly.before-schema-upgrade'))};
  });
  assert.ok(state.schema>179);assert.equal(state.saved.schema,state.schema);assert.equal(state.backup.schema,179);
- assert.equal(Array.isArray(state.entry),false);assert.equal(state.entry.controller.Player.kind,'AbilityController');
+ assert.equal(state.destination.Battlefield.controller.Player.kind,'AbilityController');assert.equal(state.destination.Battlefield.arrival.tapped,false);
  // Exact IR import rejects unknown fields before changing the workspace.
  const before=await page.evaluate(()=>window.cardBlocks.encode(window.cardBlocks.generated()));
  await page.locator('#file').setInputFiles({name:'invalid.ir.json',mimeType:'application/json',buffer:Buffer.from(before.slice(0,-1)+',"unexpected":true}')});

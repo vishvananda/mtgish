@@ -1,7 +1,7 @@
 //! One-shot effects past the plain operations: what repeats, what a resolving
 //! player picks between, and what each of several players does.
-use crate::keyword_actions::KeywordKind;
 use super::*;
+use crate::keyword_actions::KeywordKind;
 
 /// One `Instruction::ForEachPlayer`, with what comes after it in its program.
 pub(super) struct EachPlayer<'a> {
@@ -40,27 +40,41 @@ pub(super) fn own_turns(body: &Program, binding: &LoopBinding) -> Option<Program
 /// Whether a part of a per-player body reads the player it is for.
 fn names(binding: &LoopBinding, value: &impl crate::visit::Walk) -> bool {
     use crate::visit::{Visitor, Walk};
-    struct Reads { binding: u32, found: bool }
+    struct Reads {
+        binding: u32,
+        found: bool,
+    }
     impl Visitor for Reads {
-        fn ability(&mut self, _: &Ability) -> bool { false }
+        fn ability(&mut self, _: &Ability) -> bool {
+            false
+        }
         fn player_ref(&mut self, player: &PlayerRef) -> bool {
             self.found |= matches!(player,PlayerRef::Bound(binding) if binding.0==self.binding);
             !self.found
         }
         fn instruction(&mut self, instruction: &Instruction) -> bool {
-            if let Instruction::ForEachPlayer { players,binding,starting_with,.. }=instruction {
-                if binding.0==self.binding {
+            if let Instruction::ForEachPlayer {
+                players,
+                binding,
+                starting_with,
+                ..
+            } = instruction
+            {
+                if binding.0 == self.binding {
                     // The range and start read the outer scope; the body binds
                     // a new player, even if it reuses this numeric ID.
                     players.walk(self);
-                    starting_with.iter().for_each(|player|player.walk(self));
+                    starting_with.iter().for_each(|player| player.walk(self));
                     return false;
                 }
             }
             !self.found
         }
     }
-    let mut reads=Reads {binding:binding.0,found:false};
+    let mut reads = Reads {
+        binding: binding.0,
+        found: false,
+    };
     value.walk(&mut reads);
     reads.found
 }
@@ -240,7 +254,7 @@ impl Gathered {
             _ => false,
         }
     }
-    fn prepare_choice_views(&self, local: usize, players:&str, out: &mut String) {
+    fn prepare_choice_views(&self, local: usize, players: &str, out: &mut String) {
         if let Self::WithSelections {
             steps,
             depth,
@@ -268,12 +282,25 @@ impl Gathered {
             Gathered::Objects { objects, .. } if matches!(objects,ObjectSet::Difference {excluding,..} if matches!(excluding.as_ref(),ObjectSet::Prepared(_))) => {
                 "Keep"
             }
-            Gathered::Objects {then,..}=>match then(ObjectSet::Union(vec![])) {
-                Operation::Move {destination:Destination::Exile,..}=>"Exile",
-                Operation::Move {destination:Destination::OwnersHand|Destination::Hand(_),..}=>"PutIntoHand",
-                Operation::Move {destination:Destination::OwnersGraveyard,..}=>"PutIntoGraveyard",
-                Operation::Move {destination:Destination::Battlefield(_)|Destination::OwnersBattlefield,..}=>"PutOntoBattlefield",
-                _=>"Choose",
+            Gathered::Objects { then, .. } => match then(ObjectSet::Union(vec![])) {
+                Operation::Move {
+                    destination: MovementDestination::Exile { .. },
+                    ..
+                } => "Exile",
+                Operation::Move {
+                    destination:
+                        MovementDestination::OwnersHand(_) | MovementDestination::Hand { .. },
+                    ..
+                } => "PutIntoHand",
+                Operation::Move {
+                    destination: MovementDestination::OwnersGraveyard(_),
+                    ..
+                } => "PutIntoGraveyard",
+                Operation::Move {
+                    destination: MovementDestination::Battlefield { .. },
+                    ..
+                } => "PutOntoBattlefield",
+                _ => "Choose",
             },
             _ => "Choose",
         }
@@ -288,12 +315,20 @@ impl Gathered {
             Gathered::Sacrifice { .. }
             | Gathered::SacrificeEach { .. }
             | Gathered::SacrificeRest { .. } => "(PlayerId, ObjectId)",
-            Gathered::Counters { .. } if planned::switched_on(quantity::FEATURE) => "(PlayerId, ObjectId, CounterKind, i64)",
-            Gathered::Counters { .. } if planned::switched_on(quantity::BOUNDED_32) => "(PlayerId, ObjectId, CounterKind, i32)",
+            Gathered::Counters { .. } if planned::switched_on(quantity::FEATURE) => {
+                "(PlayerId, ObjectId, CounterKind, i64)"
+            }
+            Gathered::Counters { .. } if planned::switched_on(quantity::BOUNDED_32) => {
+                "(PlayerId, ObjectId, CounterKind, i32)"
+            }
             Gathered::Counters { .. } => "(PlayerId, ObjectId, CounterKind, i16)",
             Gathered::Mill { .. } => "(PlayerId, u32)",
-            Gathered::Damage { .. } if planned::switched_on(quantity::FEATURE) => "(ObjectId, Target, i64)",
-            Gathered::Damage { .. } if planned::switched_on(quantity::BOUNDED_32) => "(ObjectId, Target, u32)",
+            Gathered::Damage { .. } if planned::switched_on(quantity::FEATURE) => {
+                "(ObjectId, Target, i64)"
+            }
+            Gathered::Damage { .. } if planned::switched_on(quantity::BOUNDED_32) => {
+                "(ObjectId, Target, u32)"
+            }
             Gathered::Damage { .. } => "(ObjectId, Target, u16)",
             Gathered::Tokens { .. } => "(CardId, PlayerId)",
             Gathered::TokensAt { .. } => "(CardId, PlayerId, Target)",
@@ -464,7 +499,10 @@ pub(super) fn watched(event: &mut EventSpec) -> Option<ObjectRef> {
             let mut seen = None;
             for part in &mut parts {
                 let object = watched(part)?;
-                if seen.as_ref().is_some_and(|s| format!("{s:?}") != format!("{object:?}")) {
+                if seen
+                    .as_ref()
+                    .is_some_and(|s| format!("{s:?}") != format!("{object:?}"))
+                {
                     return None;
                 }
                 seen = Some(object);
@@ -512,14 +550,18 @@ pub(super) fn may_retarget(body: &Program) -> Option<(&PlayerRef, &ObjectRef)> {
 /// Whether a target of this domain may be an ability on the stack.
 /// `STACK_ITEM` for a slot that takes only abilities, or only spells: an item of the other kind is never its target, so
 /// no arm reads one (Repudiate, Stifle; Counterspell).
-const ABILITY_ITEM: &str = "matches!(t, Target::Ability(serial) if e.kind != StackKind::Spell && e.serial == serial)";
-const SPELL_ITEM: &str = "matches!(t, Target::Object(id) if e.kind == StackKind::Spell && e.object == id)";
+const ABILITY_ITEM: &str =
+    "matches!(t, Target::Ability(serial) if e.kind != StackKind::Spell && e.serial == serial)";
+const SPELL_ITEM: &str =
+    "matches!(t, Target::Object(id) if e.kind == StackKind::Spell && e.object == id)";
 
 /// Whether a stack item that passes `filter` can be a spell, and whether it can be an ability.
 fn stack_kinds(filter: &ObjectFilter) -> (bool, bool) {
     match filter {
         ObjectFilter::OnStack(StackTrait::Spell) => (true, false),
-        ObjectFilter::OnStack(StackTrait::Activated | StackTrait::Triggered | StackTrait::Loyalty)
+        ObjectFilter::OnStack(
+            StackTrait::Activated | StackTrait::Triggered | StackTrait::Loyalty,
+        )
         | ObjectFilter::AbilityOf(_) => (false, true),
         ObjectFilter::All(filters) => filters
             .iter()
@@ -542,7 +584,10 @@ fn stack_kinds(filter: &ObjectFilter) -> (bool, bool) {
 /// The test of whether stack item `e` is target `t`, for a slot of `domain` whose targets pass `filter`.
 pub(super) fn stack_item(domain: &ObjectDomain, filter: &ObjectFilter) -> &'static str {
     let (spells, abilities) = stack_kinds(filter);
-    match (spells && !matches!(domain.kind, ObjectKind::Ability), abilities) {
+    match (
+        spells && !matches!(domain.kind, ObjectKind::Ability),
+        abilities,
+    ) {
         (false, true) => ABILITY_ITEM,
         (true, false) => SPELL_ITEM,
         _ => STACK_ITEM,
@@ -557,7 +602,12 @@ pub(super) fn on_the_stack(domain: &ObjectDomain) -> bool {
 impl Compiler {
     /// The zone of objects a player's own, so entering "under their control" is
     /// under their owner's.
-    fn own_cards(&self, objects: &ObjectSet, binding: &LoopBinding, earlier: &[Instruction]) -> bool {
+    fn own_cards(
+        &self,
+        objects: &ObjectSet,
+        binding: &LoopBinding,
+        earlier: &[Instruction],
+    ) -> bool {
         if let ObjectSet::Prepared(id) = objects {
             return self
                 .selection_metadata(id)
@@ -566,7 +616,10 @@ impl Compiler {
         if self.moved_their_own(objects, binding) {
             return true;
         }
-        if self.turned_up.as_ref().is_some_and(|(walked, _)| *walked == binding.0)
+        if self
+            .turned_up
+            .as_ref()
+            .is_some_and(|(walked, _)| *walked == binding.0)
             && format!("{objects:?}").contains("Earlier { what: It")
         {
             return true;
@@ -587,7 +640,9 @@ impl Compiler {
                     one => std::slice::from_ref(one),
                 };
                 theirs(scope)
-                    || parts.iter().any(|part| matches!(part, ObjectFilter::InZone(zone) if theirs(zone)))
+                    || parts
+                        .iter()
+                        .any(|part| matches!(part, ObjectFilter::InZone(zone) if theirs(zone)))
             }
             ObjectSet::Matching { objects, .. } | ObjectSet::Take { objects, .. } => {
                 self.own_cards(objects, binding, earlier)
@@ -627,7 +682,9 @@ impl Compiler {
             return false;
         };
         let rest = &text[at + "MovedBy { result: ResultId(".len()..];
-        let id = rest[..rest.find(')').unwrap_or(0)].parse().unwrap_or(u32::MAX);
+        let id = rest[..rest.find(')').unwrap_or(0)]
+            .parse()
+            .unwrap_or(u32::MAX);
         self.notes.own.contains(&id) && names(binding, objects)
     }
     /// Where a step falls in the phases of a per-player body.
@@ -656,29 +713,23 @@ impl Compiler {
                         Operation::Move {
                             objects,
                             destination,
-                            entry,
-                            face_down,
-                            terms,
+                            qualifiers,
                         },
                 }] = body.instructions.as_slice()
                 {
                     if !names(binding, decider)
                         && names(binding, objects)
                         && !names(binding, destination)
-                        && !names(binding, entry)
-                        && !names(binding, terms)
+                        && !names(binding, qualifiers)
                     {
-                        let (destination, entry, face_down, terms) =
-                            (destination.clone(), entry.clone(), *face_down, terms.clone());
+                        let (destination, qualifiers) = (destination.clone(), qualifiers.clone());
                         return Part::Gather(Gathered::Offered {
                             decider: decider.clone(),
                             objects: objects.clone(),
                             then: Box::new(move |objects| Operation::Move {
                                 objects,
                                 destination: destination.clone(),
-                                entry: entry.clone(),
-                                face_down,
-                                terms: terms.clone(),
+                                qualifiers: qualifiers.clone(),
                             }),
                             result: result.clone(),
                         });
@@ -687,7 +738,9 @@ impl Compiler {
             }
             // CR 701.55d: "the entire process ... one at a time in APNAP order".
             if matches!(instruction, Instruction::ChooseOne { .. })
-                && self.line_text().is_some_and(|line| line.contains("villainous choice"))
+                && self
+                    .line_text()
+                    .is_some_and(|line| line.contains("villainous choice"))
             {
                 return Part::Walk;
             }
@@ -706,12 +759,27 @@ impl Compiler {
                         })
                         .collect();
                     steps.iter().any(|i| {
-                        matches!(i, Instruction::Effect { operation: Operation::Move { destination: Destination::Exile, .. }, .. })
+                        matches!(
+                            i,
+                            Instruction::Effect {
+                                operation: Operation::Move {
+                                    destination: MovementDestination::Exile { .. },
+                                    ..
+                                },
+                                ..
+                            }
+                        )
                     }) && steps.iter().all(|i| match i {
-                        Instruction::Effect { operation: Operation::Move { destination, .. }, .. } => {
-                            matches!(destination, Destination::Exile)
+                        Instruction::Effect {
+                            operation: Operation::Move { destination, .. },
+                            ..
+                        } => {
+                            matches!(destination, MovementDestination::Exile { .. })
                         }
-                        Instruction::Effect { operation: Operation::ChooseObjects { .. }, .. } => true,
+                        Instruction::Effect {
+                            operation: Operation::ChooseObjects { .. },
+                            ..
+                        } => true,
                         _ => false,
                     })
                 };
@@ -729,12 +797,28 @@ impl Compiler {
         };
         let result = result.clone();
         if let Operation::WithSelections { steps, action } = operation {
-            let locals=steps.iter().map(|step|step.binding.0).collect::<BTreeSet<_>>();
-            let dependent=match action.action() {
-                Operation::Move {entry,destination,terms,..}=>selections::reads_local(entry,&locals) || selections::reads_local(destination,&locals) || selections::reads_local(terms,&locals),
-                _=>false,
+            let locals = steps
+                .iter()
+                .map(|step| step.binding.0)
+                .collect::<BTreeSet<_>>();
+            let dependent = match action.action() {
+                Operation::Move {
+                    destination,
+                    qualifiers,
+                    ..
+                } => {
+                    selections::reads_local(destination, &locals)
+                        || qualifiers
+                            .iter()
+                            .any(|q| selections::reads_local(q, &locals))
+                }
+                _ => false,
             };
-            if dependent {return Part::Unbatched("per-player entry or destination with a local selection".into());}
+            if dependent {
+                return Part::Unbatched(
+                    "per-player entry or destination with a local selection".into(),
+                );
+            }
             // A local preparation must run once for each player, at this step.
             // Classify the pure action independently; never move the preparation
             // outside the walk, even if the original pool mentions no bound player.
@@ -759,9 +843,7 @@ impl Compiler {
                         Operation::Move {
                             objects,
                             destination,
-                            entry,
-                            face_down,
-                            terms,
+                            qualifiers,
                         },
                     ..
                 }) => Some(Gathered::Objects {
@@ -769,9 +851,7 @@ impl Compiler {
                     then: Box::new(move |objects| Operation::Move {
                         objects,
                         destination: destination.clone(),
-                        entry: entry.clone(),
-                        face_down,
-                        terms: terms.clone(),
+                        qualifiers: qualifiers.clone(),
                     }),
                 }),
                 _ => None,
@@ -790,12 +870,17 @@ impl Compiler {
             Operation::Move {
                 objects,
                 destination,
-                entry,
-                face_down,
-                terms,
+                qualifiers,
             } => {
                 let mut destination = destination.clone();
-                if let Destination::Battlefield(player) = &destination {
+                if let MovementDestination::Battlefield {
+                    controller: controller @ EntryController::Player(_),
+                    ..
+                } = &mut destination
+                {
+                    let EntryController::Player(player) = &*controller else {
+                        unreachable!()
+                    };
                     if is_bound(player, binding) {
                         // Thieves' Auction: picks round the table until every
                         // card is chosen, one that can't enter staying exiled.
@@ -811,21 +896,23 @@ impl Compiler {
                                 "per-player move under each player's control".into(),
                             );
                         }
-                        destination = Destination::OwnersBattlefield;
+                        *controller = EntryController::Owner;
                     }
                 }
-                if names(binding, &destination) || names(binding, entry) || names(binding, terms) {
+                if names(binding, &destination) || names(binding, qualifiers) {
                     return Part::Unbatched("per-player Move".into());
                 }
-                let (entry, face_down, moved, terms) = (entry.clone(), *face_down, result.clone(), terms.clone());
+                let (moved, qualifiers) = (result.clone(), qualifiers.clone());
                 let then = move |objects: ObjectSet| Operation::Move {
                     objects,
                     destination: destination.clone(),
-                    entry: entry.clone(),
-                    face_down,
-                    terms: terms.clone(),
+                    qualifiers: qualifiers.clone(),
                 };
-                let among_turned = self.turned_up.as_ref().is_some_and(|(walked, _)| *walked == binding.0) && format!("{objects:?}").contains("Earlier { what: It");
+                let among_turned = self
+                    .turned_up
+                    .as_ref()
+                    .is_some_and(|(walked, _)| *walked == binding.0)
+                    && format!("{objects:?}").contains("Earlier { what: It");
                 if names(binding, objects) || among_turned {
                     return Part::Gather(Gathered::Objects {
                         objects: objects.clone(),
@@ -898,7 +985,9 @@ impl Compiler {
                 && !names(binding, keep)
                 && each.starting_with.is_none()
                 && !each.in_chosen_direction
-                && !self.line_text().is_some_and(|line| line.contains("chooses up to")) =>
+                && !self
+                    .line_text()
+                    .is_some_and(|line| line.contains("chooses up to")) =>
             {
                 Part::Once(Instruction::Effect {
                     result,
@@ -914,7 +1003,10 @@ impl Compiler {
                 players,
                 objects,
                 keep,
-            } if one_bound(players, binding) && !names(binding, objects) && !names(binding, keep) => {
+            } if one_bound(players, binding)
+                && !names(binding, objects)
+                && !names(binding, keep) =>
+            {
                 Part::Gather(Gathered::SacrificeRest {
                     objects: objects.clone(),
                     keep: keep.clone(),
@@ -943,7 +1035,10 @@ impl Compiler {
                         .iter()
                         .all(|p| matches!(p.recipients, Recipients::Objects(_))) =>
             {
-                Part::Gather(Gathered::Counters { operation: operation.clone(), result })
+                Part::Gather(Gathered::Counters {
+                    operation: operation.clone(),
+                    result,
+                })
             }
             Operation::SetTapped { objects, tapped } if names(binding, objects) => {
                 let tapped = *tapped;
@@ -1007,9 +1102,20 @@ impl Compiler {
                 // (`create_token_copies_together` makes none tapped), and tokens
                 // entering attached (no token is created attached).
                 let several_tapped = entry.tapped
-                    && matches!(tokens.as_slice(), [TokenSpec { recipe: TokenRecipe::CopyEach { .. }, .. }]);
+                    && matches!(
+                        tokens.as_slice(),
+                        [TokenSpec {
+                            recipe: TokenRecipe::CopyEach { .. },
+                            ..
+                        }]
+                    );
                 let attached = entry.states.iter().any(|s| {
-                    matches!(s, EntryState::AttachedTo(_) | EntryState::AttachedToChosen(_) | EntryState::AttachedToPlayer(_))
+                    matches!(
+                        s,
+                        BattlefieldState::AttachedTo(_)
+                            | BattlefieldState::AttachedToChosen(_)
+                            | BattlefieldState::AttachedToPlayer(_)
+                    )
                 });
                 let unbatched = || match () {
                     _ if several_tapped => {
@@ -1022,11 +1128,11 @@ impl Compiler {
                     return unbatched();
                 };
                 let (defender, or_planeswalker, at) = match entry.states.as_slice() {
-                    [EntryState::Attacking {
+                    [BattlefieldState::Attacking {
                         player: Some(defender),
                         or_planeswalker,
                     }] => (defender.clone(), *or_planeswalker, TokensAt::Attacking),
-                    [EntryState::ChangesUntil {
+                    [BattlefieldState::ChangesUntil {
                         changes,
                         duration: Duration::EndOfTurn,
                     }] => match changes.as_slice() {
@@ -1053,12 +1159,10 @@ impl Compiler {
                         at,
                         result,
                     }),
-                    TokenRecipe::Copy {
-                        object,
-                        exceptions,
-                    } if !or_planeswalker
-                        && at == TokensAt::Attacking
-                        && matches!(token.amount, Expr::Constant(1)) =>
+                    TokenRecipe::Copy { object, exceptions }
+                        if !or_planeswalker
+                            && at == TokensAt::Attacking
+                            && matches!(token.amount, Expr::Constant(1)) =>
                     {
                         Part::Gather(Gathered::TokenCopyAt {
                             player: player.clone(),
@@ -1141,7 +1245,11 @@ impl Compiler {
         ) {
             // "Starting with you and proceeding in the chosen direction": turn
             // order to the left, its reverse after the first to the right.
-            writeln!(out, "if {direction} == 1 && players_{id}.len() > 1 {{ players_{id}[1..].reverse(); }}").unwrap();
+            writeln!(
+                out,
+                "if {direction} == 1 && players_{id}.len() > 1 {{ players_{id}[1..].reverse(); }}"
+            )
+            .unwrap();
         } else if each.in_chosen_direction {
             self.plan_code(
                 "per-player in a chosen direction",
@@ -1158,7 +1266,9 @@ impl Compiler {
         }
         let read_after = format!("{:?}", each.rest);
         if punished_in_turn(&each.body.instructions, each.binding)
-            && !made.iter().any(|r| read_after.contains(&format!("ResultId({r})")))
+            && !made
+                .iter()
+                .any(|r| read_after.contains(&format!("ResultId({r})")))
         {
             let b = each.binding.0;
             self.bound_players.insert(b);
@@ -1194,8 +1304,13 @@ impl Compiler {
         }
         // "Each opponent who copied the spell this way": who said yes.
         for step in &steps {
-            let (Some(guard), Instruction::Effect { result, operation: Operation::CopyOnStack { .. } }) =
-                (step.guard, &program.instructions[step.at])
+            let (
+                Some(guard),
+                Instruction::Effect {
+                    result,
+                    operation: Operation::CopyOnStack { .. },
+                },
+            ) = (step.guard, &program.instructions[step.at])
             else {
                 continue;
             };
@@ -1228,7 +1343,11 @@ impl Compiler {
                     // Each who chose cards is each who moved them together.
                     if let Instruction::Effect {
                         result,
-                        operation: Operation::Move { objects: ObjectSet::Selected(chosen), .. },
+                        operation:
+                            Operation::Move {
+                                objects: ObjectSet::Selected(chosen),
+                                ..
+                            },
                     } = &instruction
                     {
                         if let Some(took) = self.notes.took.get(&chosen.0).cloned() {
@@ -1263,7 +1382,9 @@ impl Compiler {
                     } = &program.instructions[at]
                     {
                         if names(&each.binding, objects)
-                            && changes.iter().any(|c| matches!(c, Change::SetController(_)))
+                            && changes
+                                .iter()
+                                .any(|c| matches!(c, Change::SetController(_)))
                         {
                             let k = self.fresh();
                             let read = self.objects(objects).map(|o| self.fetch(o));
@@ -1271,13 +1392,16 @@ impl Compiler {
                                 let b = each.binding.0;
                                 writeln!(out, "let snap_{k}: Vec<Vec<ObjectId>> = players_{id}.iter().copied().map(|bound_{b}| {read}).collect();").unwrap();
                                 let fake = u32::MAX - k as u32;
-                                self.selections.insert(fake, format!("snap_{k}[index_{id}]"));
+                                self.selections
+                                    .insert(fake, format!("snap_{k}[index_{id}]"));
                                 snapshot = Some(fake);
                                 program.instructions[at] = Instruction::Effect {
                                     result: result.clone(),
                                     operation: Operation::CreateContinuousEffect {
                                         source: source.clone(),
-                                        affected: EffectSubjects::Objects(ObjectSet::Selected(ResultId(fake))),
+                                        affected: EffectSubjects::Objects(ObjectSet::Selected(
+                                            ResultId(fake),
+                                        )),
                                         changes: changes.clone(),
                                         duration: duration.clone(),
                                         evaluation: evaluation.clone(),
@@ -1292,7 +1416,12 @@ impl Compiler {
                     } = &program.instructions[at]
                     {
                         if matches!(cost.parts.as_slice(), [CostPart::Mana(_)]) {
-                            writeln!(out, "let mut unpaid_{}: Vec<PlayerId> = Vec::new();", result.0).unwrap();
+                            writeln!(
+                                out,
+                                "let mut unpaid_{}: Vec<PlayerId> = Vec::new();",
+                                result.0
+                            )
+                            .unwrap();
                             self.unpaid_rows.insert(result.0);
                         }
                     }
@@ -1345,14 +1474,24 @@ impl Compiler {
                         out,
                     );
                     self.view_all(&views);
-                    if let Gathered::Sacrifice { result, .. } | Gathered::SacrificeEach { result, .. } = &gathered {
-                        let test = format!("gathered_{gather}.iter().any(|(who, _)| *who == players_{id}[at])");
-                        self.notes.took.insert(result.0, (format!("players_{id}"), test));
+                    if let Gathered::Sacrifice { result, .. }
+                    | Gathered::SacrificeEach { result, .. } = &gathered
+                    {
+                        let test = format!(
+                            "gathered_{gather}.iter().any(|(who, _)| *who == players_{id}[at])"
+                        );
+                        self.notes
+                            .took
+                            .insert(result.0, (format!("players_{id}"), test));
                     }
                     // "For each opponent who does": who took the offer, whatever it came to.
-                    if let (Gathered::Counters { result, .. }, Some(guard)) = (&gathered, step.guard) {
+                    if let (Gathered::Counters { result, .. }, Some(guard)) =
+                        (&gathered, step.guard)
+                    {
                         let test = format!("guard_{id}_{guard}[at]");
-                        self.notes.took.insert(result.0, (format!("players_{id}"), test));
+                        self.notes
+                            .took
+                            .insert(result.0, (format!("players_{id}"), test));
                     }
                     self.after_gathering(gather, gathered, &mut program, at, out)?;
                 }
@@ -1421,7 +1560,14 @@ impl Compiler {
                     self.flatten(each, &then.instructions, Some(inner), flat, steps, guards);
                     guards.push(Guard::If(Condition::Not(Box::new(condition.clone()))));
                     let inner = guards.len() - 1;
-                    self.flatten(each, &otherwise.instructions, Some(inner), flat, steps, guards);
+                    self.flatten(
+                        each,
+                        &otherwise.instructions,
+                        Some(inner),
+                        flat,
+                        steps,
+                        guards,
+                    );
                     continue;
                 }
                 _ => {}
@@ -1436,17 +1582,53 @@ impl Compiler {
     /// Reads in a walk see the player's own list, and what's after see them all.
     fn view_each(&mut self, views: &[View]) {
         for view in views {
-            self.view_set(view, Some(view.each.clone()),true);
+            self.view_set(view, Some(view.each.clone()), true);
         }
     }
     fn view_all(&mut self, views: &[View]) {
         for view in views {
-            self.view_set(view, view.all.clone(),false);
+            self.view_set(view, view.all.clone(), false);
         }
     }
-    fn view_set(&mut self, view: &View, local: Option<String>, each:bool) {
-        if matches!(view.kind,ViewKind::Implicit) {
-            if each && view.implicit_single {self.notes.implicit_single.insert(view.result);} else {self.notes.implicit_single.remove(&view.result);}
+    fn view_set(&mut self, view: &View, local: Option<String>, each: bool) {
+        if matches!(view.kind, ViewKind::Implicit) {
+            if each && view.implicit_single {
+                self.notes.implicit_single.insert(view.result);
+            } else {
+                self.notes.implicit_single.remove(&view.result);
+            }
+        }
+        if matches!(view.kind, ViewKind::Flip) {
+            if let Some(old) = self.coin_receipts.get(&view.result).cloned() {
+                if let Some(local) = &local {
+                    let (positive, negative) = if each {
+                        (
+                            format!("i64::from({local})"),
+                            format!("i64::from(!{local})"),
+                        )
+                    } else {
+                        (
+                            format!("({local}.iter().filter(|&&flip| flip).count() as i64)"),
+                            format!("({local}.iter().filter(|&&flip| !flip).count() as i64)"),
+                        )
+                    };
+                    let receipt = CoinReceipt {
+                        protocol: old.protocol,
+                        positive,
+                        negative,
+                    };
+                    self.coin_receipts.insert(view.result, receipt.clone());
+                    if self
+                        .coins
+                        .as_ref()
+                        .is_some_and(|(id, _)| *id == view.result)
+                    {
+                        self.coins = Some((view.result, receipt));
+                    }
+                } else {
+                    self.coin_receipts.remove(&view.result);
+                }
+            }
         }
         let map = match view.kind {
             ViewKind::Selected => &mut self.selections,
@@ -1541,7 +1723,11 @@ impl Compiler {
         let mut declared = String::new();
         let scoped: [(ViewKind, &BTreeMap<u32, String>, &BTreeMap<u32, String>); 9] = [
             (ViewKind::Selected, &self.selections, &before.selections),
-            (ViewKind::Implicit,&self.implicit_selections,&before.implicit_selections),
+            (
+                ViewKind::Implicit,
+                &self.implicit_selections,
+                &before.implicit_selections,
+            ),
             (ViewKind::Moved, &self.moved, &before.moved),
             (ViewKind::Created, &self.creations, &before.creations),
             (ViewKind::Before, &self.before, &before.before),
@@ -1581,10 +1767,15 @@ impl Compiler {
                 };
                 writeln!(declared, "let mut each_{k}: Vec<Vec<ObjectId>> = vec![Vec::new(); players_{id}.len()]; let mut all_{k}: Vec<ObjectId> = Vec::new();").unwrap();
                 writeln!(tail, "each_{k}[index_{id}] = {read}; all_{k}.extend(each_{k}[index_{id}].iter().copied());").unwrap();
-                if matches!(kind,ViewKind::Implicit) {
-                    self.notes.implicit_each.insert(result,(format!("players_{id}"),format!("each_{k}")));
+                if matches!(kind, ViewKind::Implicit) {
+                    self.notes
+                        .implicit_each
+                        .insert(result, (format!("players_{id}"), format!("each_{k}")));
                 }
-                if matches!(kind, ViewKind::Selected | ViewKind::Moved | ViewKind::Created) {
+                if matches!(
+                    kind,
+                    ViewKind::Selected | ViewKind::Moved | ViewKind::Created
+                ) {
                     let lists = (format!("players_{id}"), format!("each_{k}"));
                     self.notes.each.entry(result).or_insert(lists);
                 }
@@ -1604,11 +1795,12 @@ impl Compiler {
             // one player at a time may mean their own or the total; the AST
             // does not say which, so nothing is read for it.
             let by_player = lane_n::read_player_by_player(each.rest, &result)
-                && !self.line_text().is_some_and(|line| line.contains("the total amount"));
-            let total = (matches!(kind, ViewKind::Performed)
-                && local.starts_with("done_")
-                && !by_player)
-            .then(|| format!("done_total_{k}"));
+                && !self
+                    .line_text()
+                    .is_some_and(|line| line.contains("the total amount"));
+            let total =
+                (matches!(kind, ViewKind::Performed) && local.starts_with("done_") && !by_player)
+                    .then(|| format!("done_total_{k}"));
             if let Some(total) = &total {
                 writeln!(declared, "let mut {total}: i64 = 0;").unwrap();
                 writeln!(tail, "{total} += {local};").unwrap();
@@ -1636,7 +1828,8 @@ impl Compiler {
                 }
             }
             let view = View {
-                implicit_single: matches!(kind,ViewKind::Implicit) && self.notes.implicit_single.contains(&result),
+                implicit_single: matches!(kind, ViewKind::Implicit)
+                    && self.notes.implicit_single.contains(&result),
                 kind,
                 result,
                 each: match kind {
@@ -1645,15 +1838,22 @@ impl Compiler {
                 },
                 all: match kind {
                     ViewKind::Before => all.map(|a| format!("{a}.clone()")),
+                    ViewKind::Flip => Some(format!("each_{k}")),
                     _ => all.or(total),
                 },
             };
             if matches!(kind, ViewKind::Flip) {
-                self.coin_turns = Some((format!("players_{id}"), format!("each_{k}")));
-                self.coins = Some((
-                    format!("(each_{k}.iter().filter(|&&flip| flip).count() as i64)"),
-                    format!("(each_{k}.iter().filter(|&&flip| !flip).count() as i64)"),
-                ));
+                if let Some(receipt) = self.coin_receipts.get(&result) {
+                    let protocol = receipt.protocol;
+                    self.coin_turns =
+                        Some((format!("players_{id}"), format!("each_{k}"), protocol));
+                    self.note_coins(
+                        result,
+                        protocol,
+                        format!("(each_{k}.iter().filter(|&&flip| flip).count() as i64)"),
+                        format!("(each_{k}.iter().filter(|&&flip| !flip).count() as i64)"),
+                    );
+                }
             }
             views.retain(|v| v.result != result || !same_kind(v.kind, kind));
             views.push(view);
@@ -1726,10 +1926,11 @@ impl Compiler {
         let shut = "}".repeat(std::mem::replace(&mut self.guard_opened, guards_around));
         // "And you draw a card" for each of them reads none of them.
         let walked = format!("bound_{binding}");
-        let walked = match body.contains(&walked) || tail.contains(&walked) || closing.contains(&walked) {
-            true => walked,
-            false => "_".to_string(),
-        };
+        let walked =
+            match body.contains(&walked) || tail.contains(&walked) || closing.contains(&walked) {
+                true => walked,
+                false => "_".to_string(),
+            };
         writeln!(out, "{open} for (index_{id}, {walked}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
     }
     /// A player's turn at a step that adds to a batch.
@@ -1779,15 +1980,24 @@ impl Compiler {
                 )
                 .unwrap();
             }
-            Gathered::Offered { decider, objects, .. } => {
+            Gathered::Offered {
+                decider, objects, ..
+            } => {
                 let decider = self.fetch(self.certain_player(decider)?);
                 let objects = self.fetch(self.objects(objects)?);
                 writeln!(out, "let offered_{id}: Vec<ObjectId> = {objects}; if !offered_{id}.is_empty() {{ let decider_{id} = {decider}; if cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{ gathered_{local}.extend(offered_{id}); }} }}").unwrap();
             }
             Gathered::Cards { amount, .. }
-                if whole_hand(amount, &PlayerSet::One(PlayerRef::Bound(each.binding.clone()))) =>
+                if whole_hand(
+                    amount,
+                    &PlayerSet::One(PlayerRef::Bound(each.binding.clone())),
+                ) =>
             {
-                writeln!(out, "gathered_{local}.extend(g.state().zone(Zone::hand({bound})).to_vec());").unwrap();
+                writeln!(
+                    out,
+                    "gathered_{local}.extend(g.state().zone(Zone::hand({bound})).to_vec());"
+                )
+                .unwrap();
             }
             Gathered::Cards { amount, .. } => {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
@@ -1819,7 +2029,11 @@ impl Compiler {
             }
             Gathered::SacrificeEach { slots, .. } => {
                 self.sacrifice_slots(id, &bound, slots, out)?;
-                writeln!(out, "gathered_{local}.extend(chosen_{id}.iter().map(|&o| ({bound}, o)));").unwrap();
+                writeln!(
+                    out,
+                    "gathered_{local}.extend(chosen_{id}.iter().map(|&o| ({bound}, o)));"
+                )
+                .unwrap();
             }
             Gathered::Mill { amount, .. } => {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
@@ -1951,8 +2165,17 @@ impl Compiler {
                     self.implicit_selections
                         .insert(result.0, format!("implicit_{local}_{depth}"));
                     self.notes.implicit_single.remove(&result.0);
-                    let players=self.notes.walking.as_ref().expect("player collection scope").1.clone();
-                    self.notes.implicit_each.insert(result.0,(players,format!("implicit_each_{local}_{depth}")));
+                    let players = self
+                        .notes
+                        .walking
+                        .as_ref()
+                        .expect("player collection scope")
+                        .1
+                        .clone();
+                    self.notes.implicit_each.insert(
+                        result.0,
+                        (players, format!("implicit_each_{local}_{depth}")),
+                    );
                     self.notes.earlier.push(("Selected", result));
                 }
                 return Ok(());
@@ -2040,7 +2263,11 @@ impl Compiler {
                 self.creations.insert(result.0, format!("created_{local}"));
             }
             Gathered::TokenCopies { result, .. } => {
-                writeln!(out, "let created_{local} = g.create_token_copies_together(&gathered_{local})?;").unwrap();
+                writeln!(
+                    out,
+                    "let created_{local} = g.create_token_copies_together(&gathered_{local})?;"
+                )
+                .unwrap();
                 self.creations.insert(result.0, format!("created_{local}"));
             }
             Gathered::TokenCopyAt {
@@ -2105,7 +2332,10 @@ impl Compiler {
         if let Some((last, paying)) = options.split_last() {
             let pays = |option: &Program| match option.instructions.first() {
                 Some(Instruction::Effect {
-                    operation: operation @ Operation::PayCost { optional: false, .. },
+                    operation:
+                        operation @ Operation::PayCost {
+                            optional: false, ..
+                        },
                     result,
                 }) => Some((operation.clone(), result.clone())),
                 _ => None,
@@ -2120,11 +2350,17 @@ impl Compiler {
                     let Operation::PayCost { player, cost, .. } = operation else {
                         unreachable!("a payment");
                     };
-                    let asked = Operation::PayCost { player, cost, optional: true };
+                    let asked = Operation::PayCost {
+                        player,
+                        cost,
+                        optional: true,
+                    };
                     self.operation(&asked, &result, out)?;
                     let paid = self.performed[&result.0].clone();
                     writeln!(out, "if {paid} {{").unwrap();
-                    let rest = Program { instructions: option.instructions[1..].to_vec() };
+                    let rest = Program {
+                        instructions: option.instructions[1..].to_vec(),
+                    };
                     self.block(&rest, out, true)?;
                     writeln!(out, "}} else {{").unwrap();
                     close.push('}');
@@ -2137,8 +2373,14 @@ impl Compiler {
         let Some(base) = self.option_labels_of(options) else {
             // Cloak and Dagger: "until Cloak and Dagger leave the battlefield" is
             // gone from the data's exile, and its two exiles are one choice there.
-            if self.lines_said().iter().any(|line| line.contains(" until ") && line.contains(" leave")) {
-                return Err(gap("an exile until this leaves the battlefield dropped from a choice, in the data"));
+            if self
+                .lines_said()
+                .iter()
+                .any(|line| line.contains(" until ") && line.contains(" leave"))
+            {
+                return Err(gap(
+                    "an exile until this leaves the battlefield dropped from a choice, in the data",
+                ));
             }
             let labels: Vec<String> = (0..options.len())
                 .map(|i| format!("Label::Card(card_{id}, {i})"))
@@ -2162,8 +2404,13 @@ impl Compiler {
                 // Winter's Chill: "may pay {1} or {2}" is a choice whose options
                 // each ask again whether to pay, so a player who picks one and
                 // declines has neither paid nor taken the option that says so.
-                false if arms.matches("g.may_pay(").count() + 1 >= options.len() && options.len() > 2 => {
-                    return Err(gap("a choice among costs to pay, each one asked again as a may"));
+                false
+                    if arms.matches("g.may_pay(").count() + 1 >= options.len()
+                        && options.len() > 2 =>
+                {
+                    return Err(gap(
+                        "a choice among costs to pay, each one asked again as a may",
+                    ));
                 }
                 false => "instruction ChooseOne",
             };
@@ -2320,7 +2567,11 @@ impl Compiler {
     }
     /// "Target activated or triggered ability", with or without spells: the
     /// item on the stack that `t` names passes `filter`.
-    pub(super) fn stack_target_test(&self, domain: &ObjectDomain, filter: &ObjectFilter) -> Result<String> {
+    pub(super) fn stack_target_test(
+        &self,
+        domain: &ObjectDomain,
+        filter: &ObjectFilter,
+    ) -> Result<String> {
         Ok(format!(
             "q.state().stack.iter().any(|e| {} && ({}))",
             stack_item(domain, filter),
@@ -2535,7 +2786,11 @@ impl Compiler {
         let sources = self.acted_on(from)?;
         let recipient = self.acted_on(to)?;
         let stored = Quantity::StoredCounter.kind();
-        let most_read = if planned::switched_on(quantity::BOUNDED_32) { "max(0)" } else { "clamp(0, 255)" };
+        let most_read = if planned::switched_on(quantity::BOUNDED_32) {
+            "max(0)"
+        } else {
+            "clamp(0, 255)"
+        };
         let moving = format!("done_{id} += i64::from(g.move_counters(from, to, kind, amount));");
         let step = match (amount, kind) {
             (MovedCounters::One, Some(_)) => format!("let amount = 1{stored}; {moving}"),
@@ -2681,7 +2936,8 @@ impl Compiler {
             );
         }
         // The copies, for "those spells" (Spinerock Tyrant) after.
-        let kept = lane_n::read_as_objects(&self.after, result) || format!("{:?}", self.after).contains("what: CopiedSpell");
+        let kept = lane_n::read_as_objects(&self.after, result)
+            || format!("{:?}", self.after).contains("what: CopiedSpell");
         let copies = match kept {
             true => format!(" let mut copies_{id}: Vec<ObjectId> = Vec::new();"),
             false => String::new(),
@@ -2718,7 +2974,9 @@ impl Compiler {
             // Ertai's Meddling: "puts it onto the stack as a copy of the original
             // spell": the card itself goes, not a copy made on the stack.
             Operation::CopyOnStack { card: Some(_), .. } => {
-                return Err(gap("a card put onto the stack as a copy of the spell it was"))
+                return Err(gap(
+                    "a card put onto the stack as a copy of the spell it was",
+                ))
             }
             // "The copy targets [this]": copied whatever it can target, and what it
             // can't stays as the original's (115.7b), every instance of it.
@@ -2744,7 +3002,16 @@ impl Compiler {
                 card: None,
             } => {
                 let new_targets = matches!(targets, NewTargets::May);
-                self.copy_on_stack(id, player, object, times, new_targets, exceptions, result, out)?;
+                self.copy_on_stack(
+                    id,
+                    player,
+                    object,
+                    times,
+                    new_targets,
+                    exceptions,
+                    result,
+                    out,
+                )?;
             }
             Operation::Retarget {
                 actor: PlayerSet::One(player),
@@ -2846,10 +3113,13 @@ impl Compiler {
             } => self.keyword_each(id, actor, action, objects, result, out)?,
             Operation::Move {
                 objects,
-                destination: Destination::Exile,
-                entry,
-                face_down: true,
-             .. } if effects::plain_entry(entry) => {
+                destination:
+                    MovementDestination::Exile {
+                        visibility: ExileVisibility::FaceDown,
+                        arrival,
+                    },
+                ..
+            } if arrival.counters.is_empty() && arrival.states.is_empty() => {
                 let by = match (self.links_exile, self.stack_item) {
                     (true, true) => "Some(g.linked(item))".to_string(),
                     // A replacement's `then`: what linked abilities know its text by.
@@ -2870,9 +3140,19 @@ impl Compiler {
             Operation::Move {
                 objects,
                 destination,
-                entry,
-                face_down: true,
-             .. } => self.move_objects_p(id, objects, destination, entry, true, result, out)?,
+                qualifiers,
+            } if destination.hidden() => {
+                let view = crate::movement::destination_view(destination, qualifiers);
+                self.move_objects_p(
+                    id,
+                    objects,
+                    &view.destination,
+                    &view.entry,
+                    true,
+                    result,
+                    out,
+                )?;
+            }
             Operation::Conjure { .. } => self.conjure(id, op, result, out)?,
             Operation::DraftFromSpellbook {
                 actor,
@@ -2977,8 +3257,8 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         use KeywordKind as K;
-        let (kind,until)=crate::keyword_actions::each_parts(action);
-        let action=&kind;
+        let (kind, until) = crate::keyword_actions::each_parts(action);
+        let action = &kind;
         const M: &str = "cantrip_mechanics";
         let controller = matches!(actor, PlayerSet::One(PlayerRef::AbilityController));
         if lane_n::read_as_objects(&self.after, result) {
@@ -3102,7 +3382,13 @@ impl Compiler {
         Ok(())
     }
     /// A move's arrival past what `arrival` knows, as one object's `each`.
-    pub(super) fn arrival_in_state(&mut self, entry: &EntrySpec, counters: &str) -> Result<String> {
+    pub(super) fn arrival_in_state(
+        &mut self,
+        entry: &dyn crate::movement::ArrivalView,
+        counters: &str,
+    ) -> Result<String> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         let tapped = entry.tapped;
         Ok(match entry.states.as_slice() {
             [EntryState::Transformed] => {
@@ -3168,10 +3454,12 @@ impl Compiler {
     pub(super) fn entering_as(
         &mut self,
         id: usize,
-        entry: &EntrySpec,
+        entry: &dyn crate::movement::ArrivalView,
         changes: &[Change],
         controller: &str,
     ) -> Result<String> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         if !self.stack_item {
             return Err(gap("move arrival state"));
         }
@@ -3225,7 +3513,9 @@ impl Compiler {
                     toughness: Expr::Constant(toughness),
                 } => fields.push(format!("power_toughness: Some(({power}, {toughness}))")),
                 Change::GrantAbility(ability) => {
-                    if let Some(index) = self.entry_ability(ability)? { abilities.push(index.to_string()); }
+                    if let Some(index) = self.entry_ability(ability)? {
+                        abilities.push(index.to_string());
+                    }
                 }
                 Change::GrantKeyword(k)
                     if !matches!(k, Keyword::Protection(_) | Keyword::Ward(_)) =>
@@ -3285,14 +3575,14 @@ impl Compiler {
             actor,
             card,
             count,
-            zone,
             owner,
-            spot,
-            entry,
+            destination,
         } = op
         else {
             return Err(gap("operation Conjure"));
         };
+        let (zone, spot, entry) = crate::movement::conjure_view(destination);
+        let (zone, spot, entry) = (&zone, &spot, &entry);
         let what = match card {
             ConjuredCard::Named(name) => format!("Conjured::Named({name:?})"),
             ConjuredCard::OneOf(names) => format!("Conjured::OneOf(&{names:?})"),
@@ -3317,7 +3607,9 @@ impl Compiler {
                 self.operand_code(cards)
             ),
         };
-        let tapped = entry.simple_tapped().ok_or_else(|| gap("operation Conjure"))?;
+        let tapped = entry
+            .simple_tapped()
+            .ok_or_else(|| gap("operation Conjure"))?;
         let place = |c: &Self, n: &Expr| -> Result<String> {
             Ok(c.fetch(c.number(n)?.amount(u32::MAX.into(), "usize")?))
         };
@@ -3398,7 +3690,9 @@ impl Compiler {
         else {
             return Err(gap("operation Manifest"));
         };
-        let tapped = entry.simple_tapped().ok_or_else(|| gap("operation Manifest"))?;
+        let tapped = entry
+            .simple_tapped()
+            .ok_or_else(|| gap("operation Manifest"))?;
         let how = if *cloak {
             "FaceDown::Cloaked"
         } else {
@@ -3463,13 +3757,18 @@ impl Compiler {
             cards,
             reveal,
             destination,
-            entry,
         } = op
         else {
             return Err(gap("operation MoveTopCard"));
         };
-        let (entry, destination) =
-            arrival_at(entry, destination).ok_or_else(|| gap("operation MoveTopCard"))?;
+        let view = crate::movement::entry_destination_view(destination);
+        if !view.terms.is_default() {
+            return Err(gap(
+                "top-card movement with explicit library ordering or chooser",
+            ));
+        }
+        let (entry, destination) = arrival_at(&view.entry, &view.destination)
+            .ok_or_else(|| gap("operation MoveTopCard"))?;
         let filter = self.filter(cards, &Candidate::of("id"))?;
         writeln!(out, "let player_{id} = {}; let top_{id} = cantrip_mechanics::top_of_library(g, player_{id}, 1);", self.fetch(self.certain_player(player)?)).unwrap();
         if *reveal {
@@ -3869,7 +4168,13 @@ fn lane_i_option_labels(options: &[Program]) -> Option<Vec<String>> {
         lane_m::flat_groups(&option.instructions, &mut steps);
         // What a replacement does to the event says nothing of the option.
         let first = steps.iter().find(|step| {
-            !matches!(step, Instruction::Effect { operation: Operation::ModifyEvent { .. }, .. })
+            !matches!(
+                step,
+                Instruction::Effect {
+                    operation: Operation::ModifyEvent { .. },
+                    ..
+                }
+            )
         })?;
         let land = |filter: &ObjectFilter| matches!(filter, ObjectFilter::CardType(t) if form(t) == "Land");
         let label = match first {
@@ -3879,15 +4184,22 @@ fn lane_i_option_labels(options: &[Program]) -> Option<Vec<String>> {
                 ..
             } if land(filter) => "Land",
             Instruction::Effect {
-                operation: Operation::RevealUntil { filter: ObjectFilter::Not(filter), .. },
+                operation:
+                    Operation::RevealUntil {
+                        filter: ObjectFilter::Not(filter),
+                        ..
+                    },
                 ..
             } if land(filter) => "Nonland",
             Instruction::Effect {
-                operation: Operation::Move {
-                    objects, destination, ..
-                },
+                operation:
+                    Operation::Move {
+                        objects,
+                        destination,
+                        ..
+                    },
                 ..
-            } => match (objects, destination) {
+            } => match (objects, destination.address()) {
                 (ObjectSet::Take { .. }, _) => "Top card of library",
                 (_, Destination::Battlefield(_)) => "Battlefield",
                 (_, Destination::OwnersHand) => "Hand",
@@ -3898,10 +4210,19 @@ fn lane_i_option_labels(options: &[Program]) -> Option<Vec<String>> {
                 _ => return None,
             },
             Instruction::Effect {
-                operation: Operation::ChooseObjects {
-                    objects: ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Hand, .. }, .. },
-                    ..
-                },
+                operation:
+                    Operation::ChooseObjects {
+                        objects:
+                            ObjectSet::Zone {
+                                scope:
+                                    ZoneScope::Players {
+                                        zone: EventZone::Hand,
+                                        ..
+                                    },
+                                ..
+                            },
+                        ..
+                    },
                 ..
             } => "Card from hand",
             _ => return None,
@@ -3984,7 +4305,12 @@ pub(super) fn plain_play(op: &Operation) -> Option<Operation> {
 }
 
 /// Resolve a typed controller override alongside an action's destination.
-pub(super) fn arrival_at(entry: &EntrySpec, destination: &Destination) -> Option<(EntrySpec, Destination)> {
+pub(super) fn arrival_at(
+    entry: &dyn crate::movement::ArrivalView,
+    destination: &Destination,
+) -> Option<(EntrySpec, Destination)> {
+    let entry_view = entry.entry_view();
+    let entry: &EntrySpec = &entry_view;
     let mut entry = entry.clone();
     let destination = match entry.controller.take() {
         Some(EntryController::Owner) => Destination::OwnersBattlefield,
@@ -4038,7 +4364,10 @@ pub(super) fn without_tapped(filter: &ObjectFilter) -> Option<ObjectFilter> {
 /// "Becomes an artifact creature" keeps the object's other types (205.1b).
 pub(super) fn artifact_creature(types: &[crate::mtg_types::CardType]) -> bool {
     use crate::mtg_types::CardType as T;
-    matches!(types, [T::Artifact, T::Creature] | [T::Creature, T::Artifact])
+    matches!(
+        types,
+        [T::Artifact, T::Creature] | [T::Creature, T::Artifact]
+    )
 }
 
 #[cfg(test)]
@@ -4046,19 +4375,63 @@ mod entry_ability_tests {
     use super::*;
     #[test]
     fn player_dependencies_distinguish_object_ids_literals_shadowing_and_captures() {
-        let binding=LoopBinding(7);
-        let read=||Instruction::Effect {result:ResultId(0),operation:Operation::Draw {players:PlayerSet::One(PlayerRef::Bound(LoopBinding(7))),amount:Expr::Constant(1)}};
-        assert!(names(&binding,&PlayerRef::Bound(LoopBinding(7))));
-        assert!(!names(&binding,&ObjectRef::Bound(LoopBinding(7))));
-        assert!(!names(&binding,&Operand::Text("Bound(LoopBinding(7))".into())));
-        let shadow=Instruction::ForEachPlayer {players:PlayerSet::All,binding:LoopBinding(7),starting_with:None,in_chosen_direction:false,body:Program {instructions:vec![read()]}};
-        assert!(!names(&binding,&shadow));
-        let ability=Ability::Spell {announcement:Announcement::empty(),body:Program {instructions:vec![shadow.clone()]}};
-        assert!(!names(&binding,&ability));
-        let capture=Operation::CreateDelayedTrigger {event:EventSpec::Turn {point:TurnPoint::EndStepBegins,players:PlayerSet::All},start:DelayedStart::Immediately,expires:None,intervening_if:None,body:Program {instructions:vec![read()]}};
-        assert!(names(&binding,&capture));
-        let shadowed_capture=Operation::CreateDelayedTrigger {event:EventSpec::Turn {point:TurnPoint::EndStepBegins,players:PlayerSet::All},start:DelayedStart::Immediately,expires:None,intervening_if:None,body:Program {instructions:vec![shadow]}};
-        assert!(!names(&binding,&shadowed_capture));
+        let binding = LoopBinding(7);
+        let read = || Instruction::Effect {
+            result: ResultId(0),
+            operation: Operation::Draw {
+                players: PlayerSet::One(PlayerRef::Bound(LoopBinding(7))),
+                amount: Expr::Constant(1),
+            },
+        };
+        assert!(names(&binding, &PlayerRef::Bound(LoopBinding(7))));
+        assert!(!names(&binding, &ObjectRef::Bound(LoopBinding(7))));
+        assert!(!names(
+            &binding,
+            &Operand::Text("Bound(LoopBinding(7))".into())
+        ));
+        let shadow = Instruction::ForEachPlayer {
+            players: PlayerSet::All,
+            binding: LoopBinding(7),
+            starting_with: None,
+            in_chosen_direction: false,
+            body: Program {
+                instructions: vec![read()],
+            },
+        };
+        assert!(!names(&binding, &shadow));
+        let ability = Ability::Spell {
+            announcement: Announcement::empty(),
+            body: Program {
+                instructions: vec![shadow.clone()],
+            },
+        };
+        assert!(!names(&binding, &ability));
+        let capture = Operation::CreateDelayedTrigger {
+            event: EventSpec::Turn {
+                point: TurnPoint::EndStepBegins,
+                players: PlayerSet::All,
+            },
+            start: DelayedStart::Immediately,
+            expires: None,
+            intervening_if: None,
+            body: Program {
+                instructions: vec![read()],
+            },
+        };
+        assert!(names(&binding, &capture));
+        let shadowed_capture = Operation::CreateDelayedTrigger {
+            event: EventSpec::Turn {
+                point: TurnPoint::EndStepBegins,
+                players: PlayerSet::All,
+            },
+            start: DelayedStart::Immediately,
+            expires: None,
+            intervening_if: None,
+            body: Program {
+                instructions: vec![shadow],
+            },
+        };
+        assert!(!names(&binding, &shadowed_capture));
     }
     fn enchant() -> Ability {
         Ability::Enchant {
@@ -4225,18 +4598,49 @@ mod wide_quantity_receipt_tests {
     fn gathered_damage_registers_its_semantic_numeric_receipt() {
         planned::with_features(&[quantity::FEATURE], || {
             let mut compiler = Compiler::new();
-            compiler.after = vec![Instruction::Effect { result: ResultId(1), operation: Operation::GainLife {
-                players: PlayerSet::One(PlayerRef::AbilityController), amount: Expr::Performed(ResultId(0)) } }];
+            compiler.after = vec![Instruction::Effect {
+                result: ResultId(1),
+                operation: Operation::GainLife {
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                    amount: Expr::Performed(ResultId(0)),
+                },
+            }];
             let source = ObjectRef::Source;
             let recipients = Recipients::Players(PlayerSet::One(PlayerRef::AbilityController));
             let amount = Expr::Constant(i64::MAX);
-            let mut program = Program { instructions: vec![Instruction::Effect { result: ResultId(0), operation: Operation::DealDamage {
-                source: source.clone(), recipients: recipients.clone(), amount: amount.clone(), preventable: true } }] };
+            let mut program = Program {
+                instructions: vec![Instruction::Effect {
+                    result: ResultId(0),
+                    operation: Operation::DealDamage {
+                        source: source.clone(),
+                        recipients: recipients.clone(),
+                        amount: amount.clone(),
+                        preventable: true,
+                    },
+                }],
+            };
             let mut body = String::new();
-            compiler.after_gathering(0, Gathered::Damage { source, recipients, amount }, &mut program, 0, &mut body).unwrap();
+            compiler
+                .after_gathering(
+                    0,
+                    Gathered::Damage {
+                        source,
+                        recipients,
+                        amount,
+                    },
+                    &mut program,
+                    0,
+                    &mut body,
+                )
+                .unwrap();
             assert!(body.contains("fold(0i64, i64::saturating_add)"), "{body}");
             assert_eq!(compiler.quantity_results.get(&0), Some(&Quantity::Damage));
-            let doubled = compiler.number(&Expr::multiply(Expr::Performed(ResultId(0)), Expr::Constant(2))).unwrap();
+            let doubled = compiler
+                .number(&Expr::multiply(
+                    Expr::Performed(ResultId(0)),
+                    Expr::Constant(2),
+                ))
+                .unwrap();
             assert!(doubled.code.contains("saturating_mul"), "{}", doubled.code);
         });
     }

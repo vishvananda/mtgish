@@ -94,11 +94,11 @@ fn additional_alternative_and_choice_costs_do_not_become_resolution_effects() {
 fn exile_and_return_costs_keep_strict_counts_private_zones_and_destinations() {
     let c = card("Force of Will");
     assert!(
-        matches!(casting(&c), CastingRule::AlternativeCost(Cost { parts }) if matches!(parts.as_slice(), [CostPart::Life(Expr::Constant(1)), CostPart::Move { destination: Destination::Exile, selections, .. }] if matches!(selections.as_slice(), [CostObjectSelection { objects: ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(PlayerRef::AbilityController) }, filter: ObjectFilter::Color(ManaColor::Blue), kind: ObjectKind::Card }, choose: Some(Count::Exactly(Expr::Constant(1))) }])))
+        matches!(casting(&c), CastingRule::AlternativeCost(Cost { parts }) if matches!(parts.as_slice(), [CostPart::Life(Expr::Constant(1)), CostPart::Move { destination: MovementDestination::Exile{..}, selections, .. }] if matches!(selections.as_slice(), [CostObjectSelection { objects: ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(PlayerRef::AbilityController) }, filter: ObjectFilter::Color(ManaColor::Blue), kind: ObjectKind::Card }, choose: Some(Count::Exactly(Expr::Constant(1))) }])))
     );
     let c = card("Gush");
     assert!(
-        matches!(casting(&c), CastingRule::AlternativeCost(Cost { parts }) if matches!(parts.as_slice(), [CostPart::Move { destination: Destination::OwnersHand, selections, .. }] if matches!(selections.as_slice(), [CostObjectSelection { choose: Some(Count::Exactly(Expr::Constant(2))), .. }])))
+        matches!(casting(&c), CastingRule::AlternativeCost(Cost { parts }) if matches!(parts.as_slice(), [CostPart::Move { destination: MovementDestination::OwnersHand(_), selections, .. }] if matches!(selections.as_slice(), [CostObjectSelection { choose: Some(Count::Exactly(Expr::Constant(2))), .. }])))
     );
     // A library effect may take fewer cards. This cost must have all three top
     // cards, and cannot pick arbitrary cards from elsewhere in the library.

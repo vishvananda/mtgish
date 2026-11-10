@@ -17,7 +17,7 @@ fn card(name: &str) -> Card {
     validate::card(&c).unwrap();
     c
 }
-fn creations(card: &Card) -> (&[TokenSpec], &EntrySpec) {
+fn creations(card: &Card) -> (&[TokenSpec], &BattlefieldArrival) {
     card.abilities
         .iter()
         .find_map(|a| {
@@ -340,7 +340,7 @@ fn entry_counters_stay_in_the_creation_and_timed_entry_rules_are_named() {
     let lowered = lower::card(&probe(vec![action])).unwrap();
     let (_, entry) = creations(&lowered);
     assert!(
-        matches!(entry.states.as_slice(), [EntryState::ChangesUntil {
+        matches!(entry.states.as_slice(), [BattlefieldState::ChangesUntil {
         changes, duration: Duration::EndOfTurn
     }] if changes.is_empty())
     );

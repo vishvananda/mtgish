@@ -122,13 +122,9 @@ fn reduce_effect_on(form: &str, operands: &[Operand]) -> Option<Operation> {
                 Some(until.clone()),
             ))
         }
-        ("CreateGroupExileEffect", [Until(until), Objects(cards), List(effects)]) => {
-            Some(effect_on(
-                objects(cards.clone()),
-                effects.clone(),
-                Some(until.clone()),
-            ))
-        }
+        ("CreateGroupExileEffect", [Until(until), Objects(cards), List(effects)]) => Some(
+            effect_on(objects(cards.clone()), effects.clone(), Some(until.clone())),
+        ),
         _ => None,
     }
 }
@@ -763,20 +759,22 @@ fn reduce_cast(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Op
     let matching = |cards: ObjectSet, filter: &ObjectFilter| matching(&cards, filter);
     let top = |players: PlayerSet| top_of_libraries(players);
     let of = |player: &PlayerRef| PlayerSet::One(player.clone());
-    let graveyard = |players: PlayerSet, cards: &ObjectFilter| {
-        zone_set(Z::Graveyard, players, cards.clone())
-    };
+    let graveyard =
+        |players: PlayerSet, cards: &ObjectFilter| zone_set(Z::Graveyard, players, cards.clone());
     let hand = |cards: &ObjectFilter| zone_set(Z::Hand, actor.clone(), cards.clone());
     let single = |card: &ObjectRef| ObjectSet::One(card.clone());
-    let cast = |cards, count, play_terms| cast_with(actor, A::CastSpell, cards, count, play_terms, None);
-    let play = |cards, count, play_terms| cast_with(actor, A::Either, cards, count, play_terms, None);
+    let cast =
+        |cards, count, play_terms| cast_with(actor, A::CastSpell, cards, count, play_terms, None);
+    let play =
+        |cards, count, play_terms| cast_with(actor, A::Either, cards, count, play_terms, None);
     let every = |set: &ObjectSet| Expr::CountObjects(Box::new(set.clone()));
     Some(match (form, operands) {
         ("CastTopCardOfLibraryWithoutPaying", []) => cast(top(actor.clone()), one(), free()),
         ("PlayTopCardOfLibraryWithoutPaying", []) => play(top(actor.clone()), one(), free()),
-        ("CastTopSpellOfLibraryWithoutPaying" | "CastASpellFromTopOfLibraryWithoutPaying", [Filter(spells)]) => {
-            cast(matching(top(actor.clone()), spells), one(), free())
-        }
+        (
+            "CastTopSpellOfLibraryWithoutPaying" | "CastASpellFromTopOfLibraryWithoutPaying",
+            [Filter(spells)],
+        ) => cast(matching(top(actor.clone()), spells), one(), free()),
         ("CastTopCardOfPlayersLibraryWithoutPaying", [Player(player)]) => {
             cast(top(of(player)), one(), free())
         }
@@ -788,22 +786,25 @@ fn reduce_cast(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Op
         ("CastASpellFromPlayersGraveyardWithoutPaying", [Filter(spells), Player(owner)]) => {
             cast(graveyard(of(owner), spells), one(), free())
         }
-        ("CastASpellFromPlayersGraveyardWithoutPayingIntoExile", [Filter(spells), Player(owner)]) => {
-            cast(graveyard(of(owner), spells), one(), free_exile())
-        }
-        ("CastASpellFromAPlayersGraveyardWithoutPayingIntoExile", [Filter(spells), Players(owners)]) => {
-            cast(graveyard(owners.clone(), spells), one(), free_exile())
-        }
-        ("MayCastASpellFromEachPlayersGraveyardWithoutPayingIntoExile", [Filter(spells), Players(owners)]) => {
-            cast(
-                graveyard(owners.clone(), spells),
-                Count::PerPlayer {
-                    players: owners.clone(),
-                    each: Box::new(may()),
-                },
-                free_exile(),
-            )
-        }
+        (
+            "CastASpellFromPlayersGraveyardWithoutPayingIntoExile",
+            [Filter(spells), Player(owner)],
+        ) => cast(graveyard(of(owner), spells), one(), free_exile()),
+        (
+            "CastASpellFromAPlayersGraveyardWithoutPayingIntoExile",
+            [Filter(spells), Players(owners)],
+        ) => cast(graveyard(owners.clone(), spells), one(), free_exile()),
+        (
+            "MayCastASpellFromEachPlayersGraveyardWithoutPayingIntoExile",
+            [Filter(spells), Players(owners)],
+        ) => cast(
+            graveyard(owners.clone(), spells),
+            Count::PerPlayer {
+                players: owners.clone(),
+                each: Box::new(may()),
+            },
+            free_exile(),
+        ),
         ("CastAnyNumberOfCardsInPlayersGraveyardWithoutPaying", [Filter(cards), Player(owner)]) => {
             cast(graveyard(of(owner), cards), Count::AnyNumber, free())
         }
@@ -867,26 +868,28 @@ fn reduce_cast(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Op
             one(),
             alternate(cost.clone()),
         ),
-        ("CastAnyNumberOfGroupSpellsFromExileWithoutPaying", [Filter(spells), group, Objects(cards)]) => {
-            cast_with(
-                actor,
-                A::CastSpell,
-                matching(cards.clone(), spells),
-                Count::AnyNumber,
-                free(),
-                Some(group),
-            )
-        }
-        ("CastAnyNumberOfGroupSpellsFromAmongCopiedCardsWithoutPaying", [Filter(spells), group, Objects(copies)]) => {
-            cast_with(
-                actor,
-                A::CastSpell,
-                matching(copies.clone(), spells),
-                Count::AnyNumber,
-                free(),
-                Some(group),
-            )
-        }
+        (
+            "CastAnyNumberOfGroupSpellsFromExileWithoutPaying",
+            [Filter(spells), group, Objects(cards)],
+        ) => cast_with(
+            actor,
+            A::CastSpell,
+            matching(cards.clone(), spells),
+            Count::AnyNumber,
+            free(),
+            Some(group),
+        ),
+        (
+            "CastAnyNumberOfGroupSpellsFromAmongCopiedCardsWithoutPaying",
+            [Filter(spells), group, Objects(copies)],
+        ) => cast_with(
+            actor,
+            A::CastSpell,
+            matching(copies.clone(), spells),
+            Count::AnyNumber,
+            free(),
+            Some(group),
+        ),
         ("CastSpellsFromExileWithoutPaying", [Filter(spells), Objects(cards)]) => {
             let cards = matching(cards.clone(), spells);
             let count = Count::Exactly(every(&cards));
@@ -907,29 +910,31 @@ fn reduce_cast(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Op
         ("CastASpellAndMaySpendManaAsThoughAnyTypeToCast", [Filter(spells)]) => {
             cast(hand(spells), one(), spend(SpendAs::AnyType))
         }
-        ("PlayAnyNumberOfLandsOrCastAnyNumberOfSpellsFromExileWithoutPaying", [Filter(spells), Objects(cards)]) => {
-            play(
-                ObjectSet::Matching {
-                    objects: Box::new(cards.clone()),
-                    filter: ObjectFilter::Either(vec![
-                        ObjectFilter::CardType(crate::mtg_types::CardType::Land),
-                        spells.clone(),
-                    ]),
-                },
-                Count::AnyNumber,
-                free(),
-            )
-        }
-        ("PlayALandOrCastASpellFromAmongExiledCardsWithoutPaying", [Objects(lands), Filter(spells), Objects(cards)]) => {
-            play(
-                ObjectSet::Matching {
-                    objects: Box::new(cards.clone()),
-                    filter: ObjectFilter::Either(vec![objects_filter(lands), spells.clone()]),
-                },
-                one(),
-                free(),
-            )
-        }
+        (
+            "PlayAnyNumberOfLandsOrCastAnyNumberOfSpellsFromExileWithoutPaying",
+            [Filter(spells), Objects(cards)],
+        ) => play(
+            ObjectSet::Matching {
+                objects: Box::new(cards.clone()),
+                filter: ObjectFilter::Either(vec![
+                    ObjectFilter::CardType(crate::mtg_types::CardType::Land),
+                    spells.clone(),
+                ]),
+            },
+            Count::AnyNumber,
+            free(),
+        ),
+        (
+            "PlayALandOrCastASpellFromAmongExiledCardsWithoutPaying",
+            [Objects(lands), Filter(spells), Objects(cards)],
+        ) => play(
+            ObjectSet::Matching {
+                objects: Box::new(cards.clone()),
+                filter: ObjectFilter::Either(vec![objects_filter(lands), spells.clone()]),
+            },
+            one(),
+            free(),
+        ),
         ("CastExiledCardWithoutPayingOntoBottomOfLibrary", [Object(card)]) => cast(
             single(card),
             one(),
@@ -946,24 +951,19 @@ fn reduce_cast(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Op
                 ..terms()
             },
         ),
-        ("CastTheCardDiscardedThisWayWithoutPaying" | "CastTheCardRevealedThisWayWithoutPaying" | "CastASpellDrawnThisWayWithoutPaying", [Operand::Result(result)]) => {
-            cast(ObjectSet::Recorded(result.clone()), one(), free())
+        (
+            "CastTheCardDiscardedThisWayWithoutPaying"
+            | "CastTheCardRevealedThisWayWithoutPaying"
+            | "CastASpellDrawnThisWayWithoutPaying",
+            [Operand::Result(result)],
+        ) => cast(ObjectSet::Recorded(result.clone()), one(), free()),
+        ("CastCommanderFromCommandZoneWithoutPaying", []) => {
+            cast(commanders_in(Z::Command, None, actor)?, one(), free())
         }
-        ("CastCommanderFromCommandZoneWithoutPaying", []) => cast(
-            commanders_in(Z::Command, None, actor)?,
-            one(),
-            free(),
-        ),
-        ("RevealHandAndPlayerMayCastASpellFromAmongThemWithoutPaying", [Player(player), Filter(spells)]) => {
-            cast_with(
-                &of(player),
-                A::CastSpell,
-                hand(spells),
-                may(),
-                free(),
-                None,
-            )
-        }
+        (
+            "RevealHandAndPlayerMayCastASpellFromAmongThemWithoutPaying",
+            [Player(player), Filter(spells)],
+        ) => cast_with(&of(player), A::CastSpell, hand(spells), may(), free(), None),
         _ => return None,
     })
 }
@@ -996,7 +996,9 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
     use Operand::{Filter, Number, Object, Objects, Player, Players, Recipients as Hosts};
     let one = || Count::Exactly(Expr::Constant(1));
     let any = || Count::AnyNumber;
-    let each = |action,objects:&ObjectSet| crate::keyword_actions::each_operation(actor,action,objects.clone(),None);
+    let each = |action, objects: &ObjectSet| {
+        crate::keyword_actions::each_operation(actor, action, objects.clone(), None)
+    };
     let pick = |objects: &ObjectSet, count| chosen(actor, objects, count);
     let destroy = |objects, regeneration| Operation::Destroy {
         objects,
@@ -1016,12 +1018,7 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
         _ => None,
     };
     let hand = |players: PlayerSet| zone_set(EventZone::Hand, players, ObjectFilter::Any);
-    let look = |objects| {
-        me().map(|player| Operation::LookAt {
-            player,
-            objects,
-        })
-    };
+    let look = |objects| me().map(|player| Operation::LookAt { player, objects });
     let attach = |attachments: &ObjectSet, count, hosts, each_host| Operation::AttachEach {
         actor: actor.clone(),
         attachments: attachments.clone(),
@@ -1110,9 +1107,7 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
         ("TurnAPermanentFaceUp", [Objects(set)]) => each(K::TurnFaceUp, &pick(set, one())),
         ("TransformAPermanent", [Objects(set)]) => each(K::Transform, &pick(set, one())),
         ("UnlockADoorOfAPermanent", [Objects(set)]) => each(K::UnlockDoor, &pick(set, one())),
-        ("TransformAnyNumberOfPermanents", [Objects(set)]) => {
-            each(K::Transform, &pick(set, any()))
-        }
+        ("TransformAnyNumberOfPermanents", [Objects(set)]) => each(K::Transform, &pick(set, any())),
         ("PhaseOutAnyNumberOfPermanents", [Objects(set)]) => each(K::PhaseOut, &pick(set, any())),
         ("LookAtTheTopCardOfEachPlayersLibrary", [Players(players)]) => {
             look(top_of_libraries(players.clone()))?
@@ -1139,16 +1134,14 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
         ("DiscardTheCardRevealedThisWay", [Operand::Result(result)]) => Operation::DiscardObjects {
             objects: ObjectSet::Recorded(result.clone()),
         },
-        ("RevealHandAndDiscardACardOfTypeAtRandom", [Filter(cards)]) => {
-            Operation::Together(vec![
-                Operation::Reveal {
-                    objects: hand(actor.clone()),
-                },
-                Operation::DiscardObjects {
-                    objects: random(&matching(&hand(actor.clone()), cards), 1),
-                },
-            ])
-        }
+        ("RevealHandAndDiscardACardOfTypeAtRandom", [Filter(cards)]) => Operation::Together(vec![
+            Operation::Reveal {
+                objects: hand(actor.clone()),
+            },
+            Operation::DiscardObjects {
+                objects: random(&matching(&hand(actor.clone()), cards), 1),
+            },
+        ]),
         ("HaveEachPlayerLoseLife", [Players(players), Number(n)]) => Operation::LoseLife {
             players: players.clone(),
             amount: n.clone(),
@@ -1181,17 +1174,18 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
         ("AttachEachPermanentToAPlayerOfChoice", [Objects(a), Players(players)]) => {
             attach(a, None, Recipients::Players(players.clone()), false)
         }
-        ("AttachPermanentToACardInAPlayersGraveyard", [Object(a), Filter(cards), Players(players)]) => {
-            attach(
-                &ObjectSet::One(a.clone()),
-                None,
-                objects_of(pick(
-                    &zone_set(EventZone::Graveyard, players.clone(), cards.clone()),
-                    one(),
-                )),
-                false,
-            )
-        }
+        (
+            "AttachPermanentToACardInAPlayersGraveyard",
+            [Object(a), Filter(cards), Players(players)],
+        ) => attach(
+            &ObjectSet::One(a.clone()),
+            None,
+            objects_of(pick(
+                &zone_set(EventZone::Graveyard, players.clone(), cards.clone()),
+                one(),
+            )),
+            false,
+        ),
         ("UnattachEachPermanentFromPermanent", [Objects(a), Object(host)]) => each(
             K::Unattach,
             &matching(
@@ -1201,25 +1195,37 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
         ),
         ("UnattachEachPermanentFromEachPermanent", [Objects(a), Objects(hosts)]) => each(
             K::Unattach,
-            &matching(a, &ObjectFilter::AttachedTo(Box::new(objects_filter(hosts)))),
+            &matching(
+                a,
+                &ObjectFilter::AttachedTo(Box::new(objects_filter(hosts))),
+            ),
         ),
         ("ManifestNumberCardsFromHand", [Number(n)]) => Operation::Manifest {
             actor: actor.clone(),
             source: ManifestSource::Cards(pick(&hand(actor.clone()), Count::Exactly(n.clone()))),
             cloak: false,
-            entry: crate::movement::entry_from_source(&[]),
+            entry: crate::movement::battlefield_from_parts(
+                &(crate::movement::entry_from_source(&[])),
+            )
+            .ok()?,
         },
         ("ManifestACardFromHand" | "CloakACardFromHand", []) => Operation::Manifest {
             actor: actor.clone(),
             source: ManifestSource::Cards(pick(&hand(actor.clone()), one())),
             cloak: form.starts_with("Cloak"),
-            entry: crate::movement::entry_from_source(&[]),
+            entry: crate::movement::battlefield_from_parts(
+                &(crate::movement::entry_from_source(&[])),
+            )
+            .ok()?,
         },
         ("ManifestEachCardOfTypeFromHand", [Filter(cards)]) => Operation::Manifest {
             actor: actor.clone(),
             source: ManifestSource::Cards(matching(&hand(actor.clone()), cards)),
             cloak: false,
-            entry: crate::movement::entry_from_source(&[]),
+            entry: crate::movement::battlefield_from_parts(
+                &(crate::movement::entry_from_source(&[])),
+            )
+            .ok()?,
         },
         ("TurnPermanentFaceDownAsArtifactCreature", [Object(object), pt, kind]) => {
             Operation::TurnFaceDownAs {
@@ -1343,7 +1349,10 @@ fn reduce_stack_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
     Some(match (form, operands) {
         ("CopyEachSpellAndMayChooseNewTargets", [Filter(spells)]) => Operation::CopyEach {
             actor: actor.clone(),
-            objects: ObjectFilter::All(vec![ObjectFilter::OnStack(StackTrait::Spell), spells.clone()]),
+            objects: ObjectFilter::All(vec![
+                ObjectFilter::OnStack(StackTrait::Spell),
+                spells.clone(),
+            ]),
             targets: T::May,
         },
         ("CopyEachAbilityAndMayChooseNewTargets", [term]) => Operation::CopyEach {
@@ -1403,7 +1412,10 @@ fn reduce_stack_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         },
         ("DoubleXValueOfSpell", [Object(o)]) => Operation::SetX {
             object: o.clone(),
-            value: Expr::Multiply(Box::new(Expr::CastX(o.clone())), Box::new(Expr::Constant(2))),
+            value: Expr::Multiply(
+                Box::new(Expr::CastX(o.clone())),
+                Box::new(Expr::Constant(2)),
+            ),
         },
         _ => return None,
     })
@@ -1516,7 +1528,9 @@ fn reduce_choice(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<
         ("ChooseACardNameThatHasntBeenChosen", [names]) => {
             with(V::CardName, unchosen(vec![names.clone()]))
         }
-        ("NoteAnUnnotedCreatureType", [kinds]) => with(V::CreatureType, unchosen(vec![kinds.clone()])),
+        ("NoteAnUnnotedCreatureType", [kinds]) => {
+            with(V::CreatureType, unchosen(vec![kinds.clone()]))
+        }
         ("ChooseAPermanentType", []) => with(V::PermanentType, terms()),
         ("ChooseANonBasicLandType", []) => with(V::NonbasicLandType, terms()),
         ("ChooseALetter", []) => with(V::Letter, terms()),
@@ -1583,24 +1597,34 @@ fn reduce_choice(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<
 /// Coins flipped until something stops them.
 fn reduce_coins(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Operation> {
     use Operand::{Number, Objects};
-    let flips = |times, each, until_lost, may_stop, called| Operation::CoinFlips {
-        actor: actor.clone(),
-        times,
-        each,
-        until_lost,
-        may_stop,
-        called,
+    let flips = |protocol, repetition| Operation::FlipCoinSeries {
+        players: actor.clone(),
+        protocol,
+        repetition,
     };
     Some(match (form, operands) {
-        ("FlipACoinUntilLose", []) => flips(None, None, true, false, false),
-        ("FlipACoinUntilLoseOrStop", []) => flips(None, None, true, true, false),
-        ("FlipACoinNumberTimesOrUntilLose", [Number(n)]) => {
-            flips(Some(n.clone()), None, true, false, false)
+        ("FlipACoinUntilLose", []) => {
+            flips(CoinProtocol::Called, CoinRepetition::Until(CoinStop::Lose))
         }
-        ("FlipACoinAndCallIt", []) => flips(Some(Expr::Constant(1)), None, false, false, true),
-        ("FlipACoinForEachPermanent", [Objects(set)]) => {
-            flips(None, Some(set.clone()), false, false, false)
-        }
+        ("FlipACoinUntilLoseOrStop", []) => flips(
+            CoinProtocol::Called,
+            CoinRepetition::Until(CoinStop::LoseOrPlayerStops),
+        ),
+        ("FlipACoinNumberTimesOrUntilLose", [Number(n)]) => flips(
+            CoinProtocol::Called,
+            CoinRepetition::UpTo {
+                extent: CoinExtent::Count(n.clone()),
+                stop: CoinStop::Lose,
+            },
+        ),
+        ("FlipACoinAndCallIt", []) => flips(
+            CoinProtocol::Called,
+            CoinRepetition::Count(Expr::Constant(1)),
+        ),
+        ("FlipACoinForEachPermanent", [Objects(set)]) => flips(
+            CoinProtocol::Called,
+            CoinRepetition::EachObject(set.clone()),
+        ),
         _ => return None,
     })
 }
@@ -1676,16 +1700,17 @@ fn reduce_combat_change(form: &str, operands: &[Operand]) -> Option<Operation> {
 /// Who does a list of actions, and who decides whether they happen.
 fn reduce_player_does(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Operation> {
     use Operand::{List, Number, Player, Players, Program as Actions};
-    let does = |players: PlayerSet, any_one, optional, body: Vec<Operand>, otherwise: Vec<Operand>| {
-        Operation::PlayersDo {
-            players,
-            any_one,
-            optional,
-            once_each_turn: false,
-            body,
-            otherwise,
-        }
-    };
+    let does =
+        |players: PlayerSet, any_one, optional, body: Vec<Operand>, otherwise: Vec<Operand>| {
+            Operation::PlayersDo {
+                players,
+                any_one,
+                optional,
+                once_each_turn: false,
+                body,
+                otherwise,
+            }
+        };
     let you = || actor.clone();
     let one = |player: &PlayerRef| PlayerSet::One(player.clone());
     Some(match (form, operands) {

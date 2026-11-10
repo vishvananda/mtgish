@@ -50,9 +50,16 @@ fn mana_clash_changes_only_its_collective_head_check_and_keeps_private_flip_rece
         );
         // Upgrade the authentic capture structurally; retain its original,
         // separately corrected heads/wins condition until the assertion below.
-        expected = serde_json::to_value(mtgish_ast::migrate::read_json(&expected.to_string()).unwrap()).unwrap();
+        expected =
+            serde_json::to_value(mtgish_ast::migrate::read_json(&expected.to_string()).unwrap())
+                .unwrap();
         *expected.pointer_mut(ptr).unwrap() =
             serde_json::to_value(Condition::Not(Box::new(all_heads()))).unwrap();
+        // The corrected collective face predicate also establishes an
+        // uncalled protocol. The old win/loss predicate did not.
+        expected["faces"][0]["abilities"][0]["args"]["body"]["instructions"][0]["args"]
+            ["instructions"][0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]
+            ["protocol"] = json!("Uncalled");
         assert_eq!(serde_json::to_value(&card).unwrap(), expected);
         let mut named = human::document::from_card(&card).unwrap();
         let names: Vec<_> = named

@@ -479,12 +479,6 @@ impl Walker {
             }
             match (name, variant.as_str()) {
                 ("ObjectFilter", "InSet") => one_object_set(value),
-                ("Operation", "Move") => {
-                    let args = content_of(value);
-                    if args.get("terms").is_none() {
-                        args["terms"] = json!({"order":"DestinationDefault","placement":"DestinationDefault","qualifiers":[]});
-                    }
-                }
                 ("ObjectSet", "Zone") => {
                     narrow_zone_scope(content_of(value));
                     if let Some(filter) = battlefield_filter_mut(value) {
@@ -598,9 +592,9 @@ impl Walker {
                 // A loop or predicate binds only its own body. Keeping those
                 // ids in the ability-wide map makes a later sibling depend on
                 // traversal order, including when commutative events move.
-                let binding = types
-                    .iter()
-                    .any(|(field, ty)| field == "binding" && *ty == Ty::Named("LoopBinding".into()));
+                let binding = types.iter().any(|(field, ty)| {
+                    field == "binding" && *ty == Ty::Named("LoopBinding".into())
+                });
                 let previous_binding = binding
                     .then(|| {
                         self.scopes
@@ -692,6 +686,7 @@ impl Walker {
                                     | "Operation::ReflexiveTrigger"
                                     | "Operation::CreateTrigger"
                                     | "EntryState::ExiledForWith"
+                                    | "ExileState::ExiledForWith"
                                     | "Instruction::Optional"
                                     | "CostPart::PlayerAction"
                                     | "Instruction::ForEachPlayer"
@@ -728,6 +723,7 @@ impl Walker {
                                 | "Operation::ReflexiveTrigger"
                                 | "Operation::CreateTrigger"
                                 | "EntryState::ExiledForWith"
+                                | "ExileState::ExiledForWith"
                                 | "Instruction::Times"
                                 | "CostPart::PlayerAction" => self.gathering_results = false,
                                 _ => {}
@@ -749,7 +745,10 @@ impl Walker {
                             || self.paying_cost && owner == "Cost" && field == "parts";
                         if let Some(frame) = created.as_ref().filter(|_| {
                             matches!(field.as_str(), "body" | "announcement" | "intervening_if")
-                                || owner == "EntryState::ExiledForWith" && field == "objects"
+                                || matches!(
+                                    owner,
+                                    "EntryState::ExiledForWith" | "ExileState::ExiledForWith"
+                                ) && field == "objects"
                         }) {
                             self.walk_created(item, ty, frame);
                         } else {

@@ -8,7 +8,7 @@ use super::*;
 /// copy, and their controller is the controller of that ability.
 ///
 /// A continuing change belongs in `Change::Continuing`, and an additional
-/// arrival instruction belongs in `EntrySpec`; neither is a copy exception.
+/// arrival instruction belongs in the destination’s arrival payload; neither is a copy exception.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum CopyException {

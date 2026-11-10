@@ -261,8 +261,11 @@ pub enum Expr {
     TimesMutated(ObjectRef),
     /// Any of these values, for a comparison against a listed set.
     AnyOf(Vec<Expr>),
-    /// How many of the coins a `FlipCoins` flipped came up heads.
-    HeadsFlipped(ResultId),
+    /// Count one explicit outcome, without conflating heads with winning.
+    CountCoinOutcomes {
+        source: CoinCountSource,
+        outcome: CoinOutcome,
+    },
     /// A measure of what an earlier instruction or cost acted on, as Forge's
     /// `Remembered$` and `Sacrificed$` counts.
     Earlier {
@@ -273,8 +276,6 @@ pub enum Expr {
         by: Option<PlayerRef>,
     },
     Dice(DiceMeasure),
-    /// Coin flips won, or lost.
-    CoinFlipsWon(bool),
     Stickers {
         objects: Box<ObjectSet>,
         measure: StickerMeasure,
@@ -498,4 +499,14 @@ impl Expr {
         }
         Self::Multiply(Box::new(a), Box::new(b))
     }
+}
+
+/// Receipt-local quantities and the legacy current-program coin tally are
+/// distinct. Latest is not a global game-history count or a guessed numeric ID.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CoinCountSource {
+    Receipt(ResultId),
+    /// The most recent coin procedure executed in this program; zero before
+    /// any procedure executes. This is not a captured receipt or global history.
+    Latest,
 }

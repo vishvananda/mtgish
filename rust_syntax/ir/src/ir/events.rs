@@ -203,7 +203,7 @@ pub enum EventChange {
     RedirectSomeDamage(Expr, Recipients),
     SetDestination(Destination),
     /// How the entering object enters.
-    Entry(EntryState),
+    Entry(BattlefieldState),
     AddMana(ManaProduction),
     /// Each mana produced is replaced, so an amount here is per mana: a land
     /// that makes two still makes two.

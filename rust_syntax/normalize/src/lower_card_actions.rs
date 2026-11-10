@@ -161,13 +161,12 @@ impl Context {
                             paid,
                             |context| {
                                 Ok(Program {
-                                    instructions: vec![context.effect(Operation::Move {
-                                        objects: top,
-                                        destination: Destination::OwnersGraveyard,
-                                        entry: EntrySpec::default(),
-                                        face_down: false,
-                                        terms: crate::ir::MovementTerms::default(),
-                                    })],
+                                    instructions: vec![context.effect(
+                                        crate::movement::move_plain(
+                                            top,
+                                            Destination::OwnersGraveyard,
+                                        ),
+                                    )],
                                 })
                             },
                             |_| Ok(Program::empty()),
@@ -191,12 +190,15 @@ impl Context {
                             }
                         };
                         Ok(Operation::CreateTokens {
-                            players,
+                            players: players,
                             tokens: tokens
                                 .iter()
                                 .map(|token| self.token(token, 0))
                                 .collect::<Result<_>>()?,
-                            entry: self.token_entry(flags)?,
+                            entry: crate::movement::battlefield_from_parts(
+                                &(self.token_entry(flags)?),
+                            )
+                            .map_err(|message| invalid(&message))?,
                         })
                     })
                     .collect::<Result<_>>()?;
@@ -215,7 +217,10 @@ impl Context {
             S::PutGraveyardCardIntoHandOrOntoBattlefield(card, flags) => {
                 let options = S::ChooseAnAction(vec![
                     vec![S::PutGraveyardCardIntoHand(card.clone())],
-                    vec![S::PutGraveyardCardOntoBattlefield(card.clone(), flags.clone())],
+                    vec![S::PutGraveyardCardOntoBattlefield(
+                        card.clone(),
+                        flags.clone(),
+                    )],
                 ]);
                 self.action(&options, actor)?
             }
@@ -340,7 +345,7 @@ impl Context {
         use source::ReplacementActionWouldEnter as S;
         Ok(Some(match value {
             S::EntersWithLayerEffectUntil(effects, until) => {
-                let change = EventChange::Entry(EntryState::ChangesUntil {
+                let change = EventChange::Entry(BattlefieldState::ChangesUntil {
                     changes: self.changes(effects)?,
                     duration: self.duration(until)?,
                 });
@@ -453,7 +458,9 @@ fn with_each_ability(
                     *value = ability.clone();
                     return;
                 }
-                fields.values_mut().for_each(|child| replace(child, ability));
+                fields
+                    .values_mut()
+                    .for_each(|child| replace(child, ability));
             }
             V::Array(items) => items.iter_mut().for_each(|child| replace(child, ability)),
             _ => {}

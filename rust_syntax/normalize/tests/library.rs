@@ -170,7 +170,10 @@ fn searcher_library_owner_and_battlefield_controller_remain_distinct() {
         i,
         Instruction::Effect {
             operation: Operation::Move {
-                destination: Destination::Battlefield(PlayerRef::AbilityController),
+                destination: MovementDestination::Battlefield {
+                    controller: EntryController::Player(PlayerRef::AbilityController),
+                    ..
+                },
                 ..
             },
             ..
@@ -180,7 +183,7 @@ fn searcher_library_owner_and_battlefield_controller_remain_distinct() {
     let [Instruction::Effect {
         operation:
             Operation::Move {
-                destination: Destination::Exile,
+                destination: MovementDestination::Exile { .. },
                 ..
             },
         ..
@@ -195,9 +198,12 @@ fn searcher_library_owner_and_battlefield_controller_remain_distinct() {
         panic!()
     };
     let Instruction::Effect {
-        operation: Operation::Search {
-            searcher: player, library_owner: library, ..
-        },
+        operation:
+            Operation::Search {
+                searcher: player,
+                library_owner: library,
+                ..
+            },
         ..
     } = &p.instructions[0]
     else {
@@ -307,20 +313,19 @@ fn split_placement_choices_preserve_original_found_identities_and_entry_flags() 
                     Operation::Move {
                         objects,
                         destination,
-                        entry,
                         ..
                     },
                 ..
-            } => Some((objects, destination, entry)),
+            } => Some((objects, destination)),
             _ => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(moves.len(), 2);
     assert!(
-        matches!(moves[0],(ObjectSet::Selected(chosen),Destination::Battlefield(_),EntrySpec {tapped:true,..}) if chosen.0!=found.0)
+        matches!(moves[0],(ObjectSet::Selected(chosen),MovementDestination::Battlefield{arrival:BattlefieldArrival{tapped:true,..},..}) if chosen.0!=found.0)
     );
     assert!(
-        matches!(moves[1],(ObjectSet::Selected(rest),Destination::OwnersHand,_) if rest.0==found.0)
+        matches!(moves[1],(ObjectSet::Selected(rest),MovementDestination::OwnersHand(_)) if rest.0==found.0)
     );
     // Once a found card moves it has a new identity; the original selection
     // cannot move it twice or retrieve it after an unrelated replacement move.
@@ -455,28 +460,86 @@ fn typecycling_reuses_search_but_retains_keyword_identity_and_canonical_payment(
 fn typecycling_rejects_richer_movement_terms_in_its_fixed_keyword_body() {
     let plain = card("Pale Recluse");
     #[cfg(feature = "cantrip")]
-    assert!(mtgish_ast::cantrip::module(&plain).unwrap().contains(".cycling()"));
+    assert!(mtgish_ast::cantrip::module(&plain)
+        .unwrap()
+        .contains(".cycling()"));
 
-    for (index, replacement) in [
-        MovementTerms { order: MovementOrder::Random, ..Default::default() },
-        MovementTerms { qualifiers: vec![SelectionConstraint::DifferentNames], ..Default::default() },
-        MovementTerms { placement: MovementPlacement::By(PlayerSet::One(PlayerRef::AbilityController)), ..Default::default() },
-    ].into_iter().enumerate() {
+    for (index, (replacement, extra)) in [
+        (
+            MovementDestination::Library {
+                position: LibraryPosition::Top,
+                order: MovementOrder::Random,
+                arrival: CardArrival::default(),
+            },
+            vec![],
+        ),
+        (
+            Destination::OwnersHand.into(),
+            vec![SelectionConstraint::DifferentNames],
+        ),
+        (
+            MovementDestination::Library {
+                position: LibraryPosition::TopOrBottom {
+                    chooser: LibraryChooser::Players(PlayerSet::One(PlayerRef::AbilityController)),
+                },
+                order: MovementOrder::DestinationDefault,
+                arrival: CardArrival::default(),
+            },
+            vec![],
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let mut rich = plain.clone();
-        let ability = rich.abilities.iter_mut().find_map(|ability| match ability {
-            Ability::Scoped { ability, .. }
-                if matches!(ability.as_ref(), Ability::Activated { origin: ActivationOrigin::Cycling { search: Some(_) }, .. }) => Some(ability.as_mut()),
-            _ => None,
-        }).unwrap();
-        let Ability::Activated { body, .. } = ability else { unreachable!() };
-        let [Instruction::Group(body)] = body.instructions.as_mut_slice() else { panic!() };
-        let Instruction::Effect { operation: Operation::Move { terms, .. }, .. } = &mut body.instructions[2] else { panic!() };
-        *terms = replacement;
+        let ability = rich
+            .abilities
+            .iter_mut()
+            .find_map(|ability| match ability {
+                Ability::Scoped { ability, .. }
+                    if matches!(
+                        ability.as_ref(),
+                        Ability::Activated {
+                            origin: ActivationOrigin::Cycling { search: Some(_) },
+                            ..
+                        }
+                    ) =>
+                {
+                    Some(ability.as_mut())
+                }
+                _ => None,
+            })
+            .unwrap();
+        let Ability::Activated { body, .. } = ability else {
+            unreachable!()
+        };
+        let [Instruction::Group(body)] = body.instructions.as_mut_slice() else {
+            panic!()
+        };
+        let Instruction::Effect {
+            operation:
+                Operation::Move {
+                    destination,
+                    qualifiers,
+                    ..
+                },
+            ..
+        } = &mut body.instructions[2]
+        else {
+            panic!()
+        };
+        *destination = replacement;
+        *qualifiers = extra;
         // Keyword identity promises the fixed search/reveal/hand/shuffle body.
         // A generic movement term must not become part of that promise.
-        assert!(validate::card(&rich).unwrap_err().contains("invalid cycling scope"));
+        assert!(validate::card(&rich)
+            .unwrap_err()
+            .contains("invalid cycling scope"));
         #[cfg(feature = "cantrip")]
-        assert_eq!(mtgish_ast::cantrip::module(&rich).unwrap_err().feature, "invalid AST");
+        assert_eq!(
+            mtgish_ast::cantrip::module(&rich).unwrap_err().feature,
+            "invalid AST"
+        );
 
         if index < 2 {
             // Ordinary hand-zone activations may retain richer movement.
@@ -490,7 +553,9 @@ fn typecycling_rejects_richer_movement_terms_in_its_fixed_keyword_body() {
             }
             validate::card(&rich).unwrap();
             #[cfg(feature = "cantrip")]
-            assert_ne!(mtgish_ast::cantrip::module(&rich).unwrap_err().feature, "invalid AST");
+            if let Err(error) = mtgish_ast::cantrip::module(&rich) {
+                assert_ne!(error.feature, "invalid AST");
+            }
         }
     }
 }
@@ -578,10 +643,9 @@ fn library_observation_and_reordering_do_not_masquerade_as_zone_movement() {
             effect(
                 Operation::Move {
                     objects: ObjectSet::Selected(ResultId(0)),
-                    destination: Destination::OwnersHand,
-                    entry: EntrySpec::default(),
-                    face_down: false
-                , terms: mtgish_ast::ir::MovementTerms::default(), },
+                    destination: (Destination::OwnersHand).into(),
+                    qualifiers: vec![]
+                },
                 1
             )
         ]),

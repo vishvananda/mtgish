@@ -28,7 +28,12 @@ fn counter(kind: &crate::counter::CounterKind) -> Operand {
 }
 
 impl Compiler {
-    pub(super) fn entry_operands(&self, entry: &EntrySpec) -> Result<Vec<Operand>> {
+    pub(super) fn entry_operands(
+        &self,
+        entry: &dyn crate::movement::ArrivalView,
+    ) -> Result<Vec<Operand>> {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
         let mut flags = Vec::new();
         if let Some(controller) = &entry.controller {
             flags.push(match controller {

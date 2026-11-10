@@ -10,16 +10,16 @@ whole objective; an intermediate passing stage does not complete the goal.
 | --- | --- | --- |
 | Validate every nested semantic entry child in its correct scope | Implemented, verified including private return events and fresh grants | Reproduced malformed inputs rejected; valid captured/granted scopes retained; current corpus validates |
 | Consistent nonnegative and ordered cardinality bounds | Implemented, verified | Exact/between/mode negative cases; dynamic bounds retain existing execution rules |
-| Typed entry and copy payloads, removing backend descriptive-term decoding | Implemented, verified; destination-specific serialization remains separate | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
+| Typed entry and copy payloads, removing backend descriptive-term decoding | Implemented, verified including destination-specific serialization in local batch 186 | No generic semantic payload escape in these families; full source/canonical corpus and generated-code comparisons |
 | Preserve binding identities and names for targets, results, loops, and selections | Implemented, verified including independent alternatives and legacy migration | Scoped document roundtrips, edits, save/import/export, shadowing/type errors, canonicalization mappings; numeric compiler IDs retained |
-| Destination-specific movement state | Shared destination checks implemented; serialized payload split pending | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
-| Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Keyword actions (183) and modes (184) implemented and verified; coins pending | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
+| Destination-specific movement state | Implemented, native/full-corpus/browser verified in local batch 186 | Impossible combinations rejected by representation; exile visibility, battlefield arrival, library placement and batch identity preserved |
+| Typed mode-selection mechanisms, coin-flip policies, keyword-action arguments | Implemented; keyword/mode migrations published, coin policies verified in local batch 186 | All existing feature combinations/results preserved; malformed combinations rejected; cohort generator comparisons |
 | Consistent Rust role/type/action names and typed counter-event sources | Implemented, verified and published in batch 185 | All producers/consumers migrated; no ambiguous complete `Named` result reads or generic counter-source recipient variant |
 | Clear sequence, batch, iteration, and receipt boundaries | Implemented, verified without changing execution forms | Declaration docs and discoverable authoring families; receipt and native behavior regressions |
 | Shared schema/declaration discovery and topic modules | Implemented, verified | Visitors, codec, catalog, fingerprint and frozen contract use one source registry; no declarations lost |
 | Scratch-style literal/picker shadows in typed expression sockets | Implemented, verified | Real drag/drop replacement, simple-value restoration, undo/redo, persistence, validation and browser tests |
 | Typed known layouts with an explicit extension contract | Implemented, verified and published in batch 185 | All 18 current layouts, metadata-only records and layout errors covered |
-| Final integration, publication and deployment | Pending | Full appropriate Rust tests, 33,529 record semantic/wire checks, browser/Wasm coverage, pushed fork main and live `/blocks` smoke |
+| Final integration, publication and deployment | All local integration gates pass; deployment deferred for the combined release | Full appropriate Rust tests, 33,529 record semantic/wire checks, browser/Wasm coverage, pushed fork main and live `/blocks` smoke |
 
 Preserve absent versus zero costs and characteristics, result provenance,
 selection timing, linked abilities, instruction boundaries, and serialization
@@ -671,3 +671,77 @@ suites pass, including named schema-184 workspace import/startup. Full receipt:
 are complete. Coin protocol/repetition and destination-state typing remain open,
 followed by final integration and the 29 confirmed reference corrections. The
 user's untracked `consolidation.md` remains untouched.
+
+Unpublished batch 186 progress (2026-11-09): coin procedures now carry an explicit
+called/uncalled protocol, repetition has finite/per-object/bounded/until forms
+with named stopping rules, and tallies name their outcome instead of using a
+win/loss boolean. The backend selects its API from this protocol without printed
+text. Unsupported observation channels remain explicit backend gaps; native IR
+can describe both physical faces and wins/losses. All 76 genuine schema-185 coin
+records migrate to exact fresh Source output with complete binding origins,
+and all 76 original named documents retain their names. The focused native run
+passed 20 tests, including standalone Source operands and explicit current-program tallies. All 76 whole-card generator outputs and gaps are unchanged
+(61 gap-free). Evidence: `coin186-focused3.log`, `coin186-generated-final-focused.jsonl`, and
+`coin186-fixtures/coin185-generated.jsonl` under the review evidence directory.
+The implicit current-program tally remains distinct from a required receipt;
+empty/conditional histories remain legal IR and an unsupported backend reports
+a gap. No narrower receipt-scope rule is imposed on this legacy tally.
+
+Movement work is in progress in the same unpublished batch. Zone-specific
+arrival types and shared forward/projection converters have been added, with
+library ordering/placement confined to library destinations and separate
+conjure ownership/position rules. **The operations have not yet been switched
+to these types.** This is preparation, not completion of the serialized
+destination migration. The captured schema-185 comparison cohort has 87 records
+covering 89 movement contexts, including Delay, Desertion, Lagrella, Magar,
+conditional arrivals and random library order. The full native/Wasm rebuild,
+schema-186 freeze, browser migration proof and deployment are intentionally
+held until the representation and its consumers are integrated, to avoid
+rebuilding the same dependencies for each change. Published/live remains 185.
+
+The movement core audit passed five tests, including all 33,529 original
+schema-185 records: 8,230 movement destinations and 191 conjure destinations
+roundtrip without losing state. The six original workspaces and 87 named
+documents (348 explicit names) were captured with the shipped schema-185
+Wasm/editor. They are checked-in fixtures for the pending integrated migration,
+not evidence that the operation switch or browser migration already passes.
+Evidence: `movement186-core3.log`, `capture_movement185.log`, and
+`batch186-progress.json`. No full Wasm rebuild or deployment occurred.
+
+
+Batch186 integration now wires zone-specific destinations into the serialized
+operations, costs and constraints, including battlefield-only creator payloads
+and replacement entry state. Historical EntrySpec/EntryState live only in the
+normalizer adapter. Source lowering, native reference validation, scoped
+canonicalization, backend views and explicit migration origins consume the
+new types. Legacy human code is resolved by the normal scoped reader before
+using the same checked migration. All native test targets compile; runtime,
+full-corpus and browser validation are pending. Schema186 remains unpublished.
+The generator comparison baseline includes all10156 affected source records.
+
+
+Integrated schema186 validation: 1,497 native tests pass, with17 opt-in audits
+excluded from the normal run. The explicit migration audit separately proves
+all33,529 genuine schema185 records equal fresh Source output with complete
+binding origins. The independent canonical-origin audit passes all33,529.
+All10,156 affected generated card outputs and diagnostics are unchanged after
+excluding only schema/fingerprint comments (8,506 files and1,650 existing gaps).
+The comparison caught a Guild Feud receipt regression caused by a lookup of
+old destination Debug text. It now uses typed battlefield-controller metadata,
+with a saved185 full-card regression. Historical test captures remain unchanged;
+their loaders explicitly upgrade old destination/cost/constraint shapes.
+The release Wasm build and17 browser suites remain pending; schema186 is not
+published by this native checkpoint.
+
+
+Final local schema186 integration passes all17 browser suites, including33,529
+block/binding/Wasm checks and genuine185 named workspace upgrades. Destination
+constructor edits create their default children, hide empty arrivals, retain
+nonempty incompatible state and support undo. Only one release Wasm compilation
+was needed; the editing fix was JavaScript-only. Final local artifact SHA-256:
+`92b0e7c69a6c8276f80ab818c69ad684244016e1d7316f27f6a4450aaaf45a3d`.
+Receipt: `movement186-local-validation.json`. All reviewed representation changes
+are implemented. Site/Wasm deployment is deferred at the user's request while
+remaining work is batched; live remains185. The reference pass now has32
+confirmed open defects (the original29 plus three newer findings), separate
+from unresolved representation questions. No upstream update was pulled.

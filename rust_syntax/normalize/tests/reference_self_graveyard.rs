@@ -114,7 +114,10 @@ fn shuffling_only_the_source_keeps_its_destination_reference_and_live_zone_guard
         let c = card(name);
         let movement =
             &graveyard_trigger(&c)["body"]["instructions"][0]["args"]["operation"]["args"];
-        assert_eq!(movement["destination"], json!("OwnersLibraryShuffled"));
+        assert_eq!(
+            movement["destination"],
+            json!({"Library":{"position":"Shuffled","order":"DestinationDefault","arrival":{"counters":[],"states":[]}}})
+        );
         assert_eq!(
             movement["objects"],
             json!({"kind":"One","args":{

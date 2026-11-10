@@ -37,15 +37,15 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                    owner: Option<&PlayerRef>,
                    spot,
                    entry: &[Operand]| {
-        Operation::Conjure {
-            actor: actor.clone(),
+        crate::movement::conjure_to(
+            actor.clone(),
             card,
             count,
             zone,
-            owner: owner.cloned(),
+            owner.cloned(),
             spot,
-            entry: crate::movement::entry_from_source(entry),
-        }
+            crate::movement::entry_from_source(entry),
+        )
     };
     let simple =
         |card, zone, entry: &[Operand]| conjure(actor, card, one.clone(), zone, None, None, entry);
@@ -65,7 +65,8 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             },
             Z::Battlefield,
             entry,
-        ),
+        )
+        .ok()?,
         ("ARandomCardFromSpellBookIntoExileFaceDown", [Text(book)]) => simple(
             C::Spellbook {
                 book: book.clone(),
@@ -76,16 +77,17 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                 family: "EntryState".into(),
                 form: "FaceDown".into(),
             }],
-        ),
-        ("ARandomCardIntoExile", [cards]) => simple(random(cards), Z::Exile, &[]),
+        )
+        .ok()?,
+        ("ARandomCardIntoExile", [cards]) => simple(random(cards), Z::Exile, &[]).ok()?,
         ("ARandomCardOntoBattlefield", [cards, entry @ ..]) => {
-            simple(random(cards), Z::Battlefield, entry)
+            simple(random(cards), Z::Battlefield, entry).ok()?
         }
         ("CardOrCardIntoHand", [Text(a), Text(b)]) => {
-            simple(C::OneOf(vec![a.clone(), b.clone()]), Z::Hand, &[])
+            simple(C::OneOf(vec![a.clone(), b.clone()]), Z::Hand, &[]).ok()?
         }
         ("CardsOntoTheBattlefield", [List(names), entry @ ..]) => {
-            simple(C::Each(card_names(names)?), Z::Battlefield, entry)
+            simple(C::Each(card_names(names)?), Z::Battlefield, entry).ok()?
         }
         (
             "DuplicateOfARandomCardOfTypeFromAPlayersLibraryIntoHand",
@@ -94,7 +96,8 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             library_of(players.clone(), cards, one.clone()),
             Z::Hand,
             &[],
-        ),
+        )
+        .ok()?,
         (
             "DuplicateOfARandomCardOfTypeFromPlayersLibraryIntoHand",
             [Filter(cards), Player(player)],
@@ -102,13 +105,16 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             library_of(PlayerSet::One(player.clone()), cards, one.clone()),
             Z::Hand,
             &[],
-        ),
-        ("DuplicateOfARandomCardOfTypeIntoHand", [cards]) => simple(random(cards), Z::Hand, &[]),
+        )
+        .ok()?,
+        ("DuplicateOfARandomCardOfTypeIntoHand", [cards]) => {
+            simple(random(cards), Z::Hand, &[]).ok()?
+        }
         ("DuplicateOfARandomCardOfTypeOntoBattlefield", [cards, entry @ ..]) => {
-            simple(random(cards), Z::Battlefield, entry)
+            simple(random(cards), Z::Battlefield, entry).ok()?
         }
         ("DuplicateOfCardInHandIntoHand", [Operand::Vocabulary { .. }]) => {
-            simple(dup(&earlier_object(EarlierObjects::Selected)), Z::Hand, &[])
+            simple(dup(&earlier_object(EarlierObjects::Selected)), Z::Hand, &[]).ok()?
         }
         ("DuplicateOfEachCardSeekedThisWayIntoHand", []) => simple(
             C::Duplicate(ObjectSet::Earlier {
@@ -117,7 +123,8 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             }),
             Z::Hand,
             &[],
-        ),
+        )
+        .ok()?,
         (
             "DuplicateOfPermanentIntoTopNumberCardsOfPlayersLibraryAtRandom",
             [Object(object), Number(top), Player(player)],
@@ -129,15 +136,20 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             Some(player),
             Some(Spot::AmongTop(top.clone())),
             &[],
-        ),
-        ("DuplicateOfThePermanentSacrificedThisWayIntoHand", [Result(result)]) => {
-            simple(C::Duplicate(ObjectSet::Recorded(result.clone())), Z::Hand, &[])
-        }
+        )
+        .ok()?,
+        ("DuplicateOfThePermanentSacrificedThisWayIntoHand", [Result(result)]) => simple(
+            C::Duplicate(ObjectSet::Recorded(result.clone())),
+            Z::Hand,
+            &[],
+        )
+        .ok()?,
         ("DuplicateOfTheTopCardOfPlayersIntoHand", [Player(player)]) => simple(
             C::Duplicate(ObjectSet::LibraryTops(PlayerSet::One(player.clone()))),
             Z::Hand,
             &[],
-        ),
+        )
+        .ok()?,
         (
             "DuplicatesOfNumberRandomCardsOfTypeFromPlayersLibraryIntoHand",
             [Number(count), Filter(cards), Player(player)],
@@ -145,7 +157,8 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             library_of(PlayerSet::One(player.clone()), cards, count.clone()),
             Z::Hand,
             &[],
-        ),
+        )
+        .ok()?,
         ("MultipleCardsIntoLibraryAndShuffle", names) => conjure(
             actor,
             C::Each(card_names(names)?),
@@ -154,7 +167,8 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             None,
             Some(Spot::Shuffled),
             &[],
-        ),
+        )
+        .ok()?,
         ("ThePowerNineIntoLibraryAndShuffle", []) => conjure(
             actor,
             C::Each(POWER_NINE.iter().map(|name| name.to_string()).collect()),
@@ -163,7 +177,8 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             None,
             Some(Spot::Shuffled),
             &[],
-        ),
+        )
+        .ok()?,
         (
             "NumberCardsIntoTheTopNumberCardsOfEachPlayersLibraryAtRandom",
             [Number(count), Text(card), Number(top), Players(players)],
@@ -175,7 +190,8 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             None,
             Some(Spot::AmongTop(top.clone())),
             &[],
-        ),
+        )
+        .ok()?,
         ("NumberDuplicatesOfAnOutsideCardIntoHand", [Number(count), Filter(cards)]) => conjure(
             actor,
             C::Duplicate(ObjectSet::OutsideTheGame(cards.clone())),
@@ -184,9 +200,10 @@ fn reduce_more_conjure(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             None,
             None,
             &[],
-        ),
+        )
+        .ok()?,
         ("NumberDuplicatesOfGraveyardCardIntoExile", [Number(count), Object(card)]) => {
-            conjure(actor, dup(card), count.clone(), Z::Exile, None, None, &[])
+            conjure(actor, dup(card), count.clone(), Z::Exile, None, None, &[]).ok()?
         }
         _ => return None,
     })
@@ -281,7 +298,10 @@ fn reduce_more_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             Operation::Meld {
                 objects: objects.clone(),
                 into: into.clone(),
-                entry: crate::movement::entry_from_source(entry),
+                entry: crate::movement::battlefield_from_parts(
+                    &(crate::movement::entry_from_source(entry)),
+                )
+                .ok()?,
             }
         }
         ("CastCopiedCardWithoutPaying", []) => cast(earlier(EarlierObjects::CopiedSpell), one()),
@@ -2146,7 +2166,16 @@ fn reduce_reflexive(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opti
             body: Box::new(body.clone()),
         })
     };
-    let keyword = |action, object: Option<&ObjectRef>, other:Option<&ObjectRef>, amount| crate::keyword_actions::operation(actor,action,object.cloned(),other.cloned(),amount,None);
+    let keyword = |action, object: Option<&ObjectRef>, other: Option<&ObjectRef>, amount| {
+        crate::keyword_actions::operation(
+            actor,
+            action,
+            object.cloned(),
+            other.cloned(),
+            amount,
+            None,
+        )
+    };
     let you = actor_of(actor);
     match (form, operands) {
         ("Reflexive_CollectEvidenceAnyX_WhenYouDo", [body]) => then(

@@ -2,12 +2,13 @@
 //! A successful deserialize alone does not prove reference or instruction scope.
 
 use crate::ir::*;
+use crate::movement::legacy::{EntrySpec, EntryState};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod arrival;
 mod bounds;
-mod layout;
 mod copying;
+mod layout;
 
 /// The slot in `casting_costs` that holds the enclosing cost branch's cost.
 const BRANCH_COST: u32 = u32::MAX;
@@ -718,8 +719,12 @@ impl<'a> Scope<'a> {
         changes.iter().try_for_each(|c| scope.change(c))
     }
 
-    fn entry(&self, entry: &EntrySpec) -> Result {
-        if let Some(EntryController::Player(player)) = &entry.controller { self.player(player)?; }
+    fn entry(&self, entry: &dyn crate::movement::ArrivalView) -> Result {
+        let entry_view = entry.entry_view();
+        let entry: &EntrySpec = &entry_view;
+        if let Some(EntryController::Player(player)) = &entry.controller {
+            self.player(player)?;
+        }
         for (_, amount) in &entry.counters {
             self.count(&Count::Exactly(amount.clone()))?;
         }
@@ -773,7 +778,8 @@ impl<'a> Scope<'a> {
                 returning.replacement = false;
                 returning.open_searches.clear();
                 returning.join_groups.clear();
-                returning.event = crate::semantics::event_bindings(&crate::semantics::entry_return_event());
+                returning.event =
+                    crate::semantics::event_bindings(&crate::semantics::entry_return_event());
                 returning.objects(objects)?;
                 returning.program(body)
             }
@@ -1152,7 +1158,7 @@ impl<'a> Scope<'a> {
                 by.iter().try_for_each(|p| self.player(p))
             }
             Expr::Dice(DiceMeasure::Matching(_, value)) => self.expr(value),
-            Expr::Dice(_) | Expr::CoinFlipsWon(_) | Expr::Game(_) => Ok(()),
+            Expr::Dice(_) | Expr::Game(_) => Ok(()),
             Expr::Stickers { objects, .. } => self.objects(objects),
             Expr::Noted { object, .. } => object.iter().try_for_each(|o| self.object(o)),
             Expr::Difference(a, b) => {
@@ -1243,12 +1249,23 @@ impl<'a> Scope<'a> {
             Expr::EventActivationX if self.event.activation_x => Ok(()),
             Expr::EventActivationX => Err("event activation X used outside a cycling event".into()),
             Expr::Constant(_) | Expr::AnnouncedX => Ok(()),
-            Expr::HeadsFlipped(result) => {
-                match self.results.get(&result.0) {
-                    Some(ResultKind::Coin | ResultKind::CoinBatch) => Ok(()),
-                    _ => Err(format!("result {} flipped no coins in this scope", result.0)),
-                }
-            }
+            // This implicit current-program tally has no receipt dependency.
+            // Empty and conditionally executed procedures are legal IR; a
+            // backend must track them or report its capability gap.
+            Expr::CountCoinOutcomes {
+                source: CoinCountSource::Latest,
+                ..
+            } => Ok(()),
+            Expr::CountCoinOutcomes {
+                source: CoinCountSource::Receipt(result),
+                ..
+            } => match self.results.get(&result.0) {
+                Some(ResultKind::Coin | ResultKind::CoinBatch) => Ok(()),
+                _ => Err(format!(
+                    "result {} flipped no coins in this scope",
+                    result.0
+                )),
+            },
             Expr::DieResult(result) => {
                 if self.results.contains_key(&result.0) {
                     Ok(())
@@ -1715,7 +1732,10 @@ impl<'a> Scope<'a> {
             }
             Condition::CoinFlip { result, .. } => match self.results.get(&result.0) {
                 Some(ResultKind::Coin) => Ok(()),
-                _ => Err(format!("result {} is not a single coin flip in this scope", result.0)),
+                _ => Err(format!(
+                    "result {} is not a single coin flip in this scope",
+                    result.0
+                )),
             },
             Condition::All(items) | Condition::Either(items) => {
                 for item in items {
@@ -1889,8 +1909,15 @@ impl<'a> Scope<'a> {
                 self.expr(power)?;
                 self.expr(toughness)
             }
-            Change::ColorOfMana { mana, .. } if matches!(self.results.get(&mana.0),Some(ResultKind::Mana)) => Ok(()),
-            Change::ColorOfMana { mana, .. } => Err(format!("result {} does not provide produced mana in this scope", mana.0)),
+            Change::ColorOfMana { mana, .. }
+                if matches!(self.results.get(&mana.0), Some(ResultKind::Mana)) =>
+            {
+                Ok(())
+            }
+            Change::ColorOfMana { mana, .. } => Err(format!(
+                "result {} does not provide produced mana in this scope",
+                mana.0
+            )),
             Change::GrantAbility(ability) => {
                 if has_definition(ability) {
                     return Err(
@@ -2439,17 +2466,13 @@ impl<'a> Scope<'a> {
                 CostPart::Move {
                     selections,
                     destination,
-                    entry,
-                    face_down,
                 } => {
                     self.operation(&Operation::Move {
                         objects: ObjectSet::Union(
                             selections.iter().map(|s| s.objects.clone()).collect(),
                         ),
                         destination: destination.clone(),
-                        entry: entry.clone(),
-                        face_down: *face_down,
-                        terms: crate::ir::MovementTerms::default(),
+                        qualifiers: vec![],
                     })?;
                     for selection in selections {
                         self.cost_object_selection(selection)?;
@@ -2465,7 +2488,9 @@ impl<'a> Scope<'a> {
                         && !matches!(
                             selections.as_slice(),
                             [CostObjectSelection {
-                                objects: ObjectSet::One(ObjectRef::Source | ObjectRef::AbilityHolder),
+                                objects: ObjectSet::One(
+                                    ObjectRef::Source | ObjectRef::AbilityHolder
+                                ),
                                 choose: None
                             }]
                         )
@@ -2644,7 +2669,7 @@ impl<'a> Scope<'a> {
         if let Destination::OwnersLibraryFromTop(depth) = destination {
             self.expr(depth)?;
         }
-        if let Destination::Battlefield(player) = destination {
+        if let Destination::Battlefield(player) | Destination::Hand(player) = destination {
             self.player(player)?;
         }
         Ok(())
@@ -2653,7 +2678,9 @@ impl<'a> Scope<'a> {
         if name == "Condition::AllCoinsCameUpHeads" {
             return Err("all-coin heads check requires explicit participants".into());
         }
-        if crate::semantics::requires_typed_keyword(name) {return Err(format!("{name} requires a typed keyword action"));}
+        if crate::semantics::requires_typed_keyword(name) {
+            return Err(format!("{name} requires a typed keyword action"));
+        }
         if crate::copying::requires_typed_payload(name) {
             return Err(format!("{name} requires typed copy exceptions"));
         }
@@ -2891,7 +2918,16 @@ impl<'a> Scope<'a> {
                 self.expr(to)?;
                 self.operation(action)
             }
-            Operation::CounterWith { object, when, destination, entry } => {
+            Operation::CounterWith {
+                object,
+                when,
+                destination,
+            } => {
+                let view = crate::movement::entry_destination_view(destination);
+                let (destination, entry) = (&view.destination, &view.entry);
+                if let MovementPlacement::By(players) = &view.terms.placement {
+                    self.players(players)?;
+                }
                 self.object(object)?;
                 when.iter().try_for_each(|f| self.filter(f))?;
                 self.destination(destination)?;
@@ -3007,15 +3043,21 @@ impl<'a> Scope<'a> {
             } => {
                 self.players(actor)?;
                 self.objects(objects)?;
-                crate::keyword_actions::each_parts(action).1.map_or(Ok(()),|until|self.duration(until))
+                crate::keyword_actions::each_parts(action)
+                    .1
+                    .map_or(Ok(()), |until| self.duration(until))
             }
             Operation::MoveTopCard {
                 actor,
                 cards,
                 destination,
-                entry,
                 ..
             } => {
+                let view = crate::movement::entry_destination_view(destination);
+                let (destination, entry) = (&view.destination, &view.entry);
+                if let MovementPlacement::By(players) = &view.terms.placement {
+                    self.players(players)?;
+                }
                 self.players(actor)?;
                 self.filter(cards)?;
                 self.destination(destination)?;
@@ -3082,7 +3124,11 @@ impl<'a> Scope<'a> {
                 self.operand(second)?;
                 until.iter().try_for_each(|until| self.duration(until))
             }
-            Operation::ChooseValue { choosers: actor, terms, .. } => {
+            Operation::ChooseValue {
+                choosers: actor,
+                terms,
+                ..
+            } => {
                 self.players(actor)?;
                 terms.options.iter().try_for_each(|o| self.operand(o))?;
                 terms.except.iter().try_for_each(|o| self.operand(o))?;
@@ -3092,12 +3138,21 @@ impl<'a> Scope<'a> {
                 }
             }
             Operation::RevealChoices { .. } => Ok(()),
-            Operation::CoinFlips {
-                actor, times, each, ..
+            Operation::FlipCoinSeries {
+                players,
+                repetition,
+                ..
             } => {
-                self.players(actor)?;
-                times.iter().try_for_each(|n| self.expr(n))?;
-                each.iter().try_for_each(|o| self.objects(o))
+                self.players(players)?;
+                match repetition {
+                    CoinRepetition::Count(n) => self.count(&Count::Exactly(n.clone())),
+                    CoinRepetition::EachObject(objects) => self.objects(objects),
+                    CoinRepetition::UpTo { extent, .. } => match extent {
+                        CoinExtent::Count(n) => self.count(&Count::Exactly(n.clone())),
+                        CoinExtent::Objects(objects) => self.objects(objects),
+                    },
+                    CoinRepetition::Until(_) => Ok(()),
+                }
             }
             Operation::AttachEach {
                 actor,
@@ -3207,7 +3262,9 @@ impl<'a> Scope<'a> {
                 match from {
                     CounterSource::On(recipients) => self.recipients(recipients)?,
                     CounterSource::EventPut if self.event.counters_placed => (),
-                    CounterSource::EventPut => return Err("counter source requires a counter-placement event".into()),
+                    CounterSource::EventPut => {
+                        return Err("counter source requires a counter-placement event".into())
+                    }
                 }
                 self.recipients(to)
             }
@@ -3270,9 +3327,9 @@ impl<'a> Scope<'a> {
                 self.filter(cards)?;
                 self.player(owner)
             }
-            Operation::FlipCoins { actor, count } => {
-                self.players(actor)?;
-                self.expr(count)
+            Operation::FlipCoins { players, count, .. } => {
+                self.players(players)?;
+                self.count(&Count::Exactly(count.clone()))
             }
             Operation::Wish { actor, filter, .. } => {
                 self.players(actor)?;
@@ -3286,7 +3343,12 @@ impl<'a> Scope<'a> {
                 self.players(actor)?;
                 self.operand(flags)
             }
-            Operation::Manifest { actor, source, entry, .. } => {
+            Operation::Manifest {
+                actor,
+                source,
+                entry,
+                ..
+            } => {
                 self.players(actor)?;
                 self.entry(entry)?;
                 arrival::battlefield(entry)?;
@@ -3370,10 +3432,10 @@ impl<'a> Scope<'a> {
                 card,
                 count,
                 owner,
-                spot,
-                entry,
-                zone,
+                destination,
             } => {
+                let (zone, spot, entry) = crate::movement::conjure_view(destination);
+                let (zone, spot, entry) = (&zone, &spot, &entry);
                 self.players(actor)?;
                 self.expr(count)?;
                 if let ConjuredCard::Duplicate(objects) = card {
@@ -3445,11 +3507,15 @@ impl<'a> Scope<'a> {
                 self.players(actor)?;
                 options.iter().try_for_each(|o| self.operand(o))
             }
-            Operation::Keyword {actor,action} => {
+            Operation::Keyword { actor, action } => {
                 self.players(actor)?;
-                let parts=crate::keyword_actions::parts(action);
-                parts.object.into_iter().chain(parts.other).try_for_each(|o|self.object(o))?;
-                parts.amount.map_or(Ok(()),|n|self.expr(n))
+                let parts = crate::keyword_actions::parts(action);
+                parts
+                    .object
+                    .into_iter()
+                    .chain(parts.other)
+                    .try_for_each(|o| self.object(o))?;
+                parts.amount.map_or(Ok(()), |n| self.expr(n))
             }
             Operation::CreateDelayedTrigger {
                 event,
@@ -3493,7 +3559,7 @@ impl<'a> Scope<'a> {
                 self.player(player)?;
                 self.objects(objects)
             }
-            Operation::FlipCoin { player } => self.player(player),
+            Operation::FlipCoin { player, .. } => self.player(player),
             Operation::CreateRegenerationShields { objects } => {
                 self.require_zone(objects, EventZone::Battlefield)
             }
@@ -3596,15 +3662,19 @@ impl<'a> Scope<'a> {
             Operation::Move {
                 objects,
                 destination,
-                entry,
-                face_down,
-                terms,
+                qualifiers,
             } => {
+                let crate::movement::DestinationView {
+                    destination,
+                    entry,
+                    face_down,
+                    terms,
+                } = crate::movement::destination_view(destination, qualifiers);
                 if entry.controller.is_some() {
                     return Err("a move's controller belongs to its destination".into());
                 }
                 self.objects(objects)?;
-                self.destination(destination)?;
+                self.destination(&destination)?;
                 self.selection_constraints(&terms.qualifiers)?;
                 if let MovementPlacement::By(players) = &terms.placement {
                     self.players(players)?;
@@ -3614,11 +3684,11 @@ impl<'a> Scope<'a> {
                         );
                     }
                 }
-                if *face_down && !matches!(destination, Destination::Exile) {
+                if face_down && !matches!(destination, Destination::Exile) {
                     return Err("face-down movement currently requires exile".into());
                 }
-                self.entry(entry)?;
-                arrival::movement(entry, destination)
+                self.entry(&entry)?;
+                arrival::destination(&entry, &destination)
             }
             Operation::ModifyEvent { change } => {
                 if !self.replacement {
@@ -3660,9 +3730,9 @@ impl<'a> Scope<'a> {
                         self.expr(amount)?;
                         self.recipients(recipients)
                     }
-                    EventChange::Entry(state) => self.entry(&EntrySpec {
+                    EventChange::Entry(state) => self.entry(&BattlefieldArrival {
                         states: vec![state.clone()],
-                        ..EntrySpec::default()
+                        ..BattlefieldArrival::default()
                     }),
                     EventChange::AddMana(mana)
                     | EventChange::ReplaceMana(mana)
@@ -3787,10 +3857,7 @@ impl<'a> Scope<'a> {
                     self.count(&Count::Exactly(token.amount.clone()))?;
                     let definition = match &token.recipe {
                         TokenRecipe::Defined(definition) => definition,
-                        TokenRecipe::Copy {
-                            object,
-                            exceptions,
-                        } => {
+                        TokenRecipe::Copy { object, exceptions } => {
                             self.object(object)?;
                             self.copy_exceptions(exceptions)?;
                             continue;
@@ -4030,10 +4097,12 @@ impl<'a> Scope<'a> {
                     self.filter(filter)?;
                 }
             }
-            if let SelectionConstraint::CanMoveTo {
-                destination, entry, ..
-            } = constraint
-            {
+            if let SelectionConstraint::CanMoveTo { destination } = constraint {
+                let view = crate::movement::entry_destination_view(destination);
+                let (destination, entry) = (&view.destination, &view.entry);
+                if let MovementPlacement::By(players) = &view.terms.placement {
+                    self.players(players)?;
+                }
                 self.destination(destination)?;
                 self.entry(entry)?;
                 arrival::destination(entry, destination)?;
@@ -4206,13 +4275,13 @@ impl<'a> Scope<'a> {
                             ResultKind::CreatedObjects
                         } else if crate::semantics::makes_card(operation) {
                             ResultKind::ObjectTransition
-                        } else if matches!(operation,Operation::AddMana{..}) {
+                        } else if matches!(operation, Operation::AddMana { .. }) {
                             ResultKind::Mana
                         } else if matches!(
                             operation,
                             Operation::FlipCoin { .. }
                                 | Operation::FlipCoins { .. }
-                                | Operation::CoinFlips { .. }
+                                | Operation::FlipCoinSeries { .. }
                         ) {
                             // Iteration gathers coins into a collection; it cannot
                             // expose one arbitrarily chosen scalar flip.
@@ -4273,7 +4342,7 @@ impl<'a> Scope<'a> {
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
                             Operation::AddMana { .. } => ResultKind::Mana,
                             Operation::FlipCoin { .. } => ResultKind::Coin,
-                            Operation::FlipCoins { .. } | Operation::CoinFlips { .. } => {
+                            Operation::FlipCoins { .. } | Operation::FlipCoinSeries { .. } => {
                                 ResultKind::CoinBatch
                             }
                             Operation::ChooseObjects { .. }
@@ -4350,7 +4419,10 @@ impl<'a> Scope<'a> {
                             self.result_zones.insert(result.0, zones);
                         }
                         match operation {
-                            Operation::Search { library_owner: library, .. } => {
+                            Operation::Search {
+                                library_owner: library,
+                                ..
+                            } => {
                                 self.open_searches.push(library.clone());
                                 self.search_libraries.insert(result.0, library.clone());
                             }
@@ -4501,9 +4573,21 @@ impl<'a> Scope<'a> {
         proposal.payment_costs.clear();
         for target in &announcement.targets {
             match target.selector()? {
-                crate::targets::TargetSelector::Objects { domain, filter } => { proposal.domain(&domain)?; proposal.filter(&filter)?; }
-                crate::targets::TargetSelector::Players { filter } => { if let Some(players)=filter { proposal.players(&players)?; } }
-                crate::targets::TargetSelector::Damageable { objects, players } => { proposal.filter(&objects)?; if let Some(players)=players { proposal.players(&players)?; } }
+                crate::targets::TargetSelector::Objects { domain, filter } => {
+                    proposal.domain(&domain)?;
+                    proposal.filter(&filter)?;
+                }
+                crate::targets::TargetSelector::Players { filter } => {
+                    if let Some(players) = filter {
+                        proposal.players(&players)?;
+                    }
+                }
+                crate::targets::TargetSelector::Damageable { objects, players } => {
+                    proposal.filter(&objects)?;
+                    if let Some(players) = players {
+                        proposal.players(&players)?;
+                    }
+                }
             }
             proposal.count(&target.count)?;
             proposal.selection_constraints(&target.constraints)?;
@@ -4528,8 +4612,10 @@ impl<'a> Scope<'a> {
             proposal.slots.insert(target.slot.0, target);
         }
         if let Some(selection) = &announcement.modes {
-            let selection=crate::mode_policies::parts(selection);
-            if let Some(ModeHistory::LastCombat(player))=selection.unchosen {proposal.player(player)?;}
+            let selection = crate::mode_policies::parts(selection);
+            if let Some(ModeHistory::LastCombat(player)) = selection.unchosen {
+                proposal.player(player)?;
+            }
             proposal.expr(&selection.minimum)?;
             proposal.expr(&selection.maximum)?;
             if let Some(cost) = &selection.surcharge {
@@ -4670,10 +4756,8 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
         operation:
             Operation::Move {
                 objects: ObjectSet::Selected(moved),
-                destination: Destination::OwnersHand,
-                entry,
-                face_down: false,
-                terms,
+                destination: destination @ MovementDestination::OwnersHand(_),
+                qualifiers,
             },
         ..
     }, Instruction::Effect {
@@ -4693,10 +4777,8 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
         && serde_json::to_value(&choices[0].filter).ok() == serde_json::to_value(filter).ok()
         && reveal.0 == result.0
         && moved.0 == result.0
-        && terms.is_default()
-        && !entry.tapped
-        && entry.counters.is_empty()
-        && entry.states.is_empty()
+        && destination.is_plain()
+        && qualifiers.is_empty()
 }
 fn has_definition(ability: &Ability) -> bool {
     match ability {

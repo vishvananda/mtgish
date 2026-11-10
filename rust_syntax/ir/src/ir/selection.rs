@@ -36,7 +36,10 @@ pub struct ModeRules {
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ModeMechanism {
-    Announced { chooser: ModeChooser, method: ModePicking },
+    Announced {
+        chooser: ModeChooser,
+        method: ModePicking,
+    },
     /// Targets or a mode's requirement determine which mode applies (601.2c).
     Implied,
 }
@@ -48,19 +51,34 @@ pub enum ModeChooser {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub enum ModePicking { PlayerChoice, Random }
+pub enum ModePicking {
+    PlayerChoice,
+    Random,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub enum ModeRepetition { OnceEach, MayRepeat }
+pub enum ModeRepetition {
+    OnceEach,
+    MayRepeat,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub enum ModeAvailability { Any, Unchosen(ModeHistory) }
+pub enum ModeAvailability {
+    Any,
+    Unchosen(ModeHistory),
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub enum ModeTargetPolicy { MayShare, Distinct }
+pub enum ModeTargetPolicy {
+    MayShare,
+    Distinct,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub enum ModeAcceptance { Required, MayDecline }
+pub enum ModeAcceptance {
+    Required,
+    MayDecline,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ModeHistory {
@@ -261,9 +279,7 @@ pub enum SelectionConstraint {
     /// on that action (608.2d), e.g. Grafdigger's Cage. Replacing an otherwise
     /// possible movement remains allowed; the replacement still applies later.
     CanMoveTo {
-        destination: Destination,
-        entry: EntrySpec,
-        face_down: bool,
+        destination: MovementDestination,
     },
     /// Nonempty selections have a property value common to every object.
     /// For an empty selection the count policy controls whether zero is legal;

@@ -17,29 +17,10 @@ pub enum CardOrder {
     Random,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub struct EntrySpec {
-    /// Overrides the action's ordinary entering controller. This is separate
-    /// from the owner of a created card and from the player making a choice.
-    #[serde(default)]
-    pub controller: Option<EntryController>,
-    pub tapped: bool,
-    pub counters: Vec<(crate::counter::CounterKind, Expr)>,
-    pub states: Vec<EntryState>,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum EntryController {
     Owner,
     Player(PlayerRef),
-}
-
-impl EntrySpec {
-    /// The common arrival supported by a plain tapped/untapped engine call.
-    pub fn simple_tapped(&self) -> Option<bool> {
-        (self.controller.is_none() && self.counters.is_empty() && self.states.is_empty())
-            .then_some(self.tapped)
-    }
 }
 
 /// Placement terms are independent of selecting the objects that will move.
@@ -76,96 +57,6 @@ pub enum MovementPlacement {
     By(PlayerSet),
 }
 
-/// What an object is as it enters, beyond tapped and counters.
-#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub enum EntryState {
-    Transformed,
-    /// Enters prepared, as `KeywordAction::Prepare` does to a permanent.
-    Prepared,
-    /// Enters as a copy of one of these, with copy-time exceptions. Additional
-    /// arrival instructions remain separate `EntryState` values (707.9e).
-    CopyOf {
-        objects: ObjectSet,
-        exceptions: Vec<CopyException>,
-        until: Option<Duration>,
-    },
-    /// Attacking but never declared (508.4). The entering side chooses the defender
-    /// unless one is given.
-    Attacking {
-        player: Option<PlayerRef>,
-        or_planeswalker: bool,
-    },
-    Blocking(ObjectRef),
-    AttachedTo(ObjectRef),
-    AttachedToChosen(ObjectFilter),
-    AttachedToPlayer(PlayerRef),
-    Changes(Vec<Change>),
-    ChangesUntil {
-        changes: Vec<Change>,
-        duration: Duration,
-    },
-    /// Applies only to an object matching the filter as it enters.
-    When {
-        filter: ObjectFilter,
-        entry: Box<EntrySpec>,
-    },
-    FaceDown,
-    Flipped,
-    /// One exile pile with whatever else this action exiles; shuffled, nobody
-    /// can tell which card came from where.
-    ExilePile {
-        shuffled: bool,
-    },
-    /// One set of changes, chosen as it enters.
-    ChooseChanges(Vec<Vec<Change>>),
-    /// Unresolved source material for diagnostics. Never valid semantic IR.
-    Draft {
-        name: String,
-        operands: Vec<Operand>,
-    },
-    /// A counter, or this many, of the entering side's choice.
-    CountersOfChoice {
-        kinds: Vec<crate::counter::CounterKind>,
-        amount: Expr,
-        distinct: bool,
-    },
-    /// The counters this object has, or one of each kind.
-    CountersOf {
-        object: ObjectRef,
-        one_of_each: bool,
-    },
-    FaceDownAs(FaceDownAs),
-    FaceDownWith {
-        face_down: FaceDownAs,
-        abilities: Vec<Ability>,
-        /// The card whose name is noted as this enters.
-        noted: Option<ObjectRef>,
-    },
-    FaceDownLand(crate::mtg_types::LandType),
-    NotAnAura,
-    /// The counters noted when the object was exiled.
-    NotedCounters,
-    Perpetual(Vec<Change>),
-    /// Apply these arrival changes if the stated player chooses. The creating
-    /// ability's controller is distinct from an entering-controller override.
-    Optional {
-        decider: PlayerRef,
-        entry: Box<EntrySpec>,
-    },
-    /// Stays exiled only for this long.
-    ExiledFor(Duration),
-    ExiledForWith {
-        until: Duration,
-        /// Tested as each permanent returns, under that permanent's own
-        /// battlefield-entry event rather than the creating ability's event.
-        objects: ObjectSet,
-        /// A program capturing the creator's bindings. EventSubject is the
-        /// returning permanent; the creator's damage/other-event roles are
-        /// unavailable. Local results remain private to this return trigger.
-        body: Program,
-    },
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum Destination {
     OwnersHand,
@@ -194,4 +85,379 @@ pub enum Destination {
 pub enum SequenceEnd {
     Top,
     Bottom,
+}
+
+/// A movement address and the state meaningful at that destination. Library
+/// ordering and choice describe placement; selection qualifiers stay on the
+/// action so they cannot introduce an unstated choice of which objects move.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub enum MovementDestination {
+    Battlefield {
+        controller: EntryController,
+        arrival: BattlefieldArrival,
+    },
+    Exile {
+        visibility: ExileVisibility,
+        arrival: ExileArrival,
+    },
+    Library {
+        position: LibraryPosition,
+        order: MovementOrder,
+        arrival: CardArrival,
+    },
+    OwnersHand(CardArrival),
+    Hand {
+        player: PlayerRef,
+        arrival: CardArrival,
+    },
+    OwnersGraveyard(CardArrival),
+    CommandZone(CardArrival),
+    Ante(CardArrival),
+    OwnersPlanarDeck {
+        end: SequenceEnd,
+        arrival: CardArrival,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub enum LibraryPosition {
+    Top,
+    Bottom,
+    Shuffled,
+    FromTop(Expr),
+    BottomRandom,
+    TopOrBottom { chooser: LibraryChooser },
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub enum LibraryChooser {
+    #[default]
+    Owners,
+    Players(PlayerSet),
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub enum ExileVisibility {
+    #[default]
+    FaceUp,
+    FaceDown,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub struct BattlefieldArrival {
+    pub controller: Option<EntryController>,
+    pub tapped: bool,
+    pub counters: Vec<(crate::counter::CounterKind, Expr)>,
+    pub states: Vec<BattlefieldState>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub struct ExileArrival {
+    pub counters: Vec<(crate::counter::CounterKind, Expr)>,
+    pub states: Vec<ExileState>,
+}
+
+/// Changes to a card outside the battlefield or exile. Permanent entry state,
+/// controller, tapped status and exile duration have no fields in this type.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub struct CardArrival {
+    pub counters: Vec<(crate::counter::CounterKind, Expr)>,
+    pub states: Vec<CardArrivalState>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub enum BattlefieldState {
+    Transformed,
+
+    Prepared,
+
+    CopyOf {
+        objects: ObjectSet,
+        exceptions: Vec<CopyException>,
+        until: Option<Duration>,
+    },
+
+    Attacking {
+        player: Option<PlayerRef>,
+        or_planeswalker: bool,
+    },
+    Blocking(ObjectRef),
+    AttachedTo(ObjectRef),
+    AttachedToChosen(ObjectFilter),
+    AttachedToPlayer(PlayerRef),
+    Changes(Vec<Change>),
+    ChangesUntil {
+        changes: Vec<Change>,
+        duration: Duration,
+    },
+
+    When {
+        filter: ObjectFilter,
+        entry: Box<BattlefieldArrival>,
+    },
+    FaceDown,
+    Flipped,
+
+    ChooseChanges(Vec<Vec<Change>>),
+
+    CountersOfChoice {
+        kinds: Vec<crate::counter::CounterKind>,
+        amount: Expr,
+        distinct: bool,
+    },
+
+    CountersOf {
+        object: ObjectRef,
+        one_of_each: bool,
+    },
+    FaceDownAs(FaceDownAs),
+    FaceDownWith {
+        face_down: FaceDownAs,
+        abilities: Vec<Ability>,
+
+        noted: Option<ObjectRef>,
+    },
+    FaceDownLand(crate::mtg_types::LandType),
+    NotAnAura,
+
+    NotedCounters,
+    Perpetual(Vec<Change>),
+
+    Optional {
+        decider: PlayerRef,
+        entry: Box<BattlefieldArrival>,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub enum ExileState {
+    /// A conditional arrival may hide the cards it applies to. Ordinary move
+    /// visibility is carried by MovementDestination::Exile.
+    FaceDown,
+    Changes(Vec<Change>),
+    ChangesUntil {
+        changes: Vec<Change>,
+        duration: Duration,
+    },
+
+    When {
+        filter: ObjectFilter,
+        entry: Box<ExileArrival>,
+    },
+
+    ExilePile {
+        shuffled: bool,
+    },
+    Perpetual(Vec<Change>),
+
+    Optional {
+        decider: PlayerRef,
+        entry: Box<ExileArrival>,
+    },
+
+    ExiledFor(Duration),
+    ExiledForWith {
+        until: Duration,
+
+        objects: ObjectSet,
+
+        body: Program,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub enum CardArrivalState {
+    Changes(Vec<Change>),
+    ChangesUntil {
+        changes: Vec<Change>,
+        duration: Duration,
+    },
+
+    When {
+        filter: ObjectFilter,
+        entry: Box<CardArrival>,
+    },
+    Perpetual(Vec<Change>),
+
+    Optional {
+        decider: PlayerRef,
+        entry: Box<CardArrival>,
+    },
+}
+
+/// Conjuring creates a card owned by the action's owner (or acting player).
+/// That ownership remains separate from a battlefield controller override.
+/// Library placement belongs only to the library variant.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub enum ConjureDestination {
+    Battlefield(BattlefieldArrival),
+    Exile {
+        visibility: ExileVisibility,
+        arrival: ExileArrival,
+    },
+    Library {
+        position: ConjurePosition,
+        arrival: CardArrival,
+    },
+    Hand(CardArrival),
+    Graveyard(CardArrival),
+    Stack(CardArrival),
+    Command(CardArrival),
+    Ante(CardArrival),
+    Outside(CardArrival),
+    PlanarDeck(CardArrival),
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(deny_unknown_fields)]
+pub enum ConjurePosition {
+    #[default]
+    Random,
+    Shuffled,
+    Top,
+    AmongTop(Expr),
+    FromTop(Expr),
+}
+
+impl MovementDestination {
+    /// The addressed zone/player/position, without projecting any arrival state.
+    pub fn address(&self) -> Destination {
+        match self {
+            Self::Battlefield { controller, .. } => match controller {
+                EntryController::Owner => Destination::OwnersBattlefield,
+                EntryController::Player(player) => Destination::Battlefield(player.clone()),
+            },
+            Self::Exile { .. } => Destination::Exile,
+            Self::Library { position, .. } => match position {
+                LibraryPosition::Top => Destination::OwnersLibraryTop,
+                LibraryPosition::Bottom => Destination::OwnersLibraryBottom,
+                LibraryPosition::Shuffled => Destination::OwnersLibraryShuffled,
+                LibraryPosition::FromTop(n) => Destination::OwnersLibraryFromTop(n.clone()),
+                LibraryPosition::BottomRandom => Destination::OwnersLibraryBottomRandom,
+                LibraryPosition::TopOrBottom { .. } => Destination::OwnersLibraryTopOrBottom,
+            },
+            Self::OwnersHand(_) => Destination::OwnersHand,
+            Self::Hand { player, .. } => Destination::Hand(player.clone()),
+            Self::OwnersGraveyard(_) => Destination::OwnersGraveyard,
+            Self::CommandZone(_) => Destination::CommandZone,
+            Self::Ante(_) => Destination::Ante,
+            Self::OwnersPlanarDeck { end, .. } => Destination::OwnersPlanarDeck(end.clone()),
+        }
+    }
+    pub fn hidden(&self) -> bool {
+        matches!(
+            self,
+            Self::Exile {
+                visibility: ExileVisibility::FaceDown,
+                ..
+            }
+        )
+    }
+    /// Whether the address alone expresses this movement's entire arrival.
+    pub fn is_plain(&self) -> bool {
+        fn card(entry: &CardArrival) -> bool {
+            entry.counters.is_empty() && entry.states.is_empty()
+        }
+        match self {
+            Self::Battlefield { arrival, .. } => {
+                arrival.controller.is_none()
+                    && !arrival.tapped
+                    && arrival.counters.is_empty()
+                    && arrival.states.is_empty()
+            }
+            Self::Exile {
+                visibility,
+                arrival,
+            } => {
+                matches!(visibility, ExileVisibility::FaceUp)
+                    && arrival.counters.is_empty()
+                    && arrival.states.is_empty()
+            }
+            Self::Library {
+                position,
+                order,
+                arrival,
+            } => {
+                card(arrival)
+                    && matches!(order, MovementOrder::DestinationDefault)
+                    && !matches!(
+                        position,
+                        LibraryPosition::TopOrBottom {
+                            chooser: LibraryChooser::Players(_)
+                        }
+                    )
+            }
+            Self::Hand { arrival, .. }
+            | Self::OwnersPlanarDeck { arrival, .. }
+            | Self::OwnersHand(arrival)
+            | Self::OwnersGraveyard(arrival)
+            | Self::CommandZone(arrival)
+            | Self::Ante(arrival) => card(arrival),
+        }
+    }
+}
+
+impl BattlefieldArrival {
+    pub fn simple_tapped(&self) -> Option<bool> {
+        (self.controller.is_none() && self.counters.is_empty() && self.states.is_empty())
+            .then_some(self.tapped)
+    }
+}
+
+impl From<Destination> for MovementDestination {
+    fn from(address: Destination) -> Self {
+        let card = CardArrival::default();
+        match address {
+            Destination::Battlefield(player) => Self::Battlefield {
+                controller: EntryController::Player(player),
+                arrival: BattlefieldArrival::default(),
+            },
+            Destination::OwnersBattlefield => Self::Battlefield {
+                controller: EntryController::Owner,
+                arrival: BattlefieldArrival::default(),
+            },
+            Destination::Exile => Self::Exile {
+                visibility: ExileVisibility::FaceUp,
+                arrival: ExileArrival::default(),
+            },
+            Destination::OwnersHand => Self::OwnersHand(card),
+            Destination::OwnersGraveyard => Self::OwnersGraveyard(card),
+            Destination::Hand(player) => Self::Hand {
+                player,
+                arrival: card,
+            },
+            Destination::CommandZone => Self::CommandZone(card),
+            Destination::Ante => Self::Ante(card),
+            Destination::OwnersPlanarDeck(end) => Self::OwnersPlanarDeck { end, arrival: card },
+            address => {
+                let position = match address {
+                    Destination::OwnersLibraryTop => LibraryPosition::Top,
+                    Destination::OwnersLibraryBottom => LibraryPosition::Bottom,
+                    Destination::OwnersLibraryShuffled => LibraryPosition::Shuffled,
+                    Destination::OwnersLibraryFromTop(n) => LibraryPosition::FromTop(n),
+                    Destination::OwnersLibraryBottomRandom => LibraryPosition::BottomRandom,
+                    Destination::OwnersLibraryTopOrBottom => LibraryPosition::TopOrBottom {
+                        chooser: LibraryChooser::Owners,
+                    },
+                    _ => unreachable!(),
+                };
+                Self::Library {
+                    position,
+                    order: MovementOrder::DestinationDefault,
+                    arrival: card,
+                }
+            }
+        }
+    }
 }

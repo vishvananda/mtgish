@@ -247,7 +247,9 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
                 )
             };
             let word = format!("{}{}", part(power), part(toughness));
-            if planned::switched_on("pt-counters") && crate::cantrip_vocab::COUNTERS.contains(&word.as_str()) {
+            if planned::switched_on("pt-counters")
+                && crate::cantrip_vocab::COUNTERS.contains(&word.as_str())
+            {
                 return Ok(format!("CounterKind::{word}"));
             }
             return Ok(planned::planned_value(
@@ -284,7 +286,8 @@ mod counter_tests {
     #[test]
     fn a_native_counter_family_does_not_implicitly_add_an_unknown_counter_kind() {
         planned::with_features(&["pt-counters"], || {
-            let unknown = counter_kind(&crate::counter::CounterKind::PowerToughness(42, 3)).unwrap();
+            let unknown =
+                counter_kind(&crate::counter::CounterKind::PowerToughness(42, 3)).unwrap();
             assert!(unknown.contains("planned_value!"), "{unknown}");
             let plus = counter_kind(&crate::counter::CounterKind::PowerToughness(1, 1)).unwrap();
             assert_eq!(plus, "CounterKind::PlusOne");
@@ -398,8 +401,7 @@ impl Compiler {
     }
     pub(super) fn carried_player(&self, carried: Option<Carried>) -> Result<String> {
         let carried = carried.ok_or_else(|| gap("event player this trigger does not bind"))?;
-        if self.event_at == EventAt::TargetFilter
-            && self.frame.subject_controller == Some(carried)
+        if self.event_at == EventAt::TargetFilter && self.frame.subject_controller == Some(carried)
         {
             return Ok("q.event_subject().object().map(|o: ObjectId| q.controller(o))".into());
         }
@@ -526,9 +528,10 @@ impl Compiler {
                 if matches!(**host, ObjectRef::Source)
                     && self.event_at == EventAt::Item
                     && self.frame.subject_is_attachment
-                    && self.line_text().is_some_and(|line|
+                    && self.line_text().is_some_and(|line| {
                         line.contains("destroy it") && line.contains("That land's controller")
-                            || line.contains("untap the creature")) =>
+                            || line.contains("untap the creature")
+                    }) =>
             {
                 self.carried_object(self.frame.object)?
             }
@@ -553,14 +556,14 @@ impl Compiler {
                     reads.push((i, *index, "object"));
                 }
                 format!("t_{i}_raw.get({index}).copied().and_then(|t: Target| t.object())")
-            },
+            }
             ObjectRef::RecipientObject { slot, index } => {
                 let i = self.slot(slot)?;
                 if let Some(reads) = self.captured_rule_targets.borrow_mut().as_mut() {
                     reads.push((i, *index, "object"));
                 }
                 format!("t_{i}_raw.get({index}).copied().and_then(|t: Target| t.object())")
-            },
+            }
             ObjectRef::EventSubject => self.carried_object(self.frame.object)?,
             ObjectRef::EventDestination if self.reads_replaced_move() => {
                 let (subject, _) = self.carried(Carried::Subject)?;
@@ -633,17 +636,22 @@ impl Compiler {
             PlayerRef::AbilityController => "Some(asker.controller)".into(),
             PlayerRef::Active => "Some(q.state().turn.active)".into(),
             PlayerRef::ControllerOf(object)
-                if self.event_at == EventAt::Item && self.frame.subject_is_attachment
+                if self.event_at == EventAt::Item
+                    && self.frame.subject_is_attachment
                     && self.frame.subject_controller.is_some()
-                    && self.line_text().is_some_and(|line| line.contains("that player"))
+                    && self
+                        .line_text()
+                        .is_some_and(|line| line.contains("that player"))
                     && matches!(&**object, ObjectRef::AttachedTo(host) if matches!(**host, ObjectRef::Source)) =>
             {
                 self.carried_player(self.frame.subject_controller)?
             }
             PlayerRef::ControllerOf(object)
-                if self.pending == Pending::Entering && self.history.is_none()
+                if self.pending == Pending::Entering
+                    && self.history.is_none()
                     && (matches!(**object, ObjectRef::Source)
-                        || self.event_at == EventAt::Entering && matches!(**object, ObjectRef::EventSubject)) =>
+                        || self.event_at == EventAt::Entering
+                            && matches!(**object, ObjectRef::EventSubject)) =>
             {
                 "Some(entering.controller)".into()
             }
@@ -653,8 +661,7 @@ impl Compiler {
             {
                 self.carried_player(self.frame.stack_controller)?
             }
-            PlayerRef::ControllerOf(object)
-                if matches!(&**object, ObjectRef::Target { slot, .. } if self.stack_slot(slot)) =>
+            PlayerRef::ControllerOf(object) if matches!(&**object, ObjectRef::Target { slot, .. } if self.stack_slot(slot)) =>
             {
                 let ObjectRef::Target { slot, index } = &**object else {
                     unreachable!("just matched");
@@ -764,8 +771,9 @@ impl Compiler {
             return self.objects(objects);
         };
         let pool = match &**objects {
-            ObjectSet::One(ObjectRef::Source) if self.notes.exiled_source.is_some() =>
-                self.notes.exiled_source.clone().unwrap_or_default(),
+            ObjectSet::One(ObjectRef::Source) if self.notes.exiled_source.is_some() => {
+                self.notes.exiled_source.clone().unwrap_or_default()
+            }
             _ => self.moving_objects(objects)?,
         };
         Ok(format!(
@@ -970,23 +978,49 @@ impl Compiler {
         let single_sacrifice = |cost: &Cost| {
             let [index] = component else { return false };
             matches!(cost.parts.get(*index as usize), Some(CostPart::Sacrifice { choose: Some(Count::Exactly(Expr::Constant(n))), .. }) if *n > 0)
-                && cost.parts.iter().filter(|part| matches!(part, CostPart::Sacrifice { .. })).count() == 1
-                && cost.parts.iter().all(|part| matches!(part, CostPart::Sacrifice { .. } | CostPart::TapSymbol | CostPart::Mana(_) | CostPart::Life(_)))
+                && cost
+                    .parts
+                    .iter()
+                    .filter(|part| matches!(part, CostPart::Sacrifice { .. }))
+                    .count()
+                    == 1
+                && cost.parts.iter().all(|part| {
+                    matches!(
+                        part,
+                        CostPart::Sacrifice { .. }
+                            | CostPart::TapSymbol
+                            | CostPart::Mana(_)
+                            | CostPart::Life(_)
+                    )
+                })
         };
-        let receipt = |code: &str| planned::planned_value("cost-object-receipts", "Vec::<ObjectId>::new()", code);
-        if matches!(payment, PaymentRef::Activation) && self.reader == Reader::Resolution && !self.stack_item
+        let receipt = |code: &str| {
+            planned::planned_value("cost-object-receipts", "Vec::<ObjectId>::new()", code)
+        };
+        if matches!(payment, PaymentRef::Activation)
+            && self.reader == Reader::Resolution
+            && !self.stack_item
             && self.activation_cost.as_ref().is_some_and(single_sacrifice)
         {
-            return Ok(receipt("q.mana_ability_cost_objects(0, CostPart::Permanents)"));
+            return Ok(receipt(
+                "q.mana_ability_cost_objects(0, CostPart::Permanents)",
+            ));
         }
         if let PaymentRef::Casting { ability } = payment {
-            if self.reader == Reader::Resolution && self.stack_item && self.casting_costs.len() == 1
+            if self.reader == Reader::Resolution
+                && self.stack_item
+                && self.casting_costs.len() == 1
                 && self.printed_additional_costs.contains(ability)
-                && self.casting_costs.get(ability).is_some_and(|cost| cost.parts.len() == 1 && single_sacrifice(cost))
+                && self
+                    .casting_costs
+                    .get(ability)
+                    .is_some_and(|cost| cost.parts.len() == 1 && single_sacrifice(cost))
             {
                 return Ok(receipt("q.history().spell_cost_objects(item.object, CostOrigin::PrintedAdditional, 0, CostPart::Permanents).collect::<Vec<ObjectId>>()"));
             }
-            return Err(gap("cost objects of an unsupported casting cost composition"));
+            return Err(gap(
+                "cost objects of an unsupported casting cost composition",
+            ));
         }
         if self.reader != Reader::Resolution || !self.stack_item {
             if matches!(payment, PaymentRef::Activation) && self.activation_cost.is_some() {
@@ -1014,7 +1048,7 @@ impl Compiler {
             }
             CostPart::Move {
                 selections,
-                destination: Destination::OwnersHand,
+                destination: MovementDestination::OwnersHand(_),
                 ..
             } => selections
                 .iter()
@@ -1163,7 +1197,12 @@ impl Compiler {
     /// read.
     fn owner_in(&self, players: &PlayerSet, c: &Candidate) -> Result<String> {
         let who = format!("q.state().obj({}).owner", c.id);
-        let at = self.candidates.borrow().iter().rposition(|o| o.id != c.id).map_or(0, |at| at + 1);
+        let at = self
+            .candidates
+            .borrow()
+            .iter()
+            .rposition(|o| o.id != c.id)
+            .map_or(0, |at| at + 1);
         let outside = at > 0 && format!("{players:?}").contains("Candidate");
         if !outside {
             return self.player_in(players, &who);
@@ -1176,8 +1215,16 @@ impl Compiler {
     pub(super) fn property(&self, id: &str, property: &Property) -> Result<Number> {
         let pt = |field: &str| Number {
             code: format!("i64::from(q.chars({id}).{field}.unwrap_or(0))"),
-            min: if planned::switched_on(quantity::BOUNDED_32) { i32::MIN.into() } else { i16::MIN.into() },
-            max: if planned::switched_on(quantity::BOUNDED_32) { i32::MAX.into() } else { i16::MAX.into() },
+            min: if planned::switched_on(quantity::BOUNDED_32) {
+                i32::MIN.into()
+            } else {
+                i16::MIN.into()
+            },
+            max: if planned::switched_on(quantity::BOUNDED_32) {
+                i32::MAX.into()
+            } else {
+                i16::MAX.into()
+            },
             dynamic: true,
         };
         Ok(match property {
@@ -1192,13 +1239,25 @@ impl Compiler {
                     _ => format!("i64::from(q.mana_value({id}))"),
                 },
                 min: 0,
-                max: if planned::switched_on(quantity::BOUNDED_32) { u32::MAX.into() } else { 255 * (1 + 6 + 10 + 5) + 6 + 255 * i128::from(u16::MAX) },
+                max: if planned::switched_on(quantity::BOUNDED_32) {
+                    u32::MAX.into()
+                } else {
+                    255 * (1 + 6 + 10 + 5) + 6 + 255 * i128::from(u16::MAX)
+                },
                 dynamic: true,
             },
             Property::Loyalty => Number {
                 code: format!("i64::from(q.state().obj({id}).counters(CounterKind::Loyalty))"),
-                min: if planned::switched_on(quantity::BOUNDED_32) { i32::MIN.into() } else { i16::MIN.into() },
-                max: if planned::switched_on(quantity::BOUNDED_32) { i32::MAX.into() } else { i16::MAX.into() },
+                min: if planned::switched_on(quantity::BOUNDED_32) {
+                    i32::MIN.into()
+                } else {
+                    i16::MIN.into()
+                },
+                max: if planned::switched_on(quantity::BOUNDED_32) {
+                    i32::MAX.into()
+                } else {
+                    i16::MAX.into()
+                },
                 dynamic: true,
             },
             Property::SpellX => Number {
@@ -1241,7 +1300,11 @@ impl Compiler {
         // move (CR 701.3d). Its Auras are in a graveyard by the time this is read
         // (CR 704.5m), so each is judged as it last was there (CR 608.2h).
         if let Expr::CountObjects(set) = n {
-            if let ObjectSet::Matching { objects, filter: ObjectFilter::WasAttachedTo(host) } = &**set {
+            if let ObjectSet::Matching {
+                objects,
+                filter: ObjectFilter::WasAttachedTo(host),
+            } = &**set
+            {
                 if let crate::battlefield_query!(attached) = &**objects {
                     let test = self.filter(attached, &Candidate::of("id"))?;
                     return Ok(count(format!(
@@ -2576,10 +2639,8 @@ impl Compiler {
                     }
                     None => return Err(gap("coin flip outside generated scope")),
                 };
-                match outcome {
-                    CoinOutcome::Won | CoinOutcome::Heads => local,
-                    CoinOutcome::Lost | CoinOutcome::Tails => format!("!{local}"),
-                }
+                let receipt=self.coin_receipts.get(&result.0).ok_or_else(||gap("coin protocol outside generated scope"))?;
+                if Self::coin_channel(receipt.protocol,outcome)? {local}else{format!("!{local}")}
             }
             Condition::Window(window) => {
                 let step = "(q.state().turn.step() as u8)";
@@ -2770,16 +2831,27 @@ mod player_number_tests {
     #[test]
     fn life_keeps_signed_bounds_and_floors_only_when_used_as_an_amount() {
         let compiler = Compiler::new();
-        let life = compiler.number(&Expr::player_life(PlayerRef::AbilityController)).unwrap();
+        let life = compiler
+            .number(&Expr::player_life(PlayerRef::AbilityController))
+            .unwrap();
         assert_eq!((life.min, life.max), (i32::MIN.into(), i32::MAX.into()));
-        assert!(life.amount(u32::MAX.into(), "u32").unwrap().contains(".max(0)"));
-        assert!(!life.fit(i32::MIN.into(), i32::MAX.into(), "i32").unwrap().contains("clamp"));
+        assert!(life
+            .amount(u32::MAX.into(), "u32")
+            .unwrap()
+            .contains(".max(0)"));
+        assert!(!life
+            .fit(i32::MIN.into(), i32::MAX.into(), "i32")
+            .unwrap()
+            .contains("clamp"));
         assert!(life.code.contains("q.state().player(p).life"));
     }
 
     #[test]
     fn signed_life_bounds_do_not_turn_safe_arithmetic_into_saturating_math() {
-        let expr = Expr::multiply(Expr::player_life(PlayerRef::AbilityController), Expr::Constant(1i64 << 32));
+        let expr = Expr::multiply(
+            Expr::player_life(PlayerRef::AbilityController),
+            Expr::Constant(1i64 << 32),
+        );
         let number = Compiler::new().number(&expr).unwrap();
         assert_eq!(number.min, i64::MIN.into());
         assert_eq!(number.max, i128::from(i32::MAX) * (1i128 << 32));
@@ -2788,9 +2860,17 @@ mod player_number_tests {
 
     #[test]
     fn ordinary_player_counts_remain_nonnegative() {
-        let number = Compiler::new().number(&Expr::PlayerNumber { player: PlayerRef::AbilityController, number: PlayerNumber::CardsDrawnThisTurn }).unwrap();
+        let number = Compiler::new()
+            .number(&Expr::PlayerNumber {
+                player: PlayerRef::AbilityController,
+                number: PlayerNumber::CardsDrawnThisTurn,
+            })
+            .unwrap();
         assert_eq!((number.min, number.max), (0, u32::MAX.into()));
-        assert!(!number.amount(u32::MAX.into(), "u32").unwrap().contains(".max(0)"));
+        assert!(!number
+            .amount(u32::MAX.into(), "u32")
+            .unwrap()
+            .contains(".max(0)"));
     }
 }
 
@@ -2805,10 +2885,19 @@ mod result_membership_tests {
         compiler.moved.insert(3, "chosen_pile".into());
         let chosen = ObjectFilter::InSet(Box::new(ObjectSet::Recorded(ResultId(3))));
         let other = ObjectFilter::Not(Box::new(chosen.clone()));
-        assert_eq!(compiler.predicate(&other, &Candidate::of("id")).unwrap(), "other_pile.contains(&id)");
-        assert_eq!(compiler.predicate(&chosen, &Candidate::of("id")).unwrap(), "(chosen_pile.clone()).contains(&id)");
+        assert_eq!(
+            compiler.predicate(&other, &Candidate::of("id")).unwrap(),
+            "other_pile.contains(&id)"
+        );
+        assert_eq!(
+            compiler.predicate(&chosen, &Candidate::of("id")).unwrap(),
+            "(chosen_pile.clone()).contains(&id)"
+        );
         compiler.pile_not_chosen.clear();
-        assert_eq!(compiler.predicate(&other, &Candidate::of("id")).unwrap(), "!((chosen_pile.clone()).contains(&id))");
+        assert_eq!(
+            compiler.predicate(&other, &Candidate::of("id")).unwrap(),
+            "!((chosen_pile.clone()).contains(&id))"
+        );
     }
 }
 
@@ -2817,44 +2906,86 @@ mod battlefield_query_tests {
     use super::*;
 
     fn canonical(filter: ObjectFilter) -> ObjectSet {
-        ObjectSet::Zone { scope: ZoneScope::Shared(EventZone::Battlefield), kind: ObjectKind::Permanent, filter }
+        ObjectSet::Zone {
+            scope: ZoneScope::Shared(EventZone::Battlefield),
+            kind: ObjectKind::Permanent,
+            filter,
+        }
     }
 
     #[test]
     fn permanent_battlefield_queries_keep_tokens_while_card_queries_exclude_them() {
         let compiler = Compiler::new();
-        let permanent = compiler.objects(&ObjectSet::battlefield(ObjectFilter::Any)).unwrap();
-        assert_eq!(permanent, compiler.objects(&canonical(ObjectFilter::Any)).unwrap());
+        let permanent = compiler
+            .objects(&ObjectSet::battlefield(ObjectFilter::Any))
+            .unwrap();
+        assert_eq!(
+            permanent,
+            compiler.objects(&canonical(ObjectFilter::Any)).unwrap()
+        );
         assert!(permanent.contains("q.state().battlefield()"));
         assert!(!permanent.contains(".token") && !permanent.contains(".card_copy"));
-        let cards = compiler.objects(&ObjectSet::Zone { scope: ZoneScope::Shared(EventZone::Battlefield),kind:ObjectKind::Card,filter:ObjectFilter::Any }).unwrap();
+        let cards = compiler
+            .objects(&ObjectSet::Zone {
+                scope: ZoneScope::Shared(EventZone::Battlefield),
+                kind: ObjectKind::Card,
+                filter: ObjectFilter::Any,
+            })
+            .unwrap();
         assert!(cards.contains(".token") && cards.contains(".card_copy"));
     }
 
     #[test]
     fn named_object_zone_guards_keep_stale_object_rejection() {
-        let mut compiler=Compiler::new();compiler.moved.insert(3,"moved".into());
-        let query=ObjectSet::InZone {objects:Box::new(ObjectSet::Recorded(ResultId(3))),zone:EventZone::Battlefield};
-        let code=compiler.objects(&query).unwrap();
-        assert!(code.contains("moved.clone()"));assert!(code.contains("became.is_none()"));assert!(code.contains("zone.kind() == ZoneKind::Battlefield"));
+        let mut compiler = Compiler::new();
+        compiler.moved.insert(3, "moved".into());
+        let query = ObjectSet::InZone {
+            objects: Box::new(ObjectSet::Recorded(ResultId(3))),
+            zone: EventZone::Battlefield,
+        };
+        let code = compiler.objects(&query).unwrap();
+        assert!(code.contains("moved.clone()"));
+        assert!(code.contains("became.is_none()"));
+        assert!(code.contains("zone.kind() == ZoneKind::Battlefield"));
     }
 
     #[test]
     fn historical_attached_aura_counts_do_not_recount_the_current_battlefield() {
-        let compiler=Compiler::new();
-        let count=|objects|Expr::CountObjects(Box::new(ObjectSet::Matching {objects:Box::new(objects),filter:ObjectFilter::WasAttachedTo(ObjectRef::Source)}));
-        let legacy=compiler.number(&count(ObjectSet::battlefield(ObjectFilter::Any))).unwrap().code;
-        let code=compiler.number(&count(canonical(ObjectFilter::Any))).unwrap().code;
-        assert_eq!(legacy,code);assert!(code.contains("Event::Unattached"));assert!(code.contains("rposition"));assert!(!code.contains("q.state().battlefield()"));
+        let compiler = Compiler::new();
+        let count = |objects| {
+            Expr::CountObjects(Box::new(ObjectSet::Matching {
+                objects: Box::new(objects),
+                filter: ObjectFilter::WasAttachedTo(ObjectRef::Source),
+            }))
+        };
+        let legacy = compiler
+            .number(&count(ObjectSet::battlefield(ObjectFilter::Any)))
+            .unwrap()
+            .code;
+        let code = compiler
+            .number(&count(canonical(ObjectFilter::Any)))
+            .unwrap()
+            .code;
+        assert_eq!(legacy, code);
+        assert!(code.contains("Event::Unattached"));
+        assert!(code.contains("rposition"));
+        assert!(!code.contains("q.state().battlefield()"));
     }
 
     #[test]
     fn nested_battlefield_owner_queries_preserve_the_outer_candidate() {
-        let compiler=Compiler::new();compiler.candidates.borrow_mut().push(Candidate::of("id"));
-        let filter=ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::ControllerOf(Box::new(ObjectRef::Candidate))));
-        let code=compiler.objects(&ObjectSet::battlefield(filter.clone())).unwrap();
-        assert_eq!(code,compiler.objects(&canonical(filter)).unwrap());
-        assert!(code.contains("filter(|&card_in_zone|"));assert!(code.contains("Some(id)"));assert!(code.contains("obj(card_in_zone).owner"));
+        let compiler = Compiler::new();
+        compiler.candidates.borrow_mut().push(Candidate::of("id"));
+        let filter = ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::ControllerOf(Box::new(
+            ObjectRef::Candidate,
+        ))));
+        let code = compiler
+            .objects(&ObjectSet::battlefield(filter.clone()))
+            .unwrap();
+        assert_eq!(code, compiler.objects(&canonical(filter)).unwrap());
+        assert!(code.contains("filter(|&card_in_zone|"));
+        assert!(code.contains("Some(id)"));
+        assert!(code.contains("obj(card_in_zone).owner"));
     }
 }
 
@@ -2865,24 +2996,42 @@ mod subject_provenance_tests {
     #[test]
     fn event_subject_controller_and_owner_remain_optional_reads() {
         let subject = Box::new(ObjectRef::EventSubject);
-        let players = [PlayerRef::ControllerOf(subject.clone()), PlayerRef::OwnerOf(subject)];
+        let players = [
+            PlayerRef::ControllerOf(subject.clone()),
+            PlayerRef::OwnerOf(subject),
+        ];
         let mut compiler = Compiler::new();
         compiler.event_at = EventAt::Item;
         compiler.frame.object = Some(Carried::Subject);
         for player in &players {
-            assert!(compiler.certain_player(player).unwrap().contains("item.subject.object().map"));
+            assert!(compiler
+                .certain_player(player)
+                .unwrap()
+                .contains("item.subject.object().map"));
             compiler.frame.player = Some(Carried::Subject);
-            assert!(compiler.certain_player(player).unwrap().contains("item.subject.object().map"));
+            assert!(compiler
+                .certain_player(player)
+                .unwrap()
+                .contains("item.subject.object().map"));
             compiler.frame.player = None;
         }
         compiler.frame.object = None;
         for player in &players {
             assert!(compiler.certain_player(player).is_err());
         }
-        let target = PlayerRef::ControllerOf(Box::new(ObjectRef::Target { slot: TargetSlot(0), index: 0 }));
+        let target = PlayerRef::ControllerOf(Box::new(ObjectRef::Target {
+            slot: TargetSlot(0),
+            index: 0,
+        }));
         assert!(compiler.certain_player(&target).is_err());
-        let object_frame = Frame { object: Some(Carried::Subject), ..Frame::default() };
-        let player_frame = Frame { player: Some(Carried::Subject), ..Frame::default() };
+        let object_frame = Frame {
+            object: Some(Carried::Subject),
+            ..Frame::default()
+        };
+        let player_frame = Frame {
+            player: Some(Carried::Subject),
+            ..Frame::default()
+        };
         compiler.frame = object_frame.meet(player_frame);
         assert!(compiler.certain_player(&players[0]).is_err());
     }
