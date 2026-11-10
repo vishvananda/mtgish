@@ -8,7 +8,7 @@ let browser,page;
  page=await browser.newPage({viewport:{width:1580,height:1000},acceptDownloads:true});page.setDefaultTimeout(30000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(url,{timeout:120000});await page.waitForFunction(()=>window.cardBlocks?.valid());
- await page.locator('#starter').selectOption('spell');await page.locator('#new-card').click();await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities.length===0);
+ await page.locator('#starter').selectOption('spell');await page.locator('#new-card').click();await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities.length===1);
  await page.evaluate(async()=>{await Blockly.renderManagement.finishQueuedRenders();window.cardBlocks.workspace.setScale(.85);window.cardBlocks.workspace.scrollCenter();});
  async function dragFromMenu(category,source,target) {
   await page.locator('.blocklyToolboxCategory').filter({has:page.getByText(category,{exact:true})}).first().click();
@@ -25,7 +25,7 @@ let browser,page;
    const b=w.getTopBlocks(false).find(b=>source==='spell'?b.state.ty.named==='Ability'&&b.state.variant==='Spell':b.state.pr==='effect'&&b.state.op===source);
    if(!b)throw Error('Dragging did not create a main-workspace block');
    let socket;
-   if(target==='abilities')socket=w.getTopBlocks(false).find(b=>b.state.pr==='single').getInput('F_abilities').connection;
+   if(target==='abilities')socket=w.getTopBlocks(false).find(b=>b.state.pr==='single').getInput('SECTION_resolve').connection;
    else if(target==='body')socket=w.getAllBlocks(false).find(b=>b.state.ty.named==='Ability'&&b.state.variant==='Spell').getInput('F_body').connection;
    else socket=w.getAllBlocks(false).find(b=>b.state.pr==='effect'&&b.state.op==='Draw').nextConnection;
    const point=c=>Blockly.utils.svgMath.wsToScreenCoordinates(w,new Blockly.utils.Coordinate(c.x,c.y));
@@ -35,11 +35,10 @@ let browser,page;
   await page.mouse.move(1050+offset.dx,450+offset.dy,{steps:25});await page.waitForTimeout(100);await page.mouse.up();
   await page.waitForTimeout(250);
  }
- await dragFromMenu('Abilities','spell','abilities');
  await page.waitForFunction(()=>window.cardBlocks.generated().faces[0].abilities.length===1&&window.cardBlocks.valid());
- await dragFromMenu('Actions','Draw','body');
+ await dragFromMenu('Effects','Draw','body');
  await page.waitForFunction(()=>window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions.length===1&&window.cardBlocks.valid());
- await dragFromMenu('Actions','GainLife','after-draw');
+ await dragFromMenu('Effects','GainLife','after-draw');
  await page.waitForFunction(()=>window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions.length===2&&window.cardBlocks.valid());
  // Inline editable parameters, with no number/player wrapper blocks.
  await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.pr==='effect'&&b.state.op==='Draw').getInputTargetBlock('O_amount').setFieldValue('2','_VALUE'));

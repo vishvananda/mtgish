@@ -66,7 +66,7 @@ let browser;
   await page.evaluate(()=>{const d=window.cardBlocks;d.loadIR(d.blank(),false);const saved=d.savedWorkspace(),expected=d.encode(d.generated());d.restore(saved);if(d.encode(d.generated())!==expected)throw Error('Workspace save/restore changed IR');});
   await page.waitForFunction(()=>window.cardBlocks.valid());
   await page.evaluate(()=>{
-    const d=window.cardBlocks,root=d.workspace.getTopBlocks(false)[0];d.addToFlow(root,d.parts(root.state).find(p=>p.key==='F_abilities'),d.abilityValue('Spell'));
+    const d=window.cardBlocks,root=d.workspace.getTopBlocks(false)[0];d.addToFlow(root,d.parts(root.state).find(p=>p.abilitySection==='battlefield'),d.abilityValue('Activated'));
     if(d.generated().faces[0].abilities.length!==1)throw Error('List plus did not add an ability');
   });
   await page.waitForFunction(()=>window.cardBlocks.valid());

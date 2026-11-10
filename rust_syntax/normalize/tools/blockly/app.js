@@ -5,8 +5,9 @@
   let types=payload.schema.types;
   const schema = payload.schema, authoring = schema.authoring, $ = id => document.getElementById(id);
   const clone = v => structuredClone(v), typeKey = t => JSON.stringify(t);
+  const sections=createCardSections();
   const pretty = text => text.replace(/_/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2');
-  const variantLabel = (type,v) => (type==='Operation'?authoring.actions[v.wire]?.label:type==='Instruction'?authoring.instructions?.[v.wire]?.label:type==='KeywordAction'?authoring.keyword_actions?.[v.wire]?.label:type==='ObjectKeywordAction'?authoring.object_keyword_actions?.[v.wire]?.label:null) || pretty(authoring.references[type]?.[v.wire]||v.name);
+  const variantLabel = (type,v) => (type==='CastingRule'?({Permission:'Cast from another zone',AdditionalCost:'Additional casting cost',AlternativeCost:'Alternative casting cost',ReduceCost:'This card costs less to cast',Require:'Casting restriction',Flash:'Cast with flash'})[v.wire]:null) || (type==='Ability'?({Spell:'When this spell resolves',Triggered:'When an event happens',Activated:'Pay a cost → effects',Static:'Continuous effect',Casting:'Casting rule',Replacement:'Replace an event',Scoped:'Ability in selected locations',Mechanic:'Keyword mechanic'})[v.wire]:null) || (type==='Operation'?authoring.actions[v.wire]?.label:type==='Instruction'?authoring.instructions?.[v.wire]?.label:type==='KeywordAction'?authoring.keyword_actions?.[v.wire]?.label:type==='ObjectKeywordAction'?authoring.object_keyword_actions?.[v.wire]?.label:null) || pretty(authoring.references[type]?.[v.wire]||v.name);
   const typeName = t => t.named || (t.vec ? `List<${typeName(t.vec)}>` : t.option ? `Optional<${typeName(t.option)}>` : `(${t.tuple.map(typeName).join(', ')})`);
   const descriptor = t => t.named && types[t.named];
   const newtype = t => {const d=descriptor(t);return d?.kind==='struct' && d.fields.kind==='tuple' && d.fields.items.length===1 ? d.fields.items[0]:null;};
@@ -101,7 +102,14 @@
     PlayerRef:[['you',SELF],['the active player',{kind:'Active'}]],
     ObjectRef:[['this card',{kind:'Source'}]],
     Recipients:[['chosen target',{kind:'Targets',args:0}],['chosen object target',{kind:'Objects',args:{kind:'Targets',args:0}}],['chosen player target',{kind:'Players',args:{kind:'Targets',args:0}}],['you',{kind:'Players',args:{kind:'One',args:SELF}}]],
-    EventSpec:[['this card enters',{ZoneChange:{objects:{kind:'SameObject',args:{kind:'Source'}},from:null,to:'Battlefield'}}]],
+    EventSpec:[
+      ['this enters the battlefield',{ZoneChange:{objects:{kind:'SameObject',args:{kind:'Source'}},from:null,to:'Battlefield'}}],
+      ['this card is cast',{Spell:{event:'Cast',players:{kind:'One',args:SELF},spells:{kind:'SameObject',args:{kind:'Source'}}}}],
+      ['this dies',{ZoneChange:{objects:{kind:'SameObject',args:{kind:'Source'}},from:'Battlefield',to:'Graveyard'}}],
+      ['this attacks',{Object:{event:'Attacks',objects:{kind:'SameObject',args:{kind:'Source'}}}}],
+      ['you cast a spell',{Spell:{event:'Cast',players:{kind:'One',args:SELF},spells:{kind:'Any'}}}],
+      ['your upkeep begins',{Turn:{point:'UpkeepBegins',players:{kind:'One',args:SELF}}}]
+    ],
   };
   const same=(a,b)=>{
     if(a===b)return true;
@@ -188,7 +196,7 @@
       const f=t.tuple?{kind:'tuple',items:t.tuple}:d.kind==='struct'?d.fields:viewVariant(state).fields;
       result=fieldParts(f,f.kind==='tuple'?'':'F_');
     }
-    return result.map(p=>{
+    return sections.parts(state,result).map(p=>{
       const inline=state.inline?.[p.key];
       if(inline && (state.ui<3 || inline==='pt') && !state.noInline?.includes(p.key))p={...p,inline,editTy:inline==='constant'?{named:'i64'}:p.ty};
       if(state.ui>=2 && !p.inline) {
@@ -196,9 +204,12 @@
         else if(p.ty.vec && ['Ability','Instruction'].includes(p.ty.vec.named))p={...p,flow:'array',socketTy:p.ty.vec,statement:true};
       }
       if(state.negativePrevention && p.key.endsWith('preventable'))p={...p,inline:'unpreventable',label:"can't be prevented"};
+      if(state.ty.named==='Ability'&&state.variant==='Scoped'&&p.key==='F_condition')p.label='only while';
+      if(state.ty.named==='Ability'&&state.variant==='Scoped'&&p.key==='F_ability')p.label='';
       if(p.label==='characteristics')p.label='properties';
-      if(p.label==='announcement')p.label='targets';
-      if(p.flow)p.label=p.ty.named==='Program'?(p.label==='otherwise'?'otherwise':'do'):p.ty.vec.named==='Ability'?'abilities':'do';
+      if(p.label==='announcement')p.label=state.ty.named==='Ability'&&state.variant==='Spell'?'Cast-time choices':'Targets & modes';
+      if(p.flow&&!p.abilitySection)p.label=p.ty.named==='Program'?(p.label==='otherwise'?'otherwise':'do'):p.ty.vec.named==='Ability'?'abilities':'do';
+      if(state.ty.named==='Ability'&&state.variant==='Spell'&&p.key==='F_body')p.label='effects';
       if(state.pr==='effect') {
         if(p.key==='O_amount') {p.label='';p.suffix='';}
         if(p.key==='O_players')p.label='for';
@@ -211,12 +222,15 @@
   function stateFor(t,value) {
     if(t.vec)return {ty:t,count:value.length,ui:3};
     if(t.option)return {ty:t,present:value!==null,ui:3};
-    const variant=variantFor(t,value),s={ty:t,ui:3,negativePrevention:true,...(variant?{variant:variant.wire}:{})};
+    let sourceScope;
+    if(t.named==='Ability'&&value.kind==='Scoped'&&value.args.condition===null&&value.args.ability.kind!=='Scoped'){sourceScope=clone(value.args.zones);value=value.args.ability;}
+    const variant=variantFor(t,value),s={ty:t,ui:3,negativePrevention:true,...(variant?{variant:variant.wire}:{}),...(sourceScope?{sourceScope}:{})};
     if(t.named==='Expr'&&value.kind==='Constant'){s.pr='literal';s.literal='constant';}
     else if(choices[t.named]?.some(([,v])=>same(v,value))){s.pr='literal';s.literal='choice';}
     if(t.named==='UnifiedCard' && value.faces.length===1)s.pr='single';
     if(t.named==='Instruction' && value.kind==='Effect'){s.pr='effect';s.op=value.args.operation.kind;}
     if(t.named==='Ability' && value.kind==='Keyword'){s.pr='keyword';s.keyword=value.args.kind;}
+    if(sections.card(s))Object.assign(s,sections.initial(s.pr==='single'?value.faces[0]:value));
     return s;
   }
   function fieldValues(f,a,prefix='F_') {
@@ -225,15 +239,16 @@
     return Object.fromEntries(f.items.map((_,i)=>[`${prefix}ARG_${i}`,f.items.length===1?a:a[i]]));
   }
   function childValues(t,value,state) {
+    if(state.sourceScope)value=value.args.ability;
     if(state.pr==='literal')return {VALUE:value};
-    if(state.pr==='single')return {ROOT_schema:value.schema_version,ROOT_layout:value.layout,ROOT_data:value.data,...fieldValues(types.Card.fields,value.faces[0])};
+    if(state.pr==='single')return sections.values(state,value,{ROOT_schema:value.schema_version,ROOT_layout:value.layout,ROOT_data:value.data,...fieldValues(types.Card.fields,value.faces[0])});
     if(state.pr==='effect')return {RESULT:value.args.result,...fieldValues(viewVariant(state).fields,value.args.operation.args,'O_')};
     if(state.pr==='keyword')return fieldValues(viewVariant(state).fields,value.args.args,'K_');
     if(scalar(t))return {VALUE:value};
     if(t.vec)return Object.fromEntries(value.map((v,i)=>[`ITEM_${i}`,v]));
     if(t.option)return value===null?{}:{SOME:value};
     const d=descriptor(t),v=variantFor(t,value),f=t.tuple?{kind:'tuple',items:t.tuple}:v?v.fields:d.fields;
-    return fieldValues(f,v?(d.adjacent?value.args:value[v.wire]):value,f.kind==='tuple'?'':'F_');
+    return sections.values(state,value,fieldValues(f,v?(d.adjacent?value.args:value[v.wire]):value,f.kind==='tuple'?'':'F_'));
   }
   function chainState(ty,values,outline) {
     let head=null,last=null;
@@ -303,10 +318,35 @@
     return !!v && typeof v==='object' && Object.values(v).every(isMetadataEmpty);
   }
   const defaultStructures=new Set(['Announcement','TriggerLimits','ActivationLimits','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival','ModeCount','ModeRules','ModeMechanism']);
+  function resetValue(b,p) {
+    if(p.abilitySection||p.key==='RESULT'||['ROOT_schema','ROOT_layout','F_schema_version','F_slot'].includes(p.key))return undefined;
+    const owner=b.state.pr==='single'?(p.key.startsWith('ROOT_')?'UnifiedCard':'Card'):b.state.pr==='effect'?`Operation::${b.state.op}`:b.state.pr==='keyword'?`Keyword::${b.state.keyword}`:b.state.variant?`${b.state.ty.named}::${b.state.variant}`:b.state.ty.named;
+    const key=p.key.replace(/^(ROOT_|F_|O_|K_)/,'');
+    if(authoring.defaults[owner]?.[key]!==undefined)return clone(authoring.defaults[owner][key]);
+    if(p.ty.option)return null;
+    if(p.ty.vec)return [];
+    if(defaultStructures.has(p.ty.named))return defaultValue(p.ty);
+    if(p.flow&&p.label==='otherwise')return {instructions:[]};
+    return undefined;
+  }
+  function removable(b,p) {
+    const reset=resetValue(b,p);if(reset===undefined)return false;
+    if(b.state.shown?.includes(p.key))return true;
+    try{return !same(childValues(b.state.ty,fromBlock(b),b.state)[p.key],reset);}catch(_){return true;}
+  }
+  function removeOption(b,key) {
+    if(b.isInFlyout)return;
+    const p=parts(b.state).find(p=>p.key===key),reset=p&&resetValue(b,p);if(reset===undefined)return;
+    const values=childValues(b.state.ty,fromBlock(b),b.state);values[key]=reset;
+    replaceView(b,{shown:(b.state.shown||[]).filter(k=>k!==key)},assemble(b.state,values));
+  }
   function hiddenReason(b,p) {
+    if(b.state.ty.named==='Ability'&&b.state.variant==='Scoped'&&p.key==='F_zones'&&sections.home(b))return true;
     if(b.state.shown?.includes(p.key))return false;
     if(p.key==='RESULT'||(b.state.ty.named==='Instruction'&&b.state.variant==='Effect'&&p.key==='F_result'))return true;
     if(detailMode)return false;
+    if(b.state.ty.named==='Ability'&&b.state.variant==='Scoped'&&p.key==='F_zones'&&sections.get(sections.home(b)?.id)?.zone)return true;
+    if(b.state.ty.named==='Ability'&&b.state.variant==='Static'&&p.key==='F_kind')try{if(fromBlock(b.getInputTargetBlock(p.key))==='Ordinary')return true;}catch(_){}
     if(bindingEditor&&!bindingEditor.showNumeric(b,p))return true;
     if(b.state.ty.named==='TargetSpec'&&['F_kind','F_filter','F_players'].includes(p.key)) {
       try{if(targetPreset(fromBlock(b))>=0)return true;}catch(_){}
@@ -340,11 +380,20 @@
     if(defaultStructures.has(child.state.ty.named)){try{return isMetadataEmpty(fromBlock(child));}catch(_){return false;}}
     return false;
   }
+  function functioningOptions(b) {
+    try {
+      const value=fromBlock(b),fixed=sections.fixed(value);
+      return sections.definitions.filter(d=>fixed?d.id===fixed:!!d.zone||d.id===sections.classify(value)).map(d=>[sections.short(d.id),d.id]);
+    }catch(_){return sections.definitions.map(d=>[sections.short(d.id),d.id]);}
+  }
   function optionsFor(b) {
     const out=[['⋯','NONE']];
+    if(sections.home(b)&&b.state.ty.named==='Ability')try{if(!sections.fixed(fromBlock(b)))out.push(['Edit functioning locations…','LOCATIONS']);}catch(_){}
     if(bindingEditor?.canPromote(b))out.push(['Name result','NAME_RESULT']);
     for(const p of parts(b.state)) {
+      if(b.state.variant==='Scoped'&&p.key==='F_zones'&&sections.home(b))continue;
       if(!detailMode && (p.key.startsWith('ROOT_')||['F_schema_version','RESULT'].includes(p.key)))continue;
+      if(!hiddenReason(b,p)&&removable(b,p))out.push(['Remove '+(p.label||pretty(p.key.replace(/^(F_|O_|K_)/,''))),'REMOVE:'+p.key]);
       if(hiddenReason(b,p))out.push([p.ty.named==='Announcement'?'Add a target':p.ty.vec?'Add '+p.label.replace(/ies$/,'y').replace(/s$/,''):p.flow?'Add otherwise':pretty(p.label||p.key),'SHOW:'+p.key]);
       if(b.state.ui<3 && p.inline && p.inline!=='unpreventable')out.push(['Use a block for '+pretty(p.key.replace(/^(F_|O_|K_)/,'')),'BLOCK:'+p.key]);
     }
@@ -357,6 +406,24 @@
     if(name==='Characteristics')return [...v.supertypes,...v.card_types,...v.subtypes,v.power_toughness?.join('/')].filter(Boolean).join(' · ')||'Properties';
     if(name==='TargetSpec'){const named=b.state.bindings?.F_slot?.name;return targetSummary(v)+(named?' · '+named:'');}
     return [...v.targets.map(targetSummary),v.modes?'mode choices':''].filter(Boolean).join(' · ')||'No targets';
+  }
+  function routeAbilities() {
+    let moved=false;
+    for(const card of workspace.getAllBlocks(false).filter(b=>b.state?.cardSections)) {
+      try {
+        const properties=fromBlock(card.getInputTargetBlock('F_characteristics'));
+        const main=properties.card_types.some(t=>['Instant','Sorcery'].includes(t))?'resolve':'battlefield';
+        if(main!==card.state.cardMain){
+          card.state.cardMain=main;
+          if(!card.state.cardSections.includes(main))card.state.cardSections.unshift(main);
+          card.rebuild();moved=true;
+        }
+      }catch(_){}
+      for(const {block,section} of sections.entries(card)) {
+        try{const value=fromBlock(block),target=sections.fixed(value)||(section==='resolve'&&sections.classify(value,card.state.cardMain)!=='resolve'?sections.classify(value,card.state.cardMain):null);if(target&&target!==section&&moveAbility(block,target))moved=true;}catch(_){}
+      }
+    }
+    return moved;
   }
   function applyPresentation() {
     if(!workspace)return;
@@ -382,12 +449,17 @@
         if(input && (!input.isVisible() || parent.isCollapsed())){hiddenAncestor=true;break;}
       }
       if(hiddenAncestor)continue;
+      const home=sections.home(b);
+      const location=b.getField('LOCATION');
+      if(location){location.setVisible(!!home&&b.state.variant!=='Spell');b.getField('LOCATION_LABEL')?.setVisible(!!home&&b.state.variant!=='Spell');if(home){Blockly.Events.disable();try{location.setValue(home.id);}finally{Blockly.Events.enable();}}}
+      const from=b.getField('CAST_FROM');if(from){let value;try{value=fromBlock(b);if(value.kind==='Scoped')value=value.args.ability;}catch(_){}const permission=value?.kind==='Casting'?value.args.Permission:null;from.setValue(value?.kind==='Replacement'&&value.args.active==='SourceEntering'?'As this enters · replacement':permission?'From '+(permission.from.Players?.zone||'another zone').toLowerCase():value?.kind==='Mechanic'&&value.args.mechanic==='Disturb'?'From graveyard · transformed':'');}
       b.getField('COST_ZERO')?.setValue(b.state.present&&b.getInputTargetBlock('SOME')?.state.count===0?'0':'');
       let rerender=false;
       for(const p of parts(b.state)) {
         const input=b.getInput(p.key),hidden=hiddenReason(b,p);
         if(input && input.isVisible()===hidden){input.setVisible(!hidden);rerender=true;}
         b.getField('FILL_'+p.key)?.setVisible(!hidden && (p.flow || !b.getInputTargetBlock(p.key)));
+        b.getField('REMOVE_'+p.key)?.setVisible(!hidden&&removable(b,p));
       }
       const menu=b.getField('MORE');if(menu)menu.setVisible(optionsFor(b).length>1);
       b.getField('TYPE_LABEL')?.setVisible(detailMode);
@@ -415,6 +487,7 @@
   function revealOption(b,key) {
     if(b.isInFlyout)return;
     const p=parts(b.state).find(p=>p.key===key);if(!p)return;
+    remember();
     b.state.shown=[...new Set([...(b.state.shown||[]),key])];
     const child=b.getInputTargetBlock(key);
     child?.setCollapsed(false);
@@ -424,9 +497,60 @@
     else if(scalarType(p)?.named==='bool')b.setFieldValue(b.getFieldValue('_'+key)==='TRUE'?'FALSE':'TRUE','_'+key);
     applyPresentation();b.render();changed();
   }
+  function addSection(b,id) {
+    if(b.isInFlyout||!sections.get(id)||b.state.cardSections.includes(id))return;
+    remember();b.state.cardSections.push(id);b.rebuild();applyPresentation();changed();
+  }
+  function removeSection(b,id) {
+    if(b.isInFlyout)return;
+    remember();
+    b.getInputTargetBlock('SECTION_'+id)?.dispose(false);
+    if(id!==b.state.cardMain)b.state.cardSections=b.state.cardSections.filter(section=>section!==id);
+    b.rebuild();applyPresentation();changed();
+  }
+  function setFunctionZones(b,zones) {
+    if(b.state.variant==='Scoped'&&!b.state.sourceScope){
+      b.getInputTargetBlock('F_zones')?.dispose(false);
+      const list=Blockly.serialization.blocks.append(blockState({vec:{named:'EventZone'}},zones),workspace);
+      b.getInput('F_zones').connection.connect(list.outputConnection);
+    }else b.state.sourceScope=clone(zones);
+  }
+  function editLocations(b) {
+    const home=sections.home(b);if(!home)return;
+    const value=sections.wire(fromBlock(b),home.id,home.parent.state.cardMain);
+    const zones=value.kind==='Scoped'?value.args.zones:[sections.get(home.id).zone].filter(Boolean);
+    Blockly.dialog.prompt('Functioning locations, separated by commas: Battlefield, Hand, Graveyard, Stack, Exile, Library, Command',zones.join(', '),text=>{
+      if(text===null)return;
+      const allowed=sections.definitions.map(d=>d.zone).filter(Boolean),wanted=text.split(',').map(x=>allowed.find(z=>z.toLowerCase()===x.trim().toLowerCase()));
+      if(!wanted.length||wanted.some(z=>!z)||new Set(wanted).size!==wanted.length){notice('Choose one or more distinct locations from the list.');return;}
+      remember();suppress=true;
+      try{setFunctionZones(b,wanted);const target=sections.classify(fromBlock(b),home.parent.state.cardMain);moveAbility(b,target);}finally{suppress=false;}
+      changed();
+    });
+  }
+  function moveAbility(b,id) {
+    const home=sections.home(b);if(!home||home.id===id||!sections.get(id))return false;
+    try{sections.wire(fromBlock(b),id,home.parent.state.cardMain);}catch(e){notice(e.message);applyPresentation();return false;}
+    if(!suppress)remember();
+    const zone=sections.get(id).zone;
+    if(zone&&(b.state.sourceScope||b.state.variant==='Scoped'))setFunctionZones(b,[zone]);
+    if(!home.parent.state.cardSections.includes(id)){home.parent.state.cardSections.push(id);home.parent.rebuild();}
+    b.unplug(true);let last=home.parent.getInputTargetBlock('SECTION_'+id);
+    if(last){while(last.getNextBlock())last=last.getNextBlock();last.nextConnection.connect(b.previousConnection);}
+    else home.parent.getInput('SECTION_'+id).connection.connect(b.previousConnection);
+    changed();return true;
+  }
+  function sectionStarter(id) {
+    if(id==='resolve')return abilityValue('Spell');
+    if(id==='casting')return {kind:'Casting',args:{AdditionalCost:{cost:{parts:[{Mana:[{Generic:1}]}]},optional:true,repetition:'Once'}}};
+    if(id==='everywhere')return {kind:'Static',args:{kind:{CharacteristicDefining:{keyword:null,contributes_to_color_identity:true}},affected:{Objects:{kind:'One',args:{kind:'Source'}}},changes:[{kind:'SetBasePowerToughness',args:{power:{kind:'Constant',args:1},toughness:{kind:'Constant',args:1}}}]}};
+    if(id==='pregame')return {kind:'OpeningHand',args:{announcement:{targets:[],modes:null},body:{instructions:[]}}};
+    if(id==='other')return {kind:'Scoped',args:{zones:['Battlefield','Graveyard'],condition:null,ability:abilityValue('Activated')}};
+    return abilityValue('Activated');
+  }
   function addToFlow(parent,p,value) {
     if(parent.isInFlyout)return;
-    const t=p.socketTy,state=blockState(t,value??defaultValue(t));state.extraState.statement=true;if(state.extraState.pr==='effect')state.extraState.autoResult=true;
+    const t=p.socketTy,state=blockState(t,value??(p.abilitySection?sectionStarter(p.abilitySection):defaultValue(t)));state.extraState.statement=true;if(state.extraState.pr==='effect')state.extraState.autoResult=true;
     const b=Blockly.serialization.blocks.append(state,workspace);
     let last=parent.getInputTargetBlock(p.key);
     if(!last)parent.getInput(p.key).connection.connect(b.previousConnection);
@@ -436,6 +560,11 @@
   function insertDefault(parent,p) {
     if(parent.isInFlyout)return;
     try {
+      if(p.abilitySection==='resolve') {
+        for(let ability=parent.getInputTargetBlock(p.key);ability;ability=ability.getNextBlock())if(ability.state.variant==='Spell'){
+          addToFlow(ability,parts(ability.state).find(p=>p.key==='F_body'),actionValue('Draw',{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}}));return;
+        }
+      }
       if(p.flow){addToFlow(parent,p);return;}
       const value=defaultValue(p.ty);
       if(p.ty.named==='TargetSpec'&&parent.state.ty.vec?.named==='TargetSpec'){const slots=parent.getChildren(false).filter(b=>b.state.ty.named==='TargetSpec').map(b=>Number(b.getFieldValue('_F_slot')));value.slot=slots.length?Math.max(...slots)+1:0;}
@@ -449,7 +578,7 @@
     if(state.ty.named==='Characteristics')return 'Properties';
     if(state.ty.named==='FaceDownAs')return 'Face-down creature';
     if(state.ty.named==='TargetSpec')return 'Target';
-    if(state.ty.named==='Announcement')return 'Targets & choices';
+    if(state.ty.named==='Announcement')return 'Targets & modes';
     return ({TargetSlot:'Target',ResultId:'Recorded result',LoopBinding:'Loop value',SelectionId:'Selection'})[state.ty.named]||typeName(state.ty);
   }
   Blockly.Blocks.ir_value={
@@ -493,7 +622,7 @@
       try {
         for(const input of this.inputList){
           const child=input.connection?.targetBlock();
-          if(input.connection)shadows[input.name]=input.connection.stashShadowState().shadowState;
+          if(input.connection)shadows[input.name]=child?input.connection.stashShadowState().shadowState:input.connection.getShadowState();
           if(child){
             if(child.isShadow()){
               shadows[input.name]=Blockly.serialization.blocks.save(child,{addCoordinates:false,addInputBlocks:true,addNextBlocks:false});
@@ -513,12 +642,14 @@
         else if(t.option){header.appendField(t.option.vec?.named==='ManaSymbol'?(this.state.present?'Mana cost':'No mana cost'):(this.state.present?'Value':'Not set'));if(t.option.vec?.named==='ManaSymbol')header.appendField('','COST_ZERO');header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));}
         else if(variant && !scalar(t)) {
           const vd=this.state.pr==='effect'?types.Operation:this.state.pr==='keyword'?types.Keyword:d;
-          header.appendField(new Blockly.FieldDropdown(vd.variants.map(v=>[variantLabel(this.state.pr==='effect'?'Operation':t.named,v),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
+          header.appendField(new Blockly.FieldDropdown(t.named==='Ability'&&variant.wire==='Spell'?[['When this spell resolves','Spell']]:vd.variants.map(v=>[variantLabel(this.state.pr==='effect'?'Operation':t.named,v),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
           header.appendField('· '+t.named,'TYPE_LABEL');
         }else header.appendField(caption(this.state));
+        if(header&&t.named==='Ability')header.appendField('Functions:','LOCATION_LABEL').appendField(new Blockly.FieldDropdown(()=>functioningOptions(this),v=>{if(Blockly.Events.isEnabled()&&sections.home(this)&&sections.home(this).id!==v)setTimeout(()=>moveAbility(this,v),0);return v;}),'LOCATION').appendField('','CAST_FROM');
+        if(header&&this.state.cardSections)header.appendField(new Blockly.FieldDropdown(()=>[['Add another section…','NONE'],...sections.definitions.filter(d=>!this.state.cardSections.includes(d.id)).map(d=>[d.label,d.id])],v=>{if(v!=='NONE')setTimeout(()=>addSection(this,v),0);return null;}),'ADD_SECTION');
         if(header)header.appendField(new Blockly.FieldDropdown(()=>optionsFor(this),v=>{
           if(v==='NONE')return null;
-          setTimeout(()=>{if(v==='NAME_RESULT')bindingEditor.promote(this);else if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
+          setTimeout(()=>{if(v==='NAME_RESULT')bindingEditor.promote(this);else if(v==='LOCATIONS')editLocations(this);else if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('REMOVE:'))removeOption(this,v.slice(7));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
         }),'MORE');
         for(const p of parts(this.state)) {
           if(p.inline==='pt') {
@@ -529,14 +660,20 @@
             const input=this.appendDummyInput(p.key);if(p.label)input.appendField(p.label);input.appendField(valueField(p,v),'_'+p.key);this.getField('_'+p.key).setValue(v);if(p.suffix)input.appendField(p.suffix);
           }else {
             const ty=p.socketTy||p.ty;
-            (p.statement?this.appendStatementInput(p.key):this.appendValueInput(p.key)).setCheck(typeKey(ty)).appendField(p.label)
-              .appendField(button('+',p.flow?'Add a block':`Fill ${p.label}`,()=>insertDefault(this,p)),'FILL_'+p.key);
+            const input=(p.statement?this.appendStatementInput(p.key):this.appendValueInput(p.key)).setCheck(typeKey(ty));
+            if(p.abilitySection){
+              const title=this.appendDummyInput('TITLE_'+p.key).appendField(p.label)
+                .appendField(button('+',p.abilitySection==='resolve'?'Add a spell effect':'Add an ability here',()=>insertDefault(this,p)),'FILL_'+p.key)
+                .appendField(button('−','Clear this section (undo restores it)',()=>removeSection(this,p.abilitySection)));
+              this.moveInputBefore(title.name,p.key);
+            }else input.appendField(p.label).appendField(button('+',p.flow?'Add a block':`Fill ${p.label}`,()=>insertDefault(this,p)),'FILL_'+p.key);
             const shadow=shadows[p.key];
             if(shadow&&typeKey(shadow.extraState.ty)===typeKey(ty))this.getInput(p.key).connection.setShadowState(shadow);
             const old=attached[p.key];
             if(old && typeKey(old.state.ty)===typeKey(ty))this.getInput(p.key).connection.connect(p.statement?old.previousConnection:old.outputConnection);
           }
         }
+        for(const p of parts(this.state))if(resetValue(this,p)!==undefined)this.getInput(p.key)?.appendField(button('−','Remove '+(p.label||'this option')+' (undo restores it)',()=>removeOption(this,p.key)),'REMOVE_'+p.key);
         this.setTooltip(`${typeName(t)}${variant?'::'+variant.name:''}\n${variant?.doc||''}`);
         this.setInputsInline(this.state.pr==='literal'||this.state.pr==='effect'||this.state.pr==='keyword'||scalar(t)||(d?.kind==='struct'&&d.fields.kind==='tuple'&&d.fields.items.every(scalar)));
       }finally{Blockly.Events.enable();}
@@ -582,18 +719,24 @@
         values[p.key]=fromBlock(child);
       }
     }
+    if(state.cardSections)values.F_abilities=sections.entries(b).map(e=>sections.wire(fromBlock(e.block),e.section,state.cardMain));
+    return assemble(state,values);
+  }
+  function scopeValue(state,value){return state.sourceScope?{kind:'Scoped',args:{zones:clone(state.sourceScope),condition:null,ability:value}}:value;}
+  function assemble(state,values) {
+    const t=state.ty,d=descriptor(t);
     if(state.pr==='literal')return values.VALUE;
     if(state.pr==='single')return {schema_version:values.ROOT_schema,layout:values.ROOT_layout,data:values.ROOT_data,faces:[fieldsResult(types.Card.fields,values)]};
     if(state.pr==='effect')return {kind:'Effect',args:{result:values.RESULT,operation:packEnum(types.Operation,viewVariant(state),fieldsResult(viewVariant(state).fields,values,'O_'))}};
-    if(state.pr==='keyword')return {kind:'Keyword',args:packEnum(types.Keyword,viewVariant(state),fieldsResult(viewVariant(state).fields,values,'K_'))};
+    if(state.pr==='keyword')return scopeValue(state,{kind:'Keyword',args:packEnum(types.Keyword,viewVariant(state),fieldsResult(viewVariant(state).fields,values,'K_'))});
     if(scalar(t))return values.VALUE;
     if(t.vec) {
-      if(['Instruction','Ability'].includes(t.vec.named))return parts(state).flatMap(p=>chainValues(b.getInputTargetBlock(p.key)));
+      if(['Instruction','Ability'].includes(t.vec.named))return parts(state).flatMap(p=>values[p.key]);
       return parts(state).map(p=>values[p.key]);
     }
     if(t.option)return state.present?values.SOME:null;
     const v=viewVariant(state),f=t.tuple?{kind:'tuple',items:t.tuple}:v?v.fields:d.fields;
-    const a=fieldsResult(f,values,f.kind==='tuple'?'':'F_');return v?packEnum(d,v,a):a;
+    const a=fieldsResult(f,values,f.kind==='tuple'?'':'F_');return scopeValue(state,v?packEnum(d,v,a):a);
   }
   // Blockly serializes field names separately from state; use those exact names.
   function fixFieldNames(s) {
@@ -632,7 +775,7 @@
   }
   function actionGroups() {
     const groups=new Map();
-    for(const v of types.Operation.variants.filter(v=>!excluded(v)))try {
+    for(const v of types.Operation.variants.filter(v=>!excluded(v)&&!authoring.actions[v.wire].control&&!['Draw','GainLife','LoseLife','DealDamage','Move','Keyword','KeywordEach'].includes(v.wire)))try {
       const category=authoring.actions[v.wire].category;
       if(!groups.has(category))groups.set(category,[]);
       groups.get(category).push(flyoutBlock('Instruction',actionValue(v.wire)));
@@ -642,6 +785,7 @@
       if(!groups.has(category))groups.set(category,[]);
       groups.get(category).push(flyoutBlock('Instruction',keywordValue(type,v)));
     }catch(_){}
+    if(groups.has('Copies & tokens'))groups.get('Copies & tokens').push(...types.CopyException.variants.map(v=>variantBlock('CopyException',v.wire)));
     return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,contents])=>({kind:'category',name,colour:'#b46b4f',contents}));
   }
   function controlGroups() {
@@ -652,19 +796,35 @@
   }
   const toolboxDefinition={kind:'categoryToolbox',contents:[
     {kind:'category',name:'Abilities',colour:'#477d70',contents:[
-      {kind:'label',text:'Drag an ability into your card'},
-      ...['Spell','Triggered','Activated'].map(n=>flyoutBlock('Ability',abilityValue(n))),
-      {kind:'label',text:'Keywords'},
-      ...['Flying','Deathtouch','Haste','Vigilance','Lifelink','Trample'].map(n=>flyoutBlock('Ability',{kind:'Keyword',args:{kind:n}}))
+      {kind:'label',text:'Add these to a location section'},
+      ...['Triggered','Activated','Static','Replacement'].map(n=>flyoutBlock('Ability',abilityValue(n))),
+      flyoutBlock('Ability',{kind:'Replacement',args:{active:'SourceEntering',event:{Enter:{objects:{kind:'SameObject',args:{kind:'Source'}}}},body:{instructions:[]}}}),
+      {kind:'label',text:'Choose a keyword from its dropdown'},
+      flyoutBlock('Ability',{kind:'Keyword',args:{kind:'Flying'}})
     ]},
-    {kind:'category',name:'Actions',colour:'#b46b4f',contents:[
-      {kind:'label',text:'Stack actions inside an ability'},
+    {kind:'category',name:'Effects',colour:'#b46b4f',contents:[
+      {kind:'label',text:'Drop effects into spell resolution or an ability'},
       ...['Draw','GainLife','LoseLife'].map(n=>flyoutBlock('Instruction',actionValue(n,{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}}))),
       flyoutBlock('Instruction',actionValue('DealDamage',{source:{kind:'Source'},recipients:{kind:'Targets',args:0},amount:{kind:'Constant',args:3},preventable:true})),
-      flyoutBlock('Instruction',actionValue('Move',{objects:{kind:'One',args:{kind:'Source'}},destination:{Exile:{visibility:'FaceUp',arrival:{counters:[],states:[]}}}}))
+      flyoutBlock('Instruction',actionValue('Move',{objects:{kind:'One',args:{kind:'Source'}},destination:{Exile:{visibility:'FaceUp',arrival:{counters:[],states:[]}}}})),
+      ...actionGroups()
     ]},
-    {kind:'category',name:'All actions',colour:'#b46b4f',contents:actionGroups()},
-    {kind:'category',name:'Control',colour:'#9b7a42',contents:controlGroups()},
+    {kind:'category',name:'Flow',colour:'#9b7a42',contents:controlGroups()},
+    {kind:'category',name:'Casting & locations',colour:'#477d70',contents:[
+      {kind:'label',text:'Casting rules and costs'},
+      flyoutBlock('Ability',sectionStarter('casting')),
+      flyoutBlock('Ability',{kind:'Keyword',args:{kind:'Flash'}}),
+      flyoutBlock('Ability',{kind:'Casting',args:{Permission:{origin:'Flashback',player:{kind:'OwnerOf',args:{kind:'Source'}},from:{Players:{zone:'Graveyard',players:{kind:'One',args:{kind:'OwnerOf',args:{kind:'Source'}}}}},require:{kind:'Either',args:[{kind:'CardType',args:'Instant'},{kind:'CardType',args:'Sorcery'}]},cost:{parts:[{Mana:[{Generic:1}]}]},leave_stack:'Exile'}}}),
+      flyoutBlock('Ability',{kind:'Mechanic',args:{mechanic:'Disturb',cost:{parts:[{Mana:[{Generic:1}]}]},amount:null,filter:null}}),
+      {kind:'label',text:'When this card is cast · a separate trigger'},
+      flyoutBlock('Ability',{kind:'Scoped',args:{zones:['Stack'],condition:null,ability:{...abilityValue('Triggered'),args:{...abilityValue('Triggered').args,event:{Spell:{event:'Cast',players:{kind:'One',args:SELF},spells:{kind:'SameObject',args:{kind:'Source'}}}}}}}}),
+      {kind:'label',text:'In your hand · cycling'},
+      flyoutBlock('Ability',{kind:'Scoped',args:{zones:['Hand'],condition:null,ability:{...abilityValue('Activated'),args:{...abilityValue('Activated').args,origin:{Cycling:{search:null}},cost:{parts:[{Mana:[{Generic:2}]},{Discard:{count:{kind:'Constant',args:1},filter:{kind:'SameObject',args:{kind:'Source'}},random:false}}]},body:{instructions:[actionValue('Draw',{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}})]}}}}}),
+      {kind:'label',text:'In your graveyard · activate or continuously affect'},
+      ...['Activated','Static'].map(kind=>flyoutBlock('Ability',{kind:'Scoped',args:{zones:['Graveyard'],condition:null,ability:abilityValue(kind)}})),
+      {kind:'label',text:'Define characteristics in every zone'},
+      flyoutBlock('Ability',sectionStarter('everywhere'))
+    ]},
     {kind:'category',name:'Choices & modes',colour:'#9b7a42',contents:[
       {kind:'label',text:'Choose a mode when announcing the ability'},
       flyoutBlock('Ability',{kind:'Spell',args:{announcement:{targets:[],modes:{...defaultValue({named:'ModeSelection'}),options:[{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null},{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null}]}},body:{instructions:[]}}}),
@@ -672,23 +832,16 @@
       ...types.ModeMechanism.variants.map(v=>variantBlock('ModeMechanism',v.wire)),
       ...['ModeRepetition','ModeAvailability','ModeTargetPolicy','ModeAcceptance'].flatMap(t=>types[t].variants.map(v=>variantBlock(t,v.wire)))
     ]},
-    {kind:'category',name:'Copies & tokens',colour:'#708f68',contents:[
-      {kind:'label',text:'Create and copy'},
-      ...['CreateTokens','CopyOnStack','CopyEach','CopyCards','Populate'].map(n=>flyoutBlock('Instruction',actionValue(n))),
-      ...types.KeywordAction.variants.filter(v=>keywordMeta('KeywordAction',v).category==='Copies & tokens').map(v=>flyoutBlock('Instruction',keywordValue('KeywordAction',v))),
-      {kind:'label',text:'Exceptions to copied values'},
-      ...types.CopyException.variants.map(v=>variantBlock('CopyException',v.wire))
-    ]},
     {kind:'category',name:'Events',colour:'#508d88',contents:[
       flyoutBlock('EventSpec',choices.EventSpec[0][1]),
       flyoutBlock('EventSpec',{Turn:{point:'UpkeepBegins',players:{kind:'One',args:SELF}}})
     ]},
-    {kind:'category',name:'Targets',colour:'#5a7f9e',contents:[
+    {kind:'category',name:'Targets & selections',colour:'#5a7f9e',contents:[
       ...targetPresets.map(([,p])=>flyoutBlock('TargetSpec',{...defaultValue({named:'TargetSpec'}),...clone(p)})),
       ...['Target','Source'].map(n=>variantBlock('ObjectRef',n)),
       variantBlock('ObjectSet','Targets')
     ]},
-    {kind:'category',name:'Values',colour:'#ac8730',contents:[
+    {kind:'category',name:'Values & conditions',colour:'#ac8730',contents:[
       flyoutBlock('Expr',{kind:'Constant',args:1}),
       flyoutBlock('Expr',{kind:'AnnouncedX'}),
       flyoutBlock('Expr',{kind:'Add',args:[{kind:'Constant',args:0},{kind:'Constant',args:0}]}),
@@ -704,12 +857,26 @@
   $('block-search').oninput=()=>{
     const q=$('block-search').value.trim().toLocaleLowerCase();
     if(!q){workspace.updateToolbox(toolboxDefinition);return;}
-    const contents=[];
-    for(const type of ['Instruction','Operation','CopyException',...keywordFamilies,...modeFamilies])for(const v of types[type].variants.filter(v=>!excluded(v)&&(type!=='Instruction'||v.wire!=='Effect'))) {
-      const meta=modeFamilies.includes(type)?{name:v.name,label:pretty(v.name),category:'Choices & modes'}:keywordFamilies.includes(type)?keywordMeta(type,v):type==='CopyException'?{name:v.name,label:pretty(v.name),category:'Copies & tokens'}:(type==='Operation'?authoring.actions:authoring.instructions)[v.wire];
-      if(!`${v.name} ${meta.name} ${meta.label} ${meta.category} ${v.doc}`.toLocaleLowerCase().includes(q))continue;
-      try{contents.push(keywordFamilies.includes(type)?flyoutBlock('Instruction',keywordValue(type,v)):type==='Operation'?flyoutBlock('Instruction',actionValue(v.wire)):variantBlock(type,v.wire));}catch(_){}
+    const contents=[],seen=new Set();
+    function visit(items,path=[]) {
+      for(const item of items) {
+        if(item.kind==='category'){visit(item.contents,[...path,item.name]);continue;}
+        if(item.kind!=='block')continue;
+        try {
+          const value=fromBlock(fakeBlock(item)),key=encode(value),state=item.extraState;
+          const variant=viewVariant(state),type=state.pr==='effect'?'Operation':state.ty.named;
+          const label=variant?variantLabel(type,variant):typeName(state.ty);
+          if(!`${label} ${variant?.doc||''} ${path.join(' ')} ${key} ${pretty(key)}`.toLocaleLowerCase().includes(q)||seen.has(key))continue;
+          seen.add(key);contents.push(item);
+        }catch(_){}
+      }
     }
+    visit(toolboxDefinition.contents);
+    // One palette block, but every keyword name remains searchable.
+    for(const v of types.Keyword.variants)if(`${v.name} ${pretty(v.name)}`.toLocaleLowerCase().includes(q))try {
+      const block=flyoutBlock('Ability',{kind:'Keyword',args:packEnum(types.Keyword,v,fieldsDefault(v.fields,[],`Keyword::${v.wire}`))}),key=encode(fromBlock(fakeBlock(block)));
+      if(!seen.has(key)){seen.add(key);contents.push(block);}
+    }catch(_){}
     workspace.updateToolbox({kind:'categoryToolbox',contents:[{kind:'category',name:'Matches',colour:'#b46b4f',contents:contents.length?contents:[{kind:'label',text:'No matching blocks'}]}]});
     workspace.getToolbox().selectItemByPosition(0);
   };
@@ -758,7 +925,7 @@
   worker.onerror=e=>{startedReject(Error(e.message));invalid('The WebAssembly worker stopped: '+e.message);for(const p of requests.values())p.reject(Error(e.message));requests.clear();};
   worker.postMessage({init:payload.wasm});
   async function codeRequest(kind,text){await workerStarted;return new Promise((resolve,reject)=>{const id=nextRequest--;requests.set(id,{resolve,reject});worker.postMessage({id,[kind]:text});});}
-  bindingEditor=createBindingEditor({types,parts,scalar,descriptor,variantFor,viewVariant,childValues,fromBlock,pickerValue,
+  bindingEditor=createBindingEditor({sectionEntries:sections.entries,types,parts,scalar,descriptor,variantFor,viewVariant,childValues,fromBlock,pickerValue,
     workspace:()=>workspace,generated,revision:()=>revision,request:codeRequest,parse:parseExact,encode,notice,remember,changed,migrationFinished:()=>{preserveSavedDraft=false;}});
   async function refreshCode(){
     if(!lastValid||codeDirty||lastHuman===null)return;
@@ -804,6 +971,8 @@
     if(suppress) return;
     ++revision; clearTimeout(timer); invalid('Changes are checked with the native Rust validation rules.',true);
     timer=setTimeout(()=>{
+      let routed=false;suppress=true;try{routed=routeAbilities();}finally{suppress=false;}
+      if(routed){changed();return;}
       allocateFreshResults();
       applyPresentation();
       remember();
@@ -932,7 +1101,7 @@
   $('code-view').onclick=()=>openInspector($('studio').classList.contains('hide-inspector'));
   $('details').onclick=()=>{detailMode=!detailMode;$('details').setAttribute('aria-pressed',String(detailMode));applyPresentation();workspace.render();openInspector(detailMode);};
   setMode('blocks');
-  $('new-card').onclick=()=>{preserveSavedDraft=false;++loadSequence;const kind=$('starter').value,v=blank(kind!=='creature');if(kind==='spell'){v.faces[0].abilities=[];v.faces[0].name='New spell';}loadIR(v,false);};
+  $('new-card').onclick=()=>{preserveSavedDraft=false;++loadSequence;const kind=$('starter').value,v=blank(kind!=='creature');if(kind==='spell'){v.faces[0].abilities=[abilityValue('Spell')];v.faces[0].name='New spell';}loadIR(v,false);};
   $('fit').onclick=()=>workspace.zoomToFit();$('zoom-in').onclick=()=>workspace.zoomCenter(1);$('zoom-out').onclick=()=>workspace.zoomCenter(-1);
   $('undo').onclick=()=>workspace.undo(false);$('redo').onclick=()=>workspace.undo(true);
   $('expand').onclick=()=>{workspace.getAllBlocks(false).forEach(b=>b.setCollapsed(false));workspace.zoomToFit();};
@@ -964,5 +1133,5 @@
   if(!restored&&!workspace.getAllBlocks(false).length) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
+  window.cardBlocks={sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

@@ -19,6 +19,7 @@ def main():
     parser.add_argument('output', type=Path)
     args = parser.parse_args()
     source = Path(__file__).resolve().parent
+    frontend = '\n'.join((source / name).read_text() for name in ('bindings.js', 'sections.js', 'app.js'))
     schema = json.loads((args.build / 'schema.json').read_text())
     wasm = (args.build / 'wasm/validator_bg.wasm').read_bytes()
     records, catalog, shards = [], [], []
@@ -41,7 +42,7 @@ def main():
         shards.append(compressed(json.dumps(records, separators=(',', ':'), ensure_ascii=False).encode()))
     catalog.sort(key=lambda c: c['name'].casefold())
     payload = {'schema': schema, 'record_count': count, 'cards': catalog, 'shards': shards, 'wasm': compressed(wasm),
-               'model': hashlib.sha256(json.dumps(schema, sort_keys=True).encode() + wasm).hexdigest()[:16]}
+               'model': hashlib.sha256(json.dumps(schema, sort_keys=True).encode() + wasm + frontend.encode()).hexdigest()[:16]}
     payload['legacy_models'] = {}
     for legacy_path in sorted((source / 'fixtures').glob('schema-*.json')):
         legacy = json.loads(legacy_path.read_text())
@@ -53,7 +54,7 @@ def main():
         'PAYLOAD': json.dumps(payload, separators=(',', ':'), ensure_ascii=False).replace('<', '\\u003c'),
         'BLOCKLY': re.sub(r'//# sourceMappingURL=.*', '', core + '\n' + messages).replace('</script', '<\\/script'),
         'GLUE': json.dumps((args.build / 'wasm/validator.js').read_text()).replace('<', '\\u003c'),
-        'APP': ((source / 'bindings.js').read_text() + '\n' + (source / 'app.js').read_text()).replace('</script', '<\\/script'),
+        'APP': frontend.replace('</script', '<\\/script'),
         'SPRITE': 'data:image/svg+xml;base64,' + base64.b64encode((source / 'vendor/media/sprites.svg').read_bytes()).decode(),
         'LICENSE': (source / 'vendor/LICENSE.blockly').read_text().replace('--', '—'),
     }

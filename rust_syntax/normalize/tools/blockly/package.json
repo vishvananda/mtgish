@@ -15,7 +15,8 @@
     "test:branches": "node test_branches.cjs",
     "test:copy": "node test_copy.cjs",
     "test:entry": "node test_entry.cjs",
-    "test:keywords": "node test_keywords.cjs"
+    "test:keywords": "node test_keywords.cjs",
+    "test:sections": "node test_sections.cjs"
   },
   "devDependencies": {
     "playwright": "1.65.0"

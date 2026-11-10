@@ -28,7 +28,7 @@ let browser,page;
  await page.evaluate(()=>window.cardBlocks.workspace.undo(true));
  await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.operation.args.amount.args===3);
  // Drag an actual toolbox expression onto the existing editable number.
- await page.locator('.blocklyToolboxCategory').filter({has:page.getByText('Values',{exact:true})}).first().click();
+ await page.locator('.blocklyToolboxCategory').filter({has:page.getByText('Values & conditions',{exact:true})}).first().click();
  await page.evaluate(async()=>{window.cardBlocks.applyPresentation();await Blockly.renderManagement.finishQueuedRenders();});
  const start=await page.evaluate(()=>{
   const b=window.cardBlocks.workspace.getFlyout().getWorkspace().getAllBlocks(false).find(b=>b.state.ty.named==='Expr'&&b.state.variant==='AnnouncedX');

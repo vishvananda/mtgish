@@ -43,6 +43,7 @@ function createBindingEditor(api) {
     return out;
   }
   function partPath(s,p,path) {
+    if(s.sourceScope)path=ptr(ptr(path,'args'),'ability');
     if(s.pr==='literal'||api.scalar(s.ty))return path;
     if(s.pr==='single')return p.key==='ROOT_schema'?ptr(path,'schema_version'):p.key==='ROOT_layout'?ptr(path,'layout'):p.key==='ROOT_data'?ptr(path,'data'):ptr(ptr(ptr(path,'faces'),0),p.key.slice(2));
     let base=path,prefix='F_',f;
@@ -60,8 +61,15 @@ function createBindingEditor(api) {
     const result=[];
     function chain(head,values,path) {let i=0;for(let b=head;b;b=b.getNextBlock()){visit(b,values[i],ptr(path,i));++i;}return i;}
     function visit(b,value,path) {
+      if(b.state.ty.named==='Ability'&&!b.state.sourceScope&&b.state.variant!=='Scoped'&&value.kind==='Scoped'){path=ptr(ptr(path,'args'),'ability');value=value.args.ability;}
       const s=b.state,values=api.childValues(s.ty,value,s),locals=localPorts(b);let offset=0;
       for(const p of api.parts(s)) {
+        if(p.abilitySection){
+          const abilities=s.pr==='single'?value.faces[0].abilities:value.abilities;
+          const base=s.pr==='single'?ptr(ptr(ptr(path,'faces'),0),'abilities'):ptr(path,'abilities');
+          api.sectionEntries(b).forEach((entry,index)=>{if(entry.section===p.abilitySection)visit(entry.block,abilities[index],ptr(base,index));});
+          continue;
+        }
         let at=partPath(s,p,path);
         if(s.ty.vec&&['Ability','Instruction'].includes(s.ty.vec.named)) {
           let i=0;for(let child=b.getInputTargetBlock(p.key);child;child=child.getNextBlock())visit(child,value[offset+i],ptr(path,offset+i++));offset+=i;continue;

@@ -6,22 +6,37 @@ checked-in card corpus, inspect/edit the blocks, start a blank creature or draw
 spell, and export validated normalized IR JSON or editable card code. No server, CDN, network service,
 Oracle-text reconstruction or Cantrip runtime is involved.
 
-The **Build** view is a Scratch-style authoring workspace. Drag an ability from
-Abilities into the card, then drag actions from Actions into its `do` slot. Actions
-connect vertically and can be reordered by dragging. Numbers and common player
-choices are editable shadow blocks in typed sockets. Drop an expression onto a
-number or picker to replace it; removing the expression restores the previous
-simple value. There is no conversion menu. Keywords are small stackable
-blocks. **All actions** groups the complete operation library by purpose: cards
-and libraries, damage and life, objects and movement, counters and changes,
-choices and values, mana and casting, triggers and replacements, control flow
-and batches, and game/keyword actions. **Control** groups instruction sequences,
-simultaneous actions, conditions and choices, iteration and repetition, local
-selections, and results and receipts. **Find a block** searches action and
-instruction names, families and Rust documentation. Action names use verbs and their objects, such as
-**Draw Cards**, **Move Objects**, and **Destroy Objects**. Event references say
-**Event Player** or **Event Object**; **Ability Holder** and **Granting Object**
-remain distinct from the source of an effect. **Library** opens card search without discarding the workspace.
+The **Build** view groups each face's abilities by where or when they function.
+An instant or sorcery opens with **When this spell resolves**, ready for effects.
+A permanent opens with **Entering / on the battlefield**, ready for keywords,
+triggered abilities, activations and continuous effects. **Add another section…**
+adds casting, hand, graveyard, stack, all-zone characteristics, exile, library,
+command-zone, pregame or multiple-location rules. Empty uncommon sections stay
+out of the way; populated imported sections appear automatically.
+
+**Casting this card** separates casting rules/costs from a **when this card is
+cast** trigger. Flashback and disturb show **From graveyard**, while cycling
+lives in **In your hand**. A functioning-location picker moves an ordinary
+ability between sections; **⋯ → Edit functioning locations…** supports several
+zones. Location describes the source, independently of which objects its effect
+affects. A dies trigger stays with battlefield abilities. **As this enters** is
+a replacement, distinct from a **when this enters** trigger. Known mechanic
+starters route to their section automatically when dropped onto the card.
+
+Drag effects from **Effects** into spell resolution or an ability's effects
+stack. **Abilities** contains a single editable keyword starter and ordinary
+triggered, activated, static and replacement starters. **Casting & locations**
+contains the specialized starters. **Flow** contains conditions, choices,
+iteration and batches; **Effects** groups other operations by purpose without a
+second “all actions” collection. **Find a block** searches this same toolbox and
+removes duplicate results. The advanced type browser remains available.
+
+Actions connect vertically and can be reordered by dragging. Numbers and common
+player choices are editable shadow blocks in typed sockets. Drop an expression
+onto a number or picker to replace it; removing the expression restores its
+previous simple value. **Library** opens card search without discarding the
+workspace. The section projection preserves imported ability order, binding
+paths, numeric IDs and names; it adds no AST variants or engine behavior.
 
 **Sequence of instructions** (`Group`) keeps a separate result for each child
 instruction. **In Order** and **Together** contain action clauses under one
@@ -32,7 +47,10 @@ number of times. Tooltips describe lexical scope and receipt exports. A
 **Choose an option** starter includes two empty alternatives to fill in.
 
 Empty optional fields and default modifiers are hidden. The **⋯** menu adds them
-on demand, including targeting. **IR details** exposes bookkeeping/default fields
+on demand, including targeting. Each removable option has a **−** control and a
+matching Remove command in **⋯**. Removing resets the option to its default;
+undo restores its contents. Sections can also be cleared with their **−**.
+**IR details** exposes bookkeeping/default fields
 and the AST inspector. Targets, loop bindings and selections have editable names;
 references use menus of names that Rust validates in that scope and type.
 Unused action results stay unnamed until **⋯ → Name result** is selected. Renames
