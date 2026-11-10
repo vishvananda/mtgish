@@ -1140,6 +1140,12 @@ impl Compiler {
         use lane_j::{counted, held_number};
         let feature = format!("numeric expression {}", form(n));
         Ok(match n {
+            Expr::RequestedDrawCount { payment: PaymentRef::Resolution(result), component } => {
+                let code = self.requested_draws.get(&(result.0, component.clone()))
+                    .ok_or_else(|| gap("requested draw count of an unsupported resolution cost component"))?;
+                counted(code.clone())
+            }
+            Expr::RequestedDrawCount { .. } => return Err(gap("requested draw count outside a resolution cost")),
             // The share a delayed ability's target was given when its spell resolved.
             Expr::DistributedShare(slot)
                 if self.reader == Reader::Resolution

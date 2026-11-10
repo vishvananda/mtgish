@@ -212,5 +212,29 @@
     "Cracked Skull",
     "Psychotic Episode"
   ],
-  "code_commit": "379fa6835fd05e2a14f3d6d35e9e218b0c73d9b6"
+  "code_commit": "379fa6835fd05e2a14f3d6d35e9e218b0c73d9b6",
+  "backend_followup": {
+    "document": "cantrip-reference32-backend-20261110.md",
+    "implemented": [
+      "Horrid Shadowspinner",
+      "Luxurious Locomotive"
+    ],
+    "remaining_engine_prerequisites": [
+      "Deification",
+      "Hofri Ghostforge"
+    ],
+    "affected_census_capable": 112,
+    "affected_census_total": 132,
+    "lost_capability": 0,
+    "engine_changes": false,
+    "schema_changes": false,
+    "validation": {
+      "ast_generator_passed": 1500,
+      "failed": 0,
+      "ignored": 17,
+      "native_runtime_cases": 6,
+      "native_negative_controls": 2,
+      "test_thread_stack_bytes": 16777216
+    }
+  }
 }

@@ -1583,6 +1583,14 @@ impl Compiler {
                 let answer = match measure {
                     HistoryMeasure::Occurrences => faces::attackers_counted(event, &hits)
                         .unwrap_or_else(|| format!("{hits}.count() as i64")),
+                    // Crew records retain the exact creature incarnation even
+                    // after it leaves. Each creature counts once, regardless of
+                    // how often it crewed; do not query the current battlefield.
+                    HistoryMeasure::DistinctSources
+                        if matches!(&**event, EventSpec::Pair { event: PairEvent::Crews, .. }) =>
+                    {
+                        format!("{{ let mut sources: Vec<ObjectId> = {hits}.filter_map(|f: Fired| f.subject.object()).collect(); sources.sort(); sources.dedup(); sources.len() as i64 }}")
+                    }
                     HistoryMeasure::TotalAmount
                         if matched.frame.amount == Some(Carried::Data(0)) =>
                     {

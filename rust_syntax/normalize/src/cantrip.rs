@@ -822,6 +822,8 @@ struct Compiler {
     /// The announcement slot whose filter is being compiled.
     choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
+    /// Requested draw quantities, keyed by their exact resolution cost component.
+    requested_draws: BTreeMap<(u32, Vec<u32>), String>,
     /// Semantic result bounds can exceed the physical u32 object-count domain.
     quantity_results: BTreeMap<u32, Quantity>,
     /// The payments whose `unpaid_` list this resolution keeps.
@@ -1308,6 +1310,7 @@ impl Compiler {
             door: None,
             choosing: None,
             performed: BTreeMap::new(),
+            requested_draws: BTreeMap::new(),
             quantity_results: BTreeMap::new(),
             unpaid: BTreeSet::new(),
             hurt_players: BTreeMap::new(),

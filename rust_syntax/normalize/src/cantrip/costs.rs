@@ -828,7 +828,7 @@ impl Compiler {
                 ".from(ZoneKind::Hand).cycling()"
             }
             ActivationOrigin::Cycling { .. } => ".cycling()",
-            ActivationOrigin::Crew => return crew(price, &text),
+            ActivationOrigin::Crew => "",
             #[allow(unreachable_patterns)]
             other => return Err(gap(format!("activation origin {}", form(other)))),
         };
@@ -836,7 +836,9 @@ impl Compiler {
             true => self.implied_slots(announcement, label, None)?,
             false => None,
         };
-        let mut def = if let Some(targets) = implied {
+        let mut def = if matches!(origin, ActivationOrigin::Crew) {
+            crew(price, &text)?
+        } else if let Some(targets) = implied {
             let effect = self.implied_effect(announcement, label)?;
             format!(
                 "ability({}, {effect}, {}).targets({targets})",

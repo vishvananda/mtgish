@@ -541,6 +541,7 @@ pub(super) struct Results {
     pub(super) moved: BTreeMap<u32, String>,
     pub(super) before: BTreeMap<u32, String>,
     pub(super) performed: BTreeMap<u32, String>,
+    requested_draws: BTreeMap<(u32, Vec<u32>), String>,
     quantity_results: BTreeMap<u32, Quantity>,
     excess: BTreeMap<u32, (String, String, Option<String>)>,
     pub(super) values: BTreeMap<u32, String>,
@@ -1013,6 +1014,7 @@ impl Compiler {
             moved: self.moved.clone(),
             before: self.before.clone(),
             performed: self.performed.clone(),
+            requested_draws: self.requested_draws.clone(),
             quantity_results: self.quantity_results.clone(),
             excess: self.excess.clone(),
             values: self.values.clone(),
@@ -1039,6 +1041,7 @@ impl Compiler {
             moved,
             before,
             performed,
+            requested_draws,
             quantity_results,
             excess,
             values,
@@ -1062,6 +1065,7 @@ impl Compiler {
         self.moved = moved;
         self.before = before;
         self.performed = performed;
+        self.requested_draws = requested_draws;
         self.quantity_results = quantity_results;
         self.excess = excess;
         self.values = values;
@@ -3031,6 +3035,30 @@ impl Compiler {
                 .unwrap();
                 self.performed.insert(result.0, format!("paid_{id}"));
             }
+            // A draw cost is chosen/attempted independently of how replacement
+            // effects change the actual draws (CR 118.12, 121.2). Capture its
+            // requested amount before the choice and never re-read power after it.
+            Operation::PayCost { player, cost, optional }
+                if self.asking.is_none()
+                    && matches!(cost.parts.as_slice(), [CostPart::Draw { .. }]) =>
+            {
+                let [CostPart::Draw { count }] = cost.parts.as_slice() else { unreachable!() };
+                let payer = self.fetch(self.certain_player(player)?);
+                let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "u32")?);
+                let decision = if *optional {
+                    format!(" && cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?")
+                } else { String::new() };
+                // A prohibited draw is unpayable. An empty library or a draw
+                // replacement does not prohibit attempting the cost.
+                let cant_draw = planned::cant_draw(&format!("payer_{id}"), &format!("draw_count_{id}"));
+                writeln!(out, "let payer_{id} = {payer}; let draw_count_{id}: u32 = {count}; let paid_{id} = !{cant_draw}{decision}; let requested_draw_{id}: i64 = if paid_{id} {{ i64::from(draw_count_{id}) }} else {{ 0 }};").unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
+                self.requested_draws.insert((result.0, vec![0]), format!("requested_draw_{id}"));
+                // The draw operation may also need an actual-card receipt. Keep
+                // that receipt separate from both the choice and requested count.
+                writeln!(out, "let mut drawn_{id}: Vec<ObjectId> = Vec::new(); if paid_{id} {{ let held = g.state().zone(Zone::hand(payer_{id})).to_vec(); g.draw(payer_{id}, draw_count_{id}); drawn_{id}.extend(g.state().zone(Zone::hand(payer_{id})).iter().copied().filter(|c| !held.contains(c))); }}").unwrap();
+                self.moved.insert(result.0, format!("drawn_{id}"));
+            }
             // These parts have no cost of the engine's: the instruction itself is
             // what the player may do, and "if you do" reads whether it happened.
             Operation::PayCost {
@@ -3719,6 +3747,7 @@ impl Compiler {
         self.moved.clear();
         self.before.clear();
         self.performed.clear();
+        self.requested_draws.clear();
         self.quantity_results.clear();
         self.excess.clear();
         self.unpaid.clear();
