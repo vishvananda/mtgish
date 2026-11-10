@@ -137,13 +137,13 @@ function createSelectorEditor(api) {
     const p=api.parts(parent.state).find(p=>p.key===key);if(!supports(p?.ty))return;
     editing={parent:parent.id,key,ty:p.ty};options=starters(p.ty,parent);
     $('selector-title').textContent='Choose '+title(p.ty);$('selector-search').value='';
-    const child=parent.getInputTargetBlock(key);$('selector-current').textContent=child?'Current: '+(summary(child)||describe(p.ty,api.fromBlock(child),child)):'Drop a matching selector into this socket, or choose a starter below.';
+    const child=parent.getInputTargetBlock(key);$('selector-current').textContent=child?'Current: '+(summary(child)||describe(p.ty,api.fromBlock(child,p.ty),child)):'Drop a matching selector into this socket, or choose a starter below.';
     $('selector-edit-blocks').textContent=child?'Edit current selector in blocks':'Build a custom selector in blocks';
     renderOptions();dialog.showModal();$('selector-search').focus();
   }
   function insert(value) {
     try {
-      const {parent,p,input}=current(),old=parent.getInputTargetBlock(p.key);let before;try{before=old&&api.fromBlock(old);}catch(_){}
+      const {parent,p,input}=current(),old=parent.getInputTargetBlock(p.key);let before;try{before=old&&api.fromBlock(old,p.ty);}catch(_){}
       if(old&&api.same(value,before)){dialog.close();expand(old);return;}
       api.remember();Blockly.Events.setGroup(true);
       try {

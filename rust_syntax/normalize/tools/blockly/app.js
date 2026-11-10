@@ -117,6 +117,7 @@
     if(Array.isArray(a)!==Array.isArray(b))return false;
     const keys=Object.keys(a);return keys.length===Object.keys(b).length&&keys.every(k=>Object.hasOwn(b,k)&&same(a[k],b[k]));
   };
+  const projections=createAuthoringProjections({types,clone,same});
   const namedAbilities=createNamedAbilities({abilityValue,actionValue,clone,same});
   const targetPresets=authoring.targets.map(t=>[t.label,t.fields]);
   const targetPreset = v => targetPresets.findIndex(([,p])=>Object.keys(p).every(k=>same(p[k],v[k])));
@@ -180,7 +181,9 @@
     const t=state.ty,d=descriptor(t);let result;
     if(state.pr==='literal') {
       result=[{key:'VALUE',label:'',ty:t,inline:state.literal}];
-    } else if(state.pr==='single') {
+    } else if(state.pr==='count')result=[{key:'COUNTED',label:'',ty:{named:'ObjectSet'}}];
+    else if(state.pr==='query')result=[{key:'Q_CARD',label:'',ty:{named:'String'},options:projections.cards},{key:'Q_CONTROL',label:'',ty:{named:'String'},options:[['any controller','Any'],['you control','You']]}];
+    else if(state.pr==='single') {
       // The single-card projection keeps its hidden Card tag as a literal.
       // General records use the schema's typed Layout field; preserving this
       // projection field also lets old saved cards decode before migration.
@@ -227,6 +230,8 @@
     let sourceScope;
     if(t.named==='Ability'&&value.kind==='Scoped'&&value.args.condition===null&&value.args.ability.kind!=='Scoped'){sourceScope=clone(value.args.zones);value=value.args.ability;}
     const variant=variantFor(t,value),s={ty:t,ui:3,negativePrevention:true,...(variant?{variant:variant.wire}:{}),...(sourceScope?{sourceScope}:{})};
+    if(t.named==='Expr'&&value.kind==='CountObjects')s.pr='count';
+    if(t.named==='ObjectSet'&&projections.query(value)){s.pr='query';s.queryRaw=clone(value);}
     if(t.named==='Expr'&&value.kind==='Constant'){s.pr='literal';s.literal='constant';}
     else if(choices[t.named]?.some(([,v])=>same(v,value))){s.pr='literal';s.literal='choice';}
     if(t.named==='UnifiedCard' && value.faces.length===1)s.pr='single';
@@ -244,6 +249,8 @@
   function childValues(t,value,state) {
     if(state.sourceScope)value=value.args.ability;
     if(state.pr==='literal')return {VALUE:value};
+    if(state.pr==='count')return {COUNTED:value.args};
+    if(state.pr==='query')return projections.query(value);
     if(state.pr==='single')return sections.values(state,value,{ROOT_schema:value.schema_version,ROOT_layout:value.layout,ROOT_data:value.data,...fieldValues(types.Card.fields,value.faces[0])});
     if(state.pr==='effect')return {RESULT:value.args.result,...fieldValues(viewVariant(state).fields,value.args.operation.args,'O_')};
     if(state.pr==='keyword')return fieldValues(viewVariant(state).fields,value.args.args,'K_');
@@ -262,6 +269,7 @@
     return head;
   }
   function toBlock(t,value,outline=false,override={}) {
+    const peeled=projections.peel(t,value);if(peeled)return toBlock(peeled.ty,peeled.value,outline,override);
     const state=stateFor(t,value),values=childValues(t,value,state);
     state.inline={};
     for(const p of parts(state)) {
@@ -291,7 +299,7 @@
       }
     }
     const variant=viewVariant(state);
-    if(variant && !scalar(t)&&!state.activationName)result.fields.VARIANT=variant.wire;
+    if(variant && !scalar(t)&&!state.activationName&&!['literal','count','query'].includes(state.pr))result.fields.VARIANT=variant.wire;
     if(selectorEditor?.supports(t)&&state.pr!=='literal')result.collapsed=true;
     if((outline||['Characteristics','Cost'].includes(t.named)) && ['Characteristics','Cost','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival'].includes(t.named))result.collapsed=true;
     return result;
@@ -315,7 +323,7 @@
   function scalarType(p){return p.inline==='pt'?{named:'i32'}:p.inline==='constant'?{named:'i64'}:p.inline==='choice'?{named:'String'}:scalar(p.ty)?p.ty:null;}
   function pickerValue(b,p,index) {const choice=choices[p.ty.named]?.[index];if(!choice)throw Error('Choose a valid '+p.label);const pick=b.state.picks?.[p.key];return clone(pick?.index===index?pick.value:choice[1]);}
   function fakeBlock(s) {return {type:s.type,state:s.extraState,isEnabled:()=>!s.disabled&&!s.disabledReasons?.length,getFieldValue:n=>s.fields?.[n],setFieldValue:(v,n)=>{(s.fields??={})[n]=v;},getInputTargetBlock:n=>{const child=s.inputs?.[n]?.block||s.inputs?.[n]?.shadow;return child?fakeBlock(child):null;},getNextBlock:()=>s.next?.block?fakeBlock(s.next.block):null};}
-  function valueField(p,value){return p.inline==='choice'?new Blockly.FieldDropdown(choices[p.ty.named].map(([label],i)=>[label,String(i)])):field(scalarType(p),value);}
+  function valueField(p,value){if(p.options)return new Blockly.FieldDropdown(p.options);return p.inline==='choice'?new Blockly.FieldDropdown(choices[p.ty.named].map(([label],i)=>[label,String(i)])):field(scalarType(p),value);}
   function isMetadataEmpty(v) {
     if(v===null || v===false || v==='DestinationDefault')return true;
     if(Array.isArray(v))return v.length===0;
@@ -654,10 +662,12 @@
         }
         for(const i of [...this.inputList])this.removeInput(i.name);
         const t=this.state.ty,d=descriptor(t),header=this.state.pr==='literal'?null:this.appendDummyInput('HEADER'),variant=viewVariant(this.state);
-        if(this.state.statement){this.setOutput(false);this.setPreviousStatement(true,typeKey(t));this.setNextStatement(['Instruction','Ability'].includes(t.named),typeKey(t));}
-        else {this.setNextStatement(false);this.setPreviousStatement(false);this.setOutput(true,typeKey(t));}
+        if(this.state.statement){this.setOutput(false);this.setPreviousStatement(true,projections.outputs(t).map(typeKey));this.setNextStatement(['Instruction','Ability'].includes(t.named),typeKey(t));}
+        else {this.setNextStatement(false);this.setPreviousStatement(false);this.setOutput(true,projections.outputs(t).map(typeKey));}
         this.setColour(colour(this.state.pr==='effect'?{named:'Operation'}:t));
-        if(this.state.activationName)header.appendField(this.state.activationName,'NAMED_ABILITY');
+        if(this.state.pr==='count')header.appendField('number of');
+        else if(this.state.pr==='query')header.appendField('all');
+        else if(this.state.activationName)header.appendField(this.state.activationName,'NAMED_ABILITY');
         else if(this.state.pr==='literal') { /* The editable field itself is the literal block. */ }
         else if(t.named==='TargetSpec')header.appendField(new Blockly.FieldDropdown([...targetPresets.map(([label],i)=>[label,String(i)]),['custom target…','CUSTOM']]),'TARGET_PRESET');
         else if(t.vec){header.appendField(t.vec.named==='TargetSpec'?'Targets':typeName(t.vec)+' items');header.appendField(button('+','Add an item',()=>this.resize(1)));if(this.state.count)header.appendField(button('−','Remove last item',()=>this.resize(-1)));}
@@ -697,14 +707,14 @@
               else input.appendField(button('+',p.flow?'Add a block':`Fill ${p.label}`,()=>insertDefault(this,p)),'FILL_'+p.key);
             }
             const shadow=shadows[p.key];
-            if(shadow&&typeKey(shadow.extraState.ty)===typeKey(ty))this.getInput(p.key).connection.setShadowState(shadow);
+            if(shadow&&projections.compatible(shadow.extraState.ty,ty))this.getInput(p.key).connection.setShadowState(shadow);
             const old=attached[p.key];
-            if(old && typeKey(old.state.ty)===typeKey(ty))this.getInput(p.key).connection.connect(p.statement?old.previousConnection:old.outputConnection);
+            if(old && projections.compatible(old.state.ty,ty))this.getInput(p.key).connection.connect(p.statement?old.previousConnection:old.outputConnection);
           }
         }
         for(const p of parts(this.state))if(resetValue(this,p)!==undefined)this.getInput(p.key)?.appendField(button('−','Remove '+(p.label||'this option')+' (undo restores it)',()=>removeOption(this,p.key)),'REMOVE_'+p.key);
         this.setTooltip(`${typeName(t)}${variant?'::'+variant.name:''}\n${variant?.doc||''}`);
-        this.setInputsInline(this.state.pr==='literal'||this.state.pr==='effect'||this.state.pr==='keyword'||scalar(t)||(d?.kind==='struct'&&d.fields.kind==='tuple'&&d.fields.items.every(scalar)));
+        this.setInputsInline(['literal','effect','count','query'].includes(this.state.pr)||this.state.pr==='keyword'||scalar(t)||(d?.kind==='struct'&&d.fields.kind==='tuple'&&d.fields.items.every(scalar)));
       }finally{Blockly.Events.enable();}
       if(this.rendered)this.render();
     },
@@ -730,7 +740,7 @@
     if(f.kind==='record')return Object.fromEntries(f.fields.map(f=>[f.name,values[prefix+f.name]]));
     const a=f.items.map((_,i)=>values[`${prefix}ARG_${i}`]);return a.length===1?a[0]:a;
   }
-  function fromBlock(b) {
+  function fromBlock(b,expected=null) {
     if(!b || b.type!=='ir_value')throw Error('Fill the missing block before exporting.');
     if(!b.isEnabled())throw Error('Re-enable or remove disabled blocks before exporting IR.');
     const state=b.state,t=state.ty,d=descriptor(t),values={};
@@ -744,17 +754,18 @@
       else if(p.flow) {const list=chainValues(b.getInputTargetBlock(p.key));values[p.key]=p.flow==='program'?{instructions:list}:list;}
       else {
         const child=b.getInputTargetBlock(p.key);if(!child)throw Error(`${typeName(t)}: fill the ${p.label} socket.`);
-        if(typeKey(child.state.ty)!==typeKey(p.ty))throw Error(`Wrong type in ${p.label}`);
-        values[p.key]=fromBlock(child);
+        values[p.key]=fromBlock(child,p.ty);
       }
     }
     if(state.cardSections)values.F_abilities=sections.entries(b).map(e=>sections.wire(fromBlock(e.block),e.section,state.cardMain));
-    return assemble(state,values);
+    const value=assemble(state,values);return expected?projections.coerce(t,expected,value):value;
   }
   function scopeValue(state,value){return state.sourceScope?{kind:'Scoped',args:{zones:clone(state.sourceScope),condition:null,ability:value}}:value;}
   function assemble(state,values) {
     const t=state.ty,d=descriptor(t);
     if(state.pr==='literal')return values.VALUE;
+    if(state.pr==='count')return {kind:'CountObjects',args:values.COUNTED};
+    if(state.pr==='query')return projections.queryValue(state,values);
     if(state.pr==='single')return {schema_version:values.ROOT_schema,layout:values.ROOT_layout,data:values.ROOT_data,faces:[fieldsResult(types.Card.fields,values)]};
     if(state.pr==='effect')return {kind:'Effect',args:{result:values.RESULT,operation:packEnum(types.Operation,viewVariant(state),fieldsResult(viewVariant(state).fields,values,'O_'))}};
     if(state.pr==='keyword')return scopeValue(state,{kind:'Keyword',args:packEnum(types.Keyword,viewVariant(state),fieldsResult(viewVariant(state).fields,values,'K_'))});
@@ -884,6 +895,7 @@
     {kind:'category',name:'Values & conditions',colour:'#ac8730',contents:[
       flyoutBlock('Expr',{kind:'Constant',args:1}),
       flyoutBlock('Expr',{kind:'AnnouncedX'}),
+      flyoutBlock('Expr',{kind:'CountObjects',args:selectorEditor.starters({named:'ObjectSet'},null).find(o=>o.label==='Creatures you control').value}),
       flyoutBlock('Expr',{kind:'Add',args:[{kind:'Constant',args:0},{kind:'Constant',args:0}]}),
       ...choices.PlayerSet.map(([,v])=>flyoutBlock('PlayerSet',v)),
       ...['Compare','Not','All','Any'].filter(n=>types.Condition.variants.some(v=>v.wire===n)).map(n=>variantBlock('Condition',n))
@@ -969,7 +981,7 @@
   worker.postMessage({init:payload.wasm});
   async function codeRequest(kind,text){await workerStarted;return new Promise((resolve,reject)=>{const id=nextRequest--;requests.set(id,{resolve,reject});worker.postMessage({id,[kind]:text});});}
   bindingEditor=createBindingEditor({sectionEntries:sections.entries,types,parts,scalar,descriptor,variantFor,viewVariant,childValues,fromBlock,pickerValue,
-    workspace:()=>workspace,generated,revision:()=>revision,request:codeRequest,parse:parseExact,encode,notice,remember,changed,migrationFinished:()=>{preserveSavedDraft=false;}});
+    unwrapConnection:projections.unwrap,workspace:()=>workspace,generated,revision:()=>revision,request:codeRequest,parse:parseExact,encode,notice,remember,changed,migrationFinished:()=>{preserveSavedDraft=false;}});
   async function refreshCode(){
     if(!lastValid||codeDirty||lastHuman===null)return;
     $('human-editor').value=lastHuman;$('code-status').textContent='Checked by Rust · edit and apply to update blocks';
@@ -1176,5 +1188,5 @@
   if(!restored&&!workspace.getAllBlocks(false).length) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={selectors:selectorEditor,namedAbilities,costs:costEditor,properties:propertyEditor,sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
+  window.cardBlocks={projections,selectors:selectorEditor,namedAbilities,costs:costEditor,properties:propertyEditor,sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

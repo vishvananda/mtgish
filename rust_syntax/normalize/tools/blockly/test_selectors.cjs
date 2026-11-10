@@ -19,6 +19,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');let browse
  // Empty sockets use the same menu without first generating a giant default.
  await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.op==='Destroy').getInputTargetBlock('O_objects').dispose(false));await clickField('Destroy','SELECT_O_objects');await page.locator('#selector-options').getByRole('button',{name:'All creatures',exact:true}).click();await valid();assert.deepEqual(await ir(),before);
  // Incomplete nested selectors can be repaired through their outer socket.
+ await page.evaluate(()=>{const d=window.cardBlocks,c=d.generated();c.faces[0].abilities[0].args.body.instructions[0].args.operation.args.objects.args.filter={kind:'Tapped'};d.loadIR(c);});await valid();
  await page.evaluate(()=>{const d=window.cardBlocks,b=d.workspace.getAllBlocks(false).find(b=>b.state.op==='Destroy').getInputTargetBlock('O_objects');b.getInputTargetBlock('F_filter').dispose(false);});await clickField('Destroy','SELECT_O_objects');await page.locator('#selector-options').getByRole('button',{name:'All creatures',exact:true}).click();await valid();assert.deepEqual(await ir(),before);
  // Existing named selections remain compact references, separate from live queries.
  await load('Make a Wish');assert.ok(await page.evaluate(()=>{const d=window.cardBlocks;return d.workspace.getAllBlocks(false).some(b=>b.state.ty.named==='ObjectSet'&&b.state.variant==='Selected'&&/^chosen objects · .+/.test(d.selectors.summary(b)));}));

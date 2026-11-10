@@ -73,6 +73,17 @@ nonstandard rules remain visible. **IR details** exposes the discriminator as
 **mechanic identity**. Imported cards retain their original costs, programs,
 targets, scope, IDs, and keyword identity.
 
+The block palette is an authoring view rather than a literal Rust enum tree.
+**number of [objects]** is one Expr block, and common battlefield queries expose
+card type and controller choices directly. Literal numbers and computed values
+fit the same Expr sockets. Single-object/player blocks can also fill set sockets;
+the codec restores only explicitly defined One/Objects/Players wrappers.
+Conversions are directional: a collection cannot fill a single-object socket.
+Targets and saved selections retain their native meanings and scoped names.
+Common imported queries retain exact filter shape/order when untouched; custom
+queries keep their complete typed block editor. The printed P/T form stays
+literal, while effect P/T expressions accept ordinary Expr blocks.
+
 Object selectors appear as compact chips such as **all creatures you control ▸**.
 Click the chip (or focus it and press Enter/Space) to expand the original typed
 blocks; its compact button folds them again. Summaries distinguish announced

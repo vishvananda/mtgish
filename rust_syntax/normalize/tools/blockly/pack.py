@@ -19,7 +19,7 @@ def main():
     parser.add_argument('output', type=Path)
     args = parser.parse_args()
     source = Path(__file__).resolve().parent
-    frontend = '\n'.join((source / name).read_text() for name in ('bindings.js', 'sections.js', 'named-abilities.js', 'selectors.js', 'properties.js', 'costs.js', 'app.js'))
+    frontend = '\n'.join((source / name).read_text() for name in ('bindings.js', 'sections.js', 'projections.js', 'named-abilities.js', 'selectors.js', 'properties.js', 'costs.js', 'app.js'))
     schema = json.loads((args.build / 'schema.json').read_text())
     wasm = (args.build / 'wasm/validator_bg.wasm').read_bytes()
     records, catalog, shards = [], [], []

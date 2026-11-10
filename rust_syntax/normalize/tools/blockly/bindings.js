@@ -43,6 +43,7 @@ function createBindingEditor(api) {
     return out;
   }
   function partPath(s,p,path) {
+    if(s.pr==='count')return ptr(path,'args');
     if(s.sourceScope)path=ptr(ptr(path,'args'),'ability');
     if(s.pr==='literal'||api.scalar(s.ty))return path;
     if(s.pr==='single')return p.key==='ROOT_schema'?ptr(path,'schema_version'):p.key==='ROOT_layout'?ptr(path,'layout'):p.key==='ROOT_data'?ptr(path,'data'):ptr(ptr(ptr(path,'faces'),0),p.key.slice(2));
@@ -60,7 +61,8 @@ function createBindingEditor(api) {
   function ports(root,value=api.fromBlock(root)) {
     const result=[];
     function chain(head,values,path) {let i=0;for(let b=head;b;b=b.getNextBlock()){visit(b,values[i],ptr(path,i));++i;}return i;}
-    function visit(b,value,path) {
+    function visit(b,value,path,expected=b.state.ty) {
+      if(api.unwrapConnection){const projected=api.unwrapConnection(b.state.ty,expected,value);value=projected.value;path+=projected.path;}
       if(b.state.ty.named==='Ability'&&!b.state.sourceScope&&b.state.variant!=='Scoped'&&value.kind==='Scoped'){path=ptr(ptr(path,'args'),'ability');value=value.args.ability;}
       const s=b.state,values=api.childValues(s.ty,value,s),locals=localPorts(b);let offset=0;
       for(const p of api.parts(s)) {
@@ -78,7 +80,7 @@ function createBindingEditor(api) {
         if(p.inline||api.scalar(p.ty))continue;
         const child=b.getInputTargetBlock(p.key);if(!child&&!p.flow)throw Error('Fill the missing '+p.label+' block before naming references.');
         if(p.flow)chain(child,p.flow==='program'?values[p.key].instructions:values[p.key],p.flow==='program'?ptr(at,'instructions'):at);
-        else visit(child,values[p.key],at);
+        else visit(child,values[p.key],at,p.ty);
       }
     }
     visit(root,value,'');return result;
