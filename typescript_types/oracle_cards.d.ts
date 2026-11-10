@@ -1365,6 +1365,7 @@ type ActionOption =
 | { "_ActionOption": "ActionOption", "args": [Cost, Array<Action>] }
 | { "_ActionOption": "DoNothingOption", "args": Array<Action> };
 type ActionPreventDamage =
+| { "_ActionPreventDamage": "CreateValueX", "args": GameNumber }
 | { "_ActionPreventDamage": "If", "args": [Condition, Array<ActionPreventDamage>] }
 | { "_ActionPreventDamage": "IfElse", "args": [Condition, Array<ActionPreventDamage>, Array<ActionPreventDamage>] }
 | { "_ActionPreventDamage": "Unless", "args": [Condition, Array<ActionPreventDamage>] }
@@ -3855,6 +3856,8 @@ type GameEffect =
 | { "_GameEffect": "SchemesCantBeSetInMotion" }
 | { "_GameEffect": "SpellsAndAbilitiesCantTargetPermanents", "args": [SpellsAndAbilities, Permanents] };
 type GameNumber =
+| { "_GameNumber": "TheNumberOfCreaturesThatCrewedThisTurn", "args": Permanent }
+| { "_GameNumber": "NumberOfCardsRequestedForDrawCost" }
 | { "_GameNumber": "TheNumberOfCardsPutIntoAPlayersGraveyardFromTheirLibraryThisTurn", "args": Players }
 | { "_GameNumber": "TheNumberOfPlaneswalkerTypesAmongPermanents", "args": Permanents }
 | { "_GameNumber": "AManaValueOfAnExiledCard", "args": CardsInExile }
@@ -6637,6 +6640,7 @@ type ReplacementActionWouldDealDamageRemoveCounters =
 | { "_ReplacementActionWouldDealDamageRemoveCounters": "ACounterOfTypeFromPermanent", "args": [CounterType, Permanent] }
 | { "_ReplacementActionWouldDealDamageRemoveCounters": "NumberCountersOfTypeFromPermanent", "args": [GameNumber, CounterType, Permanent] };
 type ReplacementActionWouldDealDamage =
+| { "_ReplacementActionWouldDealDamage": "LeaveLoyaltyCounters", "args": GameNumber }
 | { "_ReplacementActionWouldDealDamage": "Unless", "args": [Condition, Array<ReplacementActionWouldDealDamage>] }
 | { "_ReplacementActionWouldDealDamage": "PutCounters", "args": Array<ReplacementActionWouldDealDamagePutCounters> }
 | { "_ReplacementActionWouldDealDamage": "RemoveCounters", "args": Array<ReplacementActionWouldDealDamageRemoveCounters> }

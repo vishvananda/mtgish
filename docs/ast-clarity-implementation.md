@@ -757,3 +757,12 @@ case and fixed before deployment. The32 confirmed findings, seven adjacent
 parser matches, exact Source/native deltas and explicit backend capabilities
 are documented in [reference32-20261110.md](reference32-20261110.md). Final
 publication combines these changes with the unpublished186 coin/movement work.
+
+
+The combined187 release is now live at https://tetrarcum.com/blocks, built from
+379fa68 and including the unpublished186 work. All18 final browser suites pass;
+served bytes match SHA256a1182141463fba44090b7fa3f997bb9470aa486e1e1424bedd685b6fee3d7813.
+The32 confirmed reference defects are corrected and the24 parser cases reported
+upstream, with their seven adjacent matches. See the linked routing catalog.
+The remaining four explicit generator capabilities are distinct from AST
+correctness and received no speculative engine changes.

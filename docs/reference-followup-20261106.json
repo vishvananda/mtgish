@@ -228,10 +228,12 @@
       "name": "Solid Ground",
       "family": "permanent-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native six-type guard excludes typeless controlled permanents from counter replacement; parser does not impose this extra guard.",
       "evidence": "reference-audit/batch-016.json",
-      "fix_notes": "Withheld: counter replacement collapses the permanent selector to a raw ObjectFilter without independent Battlefield scope. Keep the prior six-type guard until that domain contract is repaired; do not broaden to instant/sorcery cards. See reference-permanent-domains-20261106.md."
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "Fork Rust lowering only; Source already carries the required meaning.",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Bathe in Light",
@@ -249,9 +251,12 @@
       "name": "Beamsplitter Mage",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Both sides omit an explicit creature restriction in the intervening condition. Reference also omits it in the choice; grammar additionally loses controller/source restrictions and replaces the event spell with a Scoped placeholder. The cast-event instant/sorcery and only-source target tests, copy count and chosen-target receipt were also reviewed.",
-      "evidence": "reference-audit/batch-003.json"
+      "evidence": "reference-audit/batch-003.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/245",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Fated Clash",
@@ -289,9 +294,12 @@
       "name": "Mire's Toll",
       "family": "selector-domains",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Target player, Swamp count, revealing player and final discard reviewed. Native discarding choice is over the entire target hand, not the revealed subset. Current explicitly chooses/reveals a subset then chooses only from Selected0.",
-      "evidence": "reference-audit/batch-012.json"
+      "evidence": "reference-audit/batch-012.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "Fork Rust lowering only; Source already carries the required meaning.",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Rukarumel, Biologist",
@@ -408,9 +416,12 @@
       "name": "Aragorn, Company Leader",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Both gold and current first trigger replace the historical chosen-Ring-bearer fact with a current RingBearer query. Current second trigger also loses explicit CountersTheEventPut provenance; its Scoped object interpretation needs clarification. Counter options, source exclusion, batch event and optional target otherwise agree.",
-      "evidence": "reference-audit/batch-002.json"
+      "evidence": "reference-audit/batch-002.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "Fork Rust lowering only; Source already carries the required meaning.",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Garruk, Apex Predator",
@@ -428,17 +439,23 @@
       "name": "God-Eternal Rhonas",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Reference reevaluates the controlled-creature set for vigilance after doubling power. Both saved readings correctly NoteObjects first and use Selected for both effects. Deathtouch and the separate-versus-combined disjoint graveyard/exile return triggers were reviewed.",
-      "evidence": "reference-audit/batch-008.json"
+      "evidence": "reference-audit/batch-008.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Nalia de'Arnise",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Top-library visibility/casting filters and full-party intervening-if reviewed. Native repeats a controlled-creature query after counter placement instead of preserving those creatures; current NoteObjects captures the correct original set. A previously verified legal continuous-control-duration witness establishes the native difference.",
-      "evidence": "reference-audit/batch-012.json"
+      "evidence": "reference-audit/batch-012.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Laquatus's Creativity",
@@ -482,17 +499,23 @@
       "name": "Starving Revenant",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Native loss amount reads SurveilKeptOnTop from Draw result1 rather than Surveil result0. Parser uses Named0 count whose exact surveil view also needs checking.",
-      "evidence": "reference-audit/batch-017.json"
+      "evidence": "reference-audit/batch-017.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "Fork Rust lowering only; Source already carries the required meaning.",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Veteran Ghoulcaller",
       "family": "snapshot-and-result-identities",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "The native duplicate operand requires the hand destination to be in the graveyard, so it cannot identify the moved card.",
-      "evidence": "reference-audit/batch-020.json"
+      "evidence": "reference-audit/batch-020.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "Fork Rust lowering only; Source already carries the required meaning.",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Back for More",
@@ -606,9 +629,12 @@
       "name": "Deification",
       "family": "damage-events",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Both programs cancel the damage event and separately remove loyalty, losing damage consequences. Parser also uses chosen CreatureType for hexproof and omits controller restriction from replacement recipient.",
-      "evidence": "reference-audit/batch-005.json"
+      "evidence": "reference-audit/batch-005.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/123#issuecomment-6756567647",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Offering to Asha",
@@ -673,25 +699,34 @@
       "name": "Fear of Infinity",
       "family": "timing-and-limits",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Flying, lifelink, cannot-block and the enchantment/Room event alternatives agree. Gold fails to retain the graveyard-only functioning zone and no move operand restores the printed from-graveyard condition. Current explicitly supplies Scoped(Graveyard).",
-      "evidence": "reference-audit/batch-007.json"
+      "evidence": "reference-audit/batch-007.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/244",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Irreverent Gremlin",
       "family": "timing-and-limits",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Both programs restrict trigger frequency rather than restricting performance of the optional loot to once per turn. Optional payment encodings otherwise equivalent.",
-      "evidence": "reference-audit/batch-010.json"
+      "evidence": "reference-audit/batch-010.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "Fork Rust lowering only; Source already carries the required meaning.",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Legolas, Counter of Kills",
       "family": "timing-and-limits",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
+      "review_status": "fixed_current_producer",
       "summary": "Both restrict triggering to once per turn rather than optional untap performance; parser additionally removes may.",
-      "evidence": "reference-audit/batch-011.json"
+      "evidence": "reference-audit/batch-011.json",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "Fork Rust lowering only; Source already carries the required meaning.",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Lukamina, Crocodile Form",
@@ -820,29 +855,41 @@
       "name": "Commodore Guff",
       "family": "shared-value-snapshots",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Zenith Flare",
       "family": "shared-value-snapshots",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Harsh Sustenance",
       "family": "shared-value-snapshots",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "Profane Prayers",
       "family": "shared-value-snapshots",
       "reported_classification": "reference_error",
-      "review_status": "pending_current_producer_review",
-      "evidence": "reference-fix-followup.md"
+      "review_status": "fixed_current_producer",
+      "evidence": "reference-fix-followup.md",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
       "name": "The Dalek Emperor",
@@ -1331,6 +1378,166 @@
       "fix_notes": "Source templates and all three data formats corrected in 160d35d. See reference-actors-20261108.md.",
       "validation": "Full Go suite; 1335 AST tests; 24 native runtime tests; 33529 complete records with exactly these two changed; 182 unchanged audit findings and use evidence.",
       "remaining_question": "The linked-set exclusion for other cards is unchanged and unresolved. Actor correctness does not certify the whole card."
+    },
+    {
+      "name": "Damocles Base, Sword of Kang",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/240",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Eriette of the Charmed Apple",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Horrid Shadowspinner",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/249",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Last Stand",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/247",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Lich Lord of Unx",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Luxurious Locomotive",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/250",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Midnight Crusader Shuttle",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/240",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Mjölnir, Storm Hammer",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/243",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Northern Air Temple",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Nyla, Shirshu Sleuth",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/241",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Ran and Shaw",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/242",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Sanctum of Stone Fangs",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Shimmercreep",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Sokrates, Athenian Teacher",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/248",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Tezzeret, Agent of Bolas",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/239",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
+    },
+    {
+      "name": "Hofri Ghostforge",
+      "family": "reference32-20261110",
+      "reported_classification": "confirmed_reference_error",
+      "evidence": "reference32-20261110.md",
+      "review_status": "fixed_current_producer",
+      "fix_notes": "Schema187/reference32 batch: see the complete-card expected native repair and input/migration provenance in reference32-20261110.md.",
+      "upstream_report": "Fork Rust lowering only; Source already carries the required meaning.",
+      "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     }
   ],
   "normalization_questions": [
@@ -1352,5 +1559,13 @@
     "Raw event permanent-domain contract: counter replacements, counter/targeting triggers and other event adapters can erase ObjectSet zones. Scoped selector correction retains their prior six-type guards; no domain is silently widened.",
     "Satya, Aetherflux Genius energy amount with multiple tokens created by replacement effects: aggregate-versus-indexed contract remains unresolved; the current fix changes only payment polarity.",
     "Zask dies/subtype domain review: the reported Creature restriction is not established by the printed unqualified Insect noun plus CR109.2/700.4. Preserve current producer and separately review the moving-incarnation question."
-  ]
+  ],
+  "reference32_20261110": {
+    "routing": "reference32-20261110.json",
+    "source_cards": 24,
+    "lowering_only_cards": 8,
+    "adjacent_source_cards": 7,
+    "all_confirmed_fixed": 32,
+    "schema": 187
+  }
 }

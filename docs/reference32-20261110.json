@@ -62,7 +62,8 @@
     "catalog_records": 33529,
     "saved186_audit": "full186-migration-audit.log",
     "saved186_exact": 33528,
-    "saved186_known_invalid_diagnosed": 1
+    "saved186_known_invalid_diagnosed": 1,
+    "typescript_31_records": "strict tsc5.9.3 passed"
   },
   "backend_gaps": [
     {
@@ -82,11 +83,134 @@
       "gap": "history measure DistinctSources"
     }
   ],
-  "upstream_reports": "pending publication of tested code",
-  "live_release": "schema185 until final combined deployment",
+  "upstream_reports": {
+    "shared-x": {
+      "url": "https://github.com/i5jb/mtgish/issues/239",
+      "cards": [
+        "Commodore Guff",
+        "Zenith Flare",
+        "Harsh Sustenance",
+        "Profane Prayers",
+        "Northern Air Temple",
+        "Sanctum of Stone Fangs",
+        "Eriette of the Charmed Apple",
+        "Lich Lord of Unx",
+        "Shimmercreep",
+        "Tezzeret, Agent of Bolas",
+        "Dai Li Agents",
+        "Insatiable Hemophage",
+        "Malakir Blood-Priest",
+        "Narci, Fable Singer",
+        "Valley Rotcaller",
+        "Whiplash, Vengeful Engineer"
+      ],
+      "kind": "issue"
+    },
+    "villainous-actors": {
+      "url": "https://github.com/i5jb/mtgish/issues/240",
+      "cards": [
+        "Damocles Base, Sword of Kang",
+        "Midnight Crusader Shuttle"
+      ],
+      "kind": "issue"
+    },
+    "target-choice": {
+      "url": "https://github.com/i5jb/mtgish/issues/241",
+      "cards": [
+        "Nyla, Shirshu Sleuth"
+      ],
+      "kind": "issue"
+    },
+    "caster": {
+      "url": "https://github.com/i5jb/mtgish/issues/242",
+      "cards": [
+        "Ran and Shaw"
+      ],
+      "kind": "issue"
+    },
+    "damage-player": {
+      "url": "https://github.com/i5jb/mtgish/issues/243",
+      "cards": [
+        "Mjölnir, Storm Hammer"
+      ],
+      "kind": "issue"
+    },
+    "graveyard-scope": {
+      "url": "https://github.com/i5jb/mtgish/issues/244",
+      "cards": [
+        "Fear of Infinity"
+      ],
+      "kind": "issue"
+    },
+    "beamsplitter": {
+      "url": "https://github.com/i5jb/mtgish/issues/245",
+      "cards": [
+        "Beamsplitter Mage"
+      ],
+      "kind": "issue"
+    },
+    "creature-snapshot": {
+      "url": "https://github.com/i5jb/mtgish/issues/246",
+      "cards": [
+        "God-Eternal Rhonas",
+        "Nalia de'Arnise",
+        "Ajani Goldmane"
+      ],
+      "kind": "issue"
+    },
+    "last-stand": {
+      "url": "https://github.com/i5jb/mtgish/issues/247",
+      "cards": [
+        "Last Stand"
+      ],
+      "kind": "issue"
+    },
+    "sokrates": {
+      "url": "https://github.com/i5jb/mtgish/issues/248",
+      "cards": [
+        "Sokrates, Athenian Teacher"
+      ],
+      "kind": "issue"
+    },
+    "requested-cost": {
+      "url": "https://github.com/i5jb/mtgish/issues/249",
+      "cards": [
+        "Horrid Shadowspinner"
+      ],
+      "kind": "issue"
+    },
+    "crew-history": {
+      "url": "https://github.com/i5jb/mtgish/issues/250",
+      "cards": [
+        "Luxurious Locomotive"
+      ],
+      "kind": "issue"
+    },
+    "deification": {
+      "url": "https://github.com/i5jb/mtgish/issues/123#issuecomment-6756567647",
+      "cards": [
+        "Deification"
+      ],
+      "kind": "comment"
+    }
+  },
+  "live_release": {
+    "url": "https://tetrarcum.com/blocks",
+    "schema": 187,
+    "release": "20261110-379fa68",
+    "artifact_sha256": "a1182141463fba44090b7fa3f997bb9470aa486e1e1424bedd685b6fee3d7813",
+    "smoke": {
+      "cards": 41,
+      "search_blocks_and_real_wasm": "passed",
+      "prepared186_named_imports": 3,
+      "prepared186_named_startups": 3,
+      "page_errors": 0
+    }
+  },
   "artifact_sha256": "a1182141463fba44090b7fa3f997bb9470aa486e1e1424bedd685b6fee3d7813",
   "additional_lowering_controls": [
     "Cracked Skull",
     "Psychotic Episode"
-  ]
+  ],
+  "code_commit": "379fa6835fd05e2a14f3d6d35e9e218b0c73d9b6"
 }
