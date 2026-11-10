@@ -364,6 +364,7 @@ impl Context {
         let exile = EventChange::SetDestination(Destination::Exile);
         Ok(Some(match variant {
             "ContinueDealingDamage" => vec![],
+            "LeaveLoyaltyCounters" => vec![EventChange::LeaveLoyalty(self.number(&decode_step::<source::GameNumber>(args)?)?)],
             "ShuffleItIntoLibraryInstead" => {
                 vec![EventChange::SetDestination(
                     Destination::OwnersLibraryShuffled,

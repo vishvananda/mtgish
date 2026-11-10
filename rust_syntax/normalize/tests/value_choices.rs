@@ -92,6 +92,16 @@ fn full_producer_records_keep_every_operand_except_declared_choice_schema() {
             );
             *objects = json!({"kind":"Transition","args":{"result":0,"phase":"After"}});
         }
+        if actual.name == "Addle" {
+            let instructions=expected["abilities"][0]["args"]["body"]["instructions"].as_array_mut().unwrap();
+            assert_eq!(instructions[1]["args"]["operation"]["kind"], "Reveal");
+            let revealed=instructions[1]["args"]["result"].clone();
+            let objects=&mut instructions[2]["args"]["operation"]["args"]["objects"];
+            let owner=objects["args"]["scope"]["Players"]["players"].clone();
+            assert_eq!(objects["args"]["scope"]["Players"]["zone"],"Hand");
+            let filter=objects["args"]["filter"].clone();
+            *objects=json!({"kind":"Matching","args":{"objects":{"kind":"InZone","args":{"objects":{"kind":"Observed","args":revealed},"zone":"Hand"}},"filter":{"kind":"All","args":[{"kind":"OwnedBy","args":owner},filter]}}});
+        }
         assert_eq!(
             serde_json::to_value(&actual).unwrap(),
             expected,

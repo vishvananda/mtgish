@@ -1,0 +1,472 @@
+{
+  "data": [],
+  "faces": [
+    {
+      "abilities": [
+        {
+          "args": {
+            "announcement": {
+              "modes": null,
+              "targets": [
+                {
+                  "chooser": null,
+                  "constraints": [],
+                  "count": {
+                    "UpTo": {
+                      "args": 1,
+                      "kind": "Constant"
+                    }
+                  },
+                  "distribute": null,
+                  "filter": {
+                    "args": [
+                      {
+                        "args": "Creature",
+                        "kind": "CardType"
+                      },
+                      {
+                        "args": {
+                          "Players": {
+                            "players": {
+                              "args": {
+                                "kind": "AbilityController"
+                              },
+                              "kind": "One"
+                            },
+                            "zone": "Graveyard"
+                          }
+                        },
+                        "kind": "InZone"
+                      }
+                    ],
+                    "kind": "All"
+                  },
+                  "kind": {
+                    "Object": {
+                      "kind": "Card",
+                      "zones": [
+                        "Graveyard"
+                      ]
+                    }
+                  },
+                  "players": null,
+                  "slot": 0
+                }
+              ]
+            },
+            "body": {
+              "instructions": [
+                {
+                  "args": {
+                    "operation": {
+                      "args": {
+                        "destination": "Exile",
+                        "entry": {
+                          "controller": null,
+                          "counters": [],
+                          "states": [],
+                          "tapped": false
+                        },
+                        "face_down": false,
+                        "objects": {
+                          "args": {
+                            "args": {
+                              "index": 0,
+                              "slot": 0
+                            },
+                            "kind": "Target"
+                          },
+                          "kind": "One"
+                        },
+                        "terms": {
+                          "order": "DestinationDefault",
+                          "placement": "DestinationDefault",
+                          "qualifiers": []
+                        }
+                      },
+                      "kind": "Move"
+                    },
+                    "result": 0
+                  },
+                  "kind": "Effect"
+                },
+                {
+                  "args": {
+                    "condition": {
+                      "args": {
+                        "comparison": "Greater",
+                        "left": {
+                          "args": {
+                            "args": {
+                              "filter": {
+                                "args": "Creature",
+                                "kind": "CardType"
+                              },
+                              "objects": {
+                                "args": {
+                                  "phase": "Before",
+                                  "result": 0
+                                },
+                                "kind": "Transition"
+                              }
+                            },
+                            "kind": "Matching"
+                          },
+                          "kind": "CountObjects"
+                        },
+                        "right": {
+                          "args": 0,
+                          "kind": "Constant"
+                        }
+                      },
+                      "kind": "Compare"
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "args": {
+                            "operation": {
+                              "args": {
+                                "amount": {
+                                  "args": {
+                                    "information": "CurrentOrLastKnown",
+                                    "object": {
+                                      "args": {
+                                        "index": 0,
+                                        "slot": 0
+                                      },
+                                      "kind": "Target"
+                                    },
+                                    "property": "ManaValue"
+                                  },
+                                  "kind": "ObjectProperty"
+                                },
+                                "players": {
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  },
+                                  "kind": "One"
+                                }
+                              },
+                              "kind": "LoseLife"
+                            },
+                            "result": 1
+                          },
+                          "kind": "Effect"
+                        },
+                        {
+                          "args": {
+                            "operation": {
+                              "args": {
+                                "entry": {
+                                  "controller": null,
+                                  "counters": [],
+                                  "states": [],
+                                  "tapped": false
+                                },
+                                "players": {
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  },
+                                  "kind": "One"
+                                },
+                                "tokens": [
+                                  {
+                                    "amount": {
+                                      "args": {
+                                        "information": "CurrentOrLastKnown",
+                                        "object": {
+                                          "args": {
+                                            "index": 0,
+                                            "slot": 0
+                                          },
+                                          "kind": "Target"
+                                        },
+                                        "property": "ManaValue"
+                                      },
+                                      "kind": "ObjectProperty"
+                                    },
+                                    "recipe": {
+                                      "Defined": {
+                                        "abilities": [
+                                          {
+                                            "args": {
+                                              "announcement": {
+                                                "modes": null,
+                                                "targets": []
+                                              },
+                                              "body": {
+                                                "instructions": [
+                                                  {
+                                                    "args": {
+                                                      "operation": {
+                                                        "args": {
+                                                          "amount": {
+                                                            "args": 1,
+                                                            "kind": "Constant"
+                                                          },
+                                                          "players": {
+                                                            "args": {
+                                                              "kind": "AbilityController"
+                                                            },
+                                                            "kind": "One"
+                                                          }
+                                                        },
+                                                        "kind": "Draw"
+                                                      },
+                                                      "result": 0
+                                                    },
+                                                    "kind": "Effect"
+                                                  }
+                                                ]
+                                              },
+                                              "cost": {
+                                                "parts": [
+                                                  {
+                                                    "Mana": [
+                                                      {
+                                                        "Generic": 2
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "Sacrifice": {
+                                                      "choose": null,
+                                                      "objects": {
+                                                        "args": {
+                                                          "kind": "Source"
+                                                        },
+                                                        "kind": "One"
+                                                      }
+                                                    }
+                                                  }
+                                                ]
+                                              },
+                                              "limits": {
+                                                "activators": null,
+                                                "condition": null,
+                                                "keyword": null,
+                                                "modifiers": [],
+                                                "once": false,
+                                                "once_each_turn": false,
+                                                "sorcery": false
+                                              },
+                                              "origin": "Ordinary"
+                                            },
+                                            "kind": "Activated"
+                                          }
+                                        ],
+                                        "abilities_of": null,
+                                        "card_types": [
+                                          "Artifact"
+                                        ],
+                                        "chosen_color": false,
+                                        "chosen_creature_type": false,
+                                        "colors": [],
+                                        "name": "FromSubtypes",
+                                        "power_toughness": null,
+                                        "subtypes": [
+                                          "Clue"
+                                        ],
+                                        "supertypes": []
+                                      }
+                                    },
+                                    "words": "Rules"
+                                  }
+                                ]
+                              },
+                              "kind": "CreateTokens"
+                            },
+                            "result": 2
+                          },
+                          "kind": "Effect"
+                        }
+                      ]
+                    }
+                  },
+                  "kind": "If"
+                }
+              ]
+            },
+            "event": {
+              "ZoneChange": {
+                "from": null,
+                "objects": {
+                  "args": {
+                    "kind": "Source"
+                  },
+                  "kind": "SameObject"
+                },
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            }
+          },
+          "kind": "Triggered"
+        },
+        {
+          "args": {
+            "announcement": {
+              "modes": null,
+              "targets": [
+                {
+                  "chooser": null,
+                  "constraints": [],
+                  "count": {
+                    "Exactly": {
+                      "args": 1,
+                      "kind": "Constant"
+                    }
+                  },
+                  "distribute": null,
+                  "filter": {
+                    "args": {
+                      "args": {
+                        "filter": {
+                          "args": {
+                            "kind": "Source"
+                          },
+                          "kind": "ExiledWith"
+                        },
+                        "kind": "Card",
+                        "scope": {
+                          "Shared": "Exile"
+                        }
+                      },
+                      "kind": "Zone"
+                    },
+                    "kind": "InSet"
+                  },
+                  "kind": {
+                    "Object": {
+                      "kind": "Card",
+                      "zones": [
+                        "Exile"
+                      ]
+                    }
+                  },
+                  "players": null,
+                  "slot": 0
+                }
+              ]
+            },
+            "body": {
+              "instructions": [
+                {
+                  "args": {
+                    "operation": {
+                      "args": {
+                        "destination": "OwnersHand",
+                        "entry": {
+                          "controller": null,
+                          "counters": [],
+                          "states": [],
+                          "tapped": false
+                        },
+                        "face_down": false,
+                        "objects": {
+                          "args": {
+                            "objects": {
+                              "args": {
+                                "args": {
+                                  "index": 0,
+                                  "slot": 0
+                                },
+                                "kind": "Target"
+                              },
+                              "kind": "One"
+                            },
+                            "zone": "Exile"
+                          },
+                          "kind": "InZone"
+                        },
+                        "terms": {
+                          "order": "DestinationDefault",
+                          "placement": "DestinationDefault",
+                          "qualifiers": []
+                        }
+                      },
+                      "kind": "Move"
+                    },
+                    "result": 0
+                  },
+                  "kind": "Effect"
+                }
+              ]
+            },
+            "event": {
+              "Turn": {
+                "players": {
+                  "args": {
+                    "kind": "AbilityController"
+                  },
+                  "kind": "One"
+                },
+                "point": "EndStepBegins"
+              }
+            },
+            "intervening_if": {
+              "args": {
+                "args": {
+                  "filter": {
+                    "args": "Clue",
+                    "kind": "Subtype"
+                  },
+                  "minimum": 1,
+                  "player": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "kind": "Controls"
+              },
+              "kind": "Not"
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            }
+          },
+          "kind": "Triggered"
+        }
+      ],
+      "characteristics": {
+        "card_types": [
+          "Creature"
+        ],
+        "color_indicator": [],
+        "defense": null,
+        "loyalty": null,
+        "mana_cost": [
+          {
+            "Generic": 4
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "power_toughness": [
+          4,
+          5
+        ],
+        "subtypes": [
+          "Mole",
+          "Beast"
+        ],
+        "supertypes": [
+          "Legendary"
+        ]
+      },
+      "name": "Nyla, Shirshu Sleuth",
+      "schema_version": 180
+    }
+  ],
+  "layout": "Card",
+  "schema_version": 180
+}

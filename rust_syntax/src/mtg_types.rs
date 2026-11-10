@@ -3294,6 +3294,7 @@ pub enum ActionPreventDamageCost {
 #[ts(export)]
 #[cfg_attr(feature = "write_out_json", serde(tag = "_ActionPreventDamage", content = "args"))]
 pub enum ActionPreventDamage {
+  CreateValueX(Box<GameNumber>),
   If(Condition, Vec<ActionPreventDamage>),
   IfElse(Condition, Vec<ActionPreventDamage>, Vec<ActionPreventDamage>),
   Unless(Condition, Vec<ActionPreventDamage>),
@@ -3357,6 +3358,7 @@ pub enum ReplacementActionWouldDealDamageRemoveCounters {
 #[ts(export)]
 #[cfg_attr(feature = "write_out_json", serde(tag = "_ReplacementActionWouldDealDamage", content = "args"))]
 pub enum ReplacementActionWouldDealDamage {
+  LeaveLoyaltyCounters(Box<GameNumber>),
   Unless(Condition, Vec<ReplacementActionWouldDealDamage>),
 
   PutCounters(Vec<ReplacementActionWouldDealDamagePutCounters>),
@@ -6143,6 +6145,8 @@ pub enum GameNumber {
   TheNumberOfPlayersThatDidntPayCost,
   TheNumberOfPlayersThatHaveLostTheGame,
   TheNumberOfPlayersWhoTookAnActionThisWay,
+  TheNumberOfCreaturesThatCrewedThisTurn(Box<Permanent>),
+  NumberOfCardsRequestedForDrawCost,
   TheNumberOfRepeatedCostsNotPaid,
   TheNumberOfRepeatedCostsNotPaidByPlayer(Box<Player>),
   TheNumberOfSpellsAndAbilitiesCounteredThisWay,

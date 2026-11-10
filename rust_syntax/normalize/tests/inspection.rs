@@ -403,7 +403,7 @@ fn observation_results_keep_zone_order_and_result_kind_invariants() {
         panic!()
     };
     *objects = ObjectSet::Observed(ResultId(1));
-    assert!(validate::card(&c).unwrap_err().contains("LookAt"));
+    assert!(validate::card(&c).unwrap_err().contains("observation"));
     let mut c = card("Index");
     let Ability::Spell { body, .. } = &mut c.abilities[0] else {
         panic!()

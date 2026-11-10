@@ -542,6 +542,19 @@ impl Context {
             || family == "GameNumber" && name.ends_with("ThisTurn")
             || family.starts_with("ReplacableEvent")
             || family.starts_with("FutureReplacableEvent");
+        if family.starts_with("ReplacableEvent") || family.starts_with("FutureReplacableEvent") {
+            let form = inspected["variant"].as_str()?;
+            if matches!(form,
+                "CountersOfTypeWouldBePointOnAPermanent"
+                | "CountersWouldBePutOnAPermanent"
+                | "AnEffectWouldPutCountersOnAPermanent"
+                | "APlayerWouldPutCountersOnAPermanent"
+                | "APlayerWouldPutCountersOnAPermanentOrAPlayer"
+                | "APlayerWouldPutAnyNumberOfCountersOfTypeOnAPermanent") {
+                // These reducers now retain the entire battlefield ObjectSet.
+                scoped.retain_permanent_type_guard = false;
+            }
+        }
         if !row.binds.is_empty() {
             scoped.event = crate::semantics::with_row(&self.event, &name);
         }
@@ -1261,6 +1274,11 @@ impl Context {
             return None;
         }
         let form = name.split("::").nth(1).unwrap_or(name);
+        // An expression inside a later Draw can itself mention Surveil. Read
+        // the typed producer ledger, never the spelling of that later action.
+        if form == "TheNumberOfCardsSurveilledOnTopOfLibraryThisWay" {
+            return self.did.get(&Done::Surveilled).cloned();
+        }
         // A later step that takes a card back out of exile also says "Exile".
         if let ("TheOtherPermanentsExiledThisWay", Some(exiled)) = (form, &self.exiled) {
             return Some(exiled.clone());
@@ -1339,6 +1357,7 @@ impl Context {
         self.repeated = None;
         self.offered = None;
         self.did.clear();
+        self.hand_observations.clear();
         self.payment = None;
         self.exiled = None;
         self.exiled_one_input = None;

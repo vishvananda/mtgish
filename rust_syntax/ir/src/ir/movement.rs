@@ -235,6 +235,10 @@ pub enum BattlefieldState {
         decider: PlayerRef,
         entry: Box<BattlefieldArrival>,
     },
+    /// Capture exact exiled incarnations when these objects are created. Each
+    /// original token, including multiplicity replacements, gets the same link.
+    /// This arrival history is not copiable TokenRecipe/CopyException data.
+    LinkExiledCards(ObjectSet),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

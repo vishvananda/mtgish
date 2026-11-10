@@ -3590,6 +3590,7 @@ impl Compiler {
             ConjuredCard::Spellbook { book, pick } => {
                 format!("Conjured::FromSpellbook({book:?}, SpellbookPick::{pick:?})")
             }
+            ConjuredCard::DuplicateLastKnown(_) => return Err(gap("duplicate of a last-known card definition")),
             ConjuredCard::Duplicate(objects) => {
                 writeln!(
                     out,
@@ -4162,6 +4163,14 @@ pub(super) fn seats_have_slots(players: &PlayerSet) -> bool {
 /// on the bottom of its owner's library instead"): where each option puts it, or
 /// which word it changes. Options these don't tell apart have no labels.
 fn lane_i_option_labels(options: &[Program]) -> Option<Vec<String>> {
+    fn hand(objects: &ObjectSet) -> bool {
+        match objects {
+            ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Hand, .. }, .. }
+            | ObjectSet::InZone { zone: EventZone::Hand, .. } => true,
+            ObjectSet::Matching { objects, .. } => hand(objects),
+            _ => false,
+        }
+    }
     let mut labels: Vec<String> = Vec::new();
     for option in options {
         let mut steps = Vec::new();
@@ -4211,20 +4220,9 @@ fn lane_i_option_labels(options: &[Program]) -> Option<Vec<String>> {
             },
             Instruction::Effect {
                 operation:
-                    Operation::ChooseObjects {
-                        objects:
-                            ObjectSet::Zone {
-                                scope:
-                                    ZoneScope::Players {
-                                        zone: EventZone::Hand,
-                                        ..
-                                    },
-                                ..
-                            },
-                        ..
-                    },
+                    Operation::ChooseObjects { objects, .. },
                 ..
-            } => "Card from hand",
+            } if hand(objects) => "Card from hand",
             _ => return None,
         };
         if labels.iter().any(|seen| seen == label) {

@@ -17,6 +17,7 @@ pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
     static KEYWORD: OnceLock<Schema> = OnceLock::new();
     static MODES: OnceLock<Schema> = OnceLock::new();
     static ROLES: OnceLock<Schema> = OnceLock::new();
+    static MOVEMENT: OnceLock<Schema> = OnceLock::new();
     static CURRENT: OnceLock<Schema> = OnceLock::new();
     match version {
         180 => Ok(OLD.get_or_init(load_180)),
@@ -54,6 +55,11 @@ pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
                     .expect("frozen schema-185 descriptors");
             assert_eq!(value["schema_version"], 185);
             serde_json::from_value(value["schema"].clone()).expect("typed schema-185 descriptors")
+        })),
+        186 => Ok(MOVEMENT.get_or_init(|| {
+            let value: serde_json::Value = serde_json::from_str(include_str!("../../../ir/schema/186.json")).expect("frozen schema-186 descriptors");
+            assert_eq!(value["schema_version"], 186);
+            serde_json::from_value(value["schema"].clone()).expect("typed schema-186 descriptors")
         })),
         179 => Ok(ENTRY.get_or_init(|| {
             // This is the exact reviewed 179->180 delta applied to an immutable

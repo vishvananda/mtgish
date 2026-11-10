@@ -111,20 +111,14 @@ fn trigger_rule_context_still_requires_a_permanent_source() {
 }
 
 #[test]
-fn counter_replacement_retains_the_previous_guard_when_its_domain_is_erased() {
-    let card = serde_json::to_value(fixtures::card("Solid Ground")).unwrap();
-    let filter = &card["abilities"][1]["args"]["event"]["Counters"]["objects"]["args"][0];
-    assert_eq!(
-        filter,
-        &json!({"kind":"Either","args":[
-            {"kind":"CardType","args":"Artifact"},
-            {"kind":"CardType","args":"Battle"},
-            {"kind":"CardType","args":"Creature"},
-            {"kind":"CardType","args":"Enchantment"},
-            {"kind":"CardType","args":"Land"},
-            {"kind":"CardType","args":"Planeswalker"}
-        ]})
-    );
+fn counter_replacement_retains_the_battlefield_domain_including_typeless_permanents() {
+    let card=serde_json::to_value(fixtures::card("Solid Ground")).unwrap();
+    let objects=&card["abilities"][1]["args"]["event"]["Counters"]["objects"];
+    assert_eq!(objects["kind"],"InSet");
+    assert_eq!(objects["args"]["kind"],"Zone");
+    assert_eq!(objects["args"]["args"]["scope"],json!({"Shared":"Battlefield"}));
+    assert_eq!(objects["args"]["args"]["kind"],"Permanent");
+    assert_eq!(objects["args"]["args"]["filter"],json!({"kind":"All","args":[{"kind":"Any"},{"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}]}));
 }
 
 #[test]

@@ -264,6 +264,10 @@ pub enum ConjuredCard {
         book: String,
         cards: Box<Operand>,
     },
+    /// A duplicate of this recorded card's last-known card definition and
+    /// perpetual changes. Does not require a surviving public incarnation or
+    /// inspect a later hidden zone; moving again cannot erase that definition.
+    DuplicateLastKnown(ObjectRef),
 }
 
 #[derive(

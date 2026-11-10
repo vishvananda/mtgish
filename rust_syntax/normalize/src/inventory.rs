@@ -841,6 +841,9 @@ impl Inventory<'_> {
                 if let ConjuredCard::Duplicate(objects) = card {
                     self.objects(objects);
                 }
+                if let ConjuredCard::DuplicateLastKnown(object) = card {
+                    self.object(object);
+                }
                 if let Some(owner) = owner {
                     self.player(owner);
                 }
@@ -1050,7 +1053,8 @@ impl Inventory<'_> {
                     EventChange::PreventDamage
                     | EventChange::Cancel
                     | EventChange::SetDestination(_) => {}
-                    EventChange::PreventSomeDamage(amount)
+                    EventChange::LeaveLoyalty(amount)
+                    | EventChange::PreventSomeDamage(amount)
                     | EventChange::PreventAllButDamage(amount)
                     | EventChange::SetAmount(amount) => self.expr(amount),
                     EventChange::RedirectDamage(recipients) => self.recipients(recipients),
@@ -2189,7 +2193,7 @@ impl Inventory<'_> {
             | ObjectSet::AnyZone(filter)
             | ObjectSet::OutsideTheGame(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
-            ObjectSet::SplicedOnto(object) | ObjectSet::TargetsOf(object) => self.object(object),
+            ObjectSet::CreationLinkedCards(object) | ObjectSet::SplicedOnto(object) | ObjectSet::TargetsOf(object) => self.object(object),
             ObjectSet::FromHistory { event, window } => {
                 self.event(event);
                 self.form("HistoryWindow", window);
@@ -2425,6 +2429,7 @@ impl Inventory<'_> {
             | Expr::ChosenNumber
             | Expr::CountersRemoved(_)
             | Expr::PaidCountersRemoved { .. }
+            | Expr::RequestedDrawCount { .. }
             | Expr::Performed(_)
             | Expr::PerformedTotal(_)
             | Expr::SurveilKeptOnTop(_)
@@ -2883,6 +2888,7 @@ impl Inventory<'_> {
                 }
             }
             Condition::Not(c) => self.condition(c),
+            Condition::RingBearerChosen(filter) => self.filter(filter),
             Condition::ObjectMatches { object, filter } => {
                 self.object(object);
                 self.filter(filter);

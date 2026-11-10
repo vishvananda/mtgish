@@ -31,6 +31,10 @@ pub struct EventBindings {
     /// Actual counters placed by the matched event, retained through wrappers.
     pub counters_placed: bool,
     pub moved: bool,
+    /// The new incarnation is in hand, though Source calls it a graveyard card.
+    pub moved_to_hand: bool,
+    /// A matched Ring temptation retains its choice fact.
+    pub ring_choice: bool,
     pub damage: bool,
     pub damage_source: bool,
     pub damage_source_permanent: bool,
@@ -64,6 +68,8 @@ impl EventBindings {
             amount: a.amount && b.amount,
             counters_placed: a.counters_placed && b.counters_placed,
             moved: a.moved && b.moved,
+            moved_to_hand: a.moved_to_hand && b.moved_to_hand,
+            ring_choice: a.ring_choice && b.ring_choice,
             block_pair: a.block_pair && b.block_pair,
             group: a.group && b.group,
             stack_object: a.stack_object && b.stack_object,
@@ -251,6 +257,9 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
 /// primitive with no ordinary movement to read the permanent from.
 /// What a reviewed action row leaves for a later "this way" to name.
 pub fn yields(operation: &Operation) -> Option<&'static str> {
+    if matches!(operation, Operation::RevealFromHand { .. }) {
+        return Some("observed");
+    }
     let operation = operation.action();
     // Every manifest/cloak source supplies the same object-transition result,
     // including an inline hand choice and multiple cards. Cardinality is a
@@ -4184,6 +4193,20 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
     })
 }
 
+fn graveyard_origin_filter(filter: &ObjectFilter) -> ObjectFilter {
+    match filter {
+        ObjectFilter::InZone(ZoneScope::Players {
+            zone: EventZone::Graveyard,
+            players,
+        }) => ObjectFilter::OwnedBy(players.clone()),
+        ObjectFilter::InZone(ZoneScope::Shared(EventZone::Graveyard)) => ObjectFilter::Any,
+        ObjectFilter::All(filters) => ObjectFilter::All(filters.iter().map(graveyard_origin_filter).collect()),
+        ObjectFilter::Either(filters) => ObjectFilter::Either(filters.iter().map(graveyard_origin_filter).collect()),
+        ObjectFilter::Not(filter) => ObjectFilter::Not(Box::new(graveyard_origin_filter(filter))),
+        _ => filter.clone(),
+    }
+}
+
 fn event_filter(objects: &ObjectSet) -> Option<ObjectFilter> {
     if let Some(filter) = objects.battlefield_filter() {
         return Some(filter.clone());
@@ -4636,7 +4659,7 @@ fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
                 objects: cards.clone(),
             }),
             "Trigger::WhenAGraveyardCardIsPutIntoHand" => Some(EventSpec::ZoneChange {
-                objects: cards.clone(),
+                objects: graveyard_origin_filter(cards),
                 from: Some(EventZone::Graveyard),
                 to: EventZone::Hand,
             }),
@@ -5124,7 +5147,7 @@ fn reduced_replacement(name: &str, operands: &[Operand]) -> Option<ReplacementEv
                 Some(kind) => Some(counter_kind(kind)?),
                 None => None,
             },
-            objects: event_filter(objects)?,
+            objects: ObjectFilter::InSet(Box::new(objects.clone())),
             players: players.cloned(),
             by: by.cloned(),
             effect_only,
@@ -5590,6 +5613,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             object: true,
             permanent: true,
             moved: true,
+            moved_to_hand: matches!(to, EventZone::Hand),
             moved_owner: matches!(to, EventZone::Graveyard | EventZone::Hand),
             ..EventBindings::default()
         },
@@ -5670,6 +5694,10 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             _ => row_bindings("Trigger::WhenAPermanentEnteringTheBattlefieldCausesAnAbilityToTrigger"),
         },
         EventSpec::Primitive { name, .. } => row_bindings(name),
+        EventSpec::Player { event: PlayerEvent::RingTempts, .. } => EventBindings {
+            ring_choice: true,
+            ..row_bindings("Trigger::WhenTheRingTemptsAPlayer")
+        },
         EventSpec::Player { event, .. } => PLAYER_EVENTS
             .iter()
             .find(|(_, row)| row == event)
@@ -5690,6 +5718,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             object: true,
             permanent: true,
             moved: true,
+            moved_to_hand: matches!(to, EventZone::Hand),
             moved_owner: matches!(to, EventZone::Graveyard | EventZone::Hand),
             enchanted_left: matches!(from, Some(EventZone::Battlefield)) && matches!(objects,
                 ObjectFilter::SameObject(ObjectRef::AttachedTo(aura)) if matches!(aura.as_ref(), ObjectRef::Source)),
@@ -5800,6 +5829,8 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 amount: true,
                 counters_placed: false,
                 moved: false,
+                moved_to_hand: false,
+                ring_choice: false,
                 damage: true,
                 damage_source: source,
                 damage_source_permanent: source
@@ -6163,6 +6194,7 @@ impl Effects {
             | ObjectSet::Earlier { .. }
             | ObjectSet::Recorded(_)
             | ObjectSet::Scoped
+            | ObjectSet::CreationLinkedCards(_)
             | ObjectSet::AnyZone(_)
             | ObjectSet::OutsideTheGame(_) => false,
             ObjectSet::Observed(result) => self.result_library(result, &ObjectPhase::Before),
@@ -6304,4 +6336,29 @@ pub fn activation_kind(cost: &Cost, announcement: &Announcement, body: &Program)
     } else {
         ActivationKind::Stack
     }
+}
+
+/// A per-ability performance allowance, not a cap on triggering. Declining or
+/// failing the required payment does not spend the allowance (CR 603.2h).
+pub(crate) fn once_performed(body: Program) -> Program {
+    use crate::visit::{Walk, Visitor};
+    #[derive(Default)]
+    struct Results(u32);
+    impl Visitor for Results {
+        fn instruction(&mut self, instruction: &Instruction) -> bool {
+            if let Instruction::Effect { result, .. } = instruction { self.0 = self.0.max(result.0.saturating_add(1)); }
+            true
+        }
+        fn ability(&mut self, _: &Ability) -> bool { false }
+    }
+    let mut results = Results::default(); body.walk(&mut results);
+    let next = results.0;
+    Program { instructions: vec![Instruction::Effect {
+        result: ResultId(next),
+        operation: Operation::PlayersDo {
+            players: PlayerSet::One(PlayerRef::AbilityController),
+            any_one: false, optional: true, once_each_turn: true,
+            body: vec![Operand::Program(body)], otherwise: vec![],
+        },
+    }] }
 }

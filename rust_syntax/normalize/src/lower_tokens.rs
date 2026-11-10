@@ -329,6 +329,34 @@ impl Context {
         })
     }
 
+    /// The dedicated Source action in the quoted ability implies a link to
+    /// this creation's exiled card. Capture it outside the fresh ability scope;
+    /// an outer payment/result must never appear in the quoted program.
+    fn linked_token_arrival(&self, tokens: &[TokenSpec], mut entry: BattlefieldArrival) -> Result<BattlefieldArrival> {
+        use crate::visit::{Walk, Visitor};
+        #[derive(Default)]
+        struct Link(bool);
+        impl Visitor for Link {
+            fn object_set(&mut self, objects: &ObjectSet) -> bool {
+                self.0 |= matches!(objects, ObjectSet::CreationLinkedCards(ObjectRef::Source));
+                true
+            }
+        }
+        let needs: Vec<_> = tokens.iter().map(|token| {
+            let mut link=Link::default(); token.walk(&mut link); link.0
+        }).collect();
+        if needs.iter().any(|v| *v) {
+            if !needs.iter().all(|v| *v) {
+                return Err(invalid("mixed linked and unlinked token recipes require separate creation batches"));
+            }
+            let card = self.exiled_card(&source::CardInExile::TheCardExiledThisWay)?;
+            entry.states.push(BattlefieldState::LinkExiledCards(ObjectSet::InZone {
+                objects: Box::new(ObjectSet::One(card)), zone: EventZone::Exile,
+            }));
+        }
+        Ok(entry)
+    }
+
     fn token_entry(&self, flags: &[source::TokenFlag]) -> Result<EntrySpec> {
         let mut entry = EntrySpec::default();
         for (i, flag) in flags.iter().enumerate() {

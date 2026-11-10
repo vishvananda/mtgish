@@ -1,0 +1,309 @@
+[
+  {
+    "kind": "Spell",
+    "args": {
+      "announcement": {
+        "targets": [
+          {
+            "slot": 0,
+            "kind": "Player",
+            "count": {
+              "Exactly": {
+                "kind": "Constant",
+                "args": 1
+              }
+            },
+            "filter": {
+              "kind": "Any"
+            },
+            "players": {
+              "kind": "All"
+            },
+            "distribute": null,
+            "constraints": [],
+            "chooser": null
+          }
+        ],
+        "modes": null
+      },
+      "body": {
+        "instructions": [
+          {
+            "kind": "Group",
+            "args": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Reveal",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Players": {
+                                "zone": "Hand",
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "Any"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "Reveal",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "Target",
+                                        "args": {
+                                          "slot": 0,
+                                          "index": 0
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "from": "Top"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "kind": "ChooseOne",
+            "args": {
+              "decider": {
+                "kind": "AbilityController"
+              },
+              "options": [
+                {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 2,
+                        "operation": {
+                          "kind": "ChooseObjects",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "objects": {
+                              "kind": "Matching",
+                              "args": {
+                                "objects": {
+                                  "kind": "InZone",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Observed",
+                                      "args": 0
+                                    },
+                                    "zone": "Hand"
+                                  }
+                                },
+                                "filter": {
+                                  "kind": "All",
+                                  "args": [
+                                    {
+                                      "kind": "OwnedBy",
+                                      "args": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Any"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "count": {
+                              "AsManyAsCan": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            },
+                            "constraints": []
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 3,
+                        "operation": {
+                          "kind": "Move",
+                          "args": {
+                            "objects": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Result",
+                                "args": {
+                                  "result": 2,
+                                  "phase": "After",
+                                  "index": 0
+                                }
+                              }
+                            },
+                            "destination": {
+                              "Library": {
+                                "position": "Bottom",
+                                "order": "DestinationDefault",
+                                "arrival": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            },
+                            "qualifiers": []
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 4,
+                        "operation": {
+                          "kind": "Move",
+                          "args": {
+                            "objects": {
+                              "kind": "Take",
+                              "args": {
+                                "objects": {
+                                  "kind": "Zone",
+                                  "args": {
+                                    "scope": {
+                                      "Players": {
+                                        "zone": "Library",
+                                        "players": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Target",
+                                            "args": {
+                                              "slot": 0,
+                                              "index": 0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "kind": "Card",
+                                    "filter": {
+                                      "kind": "Any"
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "from": "Top"
+                              }
+                            },
+                            "destination": {
+                              "Library": {
+                                "position": "Bottom",
+                                "order": "DestinationDefault",
+                                "arrival": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            },
+                            "qualifiers": []
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "offered": null
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "Mechanic",
+    "args": {
+      "mechanic": "Madness",
+      "cost": {
+        "parts": [
+          {
+            "Mana": [
+              {
+                "Generic": 1
+              },
+              {
+                "Color": "Black"
+              }
+            ]
+          }
+        ]
+      },
+      "amount": null,
+      "filter": null
+    }
+  }
+]

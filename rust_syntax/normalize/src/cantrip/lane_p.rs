@@ -3873,6 +3873,7 @@ impl Compiler {
                     ConjuredCard::Spellbook { book, pick } => {
                         format!("Conjured::FromSpellbook({book:?}, SpellbookPick::{pick:?})")
                     }
+                    ConjuredCard::DuplicateLastKnown(_) => return Err(gap("duplicate of a last-known card definition")),
                     ConjuredCard::Duplicate(objects) => {
                         format!(
                             "Conjured::DuplicateOf(&{})",

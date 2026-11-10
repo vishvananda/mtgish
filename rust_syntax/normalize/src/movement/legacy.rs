@@ -110,6 +110,10 @@ pub enum EntryState {
         /// unavailable. Local results remain private to this return trigger.
         body: Program,
     },
+    /// Capture exact exiled incarnations when these objects are created. Each
+    /// original token, including multiplicity replacements, gets the same link.
+    /// This arrival history is not copiable TokenRecipe/CopyException data.
+    LinkExiledCards(ObjectSet),
 }
 
 /// Upgrade an already decoded historical movement fragment after its nested

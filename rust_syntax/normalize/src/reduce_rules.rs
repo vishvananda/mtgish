@@ -1600,19 +1600,11 @@ fn reduce_rule_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
         // "You may ... Do this only once each turn": the may is the row's, as
         // `TriggerMayOnceEachTurn`'s is, and declining spends nothing (603.2h).
         ("TriggerMayOnceEachTurnI", [Operand::Event(event), Operand::Condition(condition), Operand::Program(body)]) => {
-            let body = Program {
-                instructions: vec![Instruction::Optional {
-                    decider: PlayerRef::AbilityController,
-                    body: body.clone(),
-                }],
-            };
+            let body = crate::semantics::once_performed(body.clone());
             Some(Ability::Triggered {
                 event: (**event).clone(),
                 intervening_if: Some(condition.clone()),
-                limits: TriggerLimits {
-                    per_turn: Some(1),
-                    total: None,
-                },
+                limits: TriggerLimits { per_turn: None, total: None },
                 announcement: Announcement {
                     targets: vec![],
                     modes: None,

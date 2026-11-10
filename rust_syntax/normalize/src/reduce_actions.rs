@@ -680,7 +680,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             ZoneMove::new(ObjectSet::One(card.clone()), D::OwnersHand)
         }
         ("ReturnTheExiledDeadPermanentToGraveyard", []) => {
-            ZoneMove::new(ObjectSet::One(ObjectRef::EventSubject), D::OwnersGraveyard)
+            ZoneMove::new(ObjectSet::CreationLinkedCards(ObjectRef::Source), D::OwnersGraveyard)
         }
         ("PutCardFromAnywhereIntoPlayersGraveyard", [_]) => {
             ZoneMove::new(ObjectSet::One(ObjectRef::Source), D::OwnersGraveyard)

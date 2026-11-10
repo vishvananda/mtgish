@@ -70,8 +70,22 @@ fn all_captured_copy_payloads_upgrade_to_fresh_lowering_without_moving_ids() {
             let after = serde_json::to_value(&mapped.card).unwrap();
             let source: source::OracleCard = ron::from_str(source).unwrap();
             let fresh = unified::lower(&source).card;
+            let mut expected = mapped.card.clone();
+            if expected.faces[0].name == "Donal, Herald of Wings" {
+                // The stored optional trigger cap remains intact in `after`.
+                // Fresh Source now uses a separate performance allowance.
+                let Ability::Triggered { limits, body, .. } = &mut expected.faces[0].abilities[0] else { panic!("Donal trigger") };
+                assert_eq!(limits.per_turn,Some(1)); limits.per_turn=None;
+                let [Instruction::Optional { body: offered, .. }] = body.instructions.as_slice() else { panic!("Donal offer") };
+                *body=Program { instructions: vec![Instruction::Effect {
+                    result: ResultId(1), operation: Operation::PlayersDo {
+                        players: PlayerSet::One(PlayerRef::AbilityController), any_one:false, optional:true, once_each_turn:true,
+                        body:vec![Operand::Program(offered.clone())],otherwise:vec![],
+                    },
+                }] };
+            }
             assert_eq!(
-                after,
+                serde_json::to_value(expected).unwrap(),
                 serde_json::to_value(fresh).unwrap(),
                 "{}",
                 before["faces"][0]["name"]

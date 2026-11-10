@@ -15,8 +15,8 @@ const CARDS: &[(&str, &str, bool)] = &[
         "choose::option_as_enters(g, entering, &CARD, 0..7)",
         true,
     ),
-    // "Your choice of a counter from among first strike, vigilance, and lifelink".
-    ("Aragorn, Company Leader", "\"First strike\"", false),
+    // Historical Ring choice is an explicit backend gap, not a live bearer query.
+    ("Aragorn, Company Leader", "RingBearerChosen", false),
     // A bestow cost of mana and more: the more is the Aura's additional cost.
     ("Detective's Phoenix", "additional_cost: Some(", true),
     // "You may behold a [quality]" as an ability resolves, or as it enters.

@@ -745,3 +745,15 @@ are implemented. Site/Wasm deployment is deferred at the user's request while
 remaining work is batched; live remains185. The reference pass now has32
 confirmed open defects (the original29 plus three newer findings), separate
 from unresolved representation questions. No upstream update was pulled.
+
+
+Schema187 completes the reference-driven additions in one publication batch:
+recorded Ring choices and cost quantities, damage loyalty consequences,
+noncopiable creation links and last-known duplication. All1,504 native tests
+and18 browser suites pass. The catalog has33,529 records and no new unreduced
+cards. Prepared186 named documents/workspaces migrate with names and meanings
+intact; the missing186 document-reader gate was caught by the real browser
+case and fixed before deployment. The32 confirmed findings, seven adjacent
+parser matches, exact Source/native deltas and explicit backend capabilities
+are documented in [reference32-20261110.md](reference32-20261110.md). Final
+publication combines these changes with the unpublished186 coin/movement work.

@@ -335,6 +335,11 @@ pub enum ObjectSet {
     },
     /// A selection in the nearest enclosing WithSelections scope.
     Prepared(SelectionId),
+    /// Exact exiled incarnations linked at this object's creation. The link is
+    /// noncopiable object history and survives its source leaving/ceasing to
+    /// exist through LKI. Copies of the object/ability acquire no link. A card
+    /// that left exile and returned is a new incarnation and is not included.
+    CreationLinkedCards(ObjectRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

@@ -36,7 +36,7 @@ const CARDS: &[(&str, &str, bool)] = &[
     // "Those spells": the copy, kept past "if you do".
     ("Spinerock Tyrant", "copies_1.extend(g.copy_spell(spell, copier_1, true)?);", false),
     // "If you gain control of a creature this way, tap it".
-    ("Midnight Crusader Shuttle", "(carried_11_0.clone()).first().copied()", false),
+    ("Midnight Crusader Shuttle", ".clone()).first().copied()", false),
     // "For each player, you may cast a card that player milled this way".
     ("The Ur-Sphinx", "pool_2.retain(|&c| g.state().obj(c).owner == owner_1);", false),
     // "Copy that ability": named by its target, as Cantrip knows an ability.

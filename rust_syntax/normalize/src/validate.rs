@@ -16,6 +16,7 @@ const BRANCH_COST: u32 = u32::MAX;
 #[derive(Clone, Copy)]
 enum ResultKind {
     Observation,
+    Surveil,
     Search,
     Payment,
     Selection,
@@ -741,6 +742,7 @@ impl<'a> Scope<'a> {
             EntryState::CountersOfChoice { amount, .. } => {
                 self.count(&Count::Exactly(amount.clone()))
             }
+            EntryState::LinkExiledCards(objects) => self.objects(objects),
             EntryState::CountersOf { object, .. } => self.object(object),
             EntryState::Transformed
             | EntryState::Prepared
@@ -1009,9 +1011,10 @@ impl<'a> Scope<'a> {
                 }
                 Ok(())
             }
+            ObjectSet::CreationLinkedCards(source) => self.object(source),
             ObjectSet::Observed(result) => match self.results.get(&result.0) {
                 Some(ResultKind::Observation) => Ok(()),
-                _ => Err("observation requires an available LookAt result".into()),
+                _ => Err("observation requires an available observation result".into()),
             },
             ObjectSet::Matching { objects, filter } => {
                 self.objects(objects)?;
@@ -1281,9 +1284,12 @@ impl<'a> Scope<'a> {
                 self.filter(to)
             }
             Expr::ExcessDamage { result, .. } => Err(format!("result {} is unavailable", result.0)),
+            Expr::SurveilKeptOnTop(result) => match self.results.get(&result.0) {
+                Some(ResultKind::Surveil) => Ok(()),
+                _ => Err(format!("result {} did not surveil in this scope", result.0)),
+            },
             Expr::Performed(result)
             | Expr::PerformedTotal(result)
-            | Expr::SurveilKeptOnTop(result)
             | Expr::ClampedDamage(result)
             | Expr::ChosenPowerToughness { result, .. }
             | Expr::DieResultAt { result, .. }
@@ -1296,8 +1302,14 @@ impl<'a> Scope<'a> {
             }
             Expr::Performed(result)
             | Expr::PerformedTotal(result)
-            | Expr::SurveilKeptOnTop(result)
             | Expr::ClampedDamage(result) => Err(format!("result {} is unavailable", result.0)),
+            Expr::RequestedDrawCount { payment, component } => {
+                if self.announcing { return Err("requested draw history is unavailable during announcement".into()); }
+                match self.paid_component(payment, component)? {
+                    CostPart::Draw { .. } => Ok(()),
+                    _ => Err("requested draw count requires a draw cost component".into()),
+                }
+            },
             Expr::PaidCountersRemoved { payment, component } => {
                 self.paid_component(payment, component).map(|_| ())
             }
@@ -1744,6 +1756,10 @@ impl<'a> Scope<'a> {
                 Ok(())
             }
             Condition::Not(condition) => self.condition(condition),
+            Condition::RingBearerChosen(filter) => {
+                if !self.event.ring_choice { return Err("Ring-bearer choice requires a matched Ring temptation".into()); }
+                self.filter(filter)
+            },
             Condition::ObjectMatches { object, filter } => {
                 self.object(object)?;
                 self.filter(filter)
@@ -3441,6 +3457,9 @@ impl<'a> Scope<'a> {
                 if let ConjuredCard::Duplicate(objects) = card {
                     self.objects(objects)?;
                 }
+                if let ConjuredCard::DuplicateLastKnown(object) = card {
+                    self.object(object)?;
+                }
                 if let Some(owner) = owner {
                     self.player(owner)?;
                 }
@@ -3700,6 +3719,10 @@ impl<'a> Scope<'a> {
                     | EventChange::FlipExtraCoin
                     | EventChange::DamageAsInfect
                     | EventChange::IgnoreCounters(_) => Ok(()),
+                    EventChange::LeaveLoyalty(amount) => {
+                        if !self.event.damage_objects { return Err("loyalty-removal change requires damage to an object".into()); }
+                        self.count(&Count::Exactly(amount.clone()))
+                    },
                     EventChange::SearchTop(amount) | EventChange::Repeats(amount) => {
                         self.expr(amount)
                     }
@@ -4335,6 +4358,7 @@ impl<'a> Scope<'a> {
                             | Operation::Reveal { .. }
                             | Operation::RevealUntil { .. }
                             | Operation::RevealUntilGroup { .. } => ResultKind::Observation,
+                            Operation::Surveil { .. } => ResultKind::Surveil,
                             Operation::Search { .. } => ResultKind::Search,
                             Operation::PayCost { .. } | Operation::PayRepeatedly { .. } => {
                                 ResultKind::Payment

@@ -746,6 +746,10 @@ pub enum Operation {
         players: PlayerSet,
         any_one: bool,
         optional: bool,
+        /// One successful performance per turn for this ability. A declined
+        /// offer or an unpayable required cost does not spend it; triggering
+        /// itself remains unlimited. Optionality and payment replacement follow
+        /// the contained program, including CR 118.11-12.
         once_each_turn: bool,
         body: Vec<Operand>,
         otherwise: Vec<Operand>,

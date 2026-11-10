@@ -164,6 +164,9 @@ struct Context {
     exile_turns: Vec<(PlayerRef, ResultId)>,
     value_x: Option<ResultId>,
     revealed: Option<ObjectSet>,
+    /// Hand observations retain their player role even if a later instruction
+    /// looks at a library (Psychotic Episode) or another player's hand.
+    hand_observations: Vec<(PlayerSet, ResultId)>,
     /// The player "they" means in an effect several players carry out.
     iterated: Option<PlayerRef>,
     /// The one player performing the current action.
@@ -255,6 +258,7 @@ enum Done {
     Damage,
     Destroyed,
     Drew,
+    Surveilled,
     Counters,
     Effect,
     LifeLost,
@@ -291,6 +295,7 @@ impl Done {
                 ..
             } => Self::Cast,
             Operation::Draw { .. } => Self::Drew,
+            Operation::Surveil { .. } => Self::Surveilled,
             Operation::SetTapped { tapped: false, .. } => Self::Untapped,
             Operation::PutCounters { .. } => Self::Counters,
             Operation::CreateContinuousEffect { .. } => Self::Effect,
@@ -486,6 +491,16 @@ impl Context {
     }
 
     fn note_done(&mut self, operation: &Operation, result: &ResultId) {
+        let hand = match operation.action() {
+            Operation::RevealFromHand { actor, .. } => Some(actor.clone()),
+            Operation::LookAt { objects, .. } | Operation::Reveal { objects } => match objects {
+                ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Hand, players }, .. } => Some(players.clone()),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(players)=hand { self.hand_observations.push((players,result.clone())); }
+
         if let Operation::Move {
             destination:
                 MovementDestination::Battlefield {
@@ -1828,6 +1843,20 @@ impl Context {
             S::TheNumberOfPlayersWhoTookAnActionThisWay => {
                 Expr::CountPlayers(self.players(&source::Players::PlayerWhoTookActionThisWay)?)
             }
+            S::TheNumberOfCreaturesThatCrewedThisTurn(vehicle) => Expr::EventHistory {
+                event: Box::new(EventSpec::Pair {
+                    event: PairEvent::Crews,
+                    objects: ObjectFilter::Any,
+                    others: ObjectFilter::SameObject(self.object(vehicle)?),
+                }),
+                window: HistoryWindow::ThisTurn,
+                measure: HistoryMeasure::DistinctSources,
+            },
+            S::NumberOfCardsRequestedForDrawCost => {
+                if self.announcing { return Err(invalid("requested draw history is unavailable during announcement")); }
+                let binding = self.paid_binding(crate::number_spec::PaymentAction::Draw)?;
+                Expr::RequestedDrawCount { payment: binding.payment.clone(), component: binding.component.clone() }
+            },
             S::NumberOfCardsDrawnThisWay => match self.done(Done::Drew) {
                 Ok(result) if self.looped.contains(&result.0) => {
                     Expr::CountObjects(Box::new(ObjectSet::MovedBy {
@@ -4005,11 +4034,18 @@ impl Context {
                 let choice = self.effect(Operation::ChooseObjects {
                     constraints: vec![],
                     player: player.clone(),
-                    objects: self.private_cards(
-                        EventZone::Hand,
-                        PlayerSet::One(self.player(owner)?),
-                        self.card_filter(cards)?,
-                    ),
+                    // The player revealed a subset; unrevealed hand cards
+                    // never become candidates for the following choice.
+                    objects: ObjectSet::Matching {
+                        objects: Box::new(ObjectSet::InZone {
+                            objects: Box::new(self.observed_hand(&self.player(owner)?)?),
+                            zone: EventZone::Hand,
+                        }),
+                        filter: ObjectFilter::All(vec![
+                            ObjectFilter::OwnedBy(PlayerSet::One(self.player(owner)?)),
+                            self.card_filter(cards)?,
+                        ]),
+                    },
                     count: Count::AsManyAsCan(Expr::Constant(1)),
                 });
                 let Instruction::Effect { result, .. } = &choice else {
@@ -4537,14 +4573,28 @@ impl Context {
                 attachments: ObjectSet::One(self.object(attachment)?),
                 host: self.object(host)?,
             },
-            S::CreateTokens(tokens, flags) => Operation::CreateTokens { players: actor.clone(), tokens: tokens
-                    .iter()
-                    .enumerate()
-                    .map(|(i, token)| {
-                        self.token(token, 0)
-                            .map_err(|e| e.at(format!("tokens[{i}]")))
-                    })
-                    .collect::<Result<_>>()?, entry: crate::movement::battlefield_from_parts(&(self.token_entry(flags)?)).map_err(|message|invalid(&message))? },
+            S::ConjureDuplicateOfGraveyardCardIntoHand(card)
+                if self.event.moved_to_hand && matches!(card.as_ref(), source::CardInGraveyards::Trigger_ThatGraveyardCard) =>
+            {
+                // EventDestination deliberately excludes hidden-zone moves.
+                // Duplicate the recorded pre-move card, even if its hand
+                // incarnation has already moved again before resolution.
+                Operation::Conjure {
+                    actor: actor.clone(),
+                    card: ConjuredCard::DuplicateLastKnown(ObjectRef::EventSubject),
+                    count: Expr::Constant(1), owner: None,
+                    destination: ConjureDestination::Hand(CardArrival::default()),
+                }
+            },
+            S::CreateTokens(tokens, flags) => {
+                let tokens = tokens.iter().enumerate().map(|(i, token)| {
+                    self.token(token, 0).map_err(|e| e.at(format!("tokens[{i}]")))
+                }).collect::<Result<Vec<_>>>()?;
+                let entry = crate::movement::battlefield_from_parts(&self.token_entry(flags)?)
+                    .map_err(|message| invalid(&message))?;
+                let entry = self.linked_token_arrival(&tokens, entry)?;
+                Operation::CreateTokens { players: actor.clone(), tokens, entry }
+            },
             S::PutCounters(placements)
                 if matches!(placements.as_slice(), [only]
                     if self.counter_placement(only, actor).is_err()
@@ -6300,7 +6350,13 @@ impl Context {
                     },
                     _ => return Err(unsupported(value)),
                 };
-                self.reduced_ability(&S::TriggerOnceEachTurn(trigger.clone(), Box::new(body)))
+                let mut ability = self.reduced_ability(&S::TriggerA(trigger.clone(), Box::new(body)))?;
+                let Ability::Triggered { body, .. } = &mut ability else { unreachable!() };
+                let [Instruction::Optional { body: offered, .. }] = body.instructions.as_slice() else {
+                    return Err(invalid("once-per-turn offer needs one optional action"));
+                };
+                *body = crate::semantics::once_performed(offered.clone());
+                Ok(ability)
             }
             S::SpellActions_Kicker(cost, source::WasKicked(paid), source::WasntKicked(unpaid)) => {
                 self.cost_branch("Kicker", cost, paid, unpaid)

@@ -339,6 +339,14 @@ pub enum Expr {
     /// How many of the cards a surveil looked at it left on top, as it finished:
     /// drawing them afterwards doesn't change the number.
     SurveilKeptOnTop(ResultId),
+    /// Requested draw quantity captured when this exact cost component is
+    /// chosen/attempted, immediately before drawing. Replacements and the
+    /// number of cards actually drawn do not change it. Zero for a component
+    /// never chosen/attempted; unavailable during announcement.
+    RequestedDrawCount {
+        payment: PaymentRef,
+        component: Vec<u32>,
+    },
 }
 
 /// Mana a number or filter reads that did not pay for a whole spell.

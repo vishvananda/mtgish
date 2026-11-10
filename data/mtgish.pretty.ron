@@ -21977,20 +21977,21 @@ Card(
     Activated(
       Loyalty(-1),
       ActionList([
+        CreatePermanentsList(And([
+          IsCardtype(Creature),
+          ControlledByAPlayer(SinglePlayer(You)),
+        ])),
         PutCounters([
           ACounterOfTypeOnEachPermanent(
             PTCounter(
               1,
               1,
             ),
-            And([
-              IsCardtype(Creature),
-              ControlledByAPlayer(SinglePlayer(You)),
-            ]),
+            ThePermanentsList,
           ),
         ]),
         CreateEachPermanentLayerEffectUntil(
-          HadCountersPutOnItThisWay,
+          ThePermanentsList,
           [
             AddAbility([
               Vigilance,
@@ -109816,12 +109817,18 @@ Card(
       PlayerPassesFilter(
         You,
         ControlsA(And([
+          IsCardtype(Creature),
           Other(ThisPermanent),
           CouldBeTargetedBySpell(Trigger_ThatSpell),
         ])),
       ),
       ActionList([
-        ChooseAPermanent(CouldBeTargetedBySpell_ThoseTargets),
+        ChooseAPermanent(And([
+          IsCardtype(Creature),
+          Other(ThisPermanent),
+          ControlledByAPlayer(SinglePlayer(You)),
+          CouldBeTargetedBySpell(Trigger_ThatSpell),
+        ])),
         CopySpellAndMustChooseNewTarget(
           Trigger_ThatSpell,
           TheChosenPermanent,
@@ -245048,16 +245055,14 @@ Card(
     Activated(
       Loyalty(-3),
       ActionList([
-        DrawNumberCards(TheNumberOfPermanentsOnTheBattlefield(And([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
           IsCardtype(Planeswalker),
           ControlledByAPlayer(SinglePlayer(You)),
         ]))),
+        DrawNumberCards(ValueX),
         PermanentDealsDamage(
           ThisPermanent,
-          TheNumberOfPermanentsOnTheBattlefield(And([
-            IsCardtype(Planeswalker),
-            ControlledByAPlayer(SinglePlayer(You)),
-          ])),
+          ValueX,
           EachPlayer(Opponent),
         ),
       ]),
@@ -286455,18 +286460,7 @@ Card(
     TriggerA(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       ActionList([
-        EachPlayerAction(
-          Opponent,
-          LoseLife(TheNumberOfPermanentsOnTheBattlefield(And([
-            IsCardtype(Creature),
-            ControlledByAPlayer(SinglePlayer(You)),
-            HasACounterOfType(PTCounter(
-              1,
-              1,
-            )),
-          ]))),
-        ),
-        GainLife(TheNumberOfPermanentsOnTheBattlefield(And([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
           IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
           HasACounterOfType(PTCounter(
@@ -286474,6 +286468,11 @@ Card(
             1,
           )),
         ]))),
+        EachPlayerAction(
+          Opponent,
+          LoseLife(ValueX),
+        ),
+        GainLife(ValueX),
       ]),
     ),
   ],
@@ -287798,7 +287797,10 @@ Card(
                 Trigger_ThatPlayer,
                 LoseLife(Integer(2)),
               ),
-              DrawNumberCards(Integer(2)),
+              PlayerAction(
+                You,
+                DrawNumberCards(Integer(2)),
+              ),
             ],
           ]),
         ),
@@ -312329,20 +312331,7 @@ Card(
             IsPlaneswalkerTypeVariable(TheChosenPlaneswalkerType),
           ])),
           [
-            CancelThatDamage,
-            RemoveCounters([
-              NumberCountersOfTypeFromPermanent(
-                Minus(
-                  TheTotalNumberOfCountersOfTypeAmongPermanents(
-                    LoyaltyCounter,
-                    SinglePermanent(WouldDealDamage_ThatPermanent),
-                  ),
-                  Integer(1),
-                ),
-                LoyaltyCounter,
-                WouldDealDamage_ThatPermanent,
-              ),
-            ]),
+            LeaveLoyaltyCounters(Integer(1)),
           ],
         ),
       ],
@@ -405831,17 +405820,15 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersEndStep(SinglePlayer(You)),
       ActionList([
-        EachPlayerAction(
-          Opponent,
-          LoseLife(TheNumberOfPermanentsOnTheBattlefield(And([
-            IsEnchantmentType(Aura),
-            ControlledByAPlayer(SinglePlayer(You)),
-          ]))),
-        ),
-        GainLife(TheNumberOfPermanentsOnTheBattlefield(And([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
           IsEnchantmentType(Aura),
           ControlledByAPlayer(SinglePlayer(You)),
         ]))),
+        EachPlayerAction(
+          Opponent,
+          LoseLife(ValueX),
+        ),
+        GainLife(ValueX),
       ]),
     ),
   ],
@@ -439059,7 +439046,7 @@ Card(
         CantBlock,
       ],
     ),
-    TriggerA(
+    FromGraveyard(TriggerA(
       Or([
         WhenAPermanentEntersTheBattlefield(And([
           IsCardtype(Enchantment),
@@ -439073,7 +439060,7 @@ Card(
       ActionList([
         MayAction(ReturnGraveyardCardToHand(ThisGraveyardCard)),
       ]),
-    ),
+    )),
   ],
   CardPT: (
     Power: 2,
@@ -540742,17 +540729,14 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        DoubleEachCreaturesPowerUntilEndOfTurn(And([
+        CreatePermanentsList(And([
           Other(ThatEnteringPermanent),
           IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
+        DoubleEachCreaturesPowerUntilEndOfTurn(ThePermanentsList),
         CreateEachPermanentLayerEffectUntil(
-          And([
-            Other(ThatEnteringPermanent),
-            IsCardtype(Creature),
-            ControlledByAPlayer(SinglePlayer(You)),
-          ]),
+          ThePermanentsList,
           [
             AddAbility([
               Vigilance,
@@ -585264,18 +585248,16 @@ Card(
         AnyTarget,
       ],
       ActionList([
-        SpellDealsDamage(
-          ThisSpell,
-          TheNumberOfPermanentsOnTheBattlefield(And([
-            IsCardtype(Creature),
-            ControlledByAPlayer(SinglePlayer(You)),
-          ])),
-          Ref_AnyTarget,
-        ),
-        GainLife(TheNumberOfPermanentsOnTheBattlefield(And([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
           IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ]))),
+        SpellDealsDamage(
+          ThisSpell,
+          ValueX,
+          Ref_AnyTarget,
+        ),
+        GainLife(ValueX),
       ]),
     )),
   ],
@@ -619594,7 +619576,7 @@ Card(
         If(
           CostWasPaid,
           [
-            DiscardNumberCards(NumberOfCardsDrawnThisWay),
+            DiscardNumberCards(NumberOfCardsRequestedForDrawCost),
           ],
         ),
       ]),
@@ -654438,11 +654420,12 @@ Card(
     TriggerA(
       WhenACreatureMutates(SinglePermanent(ThisPermanent)),
       ActionList([
+        CreateValueX(NumTimesCreatureHasMutated(ThisPermanent)),
         EachPlayerAction(
           Opponent,
-          LoseLife(NumTimesCreatureHasMutated(ThisPermanent)),
+          LoseLife(ValueX),
         ),
-        GainLife(NumTimesCreatureHasMutated(ThisPermanent)),
+        GainLife(ValueX),
       ]),
     ),
   ],
@@ -745403,11 +745386,12 @@ Card(
             ControlledByAPlayer(SinglePlayer(You)),
           ])),
         ),
-        DrawNumberCards(TheNumberOfPermanentsOnTheBattlefield(And([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
           IsLandType(Island),
           ControlledByAPlayer(SinglePlayer(You)),
         ]))),
-        DiscardNumberCards(NumberOfCardsDrawnThisWay),
+        DrawNumberCards(ValueX),
+        DiscardNumberCards(ValueX),
       ]),
     )),
   ],
@@ -757752,19 +757736,17 @@ Card(
           TargetPlayer(AnyPlayer),
         ],
         ActionList([
+          CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
+            IsCreatureType(Zombie),
+            ControlledByAPlayer(SinglePlayer(You)),
+          ]))),
           PlayerAction(
             Ref_TargetPlayer,
-            LoseLife(TheNumberOfPermanentsOnTheBattlefield(And([
-              IsCreatureType(Zombie),
-              ControlledByAPlayer(SinglePlayer(You)),
-            ]))),
+            LoseLife(ValueX),
           ),
           PlayerAction(
             Ref_TargetPlayer,
-            MillNumberCards(TheNumberOfPermanentsOnTheBattlefield(And([
-              IsCreatureType(Zombie),
-              ControlledByAPlayer(SinglePlayer(You)),
-            ]))),
+            MillNumberCards(ValueX),
           ),
         ]),
       ),
@@ -787145,10 +787127,7 @@ Card(
         CreateTokens(
           [
             NumberTokens(
-              TheNumberOfPermanentsOnTheBattlefield(And([
-                IsCardtype(Creature),
-                CrewedVehicleThisTurn(Trigger_ThatCreature),
-              ])),
+              TheNumberOfCreaturesThatCrewedThisTurn(Trigger_ThatCreature),
               TreasureToken,
             ),
           ],
@@ -797657,11 +797636,12 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
+        CreateValueX(NumCreaturesInPlayersParty(You)),
         EachPlayerAction(
           Opponent,
-          LoseLife(NumCreaturesInPlayersParty(You)),
+          LoseLife(ValueX),
         ),
-        GainLife(NumCreaturesInPlayersParty(You)),
+        GainLife(ValueX),
       ]),
     ),
   ],
@@ -830737,12 +830717,15 @@ Card(
               ),
             ],
             [
-              GainControlOfAPermanentUntil(
-                And([
-                  IsCardtype(Creature),
-                  ControlledByAPlayer(SinglePlayer(Trigger_DefendingPlayer)),
-                ]),
-                UntilEndOfTurn,
+              PlayerAction(
+                You,
+                GainControlOfAPermanentUntil(
+                  And([
+                    IsCardtype(Creature),
+                    ControlledByAPlayer(SinglePlayer(Trigger_DefendingPlayer)),
+                  ]),
+                  UntilEndOfTurn,
+                ),
               ),
               TapPermanent(ThePermanentGainedControlOfThisWay),
               SetAttackAssignmentOfCreature(
@@ -849619,7 +849602,7 @@ Card(
             TheNumberOfPermanentsOnTheBattlefield(And([
               IsTapped,
               IsCardtype(Creature),
-              ControlledByAPlayer(SinglePlayer(Trigger_DefendingPlayer)),
+              ControlledByAPlayer(SinglePlayer(DealsDamage_ThatPlayer)),
             ])),
             EachPlayer(Opponent),
           ),
@@ -880720,23 +880703,21 @@ Card(
         HasAFullParty,
       ),
       ActionList([
+        CreatePermanentsList(And([
+          IsCardtype(Creature),
+          ControlledByAPlayer(SinglePlayer(You)),
+        ])),
         PutCounters([
           ACounterOfTypeOnEachPermanent(
             PTCounter(
               1,
               1,
             ),
-            And([
-              IsCardtype(Creature),
-              ControlledByAPlayer(SinglePlayer(You)),
-            ]),
+            ThePermanentsList,
           ),
         ]),
         CreateEachPermanentLayerEffectUntil(
-          And([
-            IsCardtype(Creature),
-            ControlledByAPlayer(SinglePlayer(You)),
-          ]),
+          ThePermanentsList,
           [
             AddAbility([
               Deathtouch,
@@ -882040,11 +882021,12 @@ Card(
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       ActionList([
+        CreateValueX(ManaValueOfPermanent(Trigger_ThatPermanent)),
         EachPlayerAction(
           Opponent,
-          LoseLife(ManaValueOfPermanent(Trigger_ThatPermanent)),
+          LoseLife(ValueX),
         ),
-        GainLife(ManaValueOfPermanent(Trigger_ThatPermanent)),
+        GainLife(ValueX),
       ]),
     ),
   ],
@@ -908825,17 +908807,15 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        EachPlayerAction(
-          Opponent,
-          LoseLife(TheNumberOfPermanentsOnTheBattlefield(And([
-            IsEnchantmentType(Shrine),
-            ControlledByAPlayer(SinglePlayer(You)),
-          ]))),
-        ),
-        GainLife(TheNumberOfPermanentsOnTheBattlefield(And([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
           IsEnchantmentType(Shrine),
           ControlledByAPlayer(SinglePlayer(You)),
         ]))),
+        EachPlayerAction(
+          Opponent,
+          LoseLife(ValueX),
+        ),
+        GainLife(ValueX),
       ]),
     ),
     TriggerA(
@@ -912684,14 +912664,14 @@ Card(
           ])),
         ],
         ActionList([
-          MayCost(Exile(
+          Exile(
             [
               CardInGraveyards(Ref_TargetGraveyardCard),
             ],
             [],
-          )),
+          ),
           If(
-            CostWasPaid,
+            ACardWasExiledThisWay(IsCardtype(Creature)),
             [
               LoseLife(ManaValueOfGraveyardCard(Ref_TargetGraveyardCard)),
               CreateTokens(
@@ -1001612,12 +1001592,13 @@ Card(
         AnyTarget,
       ],
       ActionList([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(IsCreatureType(Cleric))),
         SpellDealsDamage(
           ThisSpell,
-          TheNumberOfPermanentsOnTheBattlefield(IsCreatureType(Cleric)),
+          ValueX,
           Ref_AnyTarget,
         ),
-        GainLife(TheNumberOfPermanentsOnTheBattlefield(IsCreatureType(Cleric))),
+        GainLife(ValueX),
       ]),
     )),
   ],
@@ -1035194,7 +1035175,7 @@ Card(
       And([
         PermanentPassesFilter(
           Trigger_ThatPermanent,
-          WasCast,
+          WasCastByAPlayer(SinglePlayer(You)),
         ),
         PlayerPassesFilter(
           You,
@@ -1115871,17 +1115852,15 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersFirstMainPhase(SinglePlayer(You)),
       ActionList([
-        EachPlayerAction(
-          Opponent,
-          LoseLife(TheNumberOfPermanentsOnTheBattlefield(And([
-            IsEnchantmentType(Shrine),
-            ControlledByAPlayer(SinglePlayer(You)),
-          ]))),
-        ),
-        GainLife(TheNumberOfPermanentsOnTheBattlefield(And([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
           IsEnchantmentType(Shrine),
           ControlledByAPlayer(SinglePlayer(You)),
         ]))),
+        EachPlayerAction(
+          Opponent,
+          LoseLife(ValueX),
+        ),
+        GainLife(ValueX),
       ]),
     ),
   ],
@@ -1172693,11 +1172672,12 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
+        CreateValueX(NumColorsAmongPermanents(ControlledByAPlayer(SinglePlayer(You)))),
         EachPlayerAction(
           Opponent,
-          LoseLife(NumColorsAmongPermanents(ControlledByAPlayer(SinglePlayer(You)))),
+          LoseLife(ValueX),
         ),
-        GainLife(NumColorsAmongPermanents(ControlledByAPlayer(SinglePlayer(You)))),
+        GainLife(ValueX),
       ]),
     ),
   ],
@@ -1217742,13 +1217722,14 @@ Card(
                     APlayer(AnyPlayer),
                   ),
                   [
+                    CreateValueX(WouldDealDamage_ThatMuchDamage),
                     PreventThatDamage,
                     EachPlayerAction(
                       Or([
                         SinglePlayer(You),
                         SinglePlayer(WouldDealDamage_DamageRecipientPlayer),
                       ]),
-                      DrawNumberCards(HalfRoundedDown(TheAmountOfDamagePreventedThisWay)),
+                      DrawNumberCards(HalfRoundedDown(ValueX)),
                     ),
                   ],
                 ),
@@ -1336729,17 +1336710,15 @@ Card(
           TargetPlayer(AnyPlayer),
         ],
         ActionList([
-          PlayerAction(
-            Ref_TargetPlayer,
-            LoseLife(Twice(TheNumberOfPermanentsOnTheBattlefield(And([
-              IsCardtype(Artifact),
-              ControlledByAPlayer(SinglePlayer(You)),
-            ])))),
-          ),
-          GainLife(Twice(TheNumberOfPermanentsOnTheBattlefield(And([
+          CreateValueX(Twice(TheNumberOfPermanentsOnTheBattlefield(And([
             IsCardtype(Artifact),
             ControlledByAPlayer(SinglePlayer(You)),
           ])))),
+          PlayerAction(
+            Ref_TargetPlayer,
+            LoseLife(ValueX),
+          ),
+          GainLife(ValueX),
         ]),
       ),
     ),
@@ -1447641,20 +1447620,7 @@ Card(
     TriggerA(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       ActionList([
-        EachPlayerAction(
-          Opponent,
-          LoseLife(TheNumberOfPermanentsOnTheBattlefield(And([
-            Other(Trigger_ThatCreature),
-            Or([
-              IsCreatureType(Squirrel),
-              IsCreatureType(Bat),
-              IsCreatureType(Lizard),
-              IsCreatureType(Rat),
-            ]),
-            ControlledByAPlayer(SinglePlayer(You)),
-          ]))),
-        ),
-        GainLife(TheNumberOfPermanentsOnTheBattlefield(And([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
           Other(Trigger_ThatCreature),
           Or([
             IsCreatureType(Squirrel),
@@ -1447664,6 +1447630,11 @@ Card(
           ]),
           ControlledByAPlayer(SinglePlayer(You)),
         ]))),
+        EachPlayerAction(
+          Opponent,
+          LoseLife(ValueX),
+        ),
+        GainLife(ValueX),
       ]),
     ),
   ],
@@ -1511137,17 +1511108,15 @@ Card(
         IsEquipped,
       ),
       ActionList([
-        EachPlayerAction(
-          Opponent,
-          LoseLife(TheNumberOfPermanentsOnTheBattlefield(And([
-            IsArtifactType(Equipment),
-            AttachedToPermanent(Trigger_ThatPermanent),
-          ]))),
-        ),
-        GainLife(TheNumberOfPermanentsOnTheBattlefield(And([
+        CreateValueX(TheNumberOfPermanentsOnTheBattlefield(And([
           IsArtifactType(Equipment),
           AttachedToPermanent(Trigger_ThatPermanent),
         ]))),
+        EachPlayerAction(
+          Opponent,
+          LoseLife(ValueX),
+        ),
+        GainLife(ValueX),
       ]),
     ),
   ],
@@ -1550846,18 +1550815,16 @@ Card(
         AnyTarget,
       ],
       ActionList([
-        SpellDealsDamage(
-          ThisSpell,
-          TheNumberOfGraveyardCards(And([
-            HasAbility(AnyCycling),
-            InAPlayersGraveyard(SinglePlayer(You)),
-          ])),
-          Ref_AnyTarget,
-        ),
-        GainLife(TheNumberOfGraveyardCards(And([
+        CreateValueX(TheNumberOfGraveyardCards(And([
           HasAbility(AnyCycling),
           InAPlayersGraveyard(SinglePlayer(You)),
         ]))),
+        SpellDealsDamage(
+          ThisSpell,
+          ValueX,
+          Ref_AnyTarget,
+        ),
+        GainLife(ValueX),
       ]),
     )),
   ],

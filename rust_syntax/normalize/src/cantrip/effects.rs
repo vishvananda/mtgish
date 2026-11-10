@@ -1084,8 +1084,22 @@ impl Compiler {
         out: &mut String,
         boundaries: bool,
     ) -> Result<()> {
+        self.block_after_payment(body, out, boundaries, None)
+    }
+    fn block_after_payment(
+        &mut self,
+        body: &Program,
+        out: &mut String,
+        boundaries: bool,
+        spent_if_paid: Option<(ResultId, u8)>,
+    ) -> Result<()> {
         let scope = self.results();
         self.program(body, out, boundaries)?;
+        if let Some((payment, key)) = spent_if_paid {
+            let paid=self.performed.get(&payment.0)
+                .ok_or_else(|| gap("once-performed action with no payment outcome"))?;
+            writeln!(out,"if {paid} {{ {} }}",lane_k::spends_once(key)).unwrap();
+        }
         let inner = self.results();
         self.restore_results(scope);
         self.failed.extend(inner.failed.iter());
@@ -1725,13 +1739,19 @@ impl Compiler {
                 let player_ref = decider;
                 let decider = planned::planned_read(player, "asker.controller", decider);
                 let id = self.fresh();
-                let (open, spent) = lane_k::once_a_turn(self.do_once.take(), id);
+                let once=self.do_once.take();
+                let paid_once=once.and_then(|key| match body.instructions.first() {
+                    Some(Instruction::Effect { result, operation: Operation::PayCost { optional:false, .. } }) => Some((result.clone(),key)),
+                    _=>None,
+                });
+                let (open, spent) = lane_k::once_a_turn(once, id);
+                let spent=if paid_once.is_some() { String::new() } else { spent };
                 let open = open
                     + &lane_k::asked_if(player_ref, &format!("decider_{id}"), body)
                     + &self.asked_if_there(body)
                     + &self.top_card_offered(id, body, out)?;
                 writeln!(out, "let decider_{id} = {decider}; if {open}cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{{spent}").unwrap();
-                self.block(body, out, true)?;
+                self.block_after_payment(body, out, true, paid_once)?;
                 writeln!(out, "}}").unwrap();
                 Ok(())
             }

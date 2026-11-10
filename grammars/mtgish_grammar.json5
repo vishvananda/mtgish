@@ -3899,6 +3899,8 @@
     "WhenAnyNumberOfPermanentEnterTheBattlefieldUnderControl_AmountOfPermanents": "",
     "WhenPermanentsDealDamageToPlayers_NumPlayersDealtDamage": "",
     "WouldDealDamage_ThatMuchDamage": "",
+    "TheNumberOfCreaturesThatCrewedThisTurn({{PERMANENT}})": "",
+    "NumberOfCardsRequestedForDrawCost": "",
     "WouldDrawACard_ThatMany": "",
     "WouldGainLife_LifeAmount": "",
     "WouldPayLife_ThatMuch": "",
@@ -5009,6 +5011,7 @@
     "[ExileSpell({{SPELL}}), MayAction(PlayExiledCardWithoutPaying({{CARD_IN_EXILE}}))]": ""
   },
   "{{REPLACEMENT_ACTIONS[WouldDealDamage]}}": {
+    "[LeaveLoyaltyCounters({{NUMBER}})]": "",
     "[ContinueDealingDamage, SpellDealsDamage({{SPELL}}, {{NUMBER}}, {{DAMAGE_RECIPIENTS}})]": "",
 
     "[CancelThatDamage, DestroyPermanent({{PERMANENT}})]": "",
@@ -5088,6 +5091,7 @@
     "[PreventThatDamage, CreateFutureTrigger({{FUTURE_TRIGGER}}, {{TOP_LEVEL_ACTIONS}})]": "",
     "[PreventThatDamage, CreateTokens({{CREATABLE_TOKEN_LIST}}, [])]": "",
     "[PreventThatDamage, EachPlayerAction({{PLAYERS}}, DrawNumberCards({{NUMBER}}))]": "",
+    "[CreateValueX({{NUMBER}}), PreventThatDamage, EachPlayerAction({{PLAYERS}}, DrawNumberCards({{NUMBER}}))]": "",
     "[PreventThatDamage, EachPlayerAction({{PLAYERS}}, MillNumberCards({{NUMBER}}))]": "",
     "[PreventThatDamage, Exile([NumberCardsInGraveyards({{NUMBER}}, {{CARDS_IN_GRAVEYARDS}})], [])]": "",
     "[PreventThatDamage, Exile([TheTopNumberCardsOfLibrary({{NUMBER}})], [])]": "",

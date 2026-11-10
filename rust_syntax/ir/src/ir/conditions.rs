@@ -179,6 +179,11 @@ pub enum Condition {
     /// This draw is the first this player makes in their own draw step, whatever
     /// they drew earlier in the turn.
     FirstDrawInOwnDrawStep(PlayerRef),
+    /// A creature was actually chosen during this matched Ring temptation and
+    /// satisfied this filter at the time of that choice. Re-checked against the
+    /// recorded choice fact, never the player's current Ring-bearer or its live
+    /// characteristics. False when no creature was chosen.
+    RingBearerChosen(ObjectFilter),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

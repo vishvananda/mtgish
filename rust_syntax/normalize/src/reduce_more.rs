@@ -1426,10 +1426,7 @@ fn reduce_more_conditions(form: &str, operands: &[Operand]) -> Option<Condition>
                 value,
             )
         }
-        ("TriggerChoseCreatureAsRingBearer", [Objects(set)]) => Condition::ObjectMatches {
-            object: ObjectRef::RingBearer(PlayerRef::AbilityController),
-            filter: objects_filter(set),
-        },
+        ("TriggerChoseCreatureAsRingBearer", [Objects(set)]) => Condition::RingBearerChosen(objects_filter(set)),
         ("TriggerXIs", [Compare(comparison, value)]) => {
             compared(Expr::CastX(ObjectRef::EventSubject), comparison, value)
         }

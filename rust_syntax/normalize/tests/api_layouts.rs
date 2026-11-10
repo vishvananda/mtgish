@@ -28,7 +28,13 @@ fn authentic_api_and_all_layout_examples_migrate_to_exact_source_with_complete_o
             let fresh = unified::lower(&source);
             assert!(fresh.diagnostics.is_empty(), "{:?}", fresh.diagnostics);
             let after = serde_json::to_value(&mapped.card).unwrap();
-            assert_eq!(after, serde_json::to_value(fresh.card).unwrap());
+            let mut expected = after.clone();
+            if mapped.card.faces.first().is_some_and(|face| face.name == "Aragorn, Company Leader") {
+                let condition=&mut expected["faces"][0]["abilities"][0]["args"]["intervening_if"];
+                assert_eq!(condition["args"]["object"]["kind"], "RingBearer");
+                *condition=json!({"kind":"RingBearerChosen","args":condition["args"]["filter"].clone()});
+            }
+            assert_eq!(expected, serde_json::to_value(fresh.card).unwrap());
             for (from, to) in mapped.map.sites {
                 for to in to {
                     assert_eq!(before.pointer(&from), after.pointer(&to), "{from} -> {to}");

@@ -134,6 +134,19 @@ impl Context {
             binding.singular,
         ))
     }
+    /// A hand's own receipt, independent of later observations in another zone
+    /// or for a different player. The surrounding Matching restricts a batch
+    /// observation to this owner without exposing anyone else's cards.
+    fn observed_hand(&self, owner: &PlayerRef) -> Result<ObjectSet> {
+        if let Some((_,result))=self.hand_observations.iter().rev().find(|(players,_)| {
+            match players {
+                PlayerSet::One(player)=>crate::semantics::same_player(player,owner),
+                _=>true,
+            }
+        }) { return Ok(ObjectSet::Observed(result.clone())); }
+        self.paid_objects(crate::number_spec::PaymentAction::Reveal,CostObjectView::Inputs)
+    }
+
     /// The latest reveal, by an action here or else by a cost.
     fn revealed_objects(&self) -> Result<ObjectSet> {
         if let Some(objects) = &self.revealed {

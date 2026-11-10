@@ -55,7 +55,8 @@ fn check(entry: &EntrySpec, zone: &EventZone, visibility_in_entry: bool) -> Resu
     }
     for state in &entry.states {
         match state {
-            EntryState::Transformed
+            EntryState::LinkExiledCards(_)
+            | EntryState::Transformed
             | EntryState::Prepared
             | EntryState::CopyOf { .. }
             | EntryState::Attacking { .. }

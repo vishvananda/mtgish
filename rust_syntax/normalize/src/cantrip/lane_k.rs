@@ -2106,6 +2106,11 @@ impl Compiler {
     /// The key of "you may ... Do this only once each turn": declining spends
     /// nothing, where "triggers only once each turn" spends the trigger.
     pub(super) fn done_once(&mut self, limits: &TriggerLimits, body: &Program) -> Option<u8> {
+        if super::lane_l::once_offered(body).is_some() {
+            let key = self.once_key();
+            self.do_once = Some(key);
+            return Some(key);
+        }
         let said = self
             .line
             .as_ref()

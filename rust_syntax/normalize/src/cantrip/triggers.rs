@@ -2119,6 +2119,13 @@ impl Compiler {
         }
         let done_once = self.done_once(limits, body);
         extra.extend(done_once.map(lane_k::not_yet_done));
+        let performed = lane_l::once_offered(body).map(|offered| Program {
+            instructions: vec![Instruction::Optional {
+                decider: PlayerRef::AbilityController,
+                body: offered.clone(),
+            }],
+        });
+        let body = performed.as_ref().unwrap_or(body);
         // The look isn't offered, only what follows it.
         let looked = done_once.and_then(|_| lane_k::looks_then_may(body));
         let body = looked.as_ref().unwrap_or(body);

@@ -1,0 +1,92 @@
+{
+  "baseline": "16009bbd1f44e7388d00df59972a0ab51c8eb9ec",
+  "schema": 187,
+  "confirmed_cards": 32,
+  "source_cards": [
+    "Beamsplitter Mage",
+    "Commodore Guff",
+    "Damocles Base, Sword of Kang",
+    "Deification",
+    "Eriette of the Charmed Apple",
+    "Fear of Infinity",
+    "God-Eternal Rhonas",
+    "Harsh Sustenance",
+    "Horrid Shadowspinner",
+    "Last Stand",
+    "Lich Lord of Unx",
+    "Luxurious Locomotive",
+    "Midnight Crusader Shuttle",
+    "Mjölnir, Storm Hammer",
+    "Nalia de'Arnise",
+    "Northern Air Temple",
+    "Nyla, Shirshu Sleuth",
+    "Profane Prayers",
+    "Ran and Shaw",
+    "Sanctum of Stone Fangs",
+    "Shimmercreep",
+    "Sokrates, Athenian Teacher",
+    "Tezzeret, Agent of Bolas",
+    "Zenith Flare"
+  ],
+  "lowering_only_cards": [
+    "Aragorn, Company Leader",
+    "Hofri Ghostforge",
+    "Irreverent Gremlin",
+    "Legolas, Counter of Kills",
+    "Mire's Toll",
+    "Solid Ground",
+    "Starving Revenant",
+    "Veteran Ghoulcaller"
+  ],
+  "adjacent_source_cards": [
+    "Ajani Goldmane",
+    "Dai Li Agents",
+    "Insatiable Hemophage",
+    "Malakir Blood-Priest",
+    "Narci, Fable Singer",
+    "Valley Rotcaller",
+    "Whiplash, Vengeful Engineer"
+  ],
+  "source_changes": 31,
+  "native_changes": 132,
+  "engine_changes": false,
+  "numeric_width_changes": false,
+  "validation": {
+    "full_log": "native-final-all.log",
+    "passed": 1504,
+    "failed": 0,
+    "ignored": 18,
+    "go_log": "go-final.log",
+    "browser_log": "browsers-final.log",
+    "browser_suites": 18,
+    "catalog_records": 33529,
+    "saved186_audit": "full186-migration-audit.log",
+    "saved186_exact": 33528,
+    "saved186_known_invalid_diagnosed": 1
+  },
+  "backend_gaps": [
+    {
+      "name": "Deification",
+      "gap": "event change LeaveLoyalty"
+    },
+    {
+      "name": "Hofri Ghostforge",
+      "gap": "object collection CreationLinkedCards"
+    },
+    {
+      "name": "Horrid Shadowspinner",
+      "gap": "numeric expression RequestedDrawCount"
+    },
+    {
+      "name": "Luxurious Locomotive",
+      "gap": "history measure DistinctSources"
+    }
+  ],
+  "upstream_reports": "pending publication of tested code",
+  "live_release": "schema185 until final combined deployment",
+  "artifact_sha256": "a1182141463fba44090b7fa3f997bb9470aa486e1e1424bedd685b6fee3d7813",
+  "additional_lowering_controls": [
+    "Cracked Skull",
+    "Psychotic Episode"
+  ]
+}

@@ -235,6 +235,11 @@ pub enum EventChange {
         object: ObjectRef,
         properties: Vec<Property>,
     },
+    /// Damage still happens, including lifelink and damage triggers. Only its
+    /// resulting loyalty removal is capped to leave this many counters on the
+    /// planeswalker recipient (or its existing count if smaller). This is not
+    /// damage prevention, cancellation, or a separate counter-removal action.
+    LeaveLoyalty(Expr),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.
