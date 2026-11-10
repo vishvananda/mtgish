@@ -357654,8 +357654,6 @@ Card(
               ),
               ThisPermanent,
             ),
-          ]),
-          PutCounters([
             ACounterOfTypeOnPermanent(
               PTCounter(
                 1,
@@ -692079,8 +692077,6 @@ Card(
             ),
             ThatEnteringPermanent,
           ),
-        ]),
-        PutCounters([
           ACounterOfTypeOnPermanent(
             PTCounter(
               1,
@@ -1083485,8 +1083481,6 @@ Card(
             ),
             Ref_TargetPermanent1,
           ),
-        ]),
-        PutCounters([
           ACounterOfTypeOnPermanent(
             PTCounter(
               1,
@@ -1157292,8 +1157286,6 @@ Card(
               ),
               ThisPermanent,
             ),
-          ]),
-          PutCounters([
             ACounterOfTypeOnPermanent(
               PTCounter(
                 -1,
@@ -1285716,8 +1285708,6 @@ Card(
             ),
             Trigger_ThatPermanent,
           ),
-        ]),
-        PutCounters([
           ACounterOfTypeOnPermanent(
             PTCounter(
               1,
@@ -1539513,8 +1539503,6 @@ Card(
             ),
             ThatEnteringPermanent,
           ),
-        ]),
-        PutCounters([
           ACounterOfTypeOnPermanent(
             PTCounter(
               1,

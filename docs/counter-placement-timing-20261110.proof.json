@@ -1,0 +1,145 @@
+{
+  "status": "all_six_confirmed_and_fixed",
+  "date": "2026-11-10",
+  "schema": 188,
+  "source_records": {
+    "records": 33529,
+    "changed_names": [
+      "Drillworks Mole",
+      "Juniper Order Ranger",
+      "River Heralds' Boon",
+      "Serrated Biskelion",
+      "Sumala Sentry",
+      "X-23, Deadly Weapon"
+    ],
+    "unchanged_records": 33523,
+    "export_sha256": "99d4233788ffc870217b9c58f41f925293bd1880497b2516a2f3ea95f8f4897d"
+  },
+  "native_records": {
+    "records": 33529,
+    "schema": 188,
+    "schema_unchanged": true,
+    "changed_names": [
+      "Drillworks Mole",
+      "Juniper Order Ranger",
+      "River Heralds' Boon",
+      "Serrated Biskelion",
+      "Sumala Sentry",
+      "X-23, Deadly Weapon"
+    ],
+    "unchanged_records": 33523
+  },
+  "grammar_templates_changed": 6,
+  "native_tests": 4,
+  "go_suite": "passed",
+  "engine_existing_counter_batch_tests": 7,
+  "engine_changes": false,
+  "ast_schema_changes": false,
+  "numeric_width_changes": false,
+  "backend_gap_preserved": {
+    "Drillworks Mole": "engine: no commander"
+  },
+  "generator_trace": {
+    "Drillworks Mole": {
+      "before": {
+        "exit_code": 0,
+        "batch_calls": 0,
+        "diagnostic": "",
+        "backend_supported": false,
+        "gap": "// ===== Drillworks Mole\n// gaps: [BackendDiagnostic { path: \"\", feature: \"engine: no commander\", message: \"Cantrip code generation has not implemented this capability\" }]"
+      },
+      "after": {
+        "exit_code": 0,
+        "batch_calls": 0,
+        "diagnostic": "",
+        "backend_supported": false,
+        "gap": "// ===== Drillworks Mole\n// gaps: [BackendDiagnostic { path: \"\", feature: \"engine: no commander\", message: \"Cantrip code generation has not implemented this capability\" }]"
+      }
+    },
+    "Juniper Order Ranger": {
+      "before": {
+        "exit_code": 0,
+        "batch_calls": 2,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      },
+      "after": {
+        "exit_code": 0,
+        "batch_calls": 1,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      }
+    },
+    "River Heralds' Boon": {
+      "before": {
+        "exit_code": 0,
+        "batch_calls": 2,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      },
+      "after": {
+        "exit_code": 0,
+        "batch_calls": 1,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      }
+    },
+    "Serrated Biskelion": {
+      "before": {
+        "exit_code": 0,
+        "batch_calls": 2,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      },
+      "after": {
+        "exit_code": 0,
+        "batch_calls": 1,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      }
+    },
+    "Sumala Sentry": {
+      "before": {
+        "exit_code": 0,
+        "batch_calls": 2,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      },
+      "after": {
+        "exit_code": 0,
+        "batch_calls": 1,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      }
+    },
+    "X-23, Deadly Weapon": {
+      "before": {
+        "exit_code": 0,
+        "batch_calls": 2,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      },
+      "after": {
+        "exit_code": 0,
+        "batch_calls": 1,
+        "diagnostic": "",
+        "backend_supported": true,
+        "gap": null
+      }
+    }
+  },
+  "upstream_issue": "https://github.com/i5jb/mtgish/issues/259",
+  "reference_question_packet": "reports/analysis/upstream-reference/counter-placement-timing-questions.json",
+  "original_question_packet_and_gold_modified": false,
+  "rules_interpretation": "One shared Put verb coordinates two counter placements as one simultaneous action under CR608.2c/f. Keep both contributions; aggregate runtime overlap before replacements. Explicit sequencing remains distinct.",
+  "evidence_root": "/mnt/vizier/counter-timing-20261110"
+}

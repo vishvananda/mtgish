@@ -1,0 +1,751 @@
+{
+  "Drillworks Mole": [
+    {
+      "kind": "Activated",
+      "args": {
+        "origin": "Ordinary",
+        "cost": {
+          "parts": [
+            {
+              "Mana": [
+                {
+                  "Generic": 2
+                }
+              ]
+            },
+            "TapSymbol"
+          ]
+        },
+        "limits": {
+          "once": false,
+          "once_each_turn": false,
+          "sorcery": false,
+          "condition": null,
+          "activators": null,
+          "keyword": null,
+          "modifiers": []
+        },
+        "announcement": {
+          "targets": [
+            {
+              "slot": 0,
+              "kind": {
+                "Object": {
+                  "kind": "Permanent",
+                  "zones": [
+                    "Battlefield"
+                  ]
+                }
+              },
+              "count": {
+                "UpTo": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "All",
+                "args": [
+                  {
+                    "kind": "State",
+                    "args": "Commander"
+                  },
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "ControlledBy",
+                    "args": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                ]
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            }
+          ],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "PutCounters",
+                  "args": {
+                    "placements": [
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      },
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Juniper Order Ranger": [
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Player": {
+            "event": "EntersUnderControl",
+            "players": {
+              "kind": "All"
+            },
+            "objects": {
+              "kind": "All",
+              "args": [
+                {
+                  "kind": "CardType",
+                  "args": "Creature"
+                },
+                {
+                  "kind": "ControlledBy",
+                  "args": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                },
+                {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "PutCounters",
+                  "args": {
+                    "placements": [
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "EventSubject"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      },
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "River Heralds' Boon": [
+    {
+      "kind": "Spell",
+      "args": {
+        "announcement": {
+          "targets": [
+            {
+              "slot": 0,
+              "kind": {
+                "Object": {
+                  "kind": "Permanent",
+                  "zones": [
+                    "Battlefield"
+                  ]
+                }
+              },
+              "count": {
+                "Exactly": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "CardType",
+                "args": "Creature"
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            },
+            {
+              "slot": 1,
+              "kind": {
+                "Object": {
+                  "kind": "Permanent",
+                  "zones": [
+                    "Battlefield"
+                  ]
+                }
+              },
+              "count": {
+                "UpTo": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "Subtype",
+                "args": "Merfolk"
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            }
+          ],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "PutCounters",
+                  "args": {
+                    "placements": [
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      },
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 1,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Serrated Biskelion": [
+    {
+      "kind": "Activated",
+      "args": {
+        "origin": "Ordinary",
+        "cost": {
+          "parts": [
+            "TapSymbol"
+          ]
+        },
+        "limits": {
+          "once": false,
+          "once_each_turn": false,
+          "sorcery": false,
+          "condition": null,
+          "activators": null,
+          "keyword": null,
+          "modifiers": []
+        },
+        "announcement": {
+          "targets": [
+            {
+              "slot": 0,
+              "kind": {
+                "Object": {
+                  "kind": "Permanent",
+                  "zones": [
+                    "Battlefield"
+                  ]
+                }
+              },
+              "count": {
+                "Exactly": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "CardType",
+                "args": "Creature"
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            }
+          ],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "PutCounters",
+                  "args": {
+                    "placements": [
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            -1,
+                            -1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      },
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            -1,
+                            -1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Sumala Sentry": [
+    {
+      "kind": "Keyword",
+      "args": {
+        "kind": "Reach"
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Object": {
+            "event": "TurnsFaceUp",
+            "objects": {
+              "kind": "All",
+              "args": [
+                {
+                  "kind": "State",
+                  "args": "FaceDown"
+                },
+                {
+                  "kind": "Either",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Artifact"
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Battle"
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Enchantment"
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Land"
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Planeswalker"
+                    }
+                  ]
+                },
+                {
+                  "kind": "ControlledBy",
+                  "args": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "PutCounters",
+                  "args": {
+                    "placements": [
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "EventSubject"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      },
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "X-23, Deadly Weapon": [
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Player": {
+            "event": "EntersUnderControl",
+            "players": {
+              "kind": "All"
+            },
+            "objects": {
+              "kind": "All",
+              "args": [
+                {
+                  "kind": "Subtype",
+                  "args": "Mutant"
+                },
+                {
+                  "kind": "ControlledBy",
+                  "args": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                },
+                {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "PutCounters",
+                  "args": {
+                    "placements": [
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "EventSubject"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      },
+                      {
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "PowerToughness": [
+                            1,
+                            1
+                          ]
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "selection": null
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
