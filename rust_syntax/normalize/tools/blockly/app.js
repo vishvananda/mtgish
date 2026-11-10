@@ -117,6 +117,7 @@
     if(Array.isArray(a)!==Array.isArray(b))return false;
     const keys=Object.keys(a);return keys.length===Object.keys(b).length&&keys.every(k=>Object.hasOwn(b,k)&&same(a[k],b[k]));
   };
+  const namedAbilities=createNamedAbilities({abilityValue,actionValue,clone,same});
   const targetPresets=authoring.targets.map(t=>[t.label,t.fields]);
   const targetPreset = v => targetPresets.findIndex(([,p])=>Object.keys(p).every(k=>same(p[k],v[k])));
   function targetSummary(v) {
@@ -204,6 +205,7 @@
         else if(p.ty.vec && ['Ability','Instruction'].includes(p.ty.vec.named))p={...p,flow:'array',socketTy:p.ty.vec,statement:true};
       }
       if(state.negativePrevention && p.key.endsWith('preventable'))p={...p,inline:'unpreventable',label:"can't be prevented"};
+      if(state.ty.named==='Ability'&&state.variant==='Activated'&&p.key==='F_origin')p.label='mechanic identity';
       if(state.ty.named==='Ability'&&state.variant==='Scoped'&&p.key==='F_condition')p.label='only while';
       if(state.ty.named==='Ability'&&state.variant==='Scoped'&&p.key==='F_ability')p.label='';
       if(p.label==='characteristics')p.label='properties';
@@ -230,6 +232,7 @@
     if(t.named==='UnifiedCard' && value.faces.length===1)s.pr='single';
     if(t.named==='Instruction' && value.kind==='Effect'){s.pr='effect';s.op=value.args.operation.kind;}
     if(t.named==='Ability' && value.kind==='Keyword'){s.pr='keyword';s.keyword=value.args.kind;}
+    if(t.named==='Ability'&&value.kind==='Activated')s.activationName=namedAbilities.name(value);
     if(sections.card(s))Object.assign(s,sections.initial(s.pr==='single'?value.faces[0]:value));
     return s;
   }
@@ -288,7 +291,7 @@
       }
     }
     const variant=viewVariant(state);
-    if(variant && !scalar(t))result.fields.VARIANT=variant.wire;
+    if(variant && !scalar(t)&&!state.activationName)result.fields.VARIANT=variant.wire;
     if((outline||['Characteristics','Cost'].includes(t.named)) && ['Characteristics','Cost','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival'].includes(t.named))result.collapsed=true;
     return result;
   }
@@ -341,10 +344,15 @@
     replaceView(b,{shown:(b.state.shown||[]).filter(k=>k!==key)},assemble(b.state,values));
   }
   function hiddenReason(b,p) {
+    if(!detailMode&&b.state.ty.named==='Ability'&&b.state.variant==='Activated'&&p.key==='F_origin')return true;
     if(b.state.ty.named==='Ability'&&b.state.variant==='Scoped'&&p.key==='F_zones'&&sections.home(b))return true;
     if(b.state.shown?.includes(p.key))return false;
     if(p.key==='RESULT'||(b.state.ty.named==='Instruction'&&b.state.variant==='Effect'&&p.key==='F_result'))return true;
     if(detailMode)return false;
+    if(b.state.ty.named==='Ability'&&b.state.variant==='Activated'){
+      if(p.key==='F_origin')return true;
+      if(!b.state.showNamedRules)try{if(namedAbilities.standard(fromBlock(b))?.hidden.includes(p.key))return true;}catch(_){}
+    }
     if(b.state.ty.named==='Ability'&&b.state.variant==='Scoped'&&p.key==='F_zones'&&sections.get(sections.home(b)?.id)?.zone)return true;
     if(b.state.ty.named==='Ability'&&b.state.variant==='Static'&&p.key==='F_kind')try{if(fromBlock(b.getInputTargetBlock(p.key))==='Ordinary')return true;}catch(_){}
     if(bindingEditor&&!bindingEditor.showNumeric(b,p))return true;
@@ -389,9 +397,12 @@
   function optionsFor(b) {
     const out=[['⋯','NONE']];
     if(sections.home(b)&&b.state.ty.named==='Ability')try{if(!sections.fixed(fromBlock(b)))out.push(['Edit functioning locations…','LOCATIONS']);}catch(_){}
+    if(b.state.activationName&&!detailMode)out.push([b.state.showNamedRules?'Hide standard rules':'Show rules','NAMED_RULES']);
     if(bindingEditor?.canPromote(b))out.push(['Name result','NAME_RESULT']);
     for(const p of parts(b.state)) {
       if(b.state.variant==='Scoped'&&p.key==='F_zones'&&sections.home(b))continue;
+      if(!detailMode&&b.state.ty.named==='Ability'&&b.state.variant==='Activated'&&p.key==='F_origin')continue;
+      if(!detailMode&&!b.state.showNamedRules&&b.state.activationName)try{if(namedAbilities.standard(fromBlock(b))?.hidden.includes(p.key))continue;}catch(_){}
       if(!detailMode && (p.key.startsWith('ROOT_')||['F_schema_version','RESULT'].includes(p.key)))continue;
       if(!hiddenReason(b,p)&&removable(b,p))out.push(['Remove '+(p.label||pretty(p.key.replace(/^(F_|O_|K_)/,''))),'REMOVE:'+p.key]);
       if(hiddenReason(b,p))out.push([p.ty.named==='Announcement'?'Add a target':p.ty.vec?'Add '+p.label.replace(/ies$/,'y').replace(/s$/,''):p.flow?'Add otherwise':pretty(p.label||p.key),'SHOW:'+p.key]);
@@ -450,6 +461,12 @@
         if(input && (!input.isVisible() || parent.isCollapsed())){hiddenAncestor=true;break;}
       }
       if(hiddenAncestor)continue;
+      if(b.state.ty.named==='Ability'&&b.state.variant==='Activated')try{
+        const info=namedAbilities.standard(fromBlock(b)),name=info?.name||null;
+        if((b.state.activationName||null)!==name){b.state.activationName=name;b.rebuild();}
+        b.getField('NAMED_ABILITY')?.setValue(name||'Activated ability');
+        b.getField('NAMED_HINT_TEXT')?.setValue(info?.hint||'');
+      }catch(_){}
       const home=sections.home(b);
       const location=b.getField('LOCATION');
       if(location){location.setVisible(!!home&&b.state.variant!=='Spell');b.getField('LOCATION_LABEL')?.setVisible(!!home&&b.state.variant!=='Spell');if(home){Blockly.Events.disable();try{location.setValue(home.id);}finally{Blockly.Events.enable();}}}
@@ -637,7 +654,8 @@
         if(this.state.statement){this.setOutput(false);this.setPreviousStatement(true,typeKey(t));this.setNextStatement(['Instruction','Ability'].includes(t.named),typeKey(t));}
         else {this.setNextStatement(false);this.setPreviousStatement(false);this.setOutput(true,typeKey(t));}
         this.setColour(colour(this.state.pr==='effect'?{named:'Operation'}:t));
-        if(this.state.pr==='literal') { /* The editable field itself is the literal block. */ }
+        if(this.state.activationName)header.appendField(this.state.activationName,'NAMED_ABILITY');
+        else if(this.state.pr==='literal') { /* The editable field itself is the literal block. */ }
         else if(t.named==='TargetSpec')header.appendField(new Blockly.FieldDropdown([...targetPresets.map(([label],i)=>[label,String(i)]),['custom target…','CUSTOM']]),'TARGET_PRESET');
         else if(t.vec){header.appendField(t.vec.named==='TargetSpec'?'Targets':typeName(t.vec)+' items');header.appendField(button('+','Add an item',()=>this.resize(1)));if(this.state.count)header.appendField(button('−','Remove last item',()=>this.resize(-1)));}
         else if(t.option){header.appendField(t.option.vec?.named==='ManaSymbol'?(this.state.present?'Mana cost':'No mana cost'):(this.state.present?'Value':'Not set'));if(t.option.vec?.named==='ManaSymbol')header.appendField('','COST_ZERO');header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));}
@@ -646,11 +664,12 @@
           header.appendField(new Blockly.FieldDropdown(t.named==='Ability'&&variant.wire==='Spell'?[['When this spell resolves','Spell']]:vd.variants.map(v=>[variantLabel(this.state.pr==='effect'?'Operation':t.named,v),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
           header.appendField('· '+t.named,'TYPE_LABEL');
         }else header.appendField(caption(this.state));
+        if(header&&this.state.activationName)this.appendDummyInput('NAMED_HINT').appendField('','NAMED_HINT_TEXT');
         if(header&&t.named==='Ability')header.appendField('Functions:','LOCATION_LABEL').appendField(new Blockly.FieldDropdown(()=>functioningOptions(this),v=>{if(Blockly.Events.isEnabled()&&sections.home(this)&&sections.home(this).id!==v)setTimeout(()=>moveAbility(this,v),0);return v;}),'LOCATION').appendField('','CAST_FROM');
         if(header&&this.state.cardSections)header.appendField(new Blockly.FieldDropdown(()=>[['Add another section…','NONE'],...sections.definitions.filter(d=>!this.state.cardSections.includes(d.id)).map(d=>[d.label,d.id])],v=>{if(v!=='NONE')setTimeout(()=>addSection(this,v),0);return null;}),'ADD_SECTION');
         if(header)header.appendField(new Blockly.FieldDropdown(()=>optionsFor(this),v=>{
           if(v==='NONE')return null;
-          setTimeout(()=>{if(v==='NAME_RESULT')bindingEditor.promote(this);else if(v==='LOCATIONS')editLocations(this);else if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('REMOVE:'))removeOption(this,v.slice(7));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
+          setTimeout(()=>{if(v==='NAMED_RULES'){remember();this.state.showNamedRules=!this.state.showNamedRules;applyPresentation();changed();}else if(v==='NAME_RESULT')bindingEditor.promote(this);else if(v==='LOCATIONS')editLocations(this);else if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('REMOVE:'))removeOption(this,v.slice(7));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
         }),'MORE');
         for(const p of parts(this.state)) {
           if(p.inline==='pt') {
@@ -804,7 +823,11 @@
       {kind:'label',text:'Add these to a location section'},
       ...['Triggered','Activated','Static','Replacement'].map(n=>flyoutBlock('Ability',abilityValue(n))),
       flyoutBlock('Ability',{kind:'Replacement',args:{active:'SourceEntering',event:{Enter:{objects:{kind:'SameObject',args:{kind:'Source'}}}},body:{instructions:[]}}}),
-      {kind:'label',text:'Choose a keyword from its dropdown'},
+      {kind:'label',text:'Named abilities · battlefield'},
+      flyoutBlock('Ability',namedAbilities.equip()),flyoutBlock('Ability',namedAbilities.crew()),
+      {kind:'label',text:'Named abilities · hand'},
+      flyoutBlock('Ability',namedAbilities.cycling()),
+      {kind:'label',text:'Simple keywords'},
       flyoutBlock('Ability',{kind:'Keyword',args:{kind:'Flying'}})
     ]},
     {kind:'category',name:'Effects',colour:'#b46b4f',contents:[
@@ -823,8 +846,6 @@
       flyoutBlock('Ability',{kind:'Mechanic',args:{mechanic:'Disturb',cost:{parts:[{Mana:[{Generic:1}]}]},amount:null,filter:null}}),
       {kind:'label',text:'When this card is cast · a separate trigger'},
       flyoutBlock('Ability',{kind:'Scoped',args:{zones:['Stack'],condition:null,ability:{...abilityValue('Triggered'),args:{...abilityValue('Triggered').args,event:{Spell:{event:'Cast',players:{kind:'One',args:SELF},spells:{kind:'SameObject',args:{kind:'Source'}}}}}}}}),
-      {kind:'label',text:'In your hand · cycling'},
-      flyoutBlock('Ability',{kind:'Scoped',args:{zones:['Hand'],condition:null,ability:{...abilityValue('Activated'),args:{...abilityValue('Activated').args,origin:{Cycling:{search:null}},cost:{parts:[{Mana:[{Generic:2}]},{Discard:{count:{kind:'Constant',args:1},filter:{kind:'SameObject',args:{kind:'Source'}},random:false}}]},body:{instructions:[actionValue('Draw',{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}})]}}}}}),
       {kind:'label',text:'In your graveyard · activate or continuously affect'},
       ...['Activated','Static'].map(kind=>flyoutBlock('Ability',{kind:'Scoped',args:{zones:['Graveyard'],condition:null,ability:abilityValue(kind)}})),
       {kind:'label',text:'Define characteristics in every zone'},
@@ -859,7 +880,7 @@
   const theme=Blockly.Theme.defineTheme('cardBlocks',{base:Blockly.Themes.Classic,fontStyle:{family:'system-ui, sans-serif',size:11},componentStyles:{workspaceBackgroundColour:'#f4f6f1',scrollbarColour:'#a8b5a4',scrollbarOpacity:.6,insertionMarkerColour:'#52794c',insertionMarkerOpacity:.4}});
   workspace=Blockly.inject('workspace',{renderer:'zelos',theme,toolbox:toolboxDefinition,trashcan:false,sounds:false,zoom:{controls:false,wheel:true,startScale:.75,maxScale:1.6,minScale:.12,scaleSpeed:1.16},move:{scrollbars:true,drag:true,wheel:true},grid:{spacing:22,length:1,colour:'#d6dfd1',snap:false}});
   propertyEditor=createPropertyEditor({types,clone,fromBlock,replaceView,workspace:()=>workspace,notice,same,readScalar});
-  costEditor=createCostEditor({clone,same,readScalar,fromBlock,replaceView,workspace:()=>workspace,notice,manaText:propertyEditor.manaText,parseMana:propertyEditor.parseMana});
+  costEditor=createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replaceView,workspace:()=>workspace,notice,manaText:propertyEditor.manaText,parseMana:propertyEditor.parseMana});
   $('edit-properties').onclick=()=>propertyEditor.open();
   new ResizeObserver(()=>Blockly.svgResize(workspace)).observe($('workspace'));
   $('block-search').oninput=()=>{
@@ -873,7 +894,7 @@
         try {
           const value=fromBlock(fakeBlock(item)),key=encode(value),state=item.extraState;
           const variant=viewVariant(state),type=state.pr==='effect'?'Operation':state.ty.named;
-          const label=variant?variantLabel(type,variant):typeName(state.ty);
+          const label=state.activationName|| (variant?variantLabel(type,variant):typeName(state.ty));
           if(!`${label} ${variant?.doc||''} ${path.join(' ')} ${key} ${pretty(key)}`.toLocaleLowerCase().includes(q)||seen.has(key))continue;
           seen.add(key);contents.push(item);
         }catch(_){}
@@ -1141,5 +1162,5 @@
   if(!restored&&!workspace.getAllBlocks(false).length) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={costs:costEditor,properties:propertyEditor,sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
+  window.cardBlocks={namedAbilities,costs:costEditor,properties:propertyEditor,sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

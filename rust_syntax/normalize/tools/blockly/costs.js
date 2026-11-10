@@ -1,6 +1,6 @@
 /* Common costs have a compact form; unfamiliar components remain exact. */
 'use strict';
-function createCostEditor({clone,same,readScalar,fromBlock,replaceView,workspace,notice,manaText,parseMana}) {
+function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replaceView,workspace,notice,manaText,parseMana}) {
   const $=id=>document.getElementById(id),dialog=$('cost-dialog');
   const constant=n=>({kind:'Constant',args:n}),self={kind:'One',args:{kind:'Source'}};
   let editing=null,rows=[];
@@ -67,20 +67,33 @@ function createCostEditor({clone,same,readScalar,fromBlock,replaceView,workspace
     try {
       const value=fromBlock(block),mana=value.parts.map((p,i)=>p.Mana!==undefined?i:-1).filter(i=>i>=0),tap=value.parts.map((p,i)=>p==='TapSymbol'?i:-1).filter(i=>i>=0);
       editing={id:block.id,value,mana:mana.length===1?mana[0]:-1,tap:tap.length===1?tap[0]:-1};
-      rows=value.parts.map(decode).filter(row=>row.index!==editing.mana&&row.index!==editing.tap);rows.forEach(row=>row.initial={kind:row.kind,count:row.count,type:row.type,other:row.other});
+      let owner=block.getParent();while(owner&&owner.state.ty.named!=='Ability')owner=owner.getParent();
+      let ability;try{ability=namedAbilities.unscoped(fromBlock(owner));}catch(_){}
+      const cycling=!!ability?.args?.origin?.Cycling;
+      editing.locked=new Set(value.parts.map((part,i)=>cycling&&same(part,namedAbilities.discard)?i:-1).filter(i=>i>=0));
+      editing.crew=ability?.args?.origin==='Crew'?value.parts.findIndex(part=>namedAbilities.crewPower(part)!==undefined):-1;
+      if(editing.crew>=0)editing.locked.add(editing.crew);
+      const pureCrew=editing.crew>=0&&value.parts.length===1;
+      $('cost-crew-fields').hidden=editing.crew<0;$('cost-general-fields').hidden=pureCrew;
+      $('cost-cycling-note').hidden=!cycling;
+      $('cost-title').textContent=namedAbilities.name(ability)||'Ability cost';
+      if(editing.crew>=0)$('cost-crew-power').value=namedAbilities.crewPower(value.parts[editing.crew]);
+      rows=value.parts.map(decode).filter(row=>!editing.locked.has(row.index)&&row.index!==editing.mana&&row.index!==editing.tap);rows.forEach(row=>row.initial={kind:row.kind,count:row.count,type:row.type,other:row.other});
       $('cost-mana').value=editing.mana<0?'':manaText(value.parts[editing.mana].Mana);$('cost-mana').disabled=mana.length>1;
       $('cost-tap').checked=editing.tap>=0;$('cost-tap').disabled=tap.length>1;
       $('cost-error').textContent='';render();dialog.showModal();$('cost-mana').focus();
     }catch(e){notice(e.message);}
   }
   function summary(cost) {
-    return cost.parts.map(p=>p==='TapSymbol'?'{T}':p.Mana!==undefined?manaText(p.Mana):p.Sacrifice&&same(p.Sacrifice.objects,self)?'sacrifice this':p.Life?.kind==='Constant'?'pay '+p.Life.args+' life':p.Sacrifice?'sacrifice':p.ChangeTapState?.tapped?'tap permanents':p.Discard?'discard':typeof p==='string'?p:Object.keys(p)[0]).join(', ')||'No cost';
+    return cost.parts.map(p=>namedAbilities.crewPower(p)!==undefined?'tap creatures · power '+namedAbilities.crewPower(p)+'+':p==='TapSymbol'?'{T}':p.Mana!==undefined?manaText(p.Mana):p.Sacrifice&&same(p.Sacrifice.objects,self)?'sacrifice this':p.Life?.kind==='Constant'?'pay '+p.Life.args+' life':p.Sacrifice?'sacrifice':p.ChangeTapState?.tapped?'tap permanents':p.Discard?'discard':typeof p==='string'?p:Object.keys(p)[0]).join(', ')||'No cost';
   }
   $('cost-form').onsubmit=e=>{
     e.preventDefault();
     try {
       const block=workspace().getBlockById(editing.id);if(!block||!same(fromBlock(block),editing.value))throw Error('The cost changed; close and reopen this editor.');
       const values=new Map(rows.filter(r=>r.index!==null).map(row=>[row.index,row.initial&&same(row.initial,{kind:row.kind,count:row.count,type:row.type,other:row.other})?row.original:build(row)]));
+      for(const i of editing.locked)values.set(i,clone(editing.value.parts[i]));
+      if(editing.crew>=0){const power=readScalar({named:'i64'},$('cost-crew-power').value.trim());if(power<0)throw Error('Crew power cannot be negative.');values.get(editing.crew).Constrained.constraints[0].TotalProperty.amount={kind:'Constant',args:power};}
       const manaChanged=!$('cost-mana').disabled&&$('cost-mana').value.trim()!==(editing.mana<0?'':manaText(editing.value.parts[editing.mana].Mana));
       const mana=manaChanged?parseMana($('cost-mana').value):null;
       if(editing.mana>=0)values.set(editing.mana,manaChanged?(mana===null?null:{Mana:mana}):editing.value.parts[editing.mana]);

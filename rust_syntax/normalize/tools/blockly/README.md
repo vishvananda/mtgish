@@ -53,6 +53,20 @@ New components append without moving existing payment-component references;
 removal that would invalidate a referenced component must be performed together
 with its references in the block view. Both forms support cancel and undo/redo.
 
+**Equip**, **Crew**, and **Cycling** are complete draggable blocks in **Abilities**.
+Their headings are names, not constructor dropdowns. Equip includes a controlled
+creature target, attachment, and sorcery timing. Crew includes the constrained
+creature-tapping cost and its temporary animation; **Edit…** changes required
+total power. Cycling includes its discard payment and draw, automatically lives
+in Hand, and keeps its required discard when its cost is edited. Search finds
+these same starters; they are not duplicated under Casting & locations.
+
+The normal view hides the underlying activation-origin discriminator. Standard
+implementation rules are tucked away behind **Show rules**; customized or
+nonstandard rules remain visible. **IR details** exposes the discriminator as
+**mechanic identity**. Imported cards retain their original costs, programs,
+targets, scope, IDs, and keyword identity.
+
 **Sequence of instructions** (`Group`) keeps a separate result for each child
 instruction. **In Order** and **Together** contain action clauses under one
 instruction/result boundary; one is ordered and the other simultaneous. The

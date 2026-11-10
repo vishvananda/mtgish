@@ -28,6 +28,7 @@ function createCardSections() {
     if(['Spell','CostBranch','CostOptions','Spree'].includes(a.kind))return 'resolve';
     if(selfCast(a))return 'casting';
     if(a.kind==='Activated'&&a.args.origin?.Cycling)return 'hand';
+    if(a.kind==='Activated'&&['Equip','Crew'].includes(a.args.origin))return 'battlefield';
     if(['Casting','Offering','FlashIf','Prototype'].includes(a.kind))return 'casting';
     if(['OpeningHand','DeckRule','DraftRule','Companion','CommanderDeckRule'].includes(a.kind))return 'pregame';
     if(a.kind==='Static'&&a.args.kind?.CharacteristicDefining)return 'everywhere';
@@ -53,6 +54,7 @@ function createCardSections() {
     if(a.kind==='WithPresentation')return fixed(a.args.ability);
     if(a.kind==='Scoped')return fixed(a.args.ability)?classify(a):null;
     if(a.kind==='Activated'&&a.args.origin?.Cycling)return 'hand';
+    if(a.kind==='Activated'&&['Equip','Crew'].includes(a.args.origin))return 'battlefield';
     if(['Spell','Casting','OpeningHand','DeckRule','DraftRule','Companion','CommanderDeckRule'].includes(a.kind)||selfCast(a))return classify(a);
     if(a.kind==='Keyword'&&['Flash','Changeling','Devoid'].includes(a.args.kind))return classify(a);
     if(a.kind==='Static'&&a.args.kind?.CharacteristicDefining)return 'everywhere';
