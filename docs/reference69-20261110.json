@@ -155,7 +155,7 @@
     "bronze_bombshell": "Supported on the pinned engine; native control-change response passes."
   },
   "validation": {
-    "native_passed": 1517,
+    "native_passed": 1522,
     "native_failed": 0,
     "native_ignored": 21,
     "go": "full suite passes",
@@ -168,8 +168,128 @@
     "native_runtime_tests": 3,
     "native_runtime_scenarios": 5,
     "native_negative_controls": 3,
-    "artifact_sha256": "4be2e9996fd2e84ed21b034b3d68dd2e656433a6cdc83a4c3ba8b35c4bd88a5f"
+    "artifact_sha256": "548904b86660f6534a47976d3b1480fc295e81e23df1542867d934eb10617fcd",
+    "canonical_key_order_tests": 5,
+    "native_preserve_order_feature_union": true,
+    "preserve_order_corpus_comparison": {
+      "records": 33529,
+      "changed_records": 0
+    },
+    "browser_tested_artifact_matches_final_build": true,
+    "live_smoke": {
+      "schema": 188,
+      "cards": 11,
+      "records": 33529,
+      "errors": []
+    },
+    "served_artifact_matches_final_build": true
   },
-  "upstream_reports": [],
-  "evidence_root": "/mnt/vizier/reference60-20261110"
+  "upstream_reports": [
+    {
+      "key": "required-modes",
+      "kind": "issue",
+      "number": 251,
+      "url": "https://github.com/i5jb/mtgish/issues/251"
+    },
+    {
+      "key": "chosen-types",
+      "kind": "issue",
+      "number": 252,
+      "url": "https://github.com/i5jb/mtgish/issues/252"
+    },
+    {
+      "key": "artifact-types",
+      "kind": "comment",
+      "number": 184,
+      "url": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004"
+    },
+    {
+      "key": "villainous-actors",
+      "kind": "comment",
+      "number": 240,
+      "url": "https://github.com/i5jb/mtgish/issues/240#issuecomment-6775413402"
+    },
+    {
+      "key": "kharasha",
+      "kind": "issue",
+      "number": 253,
+      "url": "https://github.com/i5jb/mtgish/issues/253"
+    },
+    {
+      "key": "cemetery",
+      "kind": "issue",
+      "number": 254,
+      "url": "https://github.com/i5jb/mtgish/issues/254"
+    },
+    {
+      "key": "counter-populations",
+      "kind": "comment",
+      "number": 246,
+      "url": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428"
+    },
+    {
+      "key": "cabal",
+      "kind": "issue",
+      "number": 255,
+      "url": "https://github.com/i5jb/mtgish/issues/255"
+    },
+    {
+      "key": "ancestral-mask",
+      "kind": "issue",
+      "number": 256,
+      "url": "https://github.com/i5jb/mtgish/issues/256"
+    },
+    {
+      "key": "pool-other",
+      "kind": "comment",
+      "number": 237,
+      "url": "https://github.com/i5jb/mtgish/issues/237#issuecomment-6775415516"
+    },
+    {
+      "key": "infinity",
+      "kind": "issue",
+      "number": 257,
+      "url": "https://github.com/i5jb/mtgish/issues/257"
+    },
+    {
+      "key": "dual-exile",
+      "kind": "issue",
+      "number": 258,
+      "url": "https://github.com/i5jb/mtgish/issues/258"
+    },
+    {
+      "key": "correction-81",
+      "kind": "correction",
+      "number": 81,
+      "url": "https://github.com/i5jb/mtgish/issues/81#issuecomment-6775417229"
+    },
+    {
+      "key": "correction-82",
+      "kind": "correction",
+      "number": 82,
+      "url": "https://github.com/i5jb/mtgish/issues/82#issuecomment-6775418160"
+    }
+  ],
+  "evidence_root": "/mnt/vizier/reference60-20261110",
+  "canonical_key_order": {
+    "requested_commit": "c311f2f43736b6b30b5a3d021655a89f541b74f7",
+    "adopted_commit": "c90d4ad880ab2438a435031a8fda94bcdd7dcd8f",
+    "scope": "Sort recursive object fields only in temporary canonical comparison keys; arrays and original inputs remain positional and unchanged.",
+    "integration_adjustments": [
+      "Explicit &Value annotation on the imported test closure.",
+      "Lockfile records the existing indexmap dependency for serde_json preserve_order; no version updates.",
+      "Source wrapper traversal is explicitly lexical so frontend feature unification cannot change face or layout-data positions."
+    ],
+    "schema_version_change": false,
+    "browser_workspace_migrations": false,
+    "integration_commit": "fc13cf20d8338bd76153619eb594157591063bfe"
+  },
+  "deployment": {
+    "release": "/srv/mtgish-blocks/releases/20261110-fc13cf2",
+    "previous_release": "/srv/mtgish-blocks/releases/20261110-e711772",
+    "code_commit": "fc13cf20d8338bd76153619eb594157591063bfe",
+    "artifact_sha256": "548904b86660f6534a47976d3b1480fc295e81e23df1542867d934eb10617fcd",
+    "schema": 188,
+    "deployed_at": "2026-11-10T18:43:28.819668+00:00"
+  }
 }

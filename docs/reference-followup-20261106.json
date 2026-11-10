@@ -69,7 +69,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native damages the target creature’s controller instead of the target creature; parser recipient is correct.",
+      "summary": "Native damages the target creature\u2019s controller instead of the target creature; parser recipient is correct.",
       "evidence": "reference-audit/batch-004.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -91,7 +91,7 @@
       "family": "recipients-and-source-roles",
       "reported_classification": "reference_error",
       "review_status": "fixed_current_producer",
-      "summary": "Native Ionize damages its own controller instead of countered spell’s controller.",
+      "summary": "Native Ionize damages its own controller instead of countered spell\u2019s controller.",
       "evidence": "reference-audit/batch-010.json",
       "fix_notes": "Current producer corrected; full operands and negative scope controls reviewed. See reference-recipients-and-host-20261106.md.",
       "upstream_report": "https://github.com/i5jb/mtgish/issues/205",
@@ -289,8 +289,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/loop-player-roles/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/253",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mire's Toll",
@@ -900,8 +900,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/loop-player-roles/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/240#issuecomment-6775413402",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Portal to Phyrexia",
@@ -1379,7 +1379,7 @@
       "review_status": "fixed_current_producer",
       "summary": "Exclude the performed exile payment component after its zone transition.",
       "evidence": "reference-issues/knowledge-pool-actor/actor-only-review.json",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/237#issuecomment-6775415516",
       "fix_notes": "Source templates and all three data formats corrected in 160d35d. See reference-actors-20261108.md.",
       "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
     },
@@ -1454,7 +1454,7 @@
       "validation": "1504 native tests, allGo,18 browser suites and33529 realWasm catalog checks. Complete32-card expected programs plus7 adjacent matches and hand observation controls; no engine changes."
     },
     {
-      "name": "Mjölnir, Storm Hammer",
+      "name": "Mj\u00f6lnir, Storm Hammer",
       "family": "reference32-20261110",
       "reported_classification": "confirmed_reference_error",
       "evidence": "reference32-20261110.md",
@@ -1550,8 +1550,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Ardbert, Warrior of Darkness",
@@ -1560,8 +1560,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Atarka Monument",
@@ -1570,8 +1570,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Azorius Keyrune",
@@ -1580,8 +1580,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Boros Keyrune",
@@ -1590,8 +1590,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Bounding Felidar",
@@ -1600,8 +1600,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Cabal Interrogator",
@@ -1610,8 +1610,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/cabal-interrogator/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/255",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Captain America, Skybound",
@@ -1620,8 +1620,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Cemetery Protector",
@@ -1630,8 +1630,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/cemetery-protector-actor/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/254",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Chimeric Coils",
@@ -1640,8 +1640,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Dancing Sword",
@@ -1650,8 +1650,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Depth Defiler",
@@ -1660,8 +1660,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/required-both-modes/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/251",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Dimir Keyrune",
@@ -1670,8 +1670,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Bahamut, Warden of Light",
@@ -1680,8 +1680,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Domri, City Smasher",
@@ -1690,8 +1690,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Dromoka Monument",
@@ -1700,8 +1700,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Golgari Keyrune",
@@ -1710,8 +1710,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Gruul Keyrune",
@@ -1720,8 +1720,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Haunted Plate Mail",
@@ -1730,8 +1730,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Hunted by The Family",
@@ -1740,8 +1740,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/loop-player-roles/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/240#issuecomment-6775413402",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Imagecrafter",
@@ -1750,8 +1750,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Izzet Keyrune",
@@ -1760,8 +1760,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Jade Statue",
@@ -1770,8 +1770,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Kolaghan Monument",
@@ -1780,8 +1780,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Lifecraft Awakening",
@@ -1790,8 +1790,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Dreamer",
@@ -1800,8 +1800,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Mask",
@@ -1810,8 +1810,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Mutant",
@@ -1820,8 +1820,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Seaswift",
@@ -1830,8 +1830,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Shrieker",
@@ -1840,8 +1840,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Skyreaver",
@@ -1850,8 +1850,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Stalker",
@@ -1860,8 +1860,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Wakecaster",
@@ -1870,8 +1870,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Wall",
@@ -1880,8 +1880,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Mistform Warchief",
@@ -1890,8 +1890,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Now for Wrath, Now for Ruin!",
@@ -1900,8 +1900,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Ojutai Monument",
@@ -1910,8 +1910,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Orzhov Keyrune",
@@ -1920,8 +1920,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Phyrexian Totem",
@@ -1930,8 +1930,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Prophetic Titan",
@@ -1940,8 +1940,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/required-both-modes/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/251",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Proteus Machine",
@@ -1950,8 +1950,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Rakdos Keyrune",
@@ -1960,8 +1960,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Sandstorm Salvager",
@@ -1970,8 +1970,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Selesnya Keyrune",
@@ -1980,8 +1980,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Silumgar Monument",
@@ -1990,8 +1990,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Simic Keyrune",
@@ -2000,8 +2000,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Spider-Man, Miles Morales",
@@ -2010,8 +2010,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Surge of Acclaim",
@@ -2020,8 +2020,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/required-both-modes/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/251",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Tezzeret, Cruel Captain",
@@ -2030,8 +2030,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "The Fifth Doctor",
@@ -2040,8 +2040,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Unnatural Selection",
@@ -2050,8 +2050,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/252",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Ranger's Merit",
@@ -2060,8 +2060,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Virtue of Loyalty",
@@ -2070,8 +2070,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/counter-followup-populations/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Vronos, Masked Inquisitor",
@@ -2080,8 +2080,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Welcome to . . .",
@@ -2090,8 +2090,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/subtype-replacement/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "You Exist Only to Amuse",
@@ -2100,8 +2100,8 @@
       "review_status": "fixed_current_producer",
       "summary": "Independent complete reviewed proposal matches the corrected producer. See reference69-20261110.md and its routing JSON.",
       "evidence": "reports/analysis/reference-issues/required-both-modes/report.md",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
-      "validation": "58 independent complete programs; full1517 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/251",
+      "validation": "58 independent complete programs; full1522 Rust, full Go,71 strict TypeScript rows; source and native corpus receipts."
     },
     {
       "name": "Ancestral Mask",
@@ -2109,7 +2109,7 @@
       "reported_classification": "source-reference-error",
       "review_status": "fixed_current_producer",
       "summary": "Exclude the source Aura, not its host.",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/256",
       "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
     },
     {
@@ -2118,7 +2118,7 @@
       "reported_classification": "source-reference-error",
       "review_status": "fixed_current_producer",
       "summary": "One written ability; group simultaneous alternative exile origins. Grouping is an explicit rules interpretation, reported with its evidence limits.",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/258",
       "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
     },
     {
@@ -2127,7 +2127,7 @@
       "reported_classification": "source-reference-error",
       "review_status": "fixed_current_producer",
       "summary": "One written ability; group simultaneous alternative exile origins. Grouping is an explicit rules interpretation, reported with its evidence limits.",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/258",
       "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
     },
     {
@@ -2163,7 +2163,7 @@
       "reported_classification": "source-reference-error",
       "review_status": "fixed_current_producer",
       "summary": "Conditional actual ability presence on the battlefield while harnessed; existing engine layer grants suffice.",
-      "upstream_report": "Publication tracked by docs/reference69-20261110.json",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/257",
       "validation": "See reference69-20261110.json and its full-card, scope and native regression receipts."
     },
     {
@@ -2181,7 +2181,7 @@
       "reported_classification": "our_prior_report_wrong",
       "review_status": "fixed_current_producer",
       "summary": "Maintainer correct: original Source reference is retained. Our fork binding/capture fix is covered by reference69_20261110 tests.",
-      "upstream_report": "https://github.com/i5jb/mtgish/issues/81"
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/81#issuecomment-6775417229"
     },
     {
       "name": "Bronze Bombshell",
@@ -2189,7 +2189,52 @@
       "reported_classification": "our_prior_report_wrong",
       "review_status": "fixed_current_producer",
       "summary": "Maintainer correct: original Source reference is retained. Our fork binding/capture fix is covered by reference69_20261110 tests.",
-      "upstream_report": "https://github.com/i5jb/mtgish/issues/82"
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/82#issuecomment-6775418160"
+    },
+    {
+      "name": "Brilliance Unleashed",
+      "family": "reference69-adjacent-20261110",
+      "reported_classification": "source-reference-error",
+      "review_status": "fixed_current_producer",
+      "summary": "Additional caller corrected by the reviewed shared Source production; see reference69-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/246#issuecomment-6775414428",
+      "validation": "Exact Source/native corpus delta and combined validation recorded in reference69-20261110.json."
+    },
+    {
+      "name": "Elspeth, Storm Slayer",
+      "family": "reference69-adjacent-20261110",
+      "reported_classification": "source-reference-error",
+      "review_status": "fixed_current_producer",
+      "summary": "Additional caller corrected by the reviewed shared Source production; see reference69-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "Exact Source/native corpus delta and combined validation recorded in reference69-20261110.json."
+    },
+    {
+      "name": "Iron Man Armor",
+      "family": "reference69-adjacent-20261110",
+      "reported_classification": "source-reference-error",
+      "review_status": "fixed_current_producer",
+      "summary": "Additional caller corrected by the reviewed shared Source production; see reference69-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "Exact Source/native corpus delta and combined validation recorded in reference69-20261110.json."
+    },
+    {
+      "name": "Olinda the Oblivious",
+      "family": "reference69-adjacent-20261110",
+      "reported_classification": "source-reference-error",
+      "review_status": "fixed_current_producer",
+      "summary": "Additional caller corrected by the reviewed shared Source production; see reference69-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/184#issuecomment-6775413004",
+      "validation": "Exact Source/native corpus delta and combined validation recorded in reference69-20261110.json."
+    },
+    {
+      "name": "The Mind Stone",
+      "family": "reference69-adjacent-20261110",
+      "reported_classification": "source-reference-error",
+      "review_status": "fixed_current_producer",
+      "summary": "Additional caller corrected by the reviewed shared Source production; see reference69-20261110.md.",
+      "upstream_report": "https://github.com/i5jb/mtgish/issues/257",
+      "validation": "Exact Source/native corpus delta and combined validation recorded in reference69-20261110.json."
     }
   ],
   "normalization_questions": [
