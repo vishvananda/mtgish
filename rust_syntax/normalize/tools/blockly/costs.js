@@ -1,6 +1,6 @@
 /* Common costs have a compact form; unfamiliar components remain exact. */
 'use strict';
-function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replaceView,workspace,notice,manaText,parseMana}) {
+function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replaceView,workspace,notice,manaText,parseMana,loyaltyText,parseLoyalty}) {
   const $=id=>document.getElementById(id),dialog=$('cost-dialog');
   const constant=n=>({kind:'Constant',args:n}),self={kind:'One',args:{kind:'Source'}};
   let editing=null,rows=[];
@@ -16,6 +16,7 @@ function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replac
     if(row.kind==='self')return {Sacrifice:{objects:clone(self),choose:null}};
     if(row.kind==='sacrifice'){n();return {Sacrifice:selection(row)}};
     if(row.kind==='tap'){n();return {ChangeTapState:{selections:[selection(row,true)],tapped:true,symbol:false}}};
+    if(row.kind==='loyalty')return {Loyalty:parseLoyalty(String(row.count),true)};
     if(row.kind==='life')return {Life:constant(n())};
     if(row.kind==='discard')return {Discard:{count:constant(n()),filter:{kind:'Any'},random:false}};
     return clone(row.original);
@@ -23,6 +24,7 @@ function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replac
   function decode(part,index) {
     const base={index,original:clone(part),count:1,type:'Creature',other:false};
     if(same(part,{Sacrifice:{objects:self,choose:null}}))return {...base,kind:'self'};
+    if(part.Loyalty&&loyaltyText(part.Loyalty,true)!==undefined)return {...base,kind:'loyalty',count:loyaltyText(part.Loyalty,true)};
     if(part.Life?.kind==='Constant')return {...base,kind:'life',count:part.Life.args};
     if(part.Discard?.count.kind==='Constant'&&part.Discard.filter.kind==='Any'&&!part.Discard.random)return {...base,kind:'discard',count:part.Discard.count.args};
     const tap=part.ChangeTapState,sel=part.Sacrifice||(tap?.tapped&&!tap.symbol&&tap.selections.length===1?tap.selections[0]:null);
@@ -37,7 +39,7 @@ function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replac
     }
     return {...base,kind:'custom'};
   }
-  const kinds=[['self','Sacrifice this card'],['sacrifice','Sacrifice'],['tap','Tap'],['life','Pay life'],['discard','Discard']];
+  const kinds=[['self','Sacrifice this card'],['sacrifice','Sacrifice'],['tap','Tap'],['life','Pay life'],['discard','Discard'],['loyalty','Change loyalty (+/−)']];
   function select(options,value,change,label) {
     const input=document.createElement('select');input.setAttribute('aria-label',label);
     input.replaceChildren(...options.map(([wire,label])=>{const option=document.createElement('option');option.value=wire;option.textContent=label;return option;}));input.value=value;input.onchange=()=>change(input.value);return input;
@@ -49,8 +51,9 @@ function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replac
       else {
         line.append(select(kinds,row.kind,v=>{row.kind=v;if(v==='tap')row.other=true;render();},'Additional cost '+(i+1)));
         if(row.kind!=='self'){
-          const count=document.createElement('input');count.value=row.count;count.inputMode='numeric';count.setAttribute('aria-label','Amount for additional cost '+(i+1));count.oninput=()=>row.count=count.value;line.append(count);
+          const count=document.createElement('input');count.value=row.count;count.inputMode=row.kind==='loyalty'?'text':'numeric';count.setAttribute('aria-label','Amount for additional cost '+(i+1));count.oninput=()=>row.count=count.value;line.append(count);
         }
+        if(row.kind==='loyalty'){const hint=document.createElement('small');hint.textContent='Loyalty change: +1, 0, −2, or −X';line.append(hint);}
         if(['sacrifice','tap'].includes(row.kind)) {
           line.append(select(['Creature','Artifact','Enchantment','Land','Permanent','Artifact+Creature'].map(t=>[t,t==='Artifact+Creature'?'artifact creatures':t.toLowerCase()+'s']),row.type,v=>row.type=v,'Permanents for additional cost '+(i+1)));
           const other=document.createElement('label'),box=document.createElement('input');box.type='checkbox';box.checked=row.other;box.onchange=()=>row.other=box.checked;other.append(box,document.createTextNode('Other than this card'));line.append(other);
@@ -85,7 +88,7 @@ function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replac
     }catch(e){notice(e.message);}
   }
   function summary(cost) {
-    return cost.parts.map(p=>namedAbilities.crewPower(p)!==undefined?'tap creatures · power '+namedAbilities.crewPower(p)+'+':p==='TapSymbol'?'{T}':p.Mana!==undefined?manaText(p.Mana):p.Sacrifice&&same(p.Sacrifice.objects,self)?'sacrifice this':p.Life?.kind==='Constant'?'pay '+p.Life.args+' life':p.Sacrifice?'sacrifice':p.ChangeTapState?.tapped?'tap permanents':p.Discard?'discard':typeof p==='string'?p:Object.keys(p)[0]).join(', ')||'No cost';
+    return cost.parts.map(p=>namedAbilities.crewPower(p)!==undefined?'tap creatures · power '+namedAbilities.crewPower(p)+'+':p.Loyalty?(loyaltyText(p.Loyalty,true)??'formula')+' loyalty':p==='TapSymbol'?'{T}':p.Mana!==undefined?manaText(p.Mana):p.Sacrifice&&same(p.Sacrifice.objects,self)?'sacrifice this':p.Life?.kind==='Constant'?'pay '+p.Life.args+' life':p.Sacrifice?'sacrifice':p.ChangeTapState?.tapped?'tap permanents':p.Discard?'discard':typeof p==='string'?p:Object.keys(p)[0]).join(', ')||'No cost';
   }
   $('cost-form').onsubmit=e=>{
     e.preventDefault();

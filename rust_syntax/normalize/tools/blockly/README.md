@@ -53,6 +53,12 @@ New components append without moving existing payment-component references;
 removal that would invalidate a referenced component must be performed together
 with its references in the block view. Both forms support cancel and undo/redo.
 
+Planeswalkers show **Starting loyalty** in the properties pill and form. Leave
+it blank when absent, enter a number (including zero), or use **X**. Other
+starting-loyalty formulas remain intact and can be edited in blocks. Loyalty
+payments show their signed amount, such as **+2 loyalty**, **0 loyalty**, or
+**-X loyalty**, and the cost form supports editing or adding these payments.
+
 **Equip**, **Crew**, and **Cycling** are complete draggable blocks in **Abilities**.
 Their headings are names, not constructor dropdowns. Equip includes a controlled
 creature target, attachment, and sorcery timing. Crew includes the constrained

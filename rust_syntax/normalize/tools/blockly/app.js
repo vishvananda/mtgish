@@ -415,7 +415,7 @@
     if(!['Characteristics','Announcement','TargetSpec','Cost'].includes(name))return null;
     const v=fromBlock(b);
     if(name==='Cost')return costEditor?.summary(v)||'Cost';
-    if(name==='Characteristics')return [...v.supertypes,...v.card_types,...v.subtypes,v.power_toughness?.join('/'),propertyEditor?.manaText(v.mana_cost)||''].filter(Boolean).join(' · ')||'Properties';
+    if(name==='Characteristics')return [...v.supertypes,...v.card_types,...v.subtypes,v.power_toughness?.join('/'),v.loyalty!==null?'Starting loyalty '+(propertyEditor?.loyaltyText(v.loyalty)??'(formula)'):null,propertyEditor?.manaText(v.mana_cost)||''].filter(Boolean).join(' · ')||'Properties';
     if(name==='TargetSpec'){const named=b.state.bindings?.F_slot?.name;return targetSummary(v)+(named?' · '+named:'');}
     return [...v.targets.map(targetSummary),v.modes?'mode choices':''].filter(Boolean).join(' · ')||'No targets';
   }
@@ -880,7 +880,7 @@
   const theme=Blockly.Theme.defineTheme('cardBlocks',{base:Blockly.Themes.Classic,fontStyle:{family:'system-ui, sans-serif',size:11},componentStyles:{workspaceBackgroundColour:'#f4f6f1',scrollbarColour:'#a8b5a4',scrollbarOpacity:.6,insertionMarkerColour:'#52794c',insertionMarkerOpacity:.4}});
   workspace=Blockly.inject('workspace',{renderer:'zelos',theme,toolbox:toolboxDefinition,trashcan:false,sounds:false,zoom:{controls:false,wheel:true,startScale:.75,maxScale:1.6,minScale:.12,scaleSpeed:1.16},move:{scrollbars:true,drag:true,wheel:true},grid:{spacing:22,length:1,colour:'#d6dfd1',snap:false}});
   propertyEditor=createPropertyEditor({types,clone,fromBlock,replaceView,workspace:()=>workspace,notice,same,readScalar});
-  costEditor=createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replaceView,workspace:()=>workspace,notice,manaText:propertyEditor.manaText,parseMana:propertyEditor.parseMana});
+  costEditor=createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replaceView,workspace:()=>workspace,notice,manaText:propertyEditor.manaText,parseMana:propertyEditor.parseMana,loyaltyText:propertyEditor.loyaltyText,parseLoyalty:propertyEditor.parseLoyalty});
   $('edit-properties').onclick=()=>propertyEditor.open();
   new ResizeObserver(()=>Blockly.svgResize(workspace)).observe($('workspace'));
   $('block-search').oninput=()=>{

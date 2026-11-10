@@ -36,6 +36,22 @@ function createPropertyEditor({types,clone,fromBlock,replaceView,workspace,notic
       throw Error('Unknown mana symbol '+token+'.');
     });
   }
+  function loyaltyText(expr,signed=false) {
+    if(expr===null)return '';
+    if(expr.kind==='Constant')return (signed&&expr.args>0?'+':'')+String(expr.args);
+    if(expr.kind==='AnnouncedX')return signed?'+X':'X';
+    if(same(expr,{kind:'Multiply',args:[{kind:'Constant',args:-1},{kind:'AnnouncedX'}]}))return '-X';
+    return undefined;
+  }
+  function parseLoyalty(text,signed=false) {
+    const value=text.trim().toUpperCase().replace(/−/g,'-');
+    if(!value){if(signed)throw Error('Enter a loyalty change such as +1, 0, -2, or -X.');return null;}
+    if(['X','+X'].includes(value))return {kind:'AnnouncedX'};
+    if(value==='-X'&&signed)return {kind:'Multiply',args:[{kind:'Constant',args:-1},{kind:'AnnouncedX'}]};
+    const amount=readScalar({named:'i64'},value.replace(/^\+/,''));
+    if(!signed&&amount<0)throw Error('Starting loyalty cannot be negative.');
+    return {kind:'Constant',args:amount};
+  }
   const names=wire=>wire==='AssemblyWorker'?'Assembly-Worker':wire==='Ctan'?"C’tan":wire.replace(/([a-z])([A-Z])/g,'$1 $2');
   const creatures=new Set(types.CreatureType.variants.map(v=>v.wire));
   const normalize=s=>s.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
@@ -73,6 +89,9 @@ function createPropertyEditor({types,clone,fromBlock,replaceView,workspace,notic
     typeChoices('property-other-types',types.CardType.variants.map(v=>v.wire).filter(t=>!common.includes(t)),value.card_types);
     $('property-rare-types').open=value.card_types.some(t=>!common.includes(t));
     $('property-mana').value=manaText(value.mana_cost);
+    const loyalty=loyaltyText(value.loyalty);
+    $('property-loyalty').value=loyalty??'Formula';$('property-loyalty').disabled=loyalty===undefined;
+    $('property-loyalty-formula').hidden=loyalty!==undefined;
     $('property-creature').value='';renderCreatures();$('property-error').textContent='';
     $('property-other-subtypes').textContent=value.subtypes.filter(t=>!creatures.has(t)).map(names).join(', ');
     $('property-other-subtypes-row').hidden=!$('property-other-subtypes').textContent;
@@ -119,9 +138,10 @@ function createPropertyEditor({types,clone,fromBlock,replaceView,workspace,notic
       const oldCreatures=value.subtypes.filter(t=>creatures.has(t));
       if(!same(oldCreatures,selected))value.subtypes=[...value.subtypes.filter(t=>!creatures.has(t)||selected.includes(t)),...selected.filter(t=>!value.subtypes.includes(t))];
       if(!$('property-has-pt').disabled)value.power_toughness=$('property-has-pt').checked?[readScalar({named:'i32'},$('property-power').value.trim()),readScalar({named:'i32'},$('property-toughness').value.trim())]:null;
+      if(!$('property-loyalty').disabled&&$('property-loyalty').value.trim()!==loyaltyText(value.loyalty))value.loyalty=parseLoyalty($('property-loyalty').value);
       if(!same(value,editing.value))replaceView(block,{},value);
       dialog.close();
     }catch(error){$('property-error').textContent=error.message;}
   };
-  return {open,manaText,parseMana};
+  return {open,manaText,parseMana,loyaltyText,parseLoyalty};
 }
