@@ -140,7 +140,12 @@ impl Walk {
                 path,
             );
         }
-        for (key, value) in fields {
+        // Source wrapper fields have historically been visited lexically.
+        // Keep face/data positions independent of serde_json's preserve_order
+        // feature, which a consuming frontend can enable for the whole graph.
+        let mut ordered: Vec<_> = fields.iter().collect();
+        ordered.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+        for (key, value) in ordered {
             let consumed = if is_face {
                 FACE_FIELDS.contains(&key.as_str())
             } else {

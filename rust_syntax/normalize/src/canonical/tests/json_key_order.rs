@@ -101,7 +101,7 @@ fn tracing_key_strips_origins_but_preserves_result_ids() {
     let plain = json!({"kind":"Result","args":{"result":7,"epoch":"Before","index":0}});
     let mut other_origins = tagged.clone();
     other_origins["args"]["result"]["$site_origins"] = json!([99]);
-    let key = |value| super::super::trace::key(value, true);
+    let key = |value: &Value| super::super::trace::key(value, true);
     assert_eq!(key(&tagged), key(&reverse_fields(&tagged)));
     assert_eq!(key(&tagged), key(&plain));
     assert_eq!(key(&tagged), key(&other_origins));
