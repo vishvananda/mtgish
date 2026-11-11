@@ -1,0 +1,458 @@
+{
+  "generator_commit": "ce65bb88acacde152d9cfde126811be55159392e",
+  "generator_source_fingerprint": "7a647037be03ebfc6a22cdd54aaee6c8a1c2f1cce6cf0ce7c5fbd0bdfc2b8e27",
+  "ast_schema": 190,
+  "native_revision": "6814db9c8c564e8c51c6f698c1f487189baf48f7",
+  "native_api_fingerprint": "31d0e482b00c413d94f371d6cde3b468b35221d47f0ca6d5cf90c64ee2612bff",
+  "previous_native_revision": "27690f3fb867737b346c0df275c6ddf34121ff17",
+  "api_commits_since_previous_pin": 1154,
+  "original_local_cantrip_main_unchanged": "f64f55b99416fa8e92c08520b7a2c2f71d43faa8",
+  "corpus": {
+    "cards": 33529,
+    "faces": 34391,
+    "publishable_files": 27624,
+    "cards_with_face_gaps": 4789,
+    "source_sha256": "11e328e34ce724e1c17abd608adb9b42d6e5f9a3e96082775fdba4e50c7ca721",
+    "oracle_sha256": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
+    "rows_sha256": "cf0e017bcfa48b1a2ec22ad03eaf8a3089e3927c3fd5763787fd71cd4ad486d5"
+  },
+  "native_compile": {
+    "cards": 33529,
+    "shards": 32,
+    "workers": 8,
+    "seconds": 83.22,
+    "results": [
+      {
+        "shard": 0,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 1,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 2,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 3,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 4,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 5,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 6,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 7,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 8,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 9,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 10,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 11,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 12,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 13,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 14,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 15,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 16,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 17,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 18,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 19,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 20,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 21,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 22,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 23,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 24,
+        "cards": 1048,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 25,
+        "cards": 1047,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 26,
+        "cards": 1047,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 27,
+        "cards": 1047,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 28,
+        "cards": 1047,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 29,
+        "cards": 1047,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 30,
+        "cards": 1047,
+        "exit": 0,
+        "errors": 0
+      },
+      {
+        "shard": 31,
+        "cards": 1047,
+        "exit": 0,
+        "errors": 0
+      }
+    ],
+    "passed": true,
+    "source_hash": "32f375de1fac8b10037880843a8eb2c386f320e50d369cf8c73a9b505166537d"
+  },
+  "sample_modules": 2734,
+  "counter_overlay": {
+    "kind": "names-only prerequisite declarations",
+    "existing_ids_preserved": true,
+    "pristine_table_sha256": "40a3c83e44004c449158ad82c088a2b94ac670d760c5f1bb785ecd0336701cfe",
+    "overlay_table_sha256": "cd09fdabd4b034d5dc96ac524ff0dcd2c15420e7317987a73b61b27a03c7c124",
+    "added_names": [
+      "Rally",
+      "Memory",
+      "Exposure",
+      "Manifestation",
+      "Arrow",
+      "Scroll",
+      "Verse",
+      "Slumber",
+      "Doom",
+      "Muster",
+      "Coin",
+      "Gold",
+      "Feather",
+      "Filibuster",
+      "Ki",
+      "Loot",
+      "Divinity",
+      "Bloodstain",
+      "Blood",
+      "Devotion",
+      "Death",
+      "Fuse",
+      "Blessing",
+      "Bore",
+      "Gem",
+      "Unity",
+      "Omen",
+      "Shred",
+      "Fury",
+      "Collection",
+      "Sleight",
+      "Ingredient",
+      "Component",
+      "Polyp",
+      "Rust",
+      "Strife",
+      "Unlock",
+      "Spite",
+      "Velocity",
+      "Egg",
+      "Plot",
+      "Delay",
+      "Cube",
+      "Descent",
+      "Despair",
+      "Infection",
+      "Intervention",
+      "Bloodline",
+      "Brick",
+      "Vortex",
+      "Elixir",
+      "Hit",
+      "Pressure",
+      "Judgment",
+      "Hunger",
+      "Bait",
+      "Blaze",
+      "Flame",
+      "Intel",
+      "Rope",
+      "Corruption",
+      "Stash",
+      "Glyph",
+      "Dread",
+      "Study",
+      "Croak",
+      "Slime",
+      "Bribery",
+      "Fetch",
+      "Aim",
+      "Ritual",
+      "Task",
+      "Tower",
+      "Hoofprint",
+      "Impostor",
+      "Duty",
+      "Harmony",
+      "Valor",
+      "Suspect",
+      "Eyeball",
+      "Ghostform",
+      "Discovery",
+      "Treasure",
+      "Awakening",
+      "Aegis",
+      "Petal",
+      "Reprieve",
+      "Magnet",
+      "Eon",
+      "Cage",
+      "Mannequin",
+      "Winch",
+      "Hour",
+      "Fungus",
+      "Mine",
+      "Midway",
+      "Feeding",
+      "Theft",
+      "Incarnation",
+      "Revival",
+      "Fate",
+      "Odor",
+      "Foreshadow",
+      "Everything",
+      "Ore",
+      "Palliation",
+      "Phylactery",
+      "Plague",
+      "Eruption",
+      "Crystal",
+      "Ribbon",
+      "Vow",
+      "Isolation",
+      "Night",
+      "Brain",
+      "Shell",
+      "Wage",
+      "Skewer",
+      "Saurian",
+      "Training",
+      "Cell",
+      "Arrowhead",
+      "Soot",
+      "Ember",
+      "Echo",
+      "Wreck",
+      "Book",
+      "Supply",
+      "Hourglass",
+      "Prey",
+      "Enlightened",
+      "Hatching",
+      "Knowledge",
+      "Takeover",
+      "Necrodermis",
+      "Rejection",
+      "Pain",
+      "Currency",
+      "Trap",
+      "Landmark",
+      "Contested",
+      "Nest",
+      "Possession",
+      "Refine",
+      "Pin",
+      "Phyresis",
+      "Petrification",
+      "Kick"
+    ],
+    "patch_sha256": "fe86af3a37c9081e16382035d033d24d404aea82c1a74fd2ed0a4eacb847104a"
+  },
+  "checks": {
+    "generator": {
+      "log": "generator-tests-green.log",
+      "sha256": "bd3cf20f52ef74d84e152f531aa55b4f4daa44d47970ca2afc7a26887019ce6e",
+      "targets": 183,
+      "passed": 1560,
+      "failed": 0,
+      "ignored": 20
+    },
+    "pristine_native_core": {
+      "log": "engine-tests.log",
+      "sha256": "a983cdfaba8b26badd23a85adec307237741577eaf1d1566604236987e5d32b7",
+      "targets": 18,
+      "passed": 1521,
+      "failed": 0,
+      "ignored": 9
+    },
+    "generated_runtime_harness": {
+      "log": "generated-runtime.log",
+      "sha256": "baa8656a44f01818137d0e82e1cc74d62288c9ae7554b718c7592f6d9c3aa4e1",
+      "targets": 1,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    "capture_future_contract": {
+      "log": "capture-tests.log",
+      "sha256": "2dcd4968e3f316dd860a5ca00e0c4ac34e423983bb55759743e29613d838ad53",
+      "targets": 1,
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    "additional_receipt_history_contracts": {
+      "log": "reference32-native.log",
+      "sha256": "1aaed3a8b8890a93f01cd311bcae95eddbc5b3c63fca416ad6a3b04900c199d3",
+      "targets": 3,
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "runtime_scenarios": {
+    "passed": 190,
+    "engine_verification": true,
+    "profile": "dev",
+    "source": "rust_syntax/normalize/tests/fixtures/cantrip_scenarios.rs"
+  },
+  "python_tests": {
+    "passed": 52,
+    "log_sha256": "984c9fe885c81a58d2c76f09d5098e997dff2980b61c4606b1e3c09750e5be76"
+  },
+  "future_capture": {
+    "landed_in_native_target": false,
+    "complete_module_contract_typechecked": true,
+    "runtime_behavior_implemented": false,
+    "feature": "event-object-capture",
+    "requirement": "trigger-time-secondary-object-capture"
+  },
+  "oracle_grammar_review": {
+    "revision": "9e6eb3fffe5df449a45ff8b65454fa79a210e198",
+    "report_sha256": "553885fbdce9f0023b6413be7c6f7e723c0c9b40083658d55dbcf40a891b9284",
+    "retained_witness_cases": 15,
+    "new_executable_witnesses_for_retained_cases": 0,
+    "new_join_forces_reports": [
+      "Collective Voyage",
+      "Minds Aglow",
+      "Shared Trauma"
+    ],
+    "new_join_forces_reports_resolved_here": false
+  },
+  "scope": {
+    "card_campaign_paused": true,
+    "ast_or_schema_changed": false,
+    "engine_quantities_widened": false,
+    "site_or_wasm_rebuilt": false,
+    "upstream_mtgish_merged": false
+  },
+  "evidence_directory": "/mnt/vizier/vampiric-api-20261111"
+}
