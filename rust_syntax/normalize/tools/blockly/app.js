@@ -6,6 +6,7 @@
   const schema = payload.schema, authoring = schema.authoring, $ = id => document.getElementById(id);
   const clone = v => structuredClone(v), typeKey = t => JSON.stringify(t);
   const sections=createCardSections();
+  const palette={abilities:'#477d70',effects:'#b46b4f',flow:'#9b7a42',choices:'#8762a8',events:'#508d88',targets:'#5a7f9e',values:'#788544',properties:'#657b62',advanced:'#86739a'};
   const pretty = text => text.replace(/_/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2');
   const variantLabel = (type,v) => (type==='CastingRule'?({Permission:'Cast from another zone',AdditionalCost:'Additional casting cost',AlternativeCost:'Alternative casting cost',ReduceCost:'This card costs less to cast',Require:'Casting restriction',Flash:'Cast with flash'})[v.wire]:null) || (type==='Ability'?({Spell:'When this spell resolves',Triggered:'When an event happens',Activated:'Activated ability',Static:'Continuous effect',Casting:'Casting rule',Replacement:'Replace an event',Scoped:'Ability in selected locations',Mechanic:'Keyword mechanic'})[v.wire]:null) || (type==='Operation'?authoring.actions[v.wire]?.label:type==='Instruction'?authoring.instructions?.[v.wire]?.label:type==='KeywordAction'?authoring.keyword_actions?.[v.wire]?.label:type==='ObjectKeywordAction'?authoring.object_keyword_actions?.[v.wire]?.label:null) || pretty(authoring.references[type]?.[v.wire]||v.name);
   const typeName = t => t.named || (t.vec ? `List<${typeName(t.vec)}>` : t.option ? `Optional<${typeName(t.option)}>` : `(${t.tuple.map(typeName).join(', ')})`);
@@ -185,7 +186,7 @@
   function parts(state) {
     const t=state.ty,d=descriptor(t);let result;
     if(state.pr==='literal') {
-      result=[{key:'VALUE',label:'',ty:t,inline:state.literal}];
+      result=[{key:'VALUE',label:t.named==='EventSpec'?'When':'',ty:t,inline:state.literal}];
     } else if(state.pr==='count')result=[{key:'COUNTED',label:'',ty:{named:'ObjectSet'}}];
     else if(state.pr==='query')result=[{key:'Q_CARD',label:'',ty:{named:'String'},options:projections.cards},{key:'Q_CONTROL',label:'',ty:{named:'String'},options:[['any controller','Any'],['you control','You']]}];
     else if(state.pr==='single') {
@@ -214,6 +215,7 @@
       }
       if(state.negativePrevention && p.key.endsWith('preventable'))p={...p,inline:'unpreventable',label:"can't be prevented"};
       if(state.ty.named==='Ability'&&state.variant==='Activated'&&p.key==='F_origin')p.label='mechanic identity';
+      if(state.ty.named==='Ability'&&state.variant==='Triggered'&&p.key==='F_event')p.label=p.inline==='choice'?'When':'';
       if(state.ty.named==='Ability'&&state.variant==='Scoped'&&p.key==='F_condition')p.label='only while';
       if(state.ty.named==='Ability'&&state.variant==='Scoped'&&p.key==='F_ability')p.label='';
       if(p.label==='characteristics')p.label='properties';
@@ -310,16 +312,20 @@
     if((outline||['Characteristics','Cost'].includes(t.named)) && ['Characteristics','Cost','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival'].includes(t.named))result.collapsed=true;
     return result;
   }
-  function colour(t) {
+  function colour(t,state={},block=null) {
     const n=typeName(t);
-    if (/Card|Characteristics|ManaSymbol/.test(n)) return '#657b62';
-    if (/Ability|Keyword|Casting/.test(n)) return '#477d70';
-    if (/Operation|Instruction|Program/.test(n)) return '#b46b4f';
-    if (/Expr|ResultId|LoopBinding|TargetSlot|i32|u32|i64/.test(n)) return '#ac8730';
-    if (/Condition|Filter|Duration|Count/.test(n)) return '#86739a';
-    if (/Object|Target|Recipient/.test(n)) return '#5a7f9e';
-    if (/Player|Event/.test(n)) return '#508d88';
-    return '#7a8b86';
+    if(state.pr==='effect'||n==='Operation')return authoring.actions[state.op||state.variant]?.control?palette.flow:palette.effects;
+    if(/^(Instruction|Program)$/.test(n))return palette.flow;
+    if(/^(KeywordAction|ObjectKeywordAction|CopyException)$/.test(n))return palette.effects;
+    if(/^Mode/.test(n))return palette.choices;
+    if(n==='Announcement')return state.directModes?palette.choices:palette.targets;
+    if(n==='Ability'&&block?.getInputTargetBlock('F_announcement')?.state.directModes)return palette.choices;
+    if(/Ability|Keyword|Casting|Cost/.test(n))return palette.abilities;
+    if(/Card|Characteristics|ManaSymbol/.test(n))return palette.properties;
+    if(/Event/.test(n))return palette.events;
+    if(/Object|Target|Recipient|Filter|Selection/.test(n))return palette.targets;
+    if(/Expr|Condition|Player|Duration|Count|ResultId|LoopBinding|i32|u32|i64/.test(n))return palette.values;
+    return palette.advanced;
   }
   const icon = s => 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><rect x="1" y="1" width="20" height="20" rx="5" fill="white" fill-opacity=".22"/><text x="11" y="16" text-anchor="middle" fill="white" font-size="19">${s}</text></svg>`);
   function button(symbol,label,fn) { return new Blockly.FieldImage(icon(symbol),22,22,label,fn); }
@@ -460,11 +466,14 @@
     }
     return moved;
   }
+  let paletteLayoutRevision=0;
+  const paintedFlyoutBlocks=new WeakSet();
   function applyPresentation() {
     if(!workspace)return;
     const all=[...workspace.getAllBlocks(false),...(workspace.getFlyout()?.getWorkspace().getAllBlocks(false)||[])];
     for(const b of all) {
       if(!b.state)continue;
+      const blockColour=colour(b.state.ty,b.state,b);if(b.getColour()!==blockColour)b.setColour(blockColour);
       if(b.isCollapsed()) {
         try {
           const summary=collapsedSummary(b);
@@ -508,7 +517,30 @@
       b.getField('TYPE_LABEL')?.setVisible(detailMode);
       if(rerender && b.rendered)b.render();
     }
-    Blockly.renderManagement.finishQueuedRenders();
+    const flyoutWorkspace=workspace.getFlyout()?.getWorkspace();
+    // Hidden inputs can keep a new flyout child's fields from receiving their
+    // first paint. Paint visible children before their parents are measured.
+    for(const b of (flyoutWorkspace?.getAllBlocks(false)||[]).reverse())if(!paintedFlyoutBlocks.has(b)){
+      let child=b,visible=true;
+      for(let parent=b.getParent();parent;child=parent,parent=parent.getParent())if(parent.isCollapsed()||parent.inputList.some(i=>i.connection?.targetBlock()===child&&!i.isVisible())){visible=false;break;}
+      if(visible){b.render();paintedFlyoutBlocks.add(b);}
+    }
+    const layoutRevision=++paletteLayoutRevision;
+    return Blockly.renderManagement.finishQueuedRenders().then(()=>{
+      if(layoutRevision!==paletteLayoutRevision||workspace.isDragging())return;
+      const flyout=workspace.getFlyout();if(!flyout?.isVisible())return;
+      // Blockly measures the initial, expanded blocks before optional fields
+      // hide. Its reflow updates width but leaves vertical positions intact.
+      Blockly.Events.disable();try{
+        let y=flyout.MARGIN;
+        for(const item of flyout.getContents()){
+          const element=item.getElement(),rect=element.getBoundingRectangle(),dy=y-rect.top;
+          if(Math.abs(dy)>.01)element.moveBy(0,dy);
+          y+=rect.getHeight();
+        }
+        flyout.reflow();flyout.getWorkspace().resizeContents();
+      }finally{Blockly.Events.enable();}
+    });
   }
   function replaceView(b,patch,value=fromBlock(b)) {
     const old=Blockly.serialization.blocks.save(b),next=old.next;
@@ -680,7 +712,7 @@
         const t=this.state.ty,d=descriptor(t),header=this.state.pr==='literal'?null:this.appendDummyInput('HEADER'),variant=viewVariant(this.state);
         if(this.state.statement){this.setOutput(false);this.setPreviousStatement(true,projections.outputs(t).map(typeKey));this.setNextStatement(['Instruction','Ability','TargetSpec','Mode'].includes(t.named),typeKey(t));}
         else {this.setNextStatement(false);this.setPreviousStatement(false);this.setOutput(true,projections.outputs(t).map(typeKey));}
-        this.setColour(colour(this.state.pr==='effect'?{named:'Operation'}:t));
+        this.setColour(colour(t,this.state,this));
         if(this.state.pr==='announcement')header.appendField('Targets','CHOICES_TITLE').appendField(button('+','Add target group',()=>choiceView.addTarget(this)),'ADD_TARGET').appendField(button('≡','Add modes',()=>choiceView.addModes(this)),'ADD_MODES');
         else if(this.state.pr==='modes'){
           header.appendField(this.state.impliedModes?'Required':'Choose');
@@ -702,6 +734,7 @@
         else if(t.option){header.appendField(t.option.vec?.named==='ManaSymbol'?(this.state.present?'Mana cost':'No mana cost'):(this.state.present?'Value':'Not set'));if(t.option.vec?.named==='ManaSymbol')header.appendField('','COST_ZERO');header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));}
         else if(variant && !scalar(t)) {
           const vd=this.state.pr==='effect'?types.Operation:this.state.pr==='keyword'?types.Keyword:d;
+          if(t.named==='EventSpec')header.appendField('When');
           header.appendField(new Blockly.FieldDropdown(t.named==='Ability'&&variant.wire==='Spell'?[['When this spell resolves','Spell']]:vd.variants.map(v=>[variantLabel(this.state.pr==='effect'?'Operation':t.named,v),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
           header.appendField('· '+t.named,'TYPE_LABEL');
         }else header.appendField(caption(this.state));
@@ -853,19 +886,22 @@
       if(!groups.has(category))groups.set(category,[]);
       groups.get(category).push(flyoutBlock('Instruction',actionValue(v.wire)));
     }catch(_){}
+    const keywordStarters=new Set();
     for(const type of keywordFamilies)for(const v of types[type].variants)try {
-      const category=keywordMeta(type,v).category;
+      const category=keywordMeta(type,v).category,key=category+':'+type;
+      if(keywordStarters.has(key))continue;
       if(!groups.has(category))groups.set(category,[]);
       groups.get(category).push(flyoutBlock('Instruction',keywordValue(type,v)));
+      keywordStarters.add(key);
     }catch(_){}
     if(groups.has('Copies & tokens'))groups.get('Copies & tokens').push(...types.CopyException.variants.map(v=>variantBlock('CopyException',v.wire)));
-    return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,contents])=>({kind:'category',name,colour:'#b46b4f',contents}));
+    return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,contents])=>({kind:'category',name,colour:palette.effects,contents}));
   }
   function controlGroups() {
     const groups=new Map(),add=(meta,block)=>{if(!groups.has(meta.category))groups.set(meta.category,[]);groups.get(meta.category).push(block);};
     for(const v of types.Instruction.variants.filter(v=>v.wire!=='Effect'))add(authoring.instructions[v.wire],variantBlock('Instruction',v.wire));
     for(const v of types.Operation.variants.filter(v=>!excluded(v)&&authoring.actions[v.wire].control))try{add(authoring.actions[v.wire],flyoutBlock('Instruction',actionValue(v.wire)));}catch(_){}
-    return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,contents])=>({kind:'category',name,colour:'#9b7a42',contents}));
+    return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,contents])=>({kind:'category',name,colour:palette.flow,contents}));
   }
   selectorEditor=createSelectorEditor({same,clone,fromBlock,parts,blockState,defaultValue,targetSummary,workspace:()=>workspace,remember,changed,applyPresentation,notice});
   class SelectorConnectionPreviewer extends Blockly.InsertionMarkerPreviewer {
@@ -876,7 +912,7 @@
     dispose(){super.dispose();selectorEditor.endDrag();}
   }
   const toolboxDefinition={kind:'categoryToolbox',contents:[
-    {kind:'category',name:'Abilities',colour:'#477d70',contents:[
+    {kind:'category',name:'Abilities',colour:palette.abilities,contents:[
       {kind:'label',text:'Add these to a location section'},
       ...['Triggered','Activated','Static','Replacement'].map(n=>flyoutBlock('Ability',abilityValue(n))),
       flyoutBlock('Ability',{kind:'Replacement',args:{active:'SourceEntering',event:{Enter:{objects:{kind:'SameObject',args:{kind:'Source'}}}},body:{instructions:[]}}}),
@@ -887,15 +923,15 @@
       {kind:'label',text:'Simple keywords'},
       flyoutBlock('Ability',{kind:'Keyword',args:{kind:'Flying'}})
     ]},
-    {kind:'category',name:'Effects',colour:'#b46b4f',contents:[
+    {kind:'category',name:'Effects',colour:palette.effects,contents:[
       {kind:'label',text:'Drop effects into spell resolution or an ability'},
       ...['Draw','GainLife','LoseLife'].map(n=>flyoutBlock('Instruction',actionValue(n,{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}}))),
       flyoutBlock('Instruction',actionValue('DealDamage',{source:{kind:'Source'},recipients:{kind:'Targets',args:0},amount:{kind:'Constant',args:3},preventable:true})),
       flyoutBlock('Instruction',actionValue('Move',{objects:{kind:'One',args:{kind:'Source'}},destination:{Exile:{visibility:'FaceUp',arrival:{counters:[],states:[]}}}})),
       ...actionGroups()
     ]},
-    {kind:'category',name:'Flow',colour:'#9b7a42',contents:controlGroups()},
-    {kind:'category',name:'Casting & locations',colour:'#477d70',contents:[
+    {kind:'category',name:'Flow',colour:palette.flow,contents:controlGroups()},
+    {kind:'category',name:'Casting & locations',colour:palette.abilities,contents:[
       {kind:'label',text:'Casting rules and costs'},
       flyoutBlock('Ability',sectionStarter('casting')),
       flyoutBlock('Ability',{kind:'Keyword',args:{kind:'Flash'}}),
@@ -908,7 +944,7 @@
       {kind:'label',text:'Define characteristics in every zone'},
       flyoutBlock('Ability',sectionStarter('everywhere'))
     ]},
-    {kind:'category',name:'Choices & modes',colour:'#9b7a42',contents:[
+    {kind:'category',name:'Choices & modes',colour:palette.choices,contents:[
       {kind:'label',text:'Choose a mode when announcing the ability'},
       flyoutBlock('Ability',{kind:'Spell',args:{announcement:{targets:[],modes:{...defaultValue({named:'ModeSelection'}),options:[{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null},{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null}]}},body:{instructions:[]}}}),
       {kind:'label',text:'Add a separate mode to its modes section'},
@@ -917,17 +953,16 @@
       ...types.ModeMechanism.variants.map(v=>variantBlock('ModeMechanism',v.wire)),
       ...['ModeRepetition','ModeAvailability','ModeTargetPolicy','ModeAcceptance'].flatMap(t=>types[t].variants.map(v=>variantBlock(t,v.wire)))
     ]},
-    {kind:'category',name:'Events',colour:'#508d88',contents:[
-      flyoutBlock('EventSpec',choices.EventSpec[0][1]),
-      flyoutBlock('EventSpec',{Turn:{point:'UpkeepBegins',players:{kind:'One',args:SELF}}})
+    {kind:'category',name:'Events',colour:palette.events,contents:[
+      flyoutBlock('EventSpec',choices.EventSpec[0][1])
     ]},
-    {kind:'category',name:'Targets & selections',colour:'#5a7f9e',contents:[
-      ...targetPresets.map(([,p])=>flyoutBlock('TargetSpec',{...defaultValue({named:'TargetSpec'}),...clone(p)})),
+    {kind:'category',name:'Targets & selections',colour:palette.targets,contents:[
+      flyoutBlock('TargetSpec',defaultValue({named:'TargetSpec'})),
       ...['Target','Source'].map(n=>variantBlock('ObjectRef',n)),
       variantBlock('ObjectSet','Targets'),
       ...selectorEditor.starters({named:'ObjectSet'},null).filter(o=>o.value.kind==='Zone').map(o=>flyoutBlock('ObjectSet',o.value))
     ]},
-    {kind:'category',name:'Values & conditions',colour:'#ac8730',contents:[
+    {kind:'category',name:'Values & conditions',colour:palette.values,contents:[
       flyoutBlock('Expr',{kind:'Constant',args:1}),
       flyoutBlock('Expr',{kind:'AnnouncedX'}),
       flyoutBlock('Expr',{kind:'CountObjects',args:selectorEditor.starters({named:'ObjectSet'},null).find(o=>o.label==='Creatures you control').value}),
@@ -935,7 +970,7 @@
       ...choices.PlayerSet.map(([,v])=>flyoutBlock('PlayerSet',v)),
       ...['Compare','Not','All','Any'].filter(n=>types.Condition.variants.some(v=>v.wire===n)).map(n=>variantBlock('Condition',n))
     ]},
-    {kind:'category',name:'Advanced',colour:'#86739a',contents:
+    {kind:'category',name:'Advanced',colour:palette.advanced,contents:
       ['Expr','Condition','PlayerRef','PlayerSet','ObjectFilter','ObjectRef','ObjectSet','CostPart','Duration','EventSpec'].map(type=>({kind:'category',name:type,colour:colour({named:type}),contents:types[type].variants.filter(v=>!excluded(v)).flatMap(v=>{try{return [variantBlock(type,v.wire)];}catch(_){return [];}})}))}
   ]};
   const theme=Blockly.Theme.defineTheme('cardBlocks',{base:Blockly.Themes.Classic,fontStyle:{family:'system-ui, sans-serif',size:11},componentStyles:{workspaceBackgroundColour:'#f4f6f1',scrollbarColour:'#a8b5a4',scrollbarOpacity:.6,insertionMarkerColour:'#52794c',insertionMarkerOpacity:.4}});
@@ -953,21 +988,30 @@
         if(item.kind==='category'){visit(item.contents,[...path,item.name]);continue;}
         if(item.kind!=='block')continue;
         try {
-          const value=fromBlock(fakeBlock(item)),key=encode(value),state=item.extraState;
+          const value=fromBlock(fakeBlock(item)),state=item.extraState,key=state.ty.named==='EventSpec'&&state.pr==='literal'?'EventSpec:common':encode(value);
           const variant=viewVariant(state),type=state.pr==='effect'?'Operation':state.ty.named;
           const label=(selectorEditor.supports(state.ty)?selectorEditor.summary(fakeBlock(item)):null)||state.activationName|| (variant?variantLabel(type,variant):typeName(state.ty));
-          if(!`${label} ${variant?.doc||''} ${path.join(' ')} ${key} ${pretty(key)}`.toLocaleLowerCase().includes(q)||seen.has(key))continue;
+          const selectorOptions=(state.ty.named==='TargetSpec'?targetPresets:state.ty.named==='EventSpec'?choices.EventSpec:[]).map(([label])=>label).join(' ');
+          if(!`${label} ${selectorOptions} ${variant?.doc||''} ${path.join(' ')} ${key} ${pretty(key)}`.toLocaleLowerCase().includes(q)||seen.has(key))continue;
           seen.add(key);contents.push(item);
         }catch(_){}
       }
     }
     visit(toolboxDefinition.contents);
+    // The palette uses editable keyword-action families; searches still offer
+    // the requested named action with its exact typed operands.
+    for(const type of keywordFamilies)for(const v of types[type].variants)try{
+      const meta=keywordMeta(type,v);
+      if(!`${meta.label} ${v.name} ${v.doc||''}`.toLocaleLowerCase().includes(q))continue;
+      const block=flyoutBlock('Instruction',keywordValue(type,v)),key=encode(fromBlock(fakeBlock(block)));
+      if(!seen.has(key)){seen.add(key);contents.push(block);}
+    }catch(_){}
     // One palette block, but every keyword name remains searchable.
     for(const v of types.Keyword.variants)if(`${v.name} ${pretty(v.name)}`.toLocaleLowerCase().includes(q))try {
       const block=flyoutBlock('Ability',{kind:'Keyword',args:packEnum(types.Keyword,v,fieldsDefault(v.fields,[],`Keyword::${v.wire}`))}),key=encode(fromBlock(fakeBlock(block)));
       if(!seen.has(key)){seen.add(key);contents.push(block);}
     }catch(_){}
-    workspace.updateToolbox({kind:'categoryToolbox',contents:[{kind:'category',name:'Matches',colour:'#b46b4f',contents:contents.length?contents:[{kind:'label',text:'No matching blocks'}]}]});
+    workspace.updateToolbox({kind:'categoryToolbox',contents:[{kind:'category',name:'Matches',colour:palette.effects,contents:contents.length?contents:[{kind:'label',text:'No matching blocks'}]}]});
     workspace.getToolbox().selectItemByPosition(0);
   };
 

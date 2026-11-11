@@ -8,7 +8,7 @@ const assert=require('node:assert/strict'),{pathToFileURL}=require('node:url');c
  async function dragRow(category,type,lastId){
   await page.evaluate(async()=>{window.cardBlocks.workspace.zoomToFit();await Blockly.renderManagement.finishQueuedRenders();});
   await page.locator('.blocklyToolboxCategory').filter({has:page.getByText(category,{exact:true})}).first().click();
-  const start=await page.evaluate(type=>{const b=window.cardBlocks.workspace.getFlyout().getWorkspace().getAllBlocks(false).find(b=>b.state.ty.named===type),r=b.getSvgRoot().getBoundingClientRect();return{x:r.x+12,y:r.y+12};},type);
+  const start=await page.evaluate(type=>{const rows=window.cardBlocks.workspace.getFlyout().getWorkspace().getAllBlocks(false).filter(b=>b.state.ty.named===type);if(type==='TargetSpec'&&rows.length!==1)throw Error('Expected one editable target starter');const b=rows[0],r=b.getSvgRoot().getBoundingClientRect();return{x:r.x+12,y:r.y+12};},type);
   await page.mouse.move(start.x,start.y);await page.mouse.down();await page.mouse.move(1300,300,{steps:25});await page.waitForTimeout(150);
   const offset=await page.evaluate(({type,lastId})=>{const w=window.cardBlocks.workspace,b=w.getTopBlocks(false).find(b=>b.state.ty.named===type),socket=w.getBlockById(lastId).nextConnection,target=Blockly.utils.svgMath.wsToScreenCoordinates(w,new Blockly.utils.Coordinate(socket.x,socket.y)),r=b.getSvgRoot().getBoundingClientRect(),off=b.previousConnection.getOffsetInBlock();return{dx:target.x-(r.x+off.x*w.scale),dy:target.y-(r.y+off.y*w.scale)};},{type,lastId});
   await page.mouse.move(1300+offset.dx,300+offset.dy,{steps:25});await page.waitForTimeout(150);await page.mouse.up();await valid();

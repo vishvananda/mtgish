@@ -19,6 +19,13 @@ let browser,page;
  assert.equal(await page.evaluate(()=>window.cardBlocks.actionValue('DealDamage').args.operation.args.preventable),true);
  assert.equal(initial.target,'any target');assert.equal(initial.collapsed,false);assert.equal(initial.kind,false);assert.equal(initial.filter,false);assert.equal(initial.result,false);assert.equal(initial.prevention,false);assert.equal(initial.checkbox,'FALSE');
  const target=()=>page.evaluate(()=>window.cardBlocks.generated().faces[0].abilities[0].args.announcement.targets[0]);
+ // Every target-kind search points to the same single editable library block.
+ for(const query of ['target creature','target player','target spell','target opponent']){await page.locator('#block-search').fill(query);assert.equal(await page.evaluate(()=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).filter(b=>b.state.ty.named==='TargetSpec').length),1);}
+ await page.locator('#block-search').fill('');
+ // One event starter offers every common event with When before its picker.
+ await page.locator('.blocklyToolboxCategory').filter({has:page.getByText('Events',{exact:true})}).first().click();
+ assert.deepEqual(await page.evaluate(()=>{const d=window.cardBlocks,rows=d.workspace.getFlyout().getWorkspace().getTopBlocks(false).filter(b=>b.state.ty.named==='EventSpec'),b=rows[0];b.setFieldValue('5','_VALUE');return {count:rows.length,text:b.toString(),value:d.fromBlock(b)};}),{count:1,text:'When your upkeep begins',value:{Turn:{point:'UpkeepBegins',players:{kind:'One',args:{kind:'AbilityController'}}}}});
+ await page.locator('#block-search').fill('upkeep');assert.equal(await page.evaluate(()=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).filter(b=>b.state.ty.named==='EventSpec'&&b.state.pr==='literal').length),1);await page.locator('#block-search').fill('');
  // Select each choice through the actual dropdown menu.
  for(const [label,kind,filter] of [
   ['target creature',{Object:{kind:'Permanent',zones:['Battlefield']}},{kind:'CardType',args:'Creature'}],
@@ -28,7 +35,7 @@ let browser,page;
   console.log('Selecting '+label);
   await page.evaluate(async()=>{await Blockly.renderManagement.finishQueuedRenders();window.cardBlocks.workspace.zoomToFit();});
   const point=await page.evaluate(()=>{const b=window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.ty.named==='TargetSpec'),r=b.getField('TARGET_PRESET').getSvgRoot().getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};});
-  await page.mouse.click(point.x,point.y);await page.getByText(label,{exact:true}).click();
+  await page.mouse.click(point.x,point.y);await page.getByRole('option',{name:label,exact:true}).click();
   await page.waitForFunction(kind=>JSON.stringify(window.cardBlocks.generated().faces[0].abilities[0].args.announcement.targets[0].kind)===JSON.stringify(kind)&&window.cardBlocks.valid(),kind);
   const v=await target();assert.deepEqual(v.kind,kind);assert.deepEqual(v.filter,filter);assert.equal(v.players,null);
  }

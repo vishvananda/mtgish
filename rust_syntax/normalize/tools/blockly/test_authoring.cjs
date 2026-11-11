@@ -8,6 +8,16 @@ let browser,page;
  page=await browser.newPage({viewport:{width:1580,height:1000},acceptDownloads:true});page.setDefaultTimeout(30000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(url,{timeout:120000});await page.waitForFunction(()=>window.cardBlocks?.valid());
+ // Flyouts use their category colors and current visible block sizes.
+ for(const [category,colour] of [['Abilities','#477d70'],['Choices & modes','#8762a8'],['Events','#508d88'],['Targets & selections','#5a7f9e'],['Values & conditions','#788544']]){
+  await page.locator('.blocklyToolboxCategory').filter({has:page.getByText(category,{exact:true})}).first().click();await page.evaluate(()=>window.cardBlocks.applyPresentation());
+  const view=await page.evaluate(()=>{const w=window.cardBlocks.workspace.getFlyout().getWorkspace();return {scale:w.scale,rows:w.getTopBlocks(true).map(b=>{const r=b.getSvgRoot().querySelector('.blocklyPath').getBoundingClientRect();return {colour:b.getColour(),top:r.top,bottom:r.bottom};})};});
+  for(const row of view.rows)assert.equal(row.colour,colour,category);
+  for(let i=1;i<view.rows.length;i++){const gap=view.rows[i].top-view.rows[i-1].bottom;assert.ok(gap>=-1&&gap<=100*view.scale,`${category}: unexpected gap ${gap}`);}
+ }
+ await page.locator('.blocklyToolboxCategory').filter({has:page.getByText('Flow',{exact:true})}).first().click();
+ await page.locator('.blocklyToolboxCategory').filter({has:page.getByText('Conditions & choices',{exact:true})}).first().click();await page.evaluate(()=>window.cardBlocks.applyPresentation());
+ assert.ok(await page.evaluate(()=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).every(b=>b.getColour()==='#9b7a42')));
  await page.locator('#starter').selectOption('spell');await page.locator('#new-card').click();await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities.length===1);
  await page.evaluate(async()=>{await Blockly.renderManagement.finishQueuedRenders();window.cardBlocks.workspace.setScale(.85);window.cardBlocks.workspace.scrollCenter();});
  async function dragFromMenu(category,source,target) {

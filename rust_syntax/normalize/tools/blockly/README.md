@@ -29,7 +29,13 @@ triggered, activated, static and replacement starters. **Casting & locations**
 contains the specialized starters. **Flow** contains conditions, choices,
 iteration and batches; **Effects** groups other operations by purpose without a
 second “all actions” collection. **Find a block** searches this same toolbox and
-removes duplicate results. The advanced type browser remains available.
+removes duplicate results. Related keyword actions share one editable starter per
+subject family in each section; select another action in its dropdown or search
+by name to start directly with that action. The advanced type browser remains
+available. Menus remeasure their blocks after optional fields hide, keeping
+vertical spacing consistent. Menu and block colors share one palette: teal for
+abilities, orange for effects, gold for flow, purple for choices/modes, blue for
+targets, turquoise for events and olive for values/conditions.
 
 Actions connect vertically and can be reordered by dragging. Numbers and common
 player choices are editable shadow blocks in typed sockets. Drop an expression
@@ -38,9 +44,11 @@ previous simple value. **Library** opens card search without discarding the
 workspace. The section projection preserves imported ability order, binding
 paths, numeric IDs and names; it adds no AST variants or engine behavior.
 
-**Targets & selections** provides draggable target rows. A row reads **Choose
-exactly 1 any target**, with direct count and target-kind pickers. Choose **up
-to**, **at least** or **any number**, or add several independent rows with **+**.
+**Targets & selections** provides one editable target starter, with direct count
+and target-kind pickers. Choose **any target**, **target creature**, **target
+player**, or another kind from that row rather than separate library blocks.
+Search for any target kind finds this same starter. A row can read **Choose
+exactly 1 any target**. Choose **up to**, **at least** or **any number**, or add several independent rows with **+**.
 Each target keeps its own name; effects select that name in their compact
 selector. Dragged rows receive a free target number automatically. Custom
 filters, constraints and distributed amounts remain available in the full typed
@@ -57,6 +65,12 @@ effects intact into **Mode 1**, retaining result names and references. Dynamic
 mode bounds, weighted budgets, implied selection and additional rules keep their
 exact IR and advanced editors. Empty outer resolution effects are hidden on
 modal abilities, because the effects belong inside the modes.
+
+**Events** has one editable **When [event]** starter. Its selector includes
+entering the battlefield, dying, attacking, casting and upkeep; searches for
+these events find the same block. Triggered abilities use the same **When**
+label before their event selector. Custom event structures retain their typed
+blocks and conditions.
 
 The compact properties summary has a visible **Edit…** button. **Properties…**
 in the toolbar opens the same form: card-type checkboxes, mana notation such as

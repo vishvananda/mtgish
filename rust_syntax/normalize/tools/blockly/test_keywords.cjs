@@ -20,6 +20,10 @@ let browser;
  await page.evaluate(async()=>{const d=window.cardBlocks,p=d.bindings.ports(d.workspace.getTopBlocks(false)[0]).find(p=>p.definition&&d.bindings.metadata(p)?.name==='size');await d.bindings.rename(d.bindings.metadata(p).key,'army_size');});
  await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.bindings.document().bindings.some(b=>b.name==='army_size'));
  assert.equal(await page.evaluate(()=>window.cardBlocks.encode(window.cardBlocks.generated())),before);
+ // Topic menus offer one editable starter per keyword-action subject family.
+ await page.locator('.blocklyToolboxCategory').filter({has:page.getByText('Effects',{exact:true})}).first().click();await page.locator('.blocklyToolboxCategory').filter({has:page.getByText('Game & keyword actions',{exact:true})}).first().click();await page.evaluate(()=>window.cardBlocks.applyPresentation());
+ const families=await page.evaluate(()=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).filter(b=>['Keyword','KeywordEach'].includes(b.state.op)).map(b=>b.state.op));assert.ok(families.length>0&&families.length<=2);assert.equal(new Set(families).size,families.length);
+ await page.locator('#block-search').fill('win game');assert.ok(await page.evaluate(()=>window.cardBlocks.workspace.getFlyout().getWorkspace().getAllBlocks(false).some(b=>b.state.ty.named==='KeywordAction'&&b.state.variant==='WinGame')));
  await page.locator('#block-search').fill('fight');
  const starter=await page.evaluate(()=>{const d=window.cardBlocks,b=d.workspace.getFlyout().getWorkspace().getAllBlocks(false).find(b=>b.state.ty.named==='KeywordAction'&&b.state.variant==='Fight');if(!b)throw Error('Specific Fight starter is missing');return {parent:!!b.getParent()?.previousConnection,first:!!b.getInput('F_first'),second:!!b.getInput('F_second'),amount:!!b.getInput('F_amount'),other:!!b.getInput('F_other')};});
  assert.deepEqual(starter,{parent:true,first:true,second:true,amount:false,other:false});
