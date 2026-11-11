@@ -1,0 +1,387 @@
+[
+  {
+    "kind": "CostBranch",
+    "args": {
+      "keyword": "Entwine",
+      "cost": {
+        "parts": [
+          {
+            "Mana": [
+              {
+                "Generic": 1
+              }
+            ]
+          }
+        ]
+      },
+      "paid": {
+        "kind": "Spell",
+        "args": {
+          "announcement": {
+            "targets": [],
+            "modes": {
+              "count": {
+                "minimum": {
+                  "kind": "Constant",
+                  "args": 2
+                },
+                "maximum": {
+                  "kind": "Constant",
+                  "args": 2
+                }
+              },
+              "options": [
+                {
+                  "announcement": {
+                    "targets": [
+                      {
+                        "slot": 0,
+                        "kind": {
+                          "Object": {
+                            "kind": "Permanent",
+                            "zones": [
+                              "Battlefield"
+                            ]
+                          }
+                        },
+                        "count": {
+                          "Exactly": {
+                            "kind": "Constant",
+                            "args": 2
+                          }
+                        },
+                        "filter": {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        "players": null,
+                        "distribute": null,
+                        "constraints": [],
+                        "chooser": null
+                      }
+                    ],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "SetTapped",
+                            "args": {
+                              "objects": {
+                                "kind": "Targets",
+                                "args": 0
+                              },
+                              "tapped": true
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "weight": 1,
+                  "requires": null
+                },
+                {
+                  "announcement": {
+                    "targets": [
+                      {
+                        "slot": 0,
+                        "kind": "Player",
+                        "count": {
+                          "Exactly": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        },
+                        "filter": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        },
+                        "distribute": null,
+                        "constraints": [],
+                        "chooser": null
+                      }
+                    ],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967294,
+                          "operation": {
+                            "kind": "CreateContinuousEffect",
+                            "args": {
+                              "source": {
+                                "kind": "Source"
+                              },
+                              "affected": {
+                                "Objects": {
+                                  "kind": "Zone",
+                                  "args": {
+                                    "scope": {
+                                      "Shared": "Battlefield"
+                                    },
+                                    "kind": "Permanent",
+                                    "filter": {
+                                      "kind": "CardType",
+                                      "args": "Creature"
+                                    }
+                                  }
+                                }
+                              },
+                              "changes": [
+                                {
+                                  "kind": "Rule",
+                                  "args": {
+                                    "UntapStep": {
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        }
+                                      },
+                                      "behavior": "Skip"
+                                    }
+                                  }
+                                }
+                              ],
+                              "duration": {
+                                "DuringNextUntapStep": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              },
+                              "evaluation": "LiveObjects"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "weight": 1,
+                  "requires": null
+                }
+              ],
+              "rules": {
+                "repetition": "OnceEach",
+                "availability": "Any",
+                "surcharge": null,
+                "targets": "MayShare",
+                "acceptance": "Required"
+              },
+              "mechanism": {
+                "Announced": {
+                  "chooser": "Controller",
+                  "method": "PlayerChoice"
+                }
+              },
+              "budget": null
+            }
+          },
+          "body": {
+            "instructions": []
+          }
+        }
+      },
+      "unpaid": {
+        "kind": "Spell",
+        "args": {
+          "announcement": {
+            "targets": [],
+            "modes": {
+              "count": {
+                "minimum": {
+                  "kind": "Constant",
+                  "args": 1
+                },
+                "maximum": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "options": [
+                {
+                  "announcement": {
+                    "targets": [
+                      {
+                        "slot": 0,
+                        "kind": {
+                          "Object": {
+                            "kind": "Permanent",
+                            "zones": [
+                              "Battlefield"
+                            ]
+                          }
+                        },
+                        "count": {
+                          "Exactly": {
+                            "kind": "Constant",
+                            "args": 2
+                          }
+                        },
+                        "filter": {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        "players": null,
+                        "distribute": null,
+                        "constraints": [],
+                        "chooser": null
+                      }
+                    ],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "SetTapped",
+                            "args": {
+                              "objects": {
+                                "kind": "Targets",
+                                "args": 0
+                              },
+                              "tapped": true
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "weight": 1,
+                  "requires": null
+                },
+                {
+                  "announcement": {
+                    "targets": [
+                      {
+                        "slot": 0,
+                        "kind": "Player",
+                        "count": {
+                          "Exactly": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        },
+                        "filter": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        },
+                        "distribute": null,
+                        "constraints": [],
+                        "chooser": null
+                      }
+                    ],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967294,
+                          "operation": {
+                            "kind": "CreateContinuousEffect",
+                            "args": {
+                              "source": {
+                                "kind": "Source"
+                              },
+                              "affected": {
+                                "Objects": {
+                                  "kind": "Zone",
+                                  "args": {
+                                    "scope": {
+                                      "Shared": "Battlefield"
+                                    },
+                                    "kind": "Permanent",
+                                    "filter": {
+                                      "kind": "CardType",
+                                      "args": "Creature"
+                                    }
+                                  }
+                                }
+                              },
+                              "changes": [
+                                {
+                                  "kind": "Rule",
+                                  "args": {
+                                    "UntapStep": {
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        }
+                                      },
+                                      "behavior": "Skip"
+                                    }
+                                  }
+                                }
+                              ],
+                              "duration": {
+                                "DuringNextUntapStep": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              },
+                              "evaluation": "LiveObjects"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "weight": 1,
+                  "requires": null
+                }
+              ],
+              "rules": {
+                "repetition": "OnceEach",
+                "availability": "Any",
+                "surcharge": null,
+                "targets": "MayShare",
+                "acceptance": "Required"
+              },
+              "mechanism": {
+                "Announced": {
+                  "chooser": "Controller",
+                  "method": "PlayerChoice"
+                }
+              },
+              "budget": null
+            }
+          },
+          "body": {
+            "instructions": []
+          }
+        }
+      }
+    }
+  }
+]

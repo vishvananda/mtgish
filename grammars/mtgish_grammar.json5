@@ -4272,7 +4272,8 @@
     "SaddlesMountsUsingToughnessRatherThanPower": "",
     "StationsPermanentsAsThoughPowerWereGreater({{NUMBER}})": "",
     "StationsPermanentsUsingToughnessRatherThanPower": "",
-    "UntapsDuringOtherPlayersUntapSteps({{PLAYERS}})": ""
+    "UntapsDuringOtherPlayersUntapSteps({{PLAYERS}})": "",
+    "DoesntUntapDuringPlayersUntapSteps({{PLAYERS}})": ""
   },
   "{{PERMANENT}}": {
     "ThePermanentCopiedThisWay": "",

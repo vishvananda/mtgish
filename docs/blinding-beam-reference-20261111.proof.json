@@ -1,0 +1,55 @@
+{
+  "source": {
+    "records": 33529,
+    "changed_names": [
+      "Blinding Beam"
+    ],
+    "unchanged_records": 33528,
+    "index": 2835
+  },
+  "native": {
+    "records": 33529,
+    "schema": 188,
+    "schema_unchanged": true,
+    "changed_names": [
+      "Blinding Beam"
+    ],
+    "unchanged_records": 33528,
+    "independent_proposal_all_operands_equal": true,
+    "unused_result_declarations_canonicalized": [
+      "/0/args/paid/args/announcement/modes/options/0/body/instructions/0/args/result",
+      "/0/args/paid/args/announcement/modes/options/1/body/instructions/0/args/result",
+      "/0/args/unpaid/args/announcement/modes/options/0/body/instructions/0/args/result",
+      "/0/args/unpaid/args/announcement/modes/options/1/body/instructions/0/args/result"
+    ]
+  },
+  "audit": {
+    "changed_template_overlaps_saved_findings": false,
+    "review_entries_unchanged": false,
+    "hashes": [
+      {
+        "file": "grammars/english_grammar.json5",
+        "old": "7793accf78efe2de0683d635982859aa9fb782be6d6b12b398a5bfb25272d044",
+        "new": "63c545f2f6771df0df6dc5d24ee0bdeba91cc6cda4b7ff202a6111aa5a8c0edb",
+        "occurrences": 2
+      },
+      {
+        "file": "grammars/mtgish_grammar.json5",
+        "old": "530756e4225f7747aaf565ae3e34b9001b8a8fc28e8ffd2cd5502497e01eaf8d",
+        "new": "5512c948f8a10cd2930a680c4329b04240e26cc650cc656242b7d4358236d1e3",
+        "occurrences": 1
+      }
+    ],
+    "corrected_prior_fix_entry": {
+      "input": "{{Permanents}} don't untap during target player's next untap step",
+      "old_after_retained_as_previous_after": true,
+      "old_reason_retained_as_previous_reason": true,
+      "issue": 183
+    }
+  },
+  "upstream_issue": "https://github.com/i5jb/mtgish/issues/183",
+  "evidence_directory": "/mnt/vizier/reference-beam-20261111",
+  "normalized_schema_changed": false,
+  "engine_changed": false,
+  "expected_frame_origin": "oracle-grammar shared-clause-reference-issues.json, unchanged independent proposal"
+}

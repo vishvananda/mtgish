@@ -133290,10 +133290,13 @@ Card(
             TargetPlayer(AnyPlayer),
           ],
           ActionList([
-            EachPermanentDoesntUntapDuringControllersNextUntap(And([
+            CreateEachPermanentRuleEffectUntil(
               IsCardtype(Creature),
-              ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer)),
-            ])),
+              [
+                DoesntUntapDuringPlayersUntapSteps(SinglePlayer(Ref_TargetPlayer)),
+              ],
+              DuringPlayersNextUntapStep(Ref_TargetPlayer),
+            ),
           ]),
         ),
       ],

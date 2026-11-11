@@ -1959,6 +1959,7 @@ pub enum PermanentRule {
   MustBlockAttacker(Box<Permanent>),
   MustBlockEachAttacker,
   UntapsDuringOtherPlayersUntapSteps(Box<Players>),
+  DoesntUntapDuringPlayersUntapSteps(Box<Players>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]

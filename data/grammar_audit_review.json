@@ -21,7 +21,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "7793accf78efe2de0683d635982859aa9fb782be6d6b12b398a5bfb25272d044"
+    "grammars/english_grammar.json5": "63c545f2f6771df0df6dc5d24ee0bdeba91cc6cda4b7ff202a6111aa5a8c0edb"
   },
   "original_findings": 365,
   "resolved_findings": 170,
@@ -5422,7 +5422,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "7793accf78efe2de0683d635982859aa9fb782be6d6b12b398a5bfb25272d044",
+    "grammars/english_grammar.json5": "63c545f2f6771df0df6dc5d24ee0bdeba91cc6cda4b7ff202a6111aa5a8c0edb",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
@@ -5435,7 +5435,7 @@
     "grammars/mtgish_grammar-triggers.json5": "96b070faa84d9a5cad36071d156a01e6139a8590a57f3b51a9b94fca9c1dff24",
     "grammars/mtgish_grammar-type_line.json5": "27f424e58808988f4317eacf3f6aee9ace7d360ca886e034f099e7e1c10a81ae",
     "grammars/mtgish_grammar-vote_option.json5": "93e2f2472543b1a6865d80c7d45032788759dfc365c41d5dfb0a424cd65587e3",
-    "grammars/mtgish_grammar.json5": "530756e4225f7747aaf565ae3e34b9001b8a8fc28e8ffd2cd5502497e01eaf8d",
+    "grammars/mtgish_grammar.json5": "5512c948f8a10cd2930a680c4329b04240e26cc650cc656242b7d4358236d1e3",
     "grammars/short_names.json5": "dd44ee8da0d0546722fa3b83de3d042c5f147cbe7553ad8e200c3b572b2c76a3"
   },
   "reviewed_source_order": [
@@ -7086,8 +7086,10 @@
       "rule": "SpellActions",
       "input": "{{Permanents}} don't untap during target player's next untap step",
       "before": "ActionList([EachPermanentDoesntUntapDuringControllersNextUntap({{Permanents[0]}})])",
-      "after": "Targeted([TargetPlayer(AnyPlayer)], ActionList([EachPermanentDoesntUntapDuringControllersNextUntap(And([{{Permanents[0]}}, ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer))]))]))",
-      "reason": "Blinding Beam targets player; restrict affected creatures to that player (#7)."
+      "after": "Targeted([TargetPlayer(AnyPlayer)], ActionList([CreateEachPermanentRuleEffectUntil({{Permanents[0]}}, [DoesntUntapDuringPlayersUntapSteps(SinglePlayer(Ref_TargetPlayer))], DuringPlayersNextUntapStep(Ref_TargetPlayer))]))",
+      "reason": "Preserve target player but cover all matching permanents during that player’s next untap step. Correct the prior erroneous controller restriction (#183).",
+      "previous_after": "Targeted([TargetPlayer(AnyPlayer)], ActionList([EachPermanentDoesntUntapDuringControllersNextUntap(And([{{Permanents[0]}}, ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer))]))]))",
+      "previous_reason": "Blinding Beam targets player; restrict affected creatures to that player (#7)."
     },
     {
       "file": "grammars/english_grammar.json5",

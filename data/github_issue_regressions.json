@@ -414,10 +414,15 @@
   {
     "name": "Blinding Beam",
     "issues": [
-      7
+      7,
+      183
     ],
     "contains": [
       "Targeted([TargetPlayer(AnyPlayer)]",
+      "CreateEachPermanentRuleEffectUntil(IsCardtype(Creature), [DoesntUntapDuringPlayersUntapSteps(SinglePlayer(Ref_TargetPlayer))], DuringPlayersNextUntapStep(Ref_TargetPlayer))"
+    ],
+    "excludes": [
+      "EachPermanentDoesntUntapDuringControllersNextUntap",
       "ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer))"
     ]
   },

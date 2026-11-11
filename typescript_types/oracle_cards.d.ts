@@ -5026,7 +5026,8 @@ type PermanentRule =
 | { "_PermanentRule": "MustBlock" }
 | { "_PermanentRule": "MustBlockAttacker", "args": Permanent }
 | { "_PermanentRule": "MustBlockEachAttacker" }
-| { "_PermanentRule": "UntapsDuringOtherPlayersUntapSteps", "args": Players };
+| { "_PermanentRule": "UntapsDuringOtherPlayersUntapSteps", "args": Players }
+| { "_PermanentRule": "DoesntUntapDuringPlayersUntapSteps", "args": Players };
 type PermanentsAndGraveyardCards =
 | { "_PermanentsAndGraveyardCards": "IsCardtype", "args": CardType }
 | { "_PermanentsAndGraveyardCards": "WasntSacrificed" };

@@ -339,6 +339,10 @@ impl Context {
                     },
                 }
             }
+            S::DoesntUntapDuringPlayersUntapSteps(players) => RuleChange::UntapStep {
+                players: self.players(players)?,
+                behavior: UntapBehavior::Skip,
+            },
             S::UntapsDuringOtherPlayersUntapSteps(players) => RuleChange::UntapStep {
                 players: self.players(players)?,
                 behavior: UntapBehavior::Additional,
