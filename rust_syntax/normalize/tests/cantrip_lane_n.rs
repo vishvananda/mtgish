@@ -141,7 +141,7 @@ fn arcbond_keeps_watched_recipient_separate_from_the_creating_spell() {
     assert!(old["Arcbond"].contains("delayed ability with separate source and watched object"), "{}", old["Arcbond"]);
     let new = cantrip::planned::with_additional_features(&["delayed-watched-source"], || modules(names())).unwrap();
     let output = &new["Arcbond"];
-    assert!(output.contains("DelayedWhen::ThisTurnWatching(watched), item.object"), "{output}");
+    assert!(output.contains("DelayedWhen::WatchingThisTurn, item.object"), "{output}");
     assert!(output.contains("q.chars(id).is(CardType::Creature) && !(item.subject.object() == Some(id))"), "{output}");
     assert!(output.contains("let source_2 = { let q: &dyn Query = g; item.subject.object() }"), "{output}");
 }

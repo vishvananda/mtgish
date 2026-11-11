@@ -22,6 +22,9 @@ fn card(name: &str) -> Card {
 /// Where nested builds of generated crates go: under this build's target, so a
 /// separate worktree does not share or contend for one Cantrip build.
 fn generated_target() -> PathBuf {
+    if let Some(target) = std::env::var_os("MTGISH_CANTRIP_TARGET") {
+        return PathBuf::from(target);
+    }
     std::env::var_os("CARGO_TARGET_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir)

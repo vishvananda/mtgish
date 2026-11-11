@@ -1750,6 +1750,20 @@ impl Compiler {
     /// the rest on the bottom": one question (Cantrip's `look_at_top`), the cards
     /// going to each place, not a choice and then an order. Whether `group` was it.
     pub(super) fn dig(&mut self, group: &Program, out: &mut String) -> Result<bool> {
+        // Recognizing an optimized group must not bind a chooser when the
+        // ordinary instruction compiler will handle that group instead.
+        let present = self.present.borrow().clone();
+        let picked = self.picked.borrow().clone();
+        let mark = out.len();
+        let result = self.dig_attempt(group, out);
+        if matches!(result, Ok(false)) {
+            self.present.replace(present);
+            *self.picked.borrow_mut() = picked;
+            out.truncate(mark);
+        }
+        result
+    }
+    fn dig_attempt(&mut self, group: &Program, out: &mut String) -> Result<bool> {
         if !effects::only_plain_moves(group) {
             return Ok(false);
         }

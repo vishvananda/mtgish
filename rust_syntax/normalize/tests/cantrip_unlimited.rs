@@ -78,7 +78,7 @@ fn nettling_imp_captures_the_same_target_once_for_testing_and_destroying() {
 fn earthbind_grants_an_existing_static_ability_definition() {
     let module = &modules()["Earthbind"];
     assert!(!module.contains("planned"), "{module}");
-    assert!(module.contains("granted_static_ability(Layer::Ability"), "{module}");
+    assert!(module.contains("AbilityDef::Static(static_ability(Layer::Ability"), "{module}");
     assert!(module.contains("EffectKind::AddAbility(AbilityRef::delayed("), "{module}");
 }
 

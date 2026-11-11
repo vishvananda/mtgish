@@ -1277,7 +1277,9 @@ impl Compiler {
                         }
                         ("DelayedWhen::WhenEvent", "Target::Object(watched)")
                     } else {
-                        ("DelayedWhen::ThisTurnWatching(watched)", "Target::None")
+                        if planned::switched_on("delayed-watched-subject") {
+                            ("DelayedWhen::WatchingThisTurn", "Target::Object(watched)")
+                        } else { ("DelayedWhen::ThisTurnWatching(watched)", "Target::None") }
                     };
                     let code = format!("if let Some(watched) = {source} {{ g.delayed_trigger({when}, {maker}, {controller}, {ability}, {target}); }}");
                     self.plan_switched(

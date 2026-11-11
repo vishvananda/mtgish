@@ -21,7 +21,7 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Extrapolate the Impossible", ".with(cantrip_mechanics::select::DIFFERENT_NAMES))?", true),
     ("Extrapolate the Impossible", "if picked_1.len() == 2 { picked_1 } else { Vec::new() }", true),
     ("Extrapolate the Impossible", "g.reveal(owner, &cards)", true),
-    ("Extrapolate the Impossible", "(carried_5_0,) = (selected_4.clone(),);", true),
+    ("Extrapolate the Impossible", "(carried_5_0, carried_5_1,) = (selected_4.clone(), Some(selected_4_player),);", true),
     ("Extrapolate the Impossible", "g.bring_into_hand_revealed(&outside)", true),
     // "Then puts all cards revealed this way into their graveyard": every
     // opponent's revealed cards, moved together once.

@@ -76,6 +76,15 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("damage-loyalty-floor", "pub fn leave_loyalty(&mut self, minimum: u32)", &["damage-loyalty-floor"]),
     ("creation-exile-links", "fn creation_linked_exiled(&self, source: ObjectId) -> Vec<ObjectId>;", &["noncopiable-creation-exile-links"]),
     ("state-trigger-player-capture", "fn state_triggered_with_player(", &["state-trigger-player-capture"]),
+    ("event-object-capture", "fn when_asked_with_other_object(", &["trigger-time-secondary-object-capture"]),
+    ("left-battlefield-receipts", "pub struct LeftBattlefield {", &[]),
+    ("delayed-watched-subject", "WatchingThisTurn,", &[]),
+    ("core-riot", "pub riot: bool,", &[]),
+    ("exile-cast-fields", "ExileCast", &[]),
+    ("permanent-cost-exclusions", "pub excluded: Option<ObjectId>,", &[]),
+    ("spell-alternative-kinds", "SpellAlternative", &[]),
+    ("multi-zone-search", "search_zone_and_or_library", &[]),
+    ("job-select-token", "pub static HERO_1_1_COLORLESS:", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";
@@ -84,9 +93,9 @@ pub(super) const LASTING_RULES: &str = "lasting-rules";
 // One bit per SWITCHED entry, or NO_STAND_IN.
 std::thread_local! {
     // A test's profile must not change concurrent generation using the snapshot.
-    static STAND_IN: std::cell::Cell<u32> = const { std::cell::Cell::new(NO_STAND_IN) };
+    static STAND_IN: std::cell::Cell<u64> = const { std::cell::Cell::new(NO_STAND_IN) };
 }
-const NO_STAND_IN: u32 = u32::MAX;
+const NO_STAND_IN: u64 = u64::MAX;
 
 /// Writes as if the pinned Cantrip had exactly the `SWITCHED` features
 /// `features` while `f` runs, one caller at a time. For tests only: the
@@ -127,8 +136,8 @@ pub fn without_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
     with_features(&remaining, f)
 }
 
-fn in_features<R>(bits: u32, f: impl FnOnce() -> R) -> R {
-    struct Restore(u32);
+fn in_features<R>(bits: u64, f: impl FnOnce() -> R) -> R {
+    struct Restore(u64);
     impl Drop for Restore {
         fn drop(&mut self) {
             STAND_IN.with(|stand_in| stand_in.set(self.0));

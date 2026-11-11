@@ -1384,12 +1384,10 @@ impl Compiler {
                 };
                 let mut arms = Vec::new();
                 for (i, filter) in filters.iter().enumerate() {
-                    let pattern = match i + 1 == filters.len() {
-                        true => "_".to_string(),
-                        false => i.to_string(),
-                    };
+                    let pattern = i.to_string();
                     arms.push(format!("{pattern} => {}", self.filter(filter, c)?));
                 }
+                arms.push("_ => false".to_string());
                 format!("match {local} {{ {} }}", arms.join(", "))
             }
             ObjectFilter::ProtectedBy(players) => format!(

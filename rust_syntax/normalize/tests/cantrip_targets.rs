@@ -55,7 +55,7 @@ const CARDS: &[(&str, &str)] = &[
     ("Adipose Offspring", "original_spell("),
     ("Dralnu's Pet", "original_spell("),
     // How many it sacrificed, kept with the text that reads it.
-    ("Wood Elemental", "entering.chosen_number = Some(sacrificed_"),
+    ("Wood Elemental", "entering.chosen_number = Some(done_permanent_count_sacrificed_"),
     // Each opponent discards at once, and what they discarded is read by whose.
     ("Kroxa, Titan of Death's Hunger", "discard_together("),
     // A spell that deals damage once dealt damage that way to what it dealt it to.

@@ -3190,19 +3190,23 @@ impl Compiler {
             _ => return Err(gap("play permission for another cost")),
         };
         let mut any_type = false;
+        let mut any_color = false;
         let mut extra = String::new();
         match &terms.spend_as {
             None => {}
             Some(SpendAs::AnyType) => any_type = true,
             Some(SpendAs::AnyColor) => {
-                feature = Some("play permission with mana as though any color");
-                extra.push_str(", any_color: true");
+                any_color = true;
+                if !planned::switched_on("exile-cast-fields") {
+                    feature = Some("play permission with mana as though any color");
+                }
             }
             Some(other) => {
                 feature = Some("play permission with one mana as though any color");
                 write!(extra, ", spend_as: SpendAs::{}", form(other)).unwrap();
             }
         }
+        extra.push_str(&native_api::exile_cast_fields(any_color));
         let text = if lands {
             "Play from exile"
         } else {
@@ -3311,7 +3315,7 @@ impl Compiler {
             &format!("{label}_applies"),
             ("q: &dyn Query, asker: &Asker, spell: ObjectId, player: PlayerId", "q, asker, spell, player", "bool"),
             &body,
-            |applies| format!("SpellAlternative {{ text: \"{text}\", applies: {applies}, cost: {cost}, flash: {flash} }}"),
+            |applies| format!("SpellAlternative {{ text: \"{text}\", applies: {applies}, cost: {cost}, flash: {flash}{} }}", native_api::alternative_fields()),
             parts,
         );
         Ok(())
@@ -3578,7 +3582,7 @@ impl Compiler {
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId) -> bool {{ card == asker.source && player == asker.controller{test} }}").unwrap();
                 parts.table(
                     "exile_casts",
-                    format!("ExileCast {{ text: \"Cast from exile\", allows: {function}, additional: Cost::NONE, any_type: false, lands: false, life_for_mana_value: false, instead: None }}"),
+                    format!("ExileCast {{ text: \"Cast from exile\", allows: {function}, additional: Cost::NONE, any_type: false, lands: false, life_for_mana_value: false, instead: None{} }}", native_api::exile_cast_fields(false)),
                 );
                 Ok(())
             }

@@ -1,6 +1,6 @@
 // Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.
 // These names are inert metadata, never behavior.
-pub const API_FINGERPRINT: &str = "c00a0b9a4edcbeba8fff086c0cb3f5a8292d77f5fe0c93e4673a4365dfc9c792";
+pub const API_FINGERPRINT: &str = "31d0e482b00c413d94f371d6cde3b468b35221d47f0ca6d5cf90c64ee2612bff";
 pub const SUBTYPES: &[&str] = &[
     "Adventure",
     "Advisor",
@@ -505,6 +505,10 @@ pub const SUBTYPES: &[&str] = &[
     "Vorta",
     "Xindi",
     "Melkotian",
+    "Brikar",
+    "JemHadar",
+    "Talaxian",
+    "Communicator",
 ];
 pub const KEYWORDS: &[&str] = &[
     "Flying",
@@ -564,6 +568,7 @@ pub const KEYWORDS: &[&str] = &[
     "Mutate",
     "ReadAhead",
     "AssignsDamageByToughness",
+    "Suspend",
     "SnowPlainswalk",
     "SnowIslandwalk",
     "SnowSwampwalk",
@@ -639,6 +644,7 @@ pub const COUNTERS: &[&str] = &[
     "Conqueror",
     "Film",
     "Peace",
+    "Mire",
     "Wind",
     "Hatchling",
     "Sleep",
@@ -670,5 +676,6 @@ pub const LASTING_RULE_KINDS: &[&str] = &[
     "MustAttack",
     "MustAttackPlayerOtherThanYou",
     "DoesntUntap",
+    "CantAttackYou",
 ];
-pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "divide-reads-context", "typed-prevention-amount", "32-bit-effect-quantities", "snow-mana", "non-target-attachment-hosts", "simultaneous-replacement-damage", "target-original-context", "delayed-watched-source", "multiple-blocks", "cost-object-receipts", "game-draw-legality"];
+pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "divide-reads-context", "typed-prevention-amount", "32-bit-effect-quantities", "snow-mana", "non-target-attachment-hosts", "simultaneous-replacement-damage", "target-original-context", "delayed-watched-source", "multiple-blocks", "cost-object-receipts", "game-draw-legality", "left-battlefield-receipts", "delayed-watched-subject", "core-riot", "exile-cast-fields", "permanent-cost-exclusions", "spell-alternative-kinds", "multi-zone-search", "job-select-token"];

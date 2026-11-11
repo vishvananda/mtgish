@@ -191,3 +191,98 @@ fn explicit_secondary_capture_does_not_turn_into_a_damage_recipient_alias() {
         );
     });
 }
+
+#[cfg(feature = "cantrip")]
+fn future_code(card: &Card) -> String {
+    mtgish_ast::cantrip::planned::with_additional_features(&["event-object-capture"], || {
+        mtgish_ast::cantrip::module(card)
+    }).unwrap()
+}
+
+#[cfg(feature = "cantrip")]
+#[test]
+fn future_capture_preserves_the_original_event_payload_and_never_requeries_the_host() {
+    corpus::on_large_stack(|| {
+        let card = vampire();
+        let code = future_code(&card.faces[0]);
+        syn::parse_file(&code).unwrap();
+        assert!(code.contains("when_asked_with_other_object("), "{code}");
+        assert!(code.contains("Option<(Fired, Option<ObjectId>)>"), "{code}");
+        assert!(code.contains("Some((Fired { subject, data }, captured_other))"), "{code}");
+        assert!(code.contains("q.attached_to(o)"), "use the matching view, including look-back: {code}");
+        assert!(code.contains("item.event_other_object()"), "{code}");
+        let resolve = code.split("fn ability_2(g:").nth(1).unwrap().split("pub static CARD:").next().unwrap();
+        assert!(!resolve.contains("attached_to"), "{resolve}");
+        assert!(!code.contains("planned_value!"), "{code}");
+        assert!(mtgish_ast::cantrip::planned::with_additional_features(&["creation-exile-links"], || {
+            mtgish_ast::cantrip::module(&card.faces[0])
+        }).is_err());
+        if let Ok(path) = std::env::var("MTGISH_CAPTURE_MODULE") {
+            std::fs::write(path, &code).unwrap();
+        }
+    });
+}
+
+#[cfg(feature = "cantrip")]
+#[test]
+fn capture_is_available_to_match_conditions_and_target_filters() {
+    corpus::on_large_stack(|| {
+        let mut card = vampire().faces.remove(0);
+        let Ability::Triggered { intervening_if, announcement, .. } = &mut card.abilities[2] else { panic!() };
+        *intervening_if = Some(Condition::ObjectMatches { object: ObjectRef::EventOther, filter: ObjectFilter::Name("Host".into()) });
+        announcement.targets.push(TargetSpec { slot: TargetSlot(0), kind: TargetKind::Object(ObjectDomain::permanent()), count: Count::Exactly(Expr::Constant(1)), filter: ObjectFilter::SameObject(ObjectRef::EventOther), players: None, distribute: None, constraints: vec![], chooser: None });
+        validate::card(&card).unwrap();
+        let code = future_code(&card);
+        syn::parse_file(&code).unwrap();
+        assert!(code.contains("captured_other.is_some_and("), "{code}");
+        assert!(code.contains("q.event_other_object()"), "{code}");
+        assert!(code.contains("item.event_other_object()"), "{code}");
+    });
+}
+
+#[cfg(feature = "cantrip")]
+#[test]
+#[ignore = "type-check exact future API against MTGISH_CANTRIP_DIR; does not implement engine capture"]
+fn future_capture_contract_typechecks() {
+    use std::{fs, path::PathBuf, process::Command};
+    let checkout = PathBuf::from(std::env::var_os("MTGISH_CANTRIP_DIR").unwrap());
+    let root = PathBuf::from(std::env::var_os("MTGISH_CAPTURE_PROBE").unwrap());
+    fs::create_dir_all(root.join("src")).unwrap();
+    let mut manifest = "[package]\nname=\"mtgish-capture-contract\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\n".to_string();
+    for dep in ["cantrip-api", "cantrip-mechanics"] {
+        manifest.push_str(&format!("{dep}={{path={:?}}}\n", checkout.join("crates").join(dep)));
+    }
+    fs::write(root.join("Cargo.toml"), manifest).unwrap();
+    let contract = r#"
+mod contract {
+    use cantrip_api::*;
+    pub trait PlannedStackCapture { fn event_other_object(&self) -> Option<ObjectId>; }
+    impl PlannedStackCapture for StackItem {
+        fn event_other_object(&self) -> Option<ObjectId> { unimplemented!("compile-only contract") }
+    }
+    pub trait PlannedQueryCapture { fn event_other_object(&self) -> Option<ObjectId>; }
+    impl<T: Query + ?Sized> PlannedQueryCapture for T {
+        fn event_other_object(&self) -> Option<ObjectId> { unimplemented!("compile-only contract") }
+    }
+    pub const fn when_asked_with_other_object(_mask: EventMask,
+        _matches: fn(&dyn Query, &Asker, &Event) -> Option<(Fired, Option<ObjectId>)>) -> Trigger {
+        fn disabled(_: &dyn Query, _: &Asker, _: &Event) -> Option<Fired> { None }
+        when_asked(EventMask(0), disabled)
+    }
+}
+"#;
+    let mut lib = format!("#![allow(dead_code, unused_imports, unused_variables, unused_mut, unused_parens)]\n{contract}\n");
+    corpus::on_large_stack(|| {
+        let card = vampire().faces.remove(0);
+        lib.push_str(&format!("mod vampiric {{ use crate::contract::*; {} }}", future_code(&card)));
+        let mut guarded = card;
+        let Ability::Triggered { intervening_if, announcement, .. } = &mut guarded.abilities[2] else { panic!() };
+        *intervening_if = Some(Condition::ObjectMatches { object: ObjectRef::EventOther, filter: ObjectFilter::Name("Host".into()) });
+        announcement.targets.push(TargetSpec { slot: TargetSlot(0), kind: TargetKind::Object(ObjectDomain::permanent()), count: Count::Exactly(Expr::Constant(1)), filter: ObjectFilter::SameObject(ObjectRef::EventOther), players: None, distribute: None, constraints: vec![], chooser: None });
+        lib.push_str(&format!("mod guarded {{ use crate::contract::*; {} }}", future_code(&guarded)));
+    });
+    fs::write(root.join("src/lib.rs"), lib).unwrap();
+    let output = Command::new("cargo").args(["check", "--manifest-path"]).arg(root.join("Cargo.toml"))
+        .env("CARGO_TARGET_DIR", std::env::var_os("MTGISH_CANTRIP_TARGET").unwrap()).output().unwrap();
+    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+}

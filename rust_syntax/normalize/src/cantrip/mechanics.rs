@@ -244,7 +244,7 @@ impl Compiler {
                     return Err(gap("Emerge cost other than mana"));
                 };
                 let creature = "cantrip_mechanics::targets::filters::creature";
-                parts.table("ways", format!("way(Cost {{ mana: {}, permanents: Some(PermanentCost {{ count: 1, filter: {creature}, action: PermanentAction::Sacrifice, tapped: false }}), emerge: true, ..Cost::NONE }}, ZoneKind::Hand, \"Emerge\")", mana(symbols)?));
+                parts.table("ways", format!("way(Cost {{ mana: {}, permanents: Some(PermanentCost {{ count: 1, filter: {creature}, action: PermanentAction::Sacrifice, tapped: false{} }}), emerge: true, ..Cost::NONE }}, ZoneKind::Hand, \"Emerge\")", mana(symbols)?, native_api::permanent_cost_fields()));
             }
             // "Emerge from artifact": an artifact sacrificed, as Crabomination prints it.
             K::EmergeFromArtifact => {
@@ -253,7 +253,7 @@ impl Compiler {
                 };
                 let artifact = "cantrip_mechanics::targets::filters::artifact";
                 let text = quoted(&self.said_word(format!("{mechanic:?}")));
-                parts.table("ways", format!("way(Cost {{ mana: {}, permanents: Some(PermanentCost {{ count: 1, filter: {artifact}, action: PermanentAction::Sacrifice, tapped: false }}), emerge: true, ..Cost::NONE }}, ZoneKind::Hand, {text})", mana(symbols)?));
+                parts.table("ways", format!("way(Cost {{ mana: {}, permanents: Some(PermanentCost {{ count: 1, filter: {artifact}, action: PermanentAction::Sacrifice, tapped: false{} }}), emerge: true, ..Cost::NONE }}, ZoneKind::Hand, {text})", mana(symbols)?, native_api::permanent_cost_fields()));
             }
             K::Banding | K::SplitSecond | K::Decayed | K::Retrace | K::Phasing => {
                 parts.keywords.push(format!("Keyword::{mechanic:?}"));
@@ -298,7 +298,7 @@ impl Compiler {
             }
             K::JobSelect => {
                 constant(parts, "job_select::JOB_SELECT");
-                self.extras.push(format!("{M}::job_select::HERO"));
+                self.extras.push(if planned::switched_on("job-select-token") { format!("{M}::tokens::HERO_1_1_COLORLESS") } else { format!("{M}::job_select::HERO") });
             }
             K::LivingWeapon => {
                 ability(parts, format!("triggered({M}::triggers::THIS_ENTERS, {M}::attach::living_weapon, \"Living weapon\")"));
@@ -548,6 +548,7 @@ impl Compiler {
                 parts.enters.push(format!("{M}::ravenous::enters"));
                 ability(parts, format!("{M}::ravenous::draw_trigger(\"Ravenous\")"));
             }
+            K::Riot if planned::switched_on("core-riot") => { parts.field("riot", "true".into()); }
             K::Riot => {
                 let function = format!("{label}_riot");
                 writeln!(self.functions, "fn {function}(g: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ {M}::riot::enters(g, entering, &CARD) }}").unwrap();

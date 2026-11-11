@@ -236,8 +236,8 @@ impl Compiler {
                 parts.table(
                     "spell_alternatives",
                     format!(
-                        "SpellAlternative {{ text: {}, applies: {function}, cost: {instead}, flash: false }}",
-                        quoted(&text)
+                        "SpellAlternative {{ text: {}, applies: {function}, cost: {instead}, flash: false{} }}",
+                        quoted(&text), native_api::alternative_fields()
                     ),
                 );
             }

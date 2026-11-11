@@ -15,5 +15,5 @@ fn upkeep_anaphor_uses_trigger_host_but_explicit_host_stays_dynamic() {
     assert!(effect.contains("item.subject.object()"), "{effect}");
     let dynamic = render(&dynamic);
     let effect = dynamic.split("fn ability_1(g:").nth(1).unwrap();
-    assert!(effect.contains("q.state().obj(o).attached_to"), "{effect}");
+    assert!(effect.contains("q.attached_to(o)"), "{effect}");
 }

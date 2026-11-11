@@ -37,7 +37,7 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("The Mind Stone", "g.add_effect(object, object, EffectKind::Harnessed, Duration::Indefinite)", true),
     ("The Soul Stone", "g.add_effect(object, object, EffectKind::Harnessed, Duration::Indefinite)", true),
     // Emerge from artifact.
-    ("Crabomination", "filter: cantrip_mechanics::targets::filters::artifact, action: PermanentAction::Sacrifice, tapped: false }), emerge: true", true),
+    ("Crabomination", "filter: cantrip_mechanics::targets::filters::artifact, action: PermanentAction::Sacrifice, tapped: false, excluded: None }), emerge: true", true),
     // Tap creatures rather than pay mana.
     ("Heirloom Epic", ".tap_creatures_for_mana()", true),
     // Held by other forms; the landed part.

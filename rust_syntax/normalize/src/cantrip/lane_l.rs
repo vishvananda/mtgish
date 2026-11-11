@@ -1133,6 +1133,7 @@ impl Compiler {
             } => {
                 let keep = self.number(keep)?.amount(u32::MAX.into(), "u32")?;
                 writeln!(out, "let objects_{id} = {}; let keep_{id} = {}; let mut picks_{id}: Vec<(PlayerId, ObjectId)> = Vec::new(); for player in {} {{ let own: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player).collect(); if own.len() as u32 <= keep_{id} {{ continue; }} let kept = if keep_{id} == 0 {{ Vec::new() }} else {{ {M}::choose::select(g, player, asker.source, Purpose::Keep, own.clone(), {M}::select::Selection::of({M}::select::Count::AsManyAsCan(keep_{id}), &[]))? }}; for o in own {{ if !kept.contains(&o) && g.can_sacrifice(player, o) {{ picks_{id}.push((player, o)); }} }} }} let sacrificed_{id} = g.sacrifice_each(&picks_{id});", self.fetch(self.objects(objects)?), self.fetch(keep), self.fetch(self.players(players)?)).unwrap();
+                self.departure_views(result, &format!("sacrificed_{id}"), out);
                 self.moved.insert(result.0, format!("sacrificed_{id}"));
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
             }
@@ -1974,6 +1975,7 @@ impl Compiler {
                 let player = self.fetch(self.certain_player(player)?);
                 self.sacrifice_slots(id, &player, &slots, out)?;
                 writeln!(out, "let sacrificed_{id} = g.sacrifice(player_{id}, &chosen_{id});").unwrap();
+                self.departure_views(result, &format!("sacrificed_{id}"), out);
                 self.moved.insert(result.0, format!("sacrificed_{id}"));
                 self.left_behind(result, effects::gone(&format!("chosen_{id}")));
             }
@@ -2320,7 +2322,7 @@ impl Compiler {
                 let player = self.one_actor(actor, &feature)?;
                 let objects = self.fetch(self.objects(objects)?);
                 writeln!(out, "let separator_{id} = {player}; let cards_{id} = {objects}; let (face_down_{id}, face_up_{id}) = {M}::choose::separate_face_down_and_face_up(g, separator_{id}, asker.source, cards_{id})?;").unwrap();
-                self.face_piles = Some(id);
+                self.face_piles = Some((format!("face_down_{id}"), format!("face_up_{id}")));
             }
             // "Separates them into two piles" (CR 700.3a): the separator puts each
             // pile together from what is left, so any of them may be empty (CR
@@ -2388,7 +2390,7 @@ impl Compiler {
                 object: None,
                 then: Some(Destination::OwnersHand),
             } if names.is_empty() && self.face_piles.is_some() => {
-                let piles = self.face_piles.take().unwrap_or_default();
+                let (down, up) = self.face_piles.take().expect("face piles checked above");
                 let chooser = match actor {
                     PlayerSet::One(player) => format!(
                         "let chooser_{id} = {};",
@@ -2401,7 +2403,7 @@ impl Compiler {
                     }
                     _ => return Err(gap(feature)),
                 };
-                writeln!(out, "if !(face_down_{piles}.is_empty() && face_up_{piles}.is_empty()) {{ {chooser} let (keep_{id}, _) = {M}::choose::face_down_or_face_up_pile(g, chooser_{id}, asker.source, face_down_{piles}, face_up_{piles}.clone())?; if keep_{id} == face_up_{piles} {{ g.return_to_hand_revealed(&keep_{id}); }} else {{ g.return_to_hand(&keep_{id}); }} }}").unwrap();
+                writeln!(out, "if !({down}.is_empty() && {up}.is_empty()) {{ {chooser} let (keep_{id}, _) = {M}::choose::face_down_or_face_up_pile(g, chooser_{id}, asker.source, {down}, {up}.clone())?; if keep_{id} == {up} {{ g.return_to_hand_revealed(&keep_{id}); }} else {{ g.return_to_hand(&keep_{id}); }} }}").unwrap();
             }
             // "For each opponent, you choose one of their piles", "each player
             // chooses one of their piles at random", "exile one of those piles": a

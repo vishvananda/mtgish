@@ -68,8 +68,19 @@ def switched_features():
     if wide and bounded_32:
         raise ValueError("conflicting native quantity profiles")
     typed_prevention = typed_prevention_present(checkout, wide=wide, bounded_32=bounded_32)
+    def has_fields(owner, fields):
+        match = re.search(r'pub struct ' + owner + r'\s*\{(.*?)^\}', api, re.M | re.S)
+        return bool(match) and all(re.search(r'pub\s+' + field + r'\s*:', match[1]) for field in fields)
+    capture_api = ('fn when_asked_with_other_object(' in api
+                   and 'fn event_other_object(&self)' in (checkout/'crates/cantrip-api/src/game.rs').read_text()
+                   and 'fn event_other_object(&self)' in (state/'object.rs').read_text())
     return [name for name, shown in entries
-            if (wide if name == FEATURE else
+            if (capture_api if name == 'event-object-capture' else
+                has_fields('ExileCast', ['from', 'any_color']) if name == 'exile-cast-fields' else
+                has_fields('SpellAlternative', ['kind']) if name == 'spell-alternative-kinds' else
+                bool(re.search(r'pub fn search_zone_and_or_library\s*\([^)]*zones:\s*&\[Zone\]', api, re.S)) if name == 'multi-zone-search' else
+                ('ThisTurnWatching(ObjectId)' in api or 'WatchingThisTurn,' in api) if name == 'delayed-watched-source' else
+                wide if name == FEATURE else
                 bounded_32 if name == BOUNDED_32 else
                 typed_prevention if name == 'typed-prevention-amount' else
                 creation_links if name == 'creation-exile-links' else

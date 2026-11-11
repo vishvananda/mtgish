@@ -129,7 +129,7 @@ fn searing_blood_keeps_the_creating_spell_and_watched_creature_distinct() {
     assert!(old[0].1.contains("delayed ability with separate source and watched object"), "{}", old[0].1);
     let new = cantrip::planned::with_additional_features(&["delayed-watched-source"], || cantrip::modules_named(&corpus, &names())).unwrap();
     let output = &new[0].1;
-    assert!(output.contains("DelayedWhen::ThisTurnWatching(watched), item.object"), "{output}");
+    assert!(output.contains("DelayedWhen::WatchingThisTurn, item.object"), "{output}");
     assert!(output.contains("item.subject.object().map(|o: ObjectId| q.controller(o))"), "{output}");
     let effect = output.split("fn watch_3(g:").nth(1).unwrap().split("fn ability_0(").next().unwrap();
     assert!(effect.contains("Some(asker.source)"), "{effect}");

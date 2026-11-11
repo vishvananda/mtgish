@@ -87,6 +87,8 @@ pub(super) struct History {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Carried {
     Subject,
+    /// A separately frozen object, independent of the two legacy payload words.
+    CapturedObject,
     Data(usize),
     /// The stack position in the high bits of `data[i]`: what was put on the
     /// stack as the event happened.
@@ -358,7 +360,7 @@ impl Compiler {
             EventAt::Nowhere => return Err(gap("event value outside its ability")),
         };
         match carried {
-            Carried::Subject => Ok((subject, data)),
+            Carried::Subject | Carried::CapturedObject => Ok((subject, data)),
             Carried::Data(_) | Carried::Position(_) if data.is_empty() => Ok((
                 subject,
                 planned::planned_value(
@@ -371,6 +373,16 @@ impl Compiler {
         }
     }
     pub(super) fn carried_object(&self, carried: Option<Carried>) -> Result<String> {
+        if carried == Some(Carried::CapturedObject) {
+            let code = match self.event_at {
+                EventAt::Matcher if self.history.is_some() => "outer_captured_other",
+                EventAt::Matcher => "captured_other",
+                EventAt::Item => "item.event_other_object()",
+                EventAt::TargetFilter => "q.event_other_object()",
+                _ => return Err(gap("captured event object outside its trigger")),
+            };
+            return Ok(planned::planned_value(event_capture::FEATURE, "None::<ObjectId>", code));
+        }
         // What is entering is what a replacement of its entering is about.
         if let (EventAt::Nowhere, None, Some(Carried::Subject), Some(object)) =
             (self.event_at, &self.outer, carried, &self.event_object)
@@ -387,7 +399,7 @@ impl Compiler {
             Carried::Data(i) => {
                 format!("Some(ObjectId({data}[{i}])).filter(|o| *o != ObjectId::NONE)")
             }
-            Carried::Position(_) => return Err(gap("event object this trigger does not bind")),
+            Carried::Position(_) | Carried::CapturedObject => return Err(gap("event object this trigger does not bind")),
         })
     }
     /// `Target`: the ability on the stack an activation event is about.
@@ -401,6 +413,7 @@ impl Compiler {
                 "Target::Ability(q.state().stack.get(({data}[{i}] >> 8) as usize).map_or(u32::MAX, |e| e.serial))"
             ))),
             Carried::Subject => Ok(subject.to_string()),
+            Carried::CapturedObject => Err(gap("captured object is not a stack ability")),
         }
     }
     pub(super) fn carried_player(&self, carried: Option<Carried>) -> Result<String> {
@@ -413,7 +426,7 @@ impl Compiler {
         Ok(match carried {
             Carried::Subject => format!("{subject}.player()"),
             Carried::Data(i) => format!("Some(PlayerId({data}[{i}] as u8))"),
-            Carried::Position(_) => return Err(gap("event player this trigger does not bind")),
+            Carried::Position(_) | Carried::CapturedObject => return Err(gap("event player this trigger does not bind")),
         })
     }
     /// `Option<Target>` of a target announced ahead of the slot whose filter is
@@ -540,8 +553,15 @@ impl Compiler {
                 self.carried_object(self.frame.object)?
             }
             ObjectRef::AttachedTo(host) => format!(
-                "{}.and_then(|o: ObjectId| q.state().obj(o).attached_to)",
-                self.object(host)?
+                "{}.and_then(|o: ObjectId| {})",
+                self.object(host)?,
+                if self.reader == Reader::Layer {
+                    "q.state().obj(o).attached_to"
+                } else {
+                    // Query may represent the battlefield before the triggering
+                    // batch. It also rejects stale attachment incarnations.
+                    "q.attached_to(o)"
+                }
             ),
             ObjectRef::Target { slot, index } if self.stack_slot(slot) => {
                 return self.stack_object(slot, *index)
@@ -657,7 +677,7 @@ impl Compiler {
                         || self.event_at == EventAt::Entering
                             && matches!(**object, ObjectRef::EventSubject)) =>
             {
-                "Some(entering.controller)".into()
+                if self.reader == Reader::Resolution { "Some(entering.controller)" } else { "Some(asker.controller)" }.into()
             }
             PlayerRef::ControllerOf(object)
                 if matches!(**object, ObjectRef::EventStackObject)
@@ -1671,7 +1691,7 @@ impl Compiler {
                     None => answer,
                 };
                 let answer = if self.event_at == EventAt::Matcher {
-                    format!("{{ let (outer_subject, outer_data) = (subject, data); {answer} }}")
+                    format!("{{ let (outer_subject, outer_data) = (subject, data); {} {answer} }}", if self.frame.other == Some(Carried::CapturedObject) { "let outer_captured_other = captured_other;" } else { "" })
                 } else {
                     answer
                 };
@@ -2311,7 +2331,7 @@ impl Compiler {
                 planned::planned_value(
                     "blocking status after attacker leaves combat",
                     &format!("q.state().blocks.iter().any(|b| b.blocker == {id})"),
-                    &format!("q.is_blocking({id})"),
+                    &if self.reader == Reader::Layer { format!("q.state().blockers.contains(&{id})") } else { format!("q.is_blocking({id})") },
                 )
             }
             ObjectFilter::HasKeyword(Keyword::Flanking) if self.reader != Reader::Layer => {

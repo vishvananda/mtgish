@@ -2205,6 +2205,7 @@ impl Compiler {
                     "let sacrificed_{local} = g.sacrifice_each(&gathered_{local});"
                 )
                 .unwrap();
+                self.departure_views(&result, &format!("sacrificed_{local}"), out);
                 self.moved.insert(result.0, format!("sacrificed_{local}"));
                 let objects = format!(
                     "gathered_{local}.iter().map(|pick| pick.1).collect::<Vec<ObjectId>>()"
@@ -4124,7 +4125,8 @@ impl Compiler {
             let (zone, word, title) = zone_of(zone, &format!("searcher_{id}"))?;
             writeln!(self.functions, "static ASK_{id}: Question = Question::new(\"SearchLibrary\", \"search your library as well as your {word}?\", \"Then shuffle. If you don't, you search only your {word}\", \"Search both\", \"{title} only\");").unwrap();
             let count = self.fetch(self.select_count(&choice.count)?);
-            writeln!(out, "let rule_count_{id} = {count}; let zone_{id} = {zone}; let mut shown_{id} = {LIBRARY}::searched_cards(g, searcher_{id}); shown_{id}.extend(g.state().zone(zone_{id}).iter().copied()); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let (found_{id}, searched_{id}) = {LIBRARY}::search_zone_and_or_library(g, searcher_{id}, asker.source, zone_{id}, SearchDestination::{destination}, Purpose::{purpose}, &ASK_{id}, {SELECTION}::listed(rule_count_{id}, &shown_{id}, can_{id}))?;").unwrap();
+            let zones = if planned::switched_on("multi-zone-search") { format!("&[zone_{id}]") } else { format!("zone_{id}") };
+            writeln!(out, "let rule_count_{id} = {count}; let zone_{id} = {zone}; let mut shown_{id} = {LIBRARY}::searched_cards(g, searcher_{id}); shown_{id}.extend(g.state().zone(zone_{id}).iter().copied()); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let (found_{id}, searched_{id}) = {LIBRARY}::search_zone_and_or_library(g, searcher_{id}, asker.source, {zones}, SearchDestination::{destination}, Purpose::{purpose}, &ASK_{id}, {SELECTION}::listed(rule_count_{id}, &shown_{id}, can_{id}))?;").unwrap();
             self.searched.insert(result.0, format!("searched_{id}"));
         } else {
             // One search, with the cards of each zone chosen in the order named:

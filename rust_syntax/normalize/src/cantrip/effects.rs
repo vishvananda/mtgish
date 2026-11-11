@@ -530,6 +530,7 @@ pub(super) fn plain_entry(entry: &dyn crate::movement::ArrivalView) -> bool {
 }
 
 /// The locals earlier instructions bound, keyed by the result that names them.
+#[derive(Clone)]
 pub(super) struct Results {
     pub(super) selections: BTreeMap<u32, String>,
     pub(super) pile_not_chosen: BTreeMap<u32, String>,
@@ -937,6 +938,8 @@ impl Compiler {
         let instruction = &body.instructions[i];
         let mark = out.len();
         let scope = self.results();
+        let picked_before = self.picked.borrow().clone();
+        let face_piles_before = self.face_piles.clone();
         let mut after = body.instructions[i + 1..].to_vec();
         after.extend_from_slice(&self.after);
         let around = std::mem::replace(&mut self.after, after);
@@ -949,6 +952,11 @@ impl Compiler {
                     out.truncate(mark);
                     c.gaps.truncate(gaps);
                     c.may_choose = may_choose;
+                    // Retry from the pre-instruction bindings, not the partial
+                    // state left by a failed nested program.
+                    c.restore_results(scope.clone());
+                    *c.picked.borrow_mut() = picked_before.clone();
+                    c.face_piles = face_piles_before.clone();
                     c.if_present(body, i, instruction, out)
                 }
                 compiled => compiled,
@@ -1209,7 +1217,7 @@ impl Compiler {
                     {
                         let player = self.fetch(self.certain_player(player)?);
                         let cards = self.fetch(self.objects(cards)?);
-                        writeln!(out, "cantrip_mechanics::choose::cast_any_number_free(g, {player}, asker.source, &{cards})?;").unwrap();
+                        writeln!(out, "let caster_{i} = {player}; let castable_{i} = {cards}; cantrip_mechanics::choose::cast_any_number_free(g, caster_{i}, asker.source, &castable_{i})?;").unwrap();
                         return Ok(());
                     }
                 }
@@ -1446,8 +1454,8 @@ impl Compiler {
                     }
                 ) {
                     let selector = format!("search_{id}_quality");
-                    writeln!(self.functions, "fn {selector}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ Verdict::each(choice, |id| {{ let asker = &Asker::new(choice.source, choice.player); {filter} }}) }}").unwrap();
-                    writeln!(out, "let found_{id} = cantrip_mechanics::library::search(g, {searcher}, {owner}, asker.source, SearchDestination::{destination}, cantrip_mechanics::select::Selection::new({count}).with(cantrip_api::select::part(&({selector} as SelectFn), 0, \"monocolored card\")){rules})?;").unwrap();
+                    writeln!(self.functions, "fn {selector}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ Verdict::each(choice, |id| {{ let asker = &Asker::new(choice.source, choice.chooser); {filter} }}) }}").unwrap();
+                    writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let search_count_{id} = {count}; let found_{id} = cantrip_mechanics::library::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, cantrip_mechanics::select::Selection::new(search_count_{id}).with(cantrip_api::select::part(&({selector} as SelectFn), 0, \"monocolored card\")){rules})?;").unwrap();
                     self.selections.insert(result.0, format!("found_{id}"));
                     self.searched.insert(result.0, "true".into());
                     return Ok(());
@@ -2345,6 +2353,7 @@ impl Compiler {
                     }
                 )
                 .unwrap();
+                self.departure_views(result, &format!("destroyed_{id}"), out);
                 self.moved.insert(result.0, format!("destroyed_{id}"));
                 // "If it dies this way": destroyed and sent elsewhere it didn't die (700.4).
                 let died = self.line_text().is_some_and(|line| {
@@ -4397,11 +4406,12 @@ impl Compiler {
     ) -> Result<()> {
         self.sacrifice_picks(id, players, objects, choose, out)?;
         writeln!(out, "let sacrificed_{id} = g.sacrifice_each(&picks_{id});").unwrap();
+        self.departure_views(result, &format!("sacrificed_{id}"), out);
         // Kept with the text that read it (CR 607.2d).
         if self.enters_sacrifices && self.pending == Pending::Entering {
             writeln!(
                 out,
-                "entering.chosen_number = Some(sacrificed_{id}.len() as u32);"
+                "entering.chosen_number = Some({} as u32);", self.performed.get(&result.0).cloned().unwrap_or_else(|| format!("sacrificed_{id}.len()"))
             )
             .unwrap();
         }
@@ -4486,60 +4496,18 @@ impl Compiler {
             other => return self.more_duration(other),
         })
     }
-    /// One instruction of the card's text: the IR keeps what one instruction
-    /// does in one payload, and `instruction` says so to the engine.
-    /// A resolving rule on a set that can still gain members (CR 611.2c). Cantrip
-    /// keeps exactly two of them, both "can't block this turn". Marking the set's
-    /// members now would let a creature that arrives later do what the rule
-    /// forbids, so anything else is the engine's gap and never a snapshot.
+    /// A resolving rule on a set that can still gain members (CR 611.2c).
+    /// Keep its predicate in LastingRuleDef, including for "can't block": a
+    /// creature that arrives later must obey the rule too.
     fn open_rule(
         &mut self,
-        id: usize,
+        _id: usize,
         source: &ObjectRef,
         affected: &EffectSubjects,
         changes: &[Change],
         duration: &crate::ir::Duration,
         out: &mut String,
     ) -> Result<()> {
-        use crate::mtg_types::CardType;
-        let no_blocks = matches!(
-            changes,
-            [Change::Rule(RuleChange::Prohibit(ObjectAction::Block(
-                ObjectFilter::Any
-            )))]
-        );
-        if no_blocks && matches!(duration, crate::ir::Duration::EndOfTurn) {
-            let creature =
-                |f: &ObjectFilter| matches!(f, ObjectFilter::CardType(CardType::Creature));
-            match affected {
-                EffectSubjects::Objects(crate::battlefield_query!(f)) if creature(f) => {
-                    writeln!(
-                        out,
-                        "cantrip_api::instruction(g, |g| g.creatures_cant_block());"
-                    )
-                    .unwrap();
-                    return Ok(());
-                }
-                EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::AllOf(filters)))
-                    if filters.len() == 2 && filters.iter().any(creature) =>
-                {
-                    if let Some(players) = filters.iter().find_map(|f| match f {
-                        ObjectFilter::ControlledBy(players) => Some(players),
-                        _ => None,
-                    }) {
-                        writeln!(
-                            out,
-                            "let players_{id} = {}; let source_{id} = {}; if let Some(source) = source_{id} {{ cantrip_api::instruction(g, |g| {{ for player in players_{id} {{ g.add_effect(source, source, EffectKind::CreaturesCantBlock(player), Duration::EndOfTurn); }} }}); }}",
-                            self.fetch(self.players(players)?),
-                            self.fetch(self.object(source)?),
-                        )
-                        .unwrap();
-                        return Ok(());
-                    }
-                }
-                _ => {}
-            }
-        }
         let EffectSubjects::Objects(affected) = affected else {
             return Err(gap("continuous effect on players"));
         };

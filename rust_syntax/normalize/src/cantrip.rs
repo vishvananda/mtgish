@@ -19,6 +19,7 @@ mod costs;
 mod delayed;
 mod effects;
 mod entry;
+mod event_capture;
 mod faces;
 mod first_printed;
 mod keywords;
@@ -35,6 +36,7 @@ mod lane_o;
 mod lane_p;
 mod lane_q;
 mod mechanics;
+mod native_api;
 mod option_words;
 pub mod planned;
 mod players;
@@ -191,6 +193,8 @@ fn generator_fingerprint() -> &'static str {
                 "cantrip/survey.rs",
                 include_bytes!("cantrip/survey.rs").as_slice(),
             ),
+            ("cantrip/event_capture.rs", include_bytes!("cantrip/event_capture.rs").as_slice()),
+            ("cantrip/native_api.rs", include_bytes!("cantrip/native_api.rs").as_slice()),
             (
                 "cantrip/triggers.rs",
                 include_bytes!("cantrip/triggers.rs").as_slice(),
@@ -449,7 +453,7 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
     hybrid.resize(6, "None".into());
     let literal = |snow_field: &str| {
         format!(
-        "ManaCost {{ generic: {generic}, x: {x}, symbols: {colors:?}, hybrid: [{}], twobrid: {twobrid:?}, phyrexian: {phyrexian:?}{snow_field} }}",
+        "ManaCost {{ generic: {generic}, x: {x}, symbols: {colors:?}, hybrid: [{}], twobrid: {twobrid:?}, phyrexian: {phyrexian:?}{snow_field}, ..ManaCost::ZERO }}",
         hybrid.join(",")
     )
     };
@@ -725,7 +729,7 @@ struct Compiler {
     /// By slot: who controlled the items an earlier step countered.
     countered: BTreeMap<u16, String>,
     /// The instruction that separated a face-down pile and a face-up pile.
-    face_piles: Option<usize>,
+    face_piles: Option<(String, String)>,
     /// An instruction exiled cards into piles ("in a face-down pile"), which
     /// a later choice of "those piles" reads.
     exiled_piles: bool,
@@ -2679,7 +2683,7 @@ const MODIFIED: &str = "fn modified(q: &dyn Query, id: ObjectId) -> bool { q.sta
 const COMMON_BY: &str = "fn common_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Verdict { let first = choice.selected.first().map(|&c| key(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(key(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| key(q, choice.candidates[i]) == k)) } }\nfn largest_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| key(q, b) == key(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 const COMMON_OWNER: &str = "fn owner_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.state().obj(id).owner }\nfn common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, owner_of) }\nfn largest_common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, owner_of) }\n";
 const COMMON_CONTROLLER: &str = "fn controller_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.controller(id) }\nfn common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, controller_of) }\nfn largest_common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, controller_of) }\n";
-const COMMON_TOUGHNESS: &str = "fn toughness_of(q: &dyn Query, id: ObjectId) -> i16 { q.chars(id).toughness.unwrap_or(0) }\nfn common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let first = choice.selected.first().map(|&c| toughness_of(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(toughness_of(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| toughness_of(q, choice.candidates[i]) == k)) } }\nfn largest_common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| toughness_of(q, b) == toughness_of(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
+const COMMON_TOUGHNESS: &str = "fn toughness_of(q: &dyn Query, id: ObjectId) -> i64 { i64::from(q.chars(id).toughness.unwrap_or(0)) }\nfn common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let first = choice.selected.first().map(|&c| toughness_of(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(toughness_of(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| toughness_of(q, choice.candidates[i]) == k)) } }\nfn largest_common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| toughness_of(q, b) == toughness_of(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 const NO_COMMON_CREATURE_TYPE: &str = "fn creature_types_of(q: &dyn Query, id: ObjectId) -> SubtypeSet { SubtypeSet::CREATURE_TYPES.minus(SubtypeSet::CREATURE_TYPES.minus(q.chars(id).subtypes)) }\nfn apart_in_type(q: &dyn Query, a: ObjectId, b: ObjectId) -> bool { !creature_types_of(q, a).intersects(creature_types_of(q, b)) }\nfn no_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let selected = choice.selected; Verdict { complete: selected.iter().enumerate().all(|(i, &a)| selected[..i].iter().all(|&b| apart_in_type(q, a, b))), addable: Bits::of(choice.candidates.len(), |i| selected.iter().all(|&b| apart_in_type(q, choice.candidates[i], b))) } }\nfn grow_apart_in_type(q: &dyn Query, left: &[ObjectId], have: &mut Vec<ObjectId>, best: &mut Vec<ObjectId>) { if have.len() > best.len() { *best = have.clone(); } if have.len() + left.len() <= best.len() { return; } for (i, &c) in left.iter().enumerate() { if have.iter().all(|&o| apart_in_type(q, o, c)) { have.push(c); grow_apart_in_type(q, &left[i + 1..], have, best); have.pop(); } } }\nfn largest_no_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { let mut best = Vec::new(); grow_apart_in_type(q, choice.candidates, &mut Vec::new(), &mut best); best }\n";
 const COMMON_CREATURE_TYPE: &str = "fn common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let common = choice.selected.iter().fold(SubtypeSet::CREATURE_TYPES, |common, &c| common.minus(common.minus(q.chars(c).subtypes))); Verdict { complete: choice.selected.is_empty() || !common.is_empty(), addable: Bits::of(choice.candidates.len(), |i| common.intersects(q.chars(choice.candidates[i]).subtypes)) } }\nfn largest_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { SubtypeSet::CREATURE_TYPES.iter().map(|t| choice.candidates.iter().copied().filter(|&c| q.chars(c).subtypes.has(t)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 
@@ -3081,7 +3085,9 @@ fn emit_face(
             .flatten()
             .any(|s| matches!(s, ManaSymbol::X));
     if loyalty_x {
-        writeln!(c.functions, "fn enters_with_x_loyalty(_: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ entering.counters[CounterKind::Loyalty as usize] += entering.x as i16; Ok(()) }}").unwrap();
+        let ty = Quantity::StoredCounter.kind();
+        let max = Quantity::StoredCounter.max();
+        writeln!(c.functions, "fn enters_with_x_loyalty(_: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ let more = i64::from(entering.x).min({max}) as {ty}; let slot = &mut entering.counters[CounterKind::Loyalty as usize]; *slot = slot.saturating_add(more); Ok(()) }}").unwrap();
         parts.enters.push("enters_with_x_loyalty".into());
     }
     let door_refused = parts.door_refused();

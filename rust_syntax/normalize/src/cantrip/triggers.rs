@@ -13,9 +13,10 @@ pub(super) struct Arm {
 }
 
 pub(super) struct Matched {
-    masks: Vec<&'static str>,
+    pub(super) masks: Vec<&'static str>,
     pub arms: Vec<Arm>,
     pub frame: Frame,
+    pub capture_other: Option<String>,
     /// The trigger's zones, when it cannot trigger from the battlefield.
     functions: Option<String>,
     /// "One or more": a batch triggers it once, split by `data[1]` when keyed.
@@ -103,6 +104,7 @@ pub(super) fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -
         masks: vec![mask],
         arms: vec![arm],
         frame,
+        capture_other: None,
         functions: None,
         batch: None,
         sums: false,
@@ -1352,7 +1354,7 @@ impl Compiler {
             (true, Some(Carried::Data(i))) => {
                 format!(".filter(|f: &Fired| f.data[{i}] == data[{i}])")
             }
-            (true, None | Some(Carried::Position(_))) => {
+            (true, None | Some(Carried::Position(_) | Carried::CapturedObject)) => {
                 return Err(gap("an ordinal of an event with no player"))
             }
         };
@@ -1629,6 +1631,7 @@ impl Compiler {
     }
     pub(super) fn event(&mut self, event: &EventSpec) -> Result<Matched> {
         match event {
+            EventSpec::WithOtherObject { event, object } => self.capture_event_object(event, object),
             EventSpec::ZoneChange { objects, from, to } => {
                 self.zone_change(objects, from.as_ref(), to)
             }
@@ -1737,6 +1740,9 @@ impl Compiler {
                 let mut merged: Option<Matched> = None;
                 for event in events {
                     let next = self.event(event)?;
+                    if next.capture_other.is_some() {
+                        return Err(gap("alternative events with separate object captures"));
+                    }
                     merged = Some(match merged {
                         None => next,
                         Some(mut all) => {
@@ -1833,6 +1839,13 @@ impl Compiler {
     }
     /// The `Trigger`, with the matcher named `label`.
     pub(super) fn trigger(&mut self, matched: &Matched, label: &str, extra: &[String]) -> String {
+        if let Some(capture) = &matched.capture_other {
+            let trigger = self.captured_object_trigger(matched, label, extra, capture);
+            return match &matched.functions {
+                Some(zones) => format!("{trigger}.functions_in({zones})"),
+                None => trigger,
+            };
+        }
         let mut body = String::new();
         for arm in &matched.arms {
             let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
@@ -1979,9 +1992,6 @@ impl Compiler {
             && (announcement.modes.is_some() || matches!(event, EventSpec::State { .. } | EventSpec::StateWithPlayer { .. }))
         {
             return Err(gap("modal or state trigger that works from a level"));
-        }
-        if matches!(event, EventSpec::WithOtherObject { .. }) {
-            return Err(gap("trigger-time secondary object capture"));
         }
         if let EventSpec::StateWithPlayer { condition, player } = event {
             if intervening_if.is_some() {

@@ -610,7 +610,7 @@ mod scenarios {
         for p in [ME, THEM] {
             for mana in Mana::ALL {
                 g.state
-                    .add_mana(p, mana, starting_mana, ObjectId::NONE, None, Default::default());
+                    .add_mana(p, mana, starting_mana, ObjectId::NONE, None, Default::default(), false);
             }
         }
         let source = *g
@@ -1710,11 +1710,15 @@ mod scenarios {
         let order = rest.clone();
         resolve_asking(&mut g, &mut |_, kind| match kind {
             RequestKind::DistributeCards { cards, .. } => {
-                assert_eq!(cards, &top);
+                assert_eq!(cards, &top[1..]);
                 Answer::Placements {
-                    placements: vec![vec![top[0]], order.clone()],
+                    placements: vec![order.clone()],
                     shuffle: false,
                 }
+            }
+            RequestKind::ChooseCards { cards, .. } => {
+                assert_eq!(cards, &top);
+                Answer::Cards(vec![top[0]])
             }
             other => panic!("unexpected question {other:?}"),
         });
@@ -2026,11 +2030,16 @@ mod scenarios {
         announce(&mut g, wave, ActionKind::CastSpell);
         resolve(&mut g, None, false);
         let about = |g: &RulesGame, player: PlayerId| {
-            g.state
-                .effects
-                .iter()
-                .filter(|e| matches!(e.kind, EffectKind::CreaturesCantBlock(p) if p == player))
-                .count()
+            let creature = permanents_named(g, "Grizzly Bears").into_iter()
+                .find(|&id| g.state.obj(id).controller == player).unwrap();
+            g.state.effects.iter().filter(|e| match e.kind {
+                EffectKind::LastingRule { card, index, about } => {
+                    let rule = &g.cards.get(card).lasting_rules[index as usize];
+                    rule.rule == LastingRuleKind::CantBlock &&
+                        (rule.applies)(g, &Asker::new(e.source, e.controller), about, creature)
+                }
+                _ => false,
+            }).count()
         };
         assert_eq!(about(&g, THEM), 1);
         assert_eq!(about(&g, ME), 0);
@@ -4319,8 +4328,12 @@ mod scenarios {
         g.answer(request.id, request.player, Answer::Announce(3)).unwrap();
         resolve_asking(&mut g, &mut |g, kind| match kind {
             RequestKind::ChooseCards { .. } if !yes => Answer::Cards(vec![]),
-            RequestKind::ChooseCards { rule, .. } => {
-                Answer::Cards(vec![rule.among.as_ref().unwrap()[0]])
+            RequestKind::ChooseCards { source, cards, rule, .. } => {
+                let chooser = g.pending().unwrap().player;
+                let card = cards.iter().copied().find(|&id|
+                    cantrip_api::select::answers(g, rule, chooser, *source, cards, &[id]))
+                    .expect("an eligible spell remains");
+                Answer::Cards(vec![card])
             }
             RequestKind::May { .. } => Answer::Yes,
             other => panic!("unexpected question {other:?}"),
@@ -4425,7 +4438,7 @@ mod scenarios {
         g.state.battlefield().iter().filter(|&&id| g.state.obj(id).token).count()
     }
     /// Pays `x` for Rise of the Hobgoblins, or declines with `None`.
-    fn hobgoblins(x: Option<u16>) -> (RulesGame, u32) {
+    fn hobgoblins(x: Option<u32>) -> (RulesGame, u32) {
         let (mut g, spell, _) = game("Rise of the Hobgoblins", None);
         let mana = mana_left(&g);
         announce(&mut g, spell, ActionKind::CastSpell);
@@ -4462,7 +4475,7 @@ mod scenarios {
     }
     /// Pays `x` for Taj-Nar Swordsmith, or declines with `None`, and takes the
     /// Equipment with mana value 0 from any search that comes of it.
-    fn swordsmith_paying(x: Option<u16>) -> RulesGame {
+    fn swordsmith_paying(x: Option<u32>) -> RulesGame {
         let (mut g, spell) =
             game_with_libraries("Taj-Nar Swordsmith", &[], &[ZERO_EQUIPMENT.name], &[]);
         let equipment = searching_for(&g, ZERO_EQUIPMENT.name);

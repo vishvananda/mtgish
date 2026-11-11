@@ -2493,7 +2493,7 @@ impl Compiler {
             matched.history_test()
         );
         Ok(if self.event_at == EventAt::Matcher {
-            format!("{{ let (outer_subject, outer_data) = (subject, data); {answer} }}")
+            format!("{{ let (outer_subject, outer_data) = (subject, data); {} {answer} }}", if self.frame.other == Some(Carried::CapturedObject) { "let outer_captured_other = captured_other;" } else { "" })
         } else {
             answer
         })
@@ -5294,12 +5294,14 @@ impl Compiler {
         instruction: &Instruction,
         out: &mut String,
     ) -> Result<()> {
-        *self.present.borrow_mut() = Some(Vec::new());
+        let outer_present = self.present.replace(Some(Vec::new()));
+        let prior_piles = self.face_piles.clone();
+        let prior_filters = self.notes.filters.as_ref().map(|(code, _)| code.clone());
         let mut inner = String::new();
         let named = self.picked.borrow().named.len();
         let opened = self.guard_opened;
         let compiled = self.instruction(body, index, instruction, &mut inner);
-        let present = self.present.borrow_mut().take().unwrap_or_default();
+        let present = self.present.replace(outer_present).unwrap_or_default();
         let statements = std::mem::take(&mut self.picked.borrow_mut().statements);
         if compiled.is_err() {
             self.picked.borrow_mut().named.truncate(named);
@@ -5307,12 +5309,33 @@ impl Compiler {
         compiled?;
         out.push_str(&statements.concat());
         let inside = self.guard_opened > opened;
-        let (names, reads) = match instruction {
+        let (mut names, mut reads) = match instruction {
             Instruction::Effect { result, .. } if !inside && !present.is_empty() => {
                 self.carried_out(result)
             }
             _ => (Vec::new(), Vec::new()),
         };
+        if !inside && !present.is_empty() {
+            let id = self.fresh();
+            if self.face_piles != prior_piles {
+                if let Some((down, up)) = &mut self.face_piles {
+                    for code in [down, up] {
+                        let name = format!("carried_pile_{id}_{}", names.len());
+                        reads.push(format!("{code}.clone()"));
+                        *code = name.clone();
+                        names.push(name);
+                    }
+                }
+            }
+            if self.notes.filters.as_ref().map(|(code, _)| code) != prior_filters.as_ref() {
+                if let Some((code, _)) = &mut self.notes.filters {
+                    let name = format!("carried_filter_{id}");
+                    reads.push(format!("Some({code} as u32)"));
+                    *code = format!("{name}.unwrap_or(u32::MAX)");
+                    names.push(name);
+                }
+            }
+        }
         if !names.is_empty() {
             for name in &names {
                 writeln!(out, "let mut {name} = Default::default();").unwrap();
@@ -5366,6 +5389,7 @@ impl Compiler {
         for map in [
             &mut self.selections,
             &mut self.pile_not_chosen,
+            &mut self.unchosen,
             &mut self.moved,
             &mut self.creations,
             &mut self.performed,
@@ -5379,6 +5403,12 @@ impl Compiler {
                 *code = name.clone();
                 names.push(name);
             }
+        }
+        if let Some(code) = self.notes.performers.get_mut(&result.0) {
+            let name = format!("carried_{id}_{}", names.len());
+            reads.push(code.clone());
+            *code = name.clone();
+            names.push(name);
         }
         if let Some(code) = self.before.get(&result.0).cloned() {
             let name = format!("carried_{id}_{}", names.len());

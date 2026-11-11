@@ -2238,11 +2238,9 @@ impl Compiler {
         if simple_statics {
             let mut refs = Vec::new();
             for definition in statics {
-                self.delayed.push(definition.replacen(
-                    "static_ability(",
-                    "granted_static_ability(",
-                    1,
-                ));
+                // StaticDef methods (especially continues) belong inside
+                // the AbilityDef wrapper, after the whole layer definition.
+                self.delayed.push(format!("AbilityDef::Static({definition})"));
                 let index = self.delayed.len() - 1;
                 refs.push(if tabled {
                     format!("GrantedAbility::Delayed({index})")
