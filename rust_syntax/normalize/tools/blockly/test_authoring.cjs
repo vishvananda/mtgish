@@ -24,7 +24,7 @@ let browser,page;
   await page.locator('.blocklyToolboxCategory').filter({has:page.getByText(category,{exact:true})}).first().click();
   await page.evaluate(async()=>{await window.cardBlocks.applyPresentation();await Blockly.renderManagement.finishQueuedRenders();});
   if(category==='Effects'&&source!=='spell'){
-   const point=await page.evaluate(()=>{const b=window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).find(b=>b.state.pr==='effect'),r=b.getField('VARIANT').getSvgRoot().getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};});
+   const point=await page.evaluate(source=>{const b=window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).find(b=>b.state.pr==='effect'&&b.getField('VARIANT')?.getOptions(false).some(([,name])=>name===source)),r=b.getField('VARIANT').getSvgRoot().getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};},source);
    await page.mouse.click(point.x,point.y);await page.getByRole('option',{name:source==='GainLife'?'Gain Life':'Draw Cards',exact:true}).click();await page.waitForFunction(source=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).some(b=>b.state.op===source),source);
   }
   const start=await page.evaluate(source=>{

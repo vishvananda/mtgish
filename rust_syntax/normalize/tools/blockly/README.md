@@ -27,15 +27,15 @@ Drag effects from **Effects** into spell resolution or an ability's effects
 stack. **Abilities** contains a single editable keyword starter and ordinary
 triggered, activated, static and replacement starters. **Casting & locations**
 contains the specialized starters. **Flow** contains conditions, choices,
-iteration and batches; **Effects** groups other operations by purpose without a
-second “all actions” collection. Each topic has one configurable effect starter,
-with a dropdown of that topic’s actions. The top-level starter covers common
-operations such as drawing, life changes, damage and moving objects. Related
-keyword actions keep separate subject families, and copy exceptions share one
-starter. **Find a block** searches every named effect and offers it directly,
-even when it has no separate library entry, removing duplicate results. Related keyword actions share one editable starter per
-subject family in each section; select another action in its dropdown or search
-by name to start directly with that action. The advanced type browser remains
+iteration and batches. **Effects** opens one menu with five headings:
+**Cards & permanents**, **Life, damage & mana**, **Spells & rules**,
+**Choices & chance**, and **Keyword actions**. Six configurable starters cover
+these groups; their dropdowns keep related actions together. Keyword actions
+are the named Magic verbs: Investigate creates a Clue token, for example.
+There is a separate starter for applying an action to selected objects.
+**Find a block** still finds every named effect directly, with no duplicate
+results. The uncommon **Copy modifiers** builder lives under **Advanced**.
+The advanced type browser remains
 available. Menus remeasure their blocks after optional fields hide, keeping
 vertical spacing consistent. Menu and block colors share one palette: teal for
 abilities, orange for effects, gold for flow, purple for choices/modes, blue for

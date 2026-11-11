@@ -59,10 +59,10 @@ let browser,page;
  await page.evaluate(()=>window.cardBlocks.workspace.undo(true));
  await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.operation.args.amount.args===3);
  // Rebuilding an action retains its active shadow values.
- await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.op==='Draw').setFieldValue('GainLife','VARIANT'));
- await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.operation.kind==='GainLife');
+ await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.op==='Draw').setFieldValue('DrawUpTo','VARIANT'));
+ await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.operation.kind==='DrawUpTo');
  assert.equal(await page.evaluate(()=>window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.operation.args.amount.args),3);
- await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.op==='GainLife').setFieldValue('Draw','VARIANT'));
+ await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.op==='DrawUpTo').setFieldValue('Draw','VARIANT'));
  await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.operation.kind==='Draw');
  // Compound player selection uses the same socket as the simple picker.
  await page.evaluate(()=>{
