@@ -49,3 +49,7 @@ binding-port comparisons and Rust/Wasm validations. Fourteen actual rendered
 workspaces (the seven corrected cards and seven delayed controls) preserve exact
 IR and validate; all six CDA cards appear in Characteristics / all zones. No
 browser JavaScript errors were observed. The existing Wasm binary is reused.
+
+Reported upstream: [chosen-player CDAs #260](https://github.com/i5jb/mtgish/issues/260)
+and [Curse event player #261](https://github.com/i5jb/mtgish/issues/261).
+The fix commit is `7fdef2f0b88686380955c9b200e1f98beeac78a7`.

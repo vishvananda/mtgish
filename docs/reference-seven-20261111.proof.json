@@ -74,5 +74,18 @@
       "cdaAllZoneSections": true,
       "errors": []
     }
-  }
+  },
+  "upstream_issues": [
+    {
+      "html_url": "https://github.com/i5jb/mtgish/issues/260",
+      "number": 260,
+      "title": "Chosen-player self power/toughness definitions are ordinary statics instead of CDAs"
+    },
+    {
+      "html_url": "https://github.com/i5jb/mtgish/issues/261",
+      "number": 261,
+      "title": "Trespasser's Curse resolves life loss against live Aura attachment instead of the event's player"
+    }
+  ],
+  "fix_commit": "7fdef2f0b88686380955c9b200e1f98beeac78a7"
 }
