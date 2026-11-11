@@ -31,5 +31,11 @@
       "Sagu Pummeler"
     ],
     "expected_programs": "schema-upgraded prior complete abilities with exactly one coordinated PutCounters merge per affected card; actual fixtures tested after canonical result renumbering"
-  }
+  },
+  "upstream": {
+    "created_at": "2026-11-11T09:21:34Z",
+    "html_url": "https://github.com/i5jb/mtgish/issues/259#issuecomment-6792055025",
+    "id": 6792055025
+  },
+  "fix_commit": "4aecbb3c6be11d023526d8782a0c94a7cf922320"
 }

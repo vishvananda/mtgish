@@ -36,3 +36,6 @@ The schema189 [AST migration](ast-human-189-20261111.md) is independent. The old
 split programs remain observably different and are not accepted through an alias.
 Source-only changes and their regression packet are committed separately for
 upstream review.
+
+Upstream follow-up: [issue259 comment](https://github.com/i5jb/mtgish/issues/259#issuecomment-6792055025).
+Fix commit: `4aecbb3c6be11d023526d8782a0c94a7cf922320`.
