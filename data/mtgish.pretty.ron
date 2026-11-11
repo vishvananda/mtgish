@@ -208506,8 +208506,6 @@ Card(
               ),
               Ref_TargetPermanent,
             ),
-          ]),
-          PutCounters([
             ACounterOfTypeOnPermanent(
               TrampleCounter,
               Ref_TargetPermanent,
@@ -569638,8 +569636,6 @@ Card(
                   ),
                   Ref_TargetPermanent,
                 ),
-              ]),
-              PutCounters([
                 ACounterOfTypeOnPermanent(
                   FlyingCounter,
                   Ref_TargetPermanent,
@@ -1433054,8 +1433050,6 @@ Card(
             ),
             Ref_TargetPermanent,
           ),
-        ]),
-        PutCounters([
           ACounterOfTypeOnPermanent(
             LifelinkCounter,
             Ref_TargetPermanent,

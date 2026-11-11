@@ -1,0 +1,35 @@
+{
+  "cards": [
+    "Champion of Dusan",
+    "Guide of Souls",
+    "Unexpected Fangs"
+  ],
+  "unchanged_normalized_programs_after_schema_conversion": 33526,
+  "audit_changed_paths": [
+    "/reviewed_sources/grammars/english_grammar.json5",
+    "/review_inputs/grammars/english_grammar.json5"
+  ],
+  "audit_review_entries_unchanged": true,
+  "packet": {
+    "records": 33529,
+    "source_changed_names": [
+      "Champion of Dusan",
+      "Guide of Souls",
+      "Unexpected Fangs"
+    ],
+    "unchanged_source_records": 33526,
+    "tagged_source_json_changed_names": [
+      "Champion of Dusan",
+      "Guide of Souls",
+      "Unexpected Fangs"
+    ],
+    "controls": [
+      "Captain Marvel, Earth's Protector",
+      "Donald Blake, Guise of Thor",
+      "Kheru Goldkeeper",
+      "Quicksilver, Brash Blur",
+      "Sagu Pummeler"
+    ],
+    "expected_programs": "schema-upgraded prior complete abilities with exactly one coordinated PutCounters merge per affected card; actual fixtures tested after canonical result renumbering"
+  }
+}

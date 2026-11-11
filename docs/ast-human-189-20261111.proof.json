@@ -1,0 +1,292 @@
+{
+  "schema": 189,
+  "prior_schema": 188,
+  "native_layout_bytes": {
+    "Expr": [
+      96,
+      96
+    ],
+    "Condition": [
+      384,
+      384
+    ],
+    "ObjectFilter": [
+      168,
+      168
+    ],
+    "Operation": [
+      1736,
+      904
+    ],
+    "Instruction": [
+      1744,
+      912
+    ],
+    "Ability": [
+      1488,
+      1040
+    ],
+    "Announcement": [
+      480,
+      32
+    ]
+  },
+  "engine_numeric_widths_changed": false,
+  "independent_corpus_conversion": {
+    "cards": 33529,
+    "exact_after_independent_structural_upgrade": 33529,
+    "mismatches": []
+  },
+  "strict_typed_migration": {
+    "records": 33529,
+    "exact_native_programs": 33529,
+    "mapped_old_binding_sites": 116136,
+    "introduced_sites": 0
+  },
+  "rust_full": {
+    "passed": 1532,
+    "ignored": 19,
+    "failed": 0,
+    "targets_including_doc_tests": 179,
+    "features": "cantrip",
+    "stack_env": "RUST_MIN_STACK=16777216"
+  },
+  "additional_focused_source_predicate_and_layout_tests": 4,
+  "ir_contract": {
+    "passed": 4,
+    "failed": 0,
+    "ignored": 2
+  },
+  "go": "full suite PASS (63.303s)",
+  "browser": {
+    "catalog": {
+      "expected": 33529,
+      "records": 33529,
+      "blockRoundtrips": 33529,
+      "bindingPortCards": 33529,
+      "wasmValid": 33529,
+      "failures": []
+    },
+    "editor_suites": {
+      "values": 0,
+      "stack_flow": 0,
+      "branches": 0,
+      "selectors": 0,
+      "targets": 0,
+      "modes": 0,
+      "binding_document": 0,
+      "properties": 0,
+      "names": 0,
+      "sections": 0,
+      "sockets": 0,
+      "authoring": 0,
+      "reference_migrations": 0
+    },
+    "actual_workspaces": {
+      "actualWorkspaceCards": [
+        "Entropic Specter",
+        "Haunting Apparition",
+        "Lost Order of Jarkeld",
+        "Pallimud",
+        "Sewer Nemesis",
+        "Skyshroud War Beast",
+        "Trespasser's Curse",
+        "Dawn of the Dead",
+        "Mirror Mockery",
+        "Ilharg, the Raze-Boar",
+        "Through the Breach",
+        "Astral Slide",
+        "Feldon of the Third Path",
+        "Shallow Grave",
+        "Guide of Souls",
+        "Champion of Dusan",
+        "Unexpected Fangs",
+        "Sarkhan's Unsealing",
+        "Lady Octopus, Inspired Inventor",
+        "Relentless Dead",
+        "Caller of the Untamed",
+        "Rebbec, Architect of Ascension",
+        "Serra Avenger",
+        "Counterspell",
+        "Delay",
+        "Desertion"
+      ],
+      "exactIR": true,
+      "wasmValidation": true,
+      "cdaAllZoneSections": true,
+      "errors": []
+    }
+  },
+  "performance": {
+    "input_sha256": "11abd348970a0ce0697071c6a2f9f40bdd151817eca975898c08fa4b7f9f0468",
+    "records": 33529,
+    "scope": "same Source input, development CLI lowering+validation+JSON export; three interleaved runs per binary per worker count; disk I/O included; no gameplay or browser benchmark",
+    "binaries": {
+      "188": "9c8edbe1d9317a5ea469632ee21c78b78b1b1e3dd0a5ad9a052bd13786c8128f",
+      "189": "62a04adb4fd048ea55e96efe5e010217def035b0999ddc632e5a2475c6f55a1a"
+    },
+    "samples": [
+      {
+        "threads": 1,
+        "repeat": 0,
+        "epoch": "188",
+        "seconds": 56.19,
+        "cpu_seconds": 56.22,
+        "peak_rss_kib": 125740
+      },
+      {
+        "threads": 1,
+        "repeat": 0,
+        "epoch": "189",
+        "seconds": 50.54,
+        "cpu_seconds": 50.660000000000004,
+        "peak_rss_kib": 133600
+      },
+      {
+        "threads": 1,
+        "repeat": 1,
+        "epoch": "189",
+        "seconds": 62.26,
+        "cpu_seconds": 62.31,
+        "peak_rss_kib": 135808
+      },
+      {
+        "threads": 1,
+        "repeat": 1,
+        "epoch": "188",
+        "seconds": 70.68,
+        "cpu_seconds": 70.58,
+        "peak_rss_kib": 128924
+      },
+      {
+        "threads": 1,
+        "repeat": 2,
+        "epoch": "188",
+        "seconds": 73.09,
+        "cpu_seconds": 72.99,
+        "peak_rss_kib": 129160
+      },
+      {
+        "threads": 1,
+        "repeat": 2,
+        "epoch": "189",
+        "seconds": 71.55,
+        "cpu_seconds": 71.2,
+        "peak_rss_kib": 131916
+      },
+      {
+        "threads": 32,
+        "repeat": 0,
+        "epoch": "188",
+        "seconds": 3.1,
+        "cpu_seconds": 64.31,
+        "peak_rss_kib": 278944
+      },
+      {
+        "threads": 32,
+        "repeat": 0,
+        "epoch": "189",
+        "seconds": 2.48,
+        "cpu_seconds": 62.68,
+        "peak_rss_kib": 247132
+      },
+      {
+        "threads": 32,
+        "repeat": 1,
+        "epoch": "189",
+        "seconds": 2.53,
+        "cpu_seconds": 63.01,
+        "peak_rss_kib": 245104
+      },
+      {
+        "threads": 32,
+        "repeat": 1,
+        "epoch": "188",
+        "seconds": 2.42,
+        "cpu_seconds": 62.440000000000005,
+        "peak_rss_kib": 274904
+      },
+      {
+        "threads": 32,
+        "repeat": 2,
+        "epoch": "188",
+        "seconds": 2.3,
+        "cpu_seconds": 61.91,
+        "peak_rss_kib": 270252
+      },
+      {
+        "threads": 32,
+        "repeat": 2,
+        "epoch": "189",
+        "seconds": 2.45,
+        "cpu_seconds": 61.300000000000004,
+        "peak_rss_kib": 245592
+      }
+    ],
+    "medians": {
+      "1": {
+        "188": {
+          "seconds": 70.68,
+          "cpu_seconds": 70.58,
+          "peak_rss_kib": 128924
+        },
+        "189": {
+          "seconds": 62.26,
+          "cpu_seconds": 62.31,
+          "peak_rss_kib": 133600
+        }
+      },
+      "32": {
+        "188": {
+          "seconds": 2.42,
+          "cpu_seconds": 62.440000000000005,
+          "peak_rss_kib": 274904
+        },
+        "189": {
+          "seconds": 2.48,
+          "cpu_seconds": 62.68,
+          "peak_rss_kib": 245592
+        }
+      }
+    }
+  },
+  "reference_semantic_changes": {
+    "cards": [
+      "Champion of Dusan",
+      "Guide of Souls",
+      "Unexpected Fangs"
+    ],
+    "unchanged_normalized_programs_after_schema_conversion": 33526,
+    "audit_changed_paths": [
+      "/reviewed_sources/grammars/english_grammar.json5",
+      "/review_inputs/grammars/english_grammar.json5"
+    ],
+    "audit_review_entries_unchanged": true,
+    "packet": {
+      "records": 33529,
+      "source_changed_names": [
+        "Champion of Dusan",
+        "Guide of Souls",
+        "Unexpected Fangs"
+      ],
+      "unchanged_source_records": 33526,
+      "tagged_source_json_changed_names": [
+        "Champion of Dusan",
+        "Guide of Souls",
+        "Unexpected Fangs"
+      ],
+      "controls": [
+        "Captain Marvel, Earth's Protector",
+        "Donald Blake, Guise of Thor",
+        "Kheru Goldkeeper",
+        "Quicksilver, Brash Blur",
+        "Sagu Pummeler"
+      ],
+      "expected_programs": "schema-upgraded prior complete abilities with exactly one coordinated PutCounters merge per affected card; actual fixtures tested after canonical result renumbering"
+    }
+  },
+  "wasm_builds": 1,
+  "evidence_directory": "/mnt/vizier/ast-human-189-20261111",
+  "validation_scope": "final working tree: AST migration and separately committed three-card counter correction",
+  "ast_commit": "a2914e01da6515e3bbd855a4b5c5282b0bfe4d8b"
+}
