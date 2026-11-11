@@ -37,7 +37,7 @@
               }
             },
             "filter": {
-              "kind": "All",
+              "kind": "AllOf",
               "args": [
                 {
                   "kind": "Not",
@@ -49,7 +49,7 @@
                   }
                 },
                 {
-                  "kind": "All",
+                  "kind": "AllOf",
                   "args": [
                     {
                       "kind": "Attacking"

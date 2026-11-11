@@ -15,11 +15,7 @@ fn at_least_one() -> (Comparison, Expr) {
 }
 
 fn property(property: Property, (comparison, value): (Comparison, Expr)) -> ObjectFilter {
-    ObjectFilter::Property {
-        property,
-        comparison,
-        value,
-    }
+    ObjectFilter::Property { property, test: NumberTest::Compare { comparison: comparison, value: value } }
 }
 
 fn history(event: ObjectHistory, window: ObjectWindow) -> ObjectFilter {
@@ -51,7 +47,7 @@ fn cards_of(zone: EventZone, player: &PlayerRef, filter: &ObjectFilter) -> Objec
 fn zone_cards(filter: &ObjectFilter) -> Option<ObjectSet> {
     let (scope, rest) = match filter {
         ObjectFilter::InZone(scope) => (scope.clone(), ObjectFilter::Any),
-        ObjectFilter::All(items) => {
+        ObjectFilter::AllOf(items) => {
             let scope = items.iter().find_map(|item| match item {
                 ObjectFilter::InZone(scope) => Some(scope.clone()),
                 _ => None,
@@ -61,7 +57,7 @@ fn zone_cards(filter: &ObjectFilter) -> Option<ObjectSet> {
                 .filter(|item| !matches!(item, ObjectFilter::InZone(_)))
                 .cloned()
                 .collect();
-            (scope, ObjectFilter::All(rest))
+            (scope, ObjectFilter::AllOf(rest))
         }
         _ => return None,
     };
@@ -95,14 +91,14 @@ fn exiled_by(player: &PlayerRef, with: Option<&ObjectRef>, this_turn: bool) -> O
 }
 
 fn single_target(targets: Recipients) -> ObjectFilter {
-    ObjectFilter::All(vec![
+    ObjectFilter::AllOf(vec![
         ObjectFilter::OnStack(StackTrait::SingleTarget),
         ObjectFilter::TargetsAny(Box::new(targets)),
     ])
 }
 
 fn creature_types(types: &[crate::mtg_types::CreatureType]) -> ObjectFilter {
-    ObjectFilter::Either(
+    ObjectFilter::AnyOf(
         types
             .iter()
             .map(|ty| ObjectFilter::Subtype(crate::subtype::creature_type(ty)))
@@ -180,7 +176,7 @@ fn fieldless_state(form: &str) -> Option<ObjectFilter> {
         "HasExiledCards" => property(Property::ExiledCount, at_least_one()),
         "HasBasicLandType" => {
             use crate::mtg_types::LandType as L;
-            ObjectFilter::Either(
+            ObjectFilter::AnyOf(
                 [L::Plains, L::Island, L::Swamp, L::Mountain, L::Forest]
                     .iter()
                     .map(|ty| ObjectFilter::Subtype(crate::subtype::land_type(ty)))
@@ -254,7 +250,7 @@ fn reduce_object_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter
             not(ObjectFilter::InSet(Box::new(ObjectSet::Recorded(result.clone()))))
         }
         ("TheCardsOfTypeRevealedThisWay", [Filter(filter), Run(result)]) => {
-            ObjectFilter::All(vec![
+            ObjectFilter::AllOf(vec![
                 filter.clone(),
                 ObjectFilter::InSet(Box::new(ObjectSet::Recorded(result.clone()))),
             ])
@@ -369,7 +365,7 @@ fn reduce_object_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter
             let [Operand::Integer(power), Operand::Integer(toughness)] = operands.as_slice() else {
                 return None;
             };
-            ObjectFilter::All(vec![
+            ObjectFilter::AllOf(vec![
                 property(
                     Property::BasePower,
                     (Comparison::Equal, Expr::Constant(*power)),
@@ -398,7 +394,7 @@ fn reduce_object_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter
             from: None,
         },
         ("CastByPlayerDuringPlayersMainPhase", [Player(by), Player(_)]) => {
-            ObjectFilter::All(vec![
+            ObjectFilter::AllOf(vec![
                 ObjectFilter::Cast {
                     by: Some(PlayerSet::One(by.clone())),
                     from: None,
@@ -483,7 +479,7 @@ fn reduce_object_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter
             AttackDefenders::Objects(event_filter(objects)?),
         )),
         ("IsAttackingABattle", [Objects(objects)]) => {
-            ObjectFilter::AttackingDefender(Box::new(AttackDefenders::Objects(ObjectFilter::All(
+            ObjectFilter::AttackingDefender(Box::new(AttackDefenders::Objects(ObjectFilter::AllOf(
                 vec![
                     ObjectFilter::CardType(crate::mtg_types::CardType::Battle),
                     event_filter(objects)?,

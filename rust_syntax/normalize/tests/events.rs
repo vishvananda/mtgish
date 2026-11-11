@@ -98,7 +98,7 @@ fn turn_events_bind_the_turn_player_and_keep_intervening_conditions() {
 fn alternative_events_keep_one_ability_and_casting_is_distinct_from_copying() {
     let c = card("Archmage Emeritus");
     let [Ability::Triggered {
-        event: EventSpec::Either(events),
+        event: EventSpec::AnyOf(events),
         body,
         ..
     }] = c.abilities.as_slice()
@@ -118,12 +118,12 @@ fn alternative_events_keep_one_ability_and_casting_is_distinct_from_copying() {
             }
         ]
     ));
-    assert!(event_bindings(&EventSpec::Either(events.clone())).spell);
+    assert!(event_bindings(&EventSpec::AnyOf(events.clone())).spell);
     assert_eq!(body.instructions.len(), 1);
 
     let c = card("Aang and Katara");
     let [Ability::Triggered {
-        event: EventSpec::Either(events),
+        event: EventSpec::AnyOf(events),
         body,
         ..
     }] = c.abilities.as_slice()
@@ -150,7 +150,7 @@ fn event_only_filters_are_not_promoted_to_intervening_if() {
         panic!()
     };
     assert!(
-        matches!(event, EventSpec::Filtered { event, condition: Condition::Compare { comparison: Comparison::GreaterOrEqual, right: Expr::Constant(2), .. } }
+        matches!(event, EventSpec::Filtered { event, condition: Condition::Compare { test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(2) }, .. } }
         if matches!(**event, EventSpec::Object { event: ObjectEvent::Attacks, .. }))
     );
     assert!(intervening_if.is_none());
@@ -172,7 +172,7 @@ fn references_require_bindings_in_every_alternative_and_nested_abilities_start_f
     let Ability::Triggered { event, .. } = &mut c.abilities[1] else {
         panic!()
     };
-    *event = EventSpec::Either(vec![
+    *event = EventSpec::AnyOf(vec![
         event.clone(),
         EventSpec::Object {
             event: ObjectEvent::Attacks,

@@ -93,7 +93,7 @@ fn permanent_type_reduction_keeps_other_query_domains_distinct() {
         "Planeswalker",
     ]
     .map(|name| json!({"kind":"CardType","args":name}));
-    let filter = json!({"kind":"Either","args":types});
+    let filter = json!({"kind":"AnyOf","args":types});
     for (kind, reduced) in [("Permanent", true), ("Card", false)] {
         let mut objects = pool(kind);
         objects["args"]["filter"] = filter.clone();

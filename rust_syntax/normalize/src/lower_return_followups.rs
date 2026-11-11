@@ -195,11 +195,7 @@ mod return_followup_tests {
         })
         .unwrap();
         c.conditional(
-            Condition::Compare {
-                left: Expr::Constant(1),
-                comparison: Comparison::Equal,
-                right: Expr::Constant(1),
-            },
+            Condition::Compare { left: Expr::Constant(1), test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(1) } },
             |child| {
                 assert!(child.returned_followup_group(&reference()).is_none());
                 Ok(Program {

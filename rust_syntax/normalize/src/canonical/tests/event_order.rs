@@ -9,7 +9,7 @@ fn events() -> Vec<Value> {
 }
 
 fn trigger(events: Vec<Value>) -> Value {
-    json!({"kind":"Triggered","args":{"event":{"Either":events},"intervening_if":null,
+    json!({"kind":"Triggered","args":{"event":{"AnyOf":events},"intervening_if":null,
         "limits":{"per_turn":null,"total":null},"announcement":{"targets":[],"modes":null},
         "body":{"instructions":[{"kind":"Effect","args":{"result":1,"operation":{
             "kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"Constant","args":1}}}}}]}}})
@@ -22,7 +22,7 @@ fn contexts(events: Vec<Value>) -> Vec<Value> {
         json!([{"kind":"Static","args":{"kind":"Ordinary","affected":{"Objects":{"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":{"kind":"Any"}}}},"changes":[{"kind":"GrantAbility","args":ability}]}}]),
         json!([{"kind":"Replacement","args":{"active":"SourceEntering","event":{"Enter":{"objects":{"kind":"SameObject","args":{"kind":"Source"}}}},"body":{"instructions":[{"kind":"Effect","args":{"result":0,"operation":{"kind":"ModifyEvent","args":{"change":{"Entry":{"CopyOf":{"objects":{"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":{"kind":"CardType","args":"Creature"}}},"exceptions":[{"kind":"AddAbilities","args":[ability]}],"until":null}}}}}}}]}}}]),
         json!([{"kind":"Spell","args":{"announcement":{"targets":[],"modes":null},"body":{"instructions":[{"kind":"Effect","args":{"result":0,"operation":{"kind":"CreateTrigger","args":{
-            "event":{"Either":events},"duration":"EndOfTurn","announcement":{"targets":[],"modes":null},"once":false,"intervening_if":null,
+            "event":{"AnyOf":events},"duration":"EndOfTurn","announcement":{"targets":[],"modes":null},"once":false,"intervening_if":null,
             "body":ability["args"]["body"]}}}}]}}}]),
     ]
 }

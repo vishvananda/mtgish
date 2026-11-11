@@ -62,7 +62,7 @@ fn each_card_reads_its_value_in_a_typed_shape() {
         (
             "Rebbec, Architect of Ascension",
             "AnyManaValueAmongPermanents",
-            "\"AnyOf\"",
+            "\"AnyProperty\"",
         ),
         (
             "Ever-Watching Threshold",
@@ -98,7 +98,7 @@ fn each_card_reads_its_value_in_a_typed_shape() {
         (
             "Caller of the Untamed",
             "AManaValueOfAnExiledCard",
-            "\"AnyOf\"",
+            "\"AnyProperty\"",
         ),
         (
             "Balduvian Fallen",
@@ -221,7 +221,7 @@ fn each_card_reads_its_value_in_a_typed_shape() {
 fn relentless_dead_compares_with_each_mana_value_in_its_graveyard() {
     let card = json("Relentless Dead");
     assert!(!card.contains("AnyManaValueAmongCardsInPlayersGraveyard"));
-    assert!(card.contains("\"AnyOf\""));
+    assert!(card.contains("\"AnyProperty\""));
 }
 
 #[test]
@@ -251,13 +251,10 @@ fn forms_on_faces_a_card_export_cannot_reach_reduce_directly() {
                 rooms.clone()
             ],
         ),
-        Condition::Compare {
-            left: Expr::CountDistinct {
+        Condition::Compare { left: Expr::CountDistinct {
                 property: DistinctProperty::UnlockedDoorNames,
                 ..
-            },
-            ..
-        }
+            }, .. }
     ));
     assert!(matches!(
         semantics::reduce_condition(
@@ -284,10 +281,7 @@ fn counters_paid_keep_their_kind() {
             },
         ],
     );
-    let Condition::Compare {
-        left: Expr::CountersPaid { kind, .. },
-        ..
-    } = reduced
+    let Condition::Compare { left: Expr::CountersPaid { kind, .. }, .. } = reduced
     else {
         panic!("{reduced:?}");
     };

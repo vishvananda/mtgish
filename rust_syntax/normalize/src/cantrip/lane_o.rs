@@ -459,7 +459,7 @@ impl Compiler {
         if !matches!(affected, ObjectSet::One(ObjectRef::Source)) || self.static_guard.is_some() {
             return Ok(None);
         }
-        let ObjectFilter::All(filters) = abilities else {
+        let ObjectFilter::AllOf(filters) = abilities else {
             return Ok(None);
         };
         let [ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Equip)), ObjectFilter::TargetsAny(recipients)] =
@@ -2396,18 +2396,19 @@ impl Compiler {
         // Necromancy: "enchant creature put onto the battlefield with [this]" is
         // the creature that entered with it as its Aura (CR 303.4a), and the put
         // that follows is `put_onto_battlefield_with_aura` (CR 303.4f).
-        let words = format!("{filter:?}");
-        if words.contains("MadeBy") {
-            if !(words.starts_with("All([CardType(Creature), MadeBy(Source)")
-                || words == "All([CardType(Creature), MadeBy(Source)])")
-            {
-                return Err(gap(
-                    "an Aura that enchants what it put onto the battlefield",
-                ));
-            }
+        let made_by_source = matches!(filter,
+            ObjectFilter::AllOf(filters) if matches!(filters.as_slice(),
+                [ObjectFilter::CardType(crate::mtg_types::CardType::Creature), ObjectFilter::MadeBy(ObjectRef::Source), ..]));
+        // Retain the explicit gap for another MadeBy relationship. The supported
+        // structural case needs no Debug formatting or variant-name string match.
+        if made_by_source {
             self.aura = Some(AURA_PUT_WITH_THIS.to_string());
             return Ok(vec![format!("EffectKind::Enchant({})", self.source_card())]);
         }
+        if format!("{filter:?}").contains("MadeBy") {
+            return Err(gap("an Aura that enchants what it put onto the battlefield"));
+        }
+
         let function = format!("becomes_aura_{}", self.fresh());
         let test = self.queried(|c| c.filter(filter, &Candidate::of("id")))?;
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id) && ({test})) }}").unwrap();
@@ -5069,7 +5070,7 @@ fn lasting_rule_kind(change: &Change) -> Option<&'static str> {
 fn single_controller(filter: &ObjectFilter) -> Option<&PlayerRef> {
     match filter {
         ObjectFilter::ControlledBy(PlayerSet::One(player)) => Some(player),
-        ObjectFilter::All(filters) => filters.iter().find_map(single_controller),
+        ObjectFilter::AllOf(filters) => filters.iter().find_map(single_controller),
         _ => None,
     }
 }

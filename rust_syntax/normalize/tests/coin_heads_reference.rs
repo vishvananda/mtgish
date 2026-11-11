@@ -18,15 +18,11 @@ fn both_heads_and_both_tails_read_the_flip_receipt_without_winner_aliases() {
         for (index, expected, keyword) in [(1, 2, Keyword::DoubleStrike), (2, 0, Keyword::Menace)] {
             let Instruction::If {
                 condition:
-                    Condition::Compare {
-                        left:
+                    Condition::Compare { left:
                             Expr::CountCoinOutcomes {
                                 source: CoinCountSource::Receipt(receipt),
                                 outcome: CoinOutcome::Heads,
-                            },
-                        comparison: Comparison::Equal,
-                        right: Expr::Constant(n),
-                    },
+                            }, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(n) } },
                 then,
                 ..
             } = &body.instructions[index]

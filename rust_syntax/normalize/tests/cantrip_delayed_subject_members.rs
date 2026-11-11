@@ -83,7 +83,7 @@ fn capturing(counts: &[i64], order: &[usize], player: bool) -> Card {
         instructions.push(Instruction::Effect { result: ResultId(100), operation: Operation::Draw { players: PlayerSet::One(PlayerRef::Target { slot, index: 0 }), amount: Expr::Constant(1) } });
     }
     c.abilities = vec![Ability::Spell { announcement: Announcement { targets, modes: None }, body: Program { instructions: vec![Instruction::Effect { result: ResultId(101), operation: Operation::CreateDelayedTrigger {
-        event: EventSpec::Turn { point: TurnPoint::EndStepBegins, players: PlayerSet::All }, start: DelayedStart::Immediately, expires: None, intervening_if: None, body: Program { instructions },
+        event: Box::new(EventSpec::Turn { point: TurnPoint::EndStepBegins, players: PlayerSet::All }), start: DelayedStart::Immediately, expires: None, intervening_if: None, body: Program { instructions },
     }}] } }];
     mtgish_ast::validate::card(&c).unwrap(); c
 }
@@ -142,7 +142,7 @@ fn the_step_feature_does_not_land_event_or_reflexive_list_capture() {
         *operation = if reflexive {
             Operation::ReflexiveTrigger { performed: None, condition: None, announcement, body }
         } else {
-            Operation::CreateTrigger { event: EventSpec::Turn { point: TurnPoint::EndStepBegins, players: PlayerSet::All }, duration: Duration::EndOfTurn, announcement, body, once: false, intervening_if: None }
+            Operation::CreateTrigger { event: Box::new(EventSpec::Turn { point: TurnPoint::EndStepBegins, players: PlayerSet::All }), duration: Duration::EndOfTurn, announcement, body, once: false, intervening_if: None }
         };
         mtgish_ast::validate::card(&c).unwrap();
         let gaps = |features| cantrip::planned::with_features(features, || cantrip::gaps(&c).into_iter().map(|g| g.feature).collect::<Vec<_>>());

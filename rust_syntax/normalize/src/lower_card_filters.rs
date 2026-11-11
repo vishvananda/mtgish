@@ -94,7 +94,7 @@ impl Context {
                 })
             }
             source::CardsInGraveyards::WasPutIntoGraveyardFromAnywhereOtherThanTheBattlefieldThisTurn => {
-                Ok(ObjectFilter::All(vec![
+                Ok(ObjectFilter::AllOf(vec![
                     ObjectFilter::ArrivedThisTurn { from: None },
                     ObjectFilter::Not(Box::new(ObjectFilter::ArrivedThisTurn {
                         from: Some(EventZone::Battlefield),

@@ -398,7 +398,7 @@ impl Inventory<'_> {
                     self.objects(objects);
                     self.program(body);
                 }
-                Instruction::Times { amount, body } => {
+                Instruction::RepeatableWithLimit { amount, body } => {
                     self.expr(amount);
                     self.program(body);
                 }
@@ -466,7 +466,7 @@ impl Inventory<'_> {
                 self.objects(objects);
                 self.operation(action);
             }
-            Operation::LimitX { value, .. } => self.expr(value),
+            Operation::LimitX { test } => self.number_test(test),
             Operation::RestartGame { keep, then } => {
                 self.objects(keep);
                 self.operation(then);
@@ -476,8 +476,7 @@ impl Inventory<'_> {
                 self.expr(to);
                 self.operation(action);
             }
-            Operation::CounterWith { .. }
-            | Operation::ReduceSpeed { .. }
+            Operation::ReduceSpeed { .. }
             | Operation::PutCountersCapped { .. } => {}
             Operation::Populate { actor, .. }
             | Operation::ChooseDefender { actor, .. }
@@ -1022,12 +1021,12 @@ impl Inventory<'_> {
             }
             Operation::JoinResults { .. } => {}
             Operation::ChoosePowerToughness { player, .. } => self.player(player),
-            Operation::Counter {
-                objects,
-                destination,
-            } => {
+            Operation::Counter { objects, destination, destination_when } => {
                 self.objects(objects);
-                self.destination(destination);
+                let view = crate::movement::entry_destination_view(destination);
+                self.destination(&view.destination);
+                self.entry_states(&view.entry);
+                if let Some(filter) = destination_when { self.filter(filter); }
             }
             Operation::ModifyEvent { change } => {
                 self.form("EventChange", change);
@@ -1997,8 +1996,8 @@ impl Inventory<'_> {
                         }
                     }
                     ActivationRule::MaxPerTurn(n)
-                    | ActivationRule::XAtMost(n)
-                    | ActivationRule::XIs(n) => self.expr(n),
+                    | ActivationRule::XAtMost(n) => self.expr(n),
+                    ActivationRule::XIs(test) => self.number_test(test),
                     ActivationRule::OnlyBy(players) => self.players(players),
                     ActivationRule::XNotZero
                     | ActivationRule::CantBeCopied
@@ -2495,7 +2494,6 @@ impl Inventory<'_> {
                 self.form("Property", property);
                 self.form("Information", information);
             }
-            Expr::AnyOf(values) => values.iter().for_each(|value| self.expr(value)),
             Expr::Add(a, b)
             | Expr::Subtract(a, b)
             | Expr::Multiply(a, b)
@@ -2689,7 +2687,7 @@ impl Inventory<'_> {
             ObjectFilter::InZone(scope) => self.zone_scope(scope),
             ObjectFilter::HasKeyword(k) => self.keyword(k),
             ObjectFilter::Supertype(ty) => self.form("SuperType", ty),
-            ObjectFilter::All(items) | ObjectFilter::Either(items) => {
+            ObjectFilter::AllOf(items) | ObjectFilter::AnyOf(items) => {
                 for f in items {
                     self.filter(f);
                 }
@@ -2702,14 +2700,9 @@ impl Inventory<'_> {
             ObjectFilter::SharesNameWithAny(objects)
             | ObjectFilter::SharesNameWithAnother(objects)
             | ObjectFilter::SharesWithAny { with: objects, .. } => self.objects(objects),
-            ObjectFilter::Property {
-                property,
-                comparison,
-                value,
-            } => {
+            ObjectFilter::Property { property, test } => {
                 self.form("Property", property);
-                self.form("Comparison", comparison);
-                self.expr(value);
+                self.number_test(test);
             }
             ObjectFilter::Counters {
                 kind,
@@ -2738,6 +2731,23 @@ impl Inventory<'_> {
             | ObjectFilter::State(_)
             | ObjectFilter::Chosen(_)
             | ObjectFilter::Modified => {}
+        }
+    }
+    fn number_test(&mut self, test: &NumberTest) {
+        self.form("NumberTest", test);
+        match test {
+            NumberTest::Compare { comparison, value } => {
+                self.form("Comparison", comparison);
+                self.expr(value);
+            }
+            NumberTest::AllOf(tests) | NumberTest::AnyOf(tests) => {
+                for test in tests { self.number_test(test); }
+            }
+            NumberTest::AnyProperty { comparison, objects, property } => {
+                self.form("Comparison", comparison);
+                self.objects(objects);
+                self.form("Property", property);
+            }
         }
     }
     fn condition(&mut self, c: &Condition) {
@@ -2883,7 +2893,7 @@ impl Inventory<'_> {
             }
             Condition::PaymentChosen(_) => {}
             Condition::PlayerIsActive(p) => self.player(p),
-            Condition::All(items) | Condition::Either(items) => {
+            Condition::AllOf(items) | Condition::AnyOf(items) => {
                 for c in items {
                     self.condition(c);
                 }
@@ -2902,14 +2912,9 @@ impl Inventory<'_> {
                 self.player(player);
                 self.filter(filter);
             }
-            Condition::Compare {
-                left,
-                comparison,
-                right,
-            } => {
+            Condition::Compare { left, test } => {
                 self.expr(left);
-                self.form("Comparison", comparison);
-                self.expr(right);
+                self.number_test(test);
             }
             Condition::CoinFlip { outcome, .. } => self.form("CoinOutcome", outcome),
         }
@@ -3113,9 +3118,9 @@ impl Inventory<'_> {
                     self.filter(filter);
                 }
             }
-            EventSpec::NthEachTurn { event, value, .. } => {
+            EventSpec::NthEachTurn { event, test } => {
                 self.event(event);
-                self.expr(value);
+                self.number_test(test);
             }
             EventSpec::Pair {
                 event,
@@ -3233,7 +3238,7 @@ impl Inventory<'_> {
                 self.condition(condition);
                 self.player(player)
             },
-            EventSpec::Either(events) => {
+            EventSpec::AnyOf(events) => {
                 for event in events {
                     self.event(event);
                 }

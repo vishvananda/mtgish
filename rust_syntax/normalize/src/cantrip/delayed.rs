@@ -88,7 +88,7 @@ pub(super) fn reads_event_stack_object<T: crate::visit::Walk>(value: &T) -> bool
 fn direct_watched(filter: &ObjectFilter) -> Option<bool> {
     match filter {
         ObjectFilter::SameObject(object) if !matches!(object, ObjectRef::Source) => Some(true),
-        ObjectFilter::All(filters) => filters.iter().find_map(direct_watched),
+        ObjectFilter::AllOf(filters) => filters.iter().find_map(direct_watched),
         ObjectFilter::Condition(condition) => match &**condition {
             Condition::Compare {
                 left: Expr::EventHistory { event, .. },
@@ -135,7 +135,7 @@ fn source_is_event_subject(event: &EventSpec) -> bool {
     fn direct(filter: &ObjectFilter) -> bool {
         match filter {
             ObjectFilter::SameObject(ObjectRef::Source) => true,
-            ObjectFilter::All(filters) => filters.iter().any(direct),
+            ObjectFilter::AllOf(filters) => filters.iter().any(direct),
             _ => false,
         }
     }

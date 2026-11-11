@@ -26,11 +26,7 @@ impl Context {
     fn took_check(&self, player: &PlayerRef, value: &source::Players) -> Result<Option<Condition>> {
         use source::Players as S;
         use ObjectPhase::{After, Before};
-        let some = |objects: ObjectSet| Condition::Compare {
-            left: Expr::CountObjects(Box::new(objects)),
-            comparison: Comparison::Greater,
-            right: Expr::Constant(0),
-        };
+        let some = |objects: ObjectSet| Condition::Compare { left: Expr::CountObjects(Box::new(objects)), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } };
         let none = |objects: ObjectSet| Condition::Not(Box::new(some(objects)));
         let controlled = |done: Done| {
             let filter = ObjectFilter::ControlledBy(PlayerSet::One(player.clone()));

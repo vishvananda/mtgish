@@ -60,7 +60,7 @@ fn operations(c: &Card) -> Vec<&Operation> {
                 Instruction::Group(p)
                 | Instruction::Optional { body: p, .. }
                 | Instruction::Repeatable(p)
-                | Instruction::Times { body: p, .. }
+                | Instruction::RepeatableWithLimit { body: p, .. }
                 | Instruction::ForEachObject { body: p, .. }
                 | Instruction::ForEachPlayer { body: p, .. } => program(p, out),
                 Instruction::If {
@@ -357,7 +357,7 @@ fn hand_status_uses_actual_movements_and_conditional_remainders_do_not_leak_bran
         })
         .unwrap();
     assert!(
-        matches!(&p.instructions[1],Instruction::If {condition:Condition::Not(condition),..} if matches!(condition.as_ref(),Condition::Compare {left:Expr::CountObjects(objects),comparison:Comparison::Greater,right:Expr::Constant(0)} if matches!(objects.as_ref(),ObjectSet::Matching {objects,..} if matches!(objects.as_ref(),ObjectSet::Union(sets) if matches!(sets.as_slice(),[ObjectSet::Transition {result,phase:ObjectPhase::Before}] if result.0==moved)))))
+        matches!(&p.instructions[1],Instruction::If {condition:Condition::Not(condition),..} if matches!(condition.as_ref(),Condition::Compare { left:Expr::CountObjects(objects), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } } if matches!(objects.as_ref(),ObjectSet::Matching {objects,..} if matches!(objects.as_ref(),ObjectSet::Union(sets) if matches!(sets.as_slice(),[ObjectSet::Transition {result,phase:ObjectPhase::Before}] if result.0==moved)))))
     );
     let c=custom("SpellActions(ActionList([LookAtTheTopNumberCardsOfLibrary(Integer(3),[If(IsPlayersTurn(You),[PutAGenericCardIntoHand]),PutTheRemainingCardsIntoGraveyard])]))").unwrap();
     validate::card(&c).unwrap();

@@ -492,9 +492,9 @@ fn card_term(operand: &Operand) -> Option<ObjectFilter> {
         Operand::Term { form, operands, .. } if form == "And" || form == "Or" => {
             let filters = operands.iter().map(card_term).collect::<Option<Vec<_>>>()?;
             Some(if form == "And" {
-                ObjectFilter::All(filters)
+                ObjectFilter::AllOf(filters)
             } else {
-                ObjectFilter::Either(filters)
+                ObjectFilter::AnyOf(filters)
             })
         }
         Operand::Term { form, operands, .. } if form == "Other" => {
@@ -532,7 +532,7 @@ fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
     use AttackDefenders as D;
     use EventZone as Z;
     use Operand::{Comparison as Compare, Filter, Object, Objects, Players};
-    let all = |filters: Vec<ObjectFilter>| ObjectFilter::All(filters);
+    let all = |filters: Vec<ObjectFilter>| ObjectFilter::AllOf(filters);
     let bare = || -> Option<(Comparison, Expr)> { None };
     let batch = |event: EventSpec, count, including| EventSpec::Batch {
         event: Box::new(event),
@@ -564,11 +564,7 @@ fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
     };
     let amount_is = |event, comparison: &Comparison, value: &Expr| EventSpec::Filtered {
         event: Box::new(event),
-        condition: Condition::Compare {
-            left: Expr::EventAmount,
-            comparison: comparison.clone(),
-            right: value.clone(),
-        },
+        condition: Condition::Compare { left: Expr::EventAmount, test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } },
     };
     let one = |object: &ObjectRef| ObjectFilter::SameObject(object.clone());
     Some(match (form, operands) {
@@ -648,7 +644,7 @@ fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
             own_ability: true,
         },
         ("WhenAPermanentEntersTheBattlefieldFromExileOrWasCastFromExile", [Objects(set)]) => {
-            EventSpec::Either(vec![
+            EventSpec::AnyOf(vec![
                 zone_change(objects_filter(set), Some(Z::Exile), Z::Battlefield),
                 zone_change(
                     all(vec![
@@ -680,11 +676,7 @@ fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         ("WhenAPermanentHasPower", [Objects(set), Compare(comparison, value)]) => {
             EventSpec::ObjectBecomes(all(vec![
                 objects_filter(set),
-                ObjectFilter::Property {
-                    property: Property::Power,
-                    comparison: comparison.clone(),
-                    value: value.clone(),
-                },
+                ObjectFilter::Property { property: Property::Power, test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } },
             ]))
         }
         ("WhenAPermanentHasAbility", [Objects(set), Operand::Term { form, .. }])
@@ -891,7 +883,7 @@ fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         }
         ("WhenASpellBecomesTheTargetOfASpellOrAbility", [Filter(spells), cause]) => {
             EventSpec::BecomesTarget {
-                objects: ObjectFilter::All(vec![
+                objects: ObjectFilter::AllOf(vec![
                     ObjectFilter::OnStack(StackTrait::Spell),
                     spells.clone(),
                 ]),
@@ -903,7 +895,7 @@ fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
             "WhenAnyNumberOfPlayersAndOrPermanentsBecomeTheTargetOfASpellOrAbility",
             [Players(players), Objects(set), cause],
         ) => batch(
-            EventSpec::Either(vec![
+            EventSpec::AnyOf(vec![
                 player(PlayerEvent::BecomesTarget, players, stack_filter(cause)),
                 EventSpec::BecomesTarget {
                     objects: objects_filter(set),
@@ -1151,7 +1143,7 @@ fn reduce_more_abilities(name: &str, operands: &[Operand]) -> Option<Ability> {
             "APlayerCastingOrCopyingASpellCausesAnAbilityToTriggerAnAdditionalTime",
             [Players(players), Filter(spells), abilities],
         ) => again(
-            EventSpec::Either(vec![
+            EventSpec::AnyOf(vec![
                 spell(SpellEvent::Cast, players, spells),
                 spell(SpellEvent::Copy, players, spells),
             ]),
@@ -1240,7 +1232,7 @@ fn dealt(sources: ObjectFilter, recipients: DamageRecipients, kind: DamageKind) 
 }
 
 fn left_graveyard_filter(owners: &PlayerSet, cards: &ObjectFilter) -> ObjectFilter {
-    ObjectFilter::All(vec![cards.clone(), ObjectFilter::OwnedBy(owners.clone())])
+    ObjectFilter::AllOf(vec![cards.clone(), ObjectFilter::OwnedBy(owners.clone())])
 }
 
 /// What happened this turn or this way, read as a condition.
@@ -1360,7 +1352,7 @@ fn reduce_more_conditions(form: &str, operands: &[Operand]) -> Option<Condition>
             }))
         }
         ("CardIsOnlyCardInPlayersGraveyard", [Object(object), Filter(cards), Player(player)]) => {
-            Condition::All(vec![
+            Condition::AllOf(vec![
                 Condition::ObjectMatches {
                     object: object.clone(),
                     filter: cards.clone(),
@@ -1607,7 +1599,7 @@ fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
             measure: StickerMeasure::UniqueVowels,
         },
         ("ManaValueOfYourCommander", []) => Expr::Aggregate {
-            objects: Box::new(ObjectSet::AnyZone(ObjectFilter::All(vec![
+            objects: Box::new(ObjectSet::AnyZone(ObjectFilter::AllOf(vec![
                 ObjectFilter::State(ObjectState::Commander),
                 ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::AbilityController)),
             ]))),
@@ -1681,7 +1673,7 @@ fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
                     Z::Graveyard,
                 )
             };
-            occurred(EventSpec::Either(vec![from(Z::Hand), from(Z::Library)]))
+            occurred(EventSpec::AnyOf(vec![from(Z::Hand), from(Z::Library)]))
         }
         ("TheNumberOfCountersOfTypeMovedThisWay", [_, Run(result)]) => {
             Expr::Performed(result.clone())
@@ -1782,7 +1774,7 @@ fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<
     let hand = |filter| count_of(zone_set(Z::Hand, one(), filter));
     Some(match (form, rest) {
         ("AllCardsInHandAre", [cards, named]) => exactly(
-            hand(ObjectFilter::All(vec![
+            hand(ObjectFilter::AllOf(vec![
                 card_term(cards)?,
                 ObjectFilter::Not(Box::new(card_term(named)?)),
             ])),
@@ -1908,7 +1900,7 @@ fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<
             count_of(ObjectSet::Zone {
                 scope: ZoneScope::Shared(Z::Stack),
                 kind: ObjectKind::Spell,
-                filter: ObjectFilter::All(vec![spells.clone(), ObjectFilter::OwnedBy(one())]),
+                filter: ObjectFilter::AllOf(vec![spells.clone(), ObjectFilter::OwnedBy(one())]),
             }),
             1,
         ),
@@ -2285,7 +2277,7 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         zone_set(Z::Graveyard, players.clone(), cards.clone())
     };
     let both = |first: &ObjectFilter, second: &ObjectFilter| {
-        ObjectFilter::All(vec![first.clone(), second.clone()])
+        ObjectFilter::AllOf(vec![first.clone(), second.clone()])
     };
     let copies = |objects, times| Operation::CopyCards {
         actor: actor.clone(),
@@ -2466,10 +2458,7 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             objects: stack_filter(abilities)?,
             targets: NewTargets::May,
         },
-        ("CounterEachSpellAndAbility", [Objects(set)]) => Operation::Counter {
-            objects: set.clone(),
-            destination: D::OwnersGraveyard,
-        },
+        ("CounterEachSpellAndAbility", [Objects(set)]) => Operation::Counter { objects: set.clone(), destination: (D::OwnersGraveyard).into(), destination_when: None },
         ("DiscardTheCardRevealedThisWay", []) => Operation::DiscardObjects {
             objects: revealed(),
         },

@@ -1844,14 +1844,7 @@ impl Compiler {
                     Aggregation::Sum => "sum::<i64>()",
                     Aggregation::Maximum => "max().unwrap_or(0)",
                     Aggregation::Minimum => "min().unwrap_or(0)",
-                    Aggregation::AnyOf => {
-                        let code = format!(
-                            "cantrip_mechanics::numbers::any_of(&({}).into_iter().map(|o: ObjectId| {}).collect::<Vec<i64>>())",
-                            self.objects(objects)?,
-                            read.code
-                        );
-                        return Ok(lane_j::held_number("comparison with any one value".to_string(), &code));
-                    }
+
                 };
                 // A power or toughness is read only of what has one (CR 208.3): a 0
                 // put in for the rest is a default no creature takes.
@@ -2132,19 +2125,66 @@ impl Compiler {
         })
     }
     /// A boolean over `candidate`, the object `ObjectRef::Candidate` names.
-    pub(super) fn filter(&self, f: &ObjectFilter, candidate: &Candidate) -> Result<String> {
-        if let Some(either) = lane_p::any_of_filter(f) {
-            return self.filter(&either, candidate);
+    /// Compile a typed numeric predicate directly; no scalar/set coercion.
+    pub(super) fn number_test(&self, left: &str, test: &NumberTest) -> Result<String> {
+        match test {
+            NumberTest::Compare { comparison, value } =>
+                Ok(compare(left, comparison, &self.number(value)?.code)),
+            NumberTest::AllOf(tests) | NumberTest::AnyOf(tests) => {
+                let all = matches!(test, NumberTest::AllOf(_));
+                if tests.is_empty() { return Ok(all.to_string()); }
+                let parts = tests.iter().map(|t| self.number_test(left, t)).collect::<Result<Vec<_>>>()?;
+                Ok(format!("({})", parts.join(if all { " && " } else { " || " })))
+            }
+            NumberTest::AnyProperty { comparison, objects, property } => {
+                let right = self.property("number_object", property)?.code;
+                let predicate = compare(left, comparison, &right);
+                Ok(format!("({}).into_iter().any(|number_object: ObjectId| {predicate})", self.objects(objects)?))
+            }
         }
+    }
+    fn property_comparison(&self, property: &Property, comparison: &Comparison, value: &str, c: &Candidate) -> Result<String> {
+        let (id, chars) = (&c.id, &c.chars);
+        let side = |field: &str| match id.as_str() {
+            "e.affected" => compare(&format!("i64::from({chars}.{field}.unwrap_or(0))"), comparison, value),
+            _ => format!("{chars}.{field}.is_some_and(|v| {})", compare("i64::from(v)", comparison, value)),
+        };
+        Ok(match property {
+            Property::Power => side("power"),
+            Property::Toughness => side("toughness"),
+            Property::ManaValue if self.reader == Reader::Layer =>
+                compare(&format!("i64::from(q.mana_value({id}, &{chars}))"), comparison, value),
+            other => compare(&self.property(id, other)?.code, comparison, value),
+        })
+    }
+    fn property_test(&self, property: &Property, test: &NumberTest, c: &Candidate) -> Result<String> {
+        match test {
+            NumberTest::Compare { comparison, value } => {
+                let open = matches!(value, Expr::AnnouncedX) && self.choosing.is_some();
+                let right = if open { "i64::from(x)".into() } else { self.number(value)?.code };
+                let code = self.property_comparison(property, comparison, &right, c)?;
+                Ok(if open { format!("q.announced_x().map_or(true, |x| {code})") } else { code })
+            }
+            NumberTest::AnyOf(tests) | NumberTest::AllOf(tests) => {
+                let all = matches!(test, NumberTest::AllOf(_));
+                if tests.is_empty() { return Ok(all.to_string()); }
+                let parts = tests.iter().map(|t| self.property_test(property, t, c)).collect::<Result<Vec<_>>>()?;
+                Ok(format!("({})", parts.join(if all { " && " } else { " || " })))
+            }
+            NumberTest::AnyProperty { comparison, objects, property: other } => {
+                let right = self.property("number_object", other)?.code;
+                let code = self.property_comparison(property, comparison, &right, c)?;
+                Ok(format!("({}).into_iter().any(|number_object: ObjectId| {code})", self.objects(objects)?))
+            }
+        }
+    }
+    pub(super) fn filter(&self, f: &ObjectFilter, candidate: &Candidate) -> Result<String> {
         self.candidates.borrow_mut().push(candidate.clone());
         let compiled = self.predicate(f, candidate);
         self.candidates.borrow_mut().pop();
         compiled
     }
     fn predicate(&self, f: &ObjectFilter, c: &Candidate) -> Result<String> {
-        if let Some(either) = lane_p::any_of_filter(f) {
-            return self.predicate(&either, c);
-        }
         let (id, chars) = (c.id.as_str(), c.chars.as_str());
         if let Some(code) = self.used_to_craft(f, id)? {
             return Ok(code);
@@ -2167,8 +2207,8 @@ impl Compiler {
                 return Err(gap(format!("primitive object filter {name}")))
             }
             ObjectFilter::Any => "true".into(),
-            ObjectFilter::All(items) => combine(items, " && ", "true")?,
-            ObjectFilter::Either(items) => combine(items, " || ", "false")?,
+            ObjectFilter::AllOf(items) => combine(items, " && ", "true")?,
+            ObjectFilter::AnyOf(items) => combine(items, " || ", "false")?,
             // "The other piles" (Bend or Break): in a pile of a row that was not
             // the one chosen, not anything outside the piles.
             ObjectFilter::Not(p)
@@ -2294,48 +2334,7 @@ impl Compiler {
                     None => named,
                 }
             }
-            ObjectFilter::Property {
-                property,
-                comparison,
-                value,
-            } => {
-                // Before X is announced, the filter allows what some X would.
-                let open = matches!(value, Expr::AnnouncedX) && self.choosing.is_some();
-                let value = if open {
-                    "i64::from(x)".to_string()
-                } else {
-                    self.number(value)?.code
-                };
-                let side = |field: &str| match id {
-                    // What an effect keeps watching may stop being a creature:
-                    // then it has none, which compares as 0.
-                    "e.affected" => compare(
-                        &format!("i64::from({chars}.{field}.unwrap_or(0))"),
-                        comparison,
-                        &value,
-                    ),
-                    _ => format!(
-                        "{chars}.{field}.is_some_and(|v| {})",
-                        compare("i64::from(v)", comparison, &value)
-                    ),
-                };
-                let test = match property {
-                    // A card that has no power has no value to compare (208.3).
-                    Property::Power => side("power"),
-                    Property::Toughness => side("toughness"),
-                    Property::ManaValue if self.reader == Reader::Layer => compare(
-                        &format!("i64::from(q.mana_value({id}, &{chars}))"),
-                        comparison,
-                        &value,
-                    ),
-                    other => compare(&self.property(id, other)?.code, comparison, &value),
-                };
-                if open {
-                    format!("q.announced_x().map_or(true, |x| {test})")
-                } else {
-                    test
-                }
-            }
+            ObjectFilter::Property { property, test } => self.property_test(property, test, c)?,
             // A mana value is the object's, not its characteristics': a spell's holds its X
             // (CR 202.3e).
             ObjectFilter::Shares {
@@ -2518,8 +2517,8 @@ impl Compiler {
                 None if self.failed.contains(&result.0) => planned::unreported("false", result),
                 None => return Err(gap("condition Searched")),
             },
-            Condition::All(items) => combine(items, " && ", "true")?,
-            Condition::Either(items) => combine(items, " || ", "false")?,
+            Condition::AllOf(items) => combine(items, " && ", "true")?,
+            Condition::AnyOf(items) => combine(items, " || ", "false")?,
             Condition::Not(c) => format!("!({})", self.condition(c)?),
             // A cost change is told the targets just announced (601.2f).
             Condition::TargetsMatch {
@@ -2572,10 +2571,7 @@ impl Compiler {
             Condition::ObjectMatches {
                 object,
                 filter:
-                    filter @ ObjectFilter::Property {
-                        value: Expr::Aggregate { objects, .. },
-                        ..
-                    },
+                    filter @ ObjectFilter::Property { test: NumberTest::Compare { value: Expr::Aggregate { objects, .. }, .. }, .. },
             } if matches!(**objects, crate::battlefield_query!(_)) => format!(
                 "{}.filter(|&o| cantrip_mechanics::targets::permanent(q, o)).is_some_and(|candidate: ObjectId| {})",
                 self.object(object)?,
@@ -2622,30 +2618,7 @@ impl Compiler {
                 format_args!("{}.unwrap_or(PlayerId(u8::MAX))", self.player(player)?),
                 self.filter(filter, &Candidate::of("id"))?
             ),
-            // "A 1 or 2": one comparison for each value.
-            Condition::Compare {
-                left,
-                comparison,
-                right: Expr::AnyOf(values),
-            } => {
-                let tests = values
-                    .iter()
-                    .map(|value| {
-                        let number = self.number(left)?.code;
-                        Ok(compare(&number, comparison, &self.number(value)?.code))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                format!("({})", tests.join(" || "))
-            }
-            Condition::Compare {
-                left,
-                comparison,
-                right,
-            } => compare(
-                &self.number(left)?.code,
-                comparison,
-                &self.number(right)?.code,
-            ),
+            Condition::Compare { left, test } => self.number_test(&self.number(left)?.code, test)?,
             Condition::PaymentChosen(result) => match self.performed.get(&result.0) {
                 Some(local) => format!("(({local} as i64) != 0)"),
                 None if self.failed.contains(&result.0) => planned::unreported("false", result),

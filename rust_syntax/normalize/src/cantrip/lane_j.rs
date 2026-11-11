@@ -1141,7 +1141,7 @@ impl Compiler {
                 spells,
                 abilities,
             } => {
-                let mut matched = self.event(&EventSpec::Either(vec![
+                let mut matched = self.event(&EventSpec::AnyOf(vec![
                     EventSpec::Spell {
                         event: SpellEvent::Cast,
                         players: players.clone(),
@@ -1584,7 +1584,7 @@ impl Compiler {
                 )))
             }
         };
-        let mut matched = self.event(&EventSpec::Either(vec![
+        let mut matched = self.event(&EventSpec::AnyOf(vec![
             EventSpec::Spell {
                 event: SpellEvent::Cast,
                 players: players.clone(),
@@ -1875,8 +1875,8 @@ impl Compiler {
 fn without_untapped(filter: &ObjectFilter) -> ObjectFilter {
     let untapped = |f: &ObjectFilter| matches!(f, ObjectFilter::Not(inner) if matches!(&**inner, ObjectFilter::Tapped));
     match filter {
-        ObjectFilter::All(filters) => {
-            ObjectFilter::All(filters.iter().filter(|f| !untapped(f)).cloned().collect())
+        ObjectFilter::AllOf(filters) => {
+            ObjectFilter::AllOf(filters.iter().filter(|f| !untapped(f)).cloned().collect())
         }
         other if untapped(other) => ObjectFilter::Any,
         other => other.clone(),
@@ -3321,7 +3321,7 @@ fn symbols_text(symbols: &[ManaSymbol]) -> Option<String> {
 /// "This creature escapes with ...": a replacement of its entering, if it escaped.
 pub(super) fn escapes(event: &ReplacementEvent) -> bool {
     let ReplacementEvent::Enter {
-        objects: ObjectFilter::All(parts),
+        objects: ObjectFilter::AllOf(parts),
     } = event
     else {
         return false;
@@ -3401,7 +3401,7 @@ pub(super) fn granted_keyword(ability: &Ability) -> Option<&'static str> {
 /// "Put N -1/-1 counters on a creature you control": what blight is (CR 701.68a).
 pub(super) fn blights(placements: &[CounterPlacement]) -> Option<u8> {
     let [CounterPlacement {
-        recipients: Recipients::Objects(crate::battlefield_query!(ObjectFilter::All(filters))),
+        recipients: Recipients::Objects(crate::battlefield_query!(ObjectFilter::AllOf(filters))),
         kind: crate::counter::CounterKind::PowerToughness(-1, -1),
         amount,
         selection:
@@ -3481,7 +3481,7 @@ pub(super) fn counters_on_a_target(
 /// Cumulative upkeep's "Put a +1/+1 counter on a creature an opponent controls".
 fn on_an_opposing_creature(placements: &[CounterPlacement]) -> bool {
     let [CounterPlacement {
-        recipients: Recipients::Objects(crate::battlefield_query!(ObjectFilter::All(filters))),
+        recipients: Recipients::Objects(crate::battlefield_query!(ObjectFilter::AllOf(filters))),
         kind: crate::counter::CounterKind::PowerToughness(1, 1),
         amount: Expr::Constant(1),
         selection:
@@ -3704,20 +3704,12 @@ pub(super) fn hexproof_quality(quality: &Protection) -> Result<String> {
         Protection::Objects {
             kind: ObjectKind::Any,
             filter:
-                ObjectFilter::Property {
-                    property: Property::ColorCount,
-                    comparison: Comparison::Equal,
-                    value: Expr::Constant(1),
-                },
+                ObjectFilter::Property { property: Property::ColorCount, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(1) } },
         } => Ok("HexproofFrom::MONOCOLORED".to_string()),
         Protection::Objects {
             kind: ObjectKind::Any,
             filter:
-                ObjectFilter::Property {
-                    property: Property::ColorCount,
-                    comparison: Comparison::Greater,
-                    value: Expr::Constant(1),
-                },
+                ObjectFilter::Property { property: Property::ColorCount, test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(1) } },
         } => Ok("HexproofFrom::MULTICOLORED".to_string()),
         Protection::Objects { filter, .. } => {
             Err(gap(format!("keyword HexproofFrom {}", form(filter))))
@@ -4470,12 +4462,12 @@ impl Compiler {
                 Ability::Triggered { .. } => self.trigger_gate = Some(held.clone()),
                 Ability::Activated { limits, .. } => {
                     limits.condition = Some(match limits.condition.take() {
-                        Some(other) => Condition::All(vec![held.clone(), other]),
+                        Some(other) => Condition::AllOf(vec![held.clone(), other]),
                         None => held.clone(),
                     })
                 }
                 Ability::Conditional { condition, .. } => {
-                    *condition = Condition::All(vec![held.clone(), condition.clone()])
+                    *condition = Condition::AllOf(vec![held.clone(), condition.clone()])
                 }
                 other => {
                     gated = Ability::Conditional {
@@ -5461,7 +5453,7 @@ impl Compiler {
     /// on what counts as a creature dying or attacking.
     fn trigger_cause(&mut self, event: &EventSpec) -> Result<String> {
         Ok(match event {
-            EventSpec::Either(events) => {
+            EventSpec::AnyOf(events) => {
                 let tests = events
                     .iter()
                     .map(|e| self.trigger_cause(e))

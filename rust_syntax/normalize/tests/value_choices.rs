@@ -1,3 +1,5 @@
+#[path = "support/epoch189.rs"]
+mod epoch189;
 #[path = "support/query_aliases.rs"]
 mod query_aliases;
 use mtgish_ast::{
@@ -78,6 +80,7 @@ fn full_producer_records_keep_every_operand_except_declared_choice_schema() {
     for (line, before) in source.into_iter().zip(before) {
         let source: OracleCard = ron::from_str(line).unwrap();
         let mut expected: Value = serde_json::from_str(before).unwrap();
+        epoch189::tree(&mut expected);
         query_aliases::value_choices(&mut expected);
         expected["schema_version"] = json!(SCHEMA_VERSION);
         let actual = pipeline::finalize(&source).unwrap();
@@ -100,7 +103,7 @@ fn full_producer_records_keep_every_operand_except_declared_choice_schema() {
             let owner=objects["args"]["scope"]["Players"]["players"].clone();
             assert_eq!(objects["args"]["scope"]["Players"]["zone"],"Hand");
             let filter=objects["args"]["filter"].clone();
-            *objects=json!({"kind":"Matching","args":{"objects":{"kind":"InZone","args":{"objects":{"kind":"Observed","args":revealed},"zone":"Hand"}},"filter":{"kind":"All","args":[{"kind":"OwnedBy","args":owner},filter]}}});
+            *objects=json!({"kind":"Matching","args":{"objects":{"kind":"InZone","args":{"objects":{"kind":"Observed","args":revealed},"zone":"Hand"}},"filter":{"kind":"AllOf","args":[{"kind":"OwnedBy","args":owner},filter]}}});
         }
         assert_eq!(
             serde_json::to_value(&actual).unwrap(),

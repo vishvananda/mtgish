@@ -26,7 +26,7 @@ impl Compiler {
     /// card prints: its own types don't change in the graveyard, so a type it doesn't print is a test no game can make true,
     /// and the half of `a || b` naming it is a line that never runs. A card that prints none of them keeps the whole test.
     pub(super) fn printed_types_of_source(&self, require: &ObjectFilter) -> ObjectFilter {
-        let ObjectFilter::Either(parts) = require else { return require.clone() };
+        let ObjectFilter::AnyOf(parts) = require else { return require.clone() };
         let printed: Vec<&ObjectFilter> = parts
             .iter()
             .filter(|part| matches!(part, ObjectFilter::CardType(t) if self.printed_types.iter().any(|printed| std::mem::discriminant(printed) == std::mem::discriminant(t))))
@@ -36,7 +36,7 @@ impl Compiler {
         }
         match printed.as_slice() {
             [one] => (*one).clone(),
-            many => ObjectFilter::Either(many.iter().map(|part| (*part).clone()).collect()),
+            many => ObjectFilter::AnyOf(many.iter().map(|part| (*part).clone()).collect()),
         }
     }
 
@@ -522,17 +522,9 @@ impl Compiler {
                 parts.table("own_cost_changes", function);
             }
             // "X can't be 0" is said of X as it is announced (CR 601.2b).
-            CastingRule::Require(Condition::Compare {
-                left: Expr::AnnouncedX,
-                comparison: Comparison::NotEqual,
-                right: Expr::Constant(0),
-            }) if condition.is_none() => parts.field("x_cant_be_zero", "true".into()),
+            CastingRule::Require(Condition::Compare { left: Expr::AnnouncedX, test: NumberTest::Compare { comparison: Comparison::NotEqual, value: Expr::Constant(0) } }) if condition.is_none() => parts.field("x_cant_be_zero", "true".into()),
             // Blight X's own limit: `VariableCost::BlightX` announces X up to it.
-            CastingRule::Require(Condition::Compare {
-                left: Expr::AnnouncedX,
-                comparison: Comparison::LessOrEqual,
-                right,
-            }) if condition.is_none()
+            CastingRule::Require(Condition::Compare { left: Expr::AnnouncedX, test: NumberTest::Compare { comparison: Comparison::LessOrEqual, value: right } }) if condition.is_none()
                 && parts
                     .fields
                     .get("additional_cost")

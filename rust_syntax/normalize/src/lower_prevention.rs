@@ -211,7 +211,7 @@ impl Context {
                 R::Ref_AnyTarget => return Err(unsupported(item)),
             }
         }
-        let any = ObjectFilter::Either(objects.clone());
+        let any = ObjectFilter::AnyOf(objects.clone());
         let each = PlayerSet::Union(players.clone());
         Ok(match (objects.is_empty(), players.is_empty()) {
             (false, true) => DamageRecipients::Objects(any),

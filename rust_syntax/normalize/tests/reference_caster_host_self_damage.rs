@@ -38,7 +38,7 @@ fn affinity(name: &str, base: Value) {
     assert_eq!(objects["args"]["kind"], json!("Spell"));
     assert_eq!(
         objects["args"]["filter"],
-        json!({"kind":"All","args":[base,
+        json!({"kind":"AllOf","args":[base,
             {"kind":"Cast","args":{"by":{"kind":"One","args":{"kind":"AbilityController"}},"from":null}}
         ]})
     );
@@ -53,14 +53,14 @@ fn sami_affinity_applies_to_your_cast_spells() {
 fn tezzeret_affinity_keeps_creature_or_planeswalker_and_requires_your_cast() {
     affinity(
         "Tezzeret, Master of the Bridge",
-        json!({"kind":"Either","args":[{"kind":"CardType","args":"Creature"},{"kind":"CardType","args":"Planeswalker"}]}),
+        json!({"kind":"AnyOf","args":[{"kind":"CardType","args":"Creature"},{"kind":"CardType","args":"Planeswalker"}]}),
     );
 }
 #[test]
 fn mycosynth_golem_affinity_keeps_both_artifact_and_creature_and_requires_your_cast() {
     affinity(
         "Mycosynth Golem",
-        json!({"kind":"All","args":[{"kind":"CardType","args":"Artifact"},{"kind":"CardType","args":"Creature"}]}),
+        json!({"kind":"AllOf","args":[{"kind":"CardType","args":"Artifact"},{"kind":"CardType","args":"Creature"}]}),
     );
 }
 #[test]
@@ -74,7 +74,7 @@ fn pearl_ear_affinity_keeps_enchantment_and_requires_your_cast() {
 fn witherbloom_affinity_keeps_instant_or_sorcery_and_requires_your_cast() {
     affinity(
         "Witherbloom, the Balancer",
-        json!({"kind":"Either","args":[{"kind":"CardType","args":"Instant"},{"kind":"CardType","args":"Sorcery"}]}),
+        json!({"kind":"AnyOf","args":[{"kind":"CardType","args":"Instant"},{"kind":"CardType","args":"Sorcery"}]}),
     );
 }
 
@@ -86,7 +86,7 @@ fn simic_guildmage_chooses_a_new_host_with_the_current_hosts_controller() {
     let host = json!({"kind":"AttachedTo","args":aura});
     assert_eq!(
         choose["objects"]["args"]["filter"],
-        json!({"kind":"All","args":[
+        json!({"kind":"AllOf","args":[
             {"kind":"Not","args":{"kind":"SameObject","args":host}},
             {"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"ControllerOf","args":host}}}
         ]})
@@ -130,7 +130,7 @@ fn sunflare_keeps_separate_target_and_self_damage_with_the_same_elemental_card_c
         parts[0]["amount"],
         json!({"kind":"CountObjects","args":{"kind":"Zone","args":{
             "scope":{"Players":{"zone":"Graveyard","players":{"kind":"All"}}},"kind":"Card",
-            "filter":{"kind":"All","args":[{"kind":"Subtype","args":"Elemental"},{"kind":"InZone","args":{"Players":{"zone":"Graveyard","players":{"kind":"One","args":{"kind":"AbilityController"}}}}}]}
+            "filter":{"kind":"AllOf","args":[{"kind":"Subtype","args":"Elemental"},{"kind":"InZone","args":{"Players":{"zone":"Graveyard","players":{"kind":"One","args":{"kind":"AbilityController"}}}}}]}
         }}})
     );
     assert_eq!(

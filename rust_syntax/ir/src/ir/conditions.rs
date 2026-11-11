@@ -29,8 +29,8 @@ pub enum Condition {
     /// started. Replacement of the payment's events does not turn this false.
     PaymentChosen(ResultId),
     PlayerIsActive(PlayerRef),
-    All(Vec<Condition>),
-    Either(Vec<Condition>),
+    AllOf(Vec<Condition>),
+    AnyOf(Vec<Condition>),
     Not(Box<Condition>),
     ObjectMatches {
         object: ObjectRef,
@@ -43,8 +43,7 @@ pub enum Condition {
     },
     Compare {
         left: Expr,
-        comparison: Comparison,
-        right: Expr,
+        test: NumberTest,
     },
     /// How the flip that made `result` came out.
     CoinFlip {

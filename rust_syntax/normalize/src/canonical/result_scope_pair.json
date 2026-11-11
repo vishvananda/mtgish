@@ -1,1 +1,228 @@
-{"collision_input":[{"kind":"Spell","args":{"announcement":{"targets":[],"modes":null},"body":{"instructions":[{"kind":"Effect","args":{"result":1,"operation":{"kind":"CreateDelayedTrigger","args":{"event":{"Turn":{"point":"UpkeepBegins","players":{"kind":"One","args":{"kind":"AbilityController"}}}},"start":"Immediately","expires":null,"intervening_if":null,"body":{"instructions":[{"kind":"Effect","args":{"result":1,"operation":{"kind":"PayCost","args":{"player":{"kind":"AbilityController"},"cost":{"parts":[{"Mana":[{"Generic":3},{"Color":"Blue"},{"Color":"Blue"}]}]},"optional":false}}}},{"kind":"If","args":{"condition":{"kind":"Not","args":{"kind":"PaymentChosen","args":1}},"then":{"instructions":[{"kind":"Effect","args":{"result":2,"operation":{"kind":"Keyword","args":{"actor":{"kind":"One","args":{"kind":"AbilityController"}},"action":"LoseGame","object":null,"other":null,"amount":null,"subtype":null}}}}]},"otherwise":{"instructions":[]}}}]}}}}}]}}}],"fresh_unused_outer_definition":[{"kind":"Spell","args":{"announcement":{"targets":[],"modes":null},"body":{"instructions":[{"kind":"Effect","args":{"result":99,"operation":{"kind":"CreateDelayedTrigger","args":{"event":{"Turn":{"point":"UpkeepBegins","players":{"kind":"One","args":{"kind":"AbilityController"}}}},"start":"Immediately","expires":null,"intervening_if":null,"body":{"instructions":[{"kind":"Effect","args":{"result":1,"operation":{"kind":"PayCost","args":{"player":{"kind":"AbilityController"},"cost":{"parts":[{"Mana":[{"Generic":3},{"Color":"Blue"},{"Color":"Blue"}]}]},"optional":false}}}},{"kind":"If","args":{"condition":{"kind":"Not","args":{"kind":"PaymentChosen","args":1}},"then":{"instructions":[{"kind":"Effect","args":{"result":2,"operation":{"kind":"Keyword","args":{"actor":{"kind":"One","args":{"kind":"AbilityController"}},"action":"LoseGame","object":null,"other":null,"amount":null,"subtype":null}}}}]},"otherwise":{"instructions":[]}}}]}}}}}]}}}]}
+{
+  "collision_input": [
+    {
+      "kind": "Spell",
+      "args": {
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "CreateDelayedTrigger",
+                  "args": {
+                    "event": {
+                      "Turn": {
+                        "point": "UpkeepBegins",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "start": "Immediately",
+                    "expires": null,
+                    "intervening_if": null,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "PayCost",
+                              "args": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "cost": {
+                                  "parts": [
+                                    {
+                                      "Mana": [
+                                        {
+                                          "Generic": 3
+                                        },
+                                        {
+                                          "Color": "Blue"
+                                        },
+                                        {
+                                          "Color": "Blue"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "optional": false
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "If",
+                          "args": {
+                            "condition": {
+                              "kind": "Not",
+                              "args": {
+                                "kind": "PaymentChosen",
+                                "args": 1
+                              }
+                            },
+                            "then": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 2,
+                                    "operation": {
+                                      "kind": "Keyword",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "action": "LoseGame"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "otherwise": {
+                              "instructions": []
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "fresh_unused_outer_definition": [
+    {
+      "kind": "Spell",
+      "args": {
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 99,
+                "operation": {
+                  "kind": "CreateDelayedTrigger",
+                  "args": {
+                    "event": {
+                      "Turn": {
+                        "point": "UpkeepBegins",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "start": "Immediately",
+                    "expires": null,
+                    "intervening_if": null,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "PayCost",
+                              "args": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "cost": {
+                                  "parts": [
+                                    {
+                                      "Mana": [
+                                        {
+                                          "Generic": 3
+                                        },
+                                        {
+                                          "Color": "Blue"
+                                        },
+                                        {
+                                          "Color": "Blue"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                "optional": false
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "If",
+                          "args": {
+                            "condition": {
+                              "kind": "Not",
+                              "args": {
+                                "kind": "PaymentChosen",
+                                "args": 1
+                              }
+                            },
+                            "then": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 2,
+                                    "operation": {
+                                      "kind": "Keyword",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "action": "LoseGame"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "otherwise": {
+                              "instructions": []
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

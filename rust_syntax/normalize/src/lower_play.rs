@@ -176,7 +176,7 @@ impl Context {
         let filter = match filters.len() {
             0 => ObjectFilter::Any,
             1 => filters.remove(0),
-            _ => ObjectFilter::Either(filters),
+            _ => ObjectFilter::AnyOf(filters),
         };
         Ok(PlayerRule::PlayPermissionWith {
             permission: Box::new(PlayerRule::PlayPermission {

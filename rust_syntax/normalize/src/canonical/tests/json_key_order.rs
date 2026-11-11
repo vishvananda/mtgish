@@ -35,7 +35,7 @@ fn trigger(event: Value) -> Value {
 fn commutative_keys_ignore_recursive_object_insertion_order() {
     let a = json!({"Object":{"event":"Attacks","objects":{"kind":"CardType","args":"Creature"}}});
     let b = json!({"ZoneChange":{"objects":{"kind":"CardType","args":"Artifact"},"from":null,"to":"Battlefield"}});
-    let filter = json!({"kind":"All","args":[{"kind":"State","args":"Enchanted"},
+    let filter = json!({"kind":"AllOf","args":[{"kind":"State","args":"Enchanted"},
         {"kind":"CardType","args":"Creature"},{"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}]});
     let query = |filter| {
         json!({"kind":"Objects","args":{"kind":"Zone","args":{
@@ -50,7 +50,7 @@ fn commutative_keys_ignore_recursive_object_insertion_order() {
     ]}}});
     for value in [
         json!([static_ability]),
-        json!([trigger(json!({"Either":[a.clone(),b.clone()]}))]),
+        json!([trigger(json!({"AnyOf":[a.clone(),b.clone()]}))]),
         json!([trigger(a), trigger(b)]),
         json!([union_damage]),
     ] {

@@ -1,9 +1,9 @@
 /* Compact control blocks retain the exact instruction/operation boundaries. */
 'use strict';
 function createFlowView(api) {
-  const instructionFamilies=[['If','Optional'],['ChooseOne'],['ForEachObject','ForEachPlayer'],['Repeatable','Times'],['Group']];
+  const instructionFamilies=[['If','Optional'],['ChooseOne'],['ForEachObject','ForEachPlayer'],['Repeatable','RepeatableWithLimit'],['Group']];
   const values=['BindValue','NoteObjects','JoinResults'];
-  const labels={If:'If',Optional:'May do',ChooseOne:'Choose one option',ForEachObject:'For each object',ForEachPlayer:'For each player',Repeatable:'Repeatable process',Times:'Repeatable process · capped',Group:'Sequence',RepeatProcess:'Run this process again',BindValue:'Remember number',NoteObjects:'Remember objects',JoinResults:'Combine saved results',Together:'Together · one result',InOrder:'In order · one result',Repeat:'Repeat action'};
+  const labels={If:'If',Optional:'May do',ChooseOne:'Choose one option',ForEachObject:'For each object',ForEachPlayer:'For each player',Repeatable:'Repeatable process',RepeatableWithLimit:'Repeatable process · capped',Group:'Sequence',RepeatProcess:'Run this process again',BindValue:'Remember number',NoteObjects:'Remember objects',JoinResults:'Combine saved results',Together:'Together · one result',InOrder:'In order · one result',Repeat:'Repeat action'};
   function variants(s,d){
     if(s.ty.named==='Instruction'&&s.pr!=='effect'){const family=instructionFamilies.find(f=>f.includes(s.variant));if(family)return d.variants.filter(v=>family.includes(v.wire));}
     if(s.pr==='effect'&&api.actions[s.op]?.control){const family=values.includes(s.op)?values:s.op==='RepeatProcess'?['RepeatProcess']:Object.keys(api.actions).filter(n=>api.actions[n].control&&!values.includes(n)&&n!=='RepeatProcess');return d.variants.filter(v=>family.includes(v.wire));}
@@ -28,10 +28,10 @@ function createFlowView(api) {
   function starter(name){
     const value=api.instruction(name),args=value.args;
     if(name==='ChooseOne')args.options=[{instructions:[]},{instructions:[]}];
-    if(name==='If')args.condition={kind:'Compare',args:{left:{kind:'Constant',args:1},comparison:'Equal',right:{kind:'Constant',args:1}}};
-    if(name==='ForEachObject')args.objects={kind:'Zone',args:{scope:{Shared:'Battlefield'},kind:'Permanent',filter:{kind:'All',args:[{kind:'CardType',args:'Creature'},{kind:'ControlledBy',args:{kind:'One',args:{kind:'AbilityController'}}}]}}};
+    if(name==='If')args.condition={kind:'Compare',args:{left:{kind:'Constant',args:1},test:{kind:'Compare',args:{comparison:'Equal',value:{kind:'Constant',args:1}}}}};
+    if(name==='ForEachObject')args.objects={kind:'Zone',args:{scope:{Shared:'Battlefield'},kind:'Permanent',filter:{kind:'AllOf',args:[{kind:'CardType',args:'Creature'},{kind:'ControlledBy',args:{kind:'One',args:{kind:'AbilityController'}}}]}}};
     if(name==='ForEachPlayer')args.players={kind:'All'};
-    if(name==='Times')args.amount={kind:'Constant',args:2};
+    if(name==='RepeatableWithLimit')args.amount={kind:'Constant',args:2};
     return value;
   }
   function palette(){return [

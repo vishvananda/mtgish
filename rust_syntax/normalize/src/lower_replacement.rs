@@ -4,7 +4,7 @@ impl Context {
         Ok(Ability::Spell {
             announcement: Announcement {
                 targets: self.targets.clone(),
-                modes: self.modes.clone(),
+                modes: self.modes.clone().map(Box::new),
             },
             body,
         })

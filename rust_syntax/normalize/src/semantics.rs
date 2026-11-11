@@ -871,10 +871,7 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
     if let ("Action::CounterAbility", [Operand::Object(object)]) =
         (name.as_str(), operands.as_slice())
     {
-        return Operation::Counter {
-            objects: ObjectSet::One(object.clone()),
-            destination: Destination::OwnersGraveyard,
-        };
+        return Operation::Counter { objects: ObjectSet::One(object.clone()), destination: (Destination::OwnersGraveyard).into(), destination_when: None };
     }
     if let Some(form) = name.strip_prefix("ReplacementActionWouldEnter::") {
         let plain = reduce_action(actor.clone(), format!("Action::{form}"), operands.clone());
@@ -1128,14 +1125,11 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
             })
         }
         ("Action::CounterEachSpell", [Operand::Filter(spells)]) => {
-            return Some(Operation::Counter {
-                objects: ObjectSet::Zone {
+            return Some(Operation::Counter { objects: ObjectSet::Zone {
                     scope: ZoneScope::Shared(EventZone::Stack),
                     kind: ObjectKind::Spell,
                     filter: spells.clone(),
-                },
-                destination: Destination::OwnersGraveyard,
-            })
+                }, destination: (Destination::OwnersGraveyard).into(), destination_when: None })
         }
         ("Action::ControllersSacrificeEachPermanent", [Objects(objects)]) => {
             return Some(Operation::Sacrifice {
@@ -1778,18 +1772,14 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         ("ManaAmountOfTypeWasSpentToCastIt", [Operand::Comparison(comparison, value), color])
             if simple_color(color).is_some() =>
         {
-            return ObjectFilter::Condition(Box::new(Condition::Compare {
-                left: Expr::ManaSpent {
+            return ObjectFilter::Condition(Box::new(Condition::Compare { left: Expr::ManaSpent {
                     object: ObjectRef::Candidate,
                     filter: SpentManaFilter {
                         colors: Some(vec![simple_color(color).unwrap()]),
                         snow: false,
                     },
                     aggregation: SpentManaAggregation::Count,
-                },
-                comparison: comparison.clone(),
-                right: value.clone(),
-            }))
+                }, test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } }))
         }
         ("HasAnAdventure", []) => return ObjectFilter::State(ObjectState::HasAdventure),
         ("BlockedThisTurn", []) => return ObjectFilter::State(ObjectState::BlockedThisTurn),
@@ -1798,7 +1788,7 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         }
         ("HasASingleTarget", []) => return ObjectFilter::OnStack(StackTrait::SingleTarget),
         ("TargetsOnlySinglePermanent", [Operand::Object(object)]) => {
-            return ObjectFilter::All(vec![
+            return ObjectFilter::AllOf(vec![
                 ObjectFilter::OnStack(StackTrait::SingleTarget),
                 ObjectFilter::TargetsAny(Box::new(Recipients::Objects(ObjectSet::One(
                     object.clone(),
@@ -1806,7 +1796,7 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
             ])
         }
         ("TargetsOnlyASinglePermanent", [Operand::Objects(objects)]) => {
-            return ObjectFilter::All(vec![
+            return ObjectFilter::AllOf(vec![
                 ObjectFilter::OnStack(StackTrait::SingleTarget),
                 ObjectFilter::TargetsAny(Box::new(Recipients::Objects(objects.clone()))),
             ])
@@ -1896,7 +1886,7 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     };
     match (state, form, operands.as_slice()) {
         (Some(state), _, []) => ObjectFilter::State(state),
-        (_, "IsYourCommander", []) => ObjectFilter::All(vec![
+        (_, "IsYourCommander", []) => ObjectFilter::AllOf(vec![
             ObjectFilter::State(ObjectState::Commander),
             ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::AbilityController)),
         ]),
@@ -1906,7 +1896,7 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         // An outlaw is any of these five creature types.
         (_, "IsAnOutlaw", []) => {
             use crate::mtg_types::CreatureType as C;
-            ObjectFilter::Either(
+            ObjectFilter::AnyOf(
                 [C::Assassin, C::Mercenary, C::Pirate, C::Rogue, C::Warlock]
                     .iter()
                     .map(|ty| ObjectFilter::Subtype(crate::subtype::creature_type(ty)))
@@ -1974,18 +1964,14 @@ fn simple_color(operand: &Operand) -> Option<ManaColor> {
 fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
     use Operand::{Comparison as Than, Objects, Player};
     let controlled = |player: &PlayerRef, objects: &ObjectSet| {
-        Some(ObjectSet::battlefield(ObjectFilter::All(vec![
+        Some(ObjectSet::battlefield(ObjectFilter::AllOf(vec![
             event_filter(objects)?,
             ObjectFilter::ControlledBy(PlayerSet::One(player.clone())),
         ])))
     };
     let count = |objects: ObjectSet| Expr::CountObjects(Box::new(objects));
     let compare = |left, comparison: &Comparison, right: &Expr| {
-        Some(Condition::Compare {
-            left,
-            comparison: comparison.clone(),
-            right: right.clone(),
-        })
+        Some(Condition::Compare { left, test: NumberTest::Compare { comparison: comparison.clone(), value: right.clone() } })
     };
     match (name, operands) {
         (
@@ -2040,7 +2026,7 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
                 filter.push(ObjectFilter::ControlledBy(PlayerSet::One(p.clone())));
             }
             compare(
-                count(ObjectSet::battlefield(ObjectFilter::All(filter))),
+                count(ObjectSet::battlefield(ObjectFilter::AllOf(filter))),
                 &Comparison::GreaterOrEqual,
                 &Expr::Constant(1),
             )
@@ -2174,23 +2160,18 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
     }
     match (name.as_str(), operands.as_slice()) {
         ("Condition::TheChosenNumbersMatch", []) => {
-            return Condition::Compare {
-                left: among(
+            return Condition::Compare { left: among(
                     &PlayerSet::All,
                     PlayerNumber::ChosenNumber,
                     Aggregation::Maximum,
-                ),
-                comparison: Comparison::Equal,
-                right: among(
+                ), test: NumberTest::Compare { comparison: Comparison::Equal, value: among(
                     &PlayerSet::All,
                     PlayerNumber::ChosenNumber,
                     Aggregation::Minimum,
-                ),
-            }
+                ) } }
         }
         ("Condition::ASpellWasWarpedThisTurn", []) => {
-            return Condition::Compare {
-                left: Expr::EventHistory {
+            return Condition::Compare { left: Expr::EventHistory {
                     event: Box::new(EventSpec::Spell {
                         event: SpellEvent::Cast,
                         players: PlayerSet::All,
@@ -2198,20 +2179,13 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
                     }),
                     window: HistoryWindow::ThisTurn,
                     measure: HistoryMeasure::Occurrences,
-                },
-                comparison: Comparison::GreaterOrEqual,
-                right: Expr::Constant(1),
-            }
+                }, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } }
         }
         ("Condition::TheChosenWordWas", [Operand::Text(word)]) => {
             return Condition::ChosenWord(word.clone())
         }
         ("Condition::TriggerDiceResultIs", [Operand::Comparison(comparison, value)]) => {
-            return Condition::Compare {
-                left: Expr::EventAmount,
-                comparison: comparison.clone(),
-                right: value.clone(),
-            }
+            return Condition::Compare { left: Expr::EventAmount, test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } }
         }
         (
             "Condition::TheCardInHandPassesFilter",
@@ -2226,8 +2200,7 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
             "Players::AttackedPlayerThisTurn",
             [Operand::Player(attacker), Operand::Player(defender)],
         ) => {
-            return Condition::Compare {
-                left: Expr::EventHistory {
+            return Condition::Compare { left: Expr::EventHistory {
                     event: Box::new(EventSpec::Attack {
                         attackers: ObjectFilter::Any,
                         by: Some(PlayerSet::One(attacker.clone())),
@@ -2235,10 +2208,7 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
                     }),
                     window: HistoryWindow::ThisTurn,
                     measure: HistoryMeasure::Occurrences,
-                },
-                comparison: Comparison::GreaterOrEqual,
-                right: Expr::Constant(1),
-            }
+                }, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } }
         }
         ("Players::IsAttackingPlayer", [Operand::Player(attacker), Operand::Player(defender)]) => {
             return Condition::PlayerAttacks {
@@ -2258,21 +2228,17 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
             "Condition::ACardLeftPlayersGraveyardThisTurn",
             [Operand::Filter(cards), Operand::Player(player)],
         ) => {
-            return Condition::Compare {
-                left: Expr::EventHistory {
+            return Condition::Compare { left: Expr::EventHistory {
                     event: Box::new(EventSpec::Object {
                         event: ObjectEvent::LeavesGraveyard,
-                        objects: ObjectFilter::All(vec![
+                        objects: ObjectFilter::AllOf(vec![
                             cards.clone(),
                             ObjectFilter::OwnedBy(PlayerSet::One(player.clone())),
                         ]),
                     }),
                     window: HistoryWindow::ThisTurn,
                     measure: HistoryMeasure::Occurrences,
-                },
-                comparison: Comparison::GreaterOrEqual,
-                right: Expr::Constant(1),
-            }
+                }, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } }
         }
         _ => {}
     }
@@ -2282,7 +2248,7 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         let them = || PlayerSet::One(player.clone());
         return Condition::ObjectMatches {
             object: object.clone(),
-            filter: ObjectFilter::All(vec![
+            filter: ObjectFilter::AllOf(vec![
                 ObjectFilter::OwnedBy(them()),
                 ObjectFilter::ControlledBy(them()),
             ]),
@@ -2586,13 +2552,13 @@ pub fn reduce_rule(name: String, operands: Vec<Operand>) -> RuleChange {
         }
         ("TheLegendsRuleDoesntApply", []) => RuleChange::LegendRuleExempt,
         ("CantBeTheTargetOfSpells", [Operand::Filter(spells)]) => {
-            RuleChange::Prohibit(ObjectAction::BeTargeted(ObjectFilter::All(vec![
+            RuleChange::Prohibit(ObjectAction::BeTargeted(ObjectFilter::AllOf(vec![
                 ObjectFilter::OnStack(StackTrait::Spell),
                 spells.clone(),
             ])))
         }
         ("CantBeTheTargetOfAbilities", [abilities]) if stack_filter(abilities).is_some() => {
-            RuleChange::Prohibit(ObjectAction::BeTargeted(ObjectFilter::All(vec![
+            RuleChange::Prohibit(ObjectAction::BeTargeted(ObjectFilter::AllOf(vec![
                 not_spell(),
                 stack_filter(abilities).unwrap(),
             ])))
@@ -2774,7 +2740,7 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
                 object.clone(),
             ))));
             cost(
-                ObjectFilter::All(vec![equip(), targets]),
+                ObjectFilter::AllOf(vec![equip(), targets]),
                 reduce(amount),
                 None,
             )
@@ -2790,7 +2756,7 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
             "DecreaseAbilityCostOfCardsInPlayersGraveyard",
             [Operand::Filter(cards), Operand::Player(owner), amount],
         ) => cost(
-            ObjectFilter::AbilityOf(Box::new(ObjectFilter::All(vec![
+            ObjectFilter::AbilityOf(Box::new(ObjectFilter::AllOf(vec![
                 cards.clone(),
                 ObjectFilter::InZone(ZoneScope::Players {
                     zone: EventZone::Graveyard,
@@ -4102,8 +4068,8 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
     };
     let target = |recipients| ObjectFilter::TargetsAny(Box::new(recipients));
     Some(match (form, operands) {
-        ("And", _) => ObjectFilter::All(list()?),
-        ("Or", _) => ObjectFilter::Either(list()?),
+        ("And", _) => ObjectFilter::AllOf(list()?),
+        ("Or", _) => ObjectFilter::AnyOf(list()?),
         ("AnyAbility" | "AnySpellOrAbility", []) => ObjectFilter::Any,
         ("FirstAbilityActivatedByPlayerThisTurn", [inner, Operand::Player(player)]) => {
             ObjectFilter::NthCast {
@@ -4118,21 +4084,21 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         ("TriggeredAbility", []) => is(T::Triggered),
         ("ActivatedAbility", []) => is(T::Activated),
         ("RoomAbilityOfDungeon", [Operand::Term { operands, .. }]) => match operands.as_slice() {
-            [Operand::Players(players)] => ObjectFilter::All(vec![
+            [Operand::Players(players)] => ObjectFilter::AllOf(vec![
                 is(T::DungeonRoom),
                 ObjectFilter::ControlledBy(players.clone()),
             ]),
             _ => return None,
         },
         ("AbilityOfAnEmblem", [Operand::Term { operands, .. }]) => match operands.as_slice() {
-            [Operand::Players(players)] => ObjectFilter::All(vec![
+            [Operand::Players(players)] => ObjectFilter::AllOf(vec![
                 is(T::OfEmblem),
                 ObjectFilter::ControlledBy(players.clone()),
             ]),
             _ => return None,
         },
         ("AbilityOfASpell", [Operand::Filter(spells)]) => {
-            ObjectFilter::All(vec![is(T::Spell), spells.clone()])
+            ObjectFilter::AllOf(vec![is(T::Spell), spells.clone()])
         }
         ("ManaAbility", []) => is(T::Mana),
         ("NonManaAbility", []) => not(T::Mana),
@@ -4141,7 +4107,7 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         ("HasXInCost", []) => is(T::XInCost),
         ("HasTapSelfInCost", []) => is(T::TapSymbolInCost),
         ("DoesntHaveTapSelfInCost", []) => not(T::TapSymbolInCost),
-        ("TargetsOnlySinglePermanent", [Operand::Object(object)]) => ObjectFilter::All(vec![
+        ("TargetsOnlySinglePermanent", [Operand::Object(object)]) => ObjectFilter::AllOf(vec![
             is(T::SingleTarget),
             target(Recipients::Objects(ObjectSet::One(object.clone()))),
         ]),
@@ -4156,7 +4122,7 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         ("OutlastAbility", []) => keyword(AbilityKeyword::Outlast),
         ("PowerUpAbility", []) => keyword(AbilityKeyword::PowerUp),
         ("AbilityOfACardInPlayersGraveyard", [Operand::Filter(cards), Operand::Player(player)]) => {
-            ObjectFilter::AbilityOf(Box::new(ObjectFilter::All(vec![
+            ObjectFilter::AbilityOf(Box::new(ObjectFilter::AllOf(vec![
                 cards.clone(),
                 ObjectFilter::InZone(ZoneScope::Players {
                     zone: EventZone::Graveyard,
@@ -4174,7 +4140,7 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
             ObjectFilter::ControlledBy(players.clone())
         }
         ("IsSpell", [Operand::Filter(spells)]) => {
-            ObjectFilter::All(vec![is(T::Spell), spells.clone()])
+            ObjectFilter::AllOf(vec![is(T::Spell), spells.clone()])
         }
         ("CanTargetOnly", [Operand::Objects(set)]) => {
             ObjectFilter::CanTargetOnly(Box::new(event_filter(set)?))
@@ -4200,8 +4166,8 @@ fn graveyard_origin_filter(filter: &ObjectFilter) -> ObjectFilter {
             players,
         }) => ObjectFilter::OwnedBy(players.clone()),
         ObjectFilter::InZone(ZoneScope::Shared(EventZone::Graveyard)) => ObjectFilter::Any,
-        ObjectFilter::All(filters) => ObjectFilter::All(filters.iter().map(graveyard_origin_filter).collect()),
-        ObjectFilter::Either(filters) => ObjectFilter::Either(filters.iter().map(graveyard_origin_filter).collect()),
+        ObjectFilter::AllOf(filters) => ObjectFilter::AllOf(filters.iter().map(graveyard_origin_filter).collect()),
+        ObjectFilter::AnyOf(filters) => ObjectFilter::AnyOf(filters.iter().map(graveyard_origin_filter).collect()),
         ObjectFilter::Not(filter) => ObjectFilter::Not(Box::new(graveyard_origin_filter(filter))),
         _ => filter.clone(),
     }
@@ -4418,7 +4384,7 @@ fn reduce_batch(name: &str, operands: &[Operand]) -> Option<EventSpec> {
     };
     let moved = |objects: ObjectFilter, from, to| EventSpec::ZoneChange { objects, from, to };
     let owned = |cards: &ObjectFilter, owners: &PlayerSet| {
-        ObjectFilter::All(vec![cards.clone(), ObjectFilter::OwnedBy(owners.clone())])
+        ObjectFilter::AllOf(vec![cards.clone(), ObjectFilter::OwnedBy(owners.clone())])
     };
     match (form, operands) {
         ("WhenAnyNumberOfGraveyardCardsLeave", [Operand::Filter(cards)]) => {
@@ -4554,7 +4520,7 @@ fn reduce_batch(name: &str, operands: &[Operand]) -> Option<EventSpec> {
             "WhenAnyNumberOfCardsArePutIntoAPlayersGraveyardFromAnywhere",
             [Operand::Filter(cards), Operand::Players(owners)],
         ) => {
-            let cards = ObjectFilter::All(vec![
+            let cards = ObjectFilter::AllOf(vec![
                 owned(cards, owners),
                 ObjectFilter::Not(Box::new(ObjectFilter::Token)),
             ]);
@@ -4594,7 +4560,7 @@ fn reduce_batch(name: &str, operands: &[Operand]) -> Option<EventSpec> {
 
 /// `cards` owned by one of `owners`, for an event that names whose zone it is.
 fn owned_by(cards: ObjectFilter, owners: &PlayerSet) -> ObjectFilter {
-    ObjectFilter::All(vec![cards, ObjectFilter::OwnedBy(owners.clone())])
+    ObjectFilter::AllOf(vec![cards, ObjectFilter::OwnedBy(owners.clone())])
 }
 
 /// A plane, scheme or phenomenon event's card, when it is this card.
@@ -4612,7 +4578,7 @@ fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
             let filter = event_filter(objects)?;
             let enters = |extra| {
                 Some(EventSpec::ZoneChange {
-                    objects: ObjectFilter::All(vec![filter.clone(), extra]),
+                    objects: ObjectFilter::AllOf(vec![filter.clone(), extra]),
                     from: None,
                     to: EventZone::Battlefield,
                 })
@@ -5277,7 +5243,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
                     players: players.clone(),
                     objects: Some(match name.as_str() {
                         "Trigger::WhenAPlayerBecomesTheTargetOfAnAbility" => {
-                            ObjectFilter::All(vec![ObjectFilter::Not(Box::new(spell)), by])
+                            ObjectFilter::AllOf(vec![ObjectFilter::Not(Box::new(spell)), by])
                         }
                         _ => by,
                     }),
@@ -5291,7 +5257,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
             return EventSpec::Player {
                 event: PlayerEvent::BecomesTarget,
                 players: players.clone(),
-                objects: Some(ObjectFilter::All(vec![
+                objects: Some(ObjectFilter::AllOf(vec![
                     ObjectFilter::OnStack(StackTrait::Spell),
                     spells.clone(),
                 ])),
@@ -5319,6 +5285,13 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
         }
         (
             "Trigger::WhenAPlayerRollsAValueOnADie",
+            [Operand::Players(players), Operand::NumberTest(test)],
+        ) => { return EventSpec::Filtered {
+            event: Box::new(EventSpec::Player { event: PlayerEvent::RollsADie, players: players.clone(), objects: None }),
+            condition: Condition::Compare { left: Expr::EventAmount, test: test.clone() },
+        }; },
+        (
+            "Trigger::WhenAPlayerRollsAValueOnADie",
             [Operand::Players(players), Operand::Comparison(comparison, value)],
         ) => {
             return EventSpec::Filtered {
@@ -5327,11 +5300,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
                     players: players.clone(),
                     objects: None,
                 }),
-                condition: Condition::Compare {
-                    left: Expr::EventAmount,
-                    comparison: comparison.clone(),
-                    right: value.clone(),
-                },
+                condition: Condition::Compare { left: Expr::EventAmount, test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } },
             };
         }
         (
@@ -5356,11 +5325,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
         ("Trigger::WhenNoPermanentsAreOnTheBattlefield", [Operand::Objects(objects)]) => {
             if let Some(filter) = event_filter(objects) {
                 return EventSpec::State {
-                    condition: Condition::Compare {
-                        left: Expr::CountObjects(Box::new(ObjectSet::battlefield(filter))),
-                        comparison: Comparison::Equal,
-                        right: Expr::Constant(0),
-                    },
+                    condition: Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::battlefield(filter))), test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(0) } },
                 };
             }
         }
@@ -5407,7 +5372,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
             [Operand::Objects(objects)],
         ) => {
             if let Some(objects) = event_filter(objects) {
-                return EventSpec::Either(vec![
+                return EventSpec::AnyOf(vec![
                     EventSpec::ZoneChange {
                         objects,
                         from: None,
@@ -5426,11 +5391,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
             [Operand::Players(PlayerSet::One(player)), Operand::Comparison(comparison, value)],
         ) => {
             return EventSpec::State {
-                condition: Condition::Compare {
-                    left: Expr::player_life(player.clone()),
-                    comparison: comparison.clone(),
-                    right: value.clone(),
-                },
+                condition: Condition::Compare { left: Expr::player_life(player.clone()), test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } },
             }
         }
         ("Trigger::WhenAnAbilityIsActivated", [abilities]) => {
@@ -5502,52 +5463,50 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
             [Operand::Players(players), Operand::Objects(objects)],
         ) => match event_filter(objects) {
             Some(filter) => EventSpec::State {
-                condition: Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::All(
+                condition: Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::AllOf(
                         vec![filter, ObjectFilter::ControlledBy(players.clone())],
-                    )))),
-                    comparison: Comparison::Equal,
-                    right: Expr::Constant(0),
-                },
+                    )))), test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(0) } },
             },
             None => EventSpec::Primitive { name, operands },
         },
         (
             "Trigger::WhenAPlayerDrawsTheirNthCardEachTurn",
-            [Operand::Players(players), Operand::Comparison(comparison, value)],
+            [Operand::Players(players), Operand::NumberTest(test)],
         ) => EventSpec::NthEachTurn {
-            event: Box::new(EventSpec::Player {
+            event: Box::new(EventSpec::Player { event: PlayerEvent::Draws, players: players.clone(), objects: None }),
+            test: test.clone(),
+        },
+        (
+            "Trigger::WhenAPlayerDrawsTheirNthCardEachTurn",
+            [Operand::Players(players), Operand::Comparison(comparison, value)],
+        ) => EventSpec::NthEachTurn { event: Box::new(EventSpec::Player {
                 event: PlayerEvent::Draws,
                 players: players.clone(),
                 objects: None,
-            }),
-            comparison: comparison.clone(),
-            value: value.clone(),
-        },
+            }), test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } },
         (
             "Trigger::WhenAPlayerExpendsAnAmount",
             [Operand::Players(players), Operand::Comparison(comparison, value)],
-        ) => EventSpec::NthEachTurn {
-            event: Box::new(EventSpec::Player {
+        ) => EventSpec::NthEachTurn { event: Box::new(EventSpec::Player {
                 event: PlayerEvent::Expends,
                 players: players.clone(),
                 objects: None,
-            }),
-            comparison: comparison.clone(),
-            value: value.clone(),
+            }), test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } },
+        (
+            "Trigger::WhenAPlayerCastsTheirNthSpellInATurn",
+            [Operand::Players(players), Operand::NumberTest(test), Operand::Filter(spells)],
+        ) => EventSpec::NthEachTurn {
+            event: Box::new(EventSpec::Spell { event: SpellEvent::Cast, players: players.clone(), spells: spells.clone() }),
+            test: test.clone(),
         },
         (
             "Trigger::WhenAPlayerCastsTheirNthSpellInATurn",
             [Operand::Players(players), Operand::Comparison(comparison, value), Operand::Filter(spells)],
-        ) => EventSpec::NthEachTurn {
-            event: Box::new(EventSpec::Spell {
+        ) => EventSpec::NthEachTurn { event: Box::new(EventSpec::Spell {
                 event: SpellEvent::Cast,
                 players: players.clone(),
                 spells: spells.clone(),
-            }),
-            comparison: comparison.clone(),
-            value: value.clone(),
-        },
+            }), test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } },
         _ => EventSpec::Primitive { name, operands },
     }
 }
@@ -5876,7 +5835,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
         EventSpec::State { .. } => EventBindings::default(),
         EventSpec::StateWithPlayer { .. } => EventBindings { player: true, ..EventBindings::default() },
         EventSpec::Filtered { event, .. } => event_bindings(event),
-        EventSpec::Either(events) => events
+        EventSpec::AnyOf(events) => events
             .iter()
             .map(event_bindings)
             .reduce(EventBindings::shared)
@@ -5939,7 +5898,7 @@ impl Effects {
                     | Operation::PlayersPayRepeatedly { .. }
                     | Operation::DelayedUnlessPaid { .. }
                     | Operation::EachPlayer { .. }
-                    | Operation::CounterWith { .. }
+                    | Operation::Counter { .. }
                     | Operation::Populate { .. }
                     | Operation::ReduceSpeed { .. }
                     | Operation::PutCountersCapped { .. }
@@ -5983,12 +5942,15 @@ impl Effects {
                         destination,
                         ..
                     }
-                    | Operation::Counter {
-                        objects,
-                        destination,
-                    } => {
+ => {
                         let before = self.objects_library(objects);
                         let after = Self::destination_library(destination);
+                        self.library |= before || after;
+                        self.objects.insert(result.0, (before, after));
+                    }
+                    Operation::Counter { objects, destination, .. } => {
+                        let before = self.objects_library(objects);
+                        let after = Self::destination_library(&destination.address());
                         self.library |= before || after;
                         self.objects.insert(result.0, (before, after));
                     }
@@ -6110,7 +6072,7 @@ impl Effects {
                     self.program(then);
                     self.program(otherwise);
                 }
-                Instruction::Times { body, .. }
+                Instruction::RepeatableWithLimit { body, .. }
                 | Instruction::ForEachObject { body, .. }
                 | Instruction::ForEachPlayer { body, .. }
                 | Instruction::Repeatable(body) => self.program(body),

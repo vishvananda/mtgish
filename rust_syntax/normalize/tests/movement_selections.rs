@@ -93,10 +93,10 @@ fn nested_choices_are_prepared_in_dependency_order_with_distinct_result_provenan
 #[test]
 fn preparation_stays_at_the_nearest_nested_operation_and_future_program() {
     let delayed = Operation::CreateDelayedTrigger {
-        event: EventSpec::Turn {
+        event: Box::new(EventSpec::Turn {
             point: TurnPoint::EndStepBegins,
             players: PlayerSet::All,
-        },
+        }),
         start: DelayedStart::Immediately,
         expires: None,
         intervening_if: None,
@@ -267,7 +267,7 @@ fn generated_choices_stay_inside_repetitions_and_after_prior_sibling_effects() {
                 amount: Expr::Constant(1),
             },
         ),
-        Instruction::Times {
+        Instruction::RepeatableWithLimit {
             amount: Expr::Constant(2),
             body: program(vec![effect(1, tap(picked(field())))]),
         },
@@ -317,7 +317,7 @@ fn complete_captured_old_records_keep_all_operands_except_reviewed_domain_correc
             let old_filter = expected.pointer_mut(pointer).unwrap();
             assert_eq!(
                 *old_filter,
-                serde_json::json!({"kind":"Either","args":[
+                serde_json::json!({"kind":"AnyOf","args":[
                     {"kind":"CardType","args":"Artifact"},
                     {"kind":"CardType","args":"Battle"},
                     {"kind":"CardType","args":"Creature"},
@@ -684,10 +684,10 @@ fn optional_chooser_exports_the_choice_view_with_the_action_result() {
 #[test]
 fn deferred_programs_capture_prepared_values_and_implicit_choice_views() {
     let delayed = |objects| Operation::CreateDelayedTrigger {
-        event: EventSpec::Turn {
+        event: Box::new(EventSpec::Turn {
             point: TurnPoint::EndStepBegins,
             players: PlayerSet::All,
-        },
+        }),
         start: DelayedStart::Immediately,
         expires: None,
         intervening_if: None,

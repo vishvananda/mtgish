@@ -124,7 +124,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         ) => cast_with(
             actor,
             CardPlayAction::CastSpell,
-            ObjectSet::AnyZone(ObjectFilter::All(vec![spells.clone(), cards.clone()])),
+            ObjectSet::AnyZone(ObjectFilter::AllOf(vec![spells.clone(), cards.clone()])),
             Count::UpTo(Expr::Constant(1)),
             PlayTerms {
                 into_exile: true,
@@ -515,7 +515,7 @@ fn reduce_tail_replacement(name: &str, operands: &[Operand]) -> Option<Replaceme
     use Operand::{Comparison as Compared, Filter, Object, Objects, Player, Players, Vocabulary};
     let form = name.strip_prefix("ReplacableEvent")?;
     let graveyard_card = |filter: &ObjectFilter, player: &PlayerRef| {
-        ObjectFilter::All(vec![
+        ObjectFilter::AllOf(vec![
             filter.clone(),
             ObjectFilter::OwnedBy(PlayerSet::One(player.clone())),
             ObjectFilter::Not(Box::new(history(
@@ -529,9 +529,9 @@ fn reduce_tail_replacement(name: &str, operands: &[Operand]) -> Option<Replaceme
             "WouldEnter::PermanentWouldEnterTheBattlefieldAndWasntCastOrNoManaWasSpentToCast",
             [Object(object)],
         ) => ReplacementEvent::Enter {
-            objects: ObjectFilter::All(vec![
+            objects: ObjectFilter::AllOf(vec![
                 ObjectFilter::SameObject(object.clone()),
-                ObjectFilter::Either(vec![
+                ObjectFilter::AnyOf(vec![
                     ObjectFilter::Not(Box::new(ObjectFilter::Cast {
                         by: None,
                         from: None,
@@ -707,7 +707,7 @@ fn reduce_tail_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> 
         }
         ("WasExiledThisWay", []) => among(earlier(EarlierObjects::Exiled)),
         ("WasTurnedFaceUpThisWay", []) => among(earlier(EarlierObjects::It)),
-        ("WasExiledByPlayerThisWay", [Player(player), Run(result)]) => ObjectFilter::All(vec![
+        ("WasExiledByPlayerThisWay", [Player(player), Run(result)]) => ObjectFilter::AllOf(vec![
             ObjectFilter::InSet(Box::new(ObjectSet::Recorded(result.clone()))),
             exiled_by(player.clone()),
         ]),
@@ -721,7 +721,7 @@ fn reduce_tail_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> 
             among(earlier_by(EarlierObjects::PutInGraveyard, player))
         }
         ("WasntPutIntoGraveyardThisWay", []) => not(among(earlier(EarlierObjects::PutInGraveyard))),
-        ("DiedThisTurn", [Objects(creatures)]) => ObjectFilter::All(vec![
+        ("DiedThisTurn", [Objects(creatures)]) => ObjectFilter::AllOf(vec![
             event_filter(creatures)?,
             history(
                 ObjectHistory::DiedOrPutFromBattlefield,
@@ -751,7 +751,7 @@ fn reduce_tail_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> 
         }
         ("SharesACreatureTypeWithYourCommander", []) => ObjectFilter::SharesWithAny {
             property: DistinctProperty::CreatureTypes,
-            with: Box::new(ObjectSet::AnyZone(ObjectFilter::All(vec![
+            with: Box::new(ObjectSet::AnyZone(ObjectFilter::AllOf(vec![
                 ObjectFilter::State(ObjectState::Commander),
                 ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::AbilityController)),
             ]))),
@@ -1168,17 +1168,17 @@ fn tail_objects(form: &str, operands: &[Operand]) -> Option<ObjectSet> {
 /// says nothing of an activation. A filter of neither sort speaks of both.
 fn spell_and_ability_parts(filter: ObjectFilter) -> (ObjectFilter, ObjectFilter) {
     let of_a_spell = |part: &ObjectFilter| match part {
-        ObjectFilter::All(parts) => parts
+        ObjectFilter::AllOf(parts) => parts
             .iter()
             .any(|p| matches!(p, ObjectFilter::OnStack(StackTrait::Spell))),
         _ => false,
     };
     let one = |mut parts: Vec<ObjectFilter>| match parts.len() {
         1 => parts.remove(0),
-        _ => ObjectFilter::Either(parts),
+        _ => ObjectFilter::AnyOf(parts),
     };
     match &filter {
-        ObjectFilter::Either(parts) => {
+        ObjectFilter::AnyOf(parts) => {
             let (spells, abilities): (Vec<_>, Vec<_>) =
                 parts.iter().cloned().partition(|part| of_a_spell(part));
             if spells.is_empty() || abilities.is_empty() {

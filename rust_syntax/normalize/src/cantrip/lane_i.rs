@@ -203,7 +203,7 @@ fn walks_whole(instruction: &Instruction) -> bool {
         Instruction::Effect { operation, .. } => walked(operation),
         Instruction::Group(body)
         | Instruction::Repeatable(body)
-        | Instruction::Times { body, .. }
+        | Instruction::RepeatableWithLimit { body, .. }
         | Instruction::Optional { body, .. }
         | Instruction::ForEachPlayer { body, .. }
         | Instruction::ForEachObject { body, .. } => all(body),
@@ -464,7 +464,7 @@ fn watched_filter(filter: &mut ObjectFilter) -> Option<ObjectRef> {
         ObjectFilter::SameObject(object) if !matches!(object, ObjectRef::Source) => {
             Some(std::mem::replace(object, ObjectRef::Source))
         }
-        ObjectFilter::All(filters) => filters.iter_mut().find_map(watched_filter),
+        ObjectFilter::AllOf(filters) => filters.iter_mut().find_map(watched_filter),
         // "A creature dealt damage by that creature".
         ObjectFilter::Condition(condition) => match &mut **condition {
             Condition::Compare { left, .. } => match left {
@@ -494,7 +494,7 @@ pub(super) fn watched(event: &mut EventSpec) -> Option<ObjectRef> {
             watched_filter(objects)
         }
         // One object, however it does it.
-        EventSpec::Either(events) => {
+        EventSpec::AnyOf(events) => {
             let mut parts = events.clone();
             let mut seen = None;
             for part in &mut parts {
@@ -563,11 +563,11 @@ fn stack_kinds(filter: &ObjectFilter) -> (bool, bool) {
             StackTrait::Activated | StackTrait::Triggered | StackTrait::Loyalty,
         )
         | ObjectFilter::AbilityOf(_) => (false, true),
-        ObjectFilter::All(filters) => filters
+        ObjectFilter::AllOf(filters) => filters
             .iter()
             .map(stack_kinds)
             .fold((true, true), |(s, a), (fs, fa)| (s && fs, a && fa)),
-        ObjectFilter::Either(filters) => filters
+        ObjectFilter::AnyOf(filters) => filters
             .iter()
             .map(stack_kinds)
             .fold((false, false), |(s, a), (fs, fa)| (s || fs, a || fa)),
@@ -636,7 +636,7 @@ impl Compiler {
             // "All cards in their graveyard", said of the set of all graveyards.
             ObjectSet::Zone { scope, filter, .. } => {
                 let parts = match filter {
-                    ObjectFilter::All(parts) => parts.as_slice(),
+                    ObjectFilter::AllOf(parts) => parts.as_slice(),
                     one => std::slice::from_ref(one),
                 };
                 theirs(scope)
@@ -2610,8 +2610,8 @@ impl Compiler {
         let source = Candidate::of("e.object");
         Ok(match filter {
             ObjectFilter::Any => "true".into(),
-            ObjectFilter::All(filters) => join(self, filters, " && ")?,
-            ObjectFilter::Either(filters) => join(self, filters, " || ")?,
+            ObjectFilter::AllOf(filters) => join(self, filters, " && ")?,
+            ObjectFilter::AnyOf(filters) => join(self, filters, " || ")?,
             ObjectFilter::Not(inner) => format!("!({})", self.stack_filter(inner)?),
             ObjectFilter::OnStack(StackTrait::Spell) => "e.kind == StackKind::Spell".into(),
             ObjectFilter::OnStack(StackTrait::Activated) => "e.kind == StackKind::Activated".into(),
@@ -2645,7 +2645,7 @@ impl Compiler {
         out: &mut String,
     ) {
         let Instruction::Effect {
-            operation: Operation::Counter { objects, .. },
+            operation: Operation::Counter { objects: objects, .. },
             ..
         } = instruction
         else {
@@ -3226,7 +3226,7 @@ impl Compiler {
                     let mut gated = inner.clone();
                     if let Ability::Activated { limits, .. } = &mut gated {
                         limits.condition = Some(match limits.condition.take() {
-                            Some(own) => Condition::All(vec![condition.clone(), own]),
+                            Some(own) => Condition::AllOf(vec![condition.clone(), own]),
                             None => condition.clone(),
                         });
                     }
@@ -4299,7 +4299,7 @@ pub(super) fn plain_play(op: &Operation) -> Option<Operation> {
         may_look: false,
         then: None,
         face_down: None,
-    } = terms
+    } = &**terms
     else {
         return None;
     };
@@ -4357,7 +4357,7 @@ pub(super) fn whole_hand(amount: &Expr, players: &PlayerSet) -> bool {
 /// is paid once the mana is, as what's tapped for that mana can be chosen (601.2g-h).
 pub(super) fn without_tapped(filter: &ObjectFilter) -> Option<ObjectFilter> {
     let tapped = |part: &ObjectFilter| matches!(part, ObjectFilter::Tapped);
-    let ObjectFilter::All(parts) = filter else {
+    let ObjectFilter::AllOf(parts) = filter else {
         return None;
     };
     if !parts.iter().any(tapped) {
@@ -4366,7 +4366,7 @@ pub(super) fn without_tapped(filter: &ObjectFilter) -> Option<ObjectFilter> {
     let mut rest: Vec<ObjectFilter> = parts.iter().filter(|p| !tapped(p)).cloned().collect();
     Some(match rest.len() {
         1 => rest.remove(0),
-        _ => ObjectFilter::All(rest),
+        _ => ObjectFilter::AllOf(rest),
     })
 }
 
@@ -4416,10 +4416,10 @@ mod entry_ability_tests {
         };
         assert!(!names(&binding, &ability));
         let capture = Operation::CreateDelayedTrigger {
-            event: EventSpec::Turn {
+            event: Box::new(EventSpec::Turn {
                 point: TurnPoint::EndStepBegins,
                 players: PlayerSet::All,
-            },
+            }),
             start: DelayedStart::Immediately,
             expires: None,
             intervening_if: None,
@@ -4429,10 +4429,10 @@ mod entry_ability_tests {
         };
         assert!(names(&binding, &capture));
         let shadowed_capture = Operation::CreateDelayedTrigger {
-            event: EventSpec::Turn {
+            event: Box::new(EventSpec::Turn {
                 point: TurnPoint::EndStepBegins,
                 players: PlayerSet::All,
-            },
+            }),
             start: DelayedStart::Immediately,
             expires: None,
             intervening_if: None,
@@ -4444,7 +4444,7 @@ mod entry_ability_tests {
     }
     fn enchant() -> Ability {
         Ability::Enchant {
-            hosts: EnchantHosts::Permanents(ObjectFilter::All(vec![
+            hosts: EnchantHosts::Permanents(ObjectFilter::AllOf(vec![
                 ObjectFilter::CardType(crate::mtg_types::CardType::Creature),
                 ObjectFilter::Not(Box::new(ObjectFilter::SameObject(ObjectRef::Source))),
             ])),

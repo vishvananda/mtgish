@@ -28,7 +28,7 @@ impl Context {
                 zone: EventZone::Graveyard,
                 players: PlayerSet::One(PlayerRef::OwnerOf(Box::new(ObjectRef::Source))),
             },
-            require: ObjectFilter::Either(vec![
+            require: ObjectFilter::AnyOf(vec![
                 ObjectFilter::CardType(source::CardType::Instant),
                 ObjectFilter::CardType(source::CardType::Sorcery),
             ]),
@@ -154,18 +154,10 @@ impl Context {
                     zone: EventZone::Graveyard,
                 })
             }
-            S::XCantBeZero => CastingRule::Require(Condition::Compare {
-                left: Expr::AnnouncedX,
-                comparison: Comparison::NotEqual,
-                right: Expr::Constant(0),
-            }),
+            S::XCantBeZero => CastingRule::Require(Condition::Compare { left: Expr::AnnouncedX, test: NumberTest::Compare { comparison: Comparison::NotEqual, value: Expr::Constant(0) } }),
             S::XIs(comparison) => {
-                let (comparison, right) = self.comparison(comparison)?;
-                CastingRule::Require(Condition::Compare {
-                    left: Expr::AnnouncedX,
-                    comparison,
-                    right,
-                })
+                let test = self.number_test(comparison)?;
+                CastingRule::Require(Condition::Compare { left: Expr::AnnouncedX, test })
             }
             S::MayCastAsThoughItHadFlashForAdditionalCost(cost) => CastingRule::Flash {
                 additional_cost: Some(self.cost(cost)?),
@@ -183,13 +175,9 @@ impl Context {
                 },
             ),
             S::MayCastAsThoughItHadFlashIfXIs(comparison) => {
-                let (comparison, right) = self.comparison(comparison)?;
+                let test = self.number_test(comparison)?;
                 conditional(
-                    Condition::Compare {
-                        left: Expr::AnnouncedX,
-                        comparison,
-                        right,
-                    },
+                    Condition::Compare { left: Expr::AnnouncedX, test },
                     CastingRule::Flash {
                         additional_cost: None,
                     },

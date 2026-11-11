@@ -132,12 +132,12 @@ pub(super) fn own_graveyard(objects: &ObjectSet) -> Option<ObjectSet> {
     };
     let filter = match filter {
         filter if is_yours(filter) => ObjectFilter::Any,
-        ObjectFilter::All(items) if items.iter().any(is_yours) => {
+        ObjectFilter::AllOf(items) if items.iter().any(is_yours) => {
             let mut rest: Vec<ObjectFilter> =
                 items.iter().filter(|f| !is_yours(f)).cloned().collect();
             match rest.len() {
                 1 => rest.remove(0),
-                _ => ObjectFilter::All(rest),
+                _ => ObjectFilter::AllOf(rest),
             }
         }
         _ => return None,
@@ -176,7 +176,7 @@ fn waterbend_as_mana(price: &Cost) -> Option<Cost> {
 pub(super) fn yours(filter: &ObjectFilter) -> bool {
     match filter {
         ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)) => true,
-        ObjectFilter::All(filters) => filters.iter().any(yours),
+        ObjectFilter::AllOf(filters) => filters.iter().any(yours),
         _ => false,
     }
 }
@@ -1083,15 +1083,11 @@ impl Compiler {
             kind: Some(counter.clone()),
             information: Information::CurrentOrLastKnown,
         };
-        let compare = |comparison, n| Condition::Compare {
-            left: held.clone(),
-            comparison,
-            right: Expr::Constant(n),
-        };
+        let compare = |comparison, n| Condition::Compare { left: held.clone(), test: NumberTest::Compare { comparison: comparison, value: Expr::Constant(n) } };
         for (i, stage) in stages.iter().enumerate() {
             let least = compare(Comparison::GreaterOrEqual, stage.minimum);
             let condition = match stage.maximum {
-                Some(most) => Condition::All(vec![least, compare(Comparison::LessOrEqual, most)]),
+                Some(most) => Condition::AllOf(vec![least, compare(Comparison::LessOrEqual, most)]),
                 None => least,
             };
             // A station stage makes it a creature in addition to its other types (CR 721.2b).

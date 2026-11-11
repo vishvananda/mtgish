@@ -5,7 +5,7 @@ fn card(body: &str) -> String {
 }
 #[test]
 fn chooser_references_follow_their_prepared_value_when_hoisted() {
-    let text=card("Together([WithSelections{steps:[{binding:s17,chooser:Players(You),objects:One(This),count:Exactly(1),constraints:[]},{binding:s99,chooser:Players(Matching{binding:decider,condition:Compare{left:CountObjects(Prepared(s17)),comparison:Greater,right:0}}),objects:One(This),count:Exactly(1),constraints:[]}],action:NoteObjects{objects:Prepared(s99)}}])");
+    let text=card("Together([WithSelections{steps:[{binding:s17,chooser:Players(You),objects:One(This),count:Exactly(1),constraints:[]},{binding:s99,chooser:Players(Matching{binding:decider,condition:Compare{left:CountObjects(Prepared(s17)),test:Compare{comparison:Greater,value:0}}}),objects:One(This),count:Exactly(1),constraints:[]}],action:NoteObjects{objects:Prepared(s99)}}])");
     let doc = document::read(&text).unwrap();
     let normalized = canonical::card(&doc.card().faces[0]).unwrap();
     validate::card(&normalized).unwrap();

@@ -25,7 +25,7 @@ impl Context {
                 let source = match sources.len() {
                     0 => None,
                     1 => sources.pop(),
-                    _ => Some(ObjectFilter::All(sources)),
+                    _ => Some(ObjectFilter::AllOf(sources)),
                 };
                 let filter = match filters.len() {
                     0 => ActivationFilter::Any,
@@ -384,7 +384,7 @@ impl Context {
             _ => {}
         }
         if let S::And(v) = value {
-            return Ok(ObjectFilter::All(
+            return Ok(ObjectFilter::AllOf(
                 v.iter()
                     .map(|k| self.has_keyword(k))
                     .collect::<Result<_>>()?,

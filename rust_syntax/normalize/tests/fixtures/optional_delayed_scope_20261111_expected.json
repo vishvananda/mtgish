@@ -278,7 +278,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -541,7 +541,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",

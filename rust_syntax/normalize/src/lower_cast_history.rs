@@ -34,11 +34,7 @@ impl Context {
         comparison: Comparison,
         amount: Expr,
     ) -> ObjectFilter {
-        ObjectFilter::Condition(Box::new(Condition::Compare {
-            left: self.spent_mana(ObjectRef::Candidate, colors, snow, aggregation),
-            comparison,
-            right: amount,
-        }))
+        ObjectFilter::Condition(Box::new(Condition::Compare { left: self.spent_mana(ObjectRef::Candidate, colors, snow, aggregation), test: NumberTest::Compare { comparison: comparison, value: amount } }))
     }
     fn spent_colors(&self, mana: &[source::ManaProduce]) -> Result<ObjectFilter> {
         if mana.is_empty() {
@@ -64,7 +60,7 @@ impl Context {
                 colors.push((color, 1));
             }
         }
-        Ok(ObjectFilter::All(
+        Ok(ObjectFilter::AllOf(
             colors
                 .into_iter()
                 .map(|(color, n)| {
@@ -175,15 +171,11 @@ impl Context {
             }
             S::OnTheBattlefield => ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield)),
             S::NumOtherPermanentsAreOnTheBattlefield(c, objects) => {
-                let (comparison, right) = self.comparison(c)?;
-                ObjectFilter::Condition(Box::new(Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Difference {
+                let test = self.number_test(c)?;
+                ObjectFilter::Condition(Box::new(Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Difference {
                         objects: Box::new(ObjectSet::battlefield(self.filter(objects)?)),
                         excluding: Box::new(ObjectSet::One(ObjectRef::Candidate)),
-                    })),
-                    comparison,
-                    right,
-                }))
+                    })), test }))
             }
             _ => return Err(unsupported(value)),
         })

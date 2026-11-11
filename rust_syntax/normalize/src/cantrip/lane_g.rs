@@ -156,7 +156,7 @@ fn taps_a_creature_you_control(cost: &Cost) -> bool {
         return false;
     };
     let [CostObjectSelection {
-        objects: crate::battlefield_query!(ObjectFilter::All(filters)),
+        objects: crate::battlefield_query!(ObjectFilter::AllOf(filters)),
         choose: Some(Count::Exactly(Expr::Constant(1))),
     }] = selections.as_slice()
     else {
@@ -531,7 +531,7 @@ pub(super) fn plain_removal(removals: &[CounterRemoval]) -> bool {
 /// Every condition an `All` of filters holds, flattened.
 fn each_filter(filter: &ObjectFilter) -> Vec<&ObjectFilter> {
     match filter {
-        ObjectFilter::All(items) => items.iter().flat_map(each_filter).collect(),
+        ObjectFilter::AllOf(items) => items.iter().flat_map(each_filter).collect(),
         other => vec![other],
     }
 }
@@ -646,7 +646,7 @@ fn spell_words(filter: &ObjectFilter, chose_as_entered: bool) -> Option<String> 
     fn card_types(f: &ObjectFilter) -> Option<Vec<String>> {
         match f {
             ObjectFilter::CardType(t) => Some(vec![format!("CardType::{}", card_type(t).ok()?)]),
-            ObjectFilter::Either(v) => {
+            ObjectFilter::AnyOf(v) => {
                 let mut all = Vec::new();
                 for f in v {
                     all.extend(card_types(f)?);
@@ -662,14 +662,14 @@ fn spell_words(filter: &ObjectFilter, chose_as_entered: bool) -> Option<String> 
             types.join(", ")
         ));
     }
-    if let ObjectFilter::Either(v) = filter {
+    if let ObjectFilter::AnyOf(v) = filter {
         let subtypes = v.iter().map(subtype).collect::<Option<Vec<_>>>()?;
         return Some(format!(
             "ManaRestriction::Subtypes(SubtypeSpells::of_any(&[{}]))",
             subtypes.join(", ")
         ));
     }
-    if let ObjectFilter::All(v) = filter {
+    if let ObjectFilter::AllOf(v) = filter {
         let creature = |f: &ObjectFilter| matches!(f, ObjectFilter::CardType(T::Creature));
         if let ([a, b], true) = (v.as_slice(), v.iter().any(creature)) {
             let other = if creature(a) { b } else { a };
@@ -2283,7 +2283,7 @@ impl Compiler {
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ let made = q.history().select(EventQuery::kind(EventMask::ABILITY_ACTIVATED).this_turn()).filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, .. }} if source == asker.source && q.activated_ability(ability).is_some_and(|def| def.text == {text}))).count() as i64; made < i64::from({most}) }}").unwrap();
                 format!("{def}.condition({function})")
             }
-            ActivationRule::XIs(n) | ActivationRule::XAtMost(n) => {
+            ActivationRule::XIs(NumberTest::Compare { comparison: Comparison::Equal, value: n }) | ActivationRule::XAtMost(n) => {
                 let exact = matches!(rule, ActivationRule::XIs(_));
                 let bound = self.asked_number(n)?;
                 let method = if exact { "x_is" } else { "x_at_most" };
@@ -2299,6 +2299,14 @@ impl Compiler {
                 );
                 writeln!(self.functions, "{item}").unwrap();
                 planned::planned_value(FEATURE, &def, &format!("{def}.{method}({function})"))
+            }
+            ActivationRule::XIs(test) => {
+                const FEATURE: &str = "engine: numeric predicate on an ability's X";
+                let function = format!("{label}_x_matches");
+                let predicate = self.number_test("i64::from(x)", test)?;
+                let item = planned::planned_fn(FEATURE, &function, "q: &dyn Query, asker: &Asker, x: u16", "bool", &predicate);
+                writeln!(self.functions, "{item}").unwrap();
+                planned::planned_value(FEATURE, &def, &format!("{def}.x_matches({function})"))
             }
             other => return Err(gap(format!("activation rule {}", form(other)))),
         })
@@ -2757,11 +2765,7 @@ impl Compiler {
             Protection::Objects {
                 kind: ObjectKind::Any,
                 filter:
-                    ObjectFilter::Property {
-                        property: Property::ManaValue,
-                        comparison: Comparison::GreaterOrEqual,
-                        value: Expr::Constant(n),
-                    },
+                    ObjectFilter::Property { property: Property::ManaValue, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(n) } },
             } => {
                 let statics = format!(
                     "{M}::protection::from_mana_value_at_least::<{n}>({})",

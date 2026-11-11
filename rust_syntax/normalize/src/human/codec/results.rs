@@ -24,7 +24,7 @@ impl Reader {
         let choices = match constructor {
             "ForEachPlayer" | "ForEachObject" | "Repeatable" => Some(true),
             "Optional" => Some(false),
-            "Times" | "If" | "ChooseOne" => None,
+            "RepeatableWithLimit" | "If" | "ChooseOne" => None,
             _ => return Ok(()),
         };
         self.ids.retain(|(kind, _), _| kind != "r");

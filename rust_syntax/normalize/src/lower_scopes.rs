@@ -122,7 +122,7 @@ fn with_source_scope(
         } => {
             zones.retain(|z| inner.contains(z));
             let condition = match (condition, other) {
-                (Some(a), Some(b)) => Some(Condition::All(vec![a, b])),
+                (Some(a), Some(b)) => Some(Condition::AllOf(vec![a, b])),
                 (a, b) => a.or(b),
             };
             (condition, *ability)

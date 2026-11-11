@@ -11,12 +11,12 @@ function createNamedAbilities({abilityValue,actionValue,clone,same}) {
   }
   function equip() {
     const a=abilityValue('Activated');a.args.origin='Equip';a.args.cost.parts=[{Mana:[{Generic:1}]}];a.args.limits.sorcery=true;
-    a.args.announcement.targets=[{slot:0,kind:{Object:{kind:'Permanent',zones:['Battlefield']}},count:{Exactly:constant(1)},filter:{kind:'All',args:[{kind:'CardType',args:'Creature'},{kind:'ControlledBy',args:{kind:'One',args:you}}]},players:null,distribute:null,constraints:[],chooser:null}];
+    a.args.announcement.targets=[{slot:0,kind:{Object:{kind:'Permanent',zones:['Battlefield']}},count:{Exactly:constant(1)},filter:{kind:'AllOf',args:[{kind:'CardType',args:'Creature'},{kind:'ControlledBy',args:{kind:'One',args:you}}]},players:null,distribute:null,constraints:[],chooser:null}];
     a.args.body.instructions=[actionValue('Attach',{attachments:one,host:{kind:'Target',args:{slot:0,index:0}}})];return a;
   }
   function crew() {
     const a=abilityValue('Activated');a.args.origin='Crew';
-    a.args.cost.parts=[{Constrained:{part:{ChangeTapState:{selections:[{objects:{kind:'Zone',args:{scope:{Shared:'Battlefield'},kind:'Permanent',filter:{kind:'All',args:[{kind:'CardType',args:'Creature'},{kind:'Not',args:{kind:'Tapped'}},{kind:'ControlledBy',args:{kind:'One',args:you}},{kind:'Not',args:{kind:'SameObject',args:source}}]}}},choose:'AnyNumber'}],tapped:true,symbol:false}},constraints:[{TotalProperty:{property:'Power',comparison:'GreaterOrEqual',amount:constant(1)}}]}}];
+    a.args.cost.parts=[{Constrained:{part:{ChangeTapState:{selections:[{objects:{kind:'Zone',args:{scope:{Shared:'Battlefield'},kind:'Permanent',filter:{kind:'AllOf',args:[{kind:'CardType',args:'Creature'},{kind:'Not',args:{kind:'Tapped'}},{kind:'ControlledBy',args:{kind:'One',args:you}},{kind:'Not',args:{kind:'SameObject',args:source}}]}}},choose:'AnyNumber'}],tapped:true,symbol:false}},constraints:[{TotalProperty:{property:'Power',comparison:'GreaterOrEqual',amount:constant(1)}}]}}];
     a.args.body.instructions=[actionValue('CreateContinuousEffect',{source,affected:{Objects:one},changes:[{kind:'AddCardType',args:'Artifact'},{kind:'AddCardType',args:'Creature'}],duration:'EndOfTurn',evaluation:'Snapshot'})];return a;
   }
   function unscoped(a){while(a&&['Scoped','WithPresentation'].includes(a.kind))a=a.args.ability;return a;}

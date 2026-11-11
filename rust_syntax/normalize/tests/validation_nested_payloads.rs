@@ -131,11 +131,7 @@ fn countering_checks_destination_and_entry_scopes() {
             arrival: BattlefieldArrival::default(),
         },
     ] {
-        let card = spell(Operation::CounterWith {
-            object: ObjectRef::Source,
-            when: None,
-            destination,
-        });
+        let card = spell(Operation::Counter { objects: ObjectSet::One(ObjectRef::Source), destination_when: None, destination: destination });
         assert!(validate::card(&card)
             .unwrap_err()
             .contains("unbound target slot 99"));

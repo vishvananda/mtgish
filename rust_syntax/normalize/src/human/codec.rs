@@ -743,7 +743,7 @@ impl Reader {
         let local_scope = (t == &named("Instruction")
             && matches!(
                 constructor(n),
-                Some("ForEachPlayer" | "ForEachObject" | "Optional" | "Times" | "Repeatable")
+                Some("ForEachPlayer" | "ForEachObject" | "Optional" | "RepeatableWithLimit" | "Repeatable")
             ))
             || self.branch_scopes
                 && t == &named("Instruction")

@@ -126,7 +126,7 @@ fn nogi_replaces_its_old_creature_types_while_preserving_power_toughness_flying_
     );
     assert_eq!(effect["duration"], json!("EndOfTurn"));
     assert_eq!(
-        c["abilities"][1]["args"]["intervening_if"]["args"]["right"],
+        c["abilities"][1]["args"]["intervening_if"]["args"]["test"]["args"]["value"],
         json!({"kind":"Constant","args":3})
     );
 }

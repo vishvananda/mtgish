@@ -920,8 +920,8 @@ fn chars_test(filter: &ObjectFilter, id: usize, lets: &mut Vec<String>) -> Optio
     };
     Some(match filter {
         ObjectFilter::Any => "true".into(),
-        ObjectFilter::Either(filters) => all(filters, " || ")?,
-        ObjectFilter::All(filters) => all(filters, " && ")?,
+        ObjectFilter::AnyOf(filters) => all(filters, " || ")?,
+        ObjectFilter::AllOf(filters) => all(filters, " && ")?,
         ObjectFilter::Not(inner) => format!("!{}", chars_test(inner, id, lets)?),
         ObjectFilter::CardType(card) => format!("c.is(CardType::{})", card_type(card).ok()?),
         ObjectFilter::HasKeyword(word) => format!("c.has({})", keyword(word).ok()?),
@@ -1551,7 +1551,7 @@ impl Compiler {
     fn as_it_entered(&self, filter: &ObjectFilter, tests: &mut Vec<String>) -> Result<bool> {
         match filter {
             ObjectFilter::Any => {}
-            ObjectFilter::All(filters) => {
+            ObjectFilter::AllOf(filters) => {
                 for filter in filters {
                     if !self.as_it_entered(filter, tests)? {
                         return Ok(false);
@@ -1662,7 +1662,7 @@ impl Compiler {
         let [first, second] = announcement.targets.as_slice() else {
             return None;
         };
-        let ObjectFilter::All(filters) = &second.filter else {
+        let ObjectFilter::AllOf(filters) = &second.filter else {
             return None;
         };
         let [ObjectFilter::Not(other), filter] = filters.as_slice() else {

@@ -431,10 +431,7 @@ impl Context {
                 objects,
                 ..
             } => (destination.address(), objects),
-            Operation::Counter {
-                destination,
-                objects,
-            } => (destination.clone(), objects),
+            Operation::Counter { objects: objects, destination, .. } => (destination.address(), objects),
             _ => return,
         };
         match destination {
@@ -1488,7 +1485,7 @@ impl Context {
         };
         let body = child.action_list(actions, actor)?;
         Ok(Operation::CreateDelayedTrigger {
-            event,
+            event: Box::new(event),
             start,
             expires,
             intervening_if,
@@ -1515,11 +1512,11 @@ impl Context {
         let body = child.actions(actions)?;
         self.result = child.result;
         Ok(Operation::CreateTrigger {
-            event,
+            event: Box::new(event),
             duration: expires.unwrap_or(Duration::Indefinite),
             announcement: Announcement {
                 targets: child.targets.split_off(known),
-                modes: child.modes,
+                modes: child.modes.map(Box::new),
             },
             body,
             once: true,
@@ -1533,6 +1530,39 @@ impl Context {
             None if self.event.amount => Ok(Expr::EventAmount),
             None => Err(invalid("no die was rolled in this scope")),
         }
+    }
+
+    fn number_test(&self, value: &source::Comparison) -> Result<NumberTest> {
+        use source::Comparison as S;
+        if let S::OneOf(values) = value {
+            return Ok(NumberTest::AnyOf(values.iter().map(|v|
+                NumberTest::compare(Comparison::Equal, Expr::Constant((*v).into()))
+            ).collect()));
+        }
+        if matches!(value, S::AnyManaValueAmongPermanents(_) | S::AnyManaValueAmongCardsInPlayersGraveyard(..)) {
+          if let Some((name, operands)) = self.primitive("Comparison", value) {
+            if let Some(test) = crate::semantics::reduce_comparison_test(&name, &operands) {
+                return Ok(test);
+            }
+        }
+        }
+        if let S::EqualTo(number) | S::NotEqualTo(number) | S::LessThan(number)
+            | S::LessThanOrEqualTo(number) | S::GreaterThan(number) | S::GreaterThanOrEqualTo(number) = value {
+            if matches!(number.as_ref(), source::GameNumber::AManaValueOfAnExiledCard(_)) {
+                let (name, operands) = self.primitive("GameNumber", number.as_ref()).ok_or_else(|| unsupported(number))?;
+                if let [Operand::Objects(objects)] = operands.as_slice() {
+                    let comparison = match value {
+                        S::NotEqualTo(_) => Comparison::NotEqual, S::LessThan(_) => Comparison::Less,
+                        S::LessThanOrEqualTo(_) => Comparison::LessOrEqual, S::GreaterThan(_) => Comparison::Greater,
+                        S::GreaterThanOrEqualTo(_) => Comparison::GreaterOrEqual, _ => Comparison::Equal,
+                    };
+                    return Ok(NumberTest::AnyProperty { comparison, objects: Box::new(objects.clone()), property: Property::ManaValue });
+                }
+                return Err(unsupported(number).at(name));
+            }
+        }
+        let (comparison, expression) = self.comparison(value)?;
+        Ok(NumberTest::compare(comparison, expression))
     }
 
     fn comparison(&self, value: &source::Comparison) -> Result<(Comparison, Expr)> {
@@ -1550,8 +1580,7 @@ impl Context {
             S::GreaterThanOrEqualTo(n) => (Comparison::GreaterOrEqual, n),
             S::Negative => return Ok((Comparison::Less, Expr::Constant(0))),
             S::OneOf(values) => {
-                let values = values.iter().map(|v| Expr::Constant((*v).into())).collect();
-                return Ok((Comparison::Equal, Expr::AnyOf(values)));
+                return Err(unsupported(values));
             }
             // "Equal to" a value the row names, as "a number of cards in a graveyard".
             _ => {
@@ -1646,12 +1675,8 @@ impl Context {
                 return Ok(ObjectFilter::Not(Box::new(attacking)));
             }
             source::Permanents::PowerAndToughnessIsEqualTo(source::PT::PT(p, t)) => {
-                let is = |property, amount: &i32| ObjectFilter::Property {
-                    property,
-                    comparison: Comparison::Equal,
-                    value: Expr::Constant(i64::from(*amount)),
-                };
-                return Ok(ObjectFilter::All(vec![
+                let is = |property, amount: &i32| ObjectFilter::Property { property, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(i64::from(*amount)) } };
+                return Ok(ObjectFilter::AllOf(vec![
                     is(Property::Power, p),
                     is(Property::Toughness, t),
                 ]));
@@ -1793,7 +1818,7 @@ impl Context {
             S::LifeLostThisWay => Expr::Performed(self.done(Done::LifeLost)?),
             S::TheNumberOfPermanentsPutIntoPlayersGraveyardThisTurn(objects, player) => {
                 Self::history(
-                    Self::died_event(ObjectFilter::All(vec![
+                    Self::died_event(ObjectFilter::AllOf(vec![
                         self.filter(objects)?,
                         ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
                     ])),
@@ -2207,28 +2232,15 @@ impl Context {
                 },
                 filter: self.filter(filter)?,
             },
-            S::TheCardExiledThisWayIsStillExiled => Condition::Compare {
-                left: Expr::CountObjects(Box::new(self.still_exiled(ObjectSet::One(
+            S::TheCardExiledThisWayIsStillExiled => Condition::Compare { left: Expr::CountObjects(Box::new(self.still_exiled(ObjectSet::One(
                     self.exiled_card(&source::CardInExile::TheCardExiledThisWay)?,
-                )))),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            },
+                )))), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } },
             S::DiceResultIs(comparison) => {
-                let (op, right) = self.comparison(comparison)?;
-                Condition::Compare {
-                    left: self.die_result()?,
-                    comparison: op,
-                    right,
-                }
+                let test = self.number_test(comparison)?;
+                Condition::Compare { left: self.die_result()?, test }
             }
-            S::APermanentWasDestroyedThisWay(filter) => Condition::Compare {
-                left: Expr::CountObjects(Box::new(self.done_matching(Done::Destroyed, filter)?)),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            },
-            S::DestroyedPermanentIsPutInAGraveyardThisWay => Condition::Compare {
-                left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+            S::APermanentWasDestroyedThisWay(filter) => Condition::Compare { left: Expr::CountObjects(Box::new(self.done_matching(Done::Destroyed, filter)?)), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } },
+            S::DestroyedPermanentIsPutInAGraveyardThisWay => Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                     objects: Box::new(ObjectSet::Transition {
                         result: self.done(Done::Destroyed)?,
                         phase: ObjectPhase::After,
@@ -2237,111 +2249,60 @@ impl Context {
                         zone: EventZone::Graveyard,
                         players: PlayerSet::All,
                     }),
-                })),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            },
-            S::APermanentWasSacrificedThisWay(filter) => Condition::Compare {
-                left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                })), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } },
+            S::APermanentWasSacrificedThisWay(filter) => Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                     objects: Box::new(self.paid_objects(
                         crate::number_spec::PaymentAction::Sacrifice,
                         CostObjectView::Performed,
                     )?),
                     filter: self.filter(filter)?,
-                })),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            },
-            S::ACardWasDiscardedThisWay(cards) => Condition::Compare {
-                left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                })), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } },
+            S::ACardWasDiscardedThisWay(cards) => Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                     objects: Box::new(self.paid_objects(
                         crate::number_spec::PaymentAction::Discard,
                         CostObjectView::Performed,
                     )?),
                     filter: self.card_filter(cards)?,
-                })),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            },
-            S::APermanentWasPutIntoHandThisWay(filter) => Condition::Compare {
-                left: Expr::CountObjects(Box::new(self.done_matching(Done::Returned, filter)?)),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            },
-            S::ACardWasMilledThisWay(cards) => Condition::Compare {
-                left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                })), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } },
+            S::APermanentWasPutIntoHandThisWay(filter) => Condition::Compare { left: Expr::CountObjects(Box::new(self.done_matching(Done::Returned, filter)?)), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } },
+            S::ACardWasMilledThisWay(cards) => Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                     objects: Box::new(self.this_way_set(Done::Milled, ObjectPhase::After, None)?),
                     filter: self.card_filter(cards)?,
-                })),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            },
-            S::APermanentPassesFilter(objects, filter) => Condition::Compare {
-                left: self.count_matching(objects, filter)?,
-                comparison: Comparison::GreaterOrEqual,
-                right: Expr::Constant(1),
-            },
-            S::NoPermanentsPassFilter(objects, filter) => Condition::Compare {
-                left: self.count_matching(objects, filter)?,
-                comparison: Comparison::Equal,
-                right: Expr::Constant(0),
-            },
+                })), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } },
+            S::APermanentPassesFilter(objects, filter) => Condition::Compare { left: self.count_matching(objects, filter)?, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } },
+            S::NoPermanentsPassFilter(objects, filter) => Condition::Compare { left: self.count_matching(objects, filter)?, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(0) } },
             S::NumPermanentsPassFilter(count, objects, filter) => {
-                let (comparison, right) = self.comparison(count)?;
-                Condition::Compare {
-                    left: self.count_matching(objects, filter)?,
-                    comparison,
-                    right,
-                }
+                let test = self.number_test(count)?;
+                Condition::Compare { left: self.count_matching(objects, filter)?, test }
             }
-            S::AllPlayersPassFilter(players, filter) => Condition::Compare {
-                left: Expr::CountPlayers(self.players(&source::Players::And(vec![
+            S::AllPlayersPassFilter(players, filter) => Condition::Compare { left: Expr::CountPlayers(self.players(&source::Players::And(vec![
                     (**players).clone(),
                     (**filter).clone(),
-                ]))?),
-                comparison: Comparison::Equal,
-                right: Expr::CountPlayers(self.players(players)?),
-            },
-            S::NoPlayersPassFilter(players, filter) => Condition::Compare {
-                left: Expr::CountPlayers(self.players(&source::Players::And(vec![
+                ]))?), test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::CountPlayers(self.players(players)?) } },
+            S::NoPlayersPassFilter(players, filter) => Condition::Compare { left: Expr::CountPlayers(self.players(&source::Players::And(vec![
                     (**players).clone(),
                     (**filter).clone(),
-                ]))?),
-                comparison: Comparison::Equal,
-                right: Expr::Constant(0),
-            },
+                ]))?), test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(0) } },
             S::ACardWasRevealedThisWay(cards) => {
                 let objects = self.revealed_objects()?;
-                Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                         objects: Box::new(objects),
                         filter: self.card_filter(cards)?,
-                    })),
-                    comparison: Comparison::GreaterOrEqual,
-                    right: Expr::Constant(1),
-                }
+                    })), test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } }
             }
-            S::AnExiledCardPassesFilter(cards, filter) => Condition::Compare {
-                left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+            S::AnExiledCardPassesFilter(cards, filter) => Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                     objects: Box::new(self.still_exiled(self.exile_cards(cards)?)),
                     filter: self.exile_filter(filter)?,
-                })),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            },
+                })), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } },
             S::APermanentWasPutOntoTheBattlefieldThisWay(objects) => {
                 let result = self.entered.clone().ok_or_else(|| unsupported(value))?;
-                Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                         objects: Box::new(ObjectSet::Transition {
                             result,
                             phase: ObjectPhase::After,
                         }),
                         filter: self.filter(objects)?,
-                    })),
-                    comparison: Comparison::Greater,
-                    right: Expr::Constant(0),
-                }
+                    })), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } }
             }
             S::ACardWasPutIntoHandThisWay(cards) => {
                 let results = self
@@ -2357,14 +2318,10 @@ impl Context {
                         })
                         .collect(),
                 );
-                Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                         objects: Box::new(objects),
                         filter: self.card_filter(cards)?,
-                    })),
-                    comparison: Comparison::Greater,
-                    right: Expr::Constant(0),
-                }
+                    })), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } }
             }
             S::TopCardOfPlayersLibraryPassesFilter(player, cards) => Condition::ObjectMatches {
                 object: ObjectRef::Query {
@@ -2379,17 +2336,13 @@ impl Context {
             },
             S::ACardWasExiledThisWay(cards) => {
                 let result = self.exiled.clone().ok_or_else(|| unsupported(value))?;
-                Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                         objects: Box::new(ObjectSet::Transition {
                             result,
                             phase: ObjectPhase::Before,
                         }),
                         filter: self.card_filter(cards)?,
-                    })),
-                    comparison: Comparison::Greater,
-                    right: Expr::Constant(0),
-                }
+                    })), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } }
             }
             _ => return Err(unsupported(value)),
         })
@@ -3129,11 +3082,11 @@ impl Context {
                 let body = child.actions(actions)?;
                 self.result = child.result;
                 Operation::CreateTrigger {
-                    event,
+                    event: Box::new(event),
                     duration: Duration::EndOfTurn,
                     announcement: Announcement {
                         targets: child.targets.split_off(known),
-                        modes: child.modes,
+                        modes: child.modes.map(Box::new),
                     },
                     body,
                     once: true,
@@ -3313,11 +3266,11 @@ impl Context {
                 let body = child.actions(actions)?;
                 self.result = child.result;
                 Operation::CreateTrigger {
-                    event,
+                    event: Box::new(event),
                     duration,
                     announcement: Announcement {
                         targets: child.targets.split_off(known),
-                        modes: child.modes,
+                        modes: child.modes.map(Box::new),
                     },
                     body,
                     once,
@@ -3603,7 +3556,7 @@ impl Context {
                     S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromBattlefieldThisTurn(_)
                 )
                 .then_some(EventZone::Battlefield);
-                let filter = ObjectFilter::All(vec![
+                let filter = ObjectFilter::AllOf(vec![
                     self.card_filter(cards)?,
                     ObjectFilter::ArrivedThisTurn { from },
                 ]);
@@ -4038,7 +3991,7 @@ impl Context {
                             objects: Box::new(self.observed_hand(&self.player(owner)?)?),
                             zone: EventZone::Hand,
                         }),
-                        filter: ObjectFilter::All(vec![
+                        filter: ObjectFilter::AllOf(vec![
                             ObjectFilter::OwnedBy(PlayerSet::One(self.player(owner)?)),
                             self.card_filter(cards)?,
                         ]),
@@ -4065,11 +4018,11 @@ impl Context {
                 let body = child.actions(actions)?;
                 self.result = child.result;
                 Operation::CreateTrigger {
-                    event,
+                    event: Box::new(event),
                     duration: Duration::Indefinite,
                     announcement: Announcement {
                         targets: child.targets.split_off(known),
-                        modes: child.modes,
+                        modes: child.modes.map(Box::new),
                     },
                     body,
                     once: true,
@@ -4325,7 +4278,7 @@ impl Context {
                     .collect::<Result<_>>()?;
                 self.result = child.result;
                 self.invalidate_child_bindings(&child);
-                return Ok(Instruction::Times {
+                return Ok(Instruction::RepeatableWithLimit {
                     amount,
                     body: Program { instructions },
                 });
@@ -4537,25 +4490,19 @@ impl Context {
                 }
             }
             S::CounterSpellOrAbility(object) if self.stack_object(object).is_ok() => {
-                Operation::Counter {
-                    objects: ObjectSet::One(self.stack_object(object)?),
-                    destination: Destination::OwnersGraveyard,
-                }
+                Operation::Counter { objects: ObjectSet::One(self.stack_object(object)?), destination: (Destination::OwnersGraveyard).into(), destination_when: None }
             }
             S::CounterSpell(s)
             | S::CounterSpellIntoExile(s)
             | S::CounterSpellIntoHand(s)
             | S::CounterSpellIntoTopOfLibrary(s)
-            | S::CounterSpellIntoBottomOfLibrary(s) => Operation::Counter {
-                objects: ObjectSet::One(self.spell(s)?),
-                destination: match value {
+            | S::CounterSpellIntoBottomOfLibrary(s) => Operation::Counter { objects: ObjectSet::One(self.spell(s)?), destination: (match value {
                     S::CounterSpellIntoExile(_) => Destination::Exile,
                     S::CounterSpellIntoHand(_) => Destination::OwnersHand,
                     S::CounterSpellIntoTopOfLibrary(_) => Destination::OwnersLibraryTop,
                     S::CounterSpellIntoBottomOfLibrary(_) => Destination::OwnersLibraryBottom,
                     _ => Destination::OwnersGraveyard,
-                },
-            },
+                }).into(), destination_when: None },
             S::RemoveCounters(removals) => Operation::RemoveCounters {
                 removals: removals
                     .iter()
@@ -5162,7 +5109,7 @@ impl Context {
                 }
                 S::TargetPermanentOfAPlayersChoiceTheyControl(p, players) => {
                     let chooser = PlayerRef::OneOf(Box::new(self.players(players)?));
-                    target.filter = ObjectFilter::All(vec![
+                    target.filter = ObjectFilter::AllOf(vec![
                         self.filter(p)?,
                         ObjectFilter::ControlledBy(PlayerSet::One(chooser.clone())),
                     ]);
@@ -5218,7 +5165,7 @@ impl Context {
                 S::TargetGraveyardCardInEachPlayersGraveyard(c, players) => {
                     let players = self.players(players)?;
                     target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
-                    target.filter = ObjectFilter::All(vec![
+                    target.filter = ObjectFilter::AllOf(vec![
                         self.grave_filter(c)?,
                         ObjectFilter::OwnedBy(players.clone()),
                     ]);
@@ -5286,7 +5233,7 @@ impl Context {
                 }
                 S::UptoOneTargetGraveyardCardInEachPlayersGraveyard(c, players) => {
                     target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
-                    target.filter = ObjectFilter::All(vec![
+                    target.filter = ObjectFilter::AllOf(vec![
                         self.grave_filter(c)?,
                         ObjectFilter::OwnedBy(self.players(players)?),
                     ]);
@@ -5391,12 +5338,12 @@ impl Context {
                 S::TargetSpellOrTargetPermanent(spells, permanents) => {
                     target.kind = TargetKind::Object(ObjectDomain::spell_or_permanent());
                     let in_zone = |zone| ObjectFilter::InZone(ZoneScope::Shared(zone));
-                    target.filter = ObjectFilter::Either(vec![
-                        ObjectFilter::All(vec![
+                    target.filter = ObjectFilter::AnyOf(vec![
+                        ObjectFilter::AllOf(vec![
                             in_zone(EventZone::Stack),
                             self.spell_filter(spells)?,
                         ]),
-                        ObjectFilter::All(vec![
+                        ObjectFilter::AllOf(vec![
                             in_zone(EventZone::Battlefield),
                             self.filter(permanents)?,
                         ]),
@@ -5443,7 +5390,7 @@ impl Context {
                 }
                 S::TargetPermanentEachPlayerControls(p, players) => {
                     let players = self.players(players)?;
-                    target.filter = ObjectFilter::All(vec![
+                    target.filter = ObjectFilter::AllOf(vec![
                         self.filter(p)?,
                         ObjectFilter::ControlledBy(players.clone()),
                     ]);
@@ -5471,9 +5418,9 @@ impl Context {
                         zones: vec![EventZone::Battlefield, EventZone::Exile],
                     });
                     let in_zone = |zone| ObjectFilter::InZone(ZoneScope::Shared(zone));
-                    target.filter = ObjectFilter::Either(vec![
-                        ObjectFilter::All(vec![in_zone(EventZone::Battlefield), self.filter(p)?]),
-                        ObjectFilter::All(vec![in_zone(EventZone::Exile), self.exile_filter(c)?]),
+                    target.filter = ObjectFilter::AnyOf(vec![
+                        ObjectFilter::AllOf(vec![in_zone(EventZone::Battlefield), self.filter(p)?]),
+                        ObjectFilter::AllOf(vec![in_zone(EventZone::Exile), self.exile_filter(c)?]),
                     ]);
                 }
                 S::TargetAnteCard(c) => {
@@ -5505,7 +5452,7 @@ impl Context {
                     let slot = player.slot.clone();
                     self.targets.push(player);
                     target.slot = TargetSlot(slot.0 + 1);
-                    target.filter = ObjectFilter::All(vec![
+                    target.filter = ObjectFilter::AllOf(vec![
                         self.filter(p)?,
                         ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::Target {
                             slot,
@@ -5527,7 +5474,7 @@ impl Context {
                         .map(|c| self.grave_filter(c))
                         .collect::<Result<Vec<_>>>()?;
                     target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
-                    target.filter = ObjectFilter::Either(each.clone());
+                    target.filter = ObjectFilter::AnyOf(each.clone());
                     target.count = Count::UpTo(self.number(n)?);
                     target.constraints = vec![SelectionConstraint::OneForEach(each)];
                 }
@@ -5640,11 +5587,8 @@ impl Context {
             if !self.reviewed(form) {
                 return Err(unsupported(value));
             }
-            let (comparison, amount) = self.comparison(allowed)?;
-            let limit = self.effect(Operation::LimitX {
-                comparison,
-                value: amount,
-            });
+            let test = self.number_test(allowed)?;
+            let limit = self.effect(Operation::LimitX { test });
             let mut program = self.actions(body)?;
             program.instructions.insert(0, limit);
             return Ok(program);
@@ -5948,14 +5892,14 @@ impl Context {
                     condition = Condition::Not(Box::new(condition));
                 }
                 limits.condition = Some(match limits.condition.take() {
-                    Some(previous) => Condition::All(vec![previous, condition]),
+                    Some(previous) => Condition::AllOf(vec![previous, condition]),
                     None => condition,
                 });
             }
             source::ActivateModifier::ActivateOnlyDuringTheirTurn => {
                 let condition = Condition::PlayerIsActive(self.player(&source::Player::You)?);
                 limits.condition = Some(match limits.condition.take() {
-                    Some(previous) => Condition::All(vec![previous, condition]),
+                    Some(previous) => Condition::AllOf(vec![previous, condition]),
                     None => condition,
                 });
             }
@@ -6110,7 +6054,7 @@ impl Context {
             {
                 self.entry_replacement(
                     ReplacementActive::SourceEntering,
-                    ObjectFilter::All(vec![
+                    ObjectFilter::AllOf(vec![
                         ObjectFilter::SameObject(ObjectRef::Source),
                         ObjectFilter::State(ObjectState::Escaped),
                     ]),
@@ -6140,7 +6084,7 @@ impl Context {
                 let objects = match event {
                     source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefield(p) => self.filter(p)?,
                     source::ReplacableEventWouldEnter::PermanentWouldEnterTheBattlefield(p) => ObjectFilter::SameObject(self.object(p)?),
-                    source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefieldUnderAPlayersControl(p,players) => ObjectFilter::All(vec![self.filter(p)?,ObjectFilter::ControlledBy(self.players(players)?)]),
+                    source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefieldUnderAPlayersControl(p,players) => ObjectFilter::AllOf(vec![self.filter(p)?,ObjectFilter::ControlledBy(self.players(players)?)]),
                     source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefieldAndWasntCast(p) => self.filter(
                         &source::Permanents::And(vec![(**p).clone(), source::Permanents::WasntCast]),
                     )?,
@@ -6164,7 +6108,7 @@ impl Context {
                 fn planeswalker(f: &ObjectFilter) -> bool {
                     match f {
                         ObjectFilter::CardType(source::CardType::Planeswalker) => true,
-                        ObjectFilter::All(v) | ObjectFilter::Either(v) => {
+                        ObjectFilter::AllOf(v) | ObjectFilter::AnyOf(v) => {
                             v.iter().any(planeswalker)
                         }
                         ObjectFilter::Not(f) => planeswalker(f),
@@ -6204,7 +6148,7 @@ impl Context {
                             slot: slot.clone(),
                             kind: TargetKind::Object(ObjectDomain::permanent()),
                             count: Count::Exactly(Expr::Constant(1)),
-                            filter: ObjectFilter::All(vec![
+                            filter: ObjectFilter::AllOf(vec![
                                 filter,
                                 ObjectFilter::ControlledBy(PlayerSet::One(
                                     PlayerRef::AbilityController,
@@ -6290,7 +6234,7 @@ impl Context {
                 Ok(Ability::OpeningHand {
                     announcement: Announcement {
                         targets: self.targets.clone(),
-                        modes: self.modes.clone(),
+                        modes: self.modes.clone().map(Box::new),
                     },
                     body,
                 })
@@ -6393,7 +6337,7 @@ impl Context {
                     limits,
                     announcement: Announcement {
                         targets: self.targets.clone(),
-                        modes: self.modes.clone(),
+                        modes: self.modes.clone().map(Box::new),
                     },
                     body,
                 })
@@ -6455,7 +6399,7 @@ impl Context {
                     limits,
                     announcement: Announcement {
                         targets: self.targets.clone(),
-                        modes: self.modes.clone(),
+                        modes: self.modes.clone().map(Box::new),
                     },
                     body,
                 })
@@ -6491,7 +6435,7 @@ impl Context {
                             },
                             announcement: Announcement {
                                 targets: chapter.targets,
-                                modes: chapter.modes,
+                                modes: chapter.modes.map(Box::new),
                             },
                             body,
                         });
@@ -6507,13 +6451,9 @@ impl Context {
 }
 
 fn game_range(value: &Expr, range: &source::GameRange) -> Condition {
-    let compare = |comparison, n: i32| Condition::Compare {
-        left: value.clone(),
-        comparison,
-        right: Expr::Constant(n.into()),
-    };
+    let compare = |comparison, n: i32| Condition::Compare { left: value.clone(), test: NumberTest::Compare { comparison: comparison, value: Expr::Constant(n.into()) } };
     match range {
-        source::GameRange::BetweenValues(low, high) => Condition::All(vec![
+        source::GameRange::BetweenValues(low, high) => Condition::AllOf(vec![
             compare(Comparison::GreaterOrEqual, *low),
             compare(Comparison::LessOrEqual, *high),
         ]),

@@ -199,7 +199,7 @@ fn costs_spelled_as_one_form_become_their_parts() {
 fn x_limits_stay_with_the_effect() {
     says(
         "Mind Grind",
-        &["LimitX { comparison: Greater, value: Constant(0) }"],
+        &["LimitX { test: Compare { comparison: Greater, value: Constant(0) } }"],
     );
 }
 

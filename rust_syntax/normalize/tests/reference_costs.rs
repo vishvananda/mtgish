@@ -1,3 +1,5 @@
+#[path = "support/epoch189.rs"]
+mod epoch189;
 #[path = "support/query_aliases.rs"]
 mod query_aliases;
 use mtgish_ast::{mtg_types::OracleCard, unified, validate};
@@ -15,7 +17,7 @@ fn lowered(line: &str) -> Value {
 // Only a conjunct alongside a subtype in a tap-cost selection may change.
 fn remove_creature_conjunct(value: &mut Value) -> usize {
     let mut count = 0;
-    if value["kind"] == "All" {
+    if value["kind"] == "AllOf" {
         let items = value["args"].as_array_mut().unwrap();
         if items.iter().any(|v| v["kind"] == "Subtype") {
             let before = items.len();
@@ -170,6 +172,7 @@ fn replace_announced_x(value: &mut Value, result: &Value) -> usize {
 fn all_three_reflexive_x_cards_only_change_the_amount_binding() {
     for before in include_str!("fixtures/reflexive_x_before.jsonl").lines() {
         let mut expected: Value = serde_json::from_str(before).unwrap();
+        epoch189::tree(&mut expected);
         // This is the pre-fix producer snapshot. A later schema migration does
         // not change the exact amount-only semantic comparison.
         query_aliases::battlefield(&mut expected);

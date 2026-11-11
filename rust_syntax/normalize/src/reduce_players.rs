@@ -2,27 +2,15 @@
 // happen to them in that window" is one shape, as Forge's `PlayerCountPropertyX`.
 
 fn at_least(left: Expr, amount: i64) -> Condition {
-    Condition::Compare {
-        left,
-        comparison: Comparison::GreaterOrEqual,
-        right: Expr::Constant(amount),
-    }
+    Condition::Compare { left, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(amount) } }
 }
 
 fn exactly(left: Expr, amount: i64) -> Condition {
-    Condition::Compare {
-        left,
-        comparison: Comparison::Equal,
-        right: Expr::Constant(amount),
-    }
+    Condition::Compare { left, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(amount) } }
 }
 
 fn compared(left: Expr, comparison: &Comparison, right: &Expr) -> Condition {
-    Condition::Compare {
-        left,
-        comparison: comparison.clone(),
-        right: right.clone(),
-    }
+    Condition::Compare { left, test: NumberTest::Compare { comparison: comparison.clone(), value: right.clone() } }
 }
 
 fn negated(condition: Condition) -> Condition {
@@ -42,7 +30,7 @@ fn count_of(objects: ObjectSet) -> Expr {
 }
 
 fn controlled_by(player: &PlayerRef, filter: ObjectFilter) -> ObjectSet {
-    ObjectSet::battlefield(ObjectFilter::All(vec![
+    ObjectSet::battlefield(ObjectFilter::AllOf(vec![
         filter,
         ObjectFilter::ControlledBy(PlayerSet::One(player.clone())),
     ]))
@@ -117,7 +105,7 @@ fn player_check(form: &str, player: &PlayerRef, operands: &[Operand]) -> Option<
         }
         ("CastASpellFromAGraveyardThisTurn", [Filter(spells), Players(owners)]) => did(
             player,
-            H::CastSpell(Box::new(ObjectFilter::All(vec![
+            H::CastSpell(Box::new(ObjectFilter::AllOf(vec![
                 spells.clone(),
                 ObjectFilter::Cast {
                     by: None,
@@ -131,7 +119,7 @@ fn player_check(form: &str, player: &PlayerRef, operands: &[Operand]) -> Option<
         ),
         ("CastASpellFromAnywhereOtherThanTheirHandThisTurn", [Filter(spells)]) => did(
             player,
-            H::CastSpell(Box::new(ObjectFilter::All(vec![
+            H::CastSpell(Box::new(ObjectFilter::AllOf(vec![
                 spells.clone(),
                 not(cast_from(EventZone::Hand)),
             ]))),
@@ -327,39 +315,27 @@ fn player_check(form: &str, player: &PlayerRef, operands: &[Operand]) -> Option<
         ),
         ("ControlsLessPermanentsThanEachPlayer", [Players(others), Objects(objects)]) => {
             let filter = filter_of(objects)?;
-            Condition::Compare {
-                left: permanents_of(player, filter.clone()),
-                comparison: Comparison::Less,
-                right: among(
+            Condition::Compare { left: permanents_of(player, filter.clone()), test: NumberTest::Compare { comparison: Comparison::Less, value: among(
                     others,
                     PlayerNumber::Permanents(Box::new(filter)),
                     Aggregation::Minimum,
-                ),
-            }
+                ) } }
         }
         ("AControllerOfTheMostPermanentsAmongPlayers", [Players(others), Objects(objects)]) => {
             let filter = filter_of(objects)?;
-            Condition::Compare {
-                left: permanents_of(player, filter.clone()),
-                comparison: Comparison::GreaterOrEqual,
-                right: among(
+            Condition::Compare { left: permanents_of(player, filter.clone()), test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: among(
                     others,
                     PlayerNumber::Permanents(Box::new(filter)),
                     Aggregation::Maximum,
-                ),
-            }
+                ) } }
         }
         ("AControllerOfTheLeastPermanentsAmongPlayers", [Players(others), Objects(objects)]) => {
             let filter = filter_of(objects)?;
-            Condition::Compare {
-                left: permanents_of(player, filter.clone()),
-                comparison: Comparison::LessOrEqual,
-                right: among(
+            Condition::Compare { left: permanents_of(player, filter.clone()), test: NumberTest::Compare { comparison: Comparison::LessOrEqual, value: among(
                     others,
                     PlayerNumber::Permanents(Box::new(filter)),
                     Aggregation::Minimum,
-                ),
-            }
+                ) } }
         }
         _ => return None,
     })
@@ -399,6 +375,10 @@ fn reduce_game_condition(form: &str, operands: &[Operand]) -> Option<Condition> 
             compared(Expr::TurnNumber, comparison, value)
         }
         ("IsNotTheFirstTurnOfTheGame", []) => at_least(Expr::TurnNumber, 2),
+        ("IsPlayersNthTurn", [Player(player), Operand::NumberTest(test)]) => Condition::Compare {
+            left: Expr::PlayerNumber { player: player.clone(), number: PlayerNumber::TurnsBegun },
+            test: test.clone(),
+        },
         ("IsPlayersNthTurn", [Player(player), Than(comparison, value)]) => compared(
             Expr::PlayerNumber {
                 player: player.clone(),

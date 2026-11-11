@@ -59,7 +59,7 @@ fn sibling_branches_resolve_their_own_definitions() {
         1,
         json!({"kind":"BindValue","args":{"value":{"kind":"Constant","args":4}}}),
     );
-    p[0]["args"]["body"]["instructions"] = json!([{"kind":"If","args":{"condition":{"kind":"Compare","args":{"left":{"kind":"Constant","args":1},"comparison":"Equal","right":{"kind":"Constant","args":1}}},"then":{"instructions":[unused]},"otherwise":body}}]);
+    p[0]["args"]["body"]["instructions"] = json!([{"kind":"If","args":{"condition":{"kind":"Compare","args":{"left":{"kind":"Constant","args":1}, "test":{"kind":"Compare","args":{"comparison":"Equal","value":{"kind":"Constant","args":1}}}}},"then":{"instructions":[unused]},"otherwise":body}}]);
     let first = norm(p.clone());
     p[0]["args"]["body"]["instructions"][0]["args"]["then"]["instructions"][0]["args"]["result"] =
         json!(99);

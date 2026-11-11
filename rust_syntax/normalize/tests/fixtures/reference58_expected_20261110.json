@@ -368,10 +368,15 @@
                           "property": "CardTypes"
                         }
                       },
-                      "comparison": "GreaterOrEqual",
-                      "right": {
-                        "kind": "Constant",
-                        "args": 4
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 4
+                          }
+                        }
                       }
                     }
                   },
@@ -417,10 +422,15 @@
                           "property": "CardTypes"
                         }
                       },
-                      "comparison": "GreaterOrEqual",
-                      "right": {
-                        "kind": "Constant",
-                        "args": 4
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 4
+                          }
+                        }
                       }
                     }
                   },
@@ -969,7 +979,7 @@
                             },
                             "kind": "Permanent",
                             "filter": {
-                              "kind": "All",
+                              "kind": "AllOf",
                               "args": [
                                 {
                                   "kind": "CardType",
@@ -989,10 +999,15 @@
                           }
                         }
                       },
-                      "comparison": "GreaterOrEqual",
-                      "right": {
-                        "kind": "Constant",
-                        "args": 6
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 6
+                          }
+                        }
                       }
                     }
                   },
@@ -1022,7 +1037,7 @@
                             },
                             "kind": "Permanent",
                             "filter": {
-                              "kind": "All",
+                              "kind": "AllOf",
                               "args": [
                                 {
                                   "kind": "CardType",
@@ -1042,10 +1057,15 @@
                           }
                         }
                       },
-                      "comparison": "GreaterOrEqual",
-                      "right": {
-                        "kind": "Constant",
-                        "args": 6
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 6
+                          }
+                        }
                       }
                     }
                   },
@@ -1232,7 +1252,7 @@
                                   },
                                   "kind": "Permanent",
                                   "filter": {
-                                    "kind": "All",
+                                    "kind": "AllOf",
                                     "args": [
                                       {
                                         "kind": "CardType",
@@ -1331,7 +1351,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -1542,7 +1562,7 @@
         "event": {
           "Attack": {
             "attackers": {
-              "kind": "All",
+              "kind": "AllOf",
               "args": [
                 {
                   "kind": "CardType",
@@ -1901,7 +1921,7 @@
               },
               "kind": "Permanent",
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "Subtype",
@@ -2150,7 +2170,7 @@
               "kind": "All"
             },
             "objects": {
-              "kind": "All",
+              "kind": "AllOf",
               "args": [
                 {
                   "kind": "CardType",
@@ -3165,7 +3185,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -4165,7 +4185,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -4935,7 +4955,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -5014,7 +5034,7 @@
                       }
                     },
                     "filter": {
-                      "kind": "All",
+                      "kind": "AllOf",
                       "args": [
                         {
                           "kind": "Not",
@@ -6222,7 +6242,7 @@
                           },
                           "kind": "Permanent",
                           "filter": {
-                            "kind": "All",
+                            "kind": "AllOf",
                             "args": [
                               {
                                 "kind": "CardType",
@@ -6424,7 +6444,7 @@
             "args": {
               "SpellCost": {
                 "spells": {
-                  "kind": "All",
+                  "kind": "AllOf",
                   "args": [
                     {
                       "kind": "CardType",
@@ -8017,7 +8037,7 @@
               "kind": "All"
             },
             "objects": {
-              "kind": "All",
+              "kind": "AllOf",
               "args": [
                 {
                   "kind": "CardType",
@@ -8125,7 +8145,7 @@
                 }
               },
               "filter": {
-                "kind": "Either",
+                "kind": "AnyOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -8183,7 +8203,7 @@
                       }
                     },
                     "filter": {
-                      "kind": "All",
+                      "kind": "AllOf",
                       "args": [
                         {
                           "kind": "CardType",
@@ -8295,7 +8315,7 @@
                     "choices": [
                       {
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -8305,10 +8325,15 @@
                               "kind": "Property",
                               "args": {
                                 "property": "ManaValue",
-                                "comparison": "LessOrEqual",
-                                "value": {
-                                  "kind": "Constant",
-                                  "args": 1
+                                "test": {
+                                  "kind": "Compare",
+                                  "args": {
+                                    "comparison": "LessOrEqual",
+                                    "value": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    }
+                                  }
                                 }
                               }
                             }
@@ -8470,7 +8495,7 @@
                                   }
                                 },
                                 "filter": {
-                                  "kind": "All",
+                                  "kind": "AllOf",
                                   "args": [
                                     {
                                       "kind": "CardType",
@@ -8825,7 +8850,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -9053,7 +9078,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -9233,7 +9258,7 @@
                       }
                     },
                     "filter": {
-                      "kind": "All",
+                      "kind": "AllOf",
                       "args": [
                         {
                           "kind": "CardType",
@@ -9611,7 +9636,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -9749,7 +9774,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -9901,7 +9926,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -10074,7 +10099,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -10196,7 +10221,7 @@
                               },
                               "kind": "Permanent",
                               "filter": {
-                                "kind": "All",
+                                "kind": "AllOf",
                                 "args": [
                                   {
                                     "kind": "CardType",
@@ -10327,7 +10352,7 @@
                               },
                               "kind": "Permanent",
                               "filter": {
-                                "kind": "All",
+                                "kind": "AllOf",
                                 "args": [
                                   {
                                     "kind": "CardType",
@@ -10620,7 +10645,7 @@
                           },
                           "kind": "Permanent",
                           "filter": {
-                            "kind": "All",
+                            "kind": "AllOf",
                             "args": [
                               {
                                 "kind": "CardType",
@@ -10789,7 +10814,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -10905,7 +10930,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -11151,7 +11176,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -11262,7 +11287,7 @@
       "kind": "Triggered",
       "args": {
         "event": {
-          "Either": [
+          "AnyOf": [
             {
               "Object": {
                 "event": "Attacks",
@@ -11314,7 +11339,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -11455,7 +11480,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -11486,10 +11511,15 @@
                                         "measure": "Occurrences"
                                       }
                                     },
-                                    "comparison": "GreaterOrEqual",
-                                    "right": {
-                                      "kind": "Constant",
-                                      "args": 1
+                                    "test": {
+                                      "kind": "Compare",
+                                      "args": {
+                                        "comparison": "GreaterOrEqual",
+                                        "value": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
                                     }
                                   }
                                 }
@@ -11521,10 +11551,15 @@
                                         "measure": "Occurrences"
                                       }
                                     },
-                                    "comparison": "GreaterOrEqual",
-                                    "right": {
-                                      "kind": "Constant",
-                                      "args": 1
+                                    "test": {
+                                      "kind": "Compare",
+                                      "args": {
+                                        "comparison": "GreaterOrEqual",
+                                        "value": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
                                     }
                                   }
                                 }
@@ -11626,7 +11661,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "Subtype",
@@ -11758,7 +11793,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -11939,7 +11974,7 @@
       "kind": "Triggered",
       "args": {
         "event": {
-          "Either": [
+          "AnyOf": [
             {
               "Player": {
                 "event": "PlaysLand",

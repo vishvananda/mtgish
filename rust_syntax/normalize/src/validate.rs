@@ -461,9 +461,9 @@ impl<'a> Scope<'a> {
                 scoped.players(players)?;
                 objects.iter().try_for_each(|filter| scoped.filter(filter))
             }
-            EventSpec::NthEachTurn { event, value, .. } => {
+            EventSpec::NthEachTurn { event, test } => {
                 self.event(event)?;
-                self.expr(value)
+                self.number_test(test)
             }
             // Its filters can name what the event binds, as a row's operands can.
             EventSpec::Pair {
@@ -561,7 +561,7 @@ impl<'a> Scope<'a> {
                 self.condition(condition)?;
                 self.player(player)
             },
-            EventSpec::Either(events) => {
+            EventSpec::AnyOf(events) => {
                 if events.is_empty() {
                     return Err("alternative event matcher is empty".into());
                 }
@@ -1329,7 +1329,6 @@ impl<'a> Scope<'a> {
                 }
                 self.object(object)
             }
-            Expr::AnyOf(values) => values.iter().try_for_each(|value| self.expr(value)),
             Expr::Add(a, b)
             | Expr::Subtract(a, b)
             | Expr::Multiply(a, b)
@@ -1557,7 +1556,7 @@ impl<'a> Scope<'a> {
             ObjectFilter::AttackingDefender(defenders) => self.defenders(defenders),
             ObjectFilter::AttachedTo(filter) => self.filter(filter),
             ObjectFilter::BlockingObject(object) => self.object(object),
-            ObjectFilter::All(items) | ObjectFilter::Either(items) => {
+            ObjectFilter::AllOf(items) | ObjectFilter::AnyOf(items) => {
                 for item in items {
                     self.filter(item)?;
                 }
@@ -1573,8 +1572,17 @@ impl<'a> Scope<'a> {
             ObjectFilter::SharesNameWithAny(objects)
             | ObjectFilter::SharesNameWithAnother(objects)
             | ObjectFilter::SharesWithAny { with: objects, .. } => self.objects(objects),
-            ObjectFilter::Property { value, .. } => self.expr(value),
+            ObjectFilter::Property { test, .. } => self.number_test(test),
             ObjectFilter::Counters { value, .. } => self.expr(value),
+        }
+    }
+
+    fn number_test(&self, test: &NumberTest) -> Result {
+        match test {
+            NumberTest::Compare { value, .. } => self.expr(value),
+            NumberTest::AllOf(tests) | NumberTest::AnyOf(tests) =>
+                tests.iter().try_for_each(|test| self.number_test(test)),
+            NumberTest::AnyProperty { objects, .. } => self.objects(objects),
         }
     }
 
@@ -1743,9 +1751,9 @@ impl<'a> Scope<'a> {
                 )),
             },
             Condition::PlayerIsActive(player) => self.player(player),
-            Condition::Compare { left, right, .. } => {
+            Condition::Compare { left, test } => {
                 self.expr(left)?;
-                self.expr(right)
+                self.number_test(test)
             }
             Condition::CoinFlip { result, .. } => match self.results.get(&result.0) {
                 Some(ResultKind::Coin) => Ok(()),
@@ -1754,7 +1762,7 @@ impl<'a> Scope<'a> {
                     result.0
                 )),
             },
-            Condition::All(items) | Condition::Either(items) => {
+            Condition::AllOf(items) | Condition::AnyOf(items) => {
                 for item in items {
                     self.condition(item)?;
                 }
@@ -2412,7 +2420,8 @@ impl<'a> Scope<'a> {
                 condition.iter().try_for_each(|c| self.condition(c))
             }
             ActivationRule::OnlyBy(players) => self.players(players),
-            ActivationRule::MaxPerTurn(n) | ActivationRule::XAtMost(n) | ActivationRule::XIs(n) => {
+            ActivationRule::XIs(test) => self.number_test(test),
+            ActivationRule::MaxPerTurn(n) | ActivationRule::XAtMost(n) => {
                 self.expr(n)
             }
             ActivationRule::XNotZero
@@ -2630,7 +2639,7 @@ impl<'a> Scope<'a> {
                             "flashback permission belongs to the owner and their graveyard".into(),
                         );
                     }
-                    let expected = ObjectFilter::Either(vec![
+                    let expected = ObjectFilter::AnyOf(vec![
                         ObjectFilter::CardType(crate::mtg_types::CardType::Instant),
                         ObjectFilter::CardType(crate::mtg_types::CardType::Sorcery),
                     ]);
@@ -2760,6 +2769,7 @@ impl<'a> Scope<'a> {
             Operand::Duration(duration) => self.duration(duration),
             Operand::Filter(filter) => self.filter(filter),
             Operand::Comparison(_, expression) => self.expr(expression),
+            Operand::NumberTest(test) => self.number_test(test),
             Operand::Stickers(stickers) => {
                 for sticker in stickers {
                     if let Sticker::Abilities { abilities, .. } = sticker {
@@ -2929,7 +2939,7 @@ impl<'a> Scope<'a> {
                 each.affected = true;
                 each.operation(action)
             }
-            Operation::LimitX { value, .. } => self.expr(value),
+            Operation::LimitX { test } => self.number_test(test),
             Operation::RestartGame { keep, then } => {
                 self.objects(keep)?;
                 self.operation(then)
@@ -2939,17 +2949,13 @@ impl<'a> Scope<'a> {
                 self.expr(to)?;
                 self.operation(action)
             }
-            Operation::CounterWith {
-                object,
-                when,
-                destination,
-            } => {
+            Operation::Counter { objects, destination_when: when, destination: destination } => {
                 let view = crate::movement::entry_destination_view(destination);
                 let (destination, entry) = (&view.destination, &view.entry);
                 if let MovementPlacement::By(players) = &view.terms.placement {
                     self.players(players)?;
                 }
-                self.object(object)?;
+                self.require_zone(objects, EventZone::Stack)?;
                 when.iter().try_for_each(|f| self.filter(f))?;
                 self.destination(destination)?;
                 self.entry(entry)?;
@@ -3676,13 +3682,6 @@ impl<'a> Scope<'a> {
                 }
             }
             Operation::ChoosePowerToughness { player, .. } => self.player(player),
-            Operation::Counter {
-                objects,
-                destination,
-            } => {
-                self.require_zone(objects, EventZone::Stack)?;
-                self.destination(destination)
-            }
             Operation::Move {
                 objects,
                 destination,
@@ -4523,7 +4522,7 @@ impl<'a> Scope<'a> {
                         iterated.program(body)?;
                         self.adopt_choices(body, &iterated);
                     }
-                    Instruction::Times { amount, body } => {
+                    Instruction::RepeatableWithLimit { amount, body } => {
                         self.expr(amount)?;
                         let mut repeated = self.clone();
                         repeated.repeatable = true;
@@ -4730,7 +4729,7 @@ fn valid_crew_definition(
         return false;
     };
     let [CostObjectSelection {
-        objects: crate::battlefield_query!(ObjectFilter::All(filters)),
+        objects: crate::battlefield_query!(ObjectFilter::AllOf(filters)),
         choose: Some(Count::AnyNumber),
     }] = selections.as_slice()
     else {
@@ -5119,7 +5118,7 @@ fn validate_ability_in(
             fn only_source(filter: &ObjectFilter) -> bool {
                 match filter {
                     ObjectFilter::SameObject(ObjectRef::Source) => true,
-                    ObjectFilter::All(filters) => filters.iter().any(only_source),
+                    ObjectFilter::AllOf(filters) => filters.iter().any(only_source),
                     _ => false,
                 }
             }

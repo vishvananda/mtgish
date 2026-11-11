@@ -4,7 +4,8 @@ use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct Announcement {
     pub targets: Vec<TargetSpec>,
-    pub modes: Option<ModeSelection>,
+    /// Rare modal payload stays out of the common nonmodal announcement.
+    pub modes: Option<Box<ModeSelection>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

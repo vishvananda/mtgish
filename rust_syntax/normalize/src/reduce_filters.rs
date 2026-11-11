@@ -62,7 +62,7 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
             let other = ObjectFilter::Not(Box::new(ObjectFilter::SameObject(ObjectRef::Source)));
             return condition(did(
                 player,
-                PlayerHistory::CastSpell(Box::new(ObjectFilter::All(vec![
+                PlayerHistory::CastSpell(Box::new(ObjectFilter::AllOf(vec![
                     spells.clone(),
                     other,
                 ]))),
@@ -142,7 +142,7 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
         ("BlockedDeadAttacker", []) => ObjectFilter::BlockingObject(ObjectRef::EventSubject),
         ("WasBlockingDeadDefender", []) => ObjectFilter::BlockedByObject(ObjectRef::EventSubject),
         // "One of those creatures": other creatures you control the spell could target.
-        ("CouldBeTargetedBySpell_ThoseTargets", []) => ObjectFilter::All(vec![
+        ("CouldBeTargetedBySpell_ThoseTargets", []) => ObjectFilter::AllOf(vec![
             ObjectFilter::TargetableBy(ObjectRef::EventSubject),
             ObjectFilter::Not(Box::new(ObjectFilter::SameObject(ObjectRef::Source))),
             ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),
@@ -177,7 +177,7 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
             ObjectFilter::InSet(Box::new(ObjectSet::Affected(result.clone())))
         }
         // Orvar's intervening "if": the other permanents you control it targets.
-        ("TargetsAPermanent_ThosePermanents", []) => ObjectFilter::All(vec![
+        ("TargetsAPermanent_ThosePermanents", []) => ObjectFilter::AllOf(vec![
             ObjectFilter::InSet(Box::new(ObjectSet::TargetsOf(ObjectRef::EventSubject))),
             ObjectFilter::Not(Box::new(ObjectFilter::SameObject(ObjectRef::Source))),
             ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),

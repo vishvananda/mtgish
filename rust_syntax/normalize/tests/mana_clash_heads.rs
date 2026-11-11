@@ -7,7 +7,7 @@ fn batch() -> &'static str {
     "EachPlayerAction(Or([SinglePlayer(You),SinglePlayer(Ref_TargetPlayer)]),FlipACoin)"
 }
 fn all_heads() -> Condition {
-    Condition::All(vec![
+    Condition::AllOf(vec![
         Condition::CoinCameUp {
             player: Some(PlayerRef::AbilityController),
             outcome: CoinOutcome::Heads,
@@ -122,7 +122,7 @@ fn heads_predicate_uses_both_participants_and_ignores_unrelated_flips() {
     // vocabulary, without the lowerer's proof bookkeeping or player enumeration.
     fn value(condition: &Condition, heads: u8) -> bool {
         match condition {
-            Condition::All(conditions) => conditions.iter().all(|c| value(c, heads)),
+            Condition::AllOf(conditions) => conditions.iter().all(|c| value(c, heads)),
             Condition::CoinCameUp {
                 player: Some(PlayerRef::AbilityController),
                 outcome: CoinOutcome::Heads,

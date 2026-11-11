@@ -181,7 +181,7 @@ fn chars_only(filter: &ObjectFilter) -> bool {
     use ObjectFilter as F;
     match filter {
         F::Any | F::CardType(_) | F::Subtype(_) | F::Supertype(_) | F::Color(_) => true,
-        F::All(items) | F::Either(items) => items.iter().all(chars_only),
+        F::AllOf(items) | F::AnyOf(items) => items.iter().all(chars_only),
         F::Not(inner) => chars_only(inner),
         _ => false,
     }
@@ -385,7 +385,7 @@ fn known_mana_use(value: &ManaUse) -> Option<String> {
     let subtypes = |f: &F| -> Option<String> {
         match f {
             F::Subtype(s) => Some(format!("SubtypeSpells::of({})", subtype(s)?)),
-            F::Either(items) => {
+            F::AnyOf(items) => {
                 let words = items
                     .iter()
                     .map(|f| match f {
@@ -395,7 +395,7 @@ fn known_mana_use(value: &ManaUse) -> Option<String> {
                     .collect::<Option<Vec<_>>>()?;
                 Some(format!("SubtypeSpells::of_any(&[{}])", words.join(", ")))
             }
-            F::All(items) => match items.as_slice() {
+            F::AllOf(items) => match items.as_slice() {
                 [F::Subtype(s), F::CardType(T::Creature)]
                 | [F::CardType(T::Creature), F::Subtype(s)] => Some(format!(
                     "SubtypeSpells {{ creature: true, ..SubtypeSpells::of({}) }}",
@@ -407,14 +407,14 @@ fn known_mana_use(value: &ManaUse) -> Option<String> {
         }
     };
     let chosen_creature = |f: &F| {
-        matches!(f, F::All(items) if matches!(items.as_slice(),
+        matches!(f, F::AllOf(items) if matches!(items.as_slice(),
             [F::CardType(T::Creature), F::Chosen(ValueKind::CreatureType)]))
     };
     let at_least = |f: &F| match f {
         F::Property {
             property: Property::ManaValue,
-            comparison: Comparison::GreaterOrEqual,
-            value: Expr::Constant(n),
+            test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual,
+            value: Expr::Constant(n) },
         } => u8::try_from(*n).ok(),
         _ => None,
     };
@@ -450,7 +450,7 @@ fn known_mana_use(value: &ManaUse) -> Option<String> {
         {
             "ManaRestriction::NOT_SPELLS_FROM_HAND".to_string()
         }
-        ManaUse::CastSpell(F::Either(items)) if at_least(items.first()?).is_some() => {
+        ManaUse::CastSpell(F::AnyOf(items)) if at_least(items.first()?).is_some() => {
             let [mana_value, F::State(ObjectState::HasX)] = items.as_slice() else {
                 return None;
             };
@@ -541,14 +541,14 @@ fn spell_caster(filter: &ObjectFilter) -> (PlayerSet, ObjectFilter) {
     if let Some(by) = caster(filter) {
         return (by, ObjectFilter::Any);
     }
-    if let ObjectFilter::All(items) = filter {
+    if let ObjectFilter::AllOf(items) = filter {
         if let Some(by) = items.iter().find_map(caster) {
             let rest: Vec<_> = items
                 .iter()
                 .filter(|f| caster(f).is_none())
                 .cloned()
                 .collect();
-            return (by, ObjectFilter::All(rest));
+            return (by, ObjectFilter::AllOf(rest));
         }
     }
     (PlayerSet::All, filter.clone())
@@ -1883,7 +1883,7 @@ impl Compiler {
                 _ => return Err(failure()),
             });
         }
-        let filter = ObjectFilter::All(vec![
+        let filter = ObjectFilter::AllOf(vec![
             ObjectFilter::Cast {
                 by: Some(players.clone()),
                 from: from.map(|zone| ZoneScope::Shared(zone.clone())),
@@ -2418,7 +2418,7 @@ impl Compiler {
         } = objects
         {
             let items = match filter {
-                ObjectFilter::All(items) => items.as_slice(),
+                ObjectFilter::AllOf(items) => items.as_slice(),
                 other => std::slice::from_ref(other),
             };
             let exiled_with =
@@ -2764,12 +2764,12 @@ impl Compiler {
         let def = |test: &str| format!("def.is_some_and(|d| {test})");
         Ok(match filter {
             ObjectFilter::Any => "true".into(),
-            ObjectFilter::All(filters) | ObjectFilter::Either(filters) => {
+            ObjectFilter::AllOf(filters) | ObjectFilter::AnyOf(filters) => {
                 let tests = filters
                     .iter()
                     .map(|f| self.ability_test(f))
                     .collect::<Result<Vec<_>>>()?;
-                let joint = if matches!(filter, ObjectFilter::All(_)) {
+                let joint = if matches!(filter, ObjectFilter::AllOf(_)) {
                     " && "
                 } else {
                     " || "
@@ -4090,7 +4090,7 @@ impl Compiler {
         };
         Ok(match filter {
             ObjectFilter::Any => "true".into(),
-            ObjectFilter::All(items) => format!(
+            ObjectFilter::AllOf(items) => format!(
                 "({})",
                 items
                     .iter()
@@ -4098,7 +4098,7 @@ impl Compiler {
                     .collect::<Result<Vec<_>>>()?
                     .join(" && ")
             ),
-            ObjectFilter::Either(items) => format!(
+            ObjectFilter::AnyOf(items) => format!(
                 "({})",
                 items
                     .iter()
@@ -4564,8 +4564,8 @@ impl Compiler {
             items.iter().map(|f| self.zone_filter(f, c)).collect()
         };
         Ok(match filter {
-            ObjectFilter::All(items) => format!("({})", each(items)?.join(" && ")),
-            ObjectFilter::Either(items) => format!("({})", each(items)?.join(" || ")),
+            ObjectFilter::AllOf(items) => format!("({})", each(items)?.join(" && ")),
+            ObjectFilter::AnyOf(items) => format!("({})", each(items)?.join(" || ")),
             ObjectFilter::Not(inner) => format!("!({})", self.zone_filter(inner, c)?),
             ObjectFilter::Cast { by, from } if self.reader == Reader::Layer => {
                 let id = &c.id;

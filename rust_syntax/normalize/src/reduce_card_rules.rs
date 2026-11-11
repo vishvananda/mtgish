@@ -250,7 +250,7 @@ fn reduce_card_layer(form: &str, operands: &[Operand]) -> Option<Change> {
             "AddAbilityFromCardsRemovedFromDraftWithCardsNamedHasable",
             [Filter(cards), Text(card), kinds],
         ) => Some(gain_abilities(
-            ObjectSet::OutsideTheGame(ObjectFilter::All(vec![
+            ObjectSet::OutsideTheGame(ObjectFilter::AllOf(vec![
                 cards.clone(),
                 ObjectFilter::DraftNoted(draft_note(
                     DraftNoteKind::Removed,
@@ -295,7 +295,7 @@ fn reduce_card_player_rule(form: &str, operands: &[Operand]) -> Option<PlayerRul
         // the cost, as Forge's `MayPlayDontGrantZonePermissions$`.
         ("MayCastASpellFromHandOrTopOfLibraryWithoutPayingOnceEachPlayersTurn", [Filter(spells)]) => {
             PlayerRule::SpellCost {
-                spells: ObjectFilter::All(vec![
+                spells: ObjectFilter::AllOf(vec![
                     spells.clone(),
                     ObjectFilter::InSet(Box::new(ObjectSet::Union(vec![
                         zone_set(Z::Hand, you(), ObjectFilter::Any),
@@ -329,14 +329,14 @@ fn reduce_card_player_rule(form: &str, operands: &[Operand]) -> Option<PlayerRul
             zone_set(
                 Z::Graveyard,
                 you(),
-                ObjectFilter::All(vec![
+                ObjectFilter::AllOf(vec![
                     cards.clone(),
                     ObjectFilter::ArrivedThisTurn { from: Some(Z::Library) },
                 ]),
             ),
             Z::Graveyard,
             A::Either,
-            ObjectFilter::Either(vec![event_filter(lands)?, spells.clone()]),
+            ObjectFilter::AnyOf(vec![event_filter(lands)?, spells.clone()]),
             PlayTerms {
                 limit: Some(PlayLimit::EachTurn(1)),
                 during: Some(PlayerSet::One(player.clone())),
@@ -373,11 +373,7 @@ fn reduce_card_expiration(form: &str, operands: &[Operand]) -> Option<Duration> 
                 players: PlayerSet::One(player.clone()),
                 objects: None,
             }),
-            condition: Condition::Compare {
-                left: Expr::Dice(DiceMeasure::Result),
-                comparison: comparison.clone(),
-                right: value.clone(),
-            },
+            condition: Condition::Compare { left: Expr::Dice(DiceMeasure::Result), test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } },
         })),
         _ => return None,
     })
@@ -411,7 +407,7 @@ fn reduce_card_future_event(form: &str, operands: &[Operand]) -> Option<EventSpe
             [Player(player), abilities, Compared(comparison, value)],
         ) => EventSpec::Activated {
             players: PlayerSet::One(player.clone()),
-            abilities: ObjectFilter::All(vec![
+            abilities: ObjectFilter::AllOf(vec![
                 stack_filter(abilities)?,
                 ObjectFilter::ManaSpent {
                     color: None,
@@ -531,7 +527,7 @@ fn reduce_card_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
             let EventSpec::Spell { spells, .. } = &mut event else {
                 return None;
             };
-            *spells = ObjectFilter::All(vec![
+            *spells = ObjectFilter::AllOf(vec![
                 spells.clone(),
                 ObjectFilter::Not(Box::new(ObjectFilter::SameObject(ObjectRef::Source))),
             ]);

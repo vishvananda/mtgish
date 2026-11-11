@@ -44,7 +44,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "State",
@@ -152,7 +152,7 @@
               "kind": "All"
             },
             "objects": {
-              "kind": "All",
+              "kind": "AllOf",
               "args": [
                 {
                   "kind": "CardType",
@@ -515,14 +515,14 @@
           "Object": {
             "event": "TurnsFaceUp",
             "objects": {
-              "kind": "All",
+              "kind": "AllOf",
               "args": [
                 {
                   "kind": "State",
                   "args": "FaceDown"
                 },
                 {
-                  "kind": "Either",
+                  "kind": "AnyOf",
                   "args": [
                     {
                       "kind": "CardType",
@@ -647,7 +647,7 @@
               "kind": "All"
             },
             "objects": {
-              "kind": "All",
+              "kind": "AllOf",
               "args": [
                 {
                   "kind": "Subtype",

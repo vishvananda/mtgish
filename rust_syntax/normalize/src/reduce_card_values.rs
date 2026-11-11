@@ -37,11 +37,7 @@ fn mana_of(mana: ManaOccurrence, term: &Operand) -> Option<Expr> {
 }
 
 fn some_exist(left: Expr) -> Condition {
-    Condition::Compare {
-        left,
-        comparison: Comparison::GreaterOrEqual,
-        right: Expr::Constant(1),
-    }
+    Condition::Compare { left, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } }
 }
 
 /// The event and window a filter asks of the object it tests.
@@ -90,9 +86,6 @@ fn reduce_value_number(form: &str, operands: &[Operand]) -> Option<Expr> {
     Some(match (form, operands) {
         // A cost's body names no result here, and the game keeps this value.
         ("TheAmountOfManaLostThisWay", []) => Expr::Game(GameValue::ManaLostThisWay),
-        ("AManaValueOfAnExiledCard", [Objects(cards)]) => {
-            aggregate(cards, Property::ManaValue, Aggregation::AnyOf)
-        }
         ("AmountOfManaOfTypeSpentOnCumulativeUpkeep", [term]) => {
             mana_of(ManaOccurrence::SpentOnEventCost, term)?
         }
@@ -134,7 +127,7 @@ fn reduce_value_number(form: &str, operands: &[Operand]) -> Option<Expr> {
 
 /// What a `Comparison` row names for "equal to", or `None` for a form it can't state.
 pub fn reduce_comparison_value(name: &str, operands: &[Operand]) -> Option<Expr> {
-    use Operand::{Filter, Objects, Player, Players};
+    use Operand::{Filter, Players};
     let form = name.strip_prefix("Comparison::")?;
     Some(match (form, operands) {
         ("ANumberOfCardsInAPlayersGraveyard", [Filter(cards), Players(players)]) => {
@@ -143,14 +136,6 @@ pub fn reduce_comparison_value(name: &str, operands: &[Operand]) -> Option<Expr>
                 PlayerSet::One(PlayerRef::OneOf(Box::new(players.clone()))),
                 cards.clone(),
             )))
-        }
-        ("AnyManaValueAmongCardsInPlayersGraveyard", [Filter(cards), Player(owner)]) => aggregate(
-            &cards_of(EventZone::Graveyard, owner, cards),
-            Property::ManaValue,
-            Aggregation::AnyOf,
-        ),
-        ("AnyManaValueAmongPermanents", [Objects(objects)]) => {
-            aggregate(objects, Property::ManaValue, Aggregation::AnyOf)
         }
         _ => return None,
     })
@@ -245,11 +230,7 @@ fn reduce_value_condition(name: &str, operands: &[Operand]) -> Option<Condition>
             }
         }
         ("Condition", "ThereAreNumberNamesAmongUnlockedDoorsOfPermanents", [Than(comparison, value), Objects(rooms)]) => {
-            Condition::Compare {
-                left: distinct(rooms, DistinctProperty::UnlockedDoorNames),
-                comparison: comparison.clone(),
-                right: value.clone(),
-            }
+            Condition::Compare { left: distinct(rooms, DistinctProperty::UnlockedDoorNames), test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } }
         }
         ("Condition", "CombatDamageWasDealtByACreature", [Objects(creatures)]) => {
             some_exist(Expr::CountObjects(Box::new(ObjectSet::Matching {
@@ -292,29 +273,21 @@ fn reduce_value_condition(name: &str, operands: &[Operand]) -> Option<Condition>
         // Counted as events, so what attacked and has since left still counts.
         ("Condition", "NumCombatPermanentsPassFilter", [Than(comparison, value), Objects(objects), Objects(combat)]) => {
             let (event, window) = candidate_history(combat)?;
-            Condition::Compare {
-                left: Expr::EventHistory {
+            Condition::Compare { left: Expr::EventHistory {
                     event: Box::new(EventSpec::Object {
                         event,
                         objects: event_filter(objects)?,
                     }),
                     window,
                     measure: HistoryMeasure::Occurrences,
-                },
-                comparison: comparison.clone(),
-                right: value.clone(),
-            }
+                }, test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } }
         }
         // The event already says who activated it.
         ("Condition", "PlayerPaidANumberOfCountersToActivateIt", [Player(_), Than(comparison, value), kind]) => {
-            Condition::Compare {
-                left: Expr::CountersPaid {
+            Condition::Compare { left: Expr::CountersPaid {
                     object: ObjectRef::EventStackObject,
                     kind: counter_kind(kind)?,
-                },
-                comparison: comparison.clone(),
-                right: value.clone(),
-            }
+                }, test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } }
         }
         _ => return None,
     })
@@ -389,5 +362,21 @@ fn reduce_value_player(form: &str, operands: &[Operand]) -> Option<PlayerRef> {
             player: Box::new(PlayerRef::ControllerOf(Box::new(blocked.clone()))),
         },
         _ => return None,
+    })
+}
+
+/// Set-valued comparisons never pass through scalar Expr lowering.
+pub fn reduce_comparison_test(name: &str, operands: &[Operand]) -> Option<NumberTest> {
+    use Operand::{Filter, Objects, Player};
+    let objects = match (name.strip_prefix("Comparison::")?, operands) {
+        ("AnyManaValueAmongCardsInPlayersGraveyard", [Filter(cards), Player(owner)]) =>
+            cards_of(EventZone::Graveyard, owner, cards),
+        ("AnyManaValueAmongPermanents", [Objects(objects)]) => objects.clone(),
+        _ => return None,
+    };
+    Some(NumberTest::AnyProperty {
+        comparison: Comparison::Equal,
+        objects: Box::new(objects),
+        property: Property::ManaValue,
     })
 }

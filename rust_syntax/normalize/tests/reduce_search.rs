@@ -486,13 +486,8 @@ fn a_cast_with_an_extra_cost_records_the_spell_for_its_reflexive_trigger() {
     assert!(matches!(
         ops[0],
         Operation::PlayWith {
-            terms: PlayTerms {
-                cost: PlayCost::Additional(_),
-                into_exile: true,
-                ..
-            },
-            ..
-        }
+            terms, ..
+        } if matches!(terms.as_ref(), PlayTerms { cost: PlayCost::Additional(_), into_exile: true, .. })
     ));
     assert!(matches!(ops[1], Operation::ReflexiveTrigger { .. }));
 }

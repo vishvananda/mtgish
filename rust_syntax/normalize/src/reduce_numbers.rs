@@ -73,19 +73,15 @@ fn commander_filter(term: &Operand) -> Option<ObjectFilter> {
             ))),
             ("IsCardtype", [kind]) => Some(ObjectFilter::CardType(vocabulary_value(kind)?)),
             ("ManaValueIs", [Operand::Comparison(comparison, value)]) => {
-                Some(ObjectFilter::Property {
-                    property: Property::ManaValue,
-                    comparison: comparison.clone(),
-                    value: value.clone(),
-                })
+                Some(ObjectFilter::Property { property: Property::ManaValue, test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } })
             }
-            ("And", items) => Some(ObjectFilter::All(
+            ("And", items) => Some(ObjectFilter::AllOf(
                 items.iter().map(filter).collect::<Option<_>>()?,
             )),
             _ => None,
         }
     }
-    Some(ObjectFilter::All(vec![
+    Some(ObjectFilter::AllOf(vec![
         ObjectFilter::State(ObjectState::Commander),
         filter(term)?,
     ]))
@@ -126,10 +122,10 @@ fn spells_cast_this_turn_set(spells: &ObjectFilter) -> ObjectSet {
         _ => None,
     };
     let (players, spells) = match spells {
-        ObjectFilter::All(filters) => match filters.iter().find_map(caster) {
+        ObjectFilter::AllOf(filters) => match filters.iter().find_map(caster) {
             Some(by) => {
                 let rest = filters.iter().filter(|f| caster(f).is_none());
-                (by, ObjectFilter::All(rest.cloned().collect()))
+                (by, ObjectFilter::AllOf(rest.cloned().collect()))
             }
             None => (PlayerSet::All, spells.clone()),
         },

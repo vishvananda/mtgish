@@ -475,12 +475,8 @@ fn take_told(filter: &ObjectFilter, counted: u32) -> Option<(ObjectFilter, Expr)
         _ => false,
     };
     match filter {
-        ObjectFilter::Property {
-            property: Property::ManaValue,
-            comparison: Comparison::LessOrEqual,
-            value,
-        } if told(value) => Some((ObjectFilter::Any, value.clone())),
-        ObjectFilter::All(filters) => {
+        ObjectFilter::Property { property: Property::ManaValue, test: NumberTest::Compare { comparison: Comparison::LessOrEqual, value: value } } if told(value) => Some((ObjectFilter::Any, value.clone())),
+        ObjectFilter::AllOf(filters) => {
             let mut found = None;
             let mut rest = Vec::new();
             for f in filters {
@@ -494,7 +490,7 @@ fn take_told(filter: &ObjectFilter, counted: u32) -> Option<(ObjectFilter, Expr)
                 }
             }
             let rest: Vec<ObjectFilter> = rest.into_iter().filter(|f| !matches!(f, ObjectFilter::Any)).collect();
-            Some((ObjectFilter::All(rest), found?))
+            Some((ObjectFilter::AllOf(rest), found?))
         }
         _ => None,
     }
@@ -582,7 +578,7 @@ pub(super) fn each_player_slot(spec: &TargetSpec) -> Option<TargetSpec> {
     else {
         return None;
     };
-    let ObjectFilter::All(filters) = &spec.filter else {
+    let ObjectFilter::AllOf(filters) = &spec.filter else {
         return None;
     };
     let [filter, ObjectFilter::ControlledBy(controllers)] = filters.as_slice() else {

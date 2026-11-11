@@ -86,7 +86,8 @@ fn watched_object_and_distinct_damage_event_subject_are_not_conflated() {
     let payload = custom(&format!("Activated(PayMana([ManaCostGeneric(1)]), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([CreateTriggerUntil({damage}, ActionList([DestroyPermanent(Trigger_ThatOtherCreature)]), UntilEndOfTurn)])))"));
     let mut watched = custom(&format!("Activated(PayMana([ManaCostGeneric(1)]), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([CreateTriggerUntil({damage}, ActionList([Exile([Permanent(Ref_TargetPermanent)], [])]), UntilEndOfTurn)])))"));
     let Ability::Activated { body, .. } = &mut watched.abilities[0] else { panic!() };
-    let Instruction::Effect { operation: Operation::CreateTrigger { event: EventSpec::Damage(d), .. }, .. } = &mut body.instructions[0] else { panic!() };
+    let Instruction::Effect { operation: Operation::CreateTrigger { event, .. }, .. } = &mut body.instructions[0] else { panic!() };
+    let EventSpec::Damage(d) = event.as_mut() else { panic!() };
     d.subject = DamageSubject::Recipient;
     let output = code(&payload, &[FEATURE]).unwrap();
     assert!(output.contains("ThisTurnWatching(watched)"), "{output}");
@@ -112,7 +113,7 @@ fn self_watching_one_shot_carries_its_event_subject_and_uses_trigger_semantics()
     let mut c = card("Reincarnation");
     let Ability::Spell { body, .. } = &mut c.abilities[0] else { panic!() };
     let Instruction::Effect { operation: Operation::CreateTrigger { event, once, duration, .. }, .. } = &mut body.instructions[0] else { panic!() };
-    let EventSpec::ZoneChange { objects, .. } = event else { panic!() };
+    let EventSpec::ZoneChange { objects, .. } = &mut **event else { panic!() };
     *objects = ObjectFilter::SameObject(ObjectRef::Source);
     *once = true;
     *duration = Duration::Indefinite;
@@ -122,7 +123,8 @@ fn self_watching_one_shot_carries_its_event_subject_and_uses_trigger_semantics()
     assert!(!output.contains("event matcher guarantees object subject"), "{output}");
     assert!(output.contains("item.subject.object()"), "{output}");
     let Ability::Spell { body, .. } = &mut c.abilities[0] else { panic!() };
-    let Instruction::Effect { operation: Operation::CreateTrigger { event: EventSpec::ZoneChange { objects, .. }, .. }, .. } = &mut body.instructions[0] else { panic!() };
+    let Instruction::Effect { operation: Operation::CreateTrigger { event, .. }, .. } = &mut body.instructions[0] else { panic!() };
+    let EventSpec::ZoneChange { objects, .. } = event.as_mut() else { panic!() };
     *objects = ObjectFilter::Any;
     let gap = code(&c, &[FEATURE]).unwrap_err();
     assert!(gap.contains("one-shot delayed trigger without a proven event subject"), "{gap}");
@@ -148,8 +150,8 @@ fn matcher_needing_the_creator_as_well_as_the_watched_object_is_an_explicit_gap(
     let mut c = card("Reincarnation");
     let Ability::Spell { body, .. } = &mut c.abilities[0] else { panic!() };
     let Instruction::Effect { operation: Operation::CreateTrigger { event, .. }, .. } = &mut body.instructions[0] else { panic!() };
-    let EventSpec::ZoneChange { objects, .. } = event else { panic!() };
-    *objects = ObjectFilter::All(vec![objects.clone(), ObjectFilter::SameObject(ObjectRef::Source)]);
+    let EventSpec::ZoneChange { objects, .. } = &mut **event else { panic!() };
+    *objects = ObjectFilter::AllOf(vec![objects.clone(), ObjectFilter::SameObject(ObjectRef::Source)]);
     for features in [&[][..], &[FEATURE][..]] {
         let gap = code(&c, features).unwrap_err();
         assert!(gap.contains("event reading both its creator and watched object"), "{gap}");
@@ -174,16 +176,16 @@ fn zone_changes_match_the_watched_old_identity_but_carry_the_actual_arrival() {
     let mut c = card("Reincarnation");
     let Ability::Spell { body, .. } = &mut c.abilities[0] else { panic!() };
     let Instruction::Effect { operation: Operation::CreateTrigger { event, .. }, .. } = &mut body.instructions[0] else { panic!() };
-    let EventSpec::ZoneChange { from, to, .. } = event else { panic!() };
+    let EventSpec::ZoneChange { from, to, .. } = &mut **event else { panic!() };
     *from = Some(EventZone::Graveyard); *to = EventZone::Exile;
     let result = code(&c, &[FEATURE]).unwrap();
     assert!(result.contains("let id = *old"), "{result}");
     assert!(!result.contains(".functions_in("), "{result}");
     let Ability::Spell { body, .. } = &mut c.abilities[0] else { panic!() };
     let Instruction::Effect { operation: Operation::CreateTrigger { event, .. }, .. } = &mut body.instructions[0] else { panic!() };
-    let EventSpec::ZoneChange { to, objects, .. } = event else { panic!() };
+    let EventSpec::ZoneChange { to, objects, .. } = &mut **event else { panic!() };
     *to = EventZone::Battlefield;
-    *objects = ObjectFilter::All(vec![objects.clone(), ObjectFilter::Name("Arriving creature".into())]);
+    *objects = ObjectFilter::AllOf(vec![objects.clone(), ObjectFilter::Name("Arriving creature".into())]);
     let arrival = code(&c, &[FEATURE]).unwrap();
     assert!(arrival.contains("*old == asker.source"), "{arrival}");
     assert!(arrival.contains("let id = *new"), "{arrival}");
@@ -206,7 +208,7 @@ fn watched_target_uses_the_allocated_slot_index_not_the_ir_identifier() {
     let Ability::Spell { announcement, body } = &mut c.abilities[0] else { panic!() };
     announcement.targets[0].slot = TargetSlot(7);
     let Instruction::Effect { operation: Operation::CreateTrigger { event, .. }, .. } = &mut body.instructions[0] else { panic!() };
-    let EventSpec::ZoneChange { objects: ObjectFilter::SameObject(ObjectRef::Target { slot, .. }), .. } = event else { panic!() };
+    let EventSpec::ZoneChange { objects: ObjectFilter::SameObject(ObjectRef::Target { slot, .. }), .. } = &mut **event else { panic!() };
     *slot = TargetSlot(7);
     let output = code(&c, &[FEATURE]).unwrap();
     assert!(dense(&output).contains("t_0_raw.get(0).copied().filter(|t|t_0.contains(t))"), "{output}");
@@ -220,11 +222,9 @@ fn an_object_matched_by_a_history_filter_is_not_confused_with_the_watched_source
     let Instruction::Effect { operation: Operation::CreateTrigger { event: damage_event, .. }, .. } = &body.instructions[0] else { panic!() };
     let mut c = custom("Activated(PayMana([ManaCostGeneric(1)]), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([CreateTriggerUntil(WhenAPermanentLeavesTheBattlefield(SinglePermanent(Ref_TargetPermanent)), ActionList([Exile([Permanent(Ref_TargetPermanent)], [])]), UntilEndOfTurn)])))");
     let Ability::Activated { body, .. } = &mut c.abilities[0] else { panic!() };
-    let Instruction::Effect { operation: Operation::CreateTrigger { event: EventSpec::Object { objects, .. }, .. }, .. } = &mut body.instructions[0] else { panic!() };
-    *objects = ObjectFilter::Condition(Box::new(Condition::Compare {
-        left: Expr::EventHistory { event: Box::new(damage_event.clone()), window: HistoryWindow::ThisTurn, measure: HistoryMeasure::Occurrences },
-        comparison: Comparison::Greater, right: Expr::Constant(0),
-    }));
+    let Instruction::Effect { operation: Operation::CreateTrigger { event, .. }, .. } = &mut body.instructions[0] else { panic!() };
+    let EventSpec::Object { objects, .. } = event.as_mut() else { panic!() };
+    *objects = ObjectFilter::Condition(Box::new(Condition::Compare { left: Expr::EventHistory { event: damage_event.clone(), window: HistoryWindow::ThisTurn, measure: HistoryMeasure::Occurrences }, test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } }));
     let gap = code(&c, &[FEATURE]).unwrap_err();
     assert!(gap.contains("different event subject") || gap == "target reference", "{gap}");
 }
@@ -246,15 +246,15 @@ fn creator_and_event_dependent_conditions_do_not_run_as_watcher() {
         named(ObjectRef::Damage(DamageSubject::Source), "creator"),
         named(ObjectRef::EventSubject, "creator"),
         Condition::PlayerIsActive(PlayerRef::ControllerOf(Box::new(ObjectRef::Damage(DamageSubject::Source)))),
-        Condition::Compare { left: Expr::EventAmount, comparison: Comparison::Greater, right: Expr::Constant(0) },
-        Condition::ExistsPlayer { players: PlayerSet::All, binding: LoopBinding(0), condition: Box::new(Condition::All(vec![Condition::PlayerIsActive(PlayerRef::Bound(LoopBinding(0))), named(ObjectRef::Damage(DamageSubject::Source), "creator")])) },
+        Condition::Compare { left: Expr::EventAmount, test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } },
+        Condition::ExistsPlayer { players: PlayerSet::All, binding: LoopBinding(0), condition: Box::new(Condition::AllOf(vec![Condition::PlayerIsActive(PlayerRef::Bound(LoopBinding(0))), named(ObjectRef::Damage(DamageSubject::Source), "creator")])) },
     ];
     for event_condition in event_conditions {
-        let c = damage_with_condition(Condition::All(vec![creator.clone(), event_condition]));
+        let c = damage_with_condition(Condition::AllOf(vec![creator.clone(), event_condition]));
         let gap = code(&c, &[FEATURE]).unwrap_err();
         assert!(gap.contains("condition reading both its creator and event"), "{gap}");
     }
-    let original_target = damage_with_condition(Condition::All(vec![creator, named(ObjectRef::Target { slot: TargetSlot(0), index: 0 }, "creator")]));
+    let original_target = damage_with_condition(Condition::AllOf(vec![creator, named(ObjectRef::Target { slot: TargetSlot(0), index: 0 }, "creator")]));
     let gap = code(&original_target, &[FEATURE]).unwrap_err();
     assert!(gap.contains("target reference") || gap.contains("condition reading both its creator and event"), "{gap}");
 }
@@ -264,7 +264,7 @@ fn creator_literal_named_event_and_event_only_conditions_keep_their_contexts() {
     assert!(creator.contains(".condition("), "{creator}");
     syn::parse_file(&creator).unwrap();
     let bound = Condition::ExistsPlayer { players: PlayerSet::All, binding: LoopBinding(0), condition: Box::new(Condition::PlayerIsActive(PlayerRef::Bound(LoopBinding(0)))) };
-    let bound_creator = code(&damage_with_condition(Condition::All(vec![named(ObjectRef::Source, "creator"), bound])), &[FEATURE]).unwrap();
+    let bound_creator = code(&damage_with_condition(Condition::AllOf(vec![named(ObjectRef::Source, "creator"), bound])), &[FEATURE]).unwrap();
     assert!(bound_creator.contains(".condition("), "{bound_creator}");
     syn::parse_file(&bound_creator).unwrap();
     let event = code(&damage_with_condition(named(ObjectRef::EventSubject, "victim")), &[FEATURE]).unwrap();

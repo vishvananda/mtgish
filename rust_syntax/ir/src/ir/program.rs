@@ -66,7 +66,7 @@ pub enum Instruction {
     /// at most this many runs in all: "repeat this process X more times".
     /// Results remain local; unlike `Repeatable`, this form exports no receipts.
     /// `amount` is a total-run cap, not an unconditional iteration count.
-    Times { amount: Expr, body: Program },
+    RepeatableWithLimit { amount: Expr, body: Program },
     /// Run `body` once for each of these objects, read as `ObjectRef::Bound`.
     /// The binding stays local; immediate body results are gathered for later
     /// reads. This does not turn separate child instructions into one batch.
@@ -98,7 +98,7 @@ pub enum Operation {
     /// from the future event.
     /// Body-local results never escape into the creating program.
     CreateDelayedTrigger {
-        event: EventSpec,
+        event: Box<EventSpec>,
         start: DelayedStart,
         expires: Option<Duration>,
         intervening_if: Option<Condition>,
@@ -208,12 +208,15 @@ pub enum Operation {
     /// Countering is a rules action; the destination applies only if it succeeds.
     Counter {
         objects: ObjectSet,
-        destination: Destination,
+        destination: MovementDestination,
+        /// Selects this destination only for matching objects; nonmatches are
+        /// still countered to their owner's graveyard. None applies it to all.
+        destination_when: Option<ObjectFilter>,
     },
     /// Create a triggered ability that lasts for `duration`. Unlike a delayed
     /// trigger it can fire repeatedly, and it announces its own targets.
     CreateTrigger {
-        event: EventSpec,
+        event: Box<EventSpec>,
         duration: Duration,
         announcement: Announcement,
         body: Program,
@@ -221,7 +224,7 @@ pub enum Operation {
         once: bool,
         intervening_if: Option<Condition>,
     },
-    /// Repeat the nearest enclosing `Instruction::Repeatable` or `Times`.
+    /// Repeat the nearest enclosing `Instruction::Repeatable` or `RepeatableWithLimit`.
     RepeatProcess,
     SetLifeTotal {
         players: PlayerSet,
@@ -670,7 +673,7 @@ pub enum Operation {
         action: CardPlayAction,
         cards: ObjectSet,
         count: Count,
-        terms: PlayTerms,
+        terms: Box<PlayTerms>,
         group: Option<Box<Operand>>,
     },
     /// Simultaneous action clauses under one enclosing instruction/result
@@ -902,14 +905,6 @@ pub enum Operation {
         players: PlayerSet,
         action: Box<Operation>,
     },
-    /// Countered to somewhere else, as Forge's `Counter` with `Destination$`. When
-    /// `when` is set the card goes there only if it matches; otherwise it goes to its
-    /// owner's graveyard.
-    CounterWith {
-        object: ObjectRef,
-        when: Option<ObjectFilter>,
-        destination: MovementDestination,
-    },
     Populate {
         actor: PlayerSet,
         entry: BattlefieldArrival,
@@ -952,10 +947,7 @@ pub enum Operation {
         optional: bool,
     },
     /// The X announced for this spell or ability has to compare this way.
-    LimitX {
-        comparison: Comparison,
-        value: Expr,
-    },
+    LimitX { test: NumberTest },
     /// The game restarts, `keep` stays where it is, and `then` happens in the
     /// new game, as Forge's `RestartGame`.
     RestartGame {

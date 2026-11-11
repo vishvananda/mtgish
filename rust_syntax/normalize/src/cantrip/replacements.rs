@@ -37,7 +37,7 @@ pub(super) fn capture(event: &mut ReplacementEvent, found: &mut Vec<ObjectRef>) 
                 }
                 *object = ObjectRef::Affected;
             }
-            ObjectFilter::All(filters) => {
+            ObjectFilter::AllOf(filters) => {
                 for filter in filters {
                     named(filter, found);
                 }
@@ -527,13 +527,13 @@ impl Compiler {
                     match f {
                         ObjectFilter::Cast { .. } | ObjectFilter::ManaSpent { .. } => true,
                         ObjectFilter::Not(f) => cast_only(f),
-                        ObjectFilter::All(fs) | ObjectFilter::Either(fs) => {
+                        ObjectFilter::AllOf(fs) | ObjectFilter::AnyOf(fs) => {
                             fs.iter().all(cast_only)
                         }
                         _ => false,
                     }
                 }
-                matches!(event, ReplacementEvent::Enter { objects: ObjectFilter::All(fs) } if fs[1..].iter().all(cast_only))
+                matches!(event, ReplacementEvent::Enter { objects: ObjectFilter::AllOf(fs) } if fs[1..].iter().all(cast_only))
             };
             if narrowed.is_some() && about_its_cast(event) {
             } else if narrowed.is_some() {

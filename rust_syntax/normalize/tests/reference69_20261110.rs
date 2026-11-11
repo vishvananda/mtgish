@@ -1,3 +1,5 @@
+#[path = "support/epoch189.rs"]
+mod epoch189;
 use mtgish_ast::{canonical, corpus, ir::*, migrate, mtg_types as source, unified, validate};
 use serde_json::{json, Value};
 
@@ -110,7 +112,7 @@ fn dual_exile_origins_have_one_ability_and_one_simultaneous_batch() {
             let events=card.abilities.iter().filter_map(|a|if let Ability::Triggered {event,..}=a {Some(event)}else{None}).collect::<Vec<_>>();
             assert_eq!(events.len(),1,"{name}");
             let EventSpec::Batch {event,per:BatchPer::Whole,count:None,including:None} = events[0] else {panic!("{events:?}")};
-            let EventSpec::Either(branches)=event.as_ref() else {panic!()};assert_eq!(branches.len(),2);
+            let EventSpec::AnyOf(branches)=event.as_ref() else {panic!()};assert_eq!(branches.len(),2);
             assert!(matches!(branches[0],EventSpec::ZoneChange {from:Some(EventZone::Hand),to:EventZone::Exile,..}));
             assert!(matches!(branches[1],EventSpec::Caused {..}));
         }
@@ -122,12 +124,13 @@ fn saved187_meaning_and_origins_stay_exact_instead_of_silently_repairing_old_car
         let mut count=0;
         for line in include_str!("fixtures/reference69_before_v187.jsonl").lines() {
             let mut old:Value=serde_json::from_str(line).unwrap();
-            let mapped=migrate::mapped_read_json(line).unwrap();assert_eq!(mapped.source_version,187);
+        epoch189::tree(&mut old);
+            let mapped=migrate::mapped_read_json(line).unwrap();assert_eq!(mapped.source_version,187);epoch189::assert_origins(&serde_json::from_str(line).unwrap(), &mapped);
             old["schema_version"]=json!(SCHEMA_VERSION);
             for face in old["faces"].as_array_mut().unwrap() {face["schema_version"]=json!(SCHEMA_VERSION);}
             assert_eq!(serde_json::to_value(mapped.card).unwrap(),old);
             assert!(mapped.map.introduced.is_empty());
-            assert!(mapped.map.sites.iter().all(|(old,new)|new==&vec![old.clone()]));count+=1;
+            assert!(mapped.map.sites.values().all(|new|new.len()==1));count+=1;
         }
         assert_eq!(count,69);
     });

@@ -302,7 +302,7 @@ pub enum EventSpec {
     },
     /// One ability with alternative events, not multiple independent abilities.
     /// Only bindings available in every branch may be used by the ability body.
-    Either(Vec<EventSpec>),
+    AnyOf(Vec<EventSpec>),
     /// Checked at the event only. This is distinct from an intervening-if
     /// condition, which is checked again when the ability resolves.
     Filtered {
@@ -330,8 +330,7 @@ pub enum EventSpec {
     /// The event that brings its player's count this turn to `comparison value`.
     NthEachTurn {
         event: Box<EventSpec>,
-        comparison: Comparison,
-        value: Expr,
+        test: NumberTest,
     },
     /// One object acting on or with another; both are bound by the event.
     Pair {

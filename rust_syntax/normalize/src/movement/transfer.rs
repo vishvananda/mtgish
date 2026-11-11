@@ -305,7 +305,7 @@ fn group_constraint(group: &Operand) -> SelectionConstraint {
             ("OnePerCardTypeAmong", [Operand::Objects(objects)]) => Some(C::OneForEachCardType(
                 CardTypeDomain::AmongObjects(objects.clone()),
             )),
-            ("OnePerCardTypeAmong", [Operand::Filter(ObjectFilter::All(parts))]) => {
+            ("OnePerCardTypeAmong", [Operand::Filter(ObjectFilter::AllOf(parts))]) => {
                 let casts = parts.iter().find_map(|p| match p {
                     ObjectFilter::Cast {
                         by: Some(by),
@@ -321,7 +321,7 @@ fn group_constraint(group: &Operand) -> SelectionConstraint {
                 casts.map(|by| {
                     C::OneForEachCardType(CardTypeDomain::AmongCasts {
                         by,
-                        filter: ObjectFilter::All(filters),
+                        filter: ObjectFilter::AllOf(filters),
                         window: HistoryWindow::ThisTurn,
                     })
                 })

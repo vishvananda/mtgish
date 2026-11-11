@@ -90,11 +90,7 @@ fn specialized_hidden_exile_and_delay_remain_valid() {
         arrival: ExileArrival::default(),
     };
     for operation in [
-        Operation::CounterWith {
-            object: ObjectRef::Source,
-            when: None,
-            destination: destination.clone(),
-        },
+        Operation::Counter { objects: ObjectSet::One(ObjectRef::Source), destination_when: None, destination: destination.clone() },
         Operation::MoveTopCard {
             actor: PlayerSet::One(PlayerRef::AbilityController),
             cards: ObjectFilter::Any,

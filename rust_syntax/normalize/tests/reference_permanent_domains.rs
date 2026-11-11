@@ -62,7 +62,7 @@ fn mirrorform_keeps_only_the_non_aura_target_restriction() {
     );
     assert_eq!(
         target["filter"],
-        json!({"kind":"All","args":[
+        json!({"kind":"AllOf","args":[
             {"kind":"Not","args":{"kind":"Subtype","args":"Aura"}},
             {"kind":"Any"}
         ]})
@@ -79,7 +79,7 @@ fn time_counter_modes_keep_the_counter_requirement_and_suspended_card_domain() {
         assert_eq!(permanent(0)["filter"], json!({"kind":"Any"}));
         assert_eq!(
             permanent(1)["filter"],
-            json!({"kind":"All","args":[
+            json!({"kind":"AllOf","args":[
                 {"kind":"Any"},
                 {"kind":"Counters","args":{"kind":{"Named":"TimeCounter"},
                     "comparison":"Greater","value":{"kind":"Constant","args":0}}}
@@ -118,7 +118,7 @@ fn counter_replacement_retains_the_battlefield_domain_including_typeless_permane
     assert_eq!(objects["args"]["kind"],"Zone");
     assert_eq!(objects["args"]["args"]["scope"],json!({"Shared":"Battlefield"}));
     assert_eq!(objects["args"]["args"]["kind"],"Permanent");
-    assert_eq!(objects["args"]["args"]["filter"],json!({"kind":"All","args":[{"kind":"Any"},{"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}]}));
+    assert_eq!(objects["args"]["args"]["filter"],json!({"kind":"AllOf","args":[{"kind":"Any"},{"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}]}));
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn raw_counter_and_targeting_events_keep_their_previous_type_domain() {
         let source = ron::from_str(&text).unwrap();
         let card = serde_json::to_value(mtgish_ast::lower::card(&source).unwrap()).unwrap();
         let filter = &card["abilities"][0]["args"]["event"][kind]["objects"];
-        assert_eq!(filter["kind"], json!("Either"));
+        assert_eq!(filter["kind"], json!("AnyOf"));
         let types: Vec<_> = filter["args"]
             .as_array()
             .unwrap()

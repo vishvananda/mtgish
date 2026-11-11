@@ -38,11 +38,11 @@ fn reduce_search_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> 
             action: CardPlayAction::CastSpell,
             cards: ObjectSet::One(card.clone()),
             count: Count::AsManyAsCan(Expr::Constant(1)),
-            terms: PlayTerms {
+            terms: Box::new(PlayTerms {
                 cost: PlayCost::Additional(cost.clone()),
                 into_exile: true,
                 ..play_terms()
-            },
+            }),
             group: None,
         },
         _ => return None,
@@ -140,11 +140,7 @@ fn highest_revealed() -> ObjectSet {
 fn reduce_search_condition(form: &str, operands: &[Operand]) -> Option<Condition> {
     match (form, operands) {
         ("PlayersRevealTopCardOfLibraryAndFindHighestManaValue_HasASingleWinner", []) => {
-            Some(Condition::Compare {
-                left: Expr::CountObjects(Box::new(highest_revealed())),
-                comparison: Comparison::Equal,
-                right: Expr::Constant(1),
-            })
+            Some(Condition::Compare { left: Expr::CountObjects(Box::new(highest_revealed())), test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(1) } })
         }
         _ => None,
     }

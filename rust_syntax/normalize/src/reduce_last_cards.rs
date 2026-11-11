@@ -32,7 +32,7 @@ fn reduce_last_number(form: &str, operands: &[Operand]) -> Option<Expr> {
         ) => Expr::EventHistory {
             event: Box::new(caused(
                 stack_filter(spells)?,
-                EventSpec::Either(vec![
+                EventSpec::AnyOf(vec![
                     player(PlayerEvent::Guesses, players),
                     player(PlayerEvent::GroupsIntoPiles, players),
                 ]),

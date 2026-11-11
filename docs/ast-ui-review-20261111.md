@@ -1,5 +1,7 @@
 # AST review after the human editor cleanup
 
+Implementation: the proposed migration is now completed in [schema189](ast-human-189-20261111.md). The original review below records the pre-migration analysis.
+
 The editor exposes two meaningful representation problems: match alternatives
 inhabit the scalar expression type, and countering has duplicate shapes with
 different destination types. Most other simplifications belong in authoring

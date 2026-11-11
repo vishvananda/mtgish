@@ -98,7 +98,7 @@ fn mixed_targets_keep_their_domains_and_source_ordinals() {
     );
     for (index, instruction) in p.instructions.iter().enumerate() {
         let Instruction::Effect {
-            operation: Operation::Move { objects, .. } | Operation::Counter { objects, .. },
+            operation: Operation::Move { objects, .. } | Operation::Counter { objects: objects, .. },
             ..
         } = instruction
         else {
@@ -126,13 +126,10 @@ fn mixed_targets_keep_their_domains_and_source_ordinals() {
         .unwrap_err()
         .contains("Battlefield"));
     body_for(&mut invalid).instructions[0] = effect(
-        Operation::Counter {
-            objects: ObjectSet::One(ObjectRef::Target {
+        Operation::Counter { objects: ObjectSet::One(ObjectRef::Target {
                 slot: TargetSlot(0),
                 index: 0,
-            }),
-            destination: Destination::OwnersGraveyard,
-        },
+            }), destination: (Destination::OwnersGraveyard).into(), destination_when: None },
         0,
     );
     assert!(validate::card(&invalid).unwrap_err().contains("Stack"));
@@ -157,10 +154,7 @@ fn countering_is_distinct_from_moving_and_followups_are_unconditional() {
         assert_eq!(a.targets[0].kind, TargetKind::Object(ObjectDomain::spell()));
         let Instruction::Effect {
             operation:
-                Operation::Counter {
-                    destination: actual,
-                    ..
-                },
+                Operation::Counter { destination: actual, .. },
             ..
         } = &p.instructions[0]
         else {
@@ -168,7 +162,7 @@ fn countering_is_distinct_from_moving_and_followups_are_unconditional() {
         };
         assert_eq!(
             serde_json::to_value(actual).unwrap(),
-            serde_json::to_value(destination).unwrap()
+            serde_json::to_value(MovementDestination::from(destination)).unwrap()
         );
     }
     for name in ["Absorb", "Spell Swindle", "Access Denied"] {

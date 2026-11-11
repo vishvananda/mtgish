@@ -83,65 +83,11 @@ fn chosen_player_definitions_are_cdas_and_curse_keeps_the_triggering_player() {
     });
 }
 
+#[path = "support/source_json.rs"]
+mod source_json;
 #[test]
 fn changed_tagged_source_json_and_ron_describe_the_same_complete_records() {
     corpus::on_large_stack(|| {
-        use std::io::BufRead;
-        let mut source = std::collections::BTreeMap::new();
-        for line in include_str!("fixtures/reference_seven_20261111.ronl").lines() {
-            let card: OracleCard = ron::from_str(line).unwrap();
-            let name = corpus::Identity::of(&card).unwrap().names.remove(0);
-            source.insert(name, serde_json::to_value(card).unwrap());
-        }
-        let path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgish.lines.json");
-        let mut checked = 0;
-        for line in std::io::BufReader::new(std::fs::File::open(path).unwrap()).lines() {
-            let line = line.unwrap();
-            if !source
-                .keys()
-                .any(|name| line.contains(&format!("\"Name\":{name:?}")))
-            {
-                continue;
-            }
-            let tagged: Value = serde_json::from_str(&line).unwrap();
-            let name = tagged["Name"].as_str().unwrap().to_owned();
-            let value = untag_source(tagged);
-            assert_eq!(value, source[&name], "{name}");
-            let _: OracleCard = serde_json::from_value(value).unwrap();
-            checked += 1;
-        }
-        assert_eq!(checked, 7);
+        source_json::assert_fixture_matches(include_str!("fixtures/reference_seven_20261111.ronl"))
     });
-}
-
-// The browser's legacy Source JSON uses _Type/args tags; the Rust default
-// feature set uses external Serde tags. Compare both encodings structurally.
-fn untag_source(value: Value) -> Value {
-    match value {
-        Value::Array(values) => Value::Array(values.into_iter().map(untag_source).collect()),
-        Value::Object(mut fields) => {
-            let tag = fields.keys().find(|key| key.starts_with('_')).cloned();
-            if let Some(tag) = tag {
-                let variant = fields.remove(&tag).unwrap().as_str().unwrap().to_owned();
-                if fields.is_empty() {
-                    return Value::String(variant);
-                }
-                let payload = if fields.len() == 1 && fields.contains_key("args") {
-                    untag_source(fields.remove("args").unwrap())
-                } else {
-                    untag_source(Value::Object(fields))
-                };
-                Value::Object([(variant, payload)].into_iter().collect())
-            } else {
-                Value::Object(
-                    fields
-                        .into_iter()
-                        .map(|(key, value)| (key, untag_source(value)))
-                        .collect(),
-                )
-            }
-        }
-        other => other,
-    }
 }

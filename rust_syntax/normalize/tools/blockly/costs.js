@@ -9,7 +9,7 @@ function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replac
     if(row.type!=='Permanent')filters.push(...row.type.split('+').map(type=>({kind:'CardType',args:type})));
     if(row.other)filters.push({kind:'Not',args:{kind:'SameObject',args:{kind:'Source'}}});
     if(tap)filters.push({kind:'Not',args:{kind:'Tapped'}});
-    return {objects:{kind:'Zone',args:{scope:{Shared:'Battlefield'},kind:'Permanent',filter:{kind:'All',args:filters}}},choose:{Exactly:constant(readScalar({named:'i64'},String(row.count).trim()))}};
+    return {objects:{kind:'Zone',args:{scope:{Shared:'Battlefield'},kind:'Permanent',filter:{kind:'AllOf',args:filters}}},choose:{Exactly:constant(readScalar({named:'i64'},String(row.count).trim()))}};
   }
   function build(row) {
     const n=()=>{const value=readScalar({named:'i64'},String(row.count).trim());if(value<0)throw Error('Cost amounts cannot be negative.');return value;};
@@ -29,7 +29,7 @@ function createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replac
     if(part.Discard?.count.kind==='Constant'&&part.Discard.filter.kind==='Any'&&!part.Discard.random)return {...base,kind:'discard',count:part.Discard.count.args};
     const tap=part.ChangeTapState,sel=part.Sacrifice||(tap?.tapped&&!tap.symbol&&tap.selections.length===1?tap.selections[0]:null);
     if(sel?.choose?.Exactly?.kind==='Constant'&&sel.objects.kind==='Zone') {
-      const q=sel.objects.args,filters=q.filter.kind==='All'?q.filter.args:[q.filter];
+      const q=sel.objects.args,filters=q.filter.kind==='AllOf'?q.filter.args:[q.filter];
       if(q.scope.Shared==='Battlefield'&&q.kind==='Permanent') {
         const control={kind:'ControlledBy',args:{kind:'One',args:{kind:'AbilityController'}}},other={kind:'Not',args:{kind:'SameObject',args:{kind:'Source'}}},untapped={kind:'Not',args:{kind:'Tapped'}};
         const cardTypes=filters.filter(f=>f.kind==='CardType').map(f=>f.args);

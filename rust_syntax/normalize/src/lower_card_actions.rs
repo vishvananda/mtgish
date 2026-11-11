@@ -322,11 +322,7 @@ impl Context {
             return Ok(deal);
         }
         let you = PlayerSet::One(self.player(&source::Player::You)?);
-        let excess = Condition::Compare {
-            left: Expr::Game(GameValue::ExcessDamageThisWay),
-            comparison: Comparison::Greater,
-            right: Expr::Constant(0),
-        };
+        let excess = Condition::Compare { left: Expr::Game(GameValue::ExcessDamageThisWay), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } };
         let follow = self.conditional(
             excess,
             |context| context.action_list(then, &you),
@@ -415,11 +411,7 @@ fn each_card_type() -> Vec<ObjectFilter> {
 }
 
 fn any_of(objects: ObjectSet) -> Condition {
-    Condition::Compare {
-        left: Expr::CountObjects(Box::new(objects)),
-        comparison: Comparison::Greater,
-        right: Expr::Constant(0),
-    }
+    Condition::Compare { left: Expr::CountObjects(Box::new(objects)), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } }
 }
 
 /// The counter named for a keyword (CR 122.1b).

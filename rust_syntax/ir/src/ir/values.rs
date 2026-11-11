@@ -259,8 +259,6 @@ pub enum Expr {
     /// Votes cast for this option in this resolution.
     Votes(VoteOption),
     TimesMutated(ObjectRef),
-    /// Any of these values, for a comparison against a listed set.
-    AnyOf(Vec<Expr>),
     /// Count one explicit outcome, without conflating heads with winning.
     CountCoinOutcomes {
         source: CoinCountSource,
@@ -421,8 +419,6 @@ pub enum Aggregation {
     Sum,
     Maximum,
     Minimum,
-    /// Any one of the values, for a comparison against each of them.
-    AnyOf,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -517,4 +513,29 @@ pub enum CoinCountSource {
     /// The most recent coin procedure executed in this program; zero before
     /// any procedure executes. This is not a captured receipt or global history.
     Latest,
+}
+
+/// A predicate on one supplied scalar number. Alternatives are predicates, never
+/// numbers usable as action amounts or arithmetic operands. Empty AllOf is true;
+/// empty AnyOf is false. In AnyProperty, compare against each current property
+/// with existential (OR) semantics, including for NotEqual; an empty set is false.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum NumberTest {
+    Compare {
+        comparison: Comparison,
+        value: Expr,
+    },
+    AllOf(Vec<NumberTest>),
+    AnyOf(Vec<NumberTest>),
+    AnyProperty {
+        comparison: Comparison,
+        objects: Box<ObjectSet>,
+        property: Property,
+    },
+}
+impl NumberTest {
+    pub fn compare(comparison: Comparison, value: Expr) -> Self {
+        Self::Compare { comparison, value }
+    }
 }

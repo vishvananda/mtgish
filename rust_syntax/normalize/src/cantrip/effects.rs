@@ -38,7 +38,7 @@ pub(super) fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'stati
             Instruction::Group(body)
             | Instruction::Optional { body, .. }
             | Instruction::Repeatable(body)
-            | Instruction::Times { body, .. }
+            | Instruction::RepeatableWithLimit { body, .. }
             | Instruction::ForEachPlayer { body, .. }
             | Instruction::ForEachObject { body, .. } => {
                 return purpose(result, &body.instructions)
@@ -1411,7 +1411,7 @@ impl Compiler {
                     let clauses: Vec<SearchChoice> = each
                         .iter()
                         .map(|filter| SearchChoice {
-                            filter: ObjectFilter::All(vec![choice.filter.clone(), filter.clone()]),
+                            filter: ObjectFilter::AllOf(vec![choice.filter.clone(), filter.clone()]),
                             count: Count::UpTo(Expr::Constant(1)),
                             constraints: Vec::new(),
                         })
@@ -1441,8 +1441,8 @@ impl Compiler {
                     &choice.filter,
                     ObjectFilter::Property {
                         property: Property::ColorCount,
-                        comparison: Comparison::Equal,
-                        value: Expr::Constant(1)
+                        test: NumberTest::Compare { comparison: Comparison::Equal,
+                        value: Expr::Constant(1) }
                     }
                 ) {
                     let selector = format!("search_{id}_quality");
@@ -1853,7 +1853,7 @@ impl Compiler {
                 self.hoist_shares(&body.instructions[i + 1..], out);
                 self.repeat(None, inner, out)
             }
-            Instruction::Times { amount, body } => self.repeat(Some(amount), body, out),
+            Instruction::RepeatableWithLimit { amount, body } => self.repeat(Some(amount), body, out),
             Instruction::ChooseOne {
                 decider,
                 options,
@@ -2041,6 +2041,12 @@ impl Compiler {
                 return self.move_with_terms(id, op, result, out);
             }
         }
+        if let Operation::Counter { destination, destination_when, .. } = op {
+            let view = crate::movement::entry_destination_view(destination);
+            if destination_when.is_some() || !view.terms.is_default() || !plain_entry(&view.entry) {
+                return self.resolving(id, op, result, out);
+            }
+        }
         match op {
             Operation::PayCost {
                 player: PlayerRef::FirstWilling(players),
@@ -2048,18 +2054,12 @@ impl Compiler {
                 optional,
             } => self.first_willing(id, players, cost, *optional, result, out)?,
             // The ability an activation or an event put on the stack.
-            Operation::Counter {
-                objects: ObjectSet::One(ObjectRef::EventStackObject),
-                destination: Destination::OwnersGraveyard,
-            } if self.frame.activated.is_some() => {
+            Operation::Counter { objects: ObjectSet::One(ObjectRef::EventStackObject), destination: MovementDestination::OwnersGraveyard(_), destination_when: None } if self.frame.activated.is_some() => {
                 let ability = self.carried_ability()?;
                 writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {{ let t = {ability}; let stack = &g.state().stack; stack.iter().position(|e| Target::Ability(e.serial) == t && e.kind != StackKind::Spell).map(|at| (stack[at].object, at)).into_iter().collect() }}; g.counter_items(&items_{id});").unwrap();
             }
             // What targeted this, spell or ability, and where it is on the stack.
-            Operation::Counter {
-                objects: ObjectSet::One(ObjectRef::EventStackObject),
-                destination: Destination::OwnersGraveyard,
-            } if self.event_at == EventAt::Item
+            Operation::Counter { objects: ObjectSet::One(ObjectRef::EventStackObject), destination: MovementDestination::OwnersGraveyard(_), destination_when: None } if self.event_at == EventAt::Item
                 && self.frame.stack_controller == Some(Carried::Data(1)) =>
             {
                 writeln!(out, "cantrip_api::instruction(g, |g| g.counter_item(ObjectId(item.data[0]), (item.data[1] >> 8) as usize));").unwrap();
@@ -2758,10 +2758,7 @@ impl Compiler {
                 )
                 .unwrap();
             }
-            Operation::Counter {
-                objects,
-                destination: Destination::OwnersGraveyard,
-            } if self.stack_targets(objects).is_some() => {
+            Operation::Counter { objects: objects, destination: MovementDestination::OwnersGraveyard(_), destination_when: None } if self.stack_targets(objects).is_some() => {
                 let read = self.read_later(result)
                     || format!("{:?}", self.after).contains("Earlier { what: Countered");
                 match read {
@@ -2769,38 +2766,28 @@ impl Compiler {
                     false => self.counter_on_stack(id, objects, out),
                 }
             }
-            Operation::Counter {
-                objects:
-                    ObjectSet::Zone {
+            Operation::Counter { objects: ObjectSet::Zone {
                         scope: ZoneScope::Shared(EventZone::Stack),
                         kind: ObjectKind::Any,
                         filter: ObjectFilter::ControlledBy(players),
-                    },
-                destination: Destination::OwnersGraveyard,
-            } => self.counter_all_on_stack(id, players, result, out)?,
+                    }, destination: MovementDestination::OwnersGraveyard(_), destination_when: None } => self.counter_all_on_stack(id, players, result, out)?,
             // "On your choice of the top or bottom": the question has no one in the data
             // to ask, and the card says who.
-            Operation::Counter {
-                objects,
-                destination: Destination::OwnersLibraryTopOrBottom,
-            } if self
+            Operation::Counter { objects: objects, destination: MovementDestination::Library { position: LibraryPosition::TopOrBottom { .. }, .. }, destination_when: None } if self
                 .line_text()
                 .is_some_and(|line| line.contains("your choice of the top or bottom")) =>
             {
                 writeln!(self.functions, "static TOP_OR_BOTTOM_{id}: Question = Question::new(\"PutOnTop\", \"put it on top of its owner's library?\", \"If you don't, it goes on the bottom\", \"Top\", \"Bottom\");").unwrap();
                 writeln!(out, "let objects_{id} = {}; let top_{id} = cantrip_mechanics::effects::ask_may(g, asker.controller, asker.source, Purpose::Ask(&TOP_OR_BOTTOM_{id}))?; cantrip_api::instruction(g, |g| {{ for spell in objects_{id} {{ g.counter_to(spell, if top_{id} {{ CounterTo::LibraryTop }} else {{ CounterTo::LibraryBottom }}); }} }});", self.fetch(self.objects(objects)?)).unwrap();
             }
-            Operation::Counter {
-                objects,
-                destination,
-            } => {
-                let to = match destination {
+            Operation::Counter { objects: objects, destination: destination, destination_when: None } => {
+                let to = match destination.address() {
                     Destination::OwnersGraveyard => None,
                     Destination::OwnersHand => Some("Hand"),
                     Destination::OwnersLibraryTop => Some("LibraryTop"),
                     Destination::OwnersLibraryBottom => Some("LibraryBottom"),
                     Destination::Exile => Some("Exile"),
-                    other => return Err(gap(format!("counter into {}", form(other)))),
+                    other => return Err(gap(format!("counter into {}", form(&other)))),
                 };
                 let call = match to {
                     Some(to) => format!("g.counter_to(spell, CounterTo::{to});"),
@@ -2880,12 +2867,12 @@ impl Compiler {
                     )
                 ) || matches!(
                     affected,
-                    EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::Either(names)))
+                    EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::AnyOf(names)))
                         if names.iter().all(|name| matches!(name, ObjectFilter::SameObject(_)))
                 ) || matches!(
                     // "Each creature dealt damage this way": done, so it gains no one.
                     affected,
-                    EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::All(filters)))
+                    EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::AllOf(filters)))
                         if filters.iter().any(|f| matches!(f, ObjectFilter::DamagedBy(dealt) if self.moved.contains_key(&dealt.0)))
                 );
                 // "Each attacking creature doesn't untap during its controller's
@@ -2945,7 +2932,7 @@ impl Compiler {
             } => {
                 let mut event = event.clone();
                 let mut each_out = String::new();
-                let each = match &mut event {
+                let each = match &mut *event {
                     EventSpec::ZoneChange { objects, .. } => {
                         self.about_each_damaged(objects, true, &mut each_out)
                     }
@@ -4533,7 +4520,7 @@ impl Compiler {
                     .unwrap();
                     return Ok(());
                 }
-                EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::All(filters)))
+                EffectSubjects::Objects(crate::battlefield_query!(ObjectFilter::AllOf(filters)))
                     if filters.len() == 2 && filters.iter().any(creature) =>
                 {
                     if let Some(players) = filters.iter().find_map(|f| match f {

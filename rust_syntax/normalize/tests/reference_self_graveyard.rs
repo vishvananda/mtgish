@@ -43,7 +43,7 @@ fn named_self_graveyard_triggers_do_not_exclude_token_copies() {
         assert_eq!(event["to"], json!("Graveyard"));
         assert_eq!(
             event["objects"],
-            json!({"kind":"All","args":[
+            json!({"kind":"AllOf","args":[
                 {"kind":"SameObject","args":{"kind":"Source"}},
                 {"kind":"OwnedBy","args":{"kind":"All"}}
             ]}),

@@ -171,11 +171,7 @@ impl Context {
     ) -> Result<()> {
         use source::LookAtTopOfLibraryAction as A;
         use source::LookAtTopOfLibraryCost as S;
-        let took = |objects| Condition::Compare {
-            left: Expr::CountObjects(Box::new(objects)),
-            comparison: Comparison::GreaterOrEqual,
-            right: Expr::Constant(1),
-        };
+        let took = |objects| Condition::Compare { left: Expr::CountObjects(Box::new(objects)), test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } };
         match cost {
             S::PutACardOfTypeOntoTheBattlefield(filter, flags) => {
                 let step = A::MayPutACardOfTypeOntoTheBattlefield(filter.clone(), flags.clone());

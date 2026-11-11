@@ -60,10 +60,10 @@ fn scheduled(body: Program) -> Instruction {
     Instruction::Effect {
         result: ResultId(10),
         operation: Operation::CreateDelayedTrigger {
-            event: EventSpec::Turn {
+            event: Box::new(EventSpec::Turn {
                 point: TurnPoint::EndStepBegins,
                 players: PlayerSet::All,
-            },
+            }),
             start: DelayedStart::Immediately,
             expires: None,
             intervening_if: None,
@@ -106,10 +106,7 @@ fn bounded_schedules_and_intervening_checks_remain_distinct() {
     let c=custom("SpellActions(Targeted([TargetPermanent(AnyPermanent)], ActionList([Exile([Permanent(Ref_TargetPermanent)], []), CreateFutureTriggerI(AtTheBeginningOfTheNextEndStep, TheCardExiledThisWayIsStillExiled, ActionList([PutExiledCardIntoOwnersHand(TheCardExiledThisWay)]))])))");
     let Operation::CreateDelayedTrigger {
         intervening_if:
-            Some(Condition::Compare {
-                left: Expr::CountObjects(objects),
-                ..
-            }),
+            Some(Condition::Compare { left: Expr::CountObjects(objects), .. }),
         ..
     } = delayed(program(&c))
     else {
@@ -134,13 +131,14 @@ fn turn_schedules_preserve_creation_relative_timing_and_expiration() {
     ] {
         let c = card(name);
         let Operation::CreateDelayedTrigger {
-            event: EventSpec::Turn { point: p, .. },
+            event,
             expires,
             ..
         } = delayed(program(&c))
         else {
             panic!()
         };
+        let EventSpec::Turn { point: p, .. } = event.as_ref() else { panic!() };
         assert_eq!(serde_json::to_value(p).unwrap(), point);
         assert!(expires.is_none());
     }
@@ -404,10 +402,10 @@ fn a_delayed_body_reads_the_creators_scope_not_the_future_events() {
     else {
         panic!()
     };
-    *event = EventSpec::Object {
+    *event = Box::new(EventSpec::Object {
         event: ObjectEvent::BecomesTapped,
         objects: ObjectFilter::Any,
-    };
+    });
     validate::card(&c).unwrap();
 
     let Ability::Spell { body, .. } = &mut c.abilities[0] else {

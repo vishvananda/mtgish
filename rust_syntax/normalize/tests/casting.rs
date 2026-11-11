@@ -161,14 +161,14 @@ fn target_multipliers_timing_and_mana_provenance_stay_casting_metadata() {
     );
     let c = card("Silver Scrutiny");
     assert!(
-        matches!(casting(&c), CastingRule::If { condition: Condition::Compare { left: Expr::AnnouncedX, comparison: Comparison::LessOrEqual, right: Expr::Constant(3) }, rule } if matches!(rule.as_ref(), CastingRule::Flash { additional_cost: None }))
+        matches!(casting(&c), CastingRule::If { condition: Condition::Compare { left: Expr::AnnouncedX, test: NumberTest::Compare { comparison: Comparison::LessOrEqual, value: Expr::Constant(3) } }, rule } if matches!(rule.as_ref(), CastingRule::Flash { additional_cost: None }))
     );
     let c = card("Imperiosaur");
     assert!(matches!(
         casting(&c),
         CastingRule::RestrictMana {
             portion: ManaCostPortion::All,
-            filter: ManaPaymentFilter::ProducedBy(ObjectFilter::All(_))
+            filter: ManaPaymentFilter::ProducedBy(ObjectFilter::AllOf(_))
         }
     ));
     let c = card("Consume Spirit");

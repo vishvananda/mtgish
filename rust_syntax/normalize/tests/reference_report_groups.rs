@@ -44,7 +44,7 @@ fn owned_card_effects_exclude_battlefield_objects_without_restricting_the_other_
             if let Ability::Static { affected: EffectSubjects::Objects(ObjectSet::AnyZone(filter)), .. } = ability {
                 let json = serde_json::to_string(filter).unwrap();
                 assert!(json.contains("OwnedBy"), "{name}: {json}");
-                let ObjectFilter::All(filters) = filter else { panic!("{name}: {filter:?}") };
+                let ObjectFilter::AllOf(filters) = filter else { panic!("{name}: {filter:?}") };
                 assert!(filters.iter().any(|f| matches!(f, ObjectFilter::Not(inner)
                     if matches!(inner.as_ref(), ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield))))), "{name}: {json}");
                 cards += 1;

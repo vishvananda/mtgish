@@ -10,7 +10,7 @@ function createSelectorEditor(api) {
   let editing=null,options=[],drag=null,frame=null,pending=null;
   function stackContext(parent,key){
     const op=parent?.state.pr==='effect'?parent.state.op:parent?.state.ty.named==='Operation'?parent.state.variant:null;
-    return ['Counter','CounterWith'].includes(op)&&['O_objects','O_object','F_objects','F_object'].includes(key);
+    return ['Counter'].includes(op)&&['O_objects','O_object','F_objects','F_object'].includes(key);
   }
   function title(t,parent,key){return stackContext(parent,key)?'spell or ability':({ObjectSet:'objects',ObjectRef:'one object',ObjectFilter:'matching conditions',Recipients:'damage recipients'})[t.named];}
   function stackTarget(target){const d=target.kind?.Object;return !!d&&['Any','Spell','Ability'].includes(d.kind)&&d.zones.includes('Stack');}
@@ -35,7 +35,7 @@ function createSelectorEditor(api) {
     const label=name(b,'Target',slot);let text='announced target',targets=[];
     try {
       targets=announcement(b)?.targets||[];const target=targets.find(t=>t.slot===slot);
-      if(target){text=api.targetSummary(target);if(text.includes('custom target')){const filters=target.filter.kind==='All'?target.filter.args:[target.filter],type=filters.find(f=>f.kind==='CardType');if(type)text=text.replace('custom target','target '+pretty(type.args)+' · conditions');}if(index!==undefined&&(index||target.count?.Exactly?.args!==1))text+=' · item '+(index+1);}
+      if(target){text=api.targetSummary(target);if(text.includes('custom target')){const filters=target.filter.kind==='AllOf'?target.filter.args:[target.filter],type=filters.find(f=>f.kind==='CardType');if(type)text=text.replace('custom target','target '+pretty(type.args)+' · conditions');}if(index!==undefined&&(index||target.count?.Exactly?.args!==1))text+=' · item '+(index+1);}
     }catch(_){}
     return text+(label&&(label!=='target'||targets.length>1)?' · '+label:'');
   }
@@ -47,12 +47,12 @@ function createSelectorEditor(api) {
     if(v.kind==='Tapped')return 'tapped';
     if(v.kind==='SameObject'&&v.args.kind==='Source')return 'this card';
     if(v.kind==='Not')return 'not '+filter(v.args,depth+1);
-    if(['All','Either'].includes(v.kind)&&!v.args.length)return v.kind==='All'?'any object (no conditions)':'no matching objects';
-    if(v.kind==='All'||v.kind==='Either')return v.args.map(x=>filter(x,depth+1)).join(v.kind==='All'?' + ':' or ');
+    if(['AllOf','AnyOf'].includes(v.kind)&&!v.args.length)return v.kind==='AllOf'?'any object (no conditions)':'no matching objects';
+    if(v.kind==='AllOf'||v.kind==='AnyOf')return v.args.map(x=>filter(x,depth+1)).join(v.kind==='AllOf'?' + ':' or ');
     return pretty(v.kind)+' · details';
   }
   function query(v) {
-    const q=v.args,clauses=q.filter.kind==='All'?q.filter.args:[q.filter];
+    const q=v.args,clauses=q.filter.kind==='AllOf'?q.filter.args:[q.filter];
     const type=clauses.find(f=>f.kind==='CardType'),control=clauses.find(f=>f.kind==='ControlledBy'&&api.same(f.args,you));
     const known=clauses.every(f=>f===type||f===control||f.kind==='Any');
     const noun=plural(type?.args||q.kind);
@@ -121,11 +121,11 @@ function createSelectorEditor(api) {
     const creatures={kind:'CardType',args:'Creature'},controlled={kind:'ControlledBy',args:you};
     if(ty.named==='ObjectFilter') {
       add('Any object',{kind:'Any'});for(const type of ['Creature','Artifact','Enchantment','Land','Planeswalker'])add(pretty(type),{kind:'CardType',args:type});
-      add('Controlled by you',controlled);add('Tapped',{kind:'Tapped'});add('All of these conditions',{kind:'All',args:[creatures,controlled]});
+      add('Controlled by you',controlled);add('Tapped',{kind:'Tapped'});add('All of these conditions',{kind:'AllOf',args:[creatures,controlled]});
     }else if(ty.named==='ObjectRef')add('This card',source);
     else {
       const wrap=v=>ty.named==='Recipients'?{kind:'Objects',args:v}:v;
-      add('This card',wrap({kind:'One',args:source}));add('All creatures',wrap(all(creatures)));add('Creatures you control',wrap(all({kind:'All',args:[creatures,controlled]})));add('All permanents',wrap(all({kind:'Any'})));add('Permanents you control',wrap(all(controlled)));
+      add('This card',wrap({kind:'One',args:source}));add('All creatures',wrap(all(creatures)));add('Creatures you control',wrap(all({kind:'AllOf',args:[creatures,controlled]})));add('All permanents',wrap(all({kind:'Any'})));add('Permanents you control',wrap(all(controlled)));
       if(ty.named==='ObjectSet')add('Cards in your graveyard',{kind:'Zone',args:{scope:{Players:{zone:'Graveyard',players:you}},kind:'Card',filter:{kind:'Any'}}});
     }
     for(let owner=parent;owner;owner=owner.getParent?.()){

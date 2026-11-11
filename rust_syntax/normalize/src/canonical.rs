@@ -40,7 +40,7 @@ pub(crate) fn schema() -> Result<&'static Schema, String> {
 fn commutative(ty: &str, variant: &str) -> bool {
     matches!(
         (ty, variant),
-        ("ObjectFilter" | "Condition", "All" | "Either")
+        ("ObjectFilter" | "Condition" | "NumberTest", "AllOf" | "AnyOf")
     )
 }
 
@@ -465,7 +465,7 @@ impl Walker {
             if commutative(name, &variant) {
                 if let Value::Array(items) = content {
                     flatten(items, &variant);
-                    if variant == "All" {
+                    if variant == "AllOf" {
                         drop_identity(items);
                     }
                     if !self.keep_order {
@@ -496,8 +496,8 @@ impl Walker {
                         drop_permanent_types(&mut value["Player"]["objects"]);
                     }
                 }
-                ("EventSpec", "Either") if !self.keep_order => {
-                    if let Some(Value::Array(events)) = value.get_mut("Either") {
+                ("EventSpec", "AnyOf") if !self.keep_order => {
+                    if let Some(Value::Array(events)) = value.get_mut("AnyOf") {
                         events.sort_by_cached_key(|v| trace::key(v, self.tracing));
                     }
                 }
@@ -543,14 +543,14 @@ impl Walker {
             };
             filters.push(filter.clone());
         }
-        flatten(&mut filters, "Either");
+        flatten(&mut filters, "AnyOf");
         if !self.keep_order {
             filters.sort_by_cached_key(|v| trace::key(v, self.tracing));
         }
         *value = serde_json::json!({"kind": "Objects", "args": {
             "kind": "Zone",
             "args": {"scope":{"Shared":"Battlefield"}, "kind":"Permanent",
-                "filter":{"kind": "Either", "args": filters}},
+                "filter":{"kind": "AnyOf", "args": filters}},
         }});
     }
 
@@ -691,7 +691,7 @@ impl Walker {
                                     | "CostPart::PlayerAction"
                                     | "Instruction::ForEachPlayer"
                                     | "Instruction::ForEachObject"
-                                    | "Instruction::Times"
+                                    | "Instruction::RepeatableWithLimit"
                             ))
                             || owner == "Instruction::If"
                                 && matches!(field.as_str(), "then" | "otherwise"))
@@ -724,7 +724,7 @@ impl Walker {
                                 | "Operation::CreateTrigger"
                                 | "EntryState::ExiledForWith"
                                 | "ExileState::ExiledForWith"
-                                | "Instruction::Times"
+                                | "Instruction::RepeatableWithLimit"
                                 | "CostPart::PlayerAction" => self.gathering_results = false,
                                 _ => {}
                             }
@@ -881,7 +881,7 @@ fn same_but_event(a: &Value, b: &Value, tracing: bool) -> bool {
 
 /// The events of a trigger, whether it has one or lists several.
 fn trigger_events(ability: &Value) -> Vec<Value> {
-    match ability["args"]["event"].get("Either") {
+    match ability["args"]["event"].get("AnyOf") {
         Some(Value::Array(cases)) => cases.clone(),
         _ => vec![ability["args"]["event"].clone()],
     }
@@ -901,13 +901,13 @@ fn merge_triggers(items: &mut Vec<Value>, tracing: bool) {
                 }
                 let mut events = trigger_events(last);
                 events.extend(trigger_events(&item));
-                last["args"]["event"] = json!({ "Either": events });
+                last["args"]["event"] = json!({ "AnyOf": events });
             }
             _ => merged.push(item),
         }
     }
     for item in merged.iter_mut().filter(|item| item["kind"] == "Triggered") {
-        if let Some(Value::Array(events)) = item["args"]["event"].get_mut("Either") {
+        if let Some(Value::Array(events)) = item["args"]["event"].get_mut("AnyOf") {
             events.sort_by_key(|event| trace::key(event, tracing));
         }
     }
@@ -980,7 +980,7 @@ fn drop_permanent_types(filter: &mut Value) {
         let Some(cases) = item["args"].as_array() else {
             return false;
         };
-        item["kind"] == "Either"
+        item["kind"] == "AnyOf"
             && cases.len() == 6
             && [
                 "Artifact",
@@ -1001,7 +1001,7 @@ fn drop_permanent_types(filter: &mut Value) {
         *filter = serde_json::json!({"kind": "Any"});
         return;
     }
-    if filter["kind"] != "All" {
+    if filter["kind"] != "AllOf" {
         return;
     }
     if let Some(items) = filter["args"].as_array_mut() {
@@ -1028,7 +1028,7 @@ fn narrow_zone_scope(zone: &mut Value) {
         zone["filter"] = serde_json::json!({"kind": "Any"});
         return;
     }
-    if zone["filter"]["kind"] != "All" {
+    if zone["filter"]["kind"] != "AllOf" {
         return;
     }
     let Some(items) = zone["filter"]["args"].as_array_mut() else {

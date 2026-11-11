@@ -133,11 +133,7 @@ fn protection_source_domains_are_not_silently_narrowed_to_battlefield_permanents
         protection(&c),
         Protection::Objects {
             kind: ObjectKind::Any,
-            filter: ObjectFilter::Property {
-                property: Property::ManaValue,
-                comparison: Comparison::GreaterOrEqual,
-                value: Expr::Constant(3)
-            }
+            filter: ObjectFilter::Property { property: Property::ManaValue, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(3) } }
         }
     ));
     let c = card("Devoted Caretaker");

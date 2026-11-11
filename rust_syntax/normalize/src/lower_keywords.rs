@@ -70,14 +70,10 @@ impl Context {
             S::FromSpells(filter) => objects(ObjectKind::Spell, self.spell_filter(filter)?),
             S::FromPlayers(players) => Protection::Players(self.players(players)?),
             S::FromManaValue(comparison) => {
-                let (comparison, value) = self.comparison(comparison)?;
+                let test = self.number_test(comparison)?;
                 objects(
                     ObjectKind::Any,
-                    ObjectFilter::Property {
-                        property: Property::ManaValue,
-                        comparison,
-                        value,
-                    },
+                    ObjectFilter::Property { property: Property::ManaValue, test },
                 )
             }
             S::FromCardName(name) => objects(
@@ -86,7 +82,7 @@ impl Context {
             ),
             S::FromActivatedAndTriggeredAbilities => objects(
                 ObjectKind::Any,
-                ObjectFilter::Either(vec![
+                ObjectFilter::AnyOf(vec![
                     ObjectFilter::OnStack(StackTrait::Activated),
                     ObjectFilter::OnStack(StackTrait::Triggered),
                 ]),
@@ -147,15 +143,11 @@ impl Context {
                     ),
                     C::Monocolored | C::Multicolored => objects(
                         ObjectKind::Any,
-                        ObjectFilter::Property {
-                            property: Property::ColorCount,
-                            comparison: if matches!(colors, C::Monocolored) {
+                        ObjectFilter::Property { property: Property::ColorCount, test: NumberTest::Compare { comparison: if matches!(colors, C::Monocolored) {
                                 Comparison::Equal
                             } else {
                                 Comparison::Greater
-                            },
-                            value: Expr::Constant(1),
-                        },
+                            }, value: Expr::Constant(1) } },
                     ),
                     _ => {
                         let (name, operands) = self

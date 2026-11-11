@@ -89,7 +89,7 @@ fn flashback_is_permission_and_stack_exit_replacement_with_an_alternative_cost()
         origin:CastingOrigin::Flashback,
         player:PlayerRef::OwnerOf(_),
         from:ZoneScope::Players {zone:EventZone::Graveyard,players:PlayerSet::One(PlayerRef::OwnerOf(_))},
-        require:ObjectFilter::Either(types),
+        require:ObjectFilter::AnyOf(types),
         cost:Cost {parts},leave_stack:Some(Destination::Exile),
     } if types.len()==2 && matches!(parts.as_slice(),[CostPart::Mana(m)] if matches!(m.as_slice(),[ManaSymbol::Color(ManaColor::Green)]))));
     assert!(
@@ -187,7 +187,7 @@ fn entry_queries_keep_actual_cast_origin_distinct_from_battlefield_entry_origin(
     ));
     let c = card("Archfiend's Vessel");
     let Condition::ObjectMatches {
-        filter: ObjectFilter::Either(filters),
+        filter: ObjectFilter::AnyOf(filters),
         ..
     } = intervening(&c)
     else {
@@ -227,7 +227,7 @@ fn spent_mana_queries_use_actual_types_and_count_repeated_requirements() {
     let Instruction::If {
         condition:
             Condition::ObjectMatches {
-                filter: ObjectFilter::All(filters),
+                filter: ObjectFilter::AllOf(filters),
                 ..
             },
         ..
@@ -237,7 +237,7 @@ fn spent_mana_queries_use_actual_types_and_count_repeated_requirements() {
     };
     assert_eq!(filters.len(), 2);
     assert!(
-        matches!(&filters[0],ObjectFilter::Condition(condition) if matches!(condition.as_ref(),Condition::Compare {left:Expr::ManaSpent {object:ObjectRef::Candidate,filter:SpentManaFilter {colors:Some(colors),snow:false},aggregation:SpentManaAggregation::Count},comparison:Comparison::GreaterOrEqual,right:Expr::Constant(2)} if colors==&vec![ManaColor::White]))
+        matches!(&filters[0],ObjectFilter::Condition(condition) if matches!(condition.as_ref(),Condition::Compare { left:Expr::ManaSpent {object:ObjectRef::Candidate,filter:SpentManaFilter {colors:Some(colors),snow:false},aggregation:SpentManaAggregation::Count}, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(2) } } if colors==&vec![ManaColor::White]))
     );
     let c = card("Clockwork Servant");
     assert!(matches!(
@@ -267,13 +267,10 @@ fn spent_mana_queries_use_actual_types_and_count_repeated_requirements() {
     };
     assert!(matches!(
         condition.as_ref(),
-        Condition::Compare {
-            left: Expr::ManaSpent {
+        Condition::Compare { left: Expr::ManaSpent {
                 aggregation: SpentManaAggregation::DistinctColors,
                 ..
-            },
-            ..
-        }
+            }, .. }
     ));
     let c=custom("SpellActions(ActionList([If(CastSpellPassesFilter(NoColoredManaWasSpentToCastIt),[DrawACard])]))").unwrap();
     validate::card(&c).unwrap();
@@ -289,7 +286,7 @@ fn spent_mana_queries_use_actual_types_and_count_repeated_requirements() {
         panic!()
     };
     assert!(
-        matches!(condition.as_ref(),Condition::Compare {left:Expr::ManaSpent {filter:SpentManaFilter {colors:Some(colors),..},..},comparison:Comparison::Equal,right:Expr::Constant(0)} if colors.len()==5 && !colors.contains(&ManaColor::Colorless))
+        matches!(condition.as_ref(),Condition::Compare { left:Expr::ManaSpent {filter:SpentManaFilter {colors:Some(colors),..},..}, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(0) } } if colors.len()==5 && !colors.contains(&ManaColor::Colorless))
     );
 }
 
@@ -318,7 +315,7 @@ fn snow_mana_and_recorded_amounts_are_independent_of_mana_cost_and_color() {
 fn entry_conditions_reuse_queries_without_rebinding_nested_candidates() {
     let c = card("Deathbringer Regent");
     let Condition::ObjectMatches {
-        filter: ObjectFilter::All(filters),
+        filter: ObjectFilter::AllOf(filters),
         ..
     } = intervening(&c)
     else {
@@ -328,7 +325,7 @@ fn entry_conditions_reuse_queries_without_rebinding_nested_candidates() {
         panic!()
     };
     assert!(
-        matches!(condition.as_ref(),Condition::Compare {left:Expr::CountObjects(objects),..} if matches!(objects.as_ref(),ObjectSet::Difference {excluding,..} if matches!(excluding.as_ref(),ObjectSet::One(ObjectRef::Candidate))))
+        matches!(condition.as_ref(),Condition::Compare { left:Expr::CountObjects(objects), .. } if matches!(objects.as_ref(),ObjectSet::Difference {excluding,..} if matches!(excluding.as_ref(),ObjectSet::One(ObjectRef::Candidate))))
     );
 }
 
@@ -453,5 +450,5 @@ fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
     }
     assert_eq!(complete, 69);
     let rapid = card("Rapid Augmenter");
-    assert!(rapid.abilities.iter().any(|a|matches!(a,Ability::Triggered {event:EventSpec::ZoneChange {objects:ObjectFilter::All(outer),..},..} if outer.iter().any(|f|matches!(f,ObjectFilter::All(inner) if inner.iter().any(|f|matches!(f,ObjectFilter::Property {property:Property::BasePower,comparison:Comparison::Equal,value:Expr::Constant(1)})))))));
+    assert!(rapid.abilities.iter().any(|a|matches!(a,Ability::Triggered {event:EventSpec::ZoneChange {objects:ObjectFilter::AllOf(outer),..},..} if outer.iter().any(|f|matches!(f,ObjectFilter::AllOf(inner) if inner.iter().any(|f|matches!(f,ObjectFilter::Property { property:Property::BasePower, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(1) } })))))));
 }

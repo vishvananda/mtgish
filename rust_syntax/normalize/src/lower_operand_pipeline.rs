@@ -212,13 +212,13 @@ impl Context {
         };
         Ok(match recipe {
             R::Source(c) => return self.condition(c),
-            R::All(items) => Condition::All(
+            R::All(items) => Condition::AllOf(
                 items
                     .iter()
                     .map(|c| self.bind_check_recipe(c))
                     .collect::<Result<_>>()?,
             ),
-            R::Either(items) => Condition::Either(
+            R::Either(items) => Condition::AnyOf(
                 items
                     .iter()
                     .map(|c| self.bind_check_recipe(c))
@@ -253,11 +253,7 @@ impl Context {
                                 }),
                             },
                         };
-                        Condition::Compare {
-                            left: Expr::CountObjects(Box::new(objects)),
-                            comparison: Comparison::Greater,
-                            right: Expr::Constant(0),
-                        }
+                        Condition::Compare { left: Expr::CountObjects(Box::new(objects)), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } }
                     }
                     None => Condition::PaymentChosen(result),
                 };
@@ -268,24 +264,16 @@ impl Context {
                 }
             }
             R::Compare { left, comparison } => {
-                let (comparison, right) = self.comparison(comparison)?;
-                Condition::Compare {
-                    left: self.pipeline_quantity(left)?,
-                    comparison,
-                    right,
-                }
+                let test = self.number_test(comparison)?;
+                Condition::Compare { left: self.pipeline_quantity(left)?, test }
             }
             R::SpellX(c) => {
-                let (comparison, right) = self.comparison(c)?;
-                Condition::Compare {
-                    left: Expr::ObjectProperty {
+                let test = self.number_test(c)?;
+                Condition::Compare { left: Expr::ObjectProperty {
                         object: ObjectRef::Source,
                         property: Property::SpellX,
                         information: Information::CurrentOrLastKnown,
-                    },
-                    comparison,
-                    right,
-                }
+                    }, test }
             }
             R::Matches {
                 object,
@@ -350,7 +338,7 @@ impl Context {
             },
             R::SourceZones(zones) => Condition::ObjectMatches {
                 object: ObjectRef::Source,
-                filter: ObjectFilter::Either(
+                filter: ObjectFilter::AnyOf(
                     zones
                         .iter()
                         .map(|zone| ObjectFilter::InZone(ZoneScope::Shared(zone.clone())))

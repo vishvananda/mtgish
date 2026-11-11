@@ -89,11 +89,7 @@ fn static_definition_retains_live_queries_and_resolving_effect_snapshots() {
     assert!(matches!(
         &ram.abilities[1],
         Ability::Conditional {
-            condition: Condition::Compare {
-                left: Expr::CountObjects(_),
-                comparison: Comparison::GreaterOrEqual,
-                right: Expr::Constant(2)
-            },
+            condition: Condition::Compare { left: Expr::CountObjects(_), test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(2) } },
             ..
         }
     ));
@@ -139,11 +135,7 @@ fn loyalty_delta_and_intervening_condition_are_preserved() {
     assert!(matches!(
         &vampires.abilities[0],
         Ability::Triggered {
-            intervening_if: Some(Condition::Compare {
-                comparison: Comparison::GreaterOrEqual,
-                right: Expr::Constant(3),
-                ..
-            }),
+            intervening_if: Some(Condition::Compare { test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(3) }, .. }),
             ..
         }
     ));

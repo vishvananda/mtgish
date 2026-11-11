@@ -92,7 +92,7 @@ impl Context {
             S::TokenCopyOfCommander(effects) => {
                 let you = self.player(&source::Player::You)?;
                 return Ok(copy(TokenRecipe::CopyOne {
-                    objects: ObjectSet::AnyZone(ObjectFilter::All(vec![
+                    objects: ObjectSet::AnyZone(ObjectFilter::AllOf(vec![
                         ObjectFilter::State(ObjectState::Commander),
                         ObjectFilter::OwnedBy(PlayerSet::One(you)),
                     ])),

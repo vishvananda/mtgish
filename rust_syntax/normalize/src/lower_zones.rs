@@ -274,7 +274,7 @@ impl Context {
                 let found = self.exile_found.clone().unwrap();
                 // A later run of a player loop reads its own player's card.
                 let filter = match &self.iterated {
-                    Some(player @ PlayerRef::Bound(_)) => ObjectFilter::All(vec![
+                    Some(player @ PlayerRef::Bound(_)) => ObjectFilter::AllOf(vec![
                         found,
                         ObjectFilter::OwnedBy(PlayerSet::One(player.clone())),
                     ]),

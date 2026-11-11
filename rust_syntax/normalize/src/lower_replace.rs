@@ -202,11 +202,11 @@ impl Context {
     ) -> Result<ReplacementEvent> {
         use source::ReplacableEventWouldPutIntoGraveyard as S;
         let owned = |objects: ObjectFilter, owners: PlayerSet| {
-            ObjectFilter::All(vec![objects, ObjectFilter::OwnedBy(owners)])
+            ObjectFilter::AllOf(vec![objects, ObjectFilter::OwnedBy(owners)])
         };
         // A token is not a card, so "a card" leaves it to reach the graveyard.
         let card = |objects: ObjectFilter, owners: PlayerSet| {
-            ObjectFilter::All(vec![
+            ObjectFilter::AllOf(vec![
                 objects,
                 ObjectFilter::OwnedBy(owners),
                 ObjectFilter::Not(Box::new(ObjectFilter::Token)),

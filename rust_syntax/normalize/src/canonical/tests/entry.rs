@@ -6,7 +6,7 @@ fn players() -> Value {
 }
 
 fn objects() -> Value {
-    json!({"kind":"All","args":[{"kind":"CardType","args":"Creature"},
+    json!({"kind":"AllOf","args":[{"kind":"CardType","args":"Creature"},
         {"kind":"ControlledBy","args":players()}]})
 }
 
@@ -67,7 +67,7 @@ fn arbitrary_controller_sets_keep_their_original_match_restriction() {
         json!({"kind":"OpponentsOf","args":{"kind":"AbilityController"}}),
         json!({"kind":"One","args":{"kind":"Active"}}),
     ] {
-        let filter = json!({"kind":"All","args":[{"kind":"CardType","args":"Land"},
+        let filter = json!({"kind":"AllOf","args":[{"kind":"CardType","args":"Land"},
             {"kind":"ControlledBy","args":players}]});
         let zone = json!({"ZoneChange":{"objects":filter,"from":null,"to":"Battlefield"}});
         let player = json!({"Player":{"event":"EntersUnderControl","players":players,
@@ -130,7 +130,7 @@ fn entry_wrappers_preserve_grouping_and_filter_conditions() {
             "Filtered" => json!({"Filtered":{"event":event,"condition":{"kind":"PlayerIsActive",
                 "args":{"kind":"AbilityController"}}}}),
             "NthEachTurn" => {
-                json!({"NthEachTurn":{"event":event,"comparison":"Equal","value":{"kind":"Constant","args":2}}})
+                json!({"NthEachTurn":{"event":event,"test":{"kind":"Compare","args":{"comparison":"Equal","value":{"kind":"Constant","args":2}}}}})
             }
             _ => json!({"FirstEachTurn":event}),
         };

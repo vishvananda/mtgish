@@ -328,7 +328,7 @@ impl Compiler {
                 spells,
                 timing: SpellTiming::Flash,
             } => {
-                if matches!(spells, ObjectFilter::All(parts) if parts.iter().all(|part| {
+                if matches!(spells, ObjectFilter::AllOf(parts) if parts.iter().all(|part| {
                     matches!(part, ObjectFilter::Subtype(_))
                 })) {
                     return Err(gap("spells of two subtypes read as spells of both"));
@@ -773,7 +773,7 @@ fn listed_types(spells: &ObjectFilter) -> Option<Vec<String>> {
             .to_vec(),
         ),
         ObjectFilter::CardType(t) => Some(vec![card_type(t).ok()?.to_string()]),
-        ObjectFilter::Either(filters) => {
+        ObjectFilter::AnyOf(filters) => {
             let mut types = Vec::new();
             for filter in filters {
                 types.extend(listed_types(filter)?);

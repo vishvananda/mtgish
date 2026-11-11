@@ -294,11 +294,7 @@ fn source_scopes_validate_intersections_and_start_fresh_reference_scopes() {
     let Ability::Scoped { condition, .. } = &mut c.abilities[0] else {
         panic!()
     };
-    *condition = Some(Condition::Compare {
-        left: Expr::EventActivationX,
-        comparison: Comparison::Equal,
-        right: Expr::Constant(0),
-    });
+    *condition = Some(Condition::Compare { left: Expr::EventActivationX, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(0) } });
     assert!(validate::card(&c)
         .unwrap_err()
         .contains("event activation X"));
@@ -854,7 +850,7 @@ fn object_state_rows_are_filters_that_compose() {
 #[test]
 fn an_outlaw_is_its_five_creature_types() {
     let body = lowered("SpellActions(ActionList([DestroyEachPermanent(IsAnOutlaw)]))");
-    assert!(body.contains("Either(["), "{body}");
+    assert!(body.contains("AnyOf(["), "{body}");
     assert_eq!(body.matches("Subtype(").count(), 5, "{body}");
 }
 
@@ -1616,7 +1612,7 @@ fn listed_values_negative_power_and_copied_stack_objects() {
     let listed = lowered(
         "TriggerA(WhenAPlayerCastsASpell(SinglePlayer(You), ManaValueIs(OneOf([4, 5, 6]))), ActionList([DrawACard]))",
     );
-    assert!(listed.contains("AnyOf([Constant(4)"), "{listed}");
+    assert!(listed.contains("AnyOf([Compare { comparison: Equal, value: Constant(4) }"), "{listed}");
     let negative = lowered("If(PermanentPassesFilter(ThisPermanent, PowerIs(Negative)), [Flying])");
     assert!(negative.contains("Less"), "{negative}");
     let copied = lowered(
@@ -2122,7 +2118,7 @@ fn a_limit_on_x_is_a_step_the_reviewed_card_keeps() {
     assert!(custom(rule).is_err());
     let body = format!("{:?}", on_card("Mind Grind", rule).unwrap());
     assert!(
-        body.contains("LimitX { comparison: Greater, value: Constant(0) }"),
+        body.contains("LimitX { test: Compare { comparison: Greater, value: Constant(0) } }"),
         "{body}"
     );
 }

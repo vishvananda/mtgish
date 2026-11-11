@@ -449,7 +449,7 @@ fn real_control_flow_scopes_support_distinct_names_for_every_binding() {
             self.0 |= matches!(
                 i,
                 Instruction::Optional { .. }
-                    | Instruction::Times { .. }
+                    | Instruction::RepeatableWithLimit { .. }
                     | Instruction::Repeatable(_)
             );
             true

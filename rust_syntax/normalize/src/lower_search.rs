@@ -242,11 +242,7 @@ impl Context {
         }
         let again = child.effect(Operation::RepeatProcess);
         body.push(Instruction::If {
-            condition: Condition::Compare {
-                left: Expr::CountObjects(Box::new(hand)),
-                comparison: Comparison::GreaterOrEqual,
-                right: Expr::Constant(1),
-            },
+            condition: Condition::Compare { left: Expr::CountObjects(Box::new(hand)), test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } },
             then: Program {
                 instructions: vec![again],
             },
@@ -437,15 +433,11 @@ impl Context {
                 ]
                 .into_iter()
                 .map(|color| {
-                    let among = Condition::Compare {
-                        left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                    let among = Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                             objects: Box::new(objects.clone()),
                             filter: ObjectFilter::Color(color.clone()),
-                        })),
-                        comparison: Comparison::GreaterOrEqual,
-                        right: Expr::Constant(1),
-                    };
-                    ObjectFilter::All(vec![
+                        })), test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } };
+                    ObjectFilter::AllOf(vec![
                         ObjectFilter::Color(color),
                         ObjectFilter::Condition(Box::new(among)),
                     ])

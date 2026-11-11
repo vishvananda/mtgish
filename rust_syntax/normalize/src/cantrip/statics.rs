@@ -862,7 +862,7 @@ impl Compiler {
         let ObjectSet::Zone {
             scope: ZoneScope::Shared(EventZone::Stack),
             kind: ObjectKind::Spell,
-            filter: ObjectFilter::All(members),
+            filter: ObjectFilter::AllOf(members),
         } = affected
         else {
             return Ok(false);
@@ -877,7 +877,7 @@ impl Compiler {
             return Ok(false);
         }
         let rest: Vec<ObjectFilter> = members.iter().filter(|f| !yours(f)).cloned().collect();
-        let test = self.queried(|c| c.filter(&ObjectFilter::All(rest), &Candidate::of("card")))?;
+        let test = self.queried(|c| c.filter(&ObjectFilter::AllOf(rest), &Candidate::of("card")))?;
         let mana = mana(symbols)?;
         let (kind, text, paid, when) = match mechanic {
             Mechanic::Freerunning => (

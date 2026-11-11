@@ -26,11 +26,7 @@ impl Context {
     }
 
     fn happened(event: EventSpec, window: HistoryWindow) -> Condition {
-        Condition::Compare {
-            left: Self::history(event, window, HistoryMeasure::Occurrences),
-            comparison: Comparison::GreaterOrEqual,
-            right: Expr::Constant(1),
-        }
+        Condition::Compare { left: Self::history(event, window, HistoryMeasure::Occurrences), test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } }
     }
 
     fn history_compare(
@@ -38,12 +34,8 @@ impl Context {
         left: Expr,
         comparison: &source::Comparison,
     ) -> Result<Condition> {
-        let (comparison, right) = self.comparison(comparison)?;
-        Ok(Condition::Compare {
-            left,
-            comparison,
-            right,
-        })
+        let test = self.number_test(comparison)?;
+        Ok(Condition::Compare { left, test })
     }
 
     fn cast_event(players: PlayerSet, spells: ObjectFilter) -> EventSpec {
@@ -125,7 +117,7 @@ impl Context {
             )),
             S::APermanentEnteredTheBattlefieldUnderPlayersControlThisTurn(objects, player) => {
                 Ok(Self::happened(
-                    Self::entered_event(ObjectFilter::All(vec![
+                    Self::entered_event(ObjectFilter::AllOf(vec![
                         self.filter(objects)?,
                         ObjectFilter::ControlledBy(PlayerSet::One(self.player(player)?)),
                     ])),
@@ -138,7 +130,7 @@ impl Context {
                 player,
             ) => self.history_compare(
                 Self::history(
-                    Self::entered_event(ObjectFilter::All(vec![
+                    Self::entered_event(ObjectFilter::AllOf(vec![
                         self.filter(objects)?,
                         ObjectFilter::ControlledBy(PlayerSet::One(self.player(player)?)),
                     ])),
@@ -150,7 +142,7 @@ impl Context {
             S::ACardWasPutIntoPlayersGraveyardFromAnywhereThisTurn(cards, player) => {
                 Ok(Self::happened(
                     EventSpec::ZoneChange {
-                        objects: ObjectFilter::All(vec![
+                        objects: ObjectFilter::AllOf(vec![
                             self.card_filter(cards)?,
                             ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
                         ]),
@@ -165,7 +157,7 @@ impl Context {
             }
             S::APermanentWasPutIntoAPlayersGraveyardThisTurn(objects, players) => {
                 Ok(Self::happened(
-                    Self::died_event(ObjectFilter::All(vec![
+                    Self::died_event(ObjectFilter::AllOf(vec![
                         self.filter(objects)?,
                         ObjectFilter::OwnedBy(self.players(players)?),
                     ])),
@@ -174,7 +166,7 @@ impl Context {
             }
             S::APermanentWasPutIntoPlayersGraveyardThisTurn(objects, player) => {
                 Ok(Self::happened(
-                    Self::died_event(ObjectFilter::All(vec![
+                    Self::died_event(ObjectFilter::AllOf(vec![
                         self.filter(objects)?,
                         ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
                     ])),
@@ -183,7 +175,7 @@ impl Context {
             }
             S::APermanentEnteredTheBattlefieldUnderAPlayersControlThisTurn(objects, players) => {
                 Ok(Self::happened(
-                    Self::entered_event(ObjectFilter::All(vec![
+                    Self::entered_event(ObjectFilter::AllOf(vec![
                         self.filter(objects)?,
                         ObjectFilter::ControlledBy(self.players(players)?),
                     ])),
@@ -217,7 +209,7 @@ impl Context {
             ) => self.history_compare(
                 Self::history(
                     EventSpec::ZoneChange {
-                        objects: ObjectFilter::All(vec![
+                        objects: ObjectFilter::AllOf(vec![
                             self.card_filter(cards)?,
                             ObjectFilter::OwnedBy(self.players(players)?),
                         ]),
@@ -231,7 +223,7 @@ impl Context {
             ),
             S::APermanentWasReturnedToPlayersHandThisTurn(objects, player) => Ok(Self::happened(
                 EventSpec::ZoneChange {
-                    objects: ObjectFilter::All(vec![
+                    objects: ObjectFilter::AllOf(vec![
                         self.filter(objects)?,
                         ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
                     ]),
@@ -559,7 +551,7 @@ impl Context {
                 | S::AttackedWithAPermanentThisTurn(objects) => Self::happened(
                     EventSpec::Object {
                         event: ObjectEvent::Attacks,
-                        objects: ObjectFilter::All(vec![
+                        objects: ObjectFilter::AllOf(vec![
                             self.filter(objects)?,
                             ObjectFilter::ControlledBy(one()),
                         ]),
@@ -570,7 +562,7 @@ impl Context {
                     Self::history(
                         EventSpec::Object {
                             event: ObjectEvent::Attacks,
-                            objects: ObjectFilter::All(vec![
+                            objects: ObjectFilter::AllOf(vec![
                                 self.filter(objects)?,
                                 ObjectFilter::ControlledBy(one()),
                             ]),
@@ -585,7 +577,7 @@ impl Context {
                     objects,
                 ) => self.history_compare(
                     Self::history(
-                        Self::entered_event(ObjectFilter::All(vec![
+                        Self::entered_event(ObjectFilter::AllOf(vec![
                             self.filter(objects)?,
                             ObjectFilter::ControlledBy(one()),
                         ])),
@@ -598,7 +590,7 @@ impl Context {
                     self.history_compare(
                         Self::history(
                             EventSpec::ZoneChange {
-                                objects: ObjectFilter::All(vec![
+                                objects: ObjectFilter::AllOf(vec![
                                     self.card_filter(cards)?,
                                     ObjectFilter::OwnedBy(one()),
                                 ]),
@@ -613,7 +605,7 @@ impl Context {
                 }
                 S::HadAPermanentEnterTheBattlefieldUnderTheirControlThisTurn(objects) => {
                     Self::happened(
-                        Self::entered_event(ObjectFilter::All(vec![
+                        Self::entered_event(ObjectFilter::AllOf(vec![
                             self.filter(objects)?,
                             ObjectFilter::ControlledBy(one()),
                         ])),
@@ -762,7 +754,7 @@ impl Context {
                     W::ThisTurn,
                 ))),
                 S::EnteredTheBattlefieldUnderPlayersControlThisTurn(player) => Self::happened(
-                    Self::entered_event(ObjectFilter::All(vec![
+                    Self::entered_event(ObjectFilter::AllOf(vec![
                         this(),
                         ObjectFilter::ControlledBy(PlayerSet::One(self.player(player)?)),
                     ])),
@@ -921,7 +913,7 @@ impl Context {
                 M::Occurrences,
             )
         };
-        let owned = |objects, players| ObjectFilter::All(vec![objects, ObjectFilter::OwnedBy(players)]);
+        let owned = |objects, players| ObjectFilter::AllOf(vec![objects, ObjectFilter::OwnedBy(players)]);
         let attacks = |objects| {
             Self::history(
                 EventSpec::Object {
@@ -988,7 +980,7 @@ impl Context {
             S::TheNumberOfCreaturesThatAttackedThisTurn(objects) => {
                 attacks(self.filter(objects).ok()?)
             }
-            S::NumCreaturesPlayerAttackedWithThisTurn(objects, p) => attacks(ObjectFilter::All(vec![
+            S::NumCreaturesPlayerAttackedWithThisTurn(objects, p) => attacks(ObjectFilter::AllOf(vec![
                 self.filter(objects).ok()?,
                 ObjectFilter::ControlledBy(one(p)?),
             ])),
@@ -1019,7 +1011,7 @@ impl Context {
                 Self::history(
                     EventSpec::Object {
                         event: ObjectEvent::LeavesBattlefield,
-                        objects: ObjectFilter::All(vec![
+                        objects: ObjectFilter::AllOf(vec![
                             self.filter(objects).ok()?,
                             ObjectFilter::ControlledBy(one(p)?),
                         ]),
@@ -1037,7 +1029,7 @@ impl Context {
                 Expr::CountObjects(Box::new(self.private_cards(
                     EventZone::Graveyard,
                     one(p)?,
-                    ObjectFilter::All(vec![
+                    ObjectFilter::AllOf(vec![
                         self.card_filter(cards).ok()?,
                         ObjectFilter::ArrivedThisTurn {
                             from: Some(EventZone::Battlefield),

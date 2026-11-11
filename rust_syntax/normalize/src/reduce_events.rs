@@ -154,19 +154,11 @@ fn reduce_event_number(form: &str, operands: &[Operand]) -> Option<Expr> {
 }
 
 fn some_of(left: Expr) -> Condition {
-    Condition::Compare {
-        left,
-        comparison: Comparison::GreaterOrEqual,
-        right: Expr::Constant(1),
-    }
+    Condition::Compare { left, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } }
 }
 
 fn none_of(left: Expr) -> Condition {
-    Condition::Compare {
-        left,
-        comparison: Comparison::Equal,
-        right: Expr::Constant(0),
-    }
+    Condition::Compare { left, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(0) } }
 }
 
 /// `Earlier` with its optional parts read from what follows a filter.
@@ -196,11 +188,7 @@ fn reduce_event_condition(form: &str, operands: &[Operand]) -> Option<Condition>
     use EarlierObjects as E;
     use Operand::{Comparison as Compare, Object, Objects, Player, Text};
     use PriorOutcome as O;
-    let compare = |left, comparison: &Comparison, right: &Expr| Condition::Compare {
-        left,
-        comparison: comparison.clone(),
-        right: right.clone(),
-    };
+    let compare = |left, comparison: &Comparison, right: &Expr| Condition::Compare { left, test: NumberTest::Compare { comparison: comparison.clone(), value: right.clone() } };
     let happened = |what| some_of(earlier(what, ObjectMeasure::Count));
     let outcome = |outcome| Some(Condition::Outcome(outcome));
     match (form, operands) {
@@ -370,19 +358,15 @@ fn whole(event: EventSpec) -> EventSpec {
 }
 
 fn nth(event: EventSpec, comparison: &Comparison, value: &Expr) -> EventSpec {
-    EventSpec::NthEachTurn {
-        event: Box::new(event),
-        comparison: comparison.clone(),
-        value: value.clone(),
-    }
+    EventSpec::NthEachTurn { event: Box::new(event), test: NumberTest::Compare { comparison: comparison.clone(), value: value.clone() } }
 }
 
 fn owned_among(objects: ObjectFilter, players: &PlayerSet) -> ObjectFilter {
-    ObjectFilter::All(vec![objects, ObjectFilter::OwnedBy(players.clone())])
+    ObjectFilter::AllOf(vec![objects, ObjectFilter::OwnedBy(players.clone())])
 }
 
 fn controlled_among(objects: ObjectFilter, players: &PlayerSet) -> ObjectFilter {
-    ObjectFilter::All(vec![objects, ObjectFilter::ControlledBy(players.clone())])
+    ObjectFilter::AllOf(vec![objects, ObjectFilter::ControlledBy(players.clone())])
 }
 
 /// A state trigger (603.8) in terms of a condition, as Forge's `Mode$ Always`.
@@ -401,24 +385,16 @@ fn state_event(form: &str, operands: &[Operand]) -> Option<EventSpec> {
     match (form, operands) {
         ("WhenAPlayerHasAnAmountOfLife", [Players(players), Compare(comparison, n)]) => any_player(
             players,
-            Condition::Compare {
-                left: Expr::player_life(player()),
-                comparison: comparison.clone(),
-                right: n.clone(),
-            },
+            Condition::Compare { left: Expr::player_life(player()), test: NumberTest::Compare { comparison: comparison.clone(), value: n.clone() } },
         ),
         ("WhenAPlayerHasNumberCardsInHand", [Players(players), Compare(comparison, n)]) => {
             any_player(
                 players,
-                Condition::Compare {
-                    left: count(zone_set(
+                Condition::Compare { left: count(zone_set(
                         EventZone::Hand,
                         PlayerSet::One(player()),
                         ObjectFilter::Any,
-                    )),
-                    comparison: comparison.clone(),
-                    right: n.clone(),
-                },
+                    )), test: NumberTest::Compare { comparison: comparison.clone(), value: n.clone() } },
             )
         }
         ("WhenAPlayerHasNoCardsInTheirGraveyard", [Players(players)]) => any_player(
@@ -434,14 +410,10 @@ fn state_event(form: &str, operands: &[Operand]) -> Option<EventSpec> {
             [Players(players), Objects(set), Compare(c, n)],
         ) => any_player(
             players,
-            Condition::Compare {
-                left: count(matching(
+            Condition::Compare { left: count(matching(
                     set,
                     &ObjectFilter::ControlledBy(PlayerSet::One(player())),
-                )),
-                comparison: c.clone(),
-                right: n.clone(),
-            },
+                )), test: NumberTest::Compare { comparison: c.clone(), value: n.clone() } },
         ),
         ("WhenPlayersControlsNoPermanents", [Players(players), Objects(set)]) => any_player(
             players,
@@ -588,14 +560,14 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         (
             "WhenAnyNumberOfPermanentsAndOrGraveyardCardsArePutIntoExile",
             [Objects(set), Filter(cards)],
-        ) => whole(EventSpec::Either(vec![
+        ) => whole(EventSpec::AnyOf(vec![
             zone_change(objects_filter(set), Some(Z::Battlefield), Z::Exile),
             zone_change(cards.clone(), Some(Z::Graveyard), Z::Exile),
         ])),
         (
             "WhenAnyNumberOfCardsArePutIntoExileFromAPlayersGraveyardAndOrLibrary",
             [Filter(cards), Players(players)],
-        ) => whole(EventSpec::Either(vec![
+        ) => whole(EventSpec::AnyOf(vec![
             zone_change(
                 owned_among(cards.clone(), players),
                 Some(Z::Graveyard),
@@ -624,6 +596,10 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         ("WhenAPlayerDrawsTheirNthCardDuringTheirTurn", [Players(players), Compare(c, n)]) => {
             nth(player(PlayerEvent::DrawsCard, players, None), c, n)
         }
+        ("WhenTheNthSpellIsCastInATurn", [Filter(spells), Operand::NumberTest(test)]) => EventSpec::NthEachTurn {
+            event: Box::new(EventSpec::Spell { event: SpellEvent::Cast, players: PlayerSet::All, spells: spells.clone() }),
+            test: test.clone(),
+        },
         ("WhenTheNthSpellIsCastInATurn", [Filter(spells), Compare(c, n)]) => nth(
             EventSpec::Spell {
                 event: SpellEvent::Cast,
@@ -654,7 +630,7 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
             player(
                 PlayerEvent::PlaysLandFromExile,
                 players,
-                Some(ObjectFilter::All(vec![
+                Some(ObjectFilter::AllOf(vec![
                     set_filter(lands)?,
                     objects_filter(set),
                 ])),
@@ -666,13 +642,13 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         ) => EventSpec::Spell {
             event: SpellEvent::Cast,
             players: players.clone(),
-            spells: ObjectFilter::All(vec![
+            spells: ObjectFilter::AllOf(vec![
                 spells.clone(),
                 ObjectFilter::Not(Box::new(cast_from(EventZone::Hand))),
             ]),
         },
         ("WhenAPlayerCastsASpellOrActivatesAnAbility", [Players(players), Filter(spells)]) => {
-            EventSpec::Either(vec![
+            EventSpec::AnyOf(vec![
                 EventSpec::Spell {
                     event: SpellEvent::Cast,
                     players: players.clone(),

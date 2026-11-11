@@ -395,8 +395,8 @@ pub enum ObjectFilter {
     Chosen(ValueKind),
     IsCard,
     Any,
-    All(Vec<ObjectFilter>),
-    Either(Vec<ObjectFilter>),
+    AllOf(Vec<ObjectFilter>),
+    AnyOf(Vec<ObjectFilter>),
     Not(Box<ObjectFilter>),
     CardType(CardType),
     Supertype(SuperType),
@@ -411,8 +411,7 @@ pub enum ObjectFilter {
     SharesNameWith(ObjectRef),
     Property {
         property: Property,
-        comparison: Comparison,
-        value: Expr,
+        test: NumberTest,
     },
     Counters {
         kind: Option<crate::counter::CounterKind>,

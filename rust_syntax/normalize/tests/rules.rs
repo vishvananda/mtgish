@@ -311,7 +311,7 @@ fn activation_guards_are_checked_before_costs_and_combined_without_turning_into_
     let c = card("Bloodshot Trainee");
     assert!(
         matches!(&c.abilities[0],Ability::Activated{limits:ActivationLimits{condition:Some(Condition::ObjectMatches{
-        object:ObjectRef::Source,filter:ObjectFilter::Property{property:Property::Power,comparison:Comparison::GreaterOrEqual,value:Expr::Constant(4)}
+        object:ObjectRef::Source,filter:ObjectFilter::Property { property:Property::Power, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(4) } }
     }),..},body,..}if matches!(body.instructions.as_slice(),[Instruction::Effect{operation:Operation::DealDamage{..},..}]))
     );
     let c=program("ActivatedWithModifiers(TapPermanent(ThisPermanent),ActionList([DrawACard]),And([ActivateOnlyIf(PermanentPassesFilter(ThisPermanent,IsCardtype(Creature))),ActivateOnlyDuringTheirTurn,CantActivateIf(PermanentPassesFilter(ThisPermanent,IsTapped)),ActivateOnlyOnceEachTurn]))").unwrap();
@@ -321,7 +321,7 @@ fn activation_guards_are_checked_before_costs_and_combined_without_turning_into_
         Ability::Activated {
             limits: ActivationLimits {
                 once_each_turn: true,
-                condition: Some(Condition::All(_)),
+                condition: Some(Condition::AllOf(_)),
                 ..
             },
             ..
@@ -360,7 +360,7 @@ fn activation_filters_keep_mana_exceptions_and_battlefield_scope() {
 fn filter_candidates_and_declaring_players_do_not_escape_their_scopes() {
     let c = card("Ancient Lumberknot");
     let Ability::Static {
-        affected: EffectSubjects::Objects(mtgish_ast::battlefield_query!(ObjectFilter::All(filters))),
+        affected: EffectSubjects::Objects(mtgish_ast::battlefield_query!(ObjectFilter::AllOf(filters))),
         ..
     } = &c.abilities[0]
     else {
@@ -368,14 +368,11 @@ fn filter_candidates_and_declaring_players_do_not_escape_their_scopes() {
     };
     assert!(filters.iter().any(|f| matches!(
         f,
-        ObjectFilter::Property {
-            value: Expr::ObjectProperty {
+        ObjectFilter::Property { test: NumberTest::Compare { value: Expr::ObjectProperty {
                 object: ObjectRef::Candidate,
                 property: Property::Power,
                 ..
-            },
-            ..
-        }
+            }, .. }, .. }
     )));
     let mut c = card("Bloodshot Trainee");
     let Ability::Activated { body, .. } = &mut c.abilities[0] else {

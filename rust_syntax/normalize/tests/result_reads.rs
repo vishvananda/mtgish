@@ -1,3 +1,5 @@
+#[path = "support/epoch189.rs"]
+mod epoch189;
 #[path = "support/query_aliases.rs"]
 mod query_aliases;
 use mtgish_ast::{
@@ -147,10 +149,10 @@ fn delayed_and_reflexive_programs_capture_the_creator_result() {
     });
     assert!(read(reflexive).graveyard());
     let delayed = effect(Operation::CreateDelayedTrigger {
-        event: EventSpec::Turn {
+        event: Box::new(EventSpec::Turn {
             point: TurnPoint::EndStepBegins,
             players: PlayerSet::All,
-        },
+        }),
         start: DelayedStart::Immediately,
         expires: None,
         intervening_if: None,
@@ -301,7 +303,7 @@ fn whole_membership_records_preserve_operands_with_the_reviewed_permanent_domain
             let filter = expected.pointer_mut("/faces/0/abilities/0/args/body/instructions/0/args/operation/args/affected/Objects/args/filter/args/0").unwrap();
             assert_eq!(
                 *filter,
-                serde_json::json!({"kind":"Either","args":[
+                serde_json::json!({"kind":"AnyOf","args":[
                     {"kind":"CardType","args":"Artifact"},
                     {"kind":"CardType","args":"Battle"},
                     {"kind":"CardType","args":"Creature"},

@@ -189,10 +189,10 @@ fn captured_coin_and_shadowed_noncoin_keep_their_actual_families() {
         effect(
             8,
             Operation::CreateDelayedTrigger {
-                event: EventSpec::Turn {
+                event: Box::new(EventSpec::Turn {
                     point: TurnPoint::EndStepBegins,
                     players: PlayerSet::All,
-                },
+                }),
                 start: DelayedStart::Immediately,
                 expires: None,
                 intervening_if: None,

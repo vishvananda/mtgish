@@ -179,7 +179,7 @@ fn an_optimized_search_cannot_discard_order_or_group_terms() {
                         library_owner: PlayerRef::AbilityController,
                         top: None,
                         choices: vec![SearchChoice {
-                            filter: ObjectFilter::All(vec![
+                            filter: ObjectFilter::AllOf(vec![
                                 ObjectFilter::Supertype(SuperType::Basic),
                                 ObjectFilter::Subtype(SubType::Plains),
                             ]),

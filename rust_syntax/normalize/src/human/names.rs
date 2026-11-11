@@ -94,7 +94,6 @@ pub fn category(wire: &str) -> &'static str {
         | "SetX"
         | "LimitX"
         | "Counter"
-        | "CounterWith"
         | "AnyPlayerMayPay"
         | "PlayersPayRepeatedly" => "Mana & casting",
         "CreateDelayedTrigger"
@@ -214,7 +213,7 @@ pub fn instruction(wire: &str) -> Value {
         "ForEachPlayer" => ("For each player", "Iteration & repetition"),
         "ForEachObject" => ("For each object", "Iteration & repetition"),
         "Repeatable" => ("Repeatable process", "Iteration & repetition"),
-        "Times" => (
+        "RepeatableWithLimit" => (
             "Repeatable process with a run limit",
             "Iteration & repetition",
         ),

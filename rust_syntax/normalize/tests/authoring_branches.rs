@@ -401,7 +401,7 @@ fn private_control_flow_receipts_cannot_replace_an_enclosing_choice_group() {
         ),
         format!("ForEachObject{{objects:One(This),binding:item,do:[{choice}]}}"),
         format!("Optional{{decider:You,do:[{choice}]}}"),
-        "Times{amount:1,do:[r11=BindValue{value:3}]}".into(),
+        "RepeatableWithLimit{amount:1,do:[r11=BindValue{value:3}]}".into(),
     ] {
         let doc = document::read(&card(&format!(
             "{choice},{control},JoinResults{{results:[r11,r11]}}"

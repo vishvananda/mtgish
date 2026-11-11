@@ -247,7 +247,7 @@ fn incoming_amounts_sources_and_damaged_objects_have_distinct_references() {
 fn amount_thresholds_filter_at_the_event_without_becoming_resolution_guards() {
     let c = card("Dragonborn Champion");
     assert!(
-        matches!(trigger(&c).0, EventSpec::Filtered { event, condition: Condition::Compare { left: Expr::EventAmount, comparison: Comparison::GreaterOrEqual, right: Expr::Constant(5) } } if matches!(event.as_ref(), EventSpec::Damage(DamageEvent { grouping: DamageGrouping::SourceRecipient, .. })))
+        matches!(trigger(&c).0, EventSpec::Filtered { event, condition: Condition::Compare { left: Expr::EventAmount, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(5) } } } if matches!(event.as_ref(), EventSpec::Damage(DamageEvent { grouping: DamageGrouping::SourceRecipient, .. })))
     );
     let Ability::Triggered { intervening_if, .. } = c
         .abilities
@@ -267,7 +267,7 @@ fn amount_thresholds_filter_at_the_event_without_becoming_resolution_guards() {
 #[test]
 fn aggregate_damage_cannot_supply_singular_references_or_leak_event_bindings() {
     let c = card("Cryoshatter");
-    assert!(matches!(trigger(&c).0, EventSpec::Either(events) if events.len() == 2));
+    assert!(matches!(trigger(&c).0, EventSpec::AnyOf(events) if events.len() == 2));
     assert!(matches!(
         trigger(&c).2.instructions.as_slice(),
         [Instruction::Effect {
@@ -292,7 +292,7 @@ fn aggregate_damage_cannot_supply_singular_references_or_leak_event_bindings() {
     let Ability::Triggered { event, .. } = &mut c.abilities[0] else {
         panic!()
     };
-    *event = EventSpec::Either(vec![
+    *event = EventSpec::AnyOf(vec![
         event.clone(),
         EventSpec::Object {
             event: ObjectEvent::Attacks,

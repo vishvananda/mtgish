@@ -179,7 +179,7 @@ fn reduce_layer(form: &str, operands: &[Operand]) -> Option<Change> {
             mode: ChangeMode::Set,
         },
         ("HasAllNamesOfNonlegendaryCreatures", []) => {
-            Change::AddNames(ObjectFilter::All(vec![
+            Change::AddNames(ObjectFilter::AllOf(vec![
                 ObjectFilter::Not(Box::new(ObjectFilter::Supertype(
                     crate::mtg_types::SuperType::Legendary,
                 ))),
@@ -353,7 +353,7 @@ pub fn reduce_mana_production(name: &str, operands: &[Operand]) -> Option<ManaPr
 fn cast_limited(spells: &ObjectFilter, from: ObjectFilter) -> ManaUse {
     ManaUse::CastSpell(match spells {
         ObjectFilter::Any => from,
-        spells => ObjectFilter::All(vec![spells.clone(), from]),
+        spells => ObjectFilter::AllOf(vec![spells.clone(), from]),
     })
 }
 
@@ -762,7 +762,7 @@ fn wider_zone_change(objects: ObjectFilter, to: EventZone) -> ReplacementEvent {
 fn reduce_more_replacement(row: &str, operands: &[Operand]) -> Option<ReplacementEvent> {
     use Operand::{Filter, Object, Objects, Player, Players};
     let enter = |filter| Some(ReplacementEvent::Enter { objects: filter });
-    let both = |a, b| ObjectFilter::All(vec![a, b]);
+    let both = |a, b| ObjectFilter::AllOf(vec![a, b]);
     let not = |filter| ObjectFilter::Not(Box::new(filter));
     let cast = ObjectFilter::Cast {
         by: None,
@@ -795,7 +795,7 @@ fn reduce_more_replacement(row: &str, operands: &[Operand]) -> Option<Replacemen
             let exile = ZoneScope::Shared(EventZone::Exile);
             enter(both(
                 event_filter(objects)?,
-                ObjectFilter::Either(vec![
+                ObjectFilter::AnyOf(vec![
                     ObjectFilter::EnteredFrom(exile.clone()),
                     ObjectFilter::Cast {
                         by: None,
@@ -842,7 +842,7 @@ fn reduce_more_replacement(row: &str, operands: &[Operand]) -> Option<Replacemen
             "WouldPutACardInAPlayersGraveyardFromAnywhereOtherThanBattlefield",
             [Filter(cards), Players(players)],
         ) => Some(wider_zone_change(
-            ObjectFilter::All(vec![
+            ObjectFilter::AllOf(vec![
                 cards.clone(),
                 ObjectFilter::OwnedBy(players.clone()),
                 not(ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield))),
@@ -854,7 +854,7 @@ fn reduce_more_replacement(row: &str, operands: &[Operand]) -> Option<Replacemen
             [Objects(objects), Filter(spells), Filter(cards), Players(players)],
         ) => Some(wider_zone_change(
             both(
-                ObjectFilter::Either(vec![event_filter(objects)?, spells.clone(), cards.clone()]),
+                ObjectFilter::AnyOf(vec![event_filter(objects)?, spells.clone(), cards.clone()]),
                 ObjectFilter::OwnedBy(players.clone()),
             ),
             EventZone::Graveyard,

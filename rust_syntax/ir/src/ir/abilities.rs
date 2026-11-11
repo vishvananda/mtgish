@@ -438,7 +438,7 @@ pub enum ActivationRule {
     MaxPerTurn(Expr),
     XNotZero,
     XAtMost(Expr),
-    XIs(Expr),
+    XIs(NumberTest),
     CantBeCopied,
     AnyTimeOfInstant,
     /// Only these players may activate this ability.

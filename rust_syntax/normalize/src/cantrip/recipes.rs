@@ -3,7 +3,7 @@ use super::*;
 
 fn terms(filter: &ObjectFilter) -> Vec<&ObjectFilter> {
     match filter {
-        ObjectFilter::All(all) => all.iter().flat_map(terms).collect(),
+        ObjectFilter::AllOf(all) => all.iter().flat_map(terms).collect(),
         one => vec![one],
     }
 }
@@ -38,7 +38,7 @@ pub(super) fn creature_anthem(affected: &ObjectSet, changes: &[Change]) -> bool 
 }
 
 fn permanent_types(filter: &ObjectFilter) -> bool {
-    let ObjectFilter::Either(all) = filter else {
+    let ObjectFilter::AnyOf(all) = filter else {
         return false;
     };
     let types: BTreeSet<String> = all
@@ -76,11 +76,7 @@ pub(super) fn graveyard_permanent_target(spec: &TargetSpec) -> Option<String> {
             permanent = true;
             true
         }
-        ObjectFilter::Property {
-            property: Property::ManaValue,
-            comparison: Comparison::LessOrEqual,
-            value: Expr::Constant(n),
-        } if *n >= 0 && *n <= u32::MAX.into() => {
+        ObjectFilter::Property { property: Property::ManaValue, test: NumberTest::Compare { comparison: Comparison::LessOrEqual, value: Expr::Constant(n) } } if *n >= 0 && *n <= u32::MAX.into() => {
             maximum = Some(*n);
             true
         }
@@ -124,7 +120,7 @@ pub(super) fn combine_attack_block(card: &Card) -> Option<Card> {
             i += 1;
             continue;
         }
-        let merged = EventSpec::Either(vec![first.clone(), second.clone()]);
+        let merged = EventSpec::AnyOf(vec![first.clone(), second.clone()]);
         let Ability::Triggered { event, .. } = &mut out.abilities[i] else {
             unreachable!()
         };
@@ -201,7 +197,7 @@ pub(super) fn shared_trigger(event: &EventSpec, body: &Program) -> Option<String
         }
         return Some(format!("when_asked(EventMask::SPELL_CAST, cantrip_mechanics::triggers::a_player_casts_a_spell_of_color::<{{ Color::{color} as u8 }}>)"));
     }
-    let EventSpec::Either(events) = event else {
+    let EventSpec::AnyOf(events) = event else {
         return None;
     };
     if events.len() != 2 {

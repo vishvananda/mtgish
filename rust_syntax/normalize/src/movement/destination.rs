@@ -771,7 +771,7 @@ mod corpus_tests {
                             self.movements += 1;
                         }
                         Operation::MoveTopCard { destination, .. }
-                        | Operation::CounterWith { destination, .. } => {
+                        | Operation::Counter { destination: destination, .. } => {
                             let view = destination_view(destination, &[]);
                             let converted = destination_from_parts(
                                 &view.destination,
@@ -860,11 +860,7 @@ pub(crate) fn counter_with(
 ) -> Result<Operation, String> {
     let converted =
         destination_from_parts(&destination, &entry, false, &MovementTerms::default(), None)?;
-    Ok(Operation::CounterWith {
-        object,
-        when,
-        destination: converted.destination,
-    })
+    Ok(Operation::Counter { objects: ObjectSet::One(object), destination_when: when, destination: converted.destination })
 }
 pub(crate) fn move_top_card(
     actor: PlayerSet,

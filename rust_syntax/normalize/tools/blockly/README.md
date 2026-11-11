@@ -574,3 +574,10 @@ without replacing the current draft.
 `npm run test:target-modes -- /tmp/card-blocks.html` checks the direct target/mode
 views, real toolbox drags, local target allocation, scope isolation, safe removal,
 count editing, undo and exact saved-workspace restoration.
+
+Numeric comparisons now use typed `NumberTest` inputs: scalar expressions remain
+numbers, while AllOf/AnyOf predicates combine tests against that number. The
+Values menu includes a numeric-alternatives starter; it cannot connect to a draw
+or damage amount. The single Counter action accepts spell/ability sets and an
+optional conditional destination. Schema189 also renames the capped repeat form
+to RepeatableWithLimit. See [the migration and storage note](../../../../docs/ast-human-189-20261111.md).

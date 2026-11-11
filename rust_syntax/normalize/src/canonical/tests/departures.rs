@@ -86,7 +86,7 @@ fn wrapped_and_alternative_events_keep_destination_availability() {
     let new = event(None, "Graveyard", false);
     for header in [
         json!({"FirstEachTurn":old.clone()}),
-        json!({"Either":[old,new.clone()]}),
+        json!({"AnyOf":[old,new.clone()]}),
         json!({"FirstEachTurn":new}),
     ] {
         let value = normalized(ability(header, query("Graveyard")));

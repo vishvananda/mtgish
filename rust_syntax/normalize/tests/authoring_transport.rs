@@ -225,7 +225,7 @@ fn joined_branch_receipts_report_each_cloned_origin() {
 
 #[test]
 fn hoisted_selection_choosers_keep_their_earlier_prepared_reference() {
-    let text=card("Together([WithSelections{steps:[{binding:s17,chooser:Players(You),objects:One(This),count:Exactly(1),constraints:[]},{binding:s99,chooser:Players(Matching{binding:decider,condition:Compare{left:CountObjects(Prepared(s17)),comparison:Greater,right:0}}),objects:One(This),count:Exactly(1),constraints:[]}],action:NoteObjects{objects:Prepared(s99)}}])");
+    let text=card("Together([WithSelections{steps:[{binding:s17,chooser:Players(You),objects:One(This),count:Exactly(1),constraints:[]},{binding:s99,chooser:Players(Matching{binding:decider,condition:Compare{left:CountObjects(Prepared(s17)),test:Compare{comparison:Greater,value:0}}}),objects:One(This),count:Exactly(1),constraints:[]}],action:NoteObjects{objects:Prepared(s99)}}])");
     let (doc, mapped) = mapped(&text);
     let after = doc.transport(&mapped.card, &mapped.map).unwrap();
     assert!(after.write().unwrap().contains("Prepared(s17)"));
@@ -233,7 +233,7 @@ fn hoisted_selection_choosers_keep_their_earlier_prepared_reference() {
 
 #[test]
 fn nested_preparations_capture_outer_names_before_local_definitions() {
-    let text=card("WithSelections{steps:[{binding:outer,chooser:Players(You),objects:One(This),count:Exactly(1),constraints:[]}],action:WithSelections{steps:[{binding:inner,chooser:Players(Matching{binding:decider,condition:Compare{left:CountObjects(Prepared(outer)),comparison:Greater,right:0}}),objects:Prepared(outer),count:Exactly(1),constraints:[]}],action:NoteObjects{objects:Prepared(inner)}}}");
+    let text=card("WithSelections{steps:[{binding:outer,chooser:Players(You),objects:One(This),count:Exactly(1),constraints:[]}],action:WithSelections{steps:[{binding:inner,chooser:Players(Matching{binding:decider,condition:Compare{left:CountObjects(Prepared(outer)),test:Compare{comparison:Greater,value:0}}}),objects:Prepared(outer),count:Exactly(1),constraints:[]}],action:NoteObjects{objects:Prepared(inner)}}}");
     let (doc, mapped) = mapped(&text);
     let after = doc.transport(&mapped.card, &mapped.map).unwrap();
     let code = after.write().unwrap();

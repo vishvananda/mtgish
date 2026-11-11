@@ -1893,8 +1893,8 @@ impl Compiler {
                 crate::mtg_types::CardType::Creature,
                 crate::mtg_types::CardType::Planeswalker,
             ];
-            let dying = ObjectFilter::Either(dying.map(ObjectFilter::CardType).to_vec());
-            *objects = ObjectFilter::All(vec![dying, objects.clone()]);
+            let dying = ObjectFilter::AnyOf(dying.map(ObjectFilter::CardType).to_vec());
+            *objects = ObjectFilter::AllOf(vec![dying, objects.clone()]);
         }
         writeln!(
             out,
@@ -2254,12 +2254,12 @@ impl Compiler {
         const FEATURE: &str = "what a rule on triggering asks of an ability";
         let asked = |code: &str| planned::planned_value(FEATURE, "false", code);
         Ok(match filter {
-            F::All(filters) | F::Either(filters) => {
+            F::AllOf(filters) | F::AnyOf(filters) => {
                 let tests = filters
                     .iter()
                     .map(|f| self.triggering_ability(Some(f)))
                     .collect::<Result<Vec<_>>>()?;
-                let joint = if matches!(filter, F::All(_)) {
+                let joint = if matches!(filter, F::AllOf(_)) {
                     " && "
                 } else {
                     " || "
@@ -2326,7 +2326,7 @@ pub(super) fn preventions(program: &Program) -> Vec<u32> {
 /// "If this would enter and ...": the same replacement, asked as it enters.
 pub(super) fn entering_if(event: &ReplacementEvent, body: &Program) -> Option<Program> {
     let ReplacementEvent::Enter {
-        objects: ObjectFilter::All(filters),
+        objects: ObjectFilter::AllOf(filters),
     } = event
     else {
         return None;
@@ -2336,7 +2336,7 @@ pub(super) fn entering_if(event: &ReplacementEvent, body: &Program) -> Option<Pr
     };
     let filter = match rest {
         [one] => one.clone(),
-        many => ObjectFilter::All(many.to_vec()),
+        many => ObjectFilter::AllOf(many.to_vec()),
     };
     Some(Program {
         instructions: vec![Instruction::If {
@@ -2420,7 +2420,7 @@ pub(super) fn spell_or_ability(
     intervening_if: Option<&Condition>,
     body: &Program,
 ) -> Option<Vec<EventSpec>> {
-    if let EventSpec::Either(events) = event {
+    if let EventSpec::AnyOf(events) = event {
         // "That permanent or player": the two are read from different places.
         if format!("{body:?}").contains("DamagedByEvent") {
             return Some(events.clone());
@@ -2442,7 +2442,7 @@ pub(super) fn spell_or_ability(
                 abilities: abilities.clone(),
             },
         ],
-        EventSpec::Either(events)
+        EventSpec::AnyOf(events)
             if matches!(
                 events.as_slice(),
                 [EventSpec::Spell { .. }, EventSpec::Activated { .. }]
@@ -2584,7 +2584,7 @@ pub(super) fn damaged_to_bound(filter: &mut ObjectFilter, result: u32, each: &Ob
             *filter = ObjectFilter::SameObject(each.clone());
             true
         }
-        ObjectFilter::All(filters) => filters
+        ObjectFilter::AllOf(filters) => filters
             .iter_mut()
             .fold(false, |found, f| damaged_to_bound(f, result, each) || found),
         _ => false,

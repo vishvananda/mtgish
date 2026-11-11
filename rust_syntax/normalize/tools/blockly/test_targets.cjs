@@ -63,7 +63,7 @@ let browser,page;
  await page.waitForFunction(()=>window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.operation.args.preventable===true&&window.cardBlocks.valid());
  console.log('Prevention toggle passed');
  // Complex targets stay custom. Domain changes retain non-domain details.
- await page.evaluate(()=>{const d=window.cardBlocks,v=d.generated(),t=v.faces[0].abilities[0].args.announcement.targets[0];t.filter={kind:'All',args:[{kind:'CardType',args:'Creature'},{kind:'Not',args:{kind:'Color',args:'Black'}}]};t.kind={Object:{kind:'Permanent',zones:['Battlefield']}};t.count={UpTo:{kind:'Constant',args:2}};v.faces[0].abilities[0].args.body.instructions[0].args.operation.args.recipients={kind:'Objects',args:{kind:'Targets',args:0}};d.loadIR(v);});
+ await page.evaluate(()=>{const d=window.cardBlocks,v=d.generated(),t=v.faces[0].abilities[0].args.announcement.targets[0];t.filter={kind:'AllOf',args:[{kind:'CardType',args:'Creature'},{kind:'Not',args:{kind:'Color',args:'Black'}}]};t.kind={Object:{kind:'Permanent',zones:['Battlefield']}};t.count={UpTo:{kind:'Constant',args:2}};v.faces[0].abilities[0].args.body.instructions[0].args.operation.args.recipients={kind:'Objects',args:{kind:'Targets',args:0}};d.loadIR(v);});
  await page.waitForFunction(()=>window.cardBlocks.valid());
  const custom=await target();
  assert.equal(await page.evaluate(()=>window.cardBlocks.workspace.getAllBlocks(false).find(b=>b.state.ty.named==='TargetSpec').getFieldValue('TARGET_PRESET')),'CUSTOM');

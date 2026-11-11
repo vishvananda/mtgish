@@ -1,3 +1,5 @@
+#[path = "support/epoch189.rs"]
+mod epoch189;
 use mtgish_ast::{canonical, corpus, ir::*, lower, migrate, mtg_types as source, validate};
 use serde_json::{json, Value};
 
@@ -9,6 +11,7 @@ fn fixtures() -> impl Iterator<Item = &'static str> {
         .chain(include_str!("fixtures/reference_crew_history_20261110.ronl").lines())
 }
 fn canonical_abilities(mut value: Value) -> Value {
+    epoch189::tree(&mut value);
     let abilities: Vec<Ability> = serde_json::from_value(value.clone()).unwrap();
     validate::abilities(&abilities).unwrap();
     canonical::abilities(&mut value).unwrap();
@@ -52,6 +55,7 @@ fn migration_preserves_saved_186_meaning_and_diagnoses_invalid_surveil_receipt()
         let mut preserved = 0;
         for line in include_str!("fixtures/reference32_before_v186.jsonl").lines() {
             let mut original: Value = serde_json::from_str(line).unwrap();
+        epoch189::tree(&mut original);
             let name = original["faces"][0]["name"].as_str().unwrap().to_owned();
             if name == "Starving Revenant" {
                 let error = migrate::mapped_read_json(line).unwrap_err();
@@ -60,11 +64,12 @@ fn migration_preserves_saved_186_meaning_and_diagnoses_invalid_surveil_receipt()
             }
             let mapped = migrate::mapped_read_json(line).unwrap_or_else(|error| panic!("{name}: {error}"));
             assert_eq!(mapped.source_version,186);
+            epoch189::assert_origins(&serde_json::from_str(line).unwrap(), &mapped);
             original["schema_version"]=json!(SCHEMA_VERSION);
             for face in original["faces"].as_array_mut().unwrap() { face["schema_version"]=json!(SCHEMA_VERSION); }
             assert_eq!(serde_json::to_value(&mapped.card).unwrap(),original,"{name}: migration changed saved meaning");
             assert!(mapped.map.introduced.is_empty());
-            assert!(mapped.map.sites.iter().all(|(old,new)|new == &vec![old.clone()]));
+            assert!(mapped.map.sites.values().all(|new|new.len() == 1));
             preserved+=1;
         }
         assert_eq!(preserved,31);
@@ -142,13 +147,14 @@ fn all_saved_186_records_preserve_meaning_or_diagnose_wrong_surveil_family() {
         let mut invalid=Vec::new();
         for line in input.lines() {
             let line=line.unwrap();let mut old:Value=serde_json::from_str(&line).unwrap();
+        epoch189::tree(&mut old);
             match migrate::mapped_read_json(&line) {
                 Ok(mapped)=> {
                     old["schema_version"]=json!(SCHEMA_VERSION);
                     for face in old["faces"].as_array_mut().unwrap() {face["schema_version"]=json!(SCHEMA_VERSION);}
                     assert_eq!(serde_json::to_value(&mapped.card).unwrap(),old);
                     assert!(mapped.map.introduced.is_empty());
-                    assert!(mapped.map.sites.iter().all(|(old,new)|new == &vec![old.clone()]));
+                    assert!(mapped.map.sites.values().all(|new|new.len() == 1));
                 },
                 Err(error)=> {
                     assert!(error.contains("did not surveil"),"{error}");
@@ -198,7 +204,7 @@ fn prepared_186_named_documents_use_the_same_explicit_epoch_migration() {
             let current=serde_json::to_value(&doc).unwrap();
             assert_eq!(current["card"]["schema_version"],json!(SCHEMA_VERSION));
             assert_eq!(current["bindings"],old["bindings"]);
-            let mut expected=old["card"].clone();expected["schema_version"]=json!(SCHEMA_VERSION);
+            let mut expected=old["card"].clone();epoch189::tree(&mut expected);expected["schema_version"]=json!(SCHEMA_VERSION);
             for face in expected["faces"].as_array_mut().unwrap() {face["schema_version"]=json!(SCHEMA_VERSION);}
             assert_eq!(current["card"],expected);
         }

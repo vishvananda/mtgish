@@ -483,7 +483,7 @@ fn generated_modules_execute_in_cantrip() {
     else {
         panic!()
     };
-    *affected = mtgish_ast::battlefield_query!(ObjectFilter::All(vec![
+    *affected = mtgish_ast::battlefield_query!(ObjectFilter::AllOf(vec![
         ObjectFilter::CardType(mtgish_ast::mtg_types::CardType::Creature),
         ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),
     ]))

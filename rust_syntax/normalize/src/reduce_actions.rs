@@ -331,7 +331,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
                 .collect::<Option<Vec<_>>>()?;
             let count = parts.len() as i64;
             ZoneMove::new(
-                in_graveyard(&of(owner), &ObjectFilter::Either(parts)),
+                in_graveyard(&of(owner), &ObjectFilter::AnyOf(parts)),
                 D::OwnersBattlefield,
             )
             .choose(Count::UpTo(Expr::Constant(count)))
@@ -377,7 +377,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             ZoneMove::new(ObjectSet::One(ObjectRef::Source), D::OwnersBattlefield).entry(flags)
         }
         ("PutACardAndOrACardFromHandOnBattlefield", [a, b, flags]) => ZoneMove::new(
-            hand(&ObjectFilter::Either(vec![
+            hand(&ObjectFilter::AnyOf(vec![
                 hand_filter(a)?,
                 hand_filter(b)?,
             ])),
@@ -476,7 +476,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             ZoneMove::new(
                 in_graveyard(
                     &of(owner),
-                    &ObjectFilter::All(vec![
+                    &ObjectFilter::AllOf(vec![
                         cards.clone(),
                         ObjectFilter::History {
                             event: ObjectHistory::DiedOrPutFromBattlefield,
@@ -493,7 +493,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         ) => ZoneMove::new(
             in_graveyard(
                 owners,
-                &ObjectFilter::All(vec![
+                &ObjectFilter::AllOf(vec![
                     cards.clone(),
                     ObjectFilter::History {
                         event: ObjectHistory::DiedOrPutFromBattlefield,
@@ -510,7 +510,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         ) => ZoneMove::new(
             in_graveyard(
                 owners,
-                &ObjectFilter::All(vec![
+                &ObjectFilter::AllOf(vec![
                     cards.clone(),
                     ObjectFilter::History {
                         event: ObjectHistory::PutIntoGraveyard,
@@ -540,7 +540,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
         }
         ("ReturnEachCardFromGraveyardToHandThatWasCycledOrDiscardedThisTurn", [Filter(cards)]) => {
             ZoneMove::new(
-                graveyard(&ObjectFilter::All(vec![
+                graveyard(&ObjectFilter::AllOf(vec![
                     cards.clone(),
                     ObjectFilter::History {
                         event: ObjectHistory::CycledOrDiscarded,
@@ -629,7 +629,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             ZoneMove::new(
                 ObjectSet::Matching {
                     objects: Box::new(ObjectSet::Recorded(result.clone())),
-                    filter: ObjectFilter::Either(parts),
+                    filter: ObjectFilter::AnyOf(parts),
                 },
                 D::OwnersBattlefield,
             )
@@ -726,7 +726,7 @@ fn cast_with(
         action,
         cards,
         count,
-        terms,
+        terms: Box::new(terms),
         group: group.map(|group| Box::new(group.clone())),
     }
 }
@@ -916,7 +916,7 @@ fn reduce_cast(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Op
         ) => play(
             ObjectSet::Matching {
                 objects: Box::new(cards.clone()),
-                filter: ObjectFilter::Either(vec![
+                filter: ObjectFilter::AnyOf(vec![
                     ObjectFilter::CardType(crate::mtg_types::CardType::Land),
                     spells.clone(),
                 ]),
@@ -930,7 +930,7 @@ fn reduce_cast(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Op
         ) => play(
             ObjectSet::Matching {
                 objects: Box::new(cards.clone()),
-                filter: ObjectFilter::Either(vec![objects_filter(lands), spells.clone()]),
+                filter: ObjectFilter::AnyOf(vec![objects_filter(lands), spells.clone()]),
             },
             one(),
             free(),
@@ -1349,7 +1349,7 @@ fn reduce_stack_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
     Some(match (form, operands) {
         ("CopyEachSpellAndMayChooseNewTargets", [Filter(spells)]) => Operation::CopyEach {
             actor: actor.clone(),
-            objects: ObjectFilter::All(vec![
+            objects: ObjectFilter::AllOf(vec![
                 ObjectFilter::OnStack(StackTrait::Spell),
                 spells.clone(),
             ]),
@@ -1390,22 +1390,13 @@ fn reduce_stack_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             objects: stack_filter(term)?,
             targets: T::May,
         },
-        ("CounterEachSpellAndAbility", [term]) => Operation::Counter {
-            objects: ObjectSet::Zone {
+        ("CounterEachSpellAndAbility", [term]) => Operation::Counter { objects: ObjectSet::Zone {
                 scope: ZoneScope::Shared(EventZone::Stack),
                 kind: ObjectKind::Any,
                 filter: stack_filter(term)?,
-            },
-            destination: Destination::OwnersGraveyard,
-        },
-        ("CounterEachAbility", [term]) => Operation::Counter {
-            objects: on_stack(stack_filter(term)?),
-            destination: Destination::OwnersGraveyard,
-        },
-        ("CounterSpellIntoTopOrBottomOfLibrary", [Object(o)]) => Operation::Counter {
-            objects: ObjectSet::One(o.clone()),
-            destination: Destination::OwnersLibraryTopOrBottom,
-        },
+            }, destination: (Destination::OwnersGraveyard).into(), destination_when: None },
+        ("CounterEachAbility", [term]) => Operation::Counter { objects: on_stack(stack_filter(term)?), destination: (Destination::OwnersGraveyard).into(), destination_when: None },
+        ("CounterSpellIntoTopOrBottomOfLibrary", [Object(o)]) => Operation::Counter { objects: ObjectSet::One(o.clone()), destination: (Destination::OwnersLibraryTopOrBottom).into(), destination_when: None },
         ("SetValueXOfSpellOrAbility", [Object(o), Number(n)]) => Operation::SetX {
             object: o.clone(),
             value: n.clone(),

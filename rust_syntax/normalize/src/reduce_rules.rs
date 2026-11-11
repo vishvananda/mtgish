@@ -644,7 +644,7 @@ fn reduce_activation_rule(bare: &str, operands: &[Operand]) -> Option<PlayerRule
     let own = |object: &ObjectRef| {
         ObjectFilter::AbilityOf(Box::new(ObjectFilter::SameObject(object.clone())))
     };
-    let loyalty = |source| ObjectFilter::All(vec![is(StackTrait::Loyalty), source]);
+    let loyalty = |source| ObjectFilter::AllOf(vec![is(StackTrait::Loyalty), source]);
     let grant = |abilities, grant| PlayerRule::ActivationGrant { abilities, grant };
     let keyword = |word| is(StackTrait::Keyword(word));
     Some(match (bare, operands) {
@@ -682,7 +682,7 @@ fn reduce_activation_rule(bare: &str, operands: &[Operand]) -> Option<PlayerRule
             G::AdditionalTimes(Expr::Constant(1)),
         ),
         ("MayActivatePowerUpAbilitiesOfPermanentsAnAdditionalTime", [Objects(set)]) => grant(
-            ObjectFilter::All(vec![keyword(AbilityKeyword::PowerUp), of(set)?]),
+            ObjectFilter::AllOf(vec![keyword(AbilityKeyword::PowerUp), of(set)?]),
             G::AdditionalTimes(Expr::Constant(1)),
         ),
         ("MayActivateExhaustAbilitiesAsThoughTheyHaventBeenActivated", []) => {
@@ -1071,7 +1071,7 @@ fn reduce_object_static(bare: &str, operands: &[Operand]) -> Option<RuleChange> 
         }),
         ("DecreaseEquipAbilityCostWhenTargetingAPermanent", [amount, Objects(set)]) => {
             Some(R::OwnActivationCost {
-                abilities: ObjectFilter::All(vec![
+                abilities: ObjectFilter::AllOf(vec![
                     ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Equip)),
                     ObjectFilter::TargetsAny(Box::new(Recipients::Objects(set.clone()))),
                 ]),
@@ -1366,11 +1366,11 @@ fn reduce_rule_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
             // These card populations exclude battlefield objects; the separately
             // printed permanent effect applies there according to control, not ownership.
             let mut filters = match cards.clone() {
-                ObjectFilter::All(filters) => filters,
+                ObjectFilter::AllOf(filters) => filters,
                 filter => vec![filter],
             };
             filters.push(ObjectFilter::Not(Box::new(ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield)))));
-            Some(everywhere(ObjectFilter::All(filters), graveyard_changes(effects)?))
+            Some(everywhere(ObjectFilter::AllOf(filters), graveyard_changes(effects)?))
         }
         ("SelfEffect", effects) => Some(everywhere(source(), graveyard_changes(effects)?)),
         ("SelfEffect_NonBattlefield", effects) => Some(Ability::Scoped {
@@ -1589,7 +1589,7 @@ fn reduce_rule_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
         ("WardAbilitiesOfPermanentsDontTrigger", [Objects(objects)]) => {
             Some(Ability::TriggerRule {
                 cause: None,
-                abilities: Some(ObjectFilter::All(vec![
+                abilities: Some(ObjectFilter::AllOf(vec![
                     ObjectFilter::OnStack(StackTrait::Triggered),
                     ObjectFilter::AbilityOf(Box::new(event_filter(objects)?)),
                     ObjectFilter::HasKeywordFamily(KeywordFamily::Ward),

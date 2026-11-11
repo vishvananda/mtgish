@@ -227,8 +227,10 @@ impl Context {
             "AbilitySources" => Operand::Filter(self.mana_sources(&decode(value).ok()?).ok()?),
             "CardsInLibrary" => Operand::Filter(self.library_filter(&decode(value).ok()?).ok()?),
             "Comparison" => {
-                let (comparison, expression) = self.comparison(&decode(value).ok()?).ok()?;
-                Operand::Comparison(comparison, expression)
+                match self.number_test(&decode(value).ok()?).ok()? {
+                    NumberTest::Compare { comparison, value } => Operand::Comparison(comparison, value),
+                    test => Operand::NumberTest(test),
+                }
             }
             "Rule" => {
                 let rule: source::Rule = decode(value).ok()?;
@@ -341,7 +343,7 @@ impl Context {
                     Operand::Ability(Box::new(Ability::Spell {
                         announcement: Announcement {
                             targets: child.targets.split_off(known),
-                            modes: child.modes,
+                            modes: child.modes.map(Box::new),
                         },
                         body,
                     }))
@@ -1032,7 +1034,7 @@ impl Context {
             }
             S::XCantBeZero => ActivationRule::XNotZero,
             S::XCantBeGreaterThan(limit) => ActivationRule::XAtMost(self.number(limit).ok()?),
-            S::XIs(value) => ActivationRule::XIs(self.number(value).ok()?),
+            S::XIs(value) => ActivationRule::XIs(self.number_test(&source::Comparison::EqualTo(value.clone())).ok()?),
             S::CantBeCopied => ActivationRule::CantBeCopied,
             S::OnlyPlayerMayActivate(player) => {
                 ActivationRule::OnlyBy(PlayerSet::One(self.player(player).ok()?))
@@ -1244,18 +1246,14 @@ impl Context {
     ) -> Option<Condition> {
         if let source::Players::HasACardInGraveyard(cards) = value {
             if let Ok(ObjectSet::Zone { kind, filter, .. }) = self.grave_cards(cards) {
-                return Some(Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::Zone {
+                return Some(Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Zone {
                         scope: ZoneScope::Players {
                             zone: EventZone::Graveyard,
                             players: PlayerSet::One(player.clone()),
                         },
                         kind,
                         filter,
-                    })),
-                    comparison: Comparison::GreaterOrEqual,
-                    right: Expr::Constant(1),
-                });
+                    })), test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) } });
             }
         }
         let (name, mut operands) = self.primitive("Players", value)?;

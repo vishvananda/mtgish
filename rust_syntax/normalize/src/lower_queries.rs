@@ -24,45 +24,32 @@ impl Context {
             return Ok(check);
         }
         if let S::Trigger_IsDefendingPlayer = filter {
-            return Ok(Condition::Compare {
-                left: Expr::CountPlayers(PlayerSet::Intersection(vec![
+            return Ok(Condition::Compare { left: Expr::CountPlayers(PlayerSet::Intersection(vec![
                     PlayerSet::One(player),
                     PlayerSet::One(self.player(&source::Player::Trigger_DefendingPlayer)?),
-                ])),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            });
+                ])), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } });
         }
         if let S::SinglePlayer(other) = filter {
-            return Ok(Condition::Compare {
-                left: Expr::CountPlayers(PlayerSet::Intersection(vec![
+            return Ok(Condition::Compare { left: Expr::CountPlayers(PlayerSet::Intersection(vec![
                     PlayerSet::One(player),
                     PlayerSet::One(self.player(other)?),
-                ])),
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            });
+                ])), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } });
         }
         Ok(match filter {
             S::NumCardTypesInGraveyardIs(c) => {
-                let (comparison, right) = self.comparison(c)?;
-                Condition::Compare {
-                    left: Expr::CountDistinct {
+                let test = self.number_test(c)?;
+                Condition::Compare { left: Expr::CountDistinct {
                         objects: Box::new(self.private_cards(
                             EventZone::Graveyard,
                             PlayerSet::One(player),
                             ObjectFilter::Any,
                         )),
                         property: DistinctProperty::CardTypes,
-                    },
-                    comparison,
-                    right,
-                }
+                    }, test }
             }
             S::NumCardsInHandIs(c) | S::NumCardsInGraveyardIs(c) => {
-                let (comparison, right) = self.comparison(c)?;
-                Condition::Compare {
-                    left: Expr::CountObjects(Box::new(self.private_cards(
+                let test = self.number_test(c)?;
+                Condition::Compare { left: Expr::CountObjects(Box::new(self.private_cards(
                         if matches!(filter, S::NumCardsInHandIs(_)) {
                             EventZone::Hand
                         } else {
@@ -70,32 +57,25 @@ impl Context {
                         },
                         PlayerSet::One(player),
                         ObjectFilter::Any,
-                    ))),
-                    comparison,
-                    right,
-                }
+                    ))), test }
             }
             S::NumCardsOfTypeInGraveyardIs(c, cards) => {
-                let (comparison, right) = self.comparison(c)?;
-                Condition::Compare {
-                    left: Expr::CountObjects(Box::new(self.private_cards(
+                let test = self.number_test(c)?;
+                Condition::Compare { left: Expr::CountObjects(Box::new(self.private_cards(
                         EventZone::Graveyard,
                         PlayerSet::One(player),
                         self.grave_filter(cards)?,
-                    ))),
-                    comparison,
-                    right,
-                }
+                    ))), test }
             }
             S::IsTheirTurn => Condition::PlayerIsActive(player),
             S::IsNotTheirTurn => Condition::Not(Box::new(Condition::PlayerIsActive(player))),
-            S::And(items) => Condition::All(
+            S::And(items) => Condition::AllOf(
                 items
                     .iter()
                     .map(|f| self.player_matches(player.clone(), f))
                     .collect::<Result<_>>()?,
             ),
-            S::Or(items) => Condition::Either(
+            S::Or(items) => Condition::AnyOf(
                 items
                     .iter()
                     .map(|f| self.player_matches(player.clone(), f))
@@ -112,25 +92,17 @@ impl Context {
                 minimum: 1,
             })),
             S::ControlsNum(comparison, objects) => {
-                let (comparison, right) = self.comparison(comparison)?;
-                Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::All(
+                let test = self.number_test(comparison)?;
+                Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::AllOf(
                         vec![
                             self.filter(objects)?,
                             ObjectFilter::ControlledBy(PlayerSet::One(player)),
                         ],
-                    )))),
-                    comparison,
-                    right,
-                }
+                    )))), test }
             }
             S::LifeTotalIs(comparison) => {
-                let (comparison, right) = self.comparison(comparison)?;
-                Condition::Compare {
-                    left: Expr::player_life(player),
-                    comparison,
-                    right,
-                }
+                let test = self.number_test(comparison)?;
+                Condition::Compare { left: Expr::player_life(player), test }
             }
             S::HasACounterOfType(k)
             | S::HasNoCountersOfType(k)
@@ -141,15 +113,11 @@ impl Context {
                     S::HasANumberOfCountersOfType(c, _) => self.comparison(c)?,
                     _ => unreachable!(),
                 };
-                Condition::Compare {
-                    left: Expr::CountCounters {
+                Condition::Compare { left: Expr::CountCounters {
                         recipients: Box::new(Recipients::Players(PlayerSet::One(player))),
                         kind: Some(crate::counter::lower(k)),
                         information: Information::CurrentOrLastKnown,
-                    },
-                    comparison,
-                    right,
-                }
+                    }, test: NumberTest::Compare { comparison: comparison, value: right } }
             }
             _ => return Err(unsupported(filter)),
         })

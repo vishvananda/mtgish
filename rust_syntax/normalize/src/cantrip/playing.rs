@@ -12,7 +12,7 @@ fn of_the_spell(filter: &ObjectFilter) -> bool {
             property: Property::ManaValue,
             ..
         } => true,
-        ObjectFilter::All(parts) | ObjectFilter::Either(parts) => parts.iter().all(of_the_spell),
+        ObjectFilter::AllOf(parts) | ObjectFilter::AnyOf(parts) => parts.iter().all(of_the_spell),
         ObjectFilter::Not(inner) => of_the_spell(inner),
         _ => false,
     }
@@ -23,10 +23,10 @@ fn split(filter: &ObjectFilter) -> (Vec<ObjectFilter>, Vec<ObjectFilter>) {
     match filter {
         ObjectFilter::Any => (Vec::new(), Vec::new()),
         // "Play lands and cast spells": a land or anything is anything.
-        ObjectFilter::Either(parts) if parts.iter().any(|p| matches!(p, ObjectFilter::Any)) => {
+        ObjectFilter::AnyOf(parts) if parts.iter().any(|p| matches!(p, ObjectFilter::Any)) => {
             (Vec::new(), Vec::new())
         }
-        ObjectFilter::All(parts) => {
+        ObjectFilter::AllOf(parts) => {
             let (spell, card) = parts.iter().map(split).unzip::<_, _, Vec<_>, Vec<_>>();
             (spell.concat(), card.concat())
         }
@@ -39,7 +39,7 @@ fn all_of(mut parts: Vec<ObjectFilter>) -> ObjectFilter {
     match parts.len() {
         0 => ObjectFilter::Any,
         1 => parts.remove(0),
-        _ => ObjectFilter::All(parts),
+        _ => ObjectFilter::AllOf(parts),
     }
 }
 
@@ -115,16 +115,14 @@ impl Compiler {
             ObjectFilter::CardType(t) => {
                 format!("g.card(w.face).types.has(CardType::{})", card_type(t)?)
             }
-            ObjectFilter::All(parts) => joined(self, parts, numbers, " && ")?,
-            ObjectFilter::Either(parts) => joined(self, parts, numbers, " || ")?,
+            ObjectFilter::AllOf(parts) => joined(self, parts, numbers, " && ")?,
+            ObjectFilter::AnyOf(parts) => joined(self, parts, numbers, " || ")?,
             ObjectFilter::Not(inner) => format!("!{}", self.spell_test(inner, id, numbers)?),
             filter if lane_p::any_of_filter(filter).is_some() => {
                 let either = lane_p::any_of_filter(filter).expect("just asked");
                 self.spell_test(&either, id, numbers)?
             }
-            ObjectFilter::Property {
-                comparison, value, ..
-            } => {
+            ObjectFilter::Property { test: NumberTest::Compare { comparison: comparison, value: value }, .. } => {
                 numbers.push(self.fetch(self.number(value)?.code));
                 let limit = format!("limit_{id}_{}", numbers.len() - 1);
                 compare("i64::from(w.mana_value)", comparison, &limit)

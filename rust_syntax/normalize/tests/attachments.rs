@@ -120,7 +120,7 @@ fn equip_uses_an_ordinary_targeted_attach_program_but_retains_keyword_identity()
     assert!(limits.sorcery);
     assert!(matches!(announcement.targets.as_slice(), [TargetSpec {
         kind: TargetKind::Object(_), count: Count::Exactly(Expr::Constant(1)),
-        filter: ObjectFilter::All(filters), ..
+        filter: ObjectFilter::AllOf(filters), ..
     }] if matches!(filters.as_slice(), [ObjectFilter::CardType(source::CardType::Creature), ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController))])));
     assert!(matches!(
         body.instructions.as_slice(),

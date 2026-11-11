@@ -98,7 +98,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -368,7 +368,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -407,7 +407,7 @@
                 }
               },
               "filter": {
-                "kind": "All",
+                "kind": "AllOf",
                 "args": [
                   {
                     "kind": "CardType",
@@ -544,7 +544,7 @@
                           },
                           "kind": "Permanent",
                           "filter": {
-                            "kind": "All",
+                            "kind": "AllOf",
                             "args": [
                               {
                                 "kind": "CardType",
@@ -908,7 +908,7 @@
           "Object": {
             "event": "FinalChapterResolves",
             "objects": {
-              "kind": "All",
+              "kind": "AllOf",
               "args": [
                 {
                   "kind": "Subtype",
@@ -1055,7 +1055,7 @@
                           },
                           "kind": "Permanent",
                           "filter": {
-                            "kind": "All",
+                            "kind": "AllOf",
                             "args": [
                               {
                                 "kind": "Not",
@@ -1067,7 +1067,7 @@
                                 }
                               },
                               {
-                                "kind": "Either",
+                                "kind": "AnyOf",
                                 "args": [
                                   {
                                     "kind": "Subtype",
@@ -1240,7 +1240,7 @@
                           },
                           "kind": "Permanent",
                           "filter": {
-                            "kind": "All",
+                            "kind": "AllOf",
                             "args": [
                               {
                                 "kind": "Subtype",

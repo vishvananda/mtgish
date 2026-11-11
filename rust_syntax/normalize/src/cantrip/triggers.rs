@@ -187,7 +187,7 @@ impl Compiler {
     fn remove_direct_watch(filter: &mut ObjectFilter) -> bool {
         match filter {
             ObjectFilter::SameObject(ObjectRef::Source) => { *filter = ObjectFilter::Any; true }
-            ObjectFilter::All(filters) => filters.iter_mut().any(Self::remove_direct_watch),
+            ObjectFilter::AllOf(filters) => filters.iter_mut().any(Self::remove_direct_watch),
             _ => false,
         }
     }
@@ -213,7 +213,7 @@ impl Compiler {
         // card has arrived belongs to the object there (113.6k, 400.7).
         let is_source = |f: &ObjectFilter| matches!(f, ObjectFilter::SameObject(ObjectRef::Source));
         let own = match objects {
-            ObjectFilter::All(all) => all.iter().any(is_source),
+            ObjectFilter::AllOf(all) => all.iter().any(is_source),
             one => is_source(one),
         };
         frame.subject_is_source = own && entering && !controller;
@@ -282,7 +282,7 @@ impl Compiler {
             object: Some(Carried::Subject),
             subject_is_attachment: matches!(objects, ObjectFilter::SameObject(ObjectRef::AttachedTo(host)) if matches!(**host, ObjectRef::Source)),
             subject_is_source: match objects {
-                ObjectFilter::All(all) => all.iter().any(|f| matches!(f, ObjectFilter::SameObject(ObjectRef::Source))),
+                ObjectFilter::AllOf(all) => all.iter().any(|f| matches!(f, ObjectFilter::SameObject(ObjectRef::Source))),
                 f => matches!(f, ObjectFilter::SameObject(ObjectRef::Source)),
             },
             ..Frame::default()
@@ -958,12 +958,12 @@ impl Compiler {
         let def = |test: &str| format!("def.is_some_and(|d| {test})");
         Ok(match filter {
             ObjectFilter::Any => "true".into(),
-            ObjectFilter::All(filters) | ObjectFilter::Either(filters) => {
+            ObjectFilter::AllOf(filters) | ObjectFilter::AnyOf(filters) => {
                 let tests = filters
                     .iter()
                     .map(|f| self.activation_test(f, frame))
                     .collect::<Result<Vec<_>>>()?;
-                let joint = if matches!(filter, ObjectFilter::All(_)) {
+                let joint = if matches!(filter, ObjectFilter::AllOf(_)) {
                     " && "
                 } else {
                     " || "
@@ -1322,8 +1322,7 @@ impl Compiler {
     fn ordinal_event(
         &mut self,
         event: &EventSpec,
-        comparison: &Comparison,
-        value: &Expr,
+        test: &NumberTest,
         by_player: bool,
     ) -> Result<Matched> {
         if let EventSpec::Player {
@@ -1332,14 +1331,17 @@ impl Compiler {
             ..
         } = event
         {
-            return self.expends(players, comparison, value);
+            return match test {
+                NumberTest::Compare { comparison, value } => self.expends(players, comparison, value),
+                _ => Err(gap("an expends numeric predicate")),
+            };
         }
         if self.history.is_some() {
             return Err(gap("an ordinal event in a history question"));
         }
         let mut matched = self.event(event)?;
         // The first of a batch is the batch's: the rest see it in the history.
-        let first = matches!(comparison, Comparison::Equal) && matches!(value, Expr::Constant(1));
+        let first = matches!(test, NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(1) });
         let summed = matched.sums;
         if (matched.batch.is_some() || summed) && !first {
             return Err(gap("an ordinal of grouped events"));
@@ -1361,13 +1363,6 @@ impl Compiler {
             frame: Frame::default(),
         });
         let past = asked.event(event)?;
-        let values = match value {
-            Expr::AnyOf(values) => values.clone(),
-            other => vec![other.clone()],
-        };
-        let values = self.matching(matched.frame, |c| {
-            values.iter().map(|value| Ok(c.number(value)?.code)).collect::<Result<Vec<_>>>()
-        })?;
         // Summed events are one happening: the rest of it is no earlier one.
         let others = if summed {
             ".filter(|r| !r.in_batch_of(event))"
@@ -1378,12 +1373,7 @@ impl Compiler {
             "q.history().this_turn().iter(){others}.filter_map({}){same}.count() as i64 + 1",
             past.history_test()
         );
-        let tests: Vec<String> =
-            values.iter().map(|value| read::compare(&count, comparison, value)).collect();
-        let test = match tests.as_slice() {
-            [one] => one.clone(),
-            many => format!("({})", many.join(" || ")),
-        };
+        let test = self.matching(matched.frame, |c| c.number_test(&count, test))?;
         let test = match summed {
             true => planned::planned_value("an ordinal of grouped events", "false", &test),
             false => test,
@@ -1743,7 +1733,7 @@ impl Compiler {
                 kind,
                 grouping,
             } => self.discard_event(players, cards, *source_only, kind, grouping),
-            EventSpec::Either(events) => {
+            EventSpec::AnyOf(events) => {
                 let mut merged: Option<Matched> = None;
                 for event in events {
                     let next = self.event(event)?;
@@ -1792,11 +1782,7 @@ impl Compiler {
             EventSpec::BecomesTarget { objects, kind, by } => {
                 self.becomes_target(objects, kind, by)
             }
-            EventSpec::NthEachTurn {
-                event,
-                comparison,
-                value,
-            } => self.ordinal_event(event, comparison, value, true),
+            EventSpec::NthEachTurn { event, test } => self.ordinal_event(event, test, true),
             // "If it's the first time that creature has": each its own first time.
             EventSpec::FirstEachTurn(event)
                 if self
@@ -1811,7 +1797,7 @@ impl Compiler {
                 self.first_of(event, "q.history().this_turn().iter()", false)
             }
             EventSpec::FirstEachTurn(event) => {
-                self.ordinal_event(event, &Comparison::Equal, &Expr::Constant(1), false)
+                self.ordinal_event(event, &NumberTest::compare(Comparison::Equal, Expr::Constant(1)), false)
             }
             EventSpec::Attack {
                 attackers,
@@ -2077,7 +2063,7 @@ impl Compiler {
         self.counters_total = false;
         self.recipient_subject = false;
         let controller_subject = std::mem::take(&mut self.controller_subject);
-        if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {
+        if let (EventSpec::AnyOf(events), Err(failed)) = (event, &matched) {
             let whole = gate.is_none() && conditional.is_none() && limits.per_turn.is_none();
             if failed.feature == "alternative events with different rules" && whole {
                 return self.triggered_each(

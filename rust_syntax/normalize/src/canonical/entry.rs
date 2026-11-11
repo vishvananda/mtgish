@@ -9,7 +9,7 @@ fn contains(filter: &mut Value, wanted: &Value, tracing: bool) -> bool {
         }
         return true;
     }
-    filter["kind"] == "All"
+    filter["kind"] == "AllOf"
         && filter["args"]
             .as_array_mut()
             .is_some_and(|items| items.iter_mut().any(|item| contains(item, wanted, tracing)))
@@ -17,7 +17,7 @@ fn contains(filter: &mut Value, wanted: &Value, tracing: bool) -> bool {
 
 fn controlled(filter: &Value) -> bool {
     filter["kind"] == "ControlledBy"
-        || filter["kind"] == "All"
+        || filter["kind"] == "AllOf"
             && filter["args"]
                 .as_array()
                 .is_some_and(|items| items.iter().any(controlled))
@@ -48,7 +48,7 @@ pub(super) fn player(event: &mut Value, schema: &Schema, tracing: bool) {
     if args["objects"].is_null() {
         args["objects"] = restriction;
     } else if !contains(&mut args["objects"], &restriction, tracing) {
-        args["objects"] = json!({"kind":"All","args":[args["objects"].take(), restriction]});
+        args["objects"] = json!({"kind":"AllOf","args":[args["objects"].take(), restriction]});
     }
     args["players"] = json!({"kind":"All"});
 }
@@ -160,7 +160,7 @@ fn zone(event: &mut Value) {
         }
         return;
     }
-    if let Some(items) = event.get_mut("Either").and_then(Value::as_array_mut) {
+    if let Some(items) = event.get_mut("AnyOf").and_then(Value::as_array_mut) {
         items.iter_mut().for_each(zone);
     }
     // These wrappers do not alter the wrapped event's object/player roles.

@@ -715,7 +715,7 @@ mod tests {
                 let Expr::EventHistory { event, .. } = &mut filtered else { unreachable!() };
                 let EventSpec::Damage(damage) = &mut **event else { unreachable!() };
                 damage.kind = DamageKind::Noncombat;
-                damage.sources = ObjectFilter::All(vec![
+                damage.sources = ObjectFilter::AllOf(vec![
                     ObjectFilter::Color(ManaColor::Red),
                     ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),
                 ]);

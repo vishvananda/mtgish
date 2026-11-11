@@ -38,7 +38,7 @@ impl Context {
                     player: Some(player.clone()),
                     outcome: CoinOutcome::Heads,
                 },
-                PlayerSet::Union(players) => Condition::All(players.iter().map(heads).collect()),
+                PlayerSet::Union(players) => Condition::AllOf(players.iter().map(heads).collect()),
                 _ => unreachable!("only stable, explicit participants establish a coin batch"),
             }
         }

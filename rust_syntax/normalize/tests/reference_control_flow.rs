@@ -59,8 +59,8 @@ fn titan_hunter_checks_that_no_creature_died_and_damages_the_end_step_player() {
     let condition = &trigger["intervening_if"];
     assert_eq!(condition["kind"], json!("Compare"));
     let compare = &condition["args"];
-    assert_eq!(compare["comparison"], json!("Equal"));
-    assert_eq!(compare["right"], json!({"kind":"Constant","args":0}));
+    assert_eq!(compare["test"]["args"]["comparison"], json!("Equal"));
+    assert_eq!(compare["test"]["args"]["value"], json!({"kind":"Constant","args":0}));
     assert_eq!(
         compare["left"]["args"]["event"],
         json!({"ZoneChange":{

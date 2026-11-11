@@ -520,7 +520,7 @@ impl Context {
                         Ok(Mode {
                             announcement: Announcement {
                                 targets: context.targets,
-                                modes: context.modes,
+                                modes: context.modes.map(Box::new),
                             },
                             body,
                             weight: weights.get(i).copied().unwrap_or(1),

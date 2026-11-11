@@ -76,26 +76,13 @@ fn comparison_code(comparison: &Comparison) -> String {
     format!("Comparison::{}", form(comparison))
 }
 
-/// A property equal to any one of several values is any one of those filters.
-pub(super) fn any_of_filter(f: &ObjectFilter) -> Option<ObjectFilter> {
-    let ObjectFilter::Property {
-        property,
-        comparison: Comparison::Equal,
-        value: Expr::AnyOf(values),
-    } = f
-    else {
-        return None;
-    };
-    Some(ObjectFilter::Either(
-        values
-            .iter()
-            .map(|value| ObjectFilter::Property {
-                property: property.clone(),
-                comparison: Comparison::Equal,
-                value: value.clone(),
-            })
-            .collect(),
-    ))
+/// Authoring/casting consumers can distribute a compound property predicate.
+pub(super) fn any_of_filter(filter: &ObjectFilter) -> Option<ObjectFilter> {
+    let ObjectFilter::Property { property, test } = filter else { return None; };
+    let NumberTest::AnyOf(tests) = test else { return None; };
+    Some(ObjectFilter::AnyOf(tests.iter().map(|test| ObjectFilter::Property {
+        property: property.clone(), test: test.clone(),
+    }).collect()))
 }
 
 /// `NameKind`s past one type: "a nonbasic land card name", "a noncreature, nonland
@@ -272,7 +259,7 @@ pub(super) fn only_their_own(objects: &ObjectSet) -> bool {
     fn theirs(filter: &ObjectFilter) -> bool {
         let bound = |players: &PlayerSet| matches!(players, PlayerSet::One(PlayerRef::Bound(_)));
         match filter {
-            ObjectFilter::All(filters) => filters.iter().any(theirs),
+            ObjectFilter::AllOf(filters) => filters.iter().any(theirs),
             ObjectFilter::InZone(ZoneScope::Players { zone, players }) => {
                 matches!(
                     zone,
@@ -875,7 +862,7 @@ impl Compiler {
                 objects: crate::battlefield_query!(ObjectFilter::ChosenFilter), ..
             }, .. })) && filters.iter().all(|filter| match filter {
                 ObjectFilter::CardType(_) => true,
-                ObjectFilter::All(parts) => matches!(parts.last(), Some(ObjectFilter::CardType(_)))
+                ObjectFilter::AllOf(parts) => matches!(parts.last(), Some(ObjectFilter::CardType(_)))
                     && parts.iter().filter(|p| matches!(p, ObjectFilter::CardType(_))).count() == 1
                     && parts.iter().all(|p| matches!(p, ObjectFilter::CardType(_) | ObjectFilter::Color(_))
                         || matches!(p, ObjectFilter::Not(inner) if matches!(inner.as_ref(), ObjectFilter::Color(_)))),
@@ -1356,14 +1343,6 @@ impl Compiler {
             }
             Expr::TurnsSinceForetold => {
                 held_number(feature, "q.turns_since_foretold(asker.source)")
-            }
-            // A number compared with "1 or 2": equal to one of them.
-            Expr::AnyOf(values) => {
-                let mut each = Vec::new();
-                for value in values {
-                    each.push(self.number(value)?.code);
-                }
-                held_number(feature, &format!("{M}::numbers::any_of(&[{}])", each.join(", ")))
             }
             Expr::ModesChosen(object) => held_number(
                 feature,
@@ -2161,7 +2140,7 @@ pub(super) fn landwalk_rule(land: &ObjectFilter) -> bool {
             name(kind).as_str(),
             "Plains" | "Island" | "Swamp" | "Mountain" | "Forest"
         ),
-        ObjectFilter::All(parts) => {
+        ObjectFilter::AllOf(parts) => {
             matches!(parts.as_slice(), [a, b] if (snow(a) && of_a_type(b)) || (snow(b) && of_a_type(a)))
         }
         // "Snow landwalk" (Zombie Musher): no keyword of Cantrip's says it.
@@ -2212,7 +2191,7 @@ fn native_landwalk(land: &ObjectFilter) -> Option<&'static str> {
         ObjectFilter::Not(inner) if matches!(**inner, ObjectFilter::Supertype(S::Basic)) => {
             "NonbasicLandwalk"
         }
-        ObjectFilter::All(parts) if parts.len() == 2 => {
+        ObjectFilter::AllOf(parts) if parts.len() == 2 => {
             let snow = |f: &ObjectFilter| matches!(f, ObjectFilter::Supertype(S::Snow));
             let ty = match parts.as_slice() {
                 [a, b] if snow(a) => b,
@@ -2243,7 +2222,7 @@ fn land_filter(land: &ObjectFilter) -> Option<String> {
         ObjectFilter::CardType(kind) => format!("LandFilter::CardType(CardType::{})", name(kind)),
         ObjectFilter::Chosen(kind) => format!("LandFilter::Chosen(ChoiceKind::{kind:?})"),
         ObjectFilter::Not(inner) => format!("LandFilter::Not(&{})", land_filter(inner)?),
-        ObjectFilter::All(parts) => {
+        ObjectFilter::AllOf(parts) => {
             let parts = parts.iter().map(land_filter).collect::<Option<Vec<_>>>()?;
             format!("LandFilter::All(&[{}])", parts.join(", "))
         }
@@ -3048,7 +3027,7 @@ fn filter_word(filter: &ObjectFilter) -> Option<String> {
         ObjectFilter::Subtype(t) => name(t),
         ObjectFilter::Color(c) => name(c).to_lowercase(),
         ObjectFilter::Not(inner) => format!("non{}", filter_word(inner)?),
-        ObjectFilter::All(parts) => parts
+        ObjectFilter::AllOf(parts) => parts
             .iter()
             .map(filter_word)
             .collect::<Option<Vec<_>>>()?
@@ -3196,7 +3175,7 @@ pub(super) fn flat_modes(selection: &ModeSelection) -> Option<Vec<Mode>> {
                     let requires = match (&mode.requires, inner.requires) {
                         (None, own) => own,
                         (Some(outer), None) => Some(outer.clone()),
-                        (Some(outer), Some(own)) => Some(Condition::All(vec![outer.clone(), own])),
+                        (Some(outer), Some(own)) => Some(Condition::AllOf(vec![outer.clone(), own])),
                     };
                     Mode { requires, ..inner }
                 }))
@@ -4210,10 +4189,7 @@ impl Compiler {
                 };
                 format!("for player in {players} {{ {M}::library::shuffle_around(g, player, &{excluding}); }}")
             }
-            Operation::Counter {
-                objects,
-                destination,
-            } => {
+            Operation::Counter { objects: objects, destination: destination, destination_when: None } => {
                 let spells = self.fetch(self.objects(objects)?);
                 format!("{M}::effects::counter_onto(g, {source}, {spells}, CounterDestination::{destination:?})?")
             }

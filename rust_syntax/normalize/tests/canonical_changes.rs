@@ -1,3 +1,5 @@
+#[path = "support/legacy_entries.rs"]
+mod legacy_entries;
 use mtgish_ast::{
     change_lists,
     ir::*,
@@ -127,10 +129,7 @@ fn inkmoth_and_nantuko_publish_combined_additions_without_other_tree_changes() {
         // creature/card types and all other animation properties stay exact.
         // The immutable capture predates typed layouts; keep that decoding
         // boundary explicit rather than changing its original RON bytes.
-        #[derive(serde::Deserialize)]
-        struct Snapshot {schema_version:u32,layout:String,faces:Vec<Card>,data:Vec<Field>}
-        let old:Snapshot=ron::from_str(before).unwrap();
-        let before=UnifiedCard {schema_version:old.schema_version,layout:Layout::from_name(&old.layout).unwrap(),faces:old.faces,data:old.data};
+        let before: UnifiedCard = legacy_entries::ron(before);
         let mut expected = serde_json::to_value(before).unwrap();
         expected["schema_version"] = json!(SCHEMA_VERSION);
         expected["faces"][0]["schema_version"] = json!(SCHEMA_VERSION);

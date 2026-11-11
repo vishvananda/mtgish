@@ -134,7 +134,7 @@ impl Context {
     /// Damage this replacement prevented, when its source passes `filter`.
     fn prevented_from(&self, filter: ObjectFilter) -> Result<Condition> {
         let some = |left| self.this_way_compare(left, Comparison::Greater, 0);
-        Ok(Condition::All(vec![
+        Ok(Condition::AllOf(vec![
             some(Expr::Performed(self.done(Done::Prevented)?)),
             some(Expr::CountObjects(Box::new(ObjectSet::Matching {
                 objects: Box::new(ObjectSet::Damage(DamageSubject::Source)),
@@ -145,7 +145,7 @@ impl Context {
 
     fn damaged_this_way(&self, filter: ObjectFilter) -> Result<Expr> {
         Ok(Expr::CountObjects(Box::new(ObjectSet::battlefield(
-            ObjectFilter::All(vec![
+            ObjectFilter::AllOf(vec![
                 ObjectFilter::DamagedBy(self.done(Done::Damage)?),
                 filter,
             ]),
@@ -248,7 +248,7 @@ impl Context {
                 .this_way_count(
                     Done::Graveyard,
                     Before,
-                    Some(ObjectFilter::All(vec![
+                    Some(ObjectFilter::AllOf(vec![
                         self.filter(p)?,
                         ObjectFilter::OwnedBy(self.players(players)?),
                     ])),
@@ -300,11 +300,7 @@ impl Context {
     }
 
     fn this_way_compare(&self, left: Expr, comparison: Comparison, right: i64) -> Condition {
-        Condition::Compare {
-            left,
-            comparison,
-            right: Expr::Constant(right),
-        }
+        Condition::Compare { left, test: NumberTest::Compare { comparison: comparison, value: Expr::Constant(right) } }
     }
 
     /// `None` for forms this table does not read.
@@ -315,12 +311,8 @@ impl Context {
             set.map(|left| self.this_way_compare(left, Comparison::Greater, 0))
         };
         let measured = |left: Result<Expr>, comparison: &source::Comparison| {
-            let (comparison, right) = self.comparison(comparison)?;
-            Ok(Condition::Compare {
-                left: left?,
-                comparison,
-                right,
-            })
+            let test = self.number_test(comparison)?;
+            Ok(Condition::Compare { left: left?, test })
         };
         let cards = |c: &source::Cards| self.card_filter(c).map(Some);
         let permanents = |p: &source::Permanents| self.filter(p).map(Some);

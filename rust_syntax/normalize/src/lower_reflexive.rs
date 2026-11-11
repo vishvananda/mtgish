@@ -477,11 +477,7 @@ impl Context {
         child.open_searches.clear();
         child.modes = None;
         child.reflexive_count = match &condition {
-            Some(Condition::Compare {
-                left,
-                comparison: Comparison::Greater,
-                right: Expr::Constant(0),
-            }) => Some(left.clone()),
+            Some(Condition::Compare { left, test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } }) => Some(left.clone()),
             _ => None,
         };
         let known = child.targets.len();
@@ -493,7 +489,7 @@ impl Context {
             condition,
             announcement: Announcement {
                 targets: child.targets.split_off(known),
-                modes: child.modes,
+                modes: child.modes.map(Box::new),
             },
             body,
         }))

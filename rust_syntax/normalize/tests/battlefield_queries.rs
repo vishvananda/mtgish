@@ -1,3 +1,5 @@
+#[path = "support/epoch189.rs"]
+mod epoch189;
 #[path = "support/query_aliases.rs"]
 mod query_aliases;
 use mtgish_ast::{ir::*, mtg_types::OracleCard, unified, validate};
@@ -174,6 +176,7 @@ fn complete_producer_records_change_only_query_aliases_and_schema_stamps() {
     for (line, before) in source.into_iter().zip(before) {
         let source: OracleCard = ron::from_str(line).unwrap();
         let mut expected: Value = serde_json::from_str(before).unwrap();
+        epoch189::tree(&mut expected);
         query_aliases::battlefield(&mut expected);
         query_aliases::value_choices(&mut expected);
         expected["schema_version"] = json!(SCHEMA_VERSION);

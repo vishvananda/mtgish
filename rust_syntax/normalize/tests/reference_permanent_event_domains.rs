@@ -30,7 +30,7 @@ fn heralds_reveille_keeps_permanent_exploration_controller_and_this_turn_without
     assert_eq!(h["event"]["Object"]["event"], json!("Explores"));
     assert_eq!(
         h["event"]["Object"]["objects"],
-        json!({"kind":"All","args":[
+        json!({"kind":"AllOf","args":[
             {"kind":"Any"},{"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}
         ]})
     );
@@ -65,7 +65,7 @@ fn yuna_keeps_battlefield_origin_control_other_source_and_departing_counters() {
     assert_eq!(e["to"], json!("Graveyard"));
     assert_eq!(
         e["objects"]["args"][0],
-        json!({"kind":"All","args":[
+        json!({"kind":"AllOf","args":[
             {"kind":"Not","args":{"kind":"SameObject","args":{"kind":"Source"}}},
             {"kind":"Any"},
             {"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}
@@ -92,9 +92,9 @@ fn it_that_betrays_keeps_opponent_nontoken_and_existing_source_exclusion() {
     );
     assert_eq!(
         e["objects"],
-        json!({"kind":"All","args":[
+        json!({"kind":"AllOf","args":[
             {"kind":"Not","args":{"kind":"SameObject","args":{"kind":"Source"}}},
-            {"kind":"All","args":[{"kind":"Not","args":{"kind":"Token"}},{"kind":"Any"}]}
+            {"kind":"AllOf","args":[{"kind":"Not","args":{"kind":"Token"}},{"kind":"Any"}]}
         ]})
     );
 }
@@ -116,11 +116,11 @@ fn sawblade_counts_the_same_permanent_sacrifices_for_its_condition_and_damage() 
     assert_eq!(condition_history["window"], json!("ThisTurn"));
     assert_eq!(condition_history["measure"], json!("Occurrences"));
     assert_eq!(
-        trigger["intervening_if"]["args"]["comparison"],
+        trigger["intervening_if"]["args"]["test"]["args"]["comparison"],
         json!("GreaterOrEqual")
     );
     assert_eq!(
-        trigger["intervening_if"]["args"]["right"],
+        trigger["intervening_if"]["args"]["test"]["args"]["value"],
         json!({"kind":"Constant","args":1})
     );
     assert_eq!(
@@ -155,7 +155,7 @@ fn explicit_card_type_qualifications_remain_in_all_three_event_families() {
         if path {
             filter = &filter["args"][0];
         }
-        assert_eq!(filter["kind"], json!("Either"));
+        assert_eq!(filter["kind"], json!("AnyOf"));
         assert_eq!(filter["args"].as_array().unwrap().len(), 6);
     }
 }
@@ -165,7 +165,7 @@ fn from_anywhere_permanent_cards_keep_their_type_domain() {
     let c = custom("WhenACardIsPutIntoAPlayersGraveyardFromAnywhere(IsPermanent,AnyPlayer)");
     let event = &c["abilities"][0]["args"]["event"]["ZoneChange"];
     assert_eq!(event["from"], Value::Null);
-    assert_eq!(event["objects"]["args"][0]["kind"], json!("Either"));
+    assert_eq!(event["objects"]["args"][0]["kind"], json!("AnyOf"));
     assert_eq!(
         event["objects"]["args"][0]["args"]
             .as_array()

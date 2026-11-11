@@ -82,6 +82,7 @@ pub enum Operand {
     Program(Program),
     Filter(ObjectFilter),
     Comparison(Comparison, Expr),
+    NumberTest(NumberTest),
     /// The event a row holds; its other operands can name what it binds.
     Event(Box<EventSpec>),
     /// The instruction a "this way" row reads: the nearest one before it.

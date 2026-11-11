@@ -42,7 +42,7 @@ fn dynamic_future_event_keeps_the_distinct_creator_event_subject() {
     impl Visitor for Get { fn operation(&mut self, op:&Operation)->bool {if matches!(op,Operation::CreateDelayedTrigger{..}) {self.0=Some(op.clone());return false} true} }
     let mut get=Get(None); for a in &necro.abilities {if matches!(a,Ability::Triggered{..}) {a.walk(&mut get);}}
     let mut op=get.0.unwrap(); let Operation::CreateDelayedTrigger{body,event,..}=&mut op else {panic!()};
-    let EventSpec::Object { objects, .. } = event else {panic!()}; *objects = ObjectFilter::Any;
+    let EventSpec::Object { objects, .. } = &mut **event else {panic!()}; *objects = ObjectFilter::Any;
     body.instructions=vec![Instruction::Effect {result:ResultId(999),operation:Operation::Draw {players:PlayerSet::One(PlayerRef::OwnerOf(Box::new(ObjectRef::EventSubject))),amount:Expr::Constant(1)}}];
     let line=include_str!("fixtures/tapped_aura_references.ronl").lines().find(|l|l.starts_with("Card(Name: \"Kudzu\"")).unwrap();
     let source: OracleCard=ron::from_str(line).unwrap();let mut c=lower::card(&source).unwrap();
@@ -65,7 +65,7 @@ fn mixed_future_stack_subject_is_an_explicit_gap() {
     struct Change;
     impl VisitorMut for Change { fn operation(&mut self, op:&mut Operation)->bool {
         if let Operation::CreateDelayedTrigger{body,event,..}=op {
-            *event=EventSpec::SpellOrActivation {players:PlayerSet::All,spells:ObjectFilter::Any,abilities:ObjectFilter::Any};
+            **event=EventSpec::SpellOrActivation {players:PlayerSet::All,spells:ObjectFilter::Any,abilities:ObjectFilter::Any};
             body.instructions=vec![Instruction::Effect{result:ResultId(999),operation:Operation::Draw{players:PlayerSet::One(PlayerRef::ControllerOf(Box::new(ObjectRef::EventStackObject))),amount:Expr::Constant(1)}}];
             return false
         } true

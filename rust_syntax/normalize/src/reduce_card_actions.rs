@@ -68,12 +68,12 @@ fn reduce_card_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                 CardPlayAction::Either,
                 ObjectSet::Matching {
                     objects: Box::new(ObjectSet::LibraryTops(actor.clone())),
-                    filter: ObjectFilter::Either(vec![
-                        ObjectFilter::All(vec![
+                    filter: ObjectFilter::AnyOf(vec![
+                        ObjectFilter::AllOf(vec![
                             ObjectFilter::CardType(crate::mtg_types::CardType::Land),
                             objects_filter(lands),
                         ]),
-                        ObjectFilter::All(vec![
+                        ObjectFilter::AllOf(vec![
                             ObjectFilter::Not(Box::new(ObjectFilter::CardType(
                                 crate::mtg_types::CardType::Land,
                             ))),
@@ -158,7 +158,7 @@ fn ability_filter(term: &Operand) -> Option<ObjectFilter> {
         return stack_filter(term);
     };
     match (form.as_str(), operands.as_slice()) {
-        ("And", items) => Some(ObjectFilter::All(
+        ("And", items) => Some(ObjectFilter::AllOf(
             items.iter().map(ability_filter).collect::<Option<_>>()?,
         )),
         ("Other", [Operand::Vocabulary { form, .. }]) if form == "ThisAbility" => Some(

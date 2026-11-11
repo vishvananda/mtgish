@@ -100,7 +100,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -139,7 +139,7 @@
                         },
                         "kind": "Permanent",
                         "filter": {
-                          "kind": "All",
+                          "kind": "AllOf",
                           "args": [
                             {
                               "kind": "CardType",
@@ -260,7 +260,7 @@
                   },
                   "kind": "Permanent",
                   "filter": {
-                    "kind": "All",
+                    "kind": "AllOf",
                     "args": [
                       {
                         "kind": "CardType",
@@ -388,7 +388,7 @@
                     },
                     "kind": "Permanent",
                     "filter": {
-                      "kind": "All",
+                      "kind": "AllOf",
                       "args": [
                         {
                           "kind": "CardType",
@@ -425,7 +425,7 @@
                     },
                     "kind": "Permanent",
                     "filter": {
-                      "kind": "All",
+                      "kind": "AllOf",
                       "args": [
                         {
                           "kind": "CardType",
@@ -479,7 +479,7 @@
               "kind": "All"
             },
             "objects": {
-              "kind": "All",
+              "kind": "AllOf",
               "args": [
                 {
                   "kind": "CardType",
@@ -883,7 +883,7 @@
                       },
                       "kind": "Card",
                       "filter": {
-                        "kind": "All",
+                        "kind": "AllOf",
                         "args": [
                           {
                             "kind": "Color",

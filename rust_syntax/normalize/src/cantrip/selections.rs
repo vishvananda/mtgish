@@ -261,7 +261,7 @@ impl Compiler {
             }
             CardTypeDomain::AmongCasts {
                 by: PlayerSet::One(by),
-                filter: ObjectFilter::All(filters),
+                filter: ObjectFilter::AllOf(filters),
                 window: HistoryWindow::ThisTurn,
             } => {
                 let [ObjectFilter::Not(not)] = filters.as_slice() else {
@@ -559,7 +559,7 @@ fn and_or_parts(cards: &ObjectSet, count: &Count, line: Option<&str>) -> Option<
     let (ObjectSet::Zone { filter, .. } | ObjectSet::Matching { filter, .. }) = cards else {
         return None;
     };
-    let (ObjectFilter::Either(parts), Count::UpTo(Expr::Constant(most))) = (filter, count) else {
+    let (ObjectFilter::AnyOf(parts), Count::UpTo(Expr::Constant(most))) = (filter, count) else {
         return None;
     };
     (parts.len() as i64 == *most && line?.contains("and/or")).then(|| parts.clone())

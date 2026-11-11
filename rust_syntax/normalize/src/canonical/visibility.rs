@@ -91,7 +91,7 @@ pub(crate) fn branch_sites(value: &Value) -> Vec<(u64, String)> {
                     collect(body, true, &format!("{at}/body"), out)
                 }
                 Instruction::Repeatable(body) => collect(body, true, &at, out),
-                Instruction::Times { .. } => {}
+                Instruction::RepeatableWithLimit { .. } => {}
             }
         }
     }

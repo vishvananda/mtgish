@@ -161,7 +161,7 @@ impl Context {
         let one = |p: &source::Permanent| Box::new(source::Permanents::SinglePermanent(p.clone().into()));
         let trigger = match value {
             S::Or(events) => {
-                return Ok(EventSpec::Either(
+                return Ok(EventSpec::AnyOf(
                     events
                         .iter()
                         .map(|event| self.future_event(event))
@@ -209,7 +209,7 @@ impl Context {
         ) {
             filters.push(ObjectFilter::Not(Box::new(ObjectFilter::Token)));
         }
-        Ok(ObjectFilter::All(filters))
+        Ok(ObjectFilter::AllOf(filters))
     }
 
     // Use only when the event contract independently identifies a permanent,
@@ -329,7 +329,7 @@ impl Context {
                 EventSpec::ZoneChange {
                     // A permanent is put into its owner's graveyard (CR 400.3).
                     // This is a battlefield departure, not a card's "from anywhere" trigger.
-                    objects: ObjectFilter::All(vec![
+                    objects: ObjectFilter::AllOf(vec![
                         self.permanent_event_filter(objects)?,
                         ObjectFilter::OwnedBy(self.players(players)?),
                     ]),
@@ -346,7 +346,7 @@ impl Context {
             }
             S::WhenACardIsPutIntoAPlayersGraveyardFromTheirLibrary(cards, owners) => {
                 EventSpec::ZoneChange {
-                    objects: ObjectFilter::All(vec![
+                    objects: ObjectFilter::AllOf(vec![
                         self.card_filter(cards)?,
                         ObjectFilter::OwnedBy(self.players(owners)?),
                     ]),
@@ -434,16 +434,12 @@ impl Context {
             },
             S::WhenAPlayerControlsAPermanent(players, objects) => {
                 let condition =
-                Condition::Compare {
-                    left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::All(
+                Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::battlefield(ObjectFilter::AllOf(
                         vec![
                             self.filter(objects)?,
                             ObjectFilter::ControlledBy(self.players(players)?),
                         ],
-                    )))),
-                    comparison: Comparison::Greater,
-                    right: Expr::Constant(0),
-                };
+                    )))), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } };
                 match &**objects {
                     source::Permanents::SinglePermanent(object) => EventSpec::StateWithPlayer {
                         condition,
@@ -483,10 +479,10 @@ impl Context {
                 });
                 if let Some(grouped) = grouped.filter(|_| same_action) {
                     EventSpec::Batch {
-                        event: Box::new(EventSpec::Either(grouped)),
+                        event: Box::new(EventSpec::AnyOf(grouped)),
                         per: BatchPer::Whole, count: None, including: None,
                     }
-                } else { EventSpec::Either(events) }
+                } else { EventSpec::AnyOf(events) }
             },
             S::If(condition, event) => {
                 let event = self.trigger(event)?;

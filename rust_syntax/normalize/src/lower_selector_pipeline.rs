@@ -54,7 +54,7 @@ impl Context {
                     use source::CardType::{
                         Artifact, Battle, Creature, Enchantment, Land, Planeswalker,
                     };
-                    ObjectFilter::Either(
+                    ObjectFilter::AnyOf(
                         [Artifact, Battle, Creature, Enchantment, Land, Planeswalker]
                             .into_iter()
                             .map(ObjectFilter::CardType)
@@ -70,13 +70,13 @@ impl Context {
                 L::Modified => ObjectFilter::Modified,
                 L::IsCard => ObjectFilter::IsCard,
             },
-            P::All(items) => ObjectFilter::All(
+            P::All(items) => ObjectFilter::AllOf(
                 items
                     .iter()
                     .map(|p| self.bind_predicate(p))
                     .collect::<Result<_>>()?,
             ),
-            P::Either(items) => ObjectFilter::Either(
+            P::Either(items) => ObjectFilter::AnyOf(
                 items
                     .iter()
                     .map(|p| self.bind_predicate(p))
@@ -138,12 +138,12 @@ impl Context {
                 property,
                 comparison,
             } => {
-                let (comparison, value) = candidate.predicate_comparison(comparison)?;
-                ObjectFilter::Property {
-                    property: property.clone(),
-                    comparison,
-                    value,
-                }
+                let test = match comparison {
+                    crate::pipeline::selectors::PredicateComparison::Source(c) => candidate.number_test(c)?,
+                    crate::pipeline::selectors::PredicateComparison::Fixed { operator, amount } =>
+                        NumberTest::compare(operator.clone(), Expr::Constant(*amount)),
+                };
+                ObjectFilter::Property { property: property.clone(), test }
             }
             P::Counters {
                 counter,

@@ -14,12 +14,12 @@ impl Context {
                     other,
                 )))))
             }
-            S::And(v) => ObjectFilter::All(
+            S::And(v) => ObjectFilter::AllOf(
                 v.iter()
                     .map(|f| self.damage_sources(f))
                     .collect::<Result<_>>()?,
             ),
-            S::Or(v) => ObjectFilter::Either(
+            S::Or(v) => ObjectFilter::AnyOf(
                 v.iter()
                     .map(|f| self.damage_sources(f))
                     .collect::<Result<_>>()?,
@@ -36,12 +36,8 @@ impl Context {
                 ObjectFilter::Not(Box::new(ObjectFilter::SameObject(self.object(p)?)))
             }
             S::ManaValueIs(c) => {
-                let (comparison, value) = self.comparison(c)?;
-                ObjectFilter::Property {
-                    property: Property::ManaValue,
-                    comparison,
-                    value,
-                }
+                let test = self.number_test(c)?;
+                ObjectFilter::Property { property: Property::ManaValue, test }
             }
             S::IsNamed(n) => self.card_filter(&source::Cards::IsNamed(n.clone()))?,
             _ => {
@@ -293,14 +289,10 @@ impl Context {
         }
         let event = EventSpec::Damage(event);
         Ok(if let Some(c) = amount {
-            let (comparison, right) = self.comparison(c)?;
+            let test = self.number_test(c)?;
             EventSpec::Filtered {
                 event: Box::new(event),
-                condition: Condition::Compare {
-                    left: Expr::EventAmount,
-                    comparison,
-                    right,
-                },
+                condition: Condition::Compare { left: Expr::EventAmount, test },
             }
         } else {
             event
@@ -316,7 +308,7 @@ fn legacy_damage_ambiguity(event: &EventSpec) -> bool {
             (DamageSubject::Source, ObjectKind::Permanent, DamageGrouping::SourceRecipient, DamageRecipients::Objects(f))
             if !matches!(f, ObjectFilter::SameObject(_)) && !matches!(d.kind, DamageKind::Combat)),
         EventSpec::Filtered { event, .. } => legacy_damage_ambiguity(event),
-        EventSpec::Either(events) => {
+        EventSpec::AnyOf(events) => {
             // A shared singular permanent source and a player-recipient
             // alternative leave no shared permanent-recipient interpretation.
             let b = crate::semantics::event_bindings(event);
@@ -398,7 +390,7 @@ fn legacy_damage_permanent_role(event: &EventSpec) -> Option<LegacyPermanentRef>
             Some(LegacyPermanentRef::Recipient)
         }
         EventSpec::Filtered { event, .. } => legacy_damage_permanent_role(event),
-        EventSpec::Either(events) => {
+        EventSpec::AnyOf(events) => {
             let first = events.first().and_then(legacy_damage_permanent_role)?;
             events
                 .iter()

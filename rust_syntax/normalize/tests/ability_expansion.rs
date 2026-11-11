@@ -164,7 +164,7 @@ fn ordinary_replacement_cannot_smuggle_an_intrinsic_definition_but_copiable_text
 }
 #[test]
 fn nested_ability_replacements_keep_ability_scopes_and_enchant_restrictions() {
-    let hosts = EnchantHosts::Permanents(ObjectFilter::All(vec![
+    let hosts = EnchantHosts::Permanents(ObjectFilter::AllOf(vec![
         ObjectFilter::CardType(mtgish_ast::mtg_types::CardType::Creature),
         ObjectFilter::Not(Box::new(ObjectFilter::SameObject(ObjectRef::Source))),
     ]));
@@ -195,7 +195,7 @@ fn nested_ability_replacements_keep_ability_scopes_and_enchant_restrictions() {
     assert_eq!(
         value["abilities"][0]["args"]["changes"][0]["args"][1]["args"]["args"]["hosts"]
             ["Permanents"]["kind"],
-        "All"
+        "AllOf"
     );
 }
 #[test]

@@ -6,6 +6,7 @@ pub mod document;
 mod movement;
 pub mod names;
 mod syntax;
+mod values;
 use crate::{
     ir::*,
     ir_schema::{Fields, Schema},
@@ -123,5 +124,5 @@ pub fn editor_metadata() -> Value {
         let spec=select.clone().into_spec(TargetSlot(0));
         json!({"label":label,"selector":select,"fields":{"kind":spec.kind,"filter":spec.filter,"players":spec.players}})
     }).collect();
-    json!({"defaults":values,"targets":targets,"actions":actions,"instructions":instructions,"keyword_actions":keyword_actions,"object_keyword_actions":object_keyword_actions,"references":names::references()})
+    json!({"values":self::values::metadata(),"defaults":values,"targets":targets,"actions":actions,"instructions":instructions,"keyword_actions":keyword_actions,"object_keyword_actions":object_keyword_actions,"references":names::references()})
 }

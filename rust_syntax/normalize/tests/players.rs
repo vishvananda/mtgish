@@ -170,7 +170,7 @@ fn casting_modifiers_keep_colored_spill_floors_target_predicates_and_nonmana_cos
     ));
     let terror = card("Terror of the Peaks");
     assert!(
-        matches!(rules(&terror).as_slice(), [PlayerRule::SpellCost { spells: ObjectFilter::All(filters), modifier: SpellCostModifier::Increase(Cost { parts }) }] if filters.iter().any(|f| matches!(f,ObjectFilter::TargetsAny(targets) if matches!(targets.as_ref(), Recipients::Objects(ObjectSet::One(ObjectRef::Source))))) && matches!(parts.as_slice(), [CostPart::Life(Expr::Constant(3))]))
+        matches!(rules(&terror).as_slice(), [PlayerRule::SpellCost { spells: ObjectFilter::AllOf(filters), modifier: SpellCostModifier::Increase(Cost { parts }) }] if filters.iter().any(|f| matches!(f,ObjectFilter::TargetsAny(targets) if matches!(targets.as_ref(), Recipients::Objects(ObjectSet::One(ObjectRef::Source))))) && matches!(parts.as_slice(), [CostPart::Life(Expr::Constant(3))]))
     );
 }
 

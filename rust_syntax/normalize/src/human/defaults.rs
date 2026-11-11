@@ -34,6 +34,12 @@ pub fn type_value(name: &str) -> Option<Value> {
     })
 }
 pub fn field(owner: &str, key: &str, ty: &Ty) -> Option<Value> {
+    if owner == "Expr::ObjectProperty" && key == "information" {
+        return Some(json!("CurrentOrLastKnown"));
+    }
+    if owner == "Operation::Counter" && key == "destination" {
+        return Some(serde_json::to_value(MovementDestination::OwnersGraveyard(CardArrival::default())).unwrap());
+    }
     if owner == "KeywordAction::Amass" && key == "creature_type" {
         return Some(json!("Zombie"));
     }

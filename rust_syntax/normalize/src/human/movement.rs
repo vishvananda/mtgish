@@ -38,7 +38,7 @@ pub(super) fn legacy_fields(ty: &str, variant: &str, n: &Node) -> Option<&'stati
         .iter()
         .any(|(key, _)| matches!(key.as_str(), "entry" | "face_down"));
     let compatible = match (ty, variant) {
-        ("Operation", "Move" | "MoveTopCard" | "CounterWith") => {
+        ("Operation", "Move" | "MoveTopCard" | "Counter") => {
             entry || fields.iter().any(|(key, _)| key == "terms")
         }
         ("Operation", "Conjure") => fields.iter().any(|(key, _)| key == "zone"),

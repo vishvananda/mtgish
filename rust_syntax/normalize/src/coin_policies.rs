@@ -299,7 +299,7 @@ impl Analysis {
                     *h = all;
                     return;
                 }
-                Some("ForEachPlayer" | "ForEachObject" | "Optional" | "Times") => {
+                Some("ForEachPlayer" | "ForEachObject" | "Optional" | "RepeatableWithLimit") => {
                     // Non-body inputs read the incoming history, never a future flip.
                     for (t, v, p2) in children(ty, v, p) {
                         if p2 != format!("{q}/body") {

@@ -126,7 +126,7 @@
                                 }
                               },
                               "filter": {
-                                "kind": "All",
+                                "kind": "AllOf",
                                 "args": [
                                   {
                                     "kind": "OwnedBy",

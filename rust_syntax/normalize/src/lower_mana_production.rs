@@ -90,12 +90,12 @@ impl Context {
     fn mana_sources(&self, value: &source::AbilitySources) -> Result<ObjectFilter> {
         use source::AbilitySources as S;
         Ok(match value {
-            S::And(v) => ObjectFilter::All(
+            S::And(v) => ObjectFilter::AllOf(
                 v.iter()
                     .map(|v| self.mana_sources(v))
                     .collect::<Result<_>>()?,
             ),
-            S::Or(v) => ObjectFilter::Either(
+            S::Or(v) => ObjectFilter::AnyOf(
                 v.iter()
                     .map(|v| self.mana_sources(v))
                     .collect::<Result<_>>()?,

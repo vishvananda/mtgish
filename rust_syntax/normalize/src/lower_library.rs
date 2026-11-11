@@ -32,7 +32,7 @@ impl Context {
                 return Ok(ObjectFilter::InSet(Box::new(self.revealed_objects()?)))
             }
             S::RevealedFromPlayersLibraryThisWay(player) => {
-                return Ok(ObjectFilter::All(vec![
+                return Ok(ObjectFilter::AllOf(vec![
                     ObjectFilter::InSet(Box::new(self.revealed_objects()?)),
                     ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
                 ]))
@@ -43,14 +43,14 @@ impl Context {
                 )))
             }
             S::And(v) => {
-                return Ok(ObjectFilter::All(
+                return Ok(ObjectFilter::AllOf(
                     v.iter()
                         .map(|f| self.library_filter(f))
                         .collect::<Result<_>>()?,
                 ))
             }
             S::Or(v) => {
-                return Ok(ObjectFilter::Either(
+                return Ok(ObjectFilter::AnyOf(
                     v.iter()
                         .map(|f| self.library_filter(f))
                         .collect::<Result<_>>()?,
@@ -58,11 +58,7 @@ impl Context {
             }
             S::Not(f) => return Ok(ObjectFilter::Not(Box::new(self.library_filter(f)?))),
             S::IsMonocolored => {
-                return Ok(ObjectFilter::Property {
-                    property: Property::ColorCount,
-                    comparison: Comparison::Equal,
-                    value: Expr::Constant(1),
-                })
+                return Ok(ObjectFilter::Property { property: Property::ColorCount, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(1) } })
             }
             S::HasBasicLandType => {
                 return self.filter(&source::Permanents::Or(vec![
@@ -201,7 +197,7 @@ impl Context {
         // Both cards that search outside the game say "you own" (400.11a).
         if outside {
             for choice in &mut choices {
-                choice.filter = ObjectFilter::All(vec![
+                choice.filter = ObjectFilter::AllOf(vec![
                     choice.filter.clone(),
                     ObjectFilter::OwnedBy(PlayerSet::One(player.clone())),
                 ]);

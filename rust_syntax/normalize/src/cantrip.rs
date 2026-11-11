@@ -1197,7 +1197,7 @@ fn mana_restriction(value: &ManaUse) -> Result<String> {
         {
             "NONCREATURE_SPELLS"
         }
-        ManaUse::CastSpell(ObjectFilter::Either(v))
+        ManaUse::CastSpell(ObjectFilter::AnyOf(v))
             if v.len() == 2
                 && v.iter()
                     .any(|f| matches!(f, ObjectFilter::CardType(T::Instant)))
@@ -1528,7 +1528,7 @@ impl Compiler {
         }
         fn parts<'a>(filter: &'a ObjectFilter, out: &mut Vec<&'a ObjectFilter>) {
             match filter {
-                ObjectFilter::All(all) => all.iter().for_each(|f| parts(f, out)),
+                ObjectFilter::AllOf(all) => all.iter().for_each(|f| parts(f, out)),
                 f => out.push(f),
             }
         }

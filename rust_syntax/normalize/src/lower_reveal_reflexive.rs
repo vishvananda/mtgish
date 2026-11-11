@@ -139,16 +139,12 @@ impl Context {
                     .iter()
                     .any(|(m, selected)| selected == p && triggered.contains(m))
             })
-            .map(|(_, objects, n)| Condition::Compare {
-                left: Expr::CountObjects(Box::new(objects)),
-                comparison: Comparison::GreaterOrEqual,
-                right: n,
-            })
+            .map(|(_, objects, n)| Condition::Compare { left: Expr::CountObjects(Box::new(objects)), test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: n } })
             .collect();
         match guards.len() {
             0 => None,
             1 => guards.into_iter().next(),
-            _ => Some(Condition::All(guards)),
+            _ => Some(Condition::AllOf(guards)),
         }
     }
 }

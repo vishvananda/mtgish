@@ -14,7 +14,7 @@ fn renumbers_ids_in_definition_order_and_sorts_commutative_lists() {
                "players":null,"distribute":null,"constraints":[],"chooser":null})
     };
     let mut value = json!([{"kind":"Spell","args":{
-        "announcement":{"targets":[spec(5, json!({"kind":"All","args":[
+        "announcement":{"targets":[spec(5, json!({"kind":"AllOf","args":[
             {"kind":"Tapped"},{"kind":"CardType","args":"Creature"}]}))],"modes":null},
         "body":{"instructions":[effect(7, target(5)), effect(9, json!({"kind":"Selected","args":7}))]}}}]);
     canonical::abilities(&mut value).unwrap();
@@ -41,12 +41,12 @@ fn destroy(objects: serde_json::Value) -> serde_json::Value {
 
 #[test]
 fn all_drops_any_and_keeps_one_when_nothing_else_remains() {
-    let filter = json!({"kind":"All","args":[{"kind":"Any"},{"kind":"Tapped"}]});
+    let filter = json!({"kind":"AllOf","args":[{"kind":"Any"},{"kind":"Tapped"}]});
     let reduced = destroy(
         json!({"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":filter}}),
     );
     assert_eq!(reduced["args"]["filter"], json!({"kind":"Tapped"}));
-    let filter = json!({"kind":"All","args":[{"kind":"Any"},{"kind":"Any"}]});
+    let filter = json!({"kind":"AllOf","args":[{"kind":"Any"},{"kind":"Any"}]});
     let reduced = destroy(
         json!({"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":filter}}),
     );
@@ -72,7 +72,7 @@ fn zone_scope_absorbs_its_filter() {
     let zone =
         |players: serde_json::Value| json!({"Players":{"zone":"Graveyard","players":players}});
     let in_zone = json!({"kind":"InZone","args":zone(yours.clone())});
-    let filter = json!({"kind":"All","args":[{"kind":"Tapped"},in_zone.clone()]});
+    let filter = json!({"kind":"AllOf","args":[{"kind":"Tapped"},in_zone.clone()]});
     let set = |filter: serde_json::Value| json!({"kind":"Zone","args":{"scope":zone(json!({"kind":"All"})),"kind":"Card","filter":filter}});
     let reduced = destroy(set(filter));
     assert_eq!(reduced["args"]["scope"], zone(yours.clone()));
@@ -119,7 +119,7 @@ fn damage_role_of_the_subject_is_the_event_subject() {
 
 #[test]
 fn reduced_form_keeps_ids_and_order() {
-    let filter = json!({"kind":"All","args":[{"kind":"Tapped"},{"kind":"Any"},{"kind":"CardType","args":"Creature"}]});
+    let filter = json!({"kind":"AllOf","args":[{"kind":"Tapped"},{"kind":"Any"},{"kind":"CardType","args":"Creature"}]});
     let mut value = json!([{"kind":"Spell","args":{
         "announcement":{"targets":[],"modes":null},
         "body":{"instructions":[effect(7, json!({"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":filter}}))]}}}]);
@@ -146,12 +146,12 @@ fn permanent_types_narrow_nothing_on_the_battlefield() {
     .iter()
     .map(|name| json!({"kind":"CardType","args":name}))
     .collect();
-    let either = json!({"kind":"Either","args":six});
+    let either = json!({"kind":"AnyOf","args":six});
     let reduced = destroy(
         json!({"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":either}}),
     );
     assert_eq!(reduced["args"]["filter"], json!({"kind":"Any"}));
-    let filter = json!({"kind":"All","args":[{"kind":"Tapped"},either]});
+    let filter = json!({"kind":"AllOf","args":[{"kind":"Tapped"},either]});
     let reduced = destroy(
         json!({"kind":"Zone","args":{"scope":{"Shared":"Battlefield"},"kind":"Permanent","filter":filter}}),
     );
@@ -172,7 +172,7 @@ fn what_enters_the_battlefield_is_a_permanent() {
     .map(|name| json!({"kind":"CardType","args":name}))
     .collect();
     let mut value = json!([{"kind":"Triggered","args":{
-        "event":{"ZoneChange":{"objects":{"kind":"All","args":[{"kind":"Tapped"},{"kind":"Either","args":six}]},
+        "event":{"ZoneChange":{"objects":{"kind":"AllOf","args":[{"kind":"Tapped"},{"kind":"AnyOf","args":six}]},
             "from":null,"to":"Battlefield"}},
         "announcement":{"targets":[],"modes":null},"body":{"instructions":[]}}}]);
     canonical::abilities(&mut value).unwrap();
@@ -232,7 +232,7 @@ fn a_shared_body_merges_triggers_into_either() {
     let event = |name: &str| json!({"Object":{"event":name,"objects":{"kind":"SameObject","args":{"kind":"Source"}}}});
     let mut split = json!([trigger(event("Attacks")), trigger(event("Blocks"))]);
     let mut joined = json!([trigger(
-        json!({"Either":[event("Blocks"), event("Attacks")]})
+        json!({"AnyOf":[event("Blocks"), event("Attacks")]})
     )]);
     canonical::abilities(&mut split).unwrap();
     canonical::abilities(&mut joined).unwrap();

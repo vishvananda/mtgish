@@ -1,5 +1,7 @@
 //! Explicit entry/copy/characteristic upgrades for immutable historical captures.
 #![allow(dead_code)]
+#[path = "epoch189.rs"]
+mod epoch189;
 use mtgish_ast::{copying, ir::*, keyword_actions, mode_policies, movement};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -165,6 +167,7 @@ pub fn json(value: &mut Value) {
         Value::Array(items) => items.iter_mut().for_each(json),
         _ => (),
     }
+    epoch189::json(value);
     api_names(value);
     if value.get("minimum").is_some() && value.get("modes").is_some() {
         let old: mode_policies::LegacyModeSelection =
@@ -356,7 +359,7 @@ fn has_legacy_keyword_field(input: &str, each: bool) -> bool {
 /// the deepest eligible field first, including old fields in quoted abilities;
 /// draft ChangeZone's intentionally generic entry vector remains untouched.
 pub fn ron<T: serde::de::DeserializeOwned>(input: &str) -> T {
-    let mut input = ron_api_names(input);
+    let mut input = epoch189::ron_text(&ron_api_names(input));
     for _ in 0..65_536 {
         let bytes = input.as_bytes();
         let (mut i, mut quoted, mut escaped) = (0, false, false);

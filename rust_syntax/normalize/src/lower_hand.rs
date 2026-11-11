@@ -61,7 +61,7 @@ impl Context {
                         objects: Box::new(ObjectSet::Observed(result.clone())),
                         zone: EventZone::Hand,
                     }),
-                    filter: if filters.len() == 1 { filters.pop().unwrap() } else { ObjectFilter::All(filters) },
+                    filter: if filters.len() == 1 { filters.pop().unwrap() } else { ObjectFilter::AllOf(filters) },
                 };
                 instructions.push(reveal);
             }

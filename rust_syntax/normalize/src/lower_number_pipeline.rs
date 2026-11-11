@@ -41,7 +41,7 @@ impl Context {
                     .transpose()?
                     .unwrap_or(ObjectFilter::Any);
                 if let Some(object) = excluding {
-                    filter = ObjectFilter::All(vec![
+                    filter = ObjectFilter::AllOf(vec![
                         filter,
                         ObjectFilter::Not(Box::new(ObjectFilter::SameObject(
                             self.pipeline_number_object(object)?,

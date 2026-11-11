@@ -33,7 +33,7 @@ function createAuthoringProjections({types,clone,same}) {
   }
   function query(value) {
     if(value?.kind!=='Zone'||value.args.kind!=='Permanent'||!same(value.args.scope,{Shared:'Battlefield'}))return null;
-    const filter=value.args.filter,clauses=filter.kind==='All'?filter.args:[filter];let card='Any',control='Any';
+    const filter=value.args.filter,clauses=filter.kind==='AllOf'?filter.args:[filter];let card='Any',control='Any';
     for(const f of clauses){
       if(f.kind==='Any')continue;
       if(f.kind==='CardType'&&card==='Any'&&cards.some(([,v])=>v===f.args)){card=f.args;continue;}
@@ -47,7 +47,7 @@ function createAuthoringProjections({types,clone,same}) {
     if(same(query(state.queryRaw),values))return clone(state.queryRaw);
     const filters=[];if(values.Q_CARD!=='Any')filters.push({kind:'CardType',args:values.Q_CARD});
     if(values.Q_CONTROL==='You')filters.push({kind:'ControlledBy',args:{kind:'One',args:{kind:'AbilityController'}}});
-    return {kind:'Zone',args:{scope:{Shared:'Battlefield'},kind:'Permanent',filter:filters.length===1?filters[0]:filters.length?{kind:'All',args:filters}:{kind:'Any'}}};
+    return {kind:'Zone',args:{scope:{Shared:'Battlefield'},kind:'Permanent',filter:filters.length===1?filters[0]:filters.length?{kind:'AllOf',args:filters}:{kind:'Any'}}};
   }
   return {peel,compatible,outputs,coerce,unwrap,query,queryValue,cards};
 }

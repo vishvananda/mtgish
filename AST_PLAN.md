@@ -1,5 +1,7 @@
 # Rust AST normalization plan
 
+Current update: [schema189 numeric predicates, unified countering and compact native storage](docs/ast-human-189-20261111.md). Historical checkpoints below retain their original epoch descriptions.
+
 Make the Rust AST the primary card representation, with a much smaller vocabulary of generic operations. Preserve coverage of every card supported by the existing parser and use the existing grammar and Rust conversion pipeline to verify that coverage. Complete normalization first; implement the remaining Cantrip backend later. Work in batches of related source forms with focused checks during iteration and broader validation at meaningful integration points.
 
 The priorities, in order, are:

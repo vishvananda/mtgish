@@ -732,7 +732,7 @@ impl Compiler {
             | Operation::AddMana { .. }
             | Operation::ChooseAtRandom { .. } => "true".to_string(),
             // Countered, the card is a new object where the spell went.
-            Operation::Counter { objects, .. } => {
+            Operation::Counter { objects: objects, .. } => {
                 let Ok(spells) = self.objects(objects) else {
                     return;
                 };
@@ -1908,7 +1908,11 @@ impl Compiler {
                     out,
                 );
             }
-            Operation::LimitX { comparison, value } => {
+            Operation::LimitX { test } if !matches!(test, NumberTest::Compare { .. }) => {
+                let code = self.number_test("i64::from(x)", test)?;
+                self.plan_code(&feature, &format!("cantrip_mechanics::announce::limit_x_matching(g, item, |q: &dyn Query, asker: &Asker, x: u16| {code})"), out);
+            }
+            Operation::LimitX { test: NumberTest::Compare { comparison, value } } => {
                 let value = self.fetch(self.number(value)?.code);
                 self.plan_code(
                     &feature,
@@ -2816,11 +2820,11 @@ impl Compiler {
                     }
                 }
             }
-            Operation::CounterWith {object,when,destination} => {
+            Operation::Counter { objects, destination_when: when, destination: destination } => {
                 let view=crate::movement::entry_destination_view(destination);
                 if !view.terms.is_default() {return Err(gap("counter destination with explicit library ordering or chooser"));}
                 let (destination,entry)=(&view.destination,&view.entry);
-                let spell = self.fetch(self.object(object)?);
+                let spells = self.fetch(self.objects(objects)?);
                 let test = match when {
                     Some(filter) => {
                         let test = self.filter(filter, &Candidate::of("id"))?;
@@ -2832,7 +2836,7 @@ impl Compiler {
                 // "Onto the battlefield under your control": the player is the
                 // destination's, as a move's is.
                 let destination = self.destination_code(destination)?;
-                self.plan_code(&feature, &format!("let destination = {destination}; if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, destination, &[{}]); }}", entry.join(", ")), out);
+                self.plan_code(&feature, &format!("let destination = {destination}; for spell in {spells} {{ {M}::counter::to(g, spell, {test}, destination, &[{}]); }}", entry.join(", ")), out);
             }
             // "An opponent gains control": the controller picks one, unasked if
             // there is only one. The new controller keeps it (CR 611.2), or has it
@@ -3603,7 +3607,7 @@ impl Compiler {
                     }
                     // "Put a flying counter on any creature you control if a card
                     // in your graveyard has flying. Repeat this for ..."
-                    (Operand::Filter(ObjectFilter::All(parts)), None, false) => {
+                    (Operand::Filter(ObjectFilter::AllOf(parts)), None, false) => {
                         let scope = parts.iter().find_map(|part| match part {
                             ObjectFilter::InZone(scope) => Some(scope.clone()),
                             _ => None,
@@ -3619,7 +3623,7 @@ impl Compiler {
                         let pool = ObjectSet::Zone {
                             scope,
                             kind: ObjectKind::Any,
-                            filter: ObjectFilter::All(rest),
+                            filter: ObjectFilter::AllOf(rest),
                         };
                         let pool = self.fetch(self.objects(&pool)?);
                         writeln!(out, "let pool_{id} = {pool}; let mut done_{id}: i64 = 0; for (keyword, kind) in {pairs} {{ if pool_{id}.iter().any(|&card| {{ let c = g.chars(card); {has} }}) {{ let among = {objects}; if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::PutCounters(kind, 1), among)? {{ let before = g.state().obj(object).counters(kind); g.add_counters(object, kind, 1); done_{id} += i64::from(g.state().obj(object).counters(kind) - before).max(0); }} }} }}").unwrap();

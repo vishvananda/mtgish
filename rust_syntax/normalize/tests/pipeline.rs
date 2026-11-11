@@ -831,7 +831,7 @@ fn query_recipes_preserve_exclusions_distinct_values_and_cross_zone_aggregates()
         panic!()
     };
     assert!(
-        matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Graveyard,..},filter:ObjectFilter::All(filters),..} if matches!(filters.as_slice(),[ObjectFilter::Any,ObjectFilter::Not(except)] if matches!(except.as_ref(),ObjectFilter::SameObject(ObjectRef::Target {slot:TargetSlot(0),..}))))
+        matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Graveyard,..},filter:ObjectFilter::AllOf(filters),..} if matches!(filters.as_slice(),[ObjectFilter::Any,ObjectFilter::Not(except)] if matches!(except.as_ref(),ObjectFilter::SameObject(ObjectRef::Target {slot:TargetSlot(0),..}))))
     );
     assert!(
         matches!(numeric_amount(&card,1),Expr::Aggregate {objects,property:Property::Power,aggregation:Aggregation::Maximum} if matches!(objects.as_ref(),ObjectSet::Union(zones) if zones.len()==2))
@@ -1016,7 +1016,7 @@ fn predicate_properties_bind_the_candidate_without_rebinding_explicit_targets() 
         panic!()
     };
     let targets = &announcement.targets;
-    let ObjectFilter::All(filters) = &targets[1].filter else {
+    let ObjectFilter::AllOf(filters) = &targets[1].filter else {
         panic!()
     };
     assert!(
@@ -1024,15 +1024,11 @@ fn predicate_properties_bind_the_candidate_without_rebinding_explicit_targets() 
     );
     assert!(matches!(
         &filters[1],
-        ObjectFilter::Property {
-            property: Property::Power,
-            comparison: Comparison::Equal,
-            value: Expr::ObjectProperty {
+        ObjectFilter::Property { property: Property::Power, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::ObjectProperty {
                 object: ObjectRef::Candidate,
                 property: Property::Toughness,
                 ..
-            }
-        }
+            } } }
     ));
 }
 
@@ -1055,7 +1051,7 @@ fn selector_negation_counter_kinds_and_base_properties_remain_distinct() {
         panic!()
     };
     let targets = &announcement.targets;
-    let ObjectFilter::All(filters) = &targets[0].filter else {
+    let ObjectFilter::AllOf(filters) = &targets[0].filter else {
         panic!()
     };
     assert!(
@@ -1071,11 +1067,7 @@ fn selector_negation_counter_kinds_and_base_properties_remain_distinct() {
     ));
     assert!(matches!(
         &filters[2],
-        ObjectFilter::Property {
-            property: Property::BaseToughness,
-            comparison: Comparison::Equal,
-            value: Expr::Constant(3)
-        }
+        ObjectFilter::Property { property: Property::BaseToughness, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(3) } }
     ));
 }
 
@@ -1575,7 +1567,7 @@ fn condition_templates_preserve_quantified_player_bindings_and_source_zone_check
         panic!()
     };
     let Instruction::If {
-        condition: Condition::All(conditions),
+        condition: Condition::AllOf(conditions),
         ..
     } = &body.instructions[0]
     else {
@@ -1585,10 +1577,10 @@ fn condition_templates_preserve_quantified_player_bindings_and_source_zone_check
         matches!(&conditions[0],Condition::ExistsPlayer {binding:LoopBinding(0),condition,..} if matches!(condition.as_ref(),Condition::PlayerIsActive(PlayerRef::Bound(LoopBinding(0)))))
     );
     assert!(
-        matches!(&conditions[1],Condition::ExistsPlayer {binding:LoopBinding(0),condition,..} if matches!(condition.as_ref(),Condition::Compare {left:Expr::PlayerNumber {player:PlayerRef::Bound(LoopBinding(0)),number:PlayerNumber::Life},comparison:Comparison::Greater,right:Expr::Constant(4)}))
+        matches!(&conditions[1],Condition::ExistsPlayer {binding:LoopBinding(0),condition,..} if matches!(condition.as_ref(),Condition::Compare { left:Expr::PlayerNumber {player:PlayerRef::Bound(LoopBinding(0)),number:PlayerNumber::Life}, test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(4) } }))
     );
     assert!(
-        matches!(&conditions[2],Condition::ObjectMatches {object:ObjectRef::Source,filter:ObjectFilter::Either(zones)} if matches!(zones.as_slice(),[ObjectFilter::InZone(ZoneScope::Shared(EventZone::Exile)),ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield))]))
+        matches!(&conditions[2],Condition::ObjectMatches {object:ObjectRef::Source,filter:ObjectFilter::AnyOf(zones)} if matches!(zones.as_slice(),[ObjectFilter::InZone(ZoneScope::Shared(EventZone::Exile)),ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield))]))
     );
 }
 
@@ -1601,7 +1593,7 @@ fn condition_numeric_and_predicate_children_expand_without_announcing_new_target
     };
     assert_eq!(announcement.targets.len(), 1);
     let Instruction::If {
-        condition: Condition::All(conditions),
+        condition: Condition::AllOf(conditions),
         ..
     } = &body.instructions[0]
     else {
@@ -1618,7 +1610,7 @@ fn condition_numeric_and_predicate_children_expand_without_announcing_new_target
         }
     ));
     assert!(
-        matches!(&conditions[1],Condition::Compare {left:Expr::CountObjects(objects),comparison:Comparison::Greater,right:Expr::Constant(2)} if matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Library,..},..}))
+        matches!(&conditions[1],Condition::Compare { left:Expr::CountObjects(objects), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(2) } } if matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Library,..},..}))
     );
     let stage = pipeline::Intermediate::new(&source).unwrap();
     assert!(stage.structural.operands.iter().any(|r| matches!(
@@ -2451,7 +2443,7 @@ fn an_effect_can_last_until_a_player_pays() {
 #[test]
 fn a_process_repeats_a_set_number_of_times() {
     let text = ability_json("SpellActions(ActionList([RepeatableActionsNumTimes(Plus(Integer(1),ValueX),[DrawACard])]))");
-    assert!(text.contains("Times"), "{text}");
+    assert!(text.contains("RepeatableWithLimit"), "{text}");
 }
 
 #[test]
@@ -2761,7 +2753,7 @@ fn a_choice_made_as_a_cost_is_read_when_it_was_paid() {
 fn a_delayed_event_matches_any_event_and_reads_its_creators_scope() {
     let text = ability_json("SpellActions(Targeted([TargetPermanent(AnyPermanent)],ActionList([CreateFutureTrigger(Or([WhenPermanentLeavesTheBattlefield(ThisPermanent),WhenPermanentBecomesUntapped(ThisPermanent)]),ActionList([DestroyPermanent(Ref_TargetPermanent)]))])))");
     assert!(text.contains("CreateDelayedTrigger"), "{text}");
-    assert!(text.contains("Either"), "{text}");
+    assert!(text.contains("AnyOf"), "{text}");
 }
 
 #[test]
