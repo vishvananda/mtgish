@@ -22,7 +22,8 @@
     "test:loyalty": "node test_loyalty.cjs",
     "test:selectors": "node test_selectors.cjs",
     "test:projections": "node test_projections.cjs",
-    "test:target-modes": "node test_target_modes.cjs"
+    "test:target-modes": "node test_target_modes.cjs",
+    "test:library": "node test_library.cjs"
   },
   "devDependencies": {
     "playwright": "1.65.0"

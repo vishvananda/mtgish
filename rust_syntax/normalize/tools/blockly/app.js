@@ -61,10 +61,13 @@
     }
     return Number.isSafeInteger(Number(n)) ? Number(n) : n;
   }
+  class CardDropdown extends Blockly.FieldDropdown {
+    isClickableInFlyout(){return true;}
+  }
   function field(t,value) {
     if(newtype(t))return field(newtype(t),value);
     if (t.named === 'bool') return new Blockly.FieldCheckbox(fieldValue(t,value));
-    if (types[t.named]) return new Blockly.FieldDropdown(types[t.named].variants.map(v => [pretty(v.name),v.wire]));
+    if (types[t.named]) return new CardDropdown(types[t.named].variants.map(v => [pretty(v.name),v.wire]));
     return new Blockly.FieldTextInput(String(value));
   }
   function defaultValue(t, path = []) {
@@ -150,8 +153,31 @@
     if(f.kind==='tuple'){const items=f.items.map((ty,i)=>mapTargetDomain(ty,f.items.length===1?args:args[i],slot,preset));mapped=items.length===1?items[0]:items;}
     return v?packEnum(d,v,mapped):mapped;
   }
+  function resetFlyoutBlock(b,value) {
+    const fresh=blockState(b.state.ty,value),old=b.state;
+    Blockly.Events.disable();try{
+      for(const input of b.inputList)input.connection?.targetBlock()?.dispose(false);
+      b.loadExtraState({...fresh.extraState,statement:old.statement,freshTarget:old.freshTarget,autoResult:old.autoResult});
+      for(const [name,value] of Object.entries(fresh.fields||{}))b.setFieldValue(value,name);
+      for(const [key,entry] of Object.entries(fresh.inputs||{})){
+        const connection=b.getInput(key).connection;
+        if(entry.shadow)connection.setShadowState(entry.shadow);
+        if(entry.block){const child=Blockly.serialization.blocks.append(entry.block,b.workspace);for(const node of child.getDescendants(false))node.isInFlyout=true;connection.connect(child.outputConnection||child.previousConnection);}
+      }
+      b.setCollapsed(!!fresh.collapsed);b.render();
+    }finally{Blockly.Events.enable();}
+    applyPresentation();
+  }
+  function chooseFlyoutVariant(b,name) {
+    const s=b.state,type=s.pr==='keyword'?'Keyword':s.ty.named,d=types[type],variant=d?.variants?.find(v=>v.wire===name);
+    const value=s.pr==='effect'?actionValue(name):s.pr==='keyword'?{kind:'Keyword',args:packEnum(d,variant,fieldsDefault(variant.fields,[],type+'::'+name))}:type==='Ability'?abilityValue(name):packEnum(d,variant,fieldsDefault(variant.fields,[],type+'::'+name));
+    resetFlyoutBlock(b,scopeValue(s,value));
+  }
   function chooseTarget(b,index) {
-    if(b.isInFlyout)return;
+    if(b.isInFlyout){
+      if(index==='CUSTOM'){b.state.shown=[...new Set([...(b.state.shown||[]),'F_kind','F_filter','F_players'])];applyPresentation();return;}
+      const preset=targetPresets[Number(index)];if(preset)resetFlyoutBlock(b,{...fromBlock(b),...clone(preset[1])});return;
+    }
     if(index==='CUSTOM') {
       b.state.shown=[...new Set([...(b.state.shown||[]),'F_kind','F_filter','F_players'])];
       applyPresentation();changed();return;
@@ -318,8 +344,7 @@
     if(/^(Instruction|Program)$/.test(n))return palette.flow;
     if(/^(KeywordAction|ObjectKeywordAction|CopyException)$/.test(n))return palette.effects;
     if(/^Mode/.test(n))return palette.choices;
-    if(n==='Announcement')return state.directModes?palette.choices:palette.targets;
-    if(n==='Ability'&&block?.getInputTargetBlock('F_announcement')?.state.directModes)return palette.choices;
+    if(n==='Announcement')return palette.choices;
     if(/Ability|Keyword|Casting|Cost/.test(n))return palette.abilities;
     if(/Card|Characteristics|ManaSymbol/.test(n))return palette.properties;
     if(/Event/.test(n))return palette.events;
@@ -335,7 +360,7 @@
   function scalarType(p){return p.inline==='pt'?{named:'i32'}:p.inline==='constant'?{named:'i64'}:p.inline==='choice'?{named:'String'}:scalar(p.ty)?p.ty:null;}
   function pickerValue(b,p,index) {const choice=choices[p.ty.named]?.[index];if(!choice)throw Error('Choose a valid '+p.label);const pick=b.state.picks?.[p.key];return clone(pick?.index===index?pick.value:choice[1]);}
   function fakeBlock(s) {return {type:s.type,state:s.extraState,isEnabled:()=>!s.disabled&&!s.disabledReasons?.length,getFieldValue:n=>s.fields?.[n],setFieldValue:(v,n)=>{(s.fields??={})[n]=v;},getInputTargetBlock:n=>{const child=s.inputs?.[n]?.block||s.inputs?.[n]?.shadow;return child?fakeBlock(child):null;},getNextBlock:()=>s.next?.block?fakeBlock(s.next.block):null};}
-  function valueField(p,value){if(p.options)return new Blockly.FieldDropdown(p.options);return p.inline==='choice'?new Blockly.FieldDropdown(choices[p.ty.named].map(([label],i)=>[label,String(i)])):field(scalarType(p),value);}
+  function valueField(p,value){if(p.options)return new CardDropdown(p.options);return p.inline==='choice'?new CardDropdown(choices[p.ty.named].map(([label],i)=>[label,String(i)])):field(scalarType(p),value);}
   function isMetadataEmpty(v) {
     if(v===null || v===false || v==='DestinationDefault')return true;
     if(Array.isArray(v))return v.length===0;
@@ -513,7 +538,7 @@
         b.getField('FILL_'+p.key)?.setVisible(!hidden && (p.flow || !b.getInputTargetBlock(p.key)));
         b.getField('REMOVE_'+p.key)?.setVisible(!hidden&&removable(b,p));
       }
-      const menu=b.getField('MORE');if(menu)menu.setVisible(optionsFor(b).length>1);
+      const menu=b.getField('MORE');if(menu)menu.setVisible(!b.isInFlyout&&optionsFor(b).length>1);
       b.getField('TYPE_LABEL')?.setVisible(detailMode);
       if(rerender && b.rendered)b.render();
     }
@@ -667,11 +692,12 @@
       this.setOnChange(e=>{
         if(e.type===Blockly.Events.BLOCK_CHANGE && e.blockId===this.id && e.name==='TARGET_PRESET') {
           const selected=e.newValue;
-          setTimeout(()=>{if(workspace.getBlockById(this.id))chooseTarget(this,selected);},0);
+          setTimeout(()=>{if(this.workspace?.getBlockById(this.id))chooseTarget(this,selected);},0);
         }
         if(e.type===Blockly.Events.BLOCK_CHANGE && e.blockId===this.id && e.name==='VARIANT') {
           const v=this.getFieldValue('VARIANT'),key=this.state.pr==='effect'?'op':this.state.pr==='keyword'?'keyword':'variant';
           if(v && v!==this.state[key]){
+            if(this.isInFlyout){chooseFlyoutVariant(this,v);return;}
             const destination=['MovementDestination','ConjureDestination','LibraryPosition'].includes(this.state.ty.named);
             // Empty arrivals are structural defaults. Keep nonempty children
             // recoverable if the new zone cannot accept their type.
@@ -716,7 +742,7 @@
         if(this.state.pr==='announcement')header.appendField('Targets','CHOICES_TITLE').appendField(button('+','Add target group',()=>choiceView.addTarget(this)),'ADD_TARGET').appendField(button('≡','Add modes',()=>choiceView.addModes(this)),'ADD_MODES');
         else if(this.state.pr==='modes'){
           header.appendField(this.state.impliedModes?'Required':'Choose');
-          if(this.state.simpleModeCount)header.appendField(new Blockly.FieldDropdown([['exactly','Exactly'],['up to','UpTo'],['between','Between']]),'_M_STYLE').appendField(new Blockly.FieldTextInput(values._M_MIN||'1'),'_M_MIN').appendField('and','MODE_AND').appendField(new Blockly.FieldTextInput(values._M_MAX||'1'),'_M_MAX').appendField('modes');
+          if(this.state.simpleModeCount)header.appendField(new CardDropdown([['exactly','Exactly'],['up to','UpTo'],['between','Between']]),'_M_STYLE').appendField(new Blockly.FieldTextInput(values._M_MIN||'1'),'_M_MIN').appendField('and','MODE_AND').appendField(new Blockly.FieldTextInput(values._M_MAX||'1'),'_M_MAX').appendField('modes');
           else header.appendField('modes');
           header.appendField(button('+','Add mode',()=>choiceView.addMode(this)),'ADD_MODE');
         }
@@ -727,23 +753,23 @@
         else if(this.state.pr==='literal') { /* The editable field itself is the literal block. */ }
         else if(t.named==='TargetSpec'){
           header.appendField('Choose');
-          if(this.state.simpleTargetCount)header.appendField(new Blockly.FieldDropdown([['exactly','Exactly'],['up to','UpTo'],['any number','AnyNumber'],['at least','AtLeast']]),'_T_STYLE').appendField(new Blockly.FieldTextInput(values._T_NUMBER||'1'),'_T_NUMBER');
-          header.appendField(new Blockly.FieldDropdown([...targetPresets.map(([label],i)=>[label,String(i)]),['custom target…','CUSTOM']]),'TARGET_PRESET').appendField(button('−','Remove this target group',()=>choiceView.removeRow(this)),'REMOVE_TARGET');
+          if(this.state.simpleTargetCount)header.appendField(new CardDropdown([['exactly','Exactly'],['up to','UpTo'],['any number','AnyNumber'],['at least','AtLeast']]),'_T_STYLE').appendField(new Blockly.FieldTextInput(values._T_NUMBER||'1'),'_T_NUMBER');
+          header.appendField(new CardDropdown([...targetPresets.map(([label],i)=>[label,String(i)]),['custom target…','CUSTOM']]),'TARGET_PRESET').appendField(button('−','Remove this target group',()=>choiceView.removeRow(this)),'REMOVE_TARGET');
         }
         else if(t.vec){header.appendField(t.vec.named==='TargetSpec'?'Targets':typeName(t.vec)+' items');header.appendField(button('+','Add an item',()=>this.resize(1)));if(this.state.count)header.appendField(button('−','Remove last item',()=>this.resize(-1)));}
         else if(t.option){header.appendField(t.option.vec?.named==='ManaSymbol'?(this.state.present?'Mana cost':'No mana cost'):(this.state.present?'Value':'Not set'));if(t.option.vec?.named==='ManaSymbol')header.appendField('','COST_ZERO');header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));}
         else if(variant && !scalar(t)) {
           const vd=this.state.pr==='effect'?types.Operation:this.state.pr==='keyword'?types.Keyword:d;
           if(t.named==='EventSpec')header.appendField('When');
-          header.appendField(new Blockly.FieldDropdown(t.named==='Ability'&&variant.wire==='Spell'?[['When this spell resolves','Spell']]:vd.variants.map(v=>[variantLabel(this.state.pr==='effect'?'Operation':t.named,v),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
+          header.appendField(new CardDropdown(t.named==='Ability'&&variant.wire==='Spell'?[['When this spell resolves','Spell']]:vd.variants.map(v=>[variantLabel(this.state.pr==='effect'?'Operation':t.named,v),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
           header.appendField('· '+t.named,'TYPE_LABEL');
         }else header.appendField(caption(this.state));
         if(header&&selectorEditor?.supports(t))header.appendField(button('▴','Compact this selector',()=>selectorEditor.compact(this)),'COMPACT_SELECTOR');
         if(header&&this.state.activationName)this.appendDummyInput('NAMED_HINT').appendField('','NAMED_HINT_TEXT');
         if(header&&(t.named==='Mode'||t.named==='Ability'&&['Spell','Activated','Triggered'].includes(this.state.variant)))header.appendField(button('⋄','Edit targets or modes',()=>choiceView.reveal(this)),'EDIT_CHOICES');
-        if(header&&t.named==='Ability')header.appendField('Functions:','LOCATION_LABEL').appendField(new Blockly.FieldDropdown(()=>functioningOptions(this),v=>{if(Blockly.Events.isEnabled()&&sections.home(this)&&sections.home(this).id!==v)setTimeout(()=>moveAbility(this,v),0);return v;}),'LOCATION').appendField('','CAST_FROM');
-        if(header&&this.state.cardSections)header.appendField(new Blockly.FieldDropdown(()=>[['Add another section…','NONE'],...sections.definitions.filter(d=>!this.state.cardSections.includes(d.id)).map(d=>[d.label,d.id])],v=>{if(v!=='NONE')setTimeout(()=>addSection(this,v),0);return null;}),'ADD_SECTION');
-        if(header)header.appendField(new Blockly.FieldDropdown(()=>optionsFor(this),v=>{
+        if(header&&t.named==='Ability')header.appendField('Functions:','LOCATION_LABEL').appendField(new CardDropdown(()=>functioningOptions(this),v=>{if(Blockly.Events.isEnabled()&&sections.home(this)&&sections.home(this).id!==v)setTimeout(()=>moveAbility(this,v),0);return v;}),'LOCATION').appendField('','CAST_FROM');
+        if(header&&this.state.cardSections)header.appendField(new CardDropdown(()=>[['Add another section…','NONE'],...sections.definitions.filter(d=>!this.state.cardSections.includes(d.id)).map(d=>[d.label,d.id])],v=>{if(v!=='NONE')setTimeout(()=>addSection(this,v),0);return null;}),'ADD_SECTION');
+        if(header)header.appendField(new CardDropdown(()=>optionsFor(this),v=>{
           if(v==='NONE')return null;
           setTimeout(()=>{if(v==='COUNT_BLOCKS'||v==='COUNT_SIMPLE')choiceView.editCount(this,v==='COUNT_SIMPLE');else if(v==='NAMED_RULES'){remember();this.state.showNamedRules=!this.state.showNamedRules;applyPresentation();changed();}else if(v==='NAME_RESULT')bindingEditor.promote(this);else if(v==='LOCATIONS')editLocations(this);else if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('REMOVE:'))removeOption(this,v.slice(7));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
         }),'MORE');
@@ -945,8 +971,7 @@
       flyoutBlock('Ability',sectionStarter('everywhere'))
     ]},
     {kind:'category',name:'Choices & modes',colour:palette.choices,contents:[
-      {kind:'label',text:'Choose a mode when announcing the ability'},
-      flyoutBlock('Ability',{kind:'Spell',args:{announcement:{targets:[],modes:{...defaultValue({named:'ModeSelection'}),options:[{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null},{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null}]}},body:{instructions:[]}}}),
+      {kind:'label',text:'Use an ability’s ⋄ button to add modes'},
       {kind:'label',text:'Add a separate mode to its modes section'},
       flyoutBlock('Mode',{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null}),
       {kind:'label',text:'Selection method and additional rules'},
@@ -975,6 +1000,7 @@
   ]};
   const theme=Blockly.Theme.defineTheme('cardBlocks',{base:Blockly.Themes.Classic,fontStyle:{family:'system-ui, sans-serif',size:11},componentStyles:{workspaceBackgroundColour:'#f4f6f1',scrollbarColour:'#a8b5a4',scrollbarOpacity:.6,insertionMarkerColour:'#52794c',insertionMarkerOpacity:.4}});
   workspace=Blockly.inject('workspace',{renderer:'zelos',plugins:{connectionPreviewer:SelectorConnectionPreviewer},theme,toolbox:toolboxDefinition,trashcan:false,sounds:false,zoom:{controls:false,wheel:true,startScale:.75,maxScale:1.6,minScale:.12,scaleSpeed:1.16},move:{scrollbars:true,drag:true,wheel:true},grid:{spacing:22,length:1,colour:'#d6dfd1',snap:false}});
+  workspace.getFlyout().getWorkspace().addChangeListener(e=>{if(!e.isUiEvent&&e.type===Blockly.Events.BLOCK_CHANGE)setTimeout(applyPresentation,0);});
   propertyEditor=createPropertyEditor({types,clone,fromBlock,replaceView,workspace:()=>workspace,notice,same,readScalar});
   costEditor=createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replaceView,workspace:()=>workspace,notice,manaText:propertyEditor.manaText,parseMana:propertyEditor.parseMana,loyaltyText:propertyEditor.loyaltyText,parseLoyalty:propertyEditor.parseLoyalty});
   $('edit-properties').onclick=()=>propertyEditor.open();

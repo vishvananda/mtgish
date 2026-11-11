@@ -56,8 +56,10 @@ editor. **⋯ → Count expression…** opens typed count sockets; **Compact cou
 returns to the short view when the bounds are literal. Removing a referenced target requires updating its
 uses first; changing a target kind affects only its own lexical scope.
 
-**Choices & modes** supplies a modal ability and draggable individual **Mode**
-blocks. **Choose exactly/up to/between … modes** sits above the numbered options;
+**Choices & modes** supplies draggable individual **Mode** blocks. Use an
+ability’s diamond button to add its modes section. Ability wrappers stay teal;
+the choices container and mode blocks stay purple whether targets or modes are
+present. **Choose exactly/up to/between … modes** sits above the numbered options;
 each option has its own effects and optional targets. Use **+** or drag another
 mode into that stack, and **−** to remove it. An ability's diamond button reveals
 its targets/modes section. Adding modes to existing ordinary effects moves those
@@ -100,6 +102,11 @@ creature-tapping cost and its temporary animation; **Edit…** changes required
 total power. Cycling includes its discard payment and draw, automatically lives
 in Hand, and keeps its required discard when its cost is edited. Search finds
 these same starters; they are not duplicated under Casting & locations.
+
+Library dropdowns edit the starter in place. Open a picker and select an option
+without adding anything to the card; click the block body or drag it out to add
+the configured block. Action changes supply complete defaults for their typed
+operands, and a chosen target type survives copying and local slot allocation.
 
 The normal view hides the underlying activation-origin discriminator. Standard
 implementation rules are tucked away behind **Show rules**; customized or
