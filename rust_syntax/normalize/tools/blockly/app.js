@@ -157,7 +157,7 @@
     const fresh=blockState(b.state.ty,value),old=b.state;
     Blockly.Events.disable();try{
       for(const input of b.inputList)input.connection?.targetBlock()?.dispose(false);
-      b.loadExtraState({...fresh.extraState,statement:old.statement,freshTarget:old.freshTarget,autoResult:old.autoResult});
+      b.loadExtraState({...fresh.extraState,statement:old.statement,freshTarget:old.freshTarget,autoResult:old.autoResult,effectTopic:old.effectTopic});
       for(const [name,value] of Object.entries(fresh.fields||{}))b.setFieldValue(value,name);
       for(const [key,entry] of Object.entries(fresh.inputs||{})){
         const connection=b.getInput(key).connection;
@@ -333,7 +333,7 @@
       }
     }
     const variant=viewVariant(state);
-    if(variant && !scalar(t)&&!state.activationName&&!['literal','count','query'].includes(state.pr))result.fields.VARIANT=variant.wire;
+    if(variant && !scalar(t)&&!state.activationName&&!['literal','count','query'].includes(state.pr)&&!(state.pr==='effect'&&['Keyword','KeywordEach'].includes(state.op)))result.fields.VARIANT=variant.wire;
     if(selectorEditor?.supports(t)&&state.pr!=='literal')result.collapsed=true;
     if((outline||['Characteristics','Cost'].includes(t.named)) && ['Characteristics','Cost','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival'].includes(t.named))result.collapsed=true;
     return result;
@@ -758,10 +758,11 @@
         }
         else if(t.vec){header.appendField(t.vec.named==='TargetSpec'?'Targets':typeName(t.vec)+' items');header.appendField(button('+','Add an item',()=>this.resize(1)));if(this.state.count)header.appendField(button('−','Remove last item',()=>this.resize(-1)));}
         else if(t.option){header.appendField(t.option.vec?.named==='ManaSymbol'?(this.state.present?'Mana cost':'No mana cost'):(this.state.present?'Value':'Not set'));if(t.option.vec?.named==='ManaSymbol')header.appendField('','COST_ZERO');header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));}
+        else if(this.state.pr==='effect'&&['Keyword','KeywordEach'].includes(this.state.op))header.appendField(this.state.op==='Keyword'?'Keyword action':'Keyword action on objects');
         else if(variant && !scalar(t)) {
           const vd=this.state.pr==='effect'?types.Operation:this.state.pr==='keyword'?types.Keyword:d;
           if(t.named==='EventSpec')header.appendField('When');
-          header.appendField(new CardDropdown(t.named==='Ability'&&variant.wire==='Spell'?[['When this spell resolves','Spell']]:vd.variants.map(v=>[variantLabel(this.state.pr==='effect'?'Operation':t.named,v),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
+          header.appendField(new CardDropdown(t.named==='Ability'&&variant.wire==='Spell'?[['When this spell resolves','Spell']]:variantChoices(this.state,vd).map(v=>[variantLabel(this.state.pr==='effect'?'Operation':t.named,v),v.wire])),'VARIANT');this.setFieldValue(variant.wire,'VARIANT');
           header.appendField('· '+t.named,'TYPE_LABEL');
         }else header.appendField(caption(this.state));
         if(header&&selectorEditor?.supports(t))header.appendField(button('▴','Compact this selector',()=>selectorEditor.compact(this)),'COMPACT_SELECTOR');
@@ -881,6 +882,7 @@
     else if(Object.keys(values).length)throw Error('This action has no named fields');
     return {kind:'Effect',args:{result:4294967295,operation:packEnum(types.Operation,v,args)}};
   }
+  const commonEffects=['Draw','GainLife','LoseLife','DealDamage','Move'];
   const keywordFamilies=['KeywordAction','ObjectKeywordAction'];
   const modeFamilies=['ModeMechanism','ModeRepetition','ModeAvailability','ModeTargetPolicy','ModeAcceptance'];
   const keywordMeta=(type,v)=>(type==='KeywordAction'?authoring.keyword_actions:authoring.object_keyword_actions)[v.wire];
@@ -892,8 +894,9 @@
     if(name==='Triggered')args.event=clone(choices.EventSpec[0][1]);
     return packEnum(types.Ability,v,args);
   }
-  function flyoutBlock(type,value) {
+  function flyoutBlock(type,value,effectTopic=null) {
     const state=blockState({named:type},value);
+    if(effectTopic)state.extraState.effectTopic=effectTopic;
     if(['Ability','Instruction','CopyException','TargetSpec','Mode'].includes(type))state.extraState.statement=true;
     if(type==='TargetSpec')state.extraState.freshTarget=true;
     if(state.extraState.pr==='effect')state.extraState.autoResult=true;
@@ -905,12 +908,25 @@
     if(type==='Instruction'&&name==='ChooseOne')args.options=[{instructions:[]},{instructions:[]}];
     return flyoutBlock(type,packEnum(d,v,args));
   }
+  function variantChoices(state,descriptor) {
+    if(state.pr==='effect'){
+      if(!state.effectTopic&&commonEffects.includes(state.op))return descriptor.variants.filter(v=>commonEffects.includes(v.wire));
+      if(['Keyword','KeywordEach'].includes(state.op))return descriptor.variants.filter(v=>v.wire===state.op);
+      const meta=authoring.actions[state.op];
+      if(meta&&!meta.control)return descriptor.variants.filter(v=>!excluded(v)&&!authoring.actions[v.wire].control&&authoring.actions[v.wire].category===(state.effectTopic||meta.category)&&!['Keyword','KeywordEach'].includes(v.wire));
+    }
+    if(keywordFamilies.includes(state.ty.named)){
+      const category=keywordMeta(state.ty.named,viewVariant(state)).category;
+      return descriptor.variants.filter(v=>keywordMeta(state.ty.named,v).category===category);
+    }
+    return descriptor.variants;
+  }
   function actionGroups() {
     const groups=new Map();
     for(const v of types.Operation.variants.filter(v=>!excluded(v)&&!authoring.actions[v.wire].control&&!['Draw','GainLife','LoseLife','DealDamage','Move','Keyword','KeywordEach'].includes(v.wire)))try {
       const category=authoring.actions[v.wire].category;
-      if(!groups.has(category))groups.set(category,[]);
-      groups.get(category).push(flyoutBlock('Instruction',actionValue(v.wire)));
+      if(groups.has(category))continue;
+      groups.set(category,[flyoutBlock('Instruction',actionValue(v.wire),category)]);
     }catch(_){}
     const keywordStarters=new Set();
     for(const type of keywordFamilies)for(const v of types[type].variants)try {
@@ -920,7 +936,7 @@
       groups.get(category).push(flyoutBlock('Instruction',keywordValue(type,v)));
       keywordStarters.add(key);
     }catch(_){}
-    if(groups.has('Copies & tokens'))groups.get('Copies & tokens').push(...types.CopyException.variants.map(v=>variantBlock('CopyException',v.wire)));
+    if(groups.has('Copies & tokens'))groups.get('Copies & tokens').push(variantBlock('CopyException',types.CopyException.variants[0].wire));
     return [...groups].sort(([a],[b])=>a.localeCompare(b)).map(([name,contents])=>({kind:'category',name,colour:palette.effects,contents}));
   }
   function controlGroups() {
@@ -951,9 +967,7 @@
     ]},
     {kind:'category',name:'Effects',colour:palette.effects,contents:[
       {kind:'label',text:'Drop effects into spell resolution or an ability'},
-      ...['Draw','GainLife','LoseLife'].map(n=>flyoutBlock('Instruction',actionValue(n,{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}}))),
-      flyoutBlock('Instruction',actionValue('DealDamage',{source:{kind:'Source'},recipients:{kind:'Targets',args:0},amount:{kind:'Constant',args:3},preventable:true})),
-      flyoutBlock('Instruction',actionValue('Move',{objects:{kind:'One',args:{kind:'Source'}},destination:{Exile:{visibility:'FaceUp',arrival:{counters:[],states:[]}}}})),
+      flyoutBlock('Instruction',actionValue('Draw',{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}})),
       ...actionGroups()
     ]},
     {kind:'category',name:'Flow',colour:palette.flow,contents:controlGroups()},
@@ -1005,6 +1019,12 @@
   costEditor=createCostEditor({namedAbilities,clone,same,readScalar,fromBlock,replaceView,workspace:()=>workspace,notice,manaText:propertyEditor.manaText,parseMana:propertyEditor.parseMana,loyaltyText:propertyEditor.loyaltyText,parseLoyalty:propertyEditor.parseLoyalty});
   $('edit-properties').onclick=()=>propertyEditor.open();
   new ResizeObserver(()=>Blockly.svgResize(workspace)).observe($('workspace'));
+  function blockSearchKey(block){
+    const s=block.extraState;
+    if(s.pr==='effect'&&!['Keyword','KeywordEach'].includes(s.op))return 'Operation:'+s.op;
+    if(s.ty.named==='EventSpec'&&s.pr==='literal')return 'EventSpec:common';
+    return encode(fromBlock(fakeBlock(block)));
+  }
   $('block-search').oninput=()=>{
     const q=$('block-search').value.trim().toLocaleLowerCase();
     if(!q){workspace.updateToolbox(toolboxDefinition);return;}
@@ -1014,7 +1034,7 @@
         if(item.kind==='category'){visit(item.contents,[...path,item.name]);continue;}
         if(item.kind!=='block')continue;
         try {
-          const value=fromBlock(fakeBlock(item)),state=item.extraState,key=state.ty.named==='EventSpec'&&state.pr==='literal'?'EventSpec:common':encode(value);
+          const value=fromBlock(fakeBlock(item)),state=item.extraState,key=blockSearchKey(item);
           const variant=viewVariant(state),type=state.pr==='effect'?'Operation':state.ty.named;
           const label=(selectorEditor.supports(state.ty)?selectorEditor.summary(fakeBlock(item)):null)||state.activationName|| (variant?variantLabel(type,variant):typeName(state.ty));
           const selectorOptions=(state.ty.named==='TargetSpec'?targetPresets:state.ty.named==='EventSpec'?choices.EventSpec:[]).map(([label])=>label).join(' ');
@@ -1024,6 +1044,18 @@
       }
     }
     visit(toolboxDefinition.contents);
+    // A topic has one effect starter; searches can still start at any named effect.
+    for(const v of types.Operation.variants.filter(v=>!excluded(v)&&!authoring.actions[v.wire].control&&!['Keyword','KeywordEach'].includes(v.wire)))try{
+      const meta=authoring.actions[v.wire];
+      if(!`${meta.label} ${pretty(v.name)} ${v.doc||''}`.toLocaleLowerCase().includes(q))continue;
+      const block=flyoutBlock('Instruction',actionValue(v.wire)),key=blockSearchKey(block);
+      if(!seen.has(key)){seen.add(key);contents.push(block);}
+    }catch(_){}
+    for(const v of types.CopyException.variants)try{
+      if(!`${pretty(v.name)} ${v.doc||''}`.toLocaleLowerCase().includes(q))continue;
+      const block=variantBlock('CopyException',v.wire),key=encode(fromBlock(fakeBlock(block)));
+      if(!seen.has(key)){seen.add(key);contents.push(block);}
+    }catch(_){}
     // The palette uses editable keyword-action families; searches still offer
     // the requested named action with its exact typed operands.
     for(const type of keywordFamilies)for(const v of types[type].variants)try{
