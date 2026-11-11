@@ -270,6 +270,15 @@ pub(super) struct Notes {
     /// The X just paid as this resolves, where "X" is that number and not the
     /// stack item's: "you may pay {X}. X can't be greater than ...".
     pub paid_x: Option<String>,
+    /// Counter-removal quantities paid during this resolution. Unlike the
+    /// stack item's X, each receipt belongs to its own payment and cost part.
+    pub counters_paid: BTreeMap<(u32, Vec<u32>), String>,
+    /// A local stake of this resolution, shared by its repeated coin flips.
+    pub stake: Option<String>,
+    /// Choices whose last successful value lives across repeat iterations.
+    /// These locals are already declared for the whole resolution and must
+    /// not be hoisted by appending every iteration's value.
+    pub persistent_selections: BTreeMap<u32, String>,
     /// The instruction before this copied each spell twice over.
     pub copied_twice: bool,
     /// What a cost paid as this resolved exiled: "return this card" after "you may

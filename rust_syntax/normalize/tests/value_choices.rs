@@ -229,7 +229,7 @@ fn entering_choices_and_rich_backend_gaps_keep_their_paths() {
         ("Rite of Ruin", "operation ChooseValueWith"),
         ("Desert Cenote", "operation ChooseValueWith"),
         ("Alhammarret, High Arbiter", "name choice And"),
-        ("Gabriel Angelfire", "a choice of Ability"),
+        ("Gabriel Angelfire", "duration UntilNext upkeep"),
         (
             "Phyrexian Splicer",
             "a value chosen as an activation cost, read by its targets",

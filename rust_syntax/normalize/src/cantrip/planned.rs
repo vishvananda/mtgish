@@ -85,6 +85,16 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("spell-alternative-kinds", "SpellAlternative", &[]),
     ("multi-zone-search", "search_zone_and_or_library", &[]),
     ("job-select-token", "pub static HERO_1_1_COLORLESS:", &[]),
+    ("resolved-land-types", "SetLandType(Subtype),", &["engine-no-resolving-effect-sets-land-types"]),
+    ("untap-events", "Untapped { permanent: ObjectId },", &["engine-no-untap-event"]),
+    ("counter-removal-events", "CountersRemoved { object: ObjectId, kind: CounterKind, amount: i32, total: i32 },", &["engine-no-event-for-a-counter-being-removed"]),
+    ("control-change-events", "ControlChanged { permanent: ObjectId, from: PlayerId, controller: PlayerId },", &["trigger-event-player-loses-control"]),
+    ("event-delayed-object-lists", "fn delayed_trigger_about(", &["engine-a-delayed-ability-on-an-event-keeps-no-list"]),
+    ("exile-on-leave", "fn exile_on_leave(&mut self, permanent: ObjectId);", &[]),
+    ("life-exchange", "pub fn life_totals(g: &mut dyn Game, a: PlayerId, b: PlayerId) -> u32", &[]),
+    ("compound-cumulative-upkeep", "pub fn resolve(g: &mut dyn Game, item: &StackItem, payment: Payment)", &[]),
+    ("no-other-auras", "pub const ENCHANTED_NO_OTHER_AURAS:", &[]),
+    ("resolution-x-payment", "fn may_pay_x(&mut self, payer: PlayerId,", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

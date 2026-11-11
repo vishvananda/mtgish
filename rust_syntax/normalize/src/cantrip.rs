@@ -869,6 +869,7 @@ struct Compiler {
     each_color: Option<String>,
     /// It chooses two of this kind as it enters: the second in its chosen number.
     enters_two: Option<ValueKind>,
+    entering_life_paid: bool,
     /// A rule on the cost of `spell` is being written.
     costed_spell: bool,
     /// A cost paid for a card in place of its mana cost is being written ("{X}
@@ -1335,6 +1336,7 @@ impl Compiler {
             activated_mana: None,
             each_color: None,
             enters_two: None,
+            entering_life_paid: false,
             costed_spell: false,
             card_costed: false,
             moving_one: None,
@@ -2328,7 +2330,10 @@ fn ability_text(body: &Program) -> String {
                     amount: Expr::Constant(n),
                     ..
                 } => format!("Mill {n} cards."),
-                Operation::CreateContinuousEffect { changes, .. } => match changes.as_slice() {
+                Operation::CreateContinuousEffect { changes, duration, .. } => match changes.as_slice() {
+                    [Change::PlayerRule(PlayerRule::AttackedOnlyBy(_))]
+                        if matches!(duration, Duration::UntilNextTurn(_)) =>
+                        "Until your next turn, only creatures with the specified abilities can attack you.".into(),
                     [Change::Pump {
                         power: Expr::Constant(p),
                         toughness: Expr::Constant(t),
@@ -2731,6 +2736,7 @@ fn emit_face(
     c.enters_choosing = chosen::enters_choosing(card);
     c.enters_choosing.extend(place.keeps.iter().copied());
     c.enters_two = chosen::enters_two(card);
+    c.entering_life_paid = chosen::enters_paying_life(card);
     c.entering_card_type = lane_p::entering_card_type(card);
     c.cast_pays = lane_p::cast_pays(card);
     c.enters_sacrifices = lane_p::enters_sacrifices(card);

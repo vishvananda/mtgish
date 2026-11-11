@@ -1282,6 +1282,14 @@ impl Compiler {
                     result.0
                 ),
             ),
+            Expr::Game(GameValue::Stake) if self.notes.stake.is_some() => Number {
+                code: self.notes.stake.clone().expect("a stake was set"),
+                min: 0, max: i64::MAX.into(), dynamic: true,
+            },
+            Expr::Game(GameValue::LifePaid) if self.entering_life_paid => Number {
+                code: format!("i64::from(q.state().chosen_number({}).unwrap_or(0))", self.linked()),
+                min: 0, max: u32::MAX.into(), dynamic: true,
+            },
             Expr::Game(value) => held_number(
                 feature,
                 &format!("q.{}, GameValue::{})", self.item_read("game_value"), form(value)),
@@ -1711,6 +1719,16 @@ impl Compiler {
                 };
                 format!("{value}.is_some_and(|chosen| {test})")
             }
+            ObjectFilter::NthChosen(index)
+                if *index < 2 && self.enters_two == Some(ValueKind::BasicLandType) =>
+            {
+                let choice = if *index == 0 {
+                    format!("q.state().chosen_subtype({})", self.linked())
+                } else {
+                    self.second_entering_land_type().expect("two entering land types")
+                };
+                format!("{choice}.is_some_and(|chosen| {chars}.has_subtype(chosen))")
+            }
             // The choices are themselves a hole (several values chosen in order, Rite
             // of Ruin's order, Illusionary Terrain's two types): which one is first
             // is known once they are made.
@@ -1922,9 +1940,7 @@ impl Compiler {
                 above,
                 comparison,
                 amount,
-            } => held(
-                &feature,
-                &format!(
+            } => format!(
                     "{}.zip({}).is_some_and(|(p, card): (PlayerId, ObjectId)| {{ let cards = q.state().zone(Zone::graveyard(p)); cards.iter().position(|&o| o == card).is_some_and(|at| {}) }})",
                     self.player(player)?,
                     self.object(card)?,
@@ -1936,7 +1952,6 @@ impl Compiler {
                         comparison,
                         &self.number(amount)?.code
                     )
-                ),
             ),
             // Among the cards discarded, revealed or exiled this way, ties included: "the
             // player who reveals the card with the greatest mana value" (Psychic

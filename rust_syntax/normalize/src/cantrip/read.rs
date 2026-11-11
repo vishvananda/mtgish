@@ -1039,6 +1039,14 @@ impl Compiler {
             ));
         }
         if let PaymentRef::Casting { ability } = payment {
+            if self.reader == Reader::Resolution && self.stack_item
+                && self.casting_costs.len() == 1 && self.printed_additional_costs.contains(ability)
+            {
+                if let Some(part) = self.casting_costs.get(ability)
+                    .and_then(|cost| costs::flat_object_receipt(cost, component)) {
+                    return Ok(receipt(&format!("q.history().spell_cost_objects(item.object, CostOrigin::PrintedAdditional, 0, CostPart::{part}).collect::<Vec<ObjectId>>()")));
+                }
+            }
             if self.reader == Reader::Resolution
                 && self.stack_item
                 && self.casting_costs.len() == 1
@@ -1093,6 +1101,9 @@ impl Compiler {
                     .activation_cost
                     .as_ref()
                     .ok_or_else(|| gap("cost objects outside an activation"))?;
+                if let Some(part) = costs::flat_object_receipt(cost, component) {
+                    return Ok(receipt(&format!("q.history().ability_cost_objects(item.serial, 0, CostPart::{part}).collect::<Vec<ObjectId>>()")));
+                }
                 let paid = part(cost)?;
                 if let CostPart::Sacrifice {
                     objects: ObjectSet::One(ObjectRef::Source),

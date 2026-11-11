@@ -113,6 +113,11 @@ pub(super) fn watched_is_event_subject(event: &EventSpec) -> bool {
         } if *to != EventZone::Battlefield => direct_watched(objects) == Some(true),
         EventSpec::Object { objects, .. } => direct_watched(objects) == Some(true),
         EventSpec::Attack { attackers, .. } => direct_watched(attackers) == Some(true),
+        EventSpec::Player {
+            event: PlayerEvent::LosesControl,
+            objects: Some(objects),
+            ..
+        } => direct_watched(objects) == Some(true),
         EventSpec::Damage(damage) => match direct_watched(&damage.sources) {
             Some(true) => damage.subject == DamageSubject::Source,
             Some(false) => false,
@@ -147,6 +152,11 @@ fn source_is_event_subject(event: &EventSpec) -> bool {
         } if *to != EventZone::Battlefield => direct(objects),
         EventSpec::Object { objects, .. } => direct(objects),
         EventSpec::Attack { attackers, .. } => direct(attackers),
+        EventSpec::Player {
+            event: PlayerEvent::LosesControl,
+            objects: Some(objects),
+            ..
+        } => direct(objects),
         EventSpec::Damage(d) if d.subject == DamageSubject::Source => direct(&d.sources),
         EventSpec::Damage(d) if d.subject == DamageSubject::Recipient => {
             matches!(&d.recipients, DamageRecipients::Objects(objects) if direct(objects))
@@ -203,8 +213,8 @@ impl Outer {
     }
 }
 
-/// `delayed_trigger_about` keeps its list to the moment of a step: what an event
-/// triggers is put on the stack with none, so `about` would read nothing.
+/// Older native profiles did not promise to retain an event-delayed list.
+/// Current `delayed_trigger_about` retains it on both event and step triggers.
 const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list";
 
 /// A reflexive ability about a list of objects: Cantrip's carries one target.
@@ -1192,8 +1202,8 @@ impl Compiler {
         let mut event = event.clone();
         let (maker, _, _) = self.maker();
         let mut source = format!("Some({maker})");
-        if let EventSpec::ZoneChange { objects, .. } | EventSpec::Object { objects, .. } =
-            &mut event
+        if let EventSpec::ZoneChange { objects, .. } | EventSpec::Object { objects, .. }
+            | EventSpec::Player { event: PlayerEvent::LosesControl, objects: Some(objects), .. } = &mut event
         {
             if let ObjectFilter::SameObject(object) = objects {
                 if !matches!(object, ObjectRef::Source) {

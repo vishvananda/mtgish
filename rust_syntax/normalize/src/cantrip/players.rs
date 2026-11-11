@@ -477,6 +477,27 @@ impl Compiler {
                 Change::PlayerRule(rule) => rule,
                 other => return Err(gap(format!("continuous change on players {}", form(other)))),
             };
+            if let PlayerRule::AttackedOnlyBy(filter) = rule {
+                if planned::switched_on(planned::LASTING_RULES)
+                    && crate::cantrip_vocab::LASTING_RULE_KINDS.contains(&"CantAttackYou") {
+                    let mut predicate = self.clone();
+                    predicate.reader = Reader::Query;
+                    predicate.event_at = EventAt::Nowhere;
+                    predicate.stack_item = false;
+                    predicate.slots.clear();
+                    let allowed = predicate.filter(filter, &Candidate::of("object"))?;
+                    let index = self.made_lasting_rules.len();
+                    let function = format!("permitted_attackers_{index}");
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, about: Target, object: ObjectId) -> bool {{ !({allowed}) }}").unwrap();
+                    let text = quoted(self.line_text().unwrap_or("Only the permitted creatures can attack that player."));
+                    self.made_lasting_rules.push(("restricted attackers".into(), format!("LastingRule {{ text: {text}, rule: LastingRuleKind::CantAttackYou, applies: {function} }}"), false));
+                    let players = self.fetch(self.players(players)?);
+                    let source = self.fetch(self.object(source)?);
+                    let duration = self.duration(duration)?;
+                    writeln!(out, "let restricted_players_{id}_{i} = {players}; let rule_source_{id}_{i} = {source}; let rule_duration_{id}_{i} = {duration}; let rule_card_{id}_{i} = g.card_id(&CARD); if let Some(source) = rule_source_{id}_{i} {{ for player in restricted_players_{id}_{i} {{ g.add_player_effect(asker.controller, source, EffectKind::LastingRule {{ card: rule_card_{id}_{i}, index: {index}, about: Target::Player(player) }}, rule_duration_{id}_{i}); }} }}").unwrap();
+                    continue;
+                }
+            }
             if self.play_for_a_while(id, i, players, rule, duration, out)?
                 || self.prohibit_for_a_while(id, i, source, players, rule, duration, out)?
                 || self.look_for_a_while(id, i, players, rule, duration, out)?

@@ -1119,7 +1119,12 @@ impl Compiler {
         self.notes.implicit_single = inner.notes.implicit_single.clone();
         self.notes.implicit_each = inner.notes.implicit_each.clone();
         self.hoist(&inner.moved, Hoist::Moved, out);
-        self.hoist(&inner.selections, Hoist::Selected, out);
+        let ordinary_selections = inner.selections.iter()
+            .filter(|(result, _)| !inner.notes.persistent_selections.contains_key(result))
+            .map(|(result, code)| (*result, code.clone())).collect();
+        self.hoist(&ordinary_selections, Hoist::Selected, out);
+        self.selections.extend(inner.notes.persistent_selections.clone());
+        self.notes.persistent_selections.extend(inner.notes.persistent_selections);
         self.hoist(&inner.pile_not_chosen, Hoist::NotChosen, out);
         self.hoist(&inner.implicit_selections, Hoist::Implicit, out);
         self.hoist(&inner.creations, Hoist::Created, out);
@@ -2148,6 +2153,21 @@ impl Compiler {
                         .insert(result.0, format!("i64::from({local})"));
                 }
             }
+            Operation::Keyword {
+                actor: PlayerSet::One(PlayerRef::AbilityController),
+                action: KeywordAction::SetStake { amount },
+            } if self.stack_item => {
+                let amount = self.fetch(self.number(amount)?.amount(i64::MAX.into(), "i64")?);
+                writeln!(out, "let mut stake_{id}: i64 = {amount};").unwrap();
+                self.notes.stake = Some(format!("stake_{id}"));
+            }
+            Operation::Keyword {
+                actor: PlayerSet::One(PlayerRef::AbilityController),
+                action: KeywordAction::DoubleStake,
+            } if self.stack_item && self.notes.stake.is_some() => {
+                let stake = self.notes.stake.as_ref().expect("a stake was set");
+                writeln!(out, "{stake} = {stake}.saturating_mul(2);").unwrap();
+            }
             Operation::Keyword { actor, action } => {
                 let parts = crate::keyword_actions::parts(action);
                 let action = keywords::Action {
@@ -2997,6 +3017,25 @@ impl Compiler {
                 player,
                 cost,
                 optional: true,
+            } if self.asking.is_none()
+                && planned::switched_on("resolution-x-payment")
+                && matches!(cost.parts.as_slice(), [CostPart::RemoveCounters { removals }]
+                    if matches!(removals.as_slice(), [CounterRemoval {
+                        recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
+                        amount: CounterAmount::Count(Count::AnyNumber), ..
+                    }])) =>
+            {
+                self.helpers.insert("pay_question");
+                let payer = self.fetch(self.certain_player(player)?);
+                let cost = self.cost(cost, &format!("pay_{id}"))?;
+                writeln!(out, "let payer_{id} = {payer}; let counters_paid_{id} = g.may_pay_x(payer_{id}, asker.source, asker.source, {cost}, &PAY_QUESTION)?; let paid_{id} = counters_paid_{id}.is_some();").unwrap();
+                self.notes.counters_paid.insert((result.0, vec![0]), format!("counters_paid_{id}"));
+                self.performed.insert(result.0, format!("paid_{id}"));
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
             } if matches!(cost.parts.as_slice(), [CostPart::PlayerAction { .. }]) => {
                 self.player_action(id, player, &cost.parts[0], true, result, out)?
             }
@@ -3504,6 +3543,11 @@ impl Compiler {
                         else {
                             return Err(gap("resolution cost moving a choice of objects"));
                         };
+                        let required = if let Some(Count::Exactly(count)) = choose {
+                            let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "u32")?);
+                            writeln!(out, "let payment_count_{id}: u32 = {count};").unwrap();
+                            Some(format!("payment_count_{id}"))
+                        } else { None };
                         match choose {
                             None => {
                                 self.move_objects(id, objects, destination, entry, result, out)?
@@ -3531,6 +3575,10 @@ impl Compiler {
                         }
                         // "If you do" is that it got there (608.2c).
                         match (destination, self.moved(result)) {
+                            (Destination::Exile, Ok(moved)) if required.is_some() => {
+                                let count = required.as_ref().expect("an exact cost");
+                                writeln!(out, "let paid_{id} = objects_{id}.len() as u64 == u64::from({count}) && {moved}.iter().filter(|&&o| g.obj(o).zone.is(ZoneKind::Exile)).count() == objects_{id}.len();").unwrap();
+                            }
                             (Destination::Exile, Ok(moved)) => writeln!(out, "let paid_{id} = {moved}.iter().any(|&o| g.obj(o).zone.is(ZoneKind::Exile));").unwrap(),
                             (Destination::Battlefield(_) | Destination::OwnersBattlefield, Ok(moved)) => writeln!(out, "let paid_{id} = !{moved}.is_empty();").unwrap(),
                             _ => writeln!(out, "let paid_{id} = !objects_{id}.is_empty();").unwrap(),
@@ -4782,6 +4830,17 @@ impl Compiler {
                     self.object(with)?
                 )]
             }
+            Change::GrantKeyword(Keyword::Landwalk(land))
+                if matches!(&**land, ObjectFilter::Chosen(ValueKind::LandType | ValueKind::BasicLandType)) =>
+            {
+                // The native keyword set has each basic landwalk. Broader
+                // subtype choices still need a dynamic landwalk rule.
+                if !self.chosen.iter().any(|(kind, _)| *kind == ValueKind::BasicLandType) {
+                    return Err(gap("landwalk of an unrestricted chosen land type"));
+                }
+                let kind = self.chosen_local(ValueKind::LandType)?;
+                vec![format!("EffectKind::AddKeywords(Keywords::of(&[match {kind} {{ Subtype::Plains => Keyword::Plainswalk, Subtype::Island => Keyword::Islandwalk, Subtype::Swamp => Keyword::Swampwalk, Subtype::Mountain => Keyword::Mountainwalk, Subtype::Forest => Keyword::Forestwalk, _ => unreachable!(\"a basic land type was chosen\") }}]))")]
+            }
             Change::GrantKeyword(k) => {
                 vec![format!(
                     "EffectKind::AddKeywords({})",
@@ -4800,13 +4859,21 @@ impl Compiler {
                 "EffectKind::AddSubtype({})",
                 lane_k::word_subtype(&name(t))
             )],
-            // A land type set takes the land's rules text with it (CR 305.7),
-            // which only `sets_land_subtypes`, a static ability, does.
+            // SetLandType, unlike AddSubtype, also applies CR 305.7 to the
+            // land's printed abilities. Older native profiles keep the hole.
             Change::SetLandType(land) => {
                 let word = match &**land {
                     Operand::Vocabulary { form: word, .. } => format!("Subtype::{word}"),
-                    other => lane_q::second_chosen_land_type(other)
-                        .ok_or_else(|| gap(format!("land type {}", form(other))))?,
+                    other => {
+                        let future = lane_q::second_chosen_land_type(other)
+                            .ok_or_else(|| gap(format!("land type {}", form(other))))?;
+                        match self.nth_chosen_local(1) {
+                            Some((ValueKind::LandType | ValueKind::BasicLandType | ValueKind::NonbasicLandType, read))
+                                if read.starts_with("Some(") && read.ends_with(')') =>
+                                read[5..read.len() - 1].to_string(),
+                            _ => planned::planned_value("a land type chosen second", "Subtype::Plains", &future),
+                        }
+                    }
                 };
                 vec![lane_g::planned_kind(
                     "engine: no resolving effect sets land types",

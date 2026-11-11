@@ -114,7 +114,7 @@ pub(super) fn enters_two(card: &Card) -> Option<ValueKind> {
                 Instruction::Effect {
                     operation:
                         Operation::ChooseValue {
-                            kind: kind @ (ValueKind::Color | ValueKind::Player),
+                            kind: kind @ (ValueKind::Color | ValueKind::Player | ValueKind::BasicLandType),
                             terms,
                             ..
                         },
@@ -123,6 +123,19 @@ pub(super) fn enters_two(card: &Card) -> Option<ValueKind> {
                 _ => None,
             })
     })
+}
+
+/// An entry's only number is the amount of life its controller chooses to
+/// pay, rather than a separate stored number choice. One entry instruction
+/// leaves the native chosen-number carrier unambiguous.
+pub(super) fn enters_paying_life(card: &Card) -> bool {
+    let entries: Vec<_> = card.abilities.iter().filter_map(|ability| match ability {
+        Ability::Replacement { active: ReplacementActive::SourceEntering, body, .. } => Some(body),
+        _ => None,
+    }).collect();
+    matches!(entries.as_slice(), [body] if matches!(body.instructions.as_slice(),
+        [Instruction::Effect { operation: Operation::PayRepeatedly { cost, .. }, .. }]
+            if matches!(cost.parts.as_slice(), [CostPart::Life(Expr::Constant(1))])))
 }
 
 /// The values `card` chooses as it enters.
@@ -295,6 +308,10 @@ impl Compiler {
         let ask = "entering.controller";
         let source = "entering.object";
         match kind {
+            ValueKind::BasicLandType => {
+                let choices = "vec![Subtype::Plains, Subtype::Island, Subtype::Swamp, Subtype::Mountain, Subtype::Forest]";
+                writeln!(out, "let choices_{id} = {choices}; let Answer::Subtype(first_{id}) = g.ask({ask}, RequestKind::ChooseSubtype {{ source: {source}, choices: choices_{id}.clone(), purpose: WordUse::Chosen }})? else {{ return Ok(()) }}; let left_{id} = choices_{id}.into_iter().filter(|&kind| kind != first_{id}).collect(); let Answer::Subtype(second_{id}) = g.ask({ask}, RequestKind::ChooseSubtype {{ source: {source}, choices: left_{id}, purpose: WordUse::Chosen }})? else {{ return Ok(()) }}; entering.chosen_subtype = Some(first_{id}); entering.chosen_number = Some(second_{id} as u32);").unwrap();
+            }
             ValueKind::Color => {
                 let choices = match options.is_empty() {
                     true => 0b11111,
@@ -317,6 +334,10 @@ impl Compiler {
     pub(super) fn chosen_two(&self) -> String {
         let linked = self.linked();
         format!("[q.state().chosen_color({linked}), q.state().chosen_number({linked}).map(|n| Color::ALL[n as usize])]")
+    }
+    pub(super) fn second_entering_land_type(&self) -> Option<String> {
+        (self.enters_two == Some(ValueKind::BasicLandType)).then(|| format!(
+            "q.state().chosen_number({}).and_then(|n| Subtype::ALL.get(n as usize).copied())", self.linked()))
     }
     /// The `index`th choice this body made, in the order it made them (each local
     /// is numbered as it is written), and its `Option` read.

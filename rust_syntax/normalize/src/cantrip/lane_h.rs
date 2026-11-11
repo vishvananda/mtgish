@@ -2095,6 +2095,8 @@ impl Compiler {
                     }
                     other => camel_words(&form(other)),
                 }),
+                Ability::Mechanic { mechanic: Mechanic::Rampage, cost: None,
+                    amount: Some(Expr::Constant(n)), filter: None } => labels.push(format!("rampage {n}")),
                 other => match self.grants_keyword(other) {
                     Some(keyword) => {
                         labels.push(keyword.replacen("Keyword::", "", 1));
@@ -2134,7 +2136,7 @@ impl Compiler {
                             "EffectKind::AddKeywords(Keywords::of(&[{keyword}]))"
                         )]
                     }
-                    None => return Err(gap("continuous change ChosenAbility")),
+                    None => self.effect_kinds(&Change::GrantAbility(Box::new(other.clone())))?,
                 },
             };
             let [kind] = kinds.as_slice() else {
@@ -3866,20 +3868,17 @@ impl Compiler {
                 amount,
                 distinct: false,
             } => {
+                if kinds.is_empty() || kinds.len() > usize::from(u8::MAX) {
+                    return Err(gap("as-enters counter choice outside native option range"));
+                }
                 let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
                 let kinds = kinds
                     .iter()
                     .map(counter_kind)
                     .collect::<Result<Vec<_>>>()?
                     .join(", ");
-                self.plan_code(
-                    "event change as it enters Entry CountersOfChoice",
-                    &format!(
-                        "let many = {}; for _ in 0..many {{ cantrip_mechanics::choose::counter_as_enters(g, &mut *entering, &[{kinds}])?; }}",
-                        self.fetch(amount)
-                    ),
-                    out,
-                );
+                let id = self.fresh();
+                writeln!(out, "let many_{id} = {}; let kinds_{id} = [{kinds}]; for _ in 0..many_{id} {{ let picked = cantrip_mechanics::choose::one_of(g, entering.controller, entering.object, kinds_{id}.iter().copied().map(Label::Counter).collect())?; let kind = kinds_{id}[picked as usize]; entering.counters[kind as usize] = entering.counters[kind as usize].saturating_add(1); }}", self.fetch(amount)).unwrap();
             }
             EntryState::CopyOf {
                 objects: ObjectSet::One(object),

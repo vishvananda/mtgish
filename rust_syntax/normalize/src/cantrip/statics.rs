@@ -199,6 +199,24 @@ impl Compiler {
             "(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool";
         let function = format!("{label}_rule");
         match rule {
+            RuleChange::Prohibit(ObjectAction::BeAttachedBy { attachments, keep_existing: false })
+                if self.static_guard.is_none() && planned::switched_on("no-other-auras") =>
+            {
+                let aura = |filter: &ObjectFilter| matches!(filter, ObjectFilter::Subtype(crate::mtg_types::SubType::Aura));
+                let except_self = match attachments {
+                    ObjectFilter::AllOf(filters) if filters.len() == 2 => filters.iter().any(aura)
+                        && filters.iter().any(|f| matches!(f, ObjectFilter::Not(inner) if matches!(**inner, ObjectFilter::SameObject(ObjectRef::Source)))),
+                    _ => false,
+                };
+                if except_self && matches!(affected, ObjectSet::One(ObjectRef::AttachedTo(object)) if matches!(**object, ObjectRef::Source)) {
+                    parts.table("targeting_rules", "cantrip_mechanics::attach::ENCHANTED_NO_OTHER_AURAS".into());
+                } else if aura(attachments) && matches!(affected, ObjectSet::One(ObjectRef::Source)) {
+                    writeln!(self.functions, "fn {function}(_: &dyn cantrip_api::LayerQuery, source: ObjectId, object: ObjectId) -> bool {{ source == object }}").unwrap();
+                    parts.table("targeting_rules", format!("TargetingRule {{ kind: TargetingRuleKind::NoOtherAuras, applies: {function} }}"));
+                } else {
+                    return Ok(false);
+                }
+            }
             RuleChange::Prohibit(ObjectAction::Block(filter))
             | RuleChange::Prohibit(ObjectAction::BeBlocked(filter)) => {
                 let blocker = matches!(rule, RuleChange::Prohibit(ObjectAction::Block(_)));
@@ -432,6 +450,9 @@ impl Compiler {
                     lane_q::second_chosen_land_type(land).map_or(
                         "SubtypeSet::NONE".to_string(),
                         |word| {
+                            if let Some(chosen) = self.second_entering_land_type() {
+                                return format!("{chosen}.map_or(SubtypeSet::NONE, |chosen| SubtypeSet::NONE.with(chosen))");
+                            }
                             let held = planned::planned_value(
                                 "a land type chosen second",
                                 "Subtype::Plains",

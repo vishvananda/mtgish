@@ -1154,6 +1154,12 @@ impl Compiler {
         per: &BatchPer,
     ) -> Result<Matched> {
         let removed = *change != CounterChange::Put;
+        let native_removed = removed && planned::switched_on("counter-removal-events");
+        // Native removal events carry the resulting total, but no remover:
+        // the cause belongs to the history record. Do not invent a `by` field.
+        if native_removed && by.is_some() {
+            return Err(gap("counter removal with a named removing player"));
+        }
         let frame = Frame {
             object: Some(Carried::Subject),
             amount: Some(Carried::Data(0)),
@@ -1183,12 +1189,17 @@ impl Compiler {
             tests.push(self.matching(frame, |c| c.player_in(by, "*by"))?);
         }
         if *change == CounterChange::LastRemoved {
-            tests.push("q.state().obj(id).counters(*kind) == 0".into());
+            tests.push(if native_removed {
+                "*total == 0".into()
+            } else {
+                "q.state().obj(id).counters(*kind) == 0".into()
+            });
         }
         let mut matched = single(
-            if removed { "COUNTERS_REMOVED" } else { "COUNTERS" },
+            if removed && !native_removed { "COUNTERS_REMOVED" } else { "COUNTERS" },
             Arm {
                 pattern: match removed {
+                    true if native_removed => "Event::CountersRemoved { object, kind, amount, total }".into(),
                     true => "Event::CountersRemoved { object, kind, amount, by, .. }".into(),
                     false if as_put.is_some() => {
                         "Event::CountersPut { object, kind, amount, by, types, .. }".into()

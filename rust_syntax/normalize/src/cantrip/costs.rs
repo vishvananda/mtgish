@@ -77,6 +77,42 @@ fn exactly_u8(count: Option<&Count>) -> Option<u8> {
     }
 }
 
+/// A single identified object-taking part in the flat native cost emitted by
+/// `cost()`. Its component is zero; nested choices and multiple object-taking
+/// parts need a richer mapping and deliberately retain their existing gaps.
+pub(super) fn flat_object_receipt(cost: &Cost, component: &[u32]) -> Option<&'static str> {
+    if !planned::switched_on("cost-object-receipts") { return None; }
+    let [index] = component else { return None };
+    let index = *index as usize;
+    let part = cost.parts.get(index)?;
+    if cost.parts.iter().enumerate().any(|(i, part)| i != index && !matches!(part,
+        CostPart::Mana(_) | CostPart::TapSymbol | CostPart::Life(_)
+            | CostPart::Sacrifice { objects: ObjectSet::One(ObjectRef::Source), choose: None })) {
+        return None;
+    }
+    match part {
+        CostPart::Sacrifice { choose: Some(Count::AnyNumber), .. } => Some("Variable"),
+        CostPart::Discard { count: Expr::Constant(n), random: false, .. } if *n > 0 => Some("Discard(0)"),
+        CostPart::Move { selections, destination }
+            if destination.is_plain() && matches!(destination, MovementDestination::Exile { .. }) =>
+        {
+            let [selection] = selections.as_slice() else { return None };
+            if matches!((&selection.objects, &selection.choose), (ObjectSet::One(ObjectRef::Source), None)) {
+                return Some("ExileSelf");
+            }
+            if !matches!(selection.choose, Some(Count::Exactly(Expr::Constant(n))) if n > 0) {
+                return None;
+            }
+            if matches!(selection.objects, crate::battlefield_query!(_)) {
+                Some("Permanents")
+            } else if own_graveyard(&selection.objects).is_some() {
+                Some("GraveyardExile")
+            } else { None }
+        }
+        _ => None,
+    }
+}
+
 /// Crew N: the keyword's whole text is its cost's total power (CR 702.122a).
 fn crew(price: &Cost, text: &str) -> Result<String> {
     if let [CostPart::Constrained { part, constraints }] = price.parts.as_slice() {

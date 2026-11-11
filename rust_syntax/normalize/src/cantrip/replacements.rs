@@ -930,6 +930,27 @@ impl Compiler {
         body: &Program,
         out: &mut String,
     ) -> Result<()> {
+        if let (
+            ReplacementEvent::Object {
+                event: ReplacedObjectEvent::LeavesBattlefield,
+                objects: ObjectFilter::SameObject(object),
+            },
+            ReplacementLimit::UntilExpired,
+            crate::ir::Duration::WhileOnBattlefield(until),
+            [Instruction::Effect {
+                operation: Operation::ModifyEvent {
+                    change: EventChange::SetDestination(Destination::Exile),
+                },
+                ..
+            }],
+        ) = (event, limit, duration, body.instructions.as_slice()) {
+            if format!("{object:?}") == format!("{until:?}") {
+                let object = self.fetch(self.object(object)?);
+                self.plan_switched("exile-on-leave", "leave-battlefield exile replacement",
+                    &format!("if let Some(object) = {object} {{ g.exile_on_leave(object); }}"), out);
+                return Ok(());
+            }
+        }
         if let Some(events) = self.alternatives_apart(event) {
             for one in events {
                 self.create_replacement(one, limit, duration, body, out)?;

@@ -13,8 +13,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Imagecrafter", "EffectKind::SetCreatureType(chosen_"),
     ("Mistform Dreamer", "EffectKind::SetCreatureType(chosen_"),
     ("Mistform Sliver", "EffectKind::AddSubtype(chosen_"),
-    // No resolving effect sets land types, and adding one would keep the others.
-    ("Tundra Kavu", "no resolving effect sets land types"),
+    // Setting land types also removes their old printed abilities (CR 305.7).
+    ("Tundra Kavu", "EffectKind::SetLandType(chosen_"),
     // Repeats of a color are no color more: any set of them, or all.
     ("Dream Coat", "RequestKind::ChooseColors"),
     ("Dream Coat", "EffectKind::SetColors(colors_"),

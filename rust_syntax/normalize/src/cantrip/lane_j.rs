@@ -709,6 +709,7 @@ impl Compiler {
             E::TapsPermanent | E::LosesControl | E::RevealsFirstCardDrawn | E::PaysCumulativeUpkeep | E::DeclinesCumulativeUpkeep | E::SacrificesForEmerge | E::VisitsAttraction | E::UntapsDuringUntapStep => {
                 let (mask, pattern, phrase) = match event {
                     E::TapsPermanent => ("TAPPED", "Event::Tapped { permanent, by: Some(player) }", "Whenever a player taps a permanent"),
+                    E::LosesControl if planned::switched_on("control-change-events") => ("CONTROL_CHANGED", "Event::ControlChanged { permanent, from: player, .. }", "When a player loses control of this"),
                     E::LosesControl => ("CONTROL_CHANGED", "Event::ControlChanged { permanent, previous: player, .. }", "When a player loses control of this"),
                     E::RevealsFirstCardDrawn => ("REVEALED", "Event::RevealedAsDrawn { permanent, player, first: true }", "Whenever a player reveals the first card they drew this way"),
                     E::PaysCumulativeUpkeep => ("CUMULATIVE_UPKEEP_PAID", "Event::CumulativeUpkeepPaid { permanent, player }", "Whenever a player pays this permanent's cumulative upkeep"),
@@ -2231,6 +2232,12 @@ impl Compiler {
             // (`VariableCost::RemoveAnyNumberOfCounters`). A mana ability has no
             // stack item; newer engines expose its activation-local X. Older
             // targets retain the explicit gap rather than reading casting X.
+            Expr::PaidCountersRemoved { payment: PaymentRef::Resolution(result), component }
+                if self.notes.counters_paid.contains_key(&(result.0, component.clone())) =>
+            {
+                let local = &self.notes.counters_paid[&(result.0, component.clone())];
+                Number { code: format!("i64::from({local}.unwrap_or(0))"), min: 0, max: quantity::x_max(), dynamic: true }
+            }
             Expr::PaidCountersRemoved { payment, component }
                 if self.mana_body && planned::switched_on("mana-counter-costs")
                     && self.activation_cost.as_ref().is_some_and(|cost| lane_g::mana_counter_component(cost, payment, component)) =>
@@ -4700,6 +4707,20 @@ impl Compiler {
         };
         if let Some(payment) = plain {
             parts.abilities.push(whole(&payment));
+            return Ok(());
+        }
+        // The shared Payment enum has separate mana and life variants, but
+        // Game::may_pay already pays a compound Cost atomically. Keep this
+        // small adapter until that convenience variant exists in mechanics.
+        if planned::switched_on("compound-cumulative-upkeep")
+            && !cost.parts.is_empty()
+            && cost.parts.iter().all(|part| matches!(part,
+                CostPart::Mana(_) | CostPart::Life(Expr::Constant(_))))
+        {
+            let cost = self.cost(cost, label)?;
+            let effect = format!("{label}_compound_upkeep");
+            writeln!(self.functions, "fn {effect}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ if !g.is_on_battlefield(item.object) {{ return Ok(()); }} g.add_counters(item.object, CounterKind::Age, 1); g.end_sentence(); let age = g.obj(item.object).counters(CounterKind::Age).max(0) as u32; let unit = {cost}; let total = unit.mana.times(age).zip(u32::from(unit.life).checked_mul(age)).and_then(|(mana, life)| Some(Cost {{ mana, life: life.try_into().ok()?, ..Cost::NONE }})); let paid = match total {{ Some(total) => g.may_pay(item.controller, item.object, item.object, total, &cantrip_mechanics::cumulative_upkeep::PAY)?, None => false }}; if !paid {{ g.sacrifice(item.controller, &[item.object]); }} Ok(()) }}").unwrap();
+            parts.abilities.push(format!("cantrip_mechanics::cumulative_upkeep::ability({effect}, \"Cumulative upkeep\")"));
             return Ok(());
         }
         let payment = match cost.parts.as_slice() {

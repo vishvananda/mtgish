@@ -1180,16 +1180,19 @@ impl Compiler {
                 if !planned::switched_on("counter-placement-ceiling") {
                     return Err(gap("post-replacement counter placement ceiling"));
                 }
-                // The choice is up to X, even if replacements would reduce it.
-                // Only the native placement authority applies the total ceiling.
-                if amount.max > Quantity::CounterPlacement.max() {
-                    return Err(gap(
-                        "counter placement cannot represent the full chosen range",
-                    ));
-                }
+                // Keep the full numeric choice. Convert its result at the
+                // native counter boundary, using the same saturation as other
+                // dynamic counter placements. The total ceiling is applied by
+                // the engine after replacements, never to the choice itself.
+                let chosen = Number {
+                    code: format!("i64::from(picked_{id})"),
+                    min: 0,
+                    max: amount.max.max(0),
+                    dynamic: true,
+                }.quantity(Quantity::CounterPlacement)?;
                 let amount = amount.choice_amount()?;
                 let cap = cap.quantity(Quantity::CounterPlacement)?;
-                writeln!(out, "let object_{id} = {}; let amount_{id} = {}; let cap_{id} = {}; if let Some(object) = object_{id}.filter(|&object| is_live(g, object)) {{ let chosen = {M}::choose::number(g, asker.controller, asker.source, 0, amount_{id}, \"Put counters\")? as {counter_ty}; g.add_counters_with_limit(object, {kind}, chosen, cap_{id}); }}", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(cap), counter_ty = Quantity::CounterPlacement.kind()).unwrap();
+                writeln!(out, "let object_{id} = {}; let amount_{id} = {}; let cap_{id} = {}; if let Some(object) = object_{id}.filter(|&object| is_live(g, object)) {{ let picked_{id} = {M}::choose::number(g, asker.controller, asker.source, 0, amount_{id}, \"Put counters\")?; let chosen = {chosen}; g.add_counters_with_limit(object, {kind}, chosen, cap_{id}); }}", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(cap)).unwrap();
             }
             Operation::Repeat { times, body } => {
                 let runs = self.number(times)?.amount(u32::MAX.into(), "u32")?;
@@ -1501,10 +1504,14 @@ impl Compiler {
                         "{M}::control_turn::next_combat(g, asker.source, {actor}, {player})"
                     ),
                     PlayerPairAction::ExchangeLife => {
-                        format!("{M}::exchange::life_totals(g, {actor}, {player})")
+                        format!("{{ let exchange_actor = {actor}; let exchange_player = {player}; {M}::exchange::life_totals(g, exchange_actor, exchange_player) }}")
                     }
                 };
-                self.plan_code(&feature, &call, out);
+                if matches!(action, PlayerPairAction::ExchangeLife) {
+                    self.plan_switched("life-exchange", &feature, &format!("cantrip_api::instruction(g, |g| {{ {call}; }});"), out);
+                } else {
+                    self.plan_code(&feature, &call, out);
+                }
             }
             Operation::Exchange {
                 kind,
@@ -2074,6 +2081,22 @@ impl Compiler {
                     self.plan_code(&feature, "g.end_simultaneous()", out);
                 }
             }
+            Operation::GameEffect { until, effect }
+                if matches!(effect.as_ref(), Operand::Term { family, form, operands }
+                    if family == "GameEffect" && form == "PermanentsTappedByPlayerForManaProduceColorlessInstead"
+                        && matches!(operands.as_slice(), [Operand::Objects(crate::battlefield_query!(_)), Operand::Players(PlayerSet::All)])) =>
+            {
+                let Operand::Term { operands, .. } = effect.as_ref() else { unreachable!() };
+                let [Operand::Objects(crate::battlefield_query!(filter)), _] = operands.as_slice() else { unreachable!() };
+                let event = ReplacementEvent::ProduceMana { sources: filter.clone(), by: None };
+                let body = Program { instructions: vec![Instruction::Effect {
+                    result: ResultId(0),
+                    operation: Operation::ModifyEvent { change: EventChange::ReplaceMana(ManaProduction::Amount {
+                        color: ManaColor::Colorless, amount: Expr::Constant(1),
+                    }) },
+                }] };
+                self.create_replacement(&event, &ReplacementLimit::UntilExpired, until, &body, out)?;
+            }
             // The rule is data; the objects and players it names as it resolves
             // are the call's, as `effect_on_objects` takes them.
             Operation::GameEffect { until, effect } => {
@@ -2580,6 +2603,17 @@ impl Compiler {
             // pay {1}{W}": one payment, its number the payer's. A cost that isn't mana
             // goes one at a time, until they stop: which times they stopped at is
             // nothing the rest can tell.
+            Operation::PayRepeatedly { player, cost, at_most }
+                if self.pending == Pending::Entering && self.entering_life_paid
+                    && matches!(cost.parts.as_slice(), [CostPart::Life(Expr::Constant(1))]) =>
+            {
+                self.helpers.insert("pay_question");
+                let payer = self.fetch(self.certain_player(player)?);
+                let most = self.fetch(self.number(at_most)?.amount(u32::MAX.into(), "u32")?);
+                writeln!(out, "let payer_{id} = {payer}; let most_{id}: u32 = ({most}).min(if g.can_lose_life(payer_{id}) {{ g.state().player(payer_{id}).life.max(0) as u32 }} else {{ 0 }}); let selected_{id} = cantrip_mechanics::choose::number(g, payer_{id}, entering.object, 0, most_{id}, \"Pay life\")?; let paid_{id} = selected_{id} == 0 || g.may_pay(payer_{id}, entering.object, entering.object, Cost {{ life: selected_{id}.try_into().expect(\"payable life fits the native life total\"), ..Cost::NONE }}, &PAY_QUESTION)?; let bound_{id}: i64 = if paid_{id} {{ i64::from(selected_{id}) }} else {{ 0 }}; let done_{id}: i64 = bound_{id}; entering.chosen_number = Some(bound_{id} as u32);").unwrap();
+                self.performed.insert(result.0, format!("done_{id}"));
+                self.values.insert(result.0, format!("bound_{id}"));
+            }
             Operation::PayRepeatedly {
                 player,
                 cost,
@@ -3820,6 +3854,22 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        if kind == ValueKind::Object && terms.unchosen && terms.exactly_one()
+            && !terms.secret && !terms.random && !terms.ordered && terms.except.is_empty()
+            && self.repeating.is_some() && self.hoisted.is_some()
+        {
+            if let (PlayerSet::One(player), [Operand::Objects(objects)]) = (actor, terms.options.as_slice()) {
+                let chooser = self.fetch(self.certain_player(player)?);
+                let objects = self.fetch(self.objects(objects)?);
+                let seen = format!("previously_chosen_{id}");
+                let last = format!("last_chosen_{id}");
+                self.hoisted.as_mut().expect("resolution locals exist").extend([seen.clone(), last.clone()]);
+                writeln!(out, "let chooser_{id} = {chooser}; let candidates_{id}: Vec<ObjectId> = ({objects}).into_iter().filter(|id| !{seen}.contains(id)).collect(); let picked_{id} = cantrip_mechanics::choose::select(g, chooser_{id}, asker.source, Purpose::Choose, candidates_{id}, cantrip_mechanics::select::Selection::of(cantrip_mechanics::select::Count::Exactly(1), &[]))?; if !picked_{id}.is_empty() {{ {seen}.extend(picked_{id}.iter().copied()); {last} = picked_{id}; }}").unwrap();
+                self.selections.insert(result.0, last.clone());
+                self.notes.persistent_selections.insert(result.0, last);
+                return Ok(());
+            }
+        }
         if let Some(count) = terms.ordinary_count() {
             if count == 1 {
                 // Restricted card types are not the unrestricted card-type menu.
