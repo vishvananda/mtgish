@@ -9,7 +9,7 @@
   const uiLabels={Counter:'Counter spell or ability',CounterWith:'Counter spell or ability · conditional'};
   const palette={abilities:'#477d70',effects:'#b46b4f',flow:'#9b7a42',choices:'#8762a8',events:'#508d88',targets:'#5a7f9e',values:'#788544',properties:'#657b62',advanced:'#86739a'};
   const pretty = text => text.replace(/_/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2');
-  const variantLabel = (type,v) => (type==='CastingRule'?({Permission:'Cast from another zone',AdditionalCost:'Additional casting cost',AlternativeCost:'Alternative casting cost',ReduceCost:'This card costs less to cast',Require:'Casting restriction',Flash:'Cast with flash'})[v.wire]:null) || (type==='Ability'?({Spell:'When this spell resolves',Triggered:'When an event happens',Activated:'Activated ability',Static:'Continuous effect',Casting:'Casting rule',Replacement:'Replace an event',Scoped:'Ability in selected locations',Mechanic:'Keyword mechanic'})[v.wire]:null) || (type==='Operation'?(uiLabels[v.wire]||flowView?.labels[v.wire]||authoring.actions[v.wire]?.label):type==='Instruction'?(flowView?.labels[v.wire]||authoring.instructions?.[v.wire]?.label):type==='KeywordAction'?authoring.keyword_actions?.[v.wire]?.label:type==='ObjectKeywordAction'?authoring.object_keyword_actions?.[v.wire]?.label:null) || pretty(authoring.references[type]?.[v.wire]||v.name);
+  const variantLabel = (type,v) => (type==='CastingRule'?({Permission:'Cast from another zone',AdditionalCost:'Additional casting cost',AlternativeCost:'Alternative casting cost',ReduceCost:'This card costs less to cast',Require:'Casting restriction',Flash:'Cast with flash'})[v.wire]:null) || (type==='Ability'?({Spell:'When this spell resolves',Triggered:'When an event happens',Activated:'Activated ability',Static:'Continuous effect',Casting:'Casting rule',Replacement:'Replace an event',Scoped:'Ability in selected locations',Mechanic:'Keyword mechanic'})[v.wire]:null) || (type==='Operation'?(uiLabels[v.wire]||flowView?.labels[v.wire]||authoring.actions[v.wire]?.label):type==='Instruction'?(flowView?.labels[v.wire]||authoring.instructions?.[v.wire]?.label):type==='KeywordAction'?authoring.keyword_actions?.[v.wire]?.label:type==='ObjectKeywordAction'?authoring.object_keyword_actions?.[v.wire]?.label:null) || valueView?.label(type,v.wire) || pretty(authoring.references[type]?.[v.wire]||v.name);
   const typeName = t => t.named || (t.vec ? `List<${typeName(t.vec)}>` : t.option ? `Optional<${typeName(t.option)}>` : `(${t.tuple.map(typeName).join(', ')})`);
   const descriptor = t => t.named && types[t.named];
   const newtype = t => {const d=descriptor(t);return d?.kind==='struct' && d.fields.kind==='tuple' && d.fields.items.length===1 ? d.fields.items[0]:null;};
@@ -126,6 +126,7 @@
   const namedAbilities=createNamedAbilities({abilityValue,actionValue,clone,same});
   const choiceView=createChoiceView({clone,defaultValue,fromBlock,parts,replaceView,remember,changed,applyPresentation,notice,addToFlow,bindings:()=>bindingEditor,workspace:()=>workspace,childValues,assemble});
   const flowView=createFlowView({actions:authoring.actions,parts,remember,addToFlow,instruction:name=>{const v=types.Instruction.variants.find(v=>v.wire===name);return packEnum(types.Instruction,v,fieldsDefault(v.fields,[],`Instruction::${name}`));},block:(name,value)=>flyoutBlock('Instruction',value),effect:(name,values)=>flyoutBlock('Instruction',actionValue(name,values))});
+  const valueView=createValueView({parts,block:flyoutBlock,count:()=>flyoutBlock('Expr',{kind:'CountObjects',args:selectorEditor.starters({named:'ObjectSet'},null).find(o=>o.label==='Creatures you control').value})});
   const targetPresets=authoring.targets.map(t=>[t.label,t.fields]);
   const permanentTarget=filter=>({kind:{Object:{kind:'Permanent',zones:['Battlefield']}},filter,players:null});
   targetPresets.push(['target permanent',permanentTarget({kind:'Any'})],...['Artifact','Enchantment','Land'].map(type=>['target '+type.toLowerCase(),permanentTarget({kind:'CardType',args:type})]),['target spell',{kind:{Object:{kind:'Spell',zones:['Stack']}},filter:{kind:'Any'},players:null}],['target creature you control',permanentTarget({kind:'All',args:[{kind:'CardType',args:'Creature'},{kind:'ControlledBy',args:{kind:'One',args:SELF}}]})],['target opponent',{kind:'Player',filter:{kind:'Any'},players:{kind:'OpponentsOf',args:SELF}}]);
@@ -174,7 +175,7 @@
   }
   function chooseFlyoutVariant(b,name) {
     const s=b.state,type=s.pr==='keyword'?'Keyword':s.ty.named,d=types[type],variant=d?.variants?.find(v=>v.wire===name);
-    const value=s.pr==='effect'?actionValue(name):s.pr==='keyword'?{kind:'Keyword',args:packEnum(d,variant,fieldsDefault(variant.fields,[],type+'::'+name))}:type==='Ability'?abilityValue(name):type==='Instruction'?flowView.starter(name):packEnum(d,variant,fieldsDefault(variant.fields,[],type+'::'+name));
+    const value=s.pr==='effect'?actionValue(name):s.pr==='keyword'?{kind:'Keyword',args:packEnum(d,variant,fieldsDefault(variant.fields,[],type+'::'+name))}:type==='Ability'?abilityValue(name):type==='Instruction'?flowView.starter(name):valueView.starter(type,name)||packEnum(d,variant,fieldsDefault(variant.fields,[],type+'::'+name));
     resetFlyoutBlock(b,scopeValue(s,value));
   }
   function chooseTarget(b,index) {
@@ -240,7 +241,7 @@
       const f=t.tuple?{kind:'tuple',items:t.tuple}:d.kind==='struct'?d.fields:viewVariant(state).fields;
       result=fieldParts(f,f.kind==='tuple'?'':'F_');
     }
-    return flowView.parts(state,choiceView.parts(state,sections.parts(state,result))).map(p=>{
+    return valueView.parts(state,flowView.parts(state,choiceView.parts(state,sections.parts(state,result)))).map(p=>{
       const inline=state.inline?.[p.key];
       if(inline && (state.ui<3 || inline==='pt') && !state.noInline?.includes(p.key))p={...p,inline,editTy:inline==='constant'?{named:'i64'}:p.ty};
       if(state.ui>=2 && !p.inline) {
@@ -285,7 +286,7 @@
     if(t.named==='Ability' && value.kind==='Keyword'){s.pr='keyword';s.keyword=value.args.kind;}
     if(t.named==='Ability'&&value.kind==='Activated')s.activationName=namedAbilities.name(value);
     if(sections.card(s))Object.assign(s,sections.initial(s.pr==='single'?value.faces[0]:value));
-    return choiceView.state(t,value,s);
+    return valueView.state(t,value,choiceView.state(t,value,s));
   }
   function fieldValues(f,a,prefix='F_') {
     if(f.kind==='unit')return {};
@@ -294,6 +295,7 @@
   }
   function childValues(t,value,state) {
     if(state.sourceScope)value=value.args.ability;
+    if(state.valueList!==undefined)return valueView.listValues(state,value);
     if(state.pr==='literal')return {VALUE:value};
     if(state.pr==='count')return {COUNTED:value.args};
     if(state.pr==='query')return projections.query(value);
@@ -362,7 +364,7 @@
     if(/Card|Characteristics|ManaSymbol/.test(n))return palette.properties;
     if(/Event/.test(n))return palette.events;
     if(/Object|Target|Recipient|Filter|Selection/.test(n))return palette.targets;
-    if(/Expr|Condition|Player|Duration|Count|ResultId|LoopBinding|i32|u32|i64/.test(n))return palette.values;
+    if(/Expr|Condition|Player|Duration|Count|ResultId|LoopBinding|Property|Information|Rounding|Comparison|Aggregation|i32|u32|i64/.test(n))return palette.values;
     return palette.advanced;
   }
   const icon = s => 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><rect x="1" y="1" width="20" height="20" rx="5" fill="white" fill-opacity=".22"/><text x="11" y="16" text-anchor="middle" fill="white" font-size="19">${s}</text></svg>`);
@@ -381,6 +383,7 @@
   }
   const defaultStructures=new Set(['Announcement','TriggerLimits','ActivationLimits','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival','ModeCount','ModeRules','ModeMechanism']);
   function resetValue(b,p) {
+    const valueReset=valueView.reset(b.state,p);if(valueReset!==undefined)return valueReset;
     if(b.state.pr==='effect'&&['Counter','CounterWith'].includes(b.state.op)&&p.key==='O_destination')return b.state.op==='Counter'?'OwnersGraveyard':{OwnersGraveyard:defaultValue({named:'CardArrival'})};
     if(b.state.ty.named==='Instruction'&&b.state.variant==='ChooseOne'&&p.key==='F_options')return undefined;
     if((b.state.pr==='announcement'&&p.key==='F_targets')||(b.state.pr==='modes'&&p.key==='F_options'))return undefined;
@@ -414,6 +417,7 @@
     if(p.key==='RESULT'||(b.state.ty.named==='Instruction'&&b.state.variant==='Effect'&&p.key==='F_result'))return true;
     const choiceHidden=choiceView.hidden(b,p);if(choiceHidden!==null)return choiceHidden;
     if(detailMode)return false;
+    const valueReset=valueView.reset(b.state,p);if(valueReset!==undefined)try{return same(fromBlock(b.getInputTargetBlock(p.key)),valueReset);}catch(_){}
     if(b.state.pr==='effect'&&['Counter','CounterWith'].includes(b.state.op)&&p.key==='O_destination')try{return same(fromBlock(b.getInputTargetBlock(p.key)),resetValue(b,p));}catch(_){}
     if(b.state.ty.named==='Ability'&&b.state.variant==='Activated'){
       if(p.key==='F_origin')return true;
@@ -547,7 +551,7 @@
       if(location){location.setVisible(!!home&&b.state.variant!=='Spell');b.getField('LOCATION_LABEL')?.setVisible(!!home&&b.state.variant!=='Spell');if(home){Blockly.Events.disable();try{location.setValue(home.id);}finally{Blockly.Events.enable();}}}
       const from=b.getField('CAST_FROM');if(from){let value;try{value=fromBlock(b);if(value.kind==='Scoped')value=value.args.ability;}catch(_){}const permission=value?.kind==='Casting'?value.args.Permission:null;from.setValue(value?.kind==='Replacement'&&value.args.active==='SourceEntering'?'As this enters · replacement':permission?'From '+(permission.from.Players?.zone||'another zone').toLowerCase():value?.kind==='Mechanic'&&value.args.mechanic==='Disturb'?'From graveyard · transformed':'');}
       b.getField('COST_ZERO')?.setValue(b.state.present&&b.getInputTargetBlock('SOME')?.state.count===0?'0':'');
-      let rerender=false;
+      let rerender=valueView.refresh(b,detailMode);
       for(const p of parts(b.state)) {
         const input=b.getInput(p.key),hidden=hiddenReason(b,p);
         if(input && input.isVisible()===hidden){input.setVisible(!hidden);rerender=true;}
@@ -684,7 +688,7 @@
         }
       }
       if(p.flow){if(p.socketTy?.named==='TargetSpec')choiceView.addTarget(parent);else if(p.socketTy?.named==='Mode')choiceView.addMode(parent);else addToFlow(parent,p);return;}
-      const value=defaultValue(p.ty);
+      const value=valueView.defaultItem(parent.state)??defaultValue(p.ty);
       if(p.ty.named==='TargetSpec'&&parent.state.ty.vec?.named==='TargetSpec'){const slots=parent.getChildren(false).filter(b=>b.state.ty.named==='TargetSpec').map(b=>Number(b.getFieldValue('_F_slot')));value.slot=slots.length?Math.max(...slots)+1:0;}
       const state=blockState(p.ty,value);if(p.statement)state.extraState.statement=true;
       const b=Blockly.serialization.blocks.append(state,workspace);
@@ -732,6 +736,7 @@
     },
     saveExtraState(){return clone(this.state);},
     loadExtraState(state) {
+      if(state?.valueList!==undefined&&(!Number.isInteger(state.valueList)||state.valueList<0||state.valueList>2048))throw Error('Invalid value list or a list longer than 2,048 items.');
       if(!state?.ty || !Number.isInteger(state.count??0) || (state.count??0)<0 || (state.count??0)>2048)throw Error('Invalid block state or a list longer than 2,048 items.');
       this.state=clone(state);this.rebuild();
     },
@@ -773,6 +778,7 @@
           if(this.state.simpleTargetCount)header.appendField(new CardDropdown([['exactly','Exactly'],['up to','UpTo'],['any number','AnyNumber'],['at least','AtLeast']]),'_T_STYLE').appendField(new Blockly.FieldTextInput(values._T_NUMBER||'1'),'_T_NUMBER');
           header.appendField(new CardDropdown([...targetPresets.map(([label],i)=>[label,String(i)]),['custom target…','CUSTOM']]),'TARGET_PRESET').appendField(button('−','Remove this target group',()=>choiceView.removeRow(this)),'REMOVE_TARGET');
         }
+        else if(this.state.valueList!==undefined){header.appendField(new CardDropdown(variantChoices(this.state,d).map(v=>[variantLabel(t.named,v),v.wire])),'VARIANT').appendField(button('+','Add another value or condition',()=>this.resize(1)),'ADD_VALUE').appendField(button('−','Remove the last value or condition',()=>this.resize(-1)),'REMOVE_VALUE').appendField('empty list','EMPTY_VALUES');this.setFieldValue(variant.wire,'VARIANT');}
         else if(t.vec){header.appendField(t.vec.named==='TargetSpec'?'Targets':typeName(t.vec)+' items');header.appendField(button('+','Add an item',()=>this.resize(1)));if(this.state.count)header.appendField(button('−','Remove last item',()=>this.resize(-1)));}
         else if(t.option){header.appendField(t.option.vec?.named==='ManaSymbol'?(this.state.present?'Mana cost':'No mana cost'):(this.state.present?'Value':'Not set'));if(t.option.vec?.named==='ManaSymbol')header.appendField('','COST_ZERO');header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));}
         else if(this.state.pr==='effect'&&['Keyword','KeywordEach'].includes(this.state.op))header.appendField(this.state.op==='Keyword'?'Keyword action':'Keyword action on objects');
@@ -823,16 +829,18 @@
         }
         for(const p of parts(this.state))if(resetValue(this,p)!==undefined)this.getInput(p.key)?.appendField(button('−','Remove '+(p.label||'this option')+' (undo restores it)',()=>removeOption(this,p.key)),'REMOVE_'+p.key);
         this.setTooltip(`${typeName(t)}${variant?'::'+variant.name:''}\n${variant?.doc||''}`);
-        this.setInputsInline(flowView.compact(this.state)||['literal','effect','count','query','modes'].includes(this.state.pr)||t.named==='TargetSpec'||this.state.pr==='keyword'||scalar(t)||(d?.kind==='struct'&&d.fields.kind==='tuple'&&d.fields.items.every(scalar)));
+        valueView.decorate(this);
+        this.setInputsInline(valueView.compact(this.state)||flowView.compact(this.state)||['literal','effect','count','query','modes'].includes(this.state.pr)||t.named==='TargetSpec'||this.state.pr==='keyword'||scalar(t)||(d?.kind==='struct'&&d.fields.kind==='tuple'&&d.fields.items.every(scalar)));
       }finally{Blockly.Events.enable();}
       if(this.rendered)this.render();
     },
     resize(delta) {
       if(this.isInFlyout)return;
-      if(this.state.ty.vec&&delta>0&&this.state.count>=2048){notice('This demo allows up to 2,048 items in one list.');return;}
+      if((this.state.ty.vec||this.state.valueList!==undefined)&&delta>0&&(this.state.valueList??this.state.count)>=2048){notice('This demo allows up to 2,048 items in one list.');return;}
       Blockly.Events.setGroup(true);
       try {
-        if(this.state.ty.vec){if(delta<0)this.getInputTargetBlock(`ITEM_${this.state.count-1}`)?.dispose(false);this.state.count=Math.max(0,this.state.count+delta);}
+        if(this.state.valueList!==undefined){if(delta<0)this.getInputTargetBlock(`ITEM_${this.state.valueList-1}`)?.dispose(false);this.state.valueList=Math.max(0,this.state.valueList+delta);}
+        else if(this.state.ty.vec){if(delta<0)this.getInputTargetBlock(`ITEM_${this.state.count-1}`)?.dispose(false);this.state.count=Math.max(0,this.state.count+delta);}
         else {if(this.state.present)this.getInputTargetBlock('SOME')?.dispose(false);this.state.present=!this.state.present;}
         this.rebuild();const p=parts(this.state).at(-1);if(p&&!scalarType(p)&&!this.getInputTargetBlock(p.key))insertDefault(this,p);
       }finally{Blockly.Events.setGroup(false);}
@@ -872,6 +880,7 @@
   function scopeValue(state,value){return state.sourceScope?{kind:'Scoped',args:{zones:clone(state.sourceScope),condition:null,ability:value}}:value;}
   function assemble(state,values) {
     const t=state.ty,d=descriptor(t);
+    if(state.valueList!==undefined)return valueView.listValue(state,values);
     if(state.pr==='literal')return values.VALUE;
     if(state.pr==='count')return {kind:'CountObjects',args:values.COUNTED};
     if(state.pr==='query')return projections.queryValue(state,values);
@@ -927,7 +936,7 @@
   function variantBlock(type,name) {
     const d=types[type],v=d.variants.find(v=>v.wire===name);
     const args=fieldsDefault(v.fields,[],`${type}::${name}`);
-    return flyoutBlock(type,type==='Instruction'?flowView.starter(name):packEnum(d,v,args));
+    return flyoutBlock(type,type==='Instruction'?flowView.starter(name):valueView.starter(type,name)||packEnum(d,v,args));
   }
   function effectGroup(name) {
     const category=authoring.actions[name]?.category;
@@ -937,6 +946,7 @@
     return 'Spells & rules';
   }
   function variantChoices(state,descriptor) {
+    const values=valueView.variants(state,descriptor);if(values)return values;
     const flow=flowView.variants(state,descriptor);if(flow)return flow;
     if(state.pr==='effect'){
       if(['Keyword','KeywordEach'].includes(state.op))return descriptor.variants.filter(v=>v.wire===state.op);
@@ -1011,14 +1021,7 @@
       variantBlock('ObjectSet','Targets'),
       ...selectorEditor.starters({named:'ObjectSet'},null).filter(o=>o.value.kind==='Zone').map(o=>flyoutBlock('ObjectSet',o.value))
     ]},
-    {kind:'category',name:'Values & conditions',colour:palette.values,contents:[
-      flyoutBlock('Expr',{kind:'Constant',args:1}),
-      flyoutBlock('Expr',{kind:'AnnouncedX'}),
-      flyoutBlock('Expr',{kind:'CountObjects',args:selectorEditor.starters({named:'ObjectSet'},null).find(o=>o.label==='Creatures you control').value}),
-      flyoutBlock('Expr',{kind:'Add',args:[{kind:'Constant',args:0},{kind:'Constant',args:0}]}),
-      ...choices.PlayerSet.map(([,v])=>flyoutBlock('PlayerSet',v)),
-      ...['Compare','Not','All','Any'].filter(n=>types.Condition.variants.some(v=>v.wire===n)).map(n=>variantBlock('Condition',n))
-    ]},
+    {kind:'category',name:'Values & conditions',colour:palette.values,contents:valueView.palette()},
     {kind:'category',name:'Advanced',colour:palette.advanced,contents:
       [...['Expr','Condition','PlayerRef','PlayerSet','ObjectFilter','ObjectRef','ObjectSet','CostPart','Duration','EventSpec'].map(type=>({kind:'category',name:type,colour:colour({named:type}),contents:types[type].variants.filter(v=>!excluded(v)).flatMap(v=>{try{return [variantBlock(type,v.wire)];}catch(_){return [];}})})),{kind:'category',name:'Specialized flow',colour:palette.flow,contents:[flyoutBlock('Instruction',actionValue('Together'))]},{kind:'category',name:'Copy modifiers',colour:palette.effects,contents:[variantBlock('CopyException',types.CopyException.variants[0].wire)]}]}
   ]};
@@ -1340,5 +1343,5 @@
   if(!restored&&!workspace.getAllBlocks(false).length) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={flowView,choiceView,projections,selectors:selectorEditor,namedAbilities,costs:costEditor,properties:propertyEditor,sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
+  window.cardBlocks={valueView,flowView,choiceView,projections,selectors:selectorEditor,namedAbilities,costs:costEditor,properties:propertyEditor,sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

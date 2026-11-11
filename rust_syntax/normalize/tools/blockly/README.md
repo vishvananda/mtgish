@@ -129,6 +129,24 @@ Common imported queries retain exact filter shape/order when untouched; custom
 queries keep their complete typed block editor. The printed P/T form stays
 literal, while effect P/T expressions accept ordinary Expr blocks.
 
+**Values & conditions** opens one menu with **Numbers & arithmetic**,
+**Counts & properties**, **Conditions**, and **Players**. Arithmetic uses direct
+one-line inputs such as **(5) [+ ▾] (2)**; the operator menu includes subtraction,
+multiplication, min/max, powers and absolute difference. Division keeps its
+round-up/down choice visible. Operator changes retain operand order and values.
+Comparisons look like **(value) [≥ ▾] (value)** without a “Compare” wrapper, and
+**not** and **if … then … else …** fit on one line. Longer condition lists use
+vertical inputs to keep their contents readable.
+
+**All of / any of** conditions have direct typed holes joined by **and / or**,
+with **+ / −** to add or remove operands. They no longer require a separate list
+block. Empty, single-item and n-ary imported lists remain exact, including their
+receipt names and IDs. A single player picker replaces repeated presets. Property
+reads show **[property] of [object/player]**; ordinary current-or-last-known reads
+hide the bookkeeping field, while captured reads remain explicit. **IR details**
+exposes the original type labels and default fields. Rare value and condition
+constructors remain available in search and the advanced browser.
+
 Object selectors appear as compact chips such as **all creatures you control ▸**.
 Click the chip (or focus it and press Enter/Space) to expand the original typed
 blocks; its compact button folds them again. Summaries distinguish announced

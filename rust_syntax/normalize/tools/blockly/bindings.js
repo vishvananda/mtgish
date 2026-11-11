@@ -43,6 +43,7 @@ function createBindingEditor(api) {
     return out;
   }
   function partPath(s,p,path) {
+    if(s.valueList!==undefined)return ptr(ptr(path,'args'),Number(p.key.slice(5)));
     if(s.pr==='count')return ptr(path,'args');
     if(s.sourceScope)path=ptr(ptr(path,'args'),'ability');
     if(s.pr==='literal'||api.scalar(s.ty))return path;
