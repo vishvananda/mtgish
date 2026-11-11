@@ -76,3 +76,12 @@ The Kogla generator probe explicitly reports `engine: no record of what paid a
 cost`. This pre-existing backend gap remains visible. Correct reference IR does
 not imply executable Cantrip support, and an incorrect Source reference must not
 be used to hide the gap.
+
+## Upstream reports
+
+Fix commit: `1cd0b57efcf32b842557a9bb74b985df98da3daa`.
+
+- [Emergent Sequence: animation is applied before entry instead of after shuffling](https://github.com/i5jb/mtgish/issues/262)
+- [Spike Tiller omits Creature; Sarkhan retains Planeswalker and old creature types](https://github.com/i5jb/mtgish/issues/263)
+- [Tatsunari reverses its flying-or-reach blocker exception](https://github.com/i5jb/mtgish/issues/264)
+- [Kogla and Yidaro loses the discarded incarnation and explicit graveyard origin](https://github.com/i5jb/mtgish/issues/265)

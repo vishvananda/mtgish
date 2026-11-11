@@ -137,5 +137,36 @@
     "data/mtgish.pretty.ron": "24feda4c524173b09ff3192225b9108ac4275c58da006399cc49d05dd51af51e"
   },
   "wasm_sha256": "a9b25cfa47fe73ddd3408a27c428b60d402add12e8599bba7827c60c03f8bca3",
-  "wasm_reuse_reason": "No changes to normalized types, IR validation, migration, human document/DSL API or browser source; Wasm exports do not invoke Source lowering."
+  "wasm_reuse_reason": "No changes to normalized types, IR validation, migration, human document/DSL API or browser source; Wasm exports do not invoke Source lowering.",
+  "fix_commit": "1cd0b57efcf32b842557a9bb74b985df98da3daa",
+  "upstream": [
+    {
+      "html_url": "https://github.com/i5jb/mtgish/issues/262",
+      "number": 262,
+      "title": "Emergent Sequence: animation is applied before entry instead of after shuffling",
+      "slug": "emergent",
+      "fix_commit": "1cd0b57efcf32b842557a9bb74b985df98da3daa"
+    },
+    {
+      "html_url": "https://github.com/i5jb/mtgish/issues/263",
+      "number": 263,
+      "title": "Spike Tiller omits Creature; Sarkhan retains Planeswalker and old creature types",
+      "slug": "animation-types",
+      "fix_commit": "1cd0b57efcf32b842557a9bb74b985df98da3daa"
+    },
+    {
+      "html_url": "https://github.com/i5jb/mtgish/issues/264",
+      "number": 264,
+      "title": "Tatsunari reverses its flying-or-reach blocker exception",
+      "slug": "tatsunari",
+      "fix_commit": "1cd0b57efcf32b842557a9bb74b985df98da3daa"
+    },
+    {
+      "html_url": "https://github.com/i5jb/mtgish/issues/265",
+      "number": 265,
+      "title": "Kogla and Yidaro loses the discarded incarnation and explicit graveyard origin",
+      "slug": "kogla",
+      "fix_commit": "1cd0b57efcf32b842557a9bb74b985df98da3daa"
+    }
+  ]
 }
