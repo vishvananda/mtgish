@@ -23,7 +23,8 @@
     "test:selectors": "node test_selectors.cjs",
     "test:projections": "node test_projections.cjs",
     "test:target-modes": "node test_target_modes.cjs",
-    "test:library": "node test_library.cjs"
+    "test:library": "node test_library.cjs",
+    "test:stack-flow": "node test_stack_flow.cjs"
   },
   "devDependencies": {
     "playwright": "1.65.0"

@@ -52,8 +52,7 @@ let browser,page;
  }
  await page.locator('#block-search').fill('choose an option');
  assert.equal(await page.evaluate(()=>{const d=window.cardBlocks,b=d.workspace.getFlyout().getWorkspace().getTopBlocks(false).find(b=>b.state.variant==='ChooseOne');return d.fromBlock(b).args.options.length;}),2);
- await page.locator('#block-search').fill('results & receipts');
- assert.deepEqual(await page.evaluate(()=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).map(b=>b.state.op).sort()),['BindValue','JoinResults','NoteObjects']);
+ for(const wire of ['BindValue','JoinResults','NoteObjects']){await page.locator('#block-search').fill(wire);await page.waitForFunction(wire=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).some(b=>b.state.op===wire),wire);}
  await page.locator('#block-search').fill('sequence of instructions');
  const receiptBefore=await page.evaluate(()=>window.cardBlocks.generated().faces[0].abilities[0].args.body.instructions[0].args.result);
  await page.evaluate(()=>{

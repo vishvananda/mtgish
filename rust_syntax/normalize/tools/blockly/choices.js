@@ -54,7 +54,7 @@ function createChoiceView(api) {
     return null;
   }
   function scope(b) {
-    let owner=b.getParent();while(owner&&!['Ability','Mode'].includes(owner.state.ty.named))owner=owner.getParent();return owner;
+    let owner=b.getParent();while(owner&&!['Ability','Mode'].includes(owner.state.ty.named)&&!owner.getInput('F_announcement')&&!owner.getInput('O_announcement'))owner=owner.getParent();return owner;
   }
   function countOption(b) {
     if(b.state.ty.named==='TargetSpec')return b.state.simpleTargetCount?['Count expression…','COUNT_BLOCKS']:targetCount(api.fromBlock(b).count)?['Compact count','COUNT_SIMPLE']:null;
@@ -68,18 +68,19 @@ function createChoiceView(api) {
   function targetSlots(parent,except=null) {
     const slots=new Set();
     for(let owner=parent;owner;owner=owner.getParent()){
+      const announcements=[owner.state.ty.named==='Announcement'?owner:null,owner.getInputTargetBlock('F_announcement'),owner.getInputTargetBlock('O_announcement')].filter(Boolean);
+      for(const a of announcements)for(let row=a.getInputTargetBlock('F_targets');row;row=row.getNextBlock())if(row!==except)slots.add(Number(row.getFieldValue('_F_slot')));
       if(owner.state.ty.named==='Ability')break;
-      if(owner.state.ty.named==='Announcement')for(let row=owner.getInputTargetBlock('F_targets');row;row=row.getNextBlock())if(row!==except)slots.add(Number(row.getFieldValue('_F_slot')));
     }
     return slots;
   }
-  function addTarget(parent) {
+  function addTarget(parent,patch={}) {
     if(parent.isInFlyout)return;
     const slots=targetSlots(parent);
     if(slots.size>=2048){api.notice('This demo allows up to 2,048 target groups.');return;}
     let slot=slots.size?Math.max(...slots)+1:0;if(slot>4294967295){slot=0;while(slots.has(slot))slot++;}
-    const value=api.defaultValue({named:'TargetSpec'});value.slot=slot;
-    api.remember();api.addToFlow(parent,api.parts(parent.state).find(p=>p.key==='F_targets'),value);
+    const value=api.defaultValue({named:'TargetSpec'});Object.assign(value,api.clone(patch));value.slot=slot;
+    api.remember();api.addToFlow(parent,api.parts(parent.state).find(p=>p.key==='F_targets'),value);return slot;
   }
   function addMode(parent) {
     if(parent.isInFlyout)return;

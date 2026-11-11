@@ -27,7 +27,7 @@ Drag effects from **Effects** into spell resolution or an ability's effects
 stack. **Abilities** contains a single editable keyword starter and ordinary
 triggered, activated, static and replacement starters. **Casting & locations**
 contains the specialized starters. **Flow** contains conditions, choices,
-iteration and batches. **Effects** opens one menu with five headings:
+iteration and saved values in one flat menu. **Effects** opens one menu with five headings:
 **Cards & permanents**, **Life, damage & mana**, **Spells & rules**,
 **Choices & chance**, and **Keyword actions**. Six configurable starters cover
 these groups; their dropdowns keep related actions together. Keyword actions
@@ -144,13 +144,32 @@ a green outline and a Connect/Replace label. Blockly's original type checks,
 connection preview, and displaced-block behavior remain active. Common query
 starters are also under **Targets & selections**, searchable by their captions.
 
-**Sequence of instructions** (`Group`) keeps a separate result for each child
-instruction. **In Order** and **Together** contain action clauses under one
-instruction/result boundary; one is ordered and the other simultaneous. The
-repeatable-process blocks run again only when **Repeat Process** is reached;
-the bounded version caps total runs. **Repeat** instead runs one action a fixed
-number of times. Tooltips describe lexical scope and receipt exports. A
-**Choose an option** starter includes two empty alternatives to fill in.
+**Counter spell or ability** opens a stack-specific selector: reuse a declared
+stack target, create a new target spell/ability/either, or counter all matching
+stack items. Creating a target adds its declaration in the nearest ability or
+mode and fills the effect's reference in one undoable edit. Battlefield queries
+are absent from this chooser. New Counter starters leave this slot empty until
+configured and default to the owner's graveyard; imported destinations such as
+exile stay intact. The unusual destination is available under **⋯**.
+
+**Flow** has three headings and seven configurable starters: **Conditions &
+choices**, **Loops & repeating**, and **Sequence & saved values**. Conditions
+use compact comparison symbols, and control blocks put their inputs on one row
+above their effects. **Choose one option** contains direct numbered option
+cards, each with its own effects stack and removable **−** control; **+** adds
+another option. These are resolution-time choices, separate from cast-time
+modes. Each-object loops offer **Current object in this loop** in their selectors.
+
+**Sequence** (`Group`) keeps a separate result for each child instruction.
+**Repeatable process** runs its body once and runs it again only when **Run this
+process again** is reached; **Repeatable process · capped** limits total runs.
+It is not an unconditional fixed-count loop. **Remember number**, **Remember
+objects** and **Combine saved results** share a dropdown. Less common single-result
+batches live under **Advanced → Specialized flow**: **In order · one result**
+and **Together · one result** contain action clauses under one instruction/result
+boundary. **Repeat action** repeats one action a fixed number of times. Search
+still finds every flow constructor. Tooltips describe lexical scope and receipt
+exports; this presentation does not change those semantics.
 
 Empty optional fields and default modifiers are hidden. The **⋯** menu adds them
 on demand, including targeting. Each removable option has a **−** control and a

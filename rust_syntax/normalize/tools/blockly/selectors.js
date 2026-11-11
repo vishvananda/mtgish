@@ -5,10 +5,16 @@ function createSelectorEditor(api) {
   const names=new Set(['ObjectSet','ObjectRef','ObjectFilter','Recipients']);
   const supports=t=>names.has(t?.named);
   const pretty=s=>String(s).replace(/_/g,' ').replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase();
-  const plural=s=>({Creature:'creatures',Permanent:'permanents',Card:'cards',Artifact:'artifacts',Enchantment:'enchantments',Land:'lands',Planeswalker:'planeswalkers',Battle:'battles'})[s]||pretty(s)+'s';
+  const plural=s=>({Creature:'creatures',Permanent:'permanents',Card:'cards',Artifact:'artifacts',Enchantment:'enchantments',Land:'lands',Planeswalker:'planeswalkers',Battle:'battles',Spell:'spells',Ability:'abilities'})[s]||pretty(s)+'s';
   const you={kind:'One',args:{kind:'AbilityController'}},source={kind:'Source'};
   let editing=null,options=[],drag=null,frame=null,pending=null;
-  const title=t=>({ObjectSet:'objects',ObjectRef:'one object',ObjectFilter:'matching conditions',Recipients:'damage recipients'})[t.named];
+  function stackContext(parent,key){
+    const op=parent?.state.pr==='effect'?parent.state.op:parent?.state.ty.named==='Operation'?parent.state.variant:null;
+    return ['Counter','CounterWith'].includes(op)&&['O_objects','O_object','F_objects','F_object'].includes(key);
+  }
+  function title(t,parent,key){return stackContext(parent,key)?'spell or ability':({ObjectSet:'objects',ObjectRef:'one object',ObjectFilter:'matching conditions',Recipients:'damage recipients'})[t.named];}
+  function stackTarget(target){const d=target.kind?.Object;return !!d&&['Any','Spell','Ability'].includes(d.kind)&&d.zones.includes('Stack');}
+
   function name(b,kind,id) {
     if(!b)return '';
     for(const node of [b,...(b.getDescendants?.(false)||[])])for(const m of Object.values(node.state?.bindings||{}))if(m.kind===kind&&(id===undefined||m.id===Number(id)))return m.name;
@@ -18,8 +24,8 @@ function createSelectorEditor(api) {
     const targets=[],seen=new Set();
     // Modes inherit common targets. Sibling modes have separate declarations.
     // Read announcements independently while an effect is incomplete.
-    for(let owner=b;owner;owner=owner.getParent?.())if(['Ability','Mode'].includes(owner.state.ty.named)){
-      const block=owner.getInputTargetBlock('F_announcement');
+    for(let owner=b;owner;owner=owner.getParent?.()){
+      const block=owner.getInputTargetBlock('F_announcement')||owner.getInputTargetBlock('O_announcement');
       if(block)try{for(const target of api.fromBlock(block).targets)if(!seen.has(target.slot)){targets.push(target);seen.add(target.slot);}}catch(_){}
       if(owner.state.ty.named==='Ability')break;
     }
@@ -51,6 +57,7 @@ function createSelectorEditor(api) {
     const known=clauses.every(f=>f===type||f===control||f.kind==='Any');
     const noun=plural(type?.args||q.kind);
     const zone=q.scope.Shared;
+    if(zone==='Stack')return 'all '+(q.kind==='Any'?'spells and abilities':noun)+' on the stack'+(!known?' · '+filter(q.filter):'');
     if(zone==='Battlefield'&&q.kind==='Permanent'&&known)return 'all '+noun+(control?' you control':'');
     let scope=zone?pretty(zone):q.scope.Players&&api.same(q.scope.Players.players,you)?'your '+pretty(q.scope.Players.zone):'selected zones';
     return (known?'all '+noun+(control?' you control':''):'matching '+plural(q.kind))+' in '+scope+(!known?' · '+filter(q.filter):'');
@@ -102,8 +109,14 @@ function createSelectorEditor(api) {
     el.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();expand(b);}});
     el.appendChild(document.createElementNS('http://www.w3.org/2000/svg','title')).textContent='Click to edit selector blocks; drag to move this whole selector.';
   }
-  function starters(ty,parent) {
+  function starters(ty,parent,key=null) {
     const out=[],add=(label,value)=>out.push({label,value});
+    if(stackContext(parent,key)){
+      for(const [label,target] of [['New target spell','Spell'],['New target ability','Ability'],['New target spell or ability','Any']])out.push({label,target});
+      for(const target of announcement(parent).targets.filter(stackTarget))add('Target: '+api.targetSummary(target),ty.named==='ObjectRef'?{kind:'Target',args:{slot:target.slot,index:0}}:{kind:'Targets',args:target.slot});
+      if(ty.named==='ObjectSet')for(const [label,kind] of [['All spells on the stack','Spell'],['All abilities on the stack','Ability'],['All spells and abilities on the stack','Any']])add(label,{kind:'Zone',args:{scope:{Shared:'Stack'},kind,filter:{kind:'Any'}}});
+      return out;
+    }
     const all=filter=>({kind:'Zone',args:{scope:{Shared:'Battlefield'},kind:'Permanent',filter}});
     const creatures={kind:'CardType',args:'Creature'},controlled={kind:'ControlledBy',args:you};
     if(ty.named==='ObjectFilter') {
@@ -114,6 +127,12 @@ function createSelectorEditor(api) {
       const wrap=v=>ty.named==='Recipients'?{kind:'Objects',args:v}:v;
       add('This card',wrap({kind:'One',args:source}));add('All creatures',wrap(all(creatures)));add('Creatures you control',wrap(all({kind:'All',args:[creatures,controlled]})));add('All permanents',wrap(all({kind:'Any'})));add('Permanents you control',wrap(all(controlled)));
       if(ty.named==='ObjectSet')add('Cards in your graveyard',{kind:'Zone',args:{scope:{Players:{zone:'Graveyard',players:you}},kind:'Card',filter:{kind:'Any'}}});
+    }
+    for(let owner=parent;owner;owner=owner.getParent?.()){
+      if(owner.state.ty.named==='Ability'||owner.getInput('O_announcement'))break;
+      if(owner.state.ty.named==='Instruction'&&owner.state.variant==='ForEachObject'&&['ObjectRef','ObjectSet','Recipients'].includes(ty.named)){
+        const ref={kind:'Bound',args:Number(owner.getFieldValue('_F_binding'))},one={kind:'One',args:ref};add('Current object in this loop',ty.named==='ObjectRef'?ref:ty.named==='ObjectSet'?one:{kind:'Objects',args:one});break;
+      }
     }
     try {
       for(const target of announcement(parent)?.targets||[]) {
@@ -129,7 +148,7 @@ function createSelectorEditor(api) {
   function renderOptions() {
     const q=$('selector-search').value.trim().toLowerCase();
     $('selector-options').replaceChildren(...options.filter(o=>o.label.toLowerCase().includes(q)).map(o=>{
-      const button=document.createElement('button');button.type='button';button.textContent=o.label;button.onclick=()=>insert(o.value);return button;
+      const button=document.createElement('button');button.type='button';button.textContent=o.label;button.onclick=()=>insert(o.value,o.target);return button;
     }));
     $('selector-empty').hidden=$('selector-options').childElementCount>0;
   }
@@ -141,18 +160,19 @@ function createSelectorEditor(api) {
   function open(parent,key) {
     if(parent.isInFlyout)return;
     const p=api.parts(parent.state).find(p=>p.key===key);if(!supports(p?.ty))return;
-    editing={parent:parent.id,key,ty:p.ty};options=starters(p.ty,parent);
-    $('selector-title').textContent='Choose '+title(p.ty);$('selector-search').value='';
+    editing={parent:parent.id,key,ty:p.ty};options=starters(p.ty,parent,key);
+    $('selector-title').textContent='Choose '+title(p.ty,parent,key);$('selector-search').value='';
     const child=parent.getInputTargetBlock(key);$('selector-current').textContent=child?'Current: '+(summary(child)||describe(p.ty,api.fromBlock(child,p.ty),child)):'Drop a matching selector into this socket, or choose a starter below.';
     $('selector-edit-blocks').textContent=child?'Edit current selector in blocks':'Build a custom selector in blocks';
     renderOptions();dialog.showModal();$('selector-search').focus();
   }
-  function insert(value) {
+  function insert(value,targetKind=null) {
     try {
       const {parent,p,input}=current(),old=parent.getInputTargetBlock(p.key);let before;try{before=old&&api.fromBlock(old,p.ty);}catch(_){}
-      if(old&&api.same(value,before)){dialog.close();expand(old);return;}
+      if(!targetKind&&old&&api.same(value,before)){dialog.close();expand(old);return;}
       api.remember();Blockly.Events.setGroup(true);
       try {
+        if(targetKind){const slot=api.createTarget(parent,targetKind);if(slot===undefined)throw Error('Could not add another target.');value=p.ty.named==='ObjectRef'?{kind:'Target',args:{slot,index:0}}:{kind:'Targets',args:slot};}
         // One undoable replacement retains the original tree in history.
         old?.dispose(false);
         const child=Blockly.serialization.blocks.append(api.blockState(p.ty,api.clone(value)),api.workspace());
@@ -197,5 +217,5 @@ function createSelectorEditor(api) {
     drag={block,ty:block.state.ty,sockets};guides.hidden=false;drawGuides();
   }
   function preview(connection,replace){if(drag)pending={connection,replace};}
-  return {supports,title,summary,describe,expand,compact,decorate,open,starters,beginDrag,endDrag,preview,clearPreview};
+  return {stackContext,supports,title,summary,describe,expand,compact,decorate,open,starters,beginDrag,endDrag,preview,clearPreview};
 }

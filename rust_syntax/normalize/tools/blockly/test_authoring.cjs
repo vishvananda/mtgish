@@ -16,7 +16,7 @@ let browser,page;
   for(let i=1;i<view.rows.length;i++){const gap=view.rows[i].top-view.rows[i-1].bottom;assert.ok(gap>=-1&&gap<=100*view.scale,`${category}: unexpected gap ${gap}`);}
  }
  await page.locator('.blocklyToolboxCategory').filter({has:page.getByText('Flow',{exact:true})}).first().click();
- await page.locator('.blocklyToolboxCategory').filter({has:page.getByText('Conditions & choices',{exact:true})}).first().click();await page.evaluate(()=>window.cardBlocks.applyPresentation());
+ await page.evaluate(()=>window.cardBlocks.applyPresentation());
  assert.ok(await page.evaluate(()=>window.cardBlocks.workspace.getFlyout().getWorkspace().getTopBlocks(false).every(b=>b.getColour()==='#9b7a42')));
  await page.locator('#starter').selectOption('spell');await page.locator('#new-card').click();await page.waitForFunction(()=>window.cardBlocks.valid()&&window.cardBlocks.generated().faces[0].abilities.length===1);
  await page.evaluate(async()=>{await Blockly.renderManagement.finishQueuedRenders();window.cardBlocks.workspace.setScale(.85);window.cardBlocks.workspace.scrollCenter();});
