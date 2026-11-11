@@ -393494,21 +393494,24 @@ Card(
         ])),
         PutFoundCardsOntoBattlefield([
           EntersTapped,
-          EntersWithLayerEffect([
-            SetPT(PT(
-              0,
-              0,
-            )),
-            SetColor(SimpleColorList([
-              Green,
-              Blue,
-            ])),
-            AddCreatureType(Fractal),
-            AddCardtype(Creature),
-          ]),
         ]),
         Shuffle,
       ]),
+      CreatePermanentLayerEffect(
+        ThePermanentPutOnTheBattlefieldThisWay,
+        [
+          SetPT(PT(
+            0,
+            0,
+          )),
+          SetColor(SimpleColorList([
+            Green,
+            Blue,
+          ])),
+          AddCreatureType(Fractal),
+          AddCardtype(Creature),
+        ],
+      ),
       PutCounters([
         NumberCountersOfTypeOnPermanent(
           NumEnteredTheBattlefieldThisTurn(And([
@@ -727391,7 +727394,18 @@ Card(
         ],
         ActionList([
           DestroyPermanent(Ref_TargetPermanent),
-          ShuffleGraveyardCardIntoLibrary(ThisGraveyardCard),
+          IfElse(
+            CardIsInPlayersGraveyard(
+              TheCardDiscardedThisWay,
+              You,
+            ),
+            [
+              ShuffleGraveyardCardIntoLibrary(TheCardDiscardedThisWay),
+            ],
+            [
+              Shuffle,
+            ],
+          ),
           DrawACard,
         ]),
       ),
@@ -1121940,8 +1121954,8 @@ Card(
             SetColor(SimpleColorList([
               Red,
             ])),
-            AddCreatureType(Dragon),
-            AddCardtype(Creature),
+            SetCreatureType(Dragon),
+            SetCardtype(Creature),
             AddAbility([
               Flying,
             ]),
@@ -1242332,7 +1242346,7 @@ Card(
                 2,
                 2,
               )),
-              AddCardtype(Land),
+              AddCardtype(Creature),
             ],
           ),
           PutCounters([
@@ -1319533,7 +1319547,7 @@ Card(
               SinglePermanent(Ref_TargetPermanent),
             ]),
             [
-              CantBeBlockedByDefenders(And([
+              CantBeBlockedExceptByDefenders(And([
                 IsCardtype(Creature),
                 Or([
                   HasAbility(Flying),

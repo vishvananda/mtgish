@@ -2159,7 +2159,7 @@
     "AnyCardInAnyPlayersGraveyardPassesFilter({{CARDS}}, {{PLAYERS}})": "",
     "AttackingCreaturesPassFilter({{COMPARISON}}, {{PERMANENTS}})": "",
     "AttackingPlayerPassesFilter({{ATTACKING_PLAYER_FILTER}})": "",
-    "CardIsInPlayersGraveyard(ThisGraveyardCard, You)": "",
+    "CardIsInPlayersGraveyard({{CARD_IN_GRAVEYARDS}}, {{PLAYER}})": "",
     "CardIsInPlayersGraveyardWithACardAboveIt(ThisGraveyardCard, You, {{CARDS}})": "",
     "CardIsInPlayersGraveyardWithANumberOfCardsAboveIt(ThisGraveyardCard, You, {{COMPARISON}}, {{CARDS}})": "",
     "CardIsOnlyCardInPlayersGraveyard(ThisGraveyardCard, {{CARDS}}, You)": "",

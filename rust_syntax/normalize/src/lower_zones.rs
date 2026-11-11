@@ -104,6 +104,26 @@ impl Context {
                 })
             }
             S::TheCardDiscardedThisWay => {
+                use crate::number_spec::PaymentAction;
+                if !self.did.contains_key(&Done::Discarded)
+                    && self.paid.contains_key(&PaymentAction::Discard)
+                {
+                    let binding = self.paid_binding(PaymentAction::Discard)?;
+                    if self.announcing || !binding.singular {
+                        return Err(invalid(
+                            "discarded-card reference requires one completed discard cost",
+                        ));
+                    }
+                    return Ok(ObjectRef::Query {
+                        objects: Box::new(ObjectSet::CostObjects {
+                            payment: binding.payment.clone(),
+                            component: binding.component.clone(),
+                            view: CostObjectView::Performed,
+                            phase: ObjectPhase::After,
+                        }),
+                        index: 0,
+                    });
+                }
                 return Ok(ObjectRef::Result {
                     result: self.done(Done::Discarded)?,
                     phase: ObjectPhase::After,

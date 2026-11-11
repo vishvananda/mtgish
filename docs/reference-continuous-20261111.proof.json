@@ -1,0 +1,141 @@
+{
+  "schema": 189,
+  "source": {
+    "records": 33529,
+    "changed": [
+      "Emergent Sequence",
+      "Kogla and Yidaro",
+      "Sarkhan, the Dragonspeaker",
+      "Spike Tiller",
+      "Tatsunari, Toad Rider"
+    ],
+    "unchanged": 33524
+  },
+  "native": {
+    "records": 33529,
+    "changed": [
+      "Emergent Sequence",
+      "Kogla and Yidaro",
+      "Sarkhan, the Dragonspeaker",
+      "Spike Tiller",
+      "Tatsunari, Toad Rider"
+    ],
+    "unchanged": 33524,
+    "exact_worker_native_before_matches": 4,
+    "complete_proposal_assertions": "Eight complete canonical programs, including four independent oracle-worker proposals and four unchanged controls; reference_continuous_20261111.rs"
+  },
+  "tagged_source_json_changed": [
+    "Emergent Sequence",
+    "Kogla and Yidaro",
+    "Sarkhan, the Dragonspeaker",
+    "Spike Tiller",
+    "Tatsunari, Toad Rider"
+  ],
+  "audit": {
+    "changed_paths": [
+      "/reviewed_sources/grammars/english_grammar.json5",
+      "/review_inputs/grammars/english_grammar.json5",
+      "/review_inputs/grammars/mtgish_grammar.json5"
+    ],
+    "all_review_entries_unchanged": true
+  },
+  "worker_packets": [
+    {
+      "name": "Tatsunari, Toad Rider",
+      "path": "/home/vishvananda/oracle-grammar/reports/analysis/reference-issues/schema189-continuous-effects/tatsunari-toad-rider.json",
+      "sha256": "9afe151cc9efd9f4b32765008dc5e94db0ae1b954b94c30e2e09f5619f781b67"
+    },
+    {
+      "name": "Emergent Sequence",
+      "path": "/home/vishvananda/oracle-grammar/reports/analysis/reference-issues/schema189-continuous-effects/emergent-sequence.json",
+      "sha256": "654d6db4bd3d502860b3d8253841756b7677ac2be1de85217d8f290b3f642c2f"
+    },
+    {
+      "name": "Spike Tiller",
+      "path": "/home/vishvananda/oracle-grammar/reports/analysis/reference-issues/schema189-continuous-effects/spike-tiller.json",
+      "sha256": "c434ad4a9749807bf5a2c6ed7e139f6ef5c3092afce66ff7e8aee5f9cfd0f717"
+    },
+    {
+      "name": "Sarkhan, the Dragonspeaker",
+      "path": "/home/vishvananda/oracle-grammar/reports/analysis/reference-issues/schema189-continuous-effects/sarkhan-the-dragonspeaker.json",
+      "sha256": "c8c43fc180ed2ec619bdb784016e89e51cbe0175ff01a06e5d18c9bf5ab3de4b"
+    }
+  ],
+  "normalized_schema_changed": false,
+  "normalized_ast_code_changed": false,
+  "source_lowering_changed": true,
+  "engine_changed": false,
+  "wasm_reused": true,
+  "evidence_directory": "/mnt/vizier/reference-continuous-20261111",
+  "validation": {
+    "go_full": "PASS (75.890s)",
+    "rust": {
+      "passed": 41,
+      "failed": 0,
+      "targets": 6,
+      "features": "cantrip",
+      "stack_env": "RUST_MIN_STACK=16777216",
+      "log": "/mnt/vizier/reference-continuous-20261111/rust-final.log"
+    },
+    "tagged_source_json": "All nine repair/adjacent Source records equal parser RON",
+    "actual_browser_workspaces": {
+      "actualWorkspaceCards": [
+        "Emergent Sequence",
+        "Spike Tiller",
+        "Tatsunari, Toad Rider",
+        "Sarkhan, the Dragonspeaker",
+        "Kogla and Yidaro",
+        "Cacophony Unleashed",
+        "Mishra's Factory",
+        "Canopy Cover",
+        "Dryad Arbor",
+        "Aether Rift",
+        "Quagnoth",
+        "Lightning Bolt"
+      ],
+      "exactIR": true,
+      "wasmValidation": true,
+      "errors": []
+    },
+    "browser_catalog": {
+      "expected": 33529,
+      "records": 33529,
+      "blockRoundtrips": 33529,
+      "bindingPortCards": 33529,
+      "wasmValid": 33529,
+      "failures": []
+    }
+  },
+  "discard_action_controls": [
+    "Aether Rift",
+    "Leonardo da Vinci",
+    "Silvan Reveler"
+  ],
+  "kogla": {
+    "worker_question": "reports/analysis/upstream-reference/kogla-and-yidaro-reference-question.json",
+    "question_sha256": "3c8c15091ddf9b3d676e283c303f01492da80e65ac6389ed42c79f6c84d90dcf",
+    "disposition": "Confirmed original-source and expected-zone loss by Source/lowering/consumer trace; corrected using exact post-cost receipt and explicit absent-card shuffle",
+    "receipt": {
+      "payment": "Activation",
+      "component": [
+        1
+      ],
+      "view": "Performed",
+      "phase": "After"
+    },
+    "backend_gap": "engine: no record of what paid a cost",
+    "engine_revision_inspected": "f64f55b99416fa8e92c08520b7a2c2f71d43faa8",
+    "gameplay_executed": false,
+    "plural_and_ambiguous_discard_costs_rejected": true
+  },
+  "sha256": {
+    "grammars/english_grammar.json5": "5297907cffbe99f3504949b29eef0dc70181521844d21fef41f19b1c8c991763",
+    "grammars/mtgish_grammar.json5": "c570e7eb3d880dcb1bd77deca1ed22be4b1ab765ca13aa92e8dfaf82b613bece",
+    "rust_syntax/normalize/src/lower_zones.rs": "69cad31f24cdd489fdca258f6945d597124647fd5c0c3ab997b1004feed0d1a9",
+    "data/mtgish.lines.ron": "d908619a5b816ccdbe935bdff57a997cea8eb07b9809a89e37ca6078bcdb2433",
+    "data/mtgish.lines.json": "f2da81f66bf986634bc3c22d52c05fc76818f98e61fec9ad3233fc5464686576",
+    "data/mtgish.pretty.ron": "24feda4c524173b09ff3192225b9108ac4275c58da006399cc49d05dd51af51e"
+  },
+  "wasm_sha256": "a9b25cfa47fe73ddd3408a27c428b60d402add12e8599bba7827c60c03f8bca3",
+  "wasm_reuse_reason": "No changes to normalized types, IR validation, migration, human document/DSL API or browser source; Wasm exports do not invoke Source lowering."
+}
