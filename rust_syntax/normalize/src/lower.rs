@@ -5629,6 +5629,13 @@ impl Context {
 
     fn cost(&self, value: &source::Cost) -> Result<Cost> {
         match value {
+            source::Cost::PutAnExiledCardIntoOwnersGraveyard(cards) => {
+                // Preserve the one-card payment contract during resolution too;
+                // its action spelling permits an empty AsManyAsCan selection.
+                return Ok(Cost {
+                    parts: vec![CostPart::ExiledToGraveyard(self.exile_cards(cards)?)],
+                });
+            }
             source::Cost::HavePlayerTakeAction(player, action) => {
                 let player = self.player(player)?;
                 let mut child = self.clone();
@@ -6567,7 +6574,8 @@ pub(crate) fn sticker(value: &source::Sticker) -> Result<Sticker> {
 }
 
 /// Lower a face that strict lowering rejected, keeping every part it can reduce.
-/// Each rule yields exactly one ability, so ability indices still match rule indices.
+/// Ordinary spell paragraphs first share one resolution scope. Every remaining
+/// rule yields one ability; casting addresses are preserved by the join guard.
 pub(crate) fn unified_face(value: &source::OracleCard) -> (Card, Vec<Diagnostic>) {
     let base = Context {
         lenient: true,
@@ -6645,6 +6653,8 @@ fn bind_face(
     })();
     let mut errors = Vec::new();
     let mut abilities = Vec::new();
+    let joined_rules = crate::spell_paragraphs::join(rules.as_deref().unwrap_or_default());
+    let rules = if joined_rules.is_some() { &joined_rules } else { rules };
     let casting_histories: Vec<_> = rules
         .as_deref()
         .unwrap_or_default()

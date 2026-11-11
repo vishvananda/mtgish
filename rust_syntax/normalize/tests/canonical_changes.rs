@@ -49,10 +49,6 @@ fn set_all_removal_and_intervening_changes_are_barriers() {
             mode: ChangeMode::Set,
             types: CreatureTypeSet::All,
         },
-        Change::CreatureTypes {
-            mode: ChangeMode::Add,
-            types: CreatureTypeSet::All,
-        },
         Change::RemoveSubtype(mtgish_ast::mtg_types::SubType::Insect),
         Change::Pump {
             power: Expr::Constant(1),
@@ -67,6 +63,35 @@ fn set_all_removal_and_intervening_changes_are_barriers() {
             expected
         );
     }
+}
+
+#[test]
+fn all_types_has_one_setter_form_and_remains_a_coalescing_barrier() {
+    use CreatureType::*;
+    let changes = vec![
+        add(&[Insect]),
+        Change::CreatureTypes {
+            mode: ChangeMode::Add,
+            types: CreatureTypeSet::All,
+        },
+        add(&[Monk]),
+    ];
+    let normalized = change_lists::coalesce_creature_type_additions(changes);
+    assert_eq!(normalized.len(), 3);
+    assert!(matches!(
+        &normalized[1],
+        Change::CreatureTypes {
+            mode: ChangeMode::Set,
+            types: CreatureTypeSet::All,
+        }
+    ));
+    assert_eq!(
+        serde_json::to_value(&normalized).unwrap(),
+        serde_json::to_value(change_lists::coalesce_creature_type_additions(
+            normalized.clone()
+        ))
+        .unwrap()
+    );
 }
 
 #[test]

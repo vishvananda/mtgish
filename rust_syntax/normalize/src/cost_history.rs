@@ -24,6 +24,10 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
             destination: MovementDestination::Battlefield { .. },
             ..
         } => Some(PaymentAction::Enter),
+        CostPart::Move {
+            destination: MovementDestination::OwnersHand(_),
+            ..
+        } => Some(PaymentAction::Return),
         CostPart::RemoveCounters { .. } => Some(PaymentAction::RemoveCounters),
         CostPart::Reveal { .. } => Some(PaymentAction::Reveal),
         CostPart::Draw { .. } => Some(PaymentAction::Draw),

@@ -2,12 +2,18 @@
 use crate::ir::{Change, ChangeMode, CreatureTypeSet};
 
 /// Coalesce adjacent creature-type additions while preserving their first-seen
-/// order. Other changes and nested effect boundaries are barriers. A type is a
-/// vocabulary word, so its enum discriminant is its complete identity.
+/// order. "All" uses one setter form. Adjacent Artifact/Creature additions use
+/// text order; other changes and nested effect boundaries remain barriers.
 pub fn coalesce_creature_type_additions(changes: Vec<Change>) -> Vec<Change> {
     let mut out = Vec::with_capacity(changes.len());
     for change in changes {
         match change {
+            Change::CreatureTypes { types: CreatureTypeSet::All, .. } => {
+                out.push(Change::CreatureTypes {
+                    mode: ChangeMode::Set,
+                    types: CreatureTypeSet::All,
+                });
+            }
             Change::CreatureTypes {
                 mode: ChangeMode::Add,
                 types: CreatureTypeSet::Listed(types),
@@ -51,6 +57,15 @@ pub fn coalesce_creature_type_additions(changes: Vec<Change>) -> Vec<Change> {
                 self::coalesce_creature_type_additions(inner),
             )),
             other => out.push(other),
+        }
+    }
+    for i in 1..out.len() {
+        if matches!(
+            (&out[i - 1], &out[i]),
+            (Change::AddCardType(crate::mtg_types::CardType::Creature),
+             Change::AddCardType(crate::mtg_types::CardType::Artifact))
+        ) {
+            out.swap(i - 1, i);
         }
     }
     out

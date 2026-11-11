@@ -96777,10 +96777,13 @@ Card(
           ],
         ),
       ]),
-      ActivateOnlyIf(ThereAreNumberCardTypesInPlayersGraveyard(
-        GreaterThanOrEqualTo(Integer(4)),
-        You,
-      )),
+      And([
+        ActivateOnlyIf(ThereAreNumberCardTypesInPlayersGraveyard(
+          GreaterThanOrEqualTo(Integer(4)),
+          You,
+        )),
+        ActivateOnlyAsASorcery,
+      ]),
     )),
   ],
   CardPT: (
@@ -315696,7 +315699,7 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        MayCost(SacrificeEachPermanent(And([
+        MayCost(SacrificeAPermanent(And([
           Other(ThatEnteringPermanent),
           IsCardtype(Creature),
         ]))),
@@ -1066687,10 +1066690,13 @@ Card(
           ],
         ),
       ]),
-      ActivateOnlyIf(ThereAreNumberCardTypesInPlayersGraveyard(
-        GreaterThanOrEqualTo(Integer(4)),
-        You,
-      )),
+      And([
+        ActivateOnlyIf(ThereAreNumberCardTypesInPlayersGraveyard(
+          GreaterThanOrEqualTo(Integer(4)),
+          You,
+        )),
+        ActivateOnlyAsASorcery,
+      ]),
     )),
   ],
   CardPT: (

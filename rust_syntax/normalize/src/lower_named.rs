@@ -720,6 +720,35 @@ impl Context {
             (S::CreatePerpetualTriggeredCardEffect(_), _) if self.event.moved => {
                 ObjectSet::One(ObjectRef::EventDestination)
             }
+            (S::CreatePerpetualCardInHandEffect(source::CardInHand::TheCardReturnedToHandThisWay, _), _)
+                if !self.did.contains_key(&Done::Returned) => {
+                let binding = self.paid_binding(crate::number_spec::PaymentAction::Return).ok()?;
+                if self.announcing { return None; }
+                // CR118.12 keeps the payment guard separate from its actual
+                // output. A replaced return may produce another public zone.
+                ObjectSet::CostObjects {
+                    payment: binding.payment.clone(),
+                    component: binding.component.clone(),
+                    view: CostObjectView::Performed,
+                    phase: ObjectPhase::After,
+                }
+            }
+            (
+                S::CreatePerpetualCardInHandEffect(card, _),
+                _,
+            ) if self.did.get(&Done::Returned).is_some_and(|returned| {
+                matches!(card, source::CardInHand::TheCardReturnedToHandThisWay)
+                    || matches!(card, source::CardInHand::TheCardPutInHandThisWay)
+                        && self.to_hand.as_ref().is_some_and(|hand| hand.0 == returned.0)
+            }) => {
+                // One returned permanent can become two cards (meld).
+                // Preserve its actual outputs, including replaced movements.
+                let result = self.did.get(&Done::Returned)?.clone();
+                ObjectSet::Transition {
+                    result,
+                    phase: ObjectPhase::After,
+                }
+            }
             (S::CreatePerpetualCardInHandEffect(card, _), _) => {
                 ObjectSet::One(self.hand_card(card).ok()?)
             }

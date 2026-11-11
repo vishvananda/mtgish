@@ -1,0 +1,402 @@
+{
+  "scope": "Final per-entry decisions for the migrated report; code fixes and proven normal forms are identified separately from retained alternatives and unresolved capture questions.",
+  "report": "/home/vishvananda/oracle-grammar/adapters/mtgish/reference-issues.md",
+  "report_sha256": "d9e6c484e39752c238e93280e3a843253ce4ba1564cea5159bcf33a4c5d533cb",
+  "oracle_grammar_revision": "b18fce17dca1139192bdb1988968b83f55cd260c",
+  "local_and_fetched_fork_main": "1cd42cdd7df4c06b238aec3eb6a2285f0b8495e7",
+  "reference_pin": "1cd0b57efcf32b842557a9bb74b985df98da3daa",
+  "fork_difference_from_reference_pin": "Documentation receipts only, no data/model/lowering differences",
+  "compiled_model_pin": "a2914e01da6515e3bbd855a4b5c5282b0bfe4d8b",
+  "schema": 189,
+  "counts": {
+    "confirmed_rules_defect": 3,
+    "normal_form_consolidation": 3,
+    "binding_contract_review": 8,
+    "receipt_contract_review": 2,
+    "current_reference_supported": 4,
+    "equivalent_or_redundant_form": 6,
+    "needs_distinguishing_witness": 3,
+    "history_contract_review": 1,
+    "cost_effect_contract_review": 2,
+    "proposed_change_conflicts_with_contract": 1,
+    "proposed_change_requires_contract_review": 1,
+    "recipient_bug_repair_needs_identity_review": 1,
+    "semantic_lowering_gap": 1
+  },
+  "findings": [
+    {
+      "card": "Balustrade Wurm",
+      "classification": "confirmed_rules_defect",
+      "evidence": "Sorcery-speed conjunction drops ActivateOnlyAsASorcery; native limits.sorcery=false.",
+      "final_decision": "Fixed: sorcery limit retained alongside delirium condition.",
+      "changed_in_this_batch": true
+    },
+    {
+      "card": "Resurrected Cultist",
+      "classification": "confirmed_rules_defect",
+      "evidence": "Same sorcery-speed conjunction template; condition survives but timing does not.",
+      "final_decision": "Fixed: same missing sorcery limit.",
+      "changed_in_this_batch": true
+    },
+    {
+      "card": "Barrage of Boulders",
+      "classification": "normal_form_consolidation",
+      "evidence": "Two Spell bodies are retained; cantrip lane_m::spells_joined already joins paragraphs before execution generation. Move consolidation earlier for consistent exported IR; do not claim an effect is missing solely from split bodies.",
+      "final_decision": "Unified: plain spell paragraphs lower together in one lexical/result scope.",
+      "changed_in_this_batch": true
+    },
+    {
+      "card": "Determined",
+      "classification": "normal_form_consolidation",
+      "evidence": "Two Spell bodies preserved and generator joins them. Needs an exported normal-form policy rather than an independent gameplay defect claim.",
+      "final_decision": "Unified: same one-spell producer normal form.",
+      "changed_in_this_batch": true
+    },
+    {
+      "card": "Draconic Intervention",
+      "classification": "normal_form_consolidation",
+      "evidence": "Casting plus two Spell bodies; generator joins consecutive paragraphs. Preserve casting-payment and damage receipt namespaces in any earlier merge.",
+      "final_decision": "Unified: one spell body; preceding casting-cost address retained.",
+      "changed_in_this_batch": true
+    },
+    {
+      "card": "Waterspout Warden",
+      "classification": "binding_contract_review",
+      "evidence": "Own attack event subject is Source in this trigger. History reader explicitly retains the outer event frame; rarity is not proof of rebinding to the queried history event.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Own attack event subject is Source in this trigger. History reader explicitly retains the outer event frame; rarity is not proof of rebinding to the queried history event.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Veteran's Armaments",
+      "classification": "binding_contract_review",
+      "evidence": "Granted self attack/block trigger EventSubject identifies the equipped holder. Verify Source means that holder in the granted frame; this is not an arbitrary Source/EventSubject substitution.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Granted self attack/block trigger EventSubject identifies the equipped holder. Verify Source means that holder in the granted frame; this is not an arbitrary Source/EventSubject substitution.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Storm Entity",
+      "classification": "binding_contract_review",
+      "evidence": "Its own entry-replacement EventSubject is the entering Source. Current reader maps entering subject to asker.source.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Its own entry-replacement EventSubject is the entering Source. Current reader maps entering subject to asker.source.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Graven Dominator",
+      "classification": "binding_contract_review",
+      "evidence": "The AnyOf branches have different subjects: source entry versus haunted-creature death. Review each branch and source incarnation rather than asserting self-trigger aliases globally.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. The AnyOf branches have different subjects: source entry versus haunted-creature death. Review each branch and source incarnation rather than asserting self-trigger aliases globally.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "In Thrall to the Pit",
+      "classification": "receipt_contract_review",
+      "evidence": "Recorded is documented as what a preceding instruction named, not necessarily the successful result. A SetController receipt may still name the target; require a failure/movement counterexample before changing follow-ups.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Recorded is documented as what a preceding instruction named, not necessarily the successful result. A SetController receipt may still name the target; require a failure/movement counterexample before changing follow-ups.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Karn's Touch",
+      "classification": "current_reference_supported",
+      "evidence": "ObjectRef::Affected is explicitly the object whose characteristic change is being evaluated. Single-target effect is a valid use of Affected; target spelling is not intrinsically more correct.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. ObjectRef::Affected is explicitly the object whose characteristic change is being evaluated. Single-target effect is a valid use of Affected; target spelling is not intrinsically more correct.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Liliana, Death Mage",
+      "classification": "binding_contract_review",
+      "evidence": "Explicit Target would remove implicit Prior(That). Verify the per-recipient row interpretation; an uncommon legacy player reference is not itself proof of a different player.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Explicit Target would remove implicit Prior(That). Verify the per-recipient row interpretation; an uncommon legacy player reference is not itself proof of a different player.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Cryptic Coat",
+      "classification": "receipt_contract_review",
+      "evidence": "Recorded(Manifest) can name the produced permanent. Need a proof of before/after mismatch before labelling a different receipt spelling a defect.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Recorded(Manifest) can name the produced permanent. Need a proof of before/after mismatch before labelling a different receipt spelling a defect.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Draining Whelk",
+      "classification": "current_reference_supported",
+      "evidence": "Generated code saves target objects in before_0 before g.counter, then reads q.mana_value from before_0. It does not require successful countering; official TSR release notes agree with that behavior.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Generated code saves target objects in before_0 before g.counter, then reads q.mana_value from before_0. It does not require successful countering; official TSR release notes agree with that behavior.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Ebonblade Reaper",
+      "classification": "current_reference_supported",
+      "evidence": "Generated code expands the first LoseLife into a loop over AbilityController and reads that bound player life; second trigger uses the damaged player. Acting is resolved correctly in this consumer.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Generated code expands the first LoseLife into a loop over AbilityController and reads that bound player life; second trigger uses the damaged player. Acting is resolved correctly in this consumer.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Know Naught but Fire",
+      "classification": "binding_contract_review",
+      "evidence": "Per-opponent hand count must be evaluated per recipient. Explicit ForEachPlayer is preferable, but inspect implicit per-player row semantics; Scheme execution is currently a separate backend gap.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Per-opponent hand count must be evaluated per recipient. Explicit ForEachPlayer is preferable, but inspect implicit per-player row semantics; Scheme execution is currently a separate backend gap.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Skybreen",
+      "classification": "binding_contract_review",
+      "evidence": "The amount must use the target. Explicit Target avoids implicit Acting; verify current per-recipient row semantics. Plane and chaos execution are separate backend gaps.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. The amount must use the target. Explicit Target avoids implicit Acting; verify current per-recipient row semantics. Plane and chaos execution are separate backend gaps.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Demonlord of Ashmouth",
+      "classification": "confirmed_rules_defect",
+      "evidence": "Source uses SacrificeEachPermanent, native Sacrifice choose=None over a population. Printed cost is exactly one other creature. Current generator reports sacrificing all of a kind as a cost, corroborating population semantics.",
+      "final_decision": "Fixed: exactly one other creature is selected as the sacrifice cost.",
+      "changed_in_this_batch": true
+    },
+    {
+      "card": "Maskwood Nexus",
+      "classification": "equivalent_or_redundant_form",
+      "evidence": "Add(All creature types) and Set(All creature types) produce the same complete type universe. Unify spelling if desired; no distinguishing legal-state witness is supplied.",
+      "final_decision": "Unified: all creature types uses Set(All). Add(All) was equivalent, not a rules bug.",
+      "changed_in_this_batch": true
+    },
+    {
+      "card": "Phyrexian Totem",
+      "classification": "equivalent_or_redundant_form",
+      "evidence": "Adding Artifact and Creature in either order in the same continuous effect has the same resulting card types. Text-order consistency is not a rules correction.",
+      "final_decision": "Unified: adjacent type additions put Artifact before Creature. Their old order was equivalent.",
+      "changed_in_this_batch": true
+    },
+    {
+      "card": "Worzel, the Protector",
+      "classification": "equivalent_or_redundant_form",
+      "evidence": "A basic Plains card is a land under the type rules. The explicit Land predicate is redundant in legal states; report needs a distinguishing witness before claiming narrowed semantics.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. A basic Plains card is a land under the type rules. The explicit Land predicate is redundant in legal states; report needs a distinguishing witness before claiming narrowed semantics.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Bloodroot Apothecary",
+      "classification": "needs_distinguishing_witness",
+      "evidence": "Source exclusion is unprinted, but opponent-only sacrifice already constrains which controller can sacrifice the source. Supply a legal distinguishing state before claiming a bug.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Source exclusion is unprinted, but opponent-only sacrifice already constrains which controller can sacrifice the source. Supply a legal distinguishing state before claiming a bug.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Vulshok Factory",
+      "classification": "current_reference_supported",
+      "evidence": "The expression explicitly reads Inputs/Before of its sacrifice cost with CurrentOrLastKnown. This correctly preserves the sacrificed source counter state; replacing it solely to match common spelling is unwarranted.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. The expression explicitly reads Inputs/Before of its sacrifice cost with CurrentOrLastKnown. This correctly preserves the sacrificed source counter state; replacing it solely to match common spelling is unwarranted.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Ward of Piety",
+      "classification": "needs_distinguishing_witness",
+      "evidence": "This card redirects the next exactly one damage. NextOccurrence+RedirectSomeDamage(1) may match TotalDamage(1)+RedirectDamage. A generic N-damage budget requires distinction, but N=1 needs its own counterexample.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. This card redirects the next exactly one damage. NextOccurrence+RedirectSomeDamage(1) may match TotalDamage(1)+RedirectDamage. A generic N-damage budget requires distinction, but N=1 needs its own counterexample.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Dream Thief",
+      "classification": "history_contract_review",
+      "evidence": "ObjectMatches(Source, Condition(history)) is an uncommon wrapper, not automatically false. Inspect own-spell incarnation exclusion and the history predicate; changing only wrapper spelling does not prove either.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. ObjectMatches(Source, Condition(history)) is an uncommon wrapper, not automatically false. Inspect own-spell incarnation exclusion and the history predicate; changing only wrapper spelling does not prove either.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Hit",
+      "classification": "cost_effect_contract_review",
+      "evidence": "Mandatory PayCost plus a before-view sacrifice receipt may implement forced sacrifice and last-known mana value. Need failed-payment/replacement witness before classifying it as wrong versus explicit Sacrifice.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Mandatory PayCost plus a before-view sacrifice receipt may implement forced sacrifice and last-known mana value. Need failed-payment/replacement witness before classifying it as wrong versus explicit Sacrifice.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Alliance of Arms",
+      "classification": "proposed_change_conflicts_with_contract",
+      "evidence": "Expr::PerformedTotal explicitly means aggregate over every ForEachPlayer run; Performed is the individual player amount when read in a later player instruction. Current generated code uses done_total for each player token count. Retain PerformedTotal.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Expr::PerformedTotal explicitly means aggregate over every ForEachPlayer run; Performed is the individual player amount when read in a later player instruction. Current generated code uses done_total for each player token count. Retain PerformedTotal.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Nemesis Mask",
+      "classification": "equivalent_or_redundant_form",
+      "evidence": "All potential blockers each required to block the host and host required to be blocked by every able creature express dual combat requirements. Control frequency does not prove the current form wrong.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. All potential blockers each required to block the host and host required to be blocked by every able creature express dual combat requirements. Control frequency does not prove the current form wrong.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Foreboding Steamboat",
+      "classification": "cost_effect_contract_review",
+      "evidence": "Potentially substantive: expanded PlayerAction uses AsManyAsCan(1), so prove mandatory payment fails when no linked exiled card can move. Specialized ExiledToGraveyard expresses one-card requirement directly; representation alone is not enough proof.",
+      "final_decision": "Fixed/unified: typed ExiledToGraveyard one-card cost, including during resolution; no empty AsManyAsCan action cost.",
+      "changed_in_this_batch": true
+    },
+    {
+      "card": "Molly Hayes, Runaway",
+      "classification": "equivalent_or_redundant_form",
+      "evidence": "A one-card library exile has zero or one actual card result; full Transition After and One(Result After index0) have the same population here. Keep plural receipts where a move can produce multiple components.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. A one-card library exile has zero or one actual card result; full Transition After and One(Result After index0) have the same population here. Keep plural receipts where a move can produce multiple components.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Forbidden Crypt",
+      "classification": "equivalent_or_redundant_form",
+      "evidence": "The filter repeats the same player graveyard already used as the selection scope. Removing it is normalization cleanup.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. The filter repeats the same player graveyard already used as the selection scope. Removing it is normalization cleanup.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Veteran Ghoulcaller",
+      "classification": "proposed_change_requires_contract_review",
+      "evidence": "DuplicateLastKnown is explicitly defined for a recorded last-known card and perpetual changes, without inspecting its later hidden incarnation. A graveyard-to-hand trigger is a natural use. Replacing with Duplicate(One(EventSubject)) is not justified by more frequent controls.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. DuplicateLastKnown is explicitly defined for a recorded last-known card and perpetual changes, without inspecting its later hidden incarnation. A graveyard-to-hand trigger is a natural use. Replacing with Duplicate(One(EventSubject)) is not justified by more frequent controls.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Deathbringer Regent",
+      "classification": "binding_contract_review",
+      "evidence": "Candidate inside ObjectMatches refers to its enclosing subject; Difference(creatures,Candidate) can correctly exclude the source. Splitting the conjunction is a normal-form choice unless a binding counterexample is found.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Candidate inside ObjectMatches refers to its enclosing subject; Difference(creatures,Candidate) can correctly exclude the source. Splitting the conjunction is a normal-form choice unless a binding counterexample is found.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Goblin Snowman",
+      "classification": "needs_distinguishing_witness",
+      "evidence": "Two EOT prevention effects versus one Either-event effect need a damage/replacement interaction witness. Two matching clauses alone do not establish lost prevention.",
+      "final_decision": "Retain current reference pending the specific contract/witness test below. No frequency-based rewrite or equality alias. Two EOT prevention effects versus one Either-event effect need a damage/replacement interaction witness. Two matching clauses alone do not establish lost prevention.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Vampiric Embrace",
+      "classification": "recipient_bug_repair_needs_identity_review",
+      "evidence": "Current counter recipient is the dying creature rather than the damage-dealing enchanted creature. The correction must review live attachment versus captured trigger-time host; a blanket AttachedTo(Source) substitution needs a moved-Aura witness. Direct Gatherer retrieval was blocked (403).",
+      "final_decision": "Confirmed wrong recipient; pending AST capture support. A live AttachedTo(Source) substitution is unsafe. Upstream report must require the trigger-time host, not the dead victim or a later host.",
+      "changed_in_this_batch": false
+    },
+    {
+      "card": "Alora, Cheerful Scout",
+      "classification": "semantic_lowering_gap",
+      "evidence": "Native output still has EffectOn(Term PerpetualEffect AdjustPT), and frontend stale Target does not identify the returned hand incarnation. Lower to actual perpetual effect over successful After return receipt, preserving payment guard and multi-component return cardinality.",
+      "final_decision": "Fixed: retain PayCost/PaymentChosen per CR118.12; typed perpetual effect consumes full CostObjects Resolution component[0], Performed After. Replacement does not negate started payment. No blanket Hand filter.",
+      "changed_in_this_batch": true
+    }
+  ],
+  "artifacts": {
+    "source_and_native_cases": "/mnt/vizier/reference-report-20261111/cases.json",
+    "source_probe_input": "/mnt/vizier/reference-report-20261111/source-cases.ronl",
+    "generator_probe_output": "/mnt/vizier/reference-report-20261111/generated.rs"
+  },
+  "rules_evidence": {
+    "Draining Whelk": "https://media.wizards.com/2021/downloads/TSR_Release_Notes/EN_MTGTSR_FAQ_20210118.pdf"
+  },
+  "consistency_groups": [
+    {
+      "group": "Self references inside a reflexive \"When you do\" body",
+      "review_requirement": "Preserve creator/source, granted holder and the reflexive action subject. Review the exact reflexive frame; no blanket Source/EventSubject alias."
+    },
+    {
+      "group": "\"You may <action>.\" followed by sentences that depend on it",
+      "review_requirement": "Previous delayed-trigger review intentionally retained guarded payment registration for Dawn, Mirror and Ilharg. Do not undo those decisions from representation frequency alone."
+    },
+    {
+      "group": "Random return from a graveyard to a hand",
+      "review_requirement": "Chance selection and an AtRandom choice can both express random return. Compare cardinality and batch/population before selecting a normal form."
+    },
+    {
+      "group": "A targeted object's pronoun inside a delayed trigger",
+      "review_requirement": "Delayed Turn events have no object subject of their own. Prove whether EventSubject captures the outer trigger or is unbound; preserve exact target identity and capture lifetime."
+    },
+    {
+      "group": "\"Another\" in a compound \"enters or attacks\" self-trigger",
+      "review_requirement": "When both alternative events are explicitly self events, their distinguished object may be the same source. Check granted ability-holder context separately."
+    },
+    {
+      "group": "\"If it's a <type> card\" after a one-card exile",
+      "review_requirement": "Before and After movement views can differ under replacements and characteristic changes. The exact sentence and actual receipt, not control frequency, determine which view is correct."
+    },
+    {
+      "group": "\"Untap those creatures\" after a per-opponent control change",
+      "review_requirement": "Named target and affected receipt may coincide. A failed control-change witness must establish whether the receipt names attempted or successful objects before replacing it."
+    },
+    {
+      "group": "A type added to a returned creature",
+      "review_requirement": "Arrival changes versus a later continuous effect can be semantically different (entry-event characteristics). Review wording and entry replacement witnesses per card; do not flatten all animations."
+    },
+    {
+      "group": "A property of a single result",
+      "review_requirement": "A scalar property and a sum can coincide only for a proven singular population. Preserve zero-case semantics and genuinely plural receipts."
+    },
+    {
+      "group": "The last-known state of a sacrificed fixed object",
+      "review_requirement": "Last-known sacrificed source, event subject and Before transition can coincide only with the exact original incarnation and an explicitly captured last-known view."
+    },
+    {
+      "group": "\"This card\" after the card exiled itself",
+      "review_requirement": "Post-cost or post-exile incarnation and expected-zone constraints matter. Kogla demonstrates why a generic Source substitution can be incorrect."
+    },
+    {
+      "group": "The subject of a block-pair event on one card",
+      "review_requirement": "BlockPair Attacker and EventSubject require event-role-specific binding; a mirrored attack/block pair can legitimately use different roles."
+    },
+    {
+      "group": "Operand order of \"N life more than your starting life total\"",
+      "review_requirement": "Addition order for a pair of integer quantities is a normal-form issue, subject to the same arithmetic overflow/saturation semantics; not a card-rules error solely from spelling."
+    }
+  ],
+  "concurrent_worker_changes_preserved": [
+    "oracle-grammar/grammar/tail/mined.ebnf"
+  ],
+  "normalization_proof": {
+    "records": 33529,
+    "changed_records": 21,
+    "unchanged_records": 33508,
+    "changed_faces": [
+      "Alora, Cheerful Scout",
+      "Balustrade Wurm",
+      "Barrage of Boulders",
+      "Determined",
+      "Demonlord of Ashmouth",
+      "Draconic Intervention",
+      "Foreboding Steamboat",
+      "Giant Regrowth",
+      "Maskwood Nexus",
+      "Mind Raker",
+      "Murk Strider",
+      "Nightclub Bouncer",
+      "Phyrexian Totem",
+      "Resurrected Cultist",
+      "Ruin Processor",
+      "Skyline Savior",
+      "Suffocation",
+      "Talion's Throneguard",
+      "Temporal Firestorm",
+      "Ulamog's Reclaimer",
+      "Wasteland Strangler"
+    ],
+    "independent_transformations": {
+      "alora_typed_post_cost_perpetual": 1,
+      "sorcery_limits": 2,
+      "joined_spell_faces": 5,
+      "one_creature_costs": 1,
+      "typed_exile_payment": 6,
+      "perpetual_return_sets": 5,
+      "all_creature_types_set": 1,
+      "commuted_type_additions": 1
+    },
+    "unexplained_differences": [],
+    "comparison": "Full independent prior-frame rewrites, preserving every other operand. Only the five merged spell faces need canonical result renumbering; structural casting-payment addresses remain exact."
+  },
+  "source_proof": {
+    "records": 33529,
+    "changed": [
+      "Balustrade Wurm",
+      "Demonlord of Ashmouth",
+      "Resurrected Cultist"
+    ],
+    "unchanged": 33526
+  },
+  "vampiric_evidence": {
+    "status": "pending representation, confirmed wrong dead-creature recipient",
+    "independent_implementation": "https://github.com/magefree/mage/blob/87ab0a3fcc65f09d05b19af0d75efeedabca88f8/Mage/src/main/java/mage/abilities/common/DealtDamageAttachedAndDiedTriggeredAbility.java",
+    "observation": "SetTargetPointer.PERMANENT records FixedTarget(creatureMOR) at trigger time. This is implementation evidence, not an official case-specific ruling.",
+    "official_gatherer_access": "403; no invented ruling",
+    "required_future_contract": "Capture exact host incarnation at trigger matching; retain distinct Aura source/controller. Do not grant a trigger to the host to simulate capture, because that changes controller/APNAP. Keep movement/zone-incarnation limits explicit."
+  },
+  "model_adoption": "Wire schema189 unchanged. Shared cost-history validation now recognizes direct OwnersHand moves as Return; update compiled model provider and lockfile once for Alora, separately from the reference lock."
+}

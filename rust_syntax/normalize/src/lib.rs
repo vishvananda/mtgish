@@ -26,6 +26,8 @@ mod source_values;
 pub mod validate;
 
 mod subtype;
+#[cfg(feature = "legacy")]
+mod spell_paragraphs;
 
 #[cfg(feature = "cantrip")]
 pub mod cantrip;

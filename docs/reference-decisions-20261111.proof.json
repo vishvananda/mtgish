@@ -1,0 +1,142 @@
+{
+  "records": 33529,
+  "changed_records": 21,
+  "unchanged_records": 33508,
+  "changed_faces": [
+    "Alora, Cheerful Scout",
+    "Balustrade Wurm",
+    "Barrage of Boulders",
+    "Determined",
+    "Demonlord of Ashmouth",
+    "Draconic Intervention",
+    "Foreboding Steamboat",
+    "Giant Regrowth",
+    "Maskwood Nexus",
+    "Mind Raker",
+    "Murk Strider",
+    "Nightclub Bouncer",
+    "Phyrexian Totem",
+    "Resurrected Cultist",
+    "Ruin Processor",
+    "Skyline Savior",
+    "Suffocation",
+    "Talion's Throneguard",
+    "Temporal Firestorm",
+    "Ulamog's Reclaimer",
+    "Wasteland Strangler"
+  ],
+  "independent_transformations": {
+    "alora_typed_post_cost_perpetual": 1,
+    "sorcery_limits": 2,
+    "joined_spell_faces": 5,
+    "one_creature_costs": 1,
+    "typed_exile_payment": 6,
+    "perpetual_return_sets": 5,
+    "all_creature_types_set": 1,
+    "commuted_type_additions": 1
+  },
+  "unexplained_differences": [],
+  "comparison": "Full independent prior-frame rewrites, preserving every other operand. Only the five merged spell faces need canonical result renumbering; structural casting-payment addresses remain exact.",
+  "source": {
+    "records": 33529,
+    "changed": [
+      "Balustrade Wurm",
+      "Demonlord of Ashmouth",
+      "Resurrected Cultist"
+    ],
+    "unchanged": 33526
+  },
+  "rust": {
+    "passed": 1544,
+    "failed": 0,
+    "ignored": 19,
+    "targets": 181,
+    "features": "cantrip",
+    "stack_env": "RUST_MIN_STACK=16777216"
+  },
+  "go_full": "ok  \tgo_mtg_parser\t66.390s",
+  "browser_catalog": {
+    "expected": 33529,
+    "records": 33529,
+    "blockRoundtrips": 33529,
+    "bindingPortCards": 33529,
+    "wasmValid": 33529,
+    "failures": []
+  },
+  "fixtures": {
+    "records": 57,
+    "faces": 60,
+    "source_repairs": 3,
+    "source_records": 4
+  },
+  "schema": 189,
+  "schema_changed": false,
+  "wasm_reused": false,
+  "wasm_builds": 1,
+  "schema_reuse": "Descriptors and metadata are JSON-equal. Shared return-cost validation is extended under schema189, so fresh Wasm and downstream model provider are required.",
+  "wasm_sha256": "55b070bb9885d4dfaa0288d83e183f65b0630940430b9bde0d1d60f1a921cf0b",
+  "sha256": {
+    "grammars/english_grammar.json5": "f09f4c1b26b6b520c165ed35607fd5064ef1b1bce7c1995ed2758e34b231f556",
+    "data/mtgish.lines.ron": "2d07f4979a94ce4bb0f01ba077fe9c9108476f0f04dc2009f6874c31558684ff",
+    "data/mtgish.lines.json": "85e839351d2c2a812b5ea6f2b61ed3600fab93c3362fca7768d86863a4843c05",
+    "data/mtgish.pretty.ron": "e5ffc31bb0b602499b7206bc9b9ab876e00e0f16ba4dcfeaae3d21cf61a955ed",
+    "rust_syntax/normalize/src/cost_history.rs": "52ebb3b23c229e681df427424d103ea9e063a09a4d525b108e5f45946715833b",
+    "rust_syntax/normalize/src/spell_paragraphs.rs": "f128ae466a6c67b94d139a9fd1bce4955317bdb082fba1ca795a40249fedb7f8",
+    "rust_syntax/normalize/src/lower.rs": "f47b645de6c1609e6a8e61755ad0709de1e5230ec443809a8bb0b513199cfc6e",
+    "rust_syntax/normalize/src/lower_named.rs": "600fd20c127ef9a8fcf0e96208ae0ec1601cb3a8af6d16cd023dbaa6dc24b422",
+    "rust_syntax/normalize/src/lower_this_way.rs": "cee18fbaa750658d86c11a93a9ac83caa477b248aea969c58d2e09ef9d178ff2",
+    "rust_syntax/normalize/src/change_lists.rs": "70b2f8004da0a4bb01f67ad94bb6938c813c15f198d9a484a971cf634ad5a80c",
+    "rust_syntax/normalize/src/reduce_rules.rs": "b8ffa0fc642b5dfea9177d275fec255a6fbc06c35d0d23f5320f1716bc1e6600"
+  },
+  "audit": {
+    "changed_paths": [
+      "/reviewed_sources/grammars/english_grammar.json5",
+      "/review_inputs/grammars/english_grammar.json5"
+    ],
+    "review_entries_unchanged": true
+  },
+  "evidence_directory": "/mnt/vizier/reference-decisions-20261111",
+  "vampiric_pending": {
+    "wrong_recipient_confirmed": true,
+    "live_host_rewrite_rejected": true,
+    "capture_required": true,
+    "source_commit": "87ab0a3fcc65f09d05b19af0d75efeedabca88f8",
+    "source_sha256": "5b121f2f9bc0008b2b1ad005ba4bc10063974d8429036d0e8ab668ee25bc5470",
+    "gameplay_executed": false
+  },
+  "actual_browser_workspaces": {
+    "actualWorkspaceCards": [
+      "Alora, Cheerful Scout",
+      "Balustrade Wurm",
+      "Barrage of Boulders",
+      "Determined",
+      "Demonlord of Ashmouth",
+      "Draconic Intervention",
+      "Foreboding Steamboat",
+      "Giant Regrowth",
+      "Maskwood Nexus",
+      "Mind Raker",
+      "Murk Strider",
+      "Nightclub Bouncer",
+      "Phyrexian Totem",
+      "Resurrected Cultist",
+      "Ruin Processor",
+      "Skyline Savior",
+      "Suffocation",
+      "Talion's Throneguard",
+      "Temporal Firestorm",
+      "Ulamog's Reclaimer",
+      "Wasteland Strangler",
+      "Alliance of Arms",
+      "Vulshok Factory",
+      "Draining Whelk",
+      "Ebonblade Reaper",
+      "Veteran Ghoulcaller",
+      "Vampiric Embrace",
+      "Karn's Touch"
+    ],
+    "exactIR": true,
+    "wasmValidation": true,
+    "errors": []
+  }
+}

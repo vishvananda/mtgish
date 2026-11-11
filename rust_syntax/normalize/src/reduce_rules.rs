@@ -1204,7 +1204,7 @@ fn card_change(form: &str, operands: &[Operand]) -> Option<Change> {
             types: CreatureTypeSet::Listed(vec![vocabulary_value(kind)?]),
         }),
         ("HasAllCreatureTypes", []) => Some(C::CreatureTypes {
-            mode: ChangeMode::Add,
+            mode: ChangeMode::Set,
             types: CreatureTypeSet::All,
         }),
         ("AddCreatureTypeVariable", [variable]) => Some(C::ChosenType {

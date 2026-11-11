@@ -34,6 +34,17 @@ fn authentic_api_and_all_layout_examples_migrate_to_exact_source_with_complete_o
                 assert_eq!(condition["args"]["object"]["kind"], "RingBearer");
                 *condition=json!({"kind":"RingBearerChosen","args":condition["args"]["filter"].clone()});
             }
+            if mapped.card.faces.first().is_some_and(|face| face.name == "Alora, Cheerful Scout") {
+                // Saved184 retains its old unreduced term. Fresh Source now
+                // publishes the exact post-cost receipt and typed perpetual.
+                // Only this declared semantic fix differs; migration/origins
+                // below still compare the untouched historical representation.
+                let op = &mut expected["faces"][0]["abilities"][0]["args"]["body"]["instructions"][1]["args"]["operation"]["args"]["body"]["instructions"][1]["args"]["then"]["instructions"][0]["args"]["operation"];
+                assert_eq!(op["kind"], "EffectOn");
+                *op = json!({"kind":"CreatePerpetualEffect","args":{
+                    "objects":{"kind":"CostObjects","args":{"payment":{"Resolution":1},"component":[0],"view":"Performed","phase":"After"}},
+                    "changes":[{"kind":"Pump","args":{"power":{"kind":"Constant","args":1},"toughness":{"kind":"Constant","args":1}}}]}});
+            }
             assert_eq!(expected, serde_json::to_value(fresh.card).unwrap());
             for (from, to) in mapped.map.sites {
                 for to in to {
