@@ -99,6 +99,14 @@ Intake reserves only eligible generator-ready cards by default. Ante and dexteri
 bans are not. The launcher starts workers, queue supervision, local integration and CPU sampling. It skips
 already running services and draining slots. Service names include the campaign prefix; logs are in the
 campaign's role directories. The units are transient: rerun `start` after a reboot.
+Failed services restart after five seconds. SQLite initialization retries transient storage
+errors before failing; card transactions are never replayed. A restarted slot with an unfinished
+running assignment parks for explicit recovery, preserving its lease and checkout.
+
+After explicitly retiring prepared worktrees during a pause, recreate their saved branches/heads
+and private caches before `start`. Disabled workers do not recreate removed worktrees. Missing
+producer packets can use existing candidate-bound cached author evidence; absent Oracle/reference
+or author-report evidence requires restoration before review.
 
 ```sh
 python3 "$T/control.py" --root "$P" drain    # finish active cards, then wait

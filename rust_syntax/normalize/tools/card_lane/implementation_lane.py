@@ -220,6 +220,11 @@ def worker(root, slot, once=False):
     state.mkdir(parents=True, exist_ok=True)
     with (folder / 'slot.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if not cfg.get('enabled', True):
+            return
+        with connect(root) as db:
+            if review.preserve_running_assignment(db, slot, folder, 'implementation_jobs'):
+                return
         review.maintain_caches(root, cfg, begin_target=tree / 'target')
         review.clean(tree)
         base = cfg['base']

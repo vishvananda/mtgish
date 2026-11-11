@@ -93,7 +93,7 @@ def launch_command(service):
     return ['systemd-run','--user','--collect','--unit',service['unit'],
             '--property=Type=exec','--property=WorkingDirectory='+str(MTGISH),
             '--property=StandardOutput=append:'+str(log),'--property=StandardError=append:'+str(log),
-            '--property=Nice=5',*service['command']]
+            '--property=Nice=5','--property=Restart=on-failure','--property=RestartSec=5',*service['command']]
 
 
 def set_enabled(root, enabled):

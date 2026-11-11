@@ -27,6 +27,7 @@ import unicodedata
 import context_budget
 import review_evidence
 import cache_leases
+import queue_storage
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_ROOT = Path.home() / "card-lane" / "pipeline"
@@ -83,7 +84,10 @@ def maintain_caches(root, cfg, *, begin_target=None, retired_target=None, end_ta
 def connect(root):
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(root / "queue.sqlite", timeout=60, factory=Database)
+    return queue_storage.open_database(root / "queue.sqlite", Database, initialize_database)
+
+
+def initialize_database(db):
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA journal_mode=WAL")
     db.executescript("""
@@ -97,7 +101,21 @@ def connect(root):
           id INTEGER PRIMARY KEY, job TEXT, worker TEXT, at TEXT NOT NULL,
           kind TEXT NOT NULL, detail TEXT NOT NULL);
     """)
-    return db
+
+
+def preserve_running_assignment(db, slot, folder, table="jobs"):
+    # A restarted process cannot know whether a failed commit was durable.
+    # Keep that lease and its worktree until an explicit recovery decision.
+    if table not in ("jobs", "implementation_jobs"):
+        raise ValueError("unknown queue table")
+    row = db.execute(f"SELECT id,name FROM {table} WHERE worker=? AND status='running' LIMIT 1", (slot,)).fetchone()
+    if row is None:
+        return False
+    message = f"Unfinished job {row['id']} remains assigned to {slot}; preserve its worktree and recover explicitly."
+    save(folder / "live.json", dict(state="infrastructure", worker=slot, card=row['name'],
+                                   job=row['id'], at=now(), recovery_required=True, error=message))
+    print(message, file=sys.stderr)
+    return True
 
 
 def event(db, job, worker, kind, detail):
@@ -550,17 +568,22 @@ def prepare(root, tree, job):
 def packet(root, tree, job, source, lane):
     folder = job_folder(root, job, job["stage"])
     folder.mkdir(parents=True, exist_ok=True)
-    author = Path(source["packet"])
+    author = Path(source["packet"]) if source.get("packet") else None
     for name in ("reference.md", "shared.md", "prior-art.md", "report.json", "check.json", "mutate.txt", "test-points.json"):
-        if (author / name).exists() and not (folder / ("author-" + name)).exists():
+        if author is not None and (author / name).exists() and not (folder / ("author-" + name)).exists():
             (folder / ("author-" + name)).write_bytes((author / name).read_bytes())
+    missing = [name for name in ("author-reference.md", "author-report.json") if not (folder / name).is_file()]
+    if missing:
+        raise ValueError("review input lacks producer evidence: " + ", ".join(missing) +
+                         "; restore the producer packet or its candidate-bound cached evidence")
     source_path = lane.card_file(source["name"])
     current = source_path.read_text() if source_path.exists() else "(characteristics only)"
     (folder / "current-shared.md").write_text(lane.shared_code(current) if source_path.exists() else "")
     scenarios = lane.card_scenarios(source["name"])
-    prior = Path(source["campaign"]) / "publication" / (source["producer"] + "-review.json")
+    prior = (Path(source["campaign"]) / "publication" / (source["producer"] + "-review.json")
+             if source.get("campaign") and source.get("producer") else None)
     hints = None
-    if prior.exists():
+    if prior is not None and prior.exists():
         hints = next((c for c in read(prior).get("cards", []) if c.get("name") == source["name"]), None)
     save(folder / "prior-findings.json", hints)
     save(folder / "input.json", dict(job=job, source=source, tree=str(tree), model=config(root)["review_model"]))
@@ -993,6 +1016,12 @@ def worker(root, slot, once=False, resume=None):
     # Lock the slot across supervisors and invocations, independently of the DB job lease.
     with (folder / "slot.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if not cfg.get("enabled", True):
+            return
+        if not resume:
+            with connect(root) as db:
+                if preserve_running_assignment(db, slot, folder):
+                    return
         maintain_caches(root, cfg, begin_target=tree / 'target')
         session, context_cards, previous_usage, session_role = None, 0, None, None
         last_finished = None
