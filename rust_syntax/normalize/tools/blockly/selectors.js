@@ -15,9 +15,15 @@ function createSelectorEditor(api) {
     return '';
   }
   function announcement(b) {
-    let owner=b;while(owner&&owner.state.ty.named!=='Ability')owner=owner.getParent?.();
-    // Read declarations independently: the effect being filled may be incomplete.
-    const block=owner?.getInputTargetBlock('F_announcement');return block?api.fromBlock(block):null;
+    const targets=[],seen=new Set();
+    // Modes inherit common targets. Sibling modes have separate declarations.
+    // Read announcements independently while an effect is incomplete.
+    for(let owner=b;owner;owner=owner.getParent?.())if(['Ability','Mode'].includes(owner.state.ty.named)){
+      const block=owner.getInputTargetBlock('F_announcement');
+      if(block)try{for(const target of api.fromBlock(block).targets)if(!seen.has(target.slot)){targets.push(target);seen.add(target.slot);}}catch(_){}
+      if(owner.state.ty.named==='Ability')break;
+    }
+    return {targets};
   }
   function targetText(b,slot,index) {
     const label=name(b,'Target',slot);let text='announced target',targets=[];

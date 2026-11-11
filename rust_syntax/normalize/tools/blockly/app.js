@@ -119,16 +119,21 @@
   };
   const projections=createAuthoringProjections({types,clone,same});
   const namedAbilities=createNamedAbilities({abilityValue,actionValue,clone,same});
+  const choiceView=createChoiceView({clone,defaultValue,fromBlock,parts,replaceView,remember,changed,applyPresentation,notice,addToFlow,bindings:()=>bindingEditor,workspace:()=>workspace,childValues,assemble});
   const targetPresets=authoring.targets.map(t=>[t.label,t.fields]);
+  const permanentTarget=filter=>({kind:{Object:{kind:'Permanent',zones:['Battlefield']}},filter,players:null});
+  targetPresets.push(['target permanent',permanentTarget({kind:'Any'})],...['Artifact','Enchantment','Land'].map(type=>['target '+type.toLowerCase(),permanentTarget({kind:'CardType',args:type})]),['target spell',{kind:{Object:{kind:'Spell',zones:['Stack']}},filter:{kind:'Any'},players:null}],['target creature you control',permanentTarget({kind:'All',args:[{kind:'CardType',args:'Creature'},{kind:'ControlledBy',args:{kind:'One',args:SELF}}]})],['target opponent',{kind:'Player',filter:{kind:'Any'},players:{kind:'OpponentsOf',args:SELF}}]);
   const targetPreset = v => targetPresets.findIndex(([,p])=>Object.keys(p).every(k=>same(p[k],v[k])));
   function targetSummary(v) {
     const i=targetPreset(v),base=i<0?'custom target':targetPresets[i][0];
     const count=v.count?.Exactly?.kind==='Constant'?v.count.Exactly.args:null;
-    return `${count===1?'':count!==null?count+' × ':'variable count · '}${base}${v.constraints.length||v.distribute!==null||v.chooser!==null?' · with conditions':''}`;
+    const prefix=v.count==='AnyNumber'?'any number · ':v.count?.UpTo?.kind==='Constant'?'up to '+v.count.UpTo.args+' × ':count===1?'':count!==null?count+' × ':'variable count · ';
+    return `${prefix}${base}${v.constraints.length||v.distribute!==null||v.chooser!==null?' · with conditions':''}`;
   }
   function mapTargetDomain(t,value,slot,preset,root=false) {
     // Nested ability definitions introduce their own target-slot scope.
     if(t.named==='Ability'&&!root)return value;
+    if(t.named==='Mode'&&!root&&value.announcement.targets.some(t=>t.slot===slot))return value;
     if(t.named==='TargetSpec'&&value.slot===slot)return {...value,...clone(preset)};
     if(t.named==='Recipients') {
       const direct=value.kind==='Targets'?value.args:['Objects','Players'].includes(value.kind)&&value.args.kind==='Targets'?value.args.args:null;
@@ -151,7 +156,7 @@
       applyPresentation();changed();return;
     }
     const preset=targetPresets[Number(index)];if(!preset)return;
-    let owner=b.getParent();while(owner&&owner.state.ty.named!=='Ability')owner=owner.getParent();
+    const owner=choiceView.scope(b);
     if(owner) {
       const slot=Number(b.getFieldValue('_F_slot'));
       // Keep recipient references in the same scope consistent with the new entity kind.
@@ -200,7 +205,7 @@
       const f=t.tuple?{kind:'tuple',items:t.tuple}:d.kind==='struct'?d.fields:viewVariant(state).fields;
       result=fieldParts(f,f.kind==='tuple'?'':'F_');
     }
-    return sections.parts(state,result).map(p=>{
+    return choiceView.parts(state,sections.parts(state,result)).map(p=>{
       const inline=state.inline?.[p.key];
       if(inline && (state.ui<3 || inline==='pt') && !state.noInline?.includes(p.key))p={...p,inline,editTy:inline==='constant'?{named:'i64'}:p.ty};
       if(state.ui>=2 && !p.inline) {
@@ -213,7 +218,8 @@
       if(state.ty.named==='Ability'&&state.variant==='Scoped'&&p.key==='F_ability')p.label='';
       if(p.label==='characteristics')p.label='properties';
       if(p.label==='announcement')p.label=state.ty.named==='Ability'&&state.variant==='Spell'?'Cast-time choices':'Targets & modes';
-      if(p.flow&&!p.abilitySection)p.label=p.ty.named==='Program'?(p.label==='otherwise'?'otherwise':'do'):p.ty.vec.named==='Ability'?'abilities':'do';
+      if(p.flow&&!p.abilitySection)p.label=p.ty.named==='Program'?(p.label==='otherwise'?'otherwise':'do'):['TargetSpec','Mode'].includes(p.ty.vec?.named)?'':p.ty.vec.named==='Ability'?'abilities':'do';
+      if(state.pr==='mode'&&p.key==='F_body')p.label='effects';
       if(state.ty.named==='Ability'&&state.variant==='Spell'&&p.key==='F_body')p.label='effects';
       if(state.pr==='effect') {
         if(p.key==='O_amount') {p.label='';p.suffix='';}
@@ -239,7 +245,7 @@
     if(t.named==='Ability' && value.kind==='Keyword'){s.pr='keyword';s.keyword=value.args.kind;}
     if(t.named==='Ability'&&value.kind==='Activated')s.activationName=namedAbilities.name(value);
     if(sections.card(s))Object.assign(s,sections.initial(s.pr==='single'?value.faces[0]:value));
-    return s;
+    return choiceView.state(t,value,s);
   }
   function fieldValues(f,a,prefix='F_') {
     if(f.kind==='unit')return {};
@@ -258,7 +264,7 @@
     if(t.vec)return Object.fromEntries(value.map((v,i)=>[`ITEM_${i}`,v]));
     if(t.option)return value===null?{}:{SOME:value};
     const d=descriptor(t),v=variantFor(t,value),f=t.tuple?{kind:'tuple',items:t.tuple}:v?v.fields:d.fields;
-    return sections.values(state,value,fieldValues(f,v?(d.adjacent?value.args:value[v.wire]):value,f.kind==='tuple'?'':'F_'));
+    return choiceView.values(state,value,sections.values(state,value,fieldValues(f,v?(d.adjacent?value.args:value[v.wire]):value,f.kind==='tuple'?'':'F_')));
   }
   function chainState(ty,values,outline) {
     let head=null,last=null;
@@ -331,6 +337,8 @@
   }
   const defaultStructures=new Set(['Announcement','TriggerLimits','ActivationLimits','EntrySpec','MovementTerms','BattlefieldArrival','ExileArrival','CardArrival','ModeCount','ModeRules','ModeMechanism']);
   function resetValue(b,p) {
+    if((b.state.pr==='announcement'&&p.key==='F_targets')||(b.state.pr==='modes'&&p.key==='F_options'))return undefined;
+    if(b.state.pr==='announcement'&&p.key==='F_modes')return null;
     if(p.abilitySection||p.key==='RESULT'||['ROOT_schema','ROOT_layout','F_schema_version','F_slot'].includes(p.key))return undefined;
     const owner=b.state.pr==='single'?(p.key.startsWith('ROOT_')?'UnifiedCard':'Card'):b.state.pr==='effect'?`Operation::${b.state.op}`:b.state.pr==='keyword'?`Keyword::${b.state.keyword}`:b.state.variant?`${b.state.ty.named}::${b.state.variant}`:b.state.ty.named;
     const key=p.key.replace(/^(ROOT_|F_|O_|K_)/,'');
@@ -348,7 +356,8 @@
   }
   function removeOption(b,key) {
     if(b.isInFlyout)return;
-    const p=parts(b.state).find(p=>p.key===key),reset=p&&resetValue(b,p);if(reset===undefined)return;
+    if(b.state.pr==='announcement'&&key==='F_modes'){choiceView.removeModes(b);return;}
+    const p=parts(b.state).find(p=>p.key===key);if(p?.ty.named==='Announcement'){choiceView.clearAnnouncement(b,key);return;}const reset=p&&resetValue(b,p);if(reset===undefined)return;
     const values=childValues(b.state.ty,fromBlock(b),b.state);values[key]=reset;
     replaceView(b,{shown:(b.state.shown||[]).filter(k=>k!==key)},assemble(b.state,values));
   }
@@ -357,6 +366,7 @@
     if(b.state.ty.named==='Ability'&&b.state.variant==='Scoped'&&p.key==='F_zones'&&sections.home(b))return true;
     if(b.state.shown?.includes(p.key))return false;
     if(p.key==='RESULT'||(b.state.ty.named==='Instruction'&&b.state.variant==='Effect'&&p.key==='F_result'))return true;
+    const choiceHidden=choiceView.hidden(b,p);if(choiceHidden!==null)return choiceHidden;
     if(detailMode)return false;
     if(b.state.ty.named==='Ability'&&b.state.variant==='Activated'){
       if(p.key==='F_origin')return true;
@@ -405,10 +415,13 @@
   }
   function optionsFor(b) {
     const out=[['⋯','NONE']];
+    try{const count=choiceView.countOption(b);if(count)out.push(count);}catch(_){}
     if(sections.home(b)&&b.state.ty.named==='Ability')try{if(!sections.fixed(fromBlock(b)))out.push(['Edit functioning locations…','LOCATIONS']);}catch(_){}
     if(b.state.activationName&&!detailMode)out.push([b.state.showNamedRules?'Hide standard rules':'Show rules','NAMED_RULES']);
     if(bindingEditor?.canPromote(b))out.push(['Name result','NAME_RESULT']);
     for(const p of parts(b.state)) {
+      if(choiceView.managed(b.state,p))continue;
+      if(p.key==='F_body'&&b.state.ty.named==='Ability'&&hiddenReason(b,p))continue;
       if(b.state.variant==='Scoped'&&p.key==='F_zones'&&sections.home(b))continue;
       if(!detailMode&&b.state.ty.named==='Ability'&&b.state.variant==='Activated'&&p.key==='F_origin')continue;
       if(!detailMode&&!b.state.showNamedRules&&b.state.activationName)try{if(namedAbilities.standard(fromBlock(b))?.hidden.includes(p.key))continue;}catch(_){}
@@ -461,6 +474,7 @@
         selectorEditor?.decorate(b);
         continue;
       }
+      choiceView.refresh(b);
       const selector=b.getField('TARGET_PRESET');
       if(selector)try{
         const index=targetPreset(fromBlock(b));
@@ -516,11 +530,13 @@
   function revealOption(b,key) {
     if(b.isInFlyout)return;
     const p=parts(b.state).find(p=>p.key===key);if(!p)return;
+    if(b.state.pr==='announcement'&&key==='F_modes'){choiceView.addModes(b);return;}
+    if(p.flow&&p.socketTy?.named==='TargetSpec'){choiceView.addTarget(b);return;}
     remember();
     b.state.shown=[...new Set([...(b.state.shown||[]),key])];
     const child=b.getInputTargetBlock(key);
     child?.setCollapsed(false);
-    if(p.ty.named==='Announcement' && child)child.getInputTargetBlock('F_targets')?.resize(1);
+    if(p.ty.named==='Announcement' && child)choiceView.addTarget(child);
     else if(child?.state.ty.vec)child.resize(1);
     else if(child?.state.ty.option && !child.state.present)child.resize(0);
     else if(scalarType(p)?.named==='bool')b.setFieldValue(b.getFieldValue('_'+key)==='TRUE'?'FALSE':'TRUE','_'+key);
@@ -594,7 +610,7 @@
           addToFlow(ability,parts(ability.state).find(p=>p.key==='F_body'),actionValue('Draw',{players:{kind:'One',args:SELF},amount:{kind:'Constant',args:1}}));return;
         }
       }
-      if(p.flow){addToFlow(parent,p);return;}
+      if(p.flow){if(p.socketTy?.named==='TargetSpec')choiceView.addTarget(parent);else if(p.socketTy?.named==='Mode')choiceView.addMode(parent);else addToFlow(parent,p);return;}
       const value=defaultValue(p.ty);
       if(p.ty.named==='TargetSpec'&&parent.state.ty.vec?.named==='TargetSpec'){const slots=parent.getChildren(false).filter(b=>b.state.ty.named==='TargetSpec').map(b=>Number(b.getFieldValue('_F_slot')));value.slot=slots.length?Math.max(...slots)+1:0;}
       const state=blockState(p.ty,value);if(p.statement)state.extraState.statement=true;
@@ -662,14 +678,26 @@
         }
         for(const i of [...this.inputList])this.removeInput(i.name);
         const t=this.state.ty,d=descriptor(t),header=this.state.pr==='literal'?null:this.appendDummyInput('HEADER'),variant=viewVariant(this.state);
-        if(this.state.statement){this.setOutput(false);this.setPreviousStatement(true,projections.outputs(t).map(typeKey));this.setNextStatement(['Instruction','Ability'].includes(t.named),typeKey(t));}
+        if(this.state.statement){this.setOutput(false);this.setPreviousStatement(true,projections.outputs(t).map(typeKey));this.setNextStatement(['Instruction','Ability','TargetSpec','Mode'].includes(t.named),typeKey(t));}
         else {this.setNextStatement(false);this.setPreviousStatement(false);this.setOutput(true,projections.outputs(t).map(typeKey));}
         this.setColour(colour(this.state.pr==='effect'?{named:'Operation'}:t));
-        if(this.state.pr==='count')header.appendField('number of');
+        if(this.state.pr==='announcement')header.appendField('Targets','CHOICES_TITLE').appendField(button('+','Add target group',()=>choiceView.addTarget(this)),'ADD_TARGET').appendField(button('≡','Add modes',()=>choiceView.addModes(this)),'ADD_MODES');
+        else if(this.state.pr==='modes'){
+          header.appendField(this.state.impliedModes?'Required':'Choose');
+          if(this.state.simpleModeCount)header.appendField(new Blockly.FieldDropdown([['exactly','Exactly'],['up to','UpTo'],['between','Between']]),'_M_STYLE').appendField(new Blockly.FieldTextInput(values._M_MIN||'1'),'_M_MIN').appendField('and','MODE_AND').appendField(new Blockly.FieldTextInput(values._M_MAX||'1'),'_M_MAX').appendField('modes');
+          else header.appendField('modes');
+          header.appendField(button('+','Add mode',()=>choiceView.addMode(this)),'ADD_MODE');
+        }
+        else if(this.state.pr==='mode')header.appendField('Mode','MODE_TITLE').appendField(button('−','Remove this mode',()=>choiceView.removeRow(this)),'REMOVE_MODE');
+        else if(this.state.pr==='count')header.appendField('number of');
         else if(this.state.pr==='query')header.appendField('all');
         else if(this.state.activationName)header.appendField(this.state.activationName,'NAMED_ABILITY');
         else if(this.state.pr==='literal') { /* The editable field itself is the literal block. */ }
-        else if(t.named==='TargetSpec')header.appendField(new Blockly.FieldDropdown([...targetPresets.map(([label],i)=>[label,String(i)]),['custom target…','CUSTOM']]),'TARGET_PRESET');
+        else if(t.named==='TargetSpec'){
+          header.appendField('Choose');
+          if(this.state.simpleTargetCount)header.appendField(new Blockly.FieldDropdown([['exactly','Exactly'],['up to','UpTo'],['any number','AnyNumber'],['at least','AtLeast']]),'_T_STYLE').appendField(new Blockly.FieldTextInput(values._T_NUMBER||'1'),'_T_NUMBER');
+          header.appendField(new Blockly.FieldDropdown([...targetPresets.map(([label],i)=>[label,String(i)]),['custom target…','CUSTOM']]),'TARGET_PRESET').appendField(button('−','Remove this target group',()=>choiceView.removeRow(this)),'REMOVE_TARGET');
+        }
         else if(t.vec){header.appendField(t.vec.named==='TargetSpec'?'Targets':typeName(t.vec)+' items');header.appendField(button('+','Add an item',()=>this.resize(1)));if(this.state.count)header.appendField(button('−','Remove last item',()=>this.resize(-1)));}
         else if(t.option){header.appendField(t.option.vec?.named==='ManaSymbol'?(this.state.present?'Mana cost':'No mana cost'):(this.state.present?'Value':'Not set'));if(t.option.vec?.named==='ManaSymbol')header.appendField('','COST_ZERO');header.appendField(button(this.state.present?'−':'+','Toggle optional value',()=>this.resize(0)));}
         else if(variant && !scalar(t)) {
@@ -679,13 +707,15 @@
         }else header.appendField(caption(this.state));
         if(header&&selectorEditor?.supports(t))header.appendField(button('▴','Compact this selector',()=>selectorEditor.compact(this)),'COMPACT_SELECTOR');
         if(header&&this.state.activationName)this.appendDummyInput('NAMED_HINT').appendField('','NAMED_HINT_TEXT');
+        if(header&&(t.named==='Mode'||t.named==='Ability'&&['Spell','Activated','Triggered'].includes(this.state.variant)))header.appendField(button('⋄','Edit targets or modes',()=>choiceView.reveal(this)),'EDIT_CHOICES');
         if(header&&t.named==='Ability')header.appendField('Functions:','LOCATION_LABEL').appendField(new Blockly.FieldDropdown(()=>functioningOptions(this),v=>{if(Blockly.Events.isEnabled()&&sections.home(this)&&sections.home(this).id!==v)setTimeout(()=>moveAbility(this,v),0);return v;}),'LOCATION').appendField('','CAST_FROM');
         if(header&&this.state.cardSections)header.appendField(new Blockly.FieldDropdown(()=>[['Add another section…','NONE'],...sections.definitions.filter(d=>!this.state.cardSections.includes(d.id)).map(d=>[d.label,d.id])],v=>{if(v!=='NONE')setTimeout(()=>addSection(this,v),0);return null;}),'ADD_SECTION');
         if(header)header.appendField(new Blockly.FieldDropdown(()=>optionsFor(this),v=>{
           if(v==='NONE')return null;
-          setTimeout(()=>{if(v==='NAMED_RULES'){remember();this.state.showNamedRules=!this.state.showNamedRules;applyPresentation();changed();}else if(v==='NAME_RESULT')bindingEditor.promote(this);else if(v==='LOCATIONS')editLocations(this);else if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('REMOVE:'))removeOption(this,v.slice(7));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
+          setTimeout(()=>{if(v==='COUNT_BLOCKS'||v==='COUNT_SIMPLE')choiceView.editCount(this,v==='COUNT_SIMPLE');else if(v==='NAMED_RULES'){remember();this.state.showNamedRules=!this.state.showNamedRules;applyPresentation();changed();}else if(v==='NAME_RESULT')bindingEditor.promote(this);else if(v==='LOCATIONS')editLocations(this);else if(v.startsWith('SHOW:'))revealOption(this,v.slice(5));else if(v.startsWith('REMOVE:'))removeOption(this,v.slice(7));else if(v.startsWith('BLOCK:'))replaceView(this,{noInline:[...(this.state.noInline||[]),v.slice(6)]});},0);return null;
         }),'MORE');
         for(const p of parts(this.state)) {
+          if(choiceView.managed(this.state,p))continue;
           if(p.inline==='pt') {
             const input=this.appendDummyInput(p.key).appendField('power / toughness');
             for(const [i,suffix] of ['P','T'].entries()){if(i)input.appendField('/');input.appendField(new Blockly.FieldTextInput(values['_'+p.key+'_'+suffix]||'0'),'_'+p.key+'_'+suffix);}
@@ -703,6 +733,7 @@
             }else {
               input.appendField(p.label);
               if(['Characteristics','Cost'].includes(p.ty.named))input.appendField(new Blockly.FieldImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="56" height="24"><rect width="56" height="24" rx="5" fill="white" fill-opacity=".25"/><text x="28" y="16" text-anchor="middle" fill="white" font-family="sans-serif" font-size="12">Edit…</text></svg>'),56,24,p.ty.named==='Cost'?'Edit cost':'Edit card properties',()=>p.ty.named==='Cost'?costEditor.open(this.getInputTargetBlock(p.key)):propertyEditor.open(this.getInputTargetBlock(p.key))),'EDIT_PROPERTIES');
+              else if(p.flow&&['TargetSpec','Mode'].includes(p.socketTy?.named)){ /* Header owns the explicit add-row control. */ }
               else if(selectorEditor?.supports(p.ty)&&!p.statement)input.appendField(new Blockly.FieldImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="88" height="24"><rect width="88" height="24" rx="12" fill="#254b65"/><text x="44" y="16" text-anchor="middle" fill="white" font-family="sans-serif" font-size="12">Choose…</text></svg>'),88,24,'Choose '+selectorEditor.title(p.ty),()=>selectorEditor.open(this,p.key)),'SELECT_'+p.key);
               else input.appendField(button('+',p.flow?'Add a block':`Fill ${p.label}`,()=>insertDefault(this,p)),'FILL_'+p.key);
             }
@@ -714,7 +745,7 @@
         }
         for(const p of parts(this.state))if(resetValue(this,p)!==undefined)this.getInput(p.key)?.appendField(button('−','Remove '+(p.label||'this option')+' (undo restores it)',()=>removeOption(this,p.key)),'REMOVE_'+p.key);
         this.setTooltip(`${typeName(t)}${variant?'::'+variant.name:''}\n${variant?.doc||''}`);
-        this.setInputsInline(['literal','effect','count','query'].includes(this.state.pr)||this.state.pr==='keyword'||scalar(t)||(d?.kind==='struct'&&d.fields.kind==='tuple'&&d.fields.items.every(scalar)));
+        this.setInputsInline(['literal','effect','count','query','modes'].includes(this.state.pr)||t.named==='TargetSpec'||this.state.pr==='keyword'||scalar(t)||(d?.kind==='struct'&&d.fields.kind==='tuple'&&d.fields.items.every(scalar)));
       }finally{Blockly.Events.enable();}
       if(this.rendered)this.render();
     },
@@ -776,6 +807,7 @@
     }
     if(t.option)return state.present?values.SOME:null;
     const v=viewVariant(state),f=t.tuple?{kind:'tuple',items:t.tuple}:v?v.fields:d.fields;
+    choiceView.fields(state,values);
     const a=fieldsResult(f,values,f.kind==='tuple'?'':'F_');return scopeValue(state,v?packEnum(d,v,a):a);
   }
   // Blockly serializes field names separately from state; use those exact names.
@@ -803,7 +835,8 @@
   }
   function flyoutBlock(type,value) {
     const state=blockState({named:type},value);
-    if(['Ability','Instruction','CopyException'].includes(type))state.extraState.statement=true;
+    if(['Ability','Instruction','CopyException','TargetSpec','Mode'].includes(type))state.extraState.statement=true;
+    if(type==='TargetSpec')state.extraState.freshTarget=true;
     if(state.extraState.pr==='effect')state.extraState.autoResult=true;
     return {kind:'block',...state};
   }
@@ -878,6 +911,8 @@
     {kind:'category',name:'Choices & modes',colour:'#9b7a42',contents:[
       {kind:'label',text:'Choose a mode when announcing the ability'},
       flyoutBlock('Ability',{kind:'Spell',args:{announcement:{targets:[],modes:{...defaultValue({named:'ModeSelection'}),options:[{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null},{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null}]}},body:{instructions:[]}}}),
+      {kind:'label',text:'Add a separate mode to its modes section'},
+      flyoutBlock('Mode',{announcement:{targets:[],modes:null},body:{instructions:[]},weight:1,requires:null}),
       {kind:'label',text:'Selection method and additional rules'},
       ...types.ModeMechanism.variants.map(v=>variantBlock('ModeMechanism',v.wire)),
       ...['ModeRepetition','ModeAvailability','ModeTargetPolicy','ModeAcceptance'].flatMap(t=>types[t].variants.map(v=>variantBlock(t,v.wire)))
@@ -1106,6 +1141,7 @@
     install(value.workspace);
   }
   workspace.addChangeListener(e=>{
+    choiceView.moved(e);
     if(e.isUiEvent && e.type!==Blockly.Events.SELECTED)setTimeout(applyPresentation,0);
     if(e.type===Blockly.Events.SELECTED){ const b=workspace.getBlockById(e.newElementId); if(b){ const d=descriptor(b.state.ty),v=d?.variants?.find(v=>v.wire===b.state.variant); $('selection').replaceChildren(); const title=document.createElement('strong');title.textContent=typeName(b.state.ty)+(v?'::'+v.name:'');$('selection').append(title,document.createTextNode('  '+(v?.doc||'Connect a value of this type to a matching socket.'))); } }
     if(e.name?.startsWith('NAME:'))return;
@@ -1188,5 +1224,5 @@
   if(!restored&&!workspace.getAllBlocks(false).length) await loadCard(payload.cards.find(c=>c.name==='Lightning Bolt')||payload.cards[0]);
   $('loading').classList.add('hidden');
   // Small public inspection surface also used by the browser regression suite.
-  window.cardBlocks={projections,selectors:selectorEditor,namedAbilities,costs:costEditor,properties:propertyEditor,sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
+  window.cardBlocks={choiceView,projections,selectors:selectorEditor,namedAbilities,costs:costEditor,properties:propertyEditor,sections,addSection,removeSection,moveAbility,removeOption,workspace,bindings:bindingEditor,fakeBlock,schema,parseExact,encode,dump,fromBlock,blockState,loadIR,generated,blank,loadCard,shard,payload,types,parts,applyPresentation,setMode,addToFlow,abilityValue,actionValue,defaultValue,ready:()=>workerReady,valid:validCurrent,savedWorkspace,restore,validateTexts,describeBindings:text=>codeRequest('describeBindings',text),formatDocument:text=>codeRequest('formatDocument',text),formatCode:text=>codeRequest('formatCode',text),parseCode:text=>codeRequest('parseCode',text),migrateWorkspace,migrateIR:text=>codeRequest('migrateIR',text)};
 })().catch(e=>{document.getElementById('loading').textContent='Could not start demo: '+e.message;console.error(e);});

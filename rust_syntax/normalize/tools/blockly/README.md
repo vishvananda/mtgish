@@ -38,6 +38,26 @@ previous simple value. **Library** opens card search without discarding the
 workspace. The section projection preserves imported ability order, binding
 paths, numeric IDs and names; it adds no AST variants or engine behavior.
 
+**Targets & selections** provides draggable target rows. A row reads **Choose
+exactly 1 any target**, with direct count and target-kind pickers. Choose **up
+to**, **at least** or **any number**, or add several independent rows with **+**.
+Each target keeps its own name; effects select that name in their compact
+selector. Dragged rows receive a free target number automatically. Custom
+filters, constraints and distributed amounts remain available in the full typed
+editor. **⋯ → Count expression…** opens typed count sockets; **Compact count**
+returns to the short view when the bounds are literal. Removing a referenced target requires updating its
+uses first; changing a target kind affects only its own lexical scope.
+
+**Choices & modes** supplies a modal ability and draggable individual **Mode**
+blocks. **Choose exactly/up to/between … modes** sits above the numbered options;
+each option has its own effects and optional targets. Use **+** or drag another
+mode into that stack, and **−** to remove it. An ability's diamond button reveals
+its targets/modes section. Adding modes to existing ordinary effects moves those
+effects intact into **Mode 1**, retaining result names and references. Dynamic
+mode bounds, weighted budgets, implied selection and additional rules keep their
+exact IR and advanced editors. Empty outer resolution effects are hidden on
+modal abilities, because the effects belong inside the modes.
+
 The compact properties summary has a visible **Edit…** button. **Properties…**
 in the toolbar opens the same form: card-type checkboxes, mana notation such as
 `2GU`, searchable creature-type chips, and power/toughness. Blank mana cost and
@@ -485,6 +505,10 @@ sharing or acceptance rule. Announced selection supports a player chooser and
 random method together; implied modes follow their targets or requirements.
 The ordinary count, rules and mechanism stay hidden until expanded or changed.
 Native/Wasm migrations preserve schema-183 names and saved binding identities.
-`node rust_syntax/normalize/tools/blockly/test_modes.cjs` exercises count
-sockets, rule discovery, authentic named workspace import/startup and rejection
+`node rust_syntax/normalize/tools/blockly/test_modes.cjs` exercises direct count
+fields, rule discovery, authentic named workspace import/startup and rejection
 without replacing the current draft.
+
+`npm run test:target-modes -- /tmp/card-blocks.html` checks the direct target/mode
+views, real toolbox drags, local target allocation, scope isolation, safe removal,
+count editing, undo and exact saved-workspace restoration.
