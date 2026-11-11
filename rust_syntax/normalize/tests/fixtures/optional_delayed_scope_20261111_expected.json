@@ -1,0 +1,1682 @@
+{
+  "Astral Slide": [
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Discard": {
+            "players": {
+              "kind": "All"
+            },
+            "cards": {
+              "kind": "Any"
+            },
+            "source_only": false,
+            "kind": "Cycling",
+            "grouping": "Card"
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [
+            {
+              "slot": 0,
+              "kind": {
+                "Object": {
+                  "kind": "Permanent",
+                  "zones": [
+                    "Battlefield"
+                  ]
+                }
+              },
+              "count": {
+                "Exactly": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "CardType",
+                "args": "Creature"
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            }
+          ],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "PayCost",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "cost": {
+                      "parts": [
+                        {
+                          "Move": {
+                            "selections": [
+                              {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "choose": null
+                              }
+                            ],
+                            "destination": {
+                              "Exile": {
+                                "visibility": "FaceUp",
+                                "arrival": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "optional": true
+                  }
+                }
+              }
+            },
+            {
+              "kind": "If",
+              "args": {
+                "condition": {
+                  "kind": "PaymentChosen",
+                  "args": 0
+                },
+                "then": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 1,
+                        "operation": {
+                          "kind": "CreateDelayedTrigger",
+                          "args": {
+                            "event": {
+                              "Turn": {
+                                "point": "EndStepBegins",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "start": "Immediately",
+                            "expires": null,
+                            "intervening_if": null,
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 1,
+                                    "operation": {
+                                      "kind": "Move",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "InZone",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "CostObjects",
+                                              "args": {
+                                                "payment": {
+                                                  "Resolution": 0
+                                                },
+                                                "component": [
+                                                  0
+                                                ],
+                                                "view": "Performed",
+                                                "phase": "After"
+                                              }
+                                            },
+                                            "zone": "Exile"
+                                          }
+                                        },
+                                        "destination": {
+                                          "Battlefield": {
+                                            "controller": "Owner",
+                                            "arrival": {
+                                              "controller": null,
+                                              "tapped": false,
+                                              "counters": [],
+                                              "states": []
+                                            }
+                                          }
+                                        },
+                                        "qualifiers": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "otherwise": {
+                  "instructions": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Dawn of the Dead": [
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Turn": {
+            "point": "UpkeepBegins",
+            "players": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "LoseLife",
+                  "args": {
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Turn": {
+            "point": "UpkeepBegins",
+            "players": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [
+            {
+              "slot": 0,
+              "kind": {
+                "Object": {
+                  "kind": "Card",
+                  "zones": [
+                    "Graveyard"
+                  ]
+                }
+              },
+              "count": {
+                "Exactly": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "All",
+                "args": [
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "InZone",
+                    "args": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            }
+          ],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "PayCost",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "cost": {
+                      "parts": [
+                        {
+                          "PlayerAction": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 1048576,
+                                    "operation": {
+                                      "kind": "Move",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Target",
+                                            "args": {
+                                              "slot": 0,
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "destination": {
+                                          "Battlefield": {
+                                            "controller": {
+                                              "Player": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "arrival": {
+                                              "controller": null,
+                                              "tapped": false,
+                                              "counters": [],
+                                              "states": []
+                                            }
+                                          }
+                                        },
+                                        "qualifiers": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "optional": true
+                  }
+                }
+              }
+            },
+            {
+              "kind": "If",
+              "args": {
+                "condition": {
+                  "kind": "PaymentChosen",
+                  "args": 0
+                },
+                "then": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 1,
+                        "operation": {
+                          "kind": "CreateContinuousEffect",
+                          "args": {
+                            "source": {
+                              "kind": "Source"
+                            },
+                            "affected": {
+                              "Objects": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Result",
+                                  "args": {
+                                    "result": 1048576,
+                                    "phase": "After",
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            },
+                            "changes": [
+                              {
+                                "kind": "GrantKeyword",
+                                "args": {
+                                  "kind": "Haste"
+                                }
+                              }
+                            ],
+                            "duration": "EndOfTurn",
+                            "evaluation": "Snapshot"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 2,
+                        "operation": {
+                          "kind": "CreateDelayedTrigger",
+                          "args": {
+                            "event": {
+                              "Turn": {
+                                "point": "EndStepBegins",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "start": "Immediately",
+                            "expires": null,
+                            "intervening_if": null,
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 2,
+                                    "operation": {
+                                      "kind": "Move",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Result",
+                                            "args": {
+                                              "result": 1048576,
+                                              "phase": "After",
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "destination": {
+                                          "Exile": {
+                                            "visibility": "FaceUp",
+                                            "arrival": {
+                                              "counters": [],
+                                              "states": []
+                                            }
+                                          }
+                                        },
+                                        "qualifiers": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "otherwise": {
+                  "instructions": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Feldon of the Third Path": [
+    {
+      "kind": "Activated",
+      "args": {
+        "origin": "Ordinary",
+        "cost": {
+          "parts": [
+            {
+              "Mana": [
+                {
+                  "Generic": 2
+                },
+                {
+                  "Color": "Red"
+                }
+              ]
+            },
+            "TapSymbol"
+          ]
+        },
+        "limits": {
+          "once": false,
+          "once_each_turn": false,
+          "sorcery": false,
+          "condition": null,
+          "activators": null,
+          "keyword": null,
+          "modifiers": []
+        },
+        "announcement": {
+          "targets": [
+            {
+              "slot": 0,
+              "kind": {
+                "Object": {
+                  "kind": "Card",
+                  "zones": [
+                    "Graveyard"
+                  ]
+                }
+              },
+              "count": {
+                "Exactly": {
+                  "kind": "Constant",
+                  "args": 1
+                }
+              },
+              "filter": {
+                "kind": "All",
+                "args": [
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "InZone",
+                    "args": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "players": null,
+              "distribute": null,
+              "constraints": [],
+              "chooser": null
+            }
+          ],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "CreateTokens",
+                  "args": {
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "tokens": [
+                      {
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "words": "CreatingEffect",
+                        "recipe": {
+                          "Copy": {
+                            "object": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            },
+                            "exceptions": [
+                              {
+                                "kind": "AddCardTypes",
+                                "args": [
+                                  "Artifact"
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ],
+                    "entry": {
+                      "controller": null,
+                      "tapped": false,
+                      "counters": [],
+                      "states": []
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Objects": {
+                        "kind": "Created",
+                        "args": 0
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "GrantKeyword",
+                        "args": {
+                          "kind": "Haste"
+                        }
+                      }
+                    ],
+                    "duration": "Indefinite",
+                    "evaluation": "Snapshot"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateDelayedTrigger",
+                  "args": {
+                    "event": {
+                      "Turn": {
+                        "point": "EndStepBegins",
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "start": "Immediately",
+                    "expires": null,
+                    "intervening_if": null,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Sacrifice",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "objects": {
+                                  "kind": "Created",
+                                  "args": 0
+                                },
+                                "choose": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Ilharg, the Raze-Boar": [
+    {
+      "kind": "Keyword",
+      "args": {
+        "kind": "Trample"
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Object": {
+            "event": "Attacks",
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "PayCost",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "cost": {
+                      "parts": [
+                        {
+                          "Move": {
+                            "selections": [
+                              {
+                                "objects": {
+                                  "kind": "Zone",
+                                  "args": {
+                                    "scope": {
+                                      "Players": {
+                                        "zone": "Hand",
+                                        "players": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "kind": "Card",
+                                    "filter": {
+                                      "kind": "CardType",
+                                      "args": "Creature"
+                                    }
+                                  }
+                                },
+                                "choose": {
+                                  "Exactly": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              }
+                            ],
+                            "destination": {
+                              "Battlefield": {
+                                "controller": {
+                                  "Player": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "arrival": {
+                                  "controller": null,
+                                  "tapped": true,
+                                  "counters": [],
+                                  "states": [
+                                    {
+                                      "Attacking": {
+                                        "player": null,
+                                        "or_planeswalker": false
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "optional": true
+                  }
+                }
+              }
+            },
+            {
+              "kind": "If",
+              "args": {
+                "condition": {
+                  "kind": "PaymentChosen",
+                  "args": 0
+                },
+                "then": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 1,
+                        "operation": {
+                          "kind": "CreateDelayedTrigger",
+                          "args": {
+                            "event": {
+                              "Turn": {
+                                "point": "EndStepBegins",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "start": "Immediately",
+                            "expires": null,
+                            "intervening_if": null,
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 1,
+                                    "operation": {
+                                      "kind": "Move",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Query",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "CostObjects",
+                                                "args": {
+                                                  "payment": {
+                                                    "Resolution": 0
+                                                  },
+                                                  "component": [
+                                                    0
+                                                  ],
+                                                  "view": "Performed",
+                                                  "phase": "After"
+                                                }
+                                              },
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "destination": {
+                                          "OwnersHand": {
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        },
+                                        "qualifiers": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "otherwise": {
+                  "instructions": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "ZoneChange": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            },
+            "from": "Battlefield",
+            "to": "Graveyard"
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Optional",
+              "args": {
+                "decider": {
+                  "kind": "AbilityController"
+                },
+                "body": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 0,
+                        "operation": {
+                          "kind": "Move",
+                          "args": {
+                            "objects": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Query",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "EventDestination"
+                                        }
+                                      },
+                                      "zone": "Graveyard"
+                                    }
+                                  },
+                                  "index": 0
+                                }
+                              }
+                            },
+                            "destination": {
+                              "Library": {
+                                "position": {
+                                  "FromTop": {
+                                    "kind": "Constant",
+                                    "args": 3
+                                  }
+                                },
+                                "order": "DestinationDefault",
+                                "arrival": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            },
+                            "qualifiers": []
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "ZoneChange": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            },
+            "from": "Battlefield",
+            "to": "Exile"
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Optional",
+              "args": {
+                "decider": {
+                  "kind": "AbilityController"
+                },
+                "body": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 0,
+                        "operation": {
+                          "kind": "Move",
+                          "args": {
+                            "objects": {
+                              "kind": "InZone",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Query",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "InZone",
+                                        "args": {
+                                          "objects": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "EventDestination"
+                                            }
+                                          },
+                                          "zone": "Exile"
+                                        }
+                                      },
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "zone": "Exile"
+                              }
+                            },
+                            "destination": {
+                              "Library": {
+                                "position": {
+                                  "FromTop": {
+                                    "kind": "Constant",
+                                    "args": 3
+                                  }
+                                },
+                                "order": "DestinationDefault",
+                                "arrival": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            },
+                            "qualifiers": []
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Mirror Mockery": [
+    {
+      "kind": "Enchant",
+      "args": {
+        "hosts": {
+          "Permanents": {
+            "kind": "CardType",
+            "args": "Creature"
+          }
+        }
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Object": {
+            "event": "Attacks",
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "AttachedTo",
+                "args": {
+                  "kind": "Source"
+                }
+              }
+            }
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "PayCost",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "cost": {
+                      "parts": [
+                        {
+                          "PlayerAction": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 1048576,
+                                    "operation": {
+                                      "kind": "CreateTokens",
+                                      "args": {
+                                        "players": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "tokens": [
+                                          {
+                                            "amount": {
+                                              "kind": "Constant",
+                                              "args": 1
+                                            },
+                                            "words": "CreatingEffect",
+                                            "recipe": {
+                                              "Copy": {
+                                                "object": {
+                                                  "kind": "EventSubject"
+                                                },
+                                                "exceptions": []
+                                              }
+                                            }
+                                          }
+                                        ],
+                                        "entry": {
+                                          "controller": null,
+                                          "tapped": false,
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "optional": true
+                  }
+                }
+              }
+            },
+            {
+              "kind": "If",
+              "args": {
+                "condition": {
+                  "kind": "PaymentChosen",
+                  "args": 0
+                },
+                "then": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 1,
+                        "operation": {
+                          "kind": "CreateDelayedTrigger",
+                          "args": {
+                            "event": {
+                              "Turn": {
+                                "point": "CombatEnds",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "start": "Immediately",
+                            "expires": null,
+                            "intervening_if": null,
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 1,
+                                    "operation": {
+                                      "kind": "Move",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "Created",
+                                          "args": 1048576
+                                        },
+                                        "destination": {
+                                          "Exile": {
+                                            "visibility": "FaceUp",
+                                            "arrival": {
+                                              "counters": [],
+                                              "states": []
+                                            }
+                                          }
+                                        },
+                                        "qualifiers": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "otherwise": {
+                  "instructions": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Shallow Grave": [
+    {
+      "kind": "Spell",
+      "args": {
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "Move",
+                  "args": {
+                    "objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Query",
+                        "args": {
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Graveyard",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "CardType",
+                                "args": "Creature"
+                              }
+                            }
+                          },
+                          "index": 0
+                        }
+                      }
+                    },
+                    "destination": {
+                      "Battlefield": {
+                        "controller": {
+                          "Player": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "arrival": {
+                          "controller": null,
+                          "tapped": false,
+                          "counters": [],
+                          "states": []
+                        }
+                      }
+                    },
+                    "qualifiers": []
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "CreateContinuousEffect",
+                  "args": {
+                    "source": {
+                      "kind": "Source"
+                    },
+                    "affected": {
+                      "Objects": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Result",
+                          "args": {
+                            "result": 0,
+                            "phase": "After",
+                            "index": 0
+                          }
+                        }
+                      }
+                    },
+                    "changes": [
+                      {
+                        "kind": "GrantKeyword",
+                        "args": {
+                          "kind": "Haste"
+                        }
+                      }
+                    ],
+                    "duration": "EndOfTurn",
+                    "evaluation": "Snapshot"
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "CreateDelayedTrigger",
+                  "args": {
+                    "event": {
+                      "Turn": {
+                        "point": "EndStepBegins",
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "start": "Immediately",
+                    "expires": null,
+                    "intervening_if": null,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 0,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Through the Breach": [
+    {
+      "kind": "Spell",
+      "args": {
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "PayCost",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "cost": {
+                      "parts": [
+                        {
+                          "Move": {
+                            "selections": [
+                              {
+                                "objects": {
+                                  "kind": "Zone",
+                                  "args": {
+                                    "scope": {
+                                      "Players": {
+                                        "zone": "Hand",
+                                        "players": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "kind": "Card",
+                                    "filter": {
+                                      "kind": "CardType",
+                                      "args": "Creature"
+                                    }
+                                  }
+                                },
+                                "choose": {
+                                  "Exactly": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              }
+                            ],
+                            "destination": {
+                              "Battlefield": {
+                                "controller": {
+                                  "Player": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "arrival": {
+                                  "controller": null,
+                                  "tapped": false,
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "optional": true
+                  }
+                }
+              }
+            },
+            {
+              "kind": "If",
+              "args": {
+                "condition": {
+                  "kind": "PaymentChosen",
+                  "args": 0
+                },
+                "then": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 1,
+                        "operation": {
+                          "kind": "CreateContinuousEffect",
+                          "args": {
+                            "source": {
+                              "kind": "Source"
+                            },
+                            "affected": {
+                              "Objects": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Query",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "CostObjects",
+                                      "args": {
+                                        "payment": {
+                                          "Resolution": 0
+                                        },
+                                        "component": [
+                                          0
+                                        ],
+                                        "view": "Performed",
+                                        "phase": "After"
+                                      }
+                                    },
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            },
+                            "changes": [
+                              {
+                                "kind": "GrantKeyword",
+                                "args": {
+                                  "kind": "Haste"
+                                }
+                              }
+                            ],
+                            "duration": "Indefinite",
+                            "evaluation": "Snapshot"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 2,
+                        "operation": {
+                          "kind": "CreateDelayedTrigger",
+                          "args": {
+                            "event": {
+                              "Turn": {
+                                "point": "EndStepBegins",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "start": "Immediately",
+                            "expires": null,
+                            "intervening_if": null,
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 2,
+                                    "operation": {
+                                      "kind": "Sacrifice",
+                                      "args": {
+                                        "players": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "objects": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Query",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "CostObjects",
+                                                "args": {
+                                                  "payment": {
+                                                    "Resolution": 0
+                                                  },
+                                                  "component": [
+                                                    0
+                                                  ],
+                                                  "view": "Performed",
+                                                  "phase": "After"
+                                                }
+                                              },
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "choose": null
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "otherwise": {
+                  "instructions": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Mechanic",
+      "args": {
+        "mechanic": "SpliceOnto",
+        "cost": {
+          "parts": [
+            {
+              "Mana": [
+                {
+                  "Generic": 2
+                },
+                {
+                  "Color": "Red"
+                },
+                {
+                  "Color": "Red"
+                }
+              ]
+            }
+          ]
+        },
+        "amount": null,
+        "filter": {
+          "kind": "Subtype",
+          "args": "Arcane"
+        }
+      }
+    }
+  ]
+}

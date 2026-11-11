@@ -1,0 +1,1127 @@
+{
+  "Lost Order of Jarkeld": [
+    {
+      "kind": "Replacement",
+      "args": {
+        "active": "SourceEntering",
+        "event": {
+          "Enter": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Static",
+      "args": {
+        "kind": {
+          "CharacteristicDefining": {
+            "keyword": null,
+            "contributes_to_color_identity": true
+          }
+        },
+        "affected": {
+          "Objects": {
+            "kind": "One",
+            "args": {
+              "kind": "Source"
+            }
+          }
+        },
+        "changes": [
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "Add",
+                "args": [
+                  {
+                    "kind": "Constant",
+                    "args": 1
+                  },
+                  {
+                    "kind": "CountObjects",
+                    "args": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "All",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            },
+                            {
+                              "kind": "ControlledBy",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Chosen"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "toughness": {
+                "kind": "Add",
+                "args": [
+                  {
+                    "kind": "Constant",
+                    "args": 1
+                  },
+                  {
+                    "kind": "CountObjects",
+                    "args": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "All",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            },
+                            {
+                              "kind": "ControlledBy",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Chosen"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "Pallimud": [
+    {
+      "kind": "Replacement",
+      "args": {
+        "active": "SourceEntering",
+        "event": {
+          "Enter": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Static",
+      "args": {
+        "kind": {
+          "CharacteristicDefining": {
+            "keyword": null,
+            "contributes_to_color_identity": true
+          }
+        },
+        "affected": {
+          "Objects": {
+            "kind": "One",
+            "args": {
+              "kind": "Source"
+            }
+          }
+        },
+        "changes": [
+          {
+            "kind": "SetPower",
+            "args": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "All",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Land"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Chosen"
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Tapped"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "Skyshroud War Beast": [
+    {
+      "kind": "Keyword",
+      "args": {
+        "kind": "Trample"
+      }
+    },
+    {
+      "kind": "Replacement",
+      "args": {
+        "active": "SourceEntering",
+        "event": {
+          "Enter": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Static",
+      "args": {
+        "kind": {
+          "CharacteristicDefining": {
+            "keyword": null,
+            "contributes_to_color_identity": true
+          }
+        },
+        "affected": {
+          "Objects": {
+            "kind": "One",
+            "args": {
+              "kind": "Source"
+            }
+          }
+        },
+        "changes": [
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "CountObjects",
+                "args": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Shared": "Battlefield"
+                    },
+                    "kind": "Permanent",
+                    "filter": {
+                      "kind": "All",
+                      "args": [
+                        {
+                          "kind": "CardType",
+                          "args": "Land"
+                        },
+                        {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "Supertype",
+                            "args": "Basic"
+                          }
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Chosen"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "toughness": {
+                "kind": "CountObjects",
+                "args": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Shared": "Battlefield"
+                    },
+                    "kind": "Permanent",
+                    "filter": {
+                      "kind": "All",
+                      "args": [
+                        {
+                          "kind": "CardType",
+                          "args": "Land"
+                        },
+                        {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "Supertype",
+                            "args": "Basic"
+                          }
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Chosen"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "Trespasser's Curse": [
+    {
+      "kind": "Enchant",
+      "args": {
+        "hosts": {
+          "Players": {
+            "kind": "All"
+          }
+        }
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Player": {
+            "event": "EntersUnderControl",
+            "players": {
+              "kind": "All"
+            },
+            "objects": {
+              "kind": "All",
+              "args": [
+                {
+                  "kind": "CardType",
+                  "args": "Creature"
+                },
+                {
+                  "kind": "ControlledBy",
+                  "args": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "EnchantedBy",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "LoseLife",
+                  "args": {
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "EventSubject"
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967294,
+                "operation": {
+                  "kind": "GainLife",
+                  "args": {
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Entropic Specter": [
+    {
+      "kind": "Keyword",
+      "args": {
+        "kind": "Flying"
+      }
+    },
+    {
+      "kind": "Replacement",
+      "args": {
+        "active": "SourceEntering",
+        "event": {
+          "Enter": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "ControllerOf",
+                        "args": {
+                          "kind": "EventSubject"
+                        }
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "ControllerOf",
+                              "args": {
+                                "kind": "EventSubject"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Static",
+      "args": {
+        "kind": {
+          "CharacteristicDefining": {
+            "keyword": null,
+            "contributes_to_color_identity": true
+          }
+        },
+        "affected": {
+          "Objects": {
+            "kind": "One",
+            "args": {
+              "kind": "Source"
+            }
+          }
+        },
+        "changes": [
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "CountObjects",
+                "args": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Hand",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Chosen"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "Any"
+                    }
+                  }
+                }
+              },
+              "toughness": {
+                "kind": "CountObjects",
+                "args": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Hand",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Chosen"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "Any"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Damage": {
+            "source_kind": "Permanent",
+            "sources": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            },
+            "recipients": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "kind": "Any",
+            "grouping": "SourceRecipient",
+            "subject": "Source"
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "Discard",
+                  "args": {
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "EventSubject"
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    },
+                    "random": false
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Haunting Apparition": [
+    {
+      "kind": "Keyword",
+      "args": {
+        "kind": "Flying"
+      }
+    },
+    {
+      "kind": "Replacement",
+      "args": {
+        "active": "SourceEntering",
+        "event": {
+          "Enter": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "ControllerOf",
+                        "args": {
+                          "kind": "EventSubject"
+                        }
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "ControllerOf",
+                              "args": {
+                                "kind": "EventSubject"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Static",
+      "args": {
+        "kind": {
+          "CharacteristicDefining": {
+            "keyword": null,
+            "contributes_to_color_identity": true
+          }
+        },
+        "affected": {
+          "Objects": {
+            "kind": "One",
+            "args": {
+              "kind": "Source"
+            }
+          }
+        },
+        "changes": [
+          {
+            "kind": "SetPower",
+            "args": {
+              "kind": "Add",
+              "args": [
+                {
+                  "kind": "Constant",
+                  "args": 1
+                },
+                {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "All"
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "All",
+                        "args": [
+                          {
+                            "kind": "Color",
+                            "args": "Green"
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          },
+                          {
+                            "kind": "InZone",
+                            "args": {
+                              "Players": {
+                                "zone": "Graveyard",
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Chosen"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "Sewer Nemesis": [
+    {
+      "kind": "Replacement",
+      "args": {
+        "active": "SourceEntering",
+        "event": {
+          "Enter": {
+            "objects": {
+              "kind": "SameObject",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "ChooseValue",
+                  "args": {
+                    "choosers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "ControllerOf",
+                        "args": {
+                          "kind": "EventSubject"
+                        }
+                      }
+                    },
+                    "kind": "Player",
+                    "terms": {
+                      "options": [
+                        {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "All"
+                          }
+                        }
+                      ],
+                      "except": [],
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "secret": false,
+                      "unchosen": false,
+                      "random": false,
+                      "ordered": false
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "Static",
+      "args": {
+        "kind": {
+          "CharacteristicDefining": {
+            "keyword": null,
+            "contributes_to_color_identity": true
+          }
+        },
+        "affected": {
+          "Objects": {
+            "kind": "One",
+            "args": {
+              "kind": "Source"
+            }
+          }
+        },
+        "changes": [
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "CountObjects",
+                "args": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "InZone",
+                      "args": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Chosen"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "toughness": {
+                "kind": "CountObjects",
+                "args": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "InZone",
+                      "args": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Chosen"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "Triggered",
+      "args": {
+        "event": {
+          "Spell": {
+            "event": "Cast",
+            "players": {
+              "kind": "One",
+              "args": {
+                "kind": "Chosen"
+              }
+            },
+            "spells": {
+              "kind": "Any"
+            }
+          }
+        },
+        "intervening_if": null,
+        "limits": {
+          "per_turn": null,
+          "total": null
+        },
+        "announcement": {
+          "targets": [],
+          "modes": null
+        },
+        "body": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "Mill",
+                  "args": {
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "EventSubject"
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

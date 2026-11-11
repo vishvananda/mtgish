@@ -19712,10 +19712,10 @@
   "{{StaticEffect[TheChosenPlayer](~Permanent)}}": {
     "This creature gets {{PTMod}} for each {{Eachable[TheChosenPlayer]}}": "PermanentLayerEffect(ThisPermanent, [AdjustPTForEach({{PTMod[0]}}, {{Eachable[TheChosenPlayer][0]}})])",
     "This creature has protection from the chosen player": "PermanentLayerEffect(ThisPermanent, [AddAbility([Protection(FromPlayers(SinglePlayer(TheChosenPlayer)))])])",
-    "{{~Permanent}}'s power and toughness are each equal to {{Digits}} plus {{GameNumber[TheChosenPlayer]}}": "PermanentLayerEffect(ThisPermanent, [SetPowerAndToughnessBoth(Plus({{Digits[0]}}, {{GameNumber[TheChosenPlayer][0]}}))])",
-    "{{~Permanent}}'s power and toughness are each equal to {{GameNumber[TheChosenPlayer]}}": "PermanentLayerEffect(ThisPermanent, [SetPowerAndToughnessBoth({{GameNumber[TheChosenPlayer][0]}})])",
-    "{{~Permanent}}'s power is equal to {{Digits}} plus {{GameNumber[TheChosenPlayer]}}": "PermanentLayerEffect(ThisPermanent, [SetPower(Plus({{Digits[0]}}, {{GameNumber[TheChosenPlayer][0]}}))])",
-    "{{~Permanent}}'s power is equal to {{GameNumber[TheChosenPlayer]}}": "PermanentLayerEffect(ThisPermanent, [SetPower({{GameNumber[TheChosenPlayer][0]}})])"
+    "{{~Permanent}}'s power and toughness are each equal to {{Digits}} plus {{GameNumber[TheChosenPlayer]}}": "CDA_PowerToughness(Plus({{Digits[0]}}, {{GameNumber[TheChosenPlayer][0]}}), Plus({{Digits[0]}}, {{GameNumber[TheChosenPlayer][0]}}))",
+    "{{~Permanent}}'s power and toughness are each equal to {{GameNumber[TheChosenPlayer]}}": "CDA_PowerToughness({{GameNumber[TheChosenPlayer][0]}}, {{GameNumber[TheChosenPlayer][0]}})",
+    "{{~Permanent}}'s power is equal to {{Digits}} plus {{GameNumber[TheChosenPlayer]}}": "CDA_Power(Plus({{Digits[0]}}, {{GameNumber[TheChosenPlayer][0]}}))",
+    "{{~Permanent}}'s power is equal to {{GameNumber[TheChosenPlayer]}}": "CDA_Power({{GameNumber[TheChosenPlayer][0]}})"
   },
   "{{StaticEffect[TheChosenPlayer]}}": {
     "Creatures attacking the last chosen player get {{PTMod}}": "EachPermanentLayerEffect(And([IsCardtype(Creature), IsAttackingPlayer(TheChosenPlayer)]), [AdjustPT({{PTMod[0]}})])",
@@ -29927,7 +29927,7 @@
     "Whenever you attack enchanted player, that player loses {{Digits}} life. You draw a card and gain {{Digits}} life":
       "TriggerA(WhenAPlayerAttacksAPlayer(SinglePlayer(You), SinglePlayer(HostPlayer)), ActionList([PlayerAction(Trigger_ThatOtherPlayer, LoseLife({{Digits[0]}})), DrawACard, GainLife({{Digits[1]}})]))",
     "Whenever a player attacks you, you may attach {{ThisPermanent}} to that player": "TriggerA(WhenAPlayerAttacksAPlayer(AnyPlayer, SinglePlayer(You)), ActionList([MayAction(AttachPermanentToPlayer(ThisPermanent, Trigger_ThatPlayer))]))",
-    "Whenever a creature {{EnchantedPlayer}} controls enters, {{TriggerActions(ThatPlayer)}}": "TriggerA(WhenAPermanentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(HostPlayer))])), {{TriggerActions(ThatPlayer=HostPlayer)[0]}})",
+    "Whenever a creature {{EnchantedPlayer}} controls enters, {{TriggerActions(ThatPlayer)}}": "TriggerA(WhenAPermanentEntersTheBattlefieldUnderAPlayersControl(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(HostPlayer))]), AnyPlayer), {{TriggerActions(ThatPlayer=Trigger_ThatPlayer)[0]}})",
     "Whenever a land {{EnchantedPlayer}} controls enters, {{TriggerActions}}": "TriggerA(WhenAPermanentEntersTheBattlefield(And([IsCardtype(Land), ControlledByAPlayer(SinglePlayer(HostPlayer))])), {{TriggerActions[0]}})",
     "Whenever a player attacks {{EnchantedPlayer}} with one or more {{Creatures}}, that attacking player may tap or untap target {{Permanent}} of their choice": "TriggerA(WhenAPlayerAttacksAPlayerWithAnyNumberOfCreatures(AnyPlayer, SinglePlayer(HostPlayer), {{Creatures[0]}}), Targeted([TargetPermanentOfPlayersChoice({{Permanent[0]}}, Trigger_ThatPlayer)], ActionList([PlayerMayAction(Trigger_ThatPlayer, TapOrUntapPermanent(Ref_TargetPermanentOfPlayersChoice))])))",
     "Whenever a player attacks {{EnchantedPlayer}} with one or more {{Creatures}}, {{TriggerActions(TheAttackingPlayer)}}": "TriggerA(WhenAPlayerAttacksAPlayerWithAnyNumberOfCreatures(AnyPlayer, SinglePlayer(HostPlayer), {{Creatures[0]}}), {{TriggerActions(TheAttackingPlayer=Trigger_ThatPlayer)[0]}})",

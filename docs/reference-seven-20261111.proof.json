@@ -1,0 +1,78 @@
+{
+  "source": {
+    "records": 33529,
+    "changed_names": [
+      "Entropic Specter",
+      "Haunting Apparition",
+      "Lost Order of Jarkeld",
+      "Pallimud",
+      "Sewer Nemesis",
+      "Skyshroud War Beast",
+      "Trespasser's Curse"
+    ],
+    "unchanged_records": 33522
+  },
+  "native": {
+    "records": 33529,
+    "schema": 188,
+    "changed_names": [
+      "Entropic Specter",
+      "Haunting Apparition",
+      "Lost Order of Jarkeld",
+      "Pallimud",
+      "Sewer Nemesis",
+      "Skyshroud War Beast",
+      "Trespasser's Curse"
+    ],
+    "unchanged_records": 33522,
+    "expected_complete_abilities": "pinned independently proposed four plus three same-family static-kind-only expectations, tested in reference_seven_20261111.rs"
+  },
+  "audit": {
+    "changed_paths": [
+      "/reviewed_sources/grammars/english_grammar.json5",
+      "/review_inputs/grammars/english_grammar.json5"
+    ],
+    "review_entries_unchanged": true
+  },
+  "normalized_schema_changed": false,
+  "engine_changed": false,
+  "wasm_reused": true,
+  "validation": {
+    "go": "full suite PASS (61.289s)",
+    "rust": "23 tests across 5 targets PASS; RUST_MIN_STACK=16777216",
+    "source_json": "seven complete tagged Source records equal their RON counterparts"
+  },
+  "evidence_directory": "/mnt/vizier/reference-seven-20261111",
+  "browser": {
+    "catalog": {
+      "expected": 33529,
+      "records": 33529,
+      "blockRoundtrips": 33529,
+      "bindingPortCards": 33529,
+      "wasmValid": 33529,
+      "failures": []
+    },
+    "actual_workspace": {
+      "actualWorkspaceCards": [
+        "Entropic Specter",
+        "Haunting Apparition",
+        "Lost Order of Jarkeld",
+        "Pallimud",
+        "Sewer Nemesis",
+        "Skyshroud War Beast",
+        "Trespasser's Curse",
+        "Dawn of the Dead",
+        "Mirror Mockery",
+        "Ilharg, the Raze-Boar",
+        "Through the Breach",
+        "Astral Slide",
+        "Feldon of the Third Path",
+        "Shallow Grave"
+      ],
+      "exactIR": true,
+      "wasmValidation": true,
+      "cdaAllZoneSections": true,
+      "errors": []
+    }
+  }
+}

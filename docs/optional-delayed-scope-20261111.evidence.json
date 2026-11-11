@@ -1,0 +1,76 @@
+{
+  "mage": {
+    "revision": "ecd61fbcac1fca5840f60c7873b2754143f2f17a",
+    "files": [
+      {
+        "name": "DawnOfTheDead.java",
+        "url": "https://github.com/magefree/mage/blob/ecd61fbcac1fca5840f60c7873b2754143f2f17a/Mage.Sets/src/mage/cards/d/DawnOfTheDead.java",
+        "pinned_content_matches": true,
+        "sha256": "4826ac4c53f088de229cf4e045c70b37ff5fb92d93cddadf5fc282b25cac7a11"
+      },
+      {
+        "name": "IlhargTheRazeBoar.java",
+        "url": "https://github.com/magefree/mage/blob/ecd61fbcac1fca5840f60c7873b2754143f2f17a/Mage.Sets/src/mage/cards/i/IlhargTheRazeBoar.java",
+        "pinned_content_matches": true,
+        "sha256": "69adb488a2a37cbcfc7bd61f2dce940ff0d60f0b634bd7281181fa91d6c51943"
+      },
+      {
+        "name": "TriggeredAbilityImpl.java",
+        "url": "https://github.com/magefree/mage/blob/ecd61fbcac1fca5840f60c7873b2754143f2f17a/Mage/src/main/java/mage/abilities/TriggeredAbilityImpl.java",
+        "pinned_content_matches": true,
+        "sha256": "e75f4cc272de4b075ff6c79a8d7bb565aad9b4fced5bde05bf1ccff09b77dc31"
+      },
+      {
+        "name": "ThroughTheBreach.java",
+        "url": "https://github.com/magefree/mage/blob/ecd61fbcac1fca5840f60c7873b2754143f2f17a/Mage.Sets/src/mage/cards/t/ThroughTheBreach.java",
+        "pinned_content_matches": true,
+        "sha256": "18f9468bacb3e261119d857411b29779715c0cca9aef5fcc8328281bb589157d"
+      },
+      {
+        "name": "MirrorMockery.java",
+        "url": "https://github.com/magefree/mage/blob/ecd61fbcac1fca5840f60c7873b2754143f2f17a/Mage.Sets/src/mage/cards/m/MirrorMockery.java",
+        "pinned_content_matches": true,
+        "sha256": "00c3cef5511e207728ca4ad206844132b601defb6afbdb68b04022e9b7380957"
+      },
+      {
+        "name": "PutCardIntoPlayWithHasteAndSacrificeEffect.java",
+        "url": "https://github.com/magefree/mage/blob/ecd61fbcac1fca5840f60c7873b2754143f2f17a/Mage/src/main/java/mage/abilities/effects/common/PutCardIntoPlayWithHasteAndSacrificeEffect.java",
+        "pinned_content_matches": true,
+        "sha256": "34d7370c0ee9da950581dca12b4f72c32eac03364a939b891304824d83f607e6"
+      }
+    ]
+  },
+  "forge": {
+    "revision": "87cb532e9f088958ff367d293dc98076a091f9cb",
+    "files": [
+      {
+        "path": "forge-gui/res/cardsfolder/d/dawn_of_the_dead.txt",
+        "sha256": "617e4b73d8072a245e2c2504bb7c9a4de1a06b7f8690ad4540049463d5b3d417",
+        "url": "https://github.com/Card-Forge/forge/blob/87cb532e9f088958ff367d293dc98076a091f9cb/forge-gui/res/cardsfolder/d/dawn_of_the_dead.txt"
+      },
+      {
+        "path": "forge-gui/res/cardsfolder/i/ilharg_the_raze_boar.txt",
+        "sha256": "9e4373db32b65743d6b0ec52ddfd1accaa12fdb822b65e22f8ceb096fd93d384",
+        "url": "https://github.com/Card-Forge/forge/blob/87cb532e9f088958ff367d293dc98076a091f9cb/forge-gui/res/cardsfolder/i/ilharg_the_raze_boar.txt"
+      },
+      {
+        "path": "forge-gui/res/cardsfolder/m/mirror_mockery.txt",
+        "sha256": "1734082423aac81088686458852d206fb85292a5c83f959302b6631edaf06cda",
+        "url": "https://github.com/Card-Forge/forge/blob/87cb532e9f088958ff367d293dc98076a091f9cb/forge-gui/res/cardsfolder/m/mirror_mockery.txt"
+      },
+      {
+        "path": "forge-gui/res/cardsfolder/t/through_the_breach.txt",
+        "sha256": "2b8e2114bbd68ed02855c8f12008e9c09c67579ff6cc4357a0f7915104042158",
+        "url": "https://github.com/Card-Forge/forge/blob/87cb532e9f088958ff367d293dc98076a091f9cb/forge-gui/res/cardsfolder/t/through_the_breach.txt"
+      },
+      {
+        "path": "forge-game/src/main/java/forge/game/trigger/WrappedAbility.java",
+        "sha256": "d4c60b9711898b5baea8bf6f56facaaddf17ce239a88e66514a92aabeaa38481",
+        "url": "https://github.com/Card-Forge/forge/blob/87cb532e9f088958ff367d293dc98076a091f9cb/forge-game/src/main/java/forge/game/trigger/WrappedAbility.java"
+      }
+    ]
+  },
+  "verification": "source inspection and native AST regressions; no independent engine gameplay execution",
+  "project_resolution": "retain guarded optional dependent registration",
+  "official_case_specific_decline_ruling_found": false
+}

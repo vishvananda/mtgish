@@ -403412,11 +403412,9 @@ Card(
         ChooseAPlayer(Opponent),
       ],
     ),
-    PermanentLayerEffect(
-      ThisPermanent,
-      [
-        SetPowerAndToughnessBoth(TheNumberOfCardsInPlayersHand(TheChosenPlayer)),
-      ],
+    CDA_PowerToughness(
+      TheNumberOfCardsInPlayersHand(TheChosenPlayer),
+      TheNumberOfCardsInPlayersHand(TheChosenPlayer),
     ),
     TriggerA(
       WhenAPermanentDealsDamageToAPlayer(
@@ -587671,19 +587669,14 @@ Card(
         ChooseAPlayer(Opponent),
       ],
     ),
-    PermanentLayerEffect(
-      ThisPermanent,
-      [
-        SetPower(Plus(
-          Integer(1),
-          TheNumberOfGraveyardCards(And([
-            IsColor(Green),
-            IsCardtype(Creature),
-            InAPlayersGraveyard(SinglePlayer(TheChosenPlayer)),
-          ])),
-        )),
-      ],
-    ),
+    CDA_Power(Plus(
+      Integer(1),
+      TheNumberOfGraveyardCards(And([
+        IsColor(Green),
+        IsCardtype(Creature),
+        InAPlayersGraveyard(SinglePlayer(TheChosenPlayer)),
+      ])),
+    )),
   ],
   CardPT: (
     Power: 1,
@@ -778698,17 +778691,21 @@ Card(
         ChooseAPlayer(Opponent),
       ],
     ),
-    PermanentLayerEffect(
-      ThisPermanent,
-      [
-        SetPowerAndToughnessBoth(Plus(
-          Integer(1),
-          TheNumberOfPermanentsOnTheBattlefield(And([
-            IsCardtype(Creature),
-            ControlledByAPlayer(SinglePlayer(TheChosenPlayer)),
-          ])),
-        )),
-      ],
+    CDA_PowerToughness(
+      Plus(
+        Integer(1),
+        TheNumberOfPermanentsOnTheBattlefield(And([
+          IsCardtype(Creature),
+          ControlledByAPlayer(SinglePlayer(TheChosenPlayer)),
+        ])),
+      ),
+      Plus(
+        Integer(1),
+        TheNumberOfPermanentsOnTheBattlefield(And([
+          IsCardtype(Creature),
+          ControlledByAPlayer(SinglePlayer(TheChosenPlayer)),
+        ])),
+      ),
     ),
   ],
   CardPT: (
@@ -951478,16 +951475,11 @@ Card(
         ChooseAPlayer(Opponent),
       ],
     ),
-    PermanentLayerEffect(
-      ThisPermanent,
-      [
-        SetPower(TheNumberOfPermanentsOnTheBattlefield(And([
-          IsTapped,
-          IsCardtype(Land),
-          ControlledByAPlayer(SinglePlayer(TheChosenPlayer)),
-        ]))),
-      ],
-    ),
+    CDA_Power(TheNumberOfPermanentsOnTheBattlefield(And([
+      IsTapped,
+      IsCardtype(Land),
+      ControlledByAPlayer(SinglePlayer(TheChosenPlayer)),
+    ]))),
   ],
   CardPT: (
     Power: 0,
@@ -1159623,11 +1159615,9 @@ Card(
         ChooseAPlayer(AnyPlayer),
       ],
     ),
-    PermanentLayerEffect(
-      ThisPermanent,
-      [
-        SetPowerAndToughnessBoth(TheNumberOfGraveyardCards(InAPlayersGraveyard(SinglePlayer(TheChosenPlayer)))),
-      ],
+    CDA_PowerToughness(
+      TheNumberOfGraveyardCards(InAPlayersGraveyard(SinglePlayer(TheChosenPlayer))),
+      TheNumberOfGraveyardCards(InAPlayersGraveyard(SinglePlayer(TheChosenPlayer))),
     ),
     TriggerA(
       WhenAPlayerCastsASpell(
@@ -1203900,15 +1203890,17 @@ Card(
         ChooseAPlayer(Opponent),
       ],
     ),
-    PermanentLayerEffect(
-      ThisPermanent,
-      [
-        SetPowerAndToughnessBoth(TheNumberOfPermanentsOnTheBattlefield(And([
-          IsNonSupertype(Basic),
-          IsCardtype(Land),
-          ControlledByAPlayer(SinglePlayer(TheChosenPlayer)),
-        ]))),
-      ],
+    CDA_PowerToughness(
+      TheNumberOfPermanentsOnTheBattlefield(And([
+        IsNonSupertype(Basic),
+        IsCardtype(Land),
+        ControlledByAPlayer(SinglePlayer(TheChosenPlayer)),
+      ])),
+      TheNumberOfPermanentsOnTheBattlefield(And([
+        IsNonSupertype(Basic),
+        IsCardtype(Land),
+        ControlledByAPlayer(SinglePlayer(TheChosenPlayer)),
+      ])),
     ),
   ],
   CardPT: (
@@ -1407450,13 +1407442,16 @@ Card(
   Rules: [
     EnchantPlayer(AnyPlayer),
     TriggerA(
-      WhenAPermanentEntersTheBattlefield(And([
-        IsCardtype(Creature),
-        ControlledByAPlayer(SinglePlayer(HostPlayer)),
-      ])),
+      WhenAPermanentEntersTheBattlefieldUnderAPlayersControl(
+        And([
+          IsCardtype(Creature),
+          ControlledByAPlayer(SinglePlayer(HostPlayer)),
+        ]),
+        AnyPlayer,
+      ),
       ActionList([
         PlayerAction(
-          HostPlayer,
+          Trigger_ThatPlayer,
           LoseLife(Integer(1)),
         ),
         GainLife(Integer(1)),
