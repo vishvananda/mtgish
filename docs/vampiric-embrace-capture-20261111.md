@@ -98,3 +98,6 @@ checks; 28 actual workspaces with exact IR and no JavaScript errors. The frozen
 189 Kogla fixture now uses the explicit migration reader in its test; its saved
 program is unchanged. Browser glue uses `wasm-bindgen --target no-modules` for the
 classic worker. One Rust/Wasm build was used for this follow-up.
+
+Published parser/AST fix: [`7228b84`](https://github.com/vishvananda/mtgish/commit/7228b84b2b9398976246b595098f7f5e5fb4fc88).
+Upstream report: [#268](https://github.com/i5jb/mtgish/issues/268).

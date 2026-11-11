@@ -148,5 +148,23 @@
   "comment_scan": {
     "evidence": "/mnt/vizier/reference-decisions-20261111/recent-upstream-comments.json",
     "no_new_confirmed_reference_findings": true
+  },
+  "code_commit": "7228b84b2b9398976246b595098f7f5e5fb4fc88",
+  "upstream_reports": {
+    "sorcery": {
+      "number": 266,
+      "html_url": "https://github.com/i5jb/mtgish/issues/266",
+      "title": "Balustrade Wurm and Resurrected Cultist lose the sorcery-only activation restriction"
+    },
+    "sacrifice": {
+      "number": 267,
+      "html_url": "https://github.com/i5jb/mtgish/issues/267",
+      "title": "Demonlord of Ashmouth asks for every other creature instead of one"
+    },
+    "vampiric": {
+      "number": 268,
+      "html_url": "https://github.com/i5jb/mtgish/issues/268",
+      "title": "Vampiric Embrace gives its counter to the dying victim instead of the captured enchanted damage dealer"
+    }
   }
 }

@@ -167,5 +167,4 @@ meaning/normal-form changes; all records also carry the new schema version.
 Use the capture follow-up proof for the final artifact and current adoption steps.
 
 Upstream Source reports: [timing #266](https://github.com/i5jb/mtgish/issues/266),
-[sacrifice #267](https://github.com/i5jb/mtgish/issues/267). The captured-host report
-is recorded in the follow-up receipts after publication.
+[sacrifice #267](https://github.com/i5jb/mtgish/issues/267). Captured host: [#268](https://github.com/i5jb/mtgish/issues/268).
