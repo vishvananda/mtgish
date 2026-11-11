@@ -561,6 +561,16 @@ impl<'a> Scope<'a> {
                 self.condition(condition)?;
                 self.player(player)
             },
+            EventSpec::WithOtherObject { event, object } => {
+                self.event(event)?;
+                let bindings = crate::semantics::event_bindings(event);
+                if bindings.other {
+                    return Err("captured secondary object would overwrite an event binding".into());
+                }
+                let mut matched = self.clone();
+                matched.event = bindings;
+                matched.object(object)
+            },
             EventSpec::AnyOf(events) => {
                 if events.is_empty() {
                     return Err("alternative event matcher is empty".into());

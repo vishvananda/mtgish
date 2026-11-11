@@ -10564,68 +10564,78 @@
       "kind": "Triggered",
       "args": {
         "event": {
-          "ZoneChange": {
-            "objects": {
-              "kind": "AllOf",
-              "args": [
-                {
-                  "kind": "CardType",
-                  "args": "Creature"
-                },
-                {
-                  "kind": "Condition",
-                  "args": {
-                    "kind": "Compare",
-                    "args": {
-                      "left": {
-                        "kind": "EventHistory",
-                        "args": {
-                          "event": {
-                            "Damage": {
-                              "source_kind": "Permanent",
-                              "sources": {
-                                "kind": "SameObject",
-                                "args": {
-                                  "kind": "AttachedTo",
-                                  "args": {
-                                    "kind": "Source"
-                                  }
-                                }
-                              },
-                              "recipients": {
-                                "Objects": {
-                                  "kind": "SameObject",
-                                  "args": {
-                                    "kind": "Candidate"
-                                  }
-                                }
-                              },
-                              "kind": "Any",
-                              "grouping": "SourceRecipient",
-                              "subject": "Recipient"
-                            }
-                          },
-                          "window": "ThisTurn",
-                          "measure": "Occurrences"
-                        }
-                      },
-                      "test": {
+          "WithOtherObject": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "Condition",
+                      "args": {
                         "kind": "Compare",
                         "args": {
-                          "comparison": "GreaterOrEqual",
-                          "value": {
-                            "kind": "Constant",
-                            "args": 1
+                          "left": {
+                            "kind": "EventHistory",
+                            "args": {
+                              "event": {
+                                "Damage": {
+                                  "source_kind": "Permanent",
+                                  "sources": {
+                                    "kind": "SameObject",
+                                    "args": {
+                                      "kind": "AttachedTo",
+                                      "args": {
+                                        "kind": "Source"
+                                      }
+                                    }
+                                  },
+                                  "recipients": {
+                                    "Objects": {
+                                      "kind": "SameObject",
+                                      "args": {
+                                        "kind": "Candidate"
+                                      }
+                                    }
+                                  },
+                                  "kind": "Any",
+                                  "grouping": "SourceRecipient",
+                                  "subject": "Recipient"
+                                }
+                              },
+                              "window": "ThisTurn",
+                              "measure": "Occurrences"
+                            }
+                          },
+                          "test": {
+                            "kind": "Compare",
+                            "args": {
+                              "comparison": "GreaterOrEqual",
+                              "value": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
                           }
                         }
                       }
                     }
-                  }
-                }
-              ]
+                  ]
+                },
+                "from": "Battlefield",
+                "to": "Graveyard"
+              }
             },
-            "from": "Battlefield",
-            "to": "Graveyard"
+            "object": {
+              "kind": "AttachedTo",
+              "args": {
+                "kind": "Source"
+              }
+            }
           }
         },
         "intervening_if": null,
@@ -10653,7 +10663,7 @@
                           "args": {
                             "kind": "One",
                             "args": {
-                              "kind": "EventSubject"
+                              "kind": "EventOther"
                             }
                           }
                         },

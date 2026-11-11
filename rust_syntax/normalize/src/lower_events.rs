@@ -252,6 +252,18 @@ impl Context {
     fn reduced_trigger(&self, value: &source::Trigger) -> Result<EventSpec> {
         use source::Trigger as S;
         Ok(match value {
+            S::WithOtherPermanent(trigger, object) => {
+                let event = self.trigger(trigger)?;
+                let mut matched = self.clone();
+                matched.event = crate::semantics::event_bindings(&event);
+                if matched.event.other {
+                    return Err(invalid("secondary event object is already bound"));
+                }
+                EventSpec::WithOtherObject {
+                    event: Box::new(event),
+                    object: matched.object(object)?,
+                }
+            }
             S::WhenAPermanentDealsDamageToAnyNumberOfPlayersForTheFirstTimeEachTurn(p, players) => {
                 let event = S::WhenAPermanentDealsDamageToAPlayer(p.clone(), players.clone());
                 EventSpec::FirstForObjectEachTurn(Box::new(self.trigger(&event)?))

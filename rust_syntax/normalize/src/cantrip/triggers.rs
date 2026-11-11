@@ -1980,6 +1980,9 @@ impl Compiler {
         {
             return Err(gap("modal or state trigger that works from a level"));
         }
+        if matches!(event, EventSpec::WithOtherObject { .. }) {
+            return Err(gap("trigger-time secondary object capture"));
+        }
         if let EventSpec::StateWithPlayer { condition, player } = event {
             if intervening_if.is_some() {
                 return Err(gap("captured state trigger with intervening condition"));

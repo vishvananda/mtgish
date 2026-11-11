@@ -221,6 +221,7 @@
     "WhenAnyNumberOfCardsArePutIntoAPlayersGraveyardFromAnywhereForTheFirstTimeEachTurn({{CARDS}}, {{PLAYERS}})": ""
   },
   "{{_TRIGGER[EnterGraveyard-FromBattlefield]}}": {
+    "WithOtherPermanent({{TRIGGER}}, {{PERMANENT}})": "",
     "WhenAPermanentDies({{PERMANENTS}})": "",
     "WhenAPermanentIsPutIntoAPlayersGraveyard({{PERMANENTS}}, {{PLAYERS}})": "",
     "WhenAnyNumberOfCreaturesOrPlaneswalkersDie({{PERMANENTS}})": "",

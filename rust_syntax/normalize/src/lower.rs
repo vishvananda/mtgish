@@ -943,6 +943,11 @@ impl Context {
                     ObjectRef::Source
                 })
             }
+            // An explicit secondary binding takes precedence over the legacy
+            // damage-recipient spelling when a matcher captures another object.
+            S::Trigger_ThatOtherPermanent | S::Trigger_ThatOtherCreature if self.event.other => {
+                return Ok(ObjectRef::EventOther)
+            }
             S::HostPermanent => return Ok(ObjectRef::AttachedTo(Box::new(ObjectRef::Source))),
             S::HostPermanentOf(p) => return Ok(ObjectRef::AttachedTo(Box::new(self.object(p)?))),
             S::ActionPermanent | S::ApplyPermanentEffect_It | S::EachPermanentEffect_It

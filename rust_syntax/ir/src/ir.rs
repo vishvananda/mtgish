@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 189;
+pub const SCHEMA_VERSION: u32 = 190;
 
 /// Typed pattern for the permanent query of the shared battlefield. Card-only,
 /// player-scoped and other-zone queries deliberately do not match.

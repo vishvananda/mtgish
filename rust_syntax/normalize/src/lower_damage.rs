@@ -307,7 +307,7 @@ fn legacy_damage_ambiguity(event: &EventSpec) -> bool {
         EventSpec::Damage(d) => matches!((&d.subject, &d.source_kind, &d.grouping, &d.recipients),
             (DamageSubject::Source, ObjectKind::Permanent, DamageGrouping::SourceRecipient, DamageRecipients::Objects(f))
             if !matches!(f, ObjectFilter::SameObject(_)) && !matches!(d.kind, DamageKind::Combat)),
-        EventSpec::Filtered { event, .. } => legacy_damage_ambiguity(event),
+        EventSpec::Filtered { event, .. } | EventSpec::WithOtherObject { event, .. } => legacy_damage_ambiguity(event),
         EventSpec::AnyOf(events) => {
             // A shared singular permanent source and a player-recipient
             // alternative leave no shared permanent-recipient interpretation.
@@ -341,6 +341,9 @@ fn owner_of_damage_source(players: PlayerSet) -> PlayerSet {
 }
 
 fn legacy_damage_recipient_alias(trigger: &source::Trigger, actions: &source::Actions) -> bool {
+    if let source::Trigger::WithOtherPermanent(trigger, _) = trigger {
+        return legacy_damage_recipient_alias(trigger, actions);
+    }
     // A source that deals damage needn't be a permanent: this is what was dealt it.
     if matches!(
         trigger,
@@ -389,7 +392,7 @@ fn legacy_damage_permanent_role(event: &EventSpec) -> Option<LegacyPermanentRef>
         {
             Some(LegacyPermanentRef::Recipient)
         }
-        EventSpec::Filtered { event, .. } => legacy_damage_permanent_role(event),
+        EventSpec::Filtered { event, .. } | EventSpec::WithOtherObject { event, .. } => legacy_damage_permanent_role(event),
         EventSpec::AnyOf(events) => {
             let first = events.first().and_then(legacy_damage_permanent_role)?;
             events

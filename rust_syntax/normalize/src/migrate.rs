@@ -40,7 +40,7 @@ pub fn read_json(input: &str) -> Result<UnifiedCard, String> {
     let value = crate::json_input::value(input)?;
     match value.get("schema_version").and_then(Value::as_u64) {
         Some(version) if version == u64::from(SCHEMA_VERSION) => (),
-        Some(179 | 180 | 181 | 182 | 183 | 184 | 185 | 186 | 187 | 188) => {
+        Some(179 | 180 | 181 | 182 | 183 | 184 | 185 | 186 | 187 | 188 | 189) => {
             return Ok(typed::upgrade(value, false)?.card)
         }
         _ => return Err("unsupported AST schema version for migration".into()),

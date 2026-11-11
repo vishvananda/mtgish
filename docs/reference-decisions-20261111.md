@@ -1,5 +1,7 @@
 # MTGish reference decisions for the migrated Oracle Grammar worker
 
+The final follow-up fixes Vampiric Embrace using schema 190 event-time object capture. See [the capture contract and current adoption instructions](vampiric-embrace-capture-20261111.md). The schema 189 descriptions below document the preceding, independently validated batch.
+
 This review uses `adapters/mtgish/reference-issues.md` from the migrated
 `oracle-grammar` repository at `b18fce17`. The reference pin is `1cd0b57`;
 MTGish main's `1cd42cd` adds documentation only. The compiled model starts independently pinned at `a2914e0`, schema 189. This
@@ -87,7 +89,7 @@ change receipts. The decision file records the witness needed for each remaining
 question. Explicit player/target bindings remain the preferred form for newly
 owned frontend rules; that preference is not a global equivalence rule.
 
-## Vampiric Embrace: confirmed bug, capture still required
+## Vampiric Embrace: captured-host follow-up completed
 
 The old counter recipient is the dying victim. The counter belongs to the
 relevant enchanted creature. Replacing it with a live `AttachedTo(Source)` read
@@ -99,13 +101,10 @@ records a `FixedTarget(creatureMOR)` during trigger matching; Vampiric Embrace
 selects that permanent pointer. This is implementation evidence, not a newly
 found official case-specific ruling. Direct Gatherer retrieval returned 403.
 
-The existing ZoneChange event has no arbitrary captured-object binding for that
-host. Do not simulate this by granting the Aura's trigger to the host: its
-controller and APNAP position would change. Correct completion needs an explicit
-captured-object event contract, with its source, host and victim kept distinct,
-and tests for Aura movement, Aura/host departure, replacement and incarnation
-changes. This card remains an open reference defect; no unsafe recipient rewrite
-is shipped and the original mismatch must remain visible.
+The follow-up adds `EventSpec::WithOtherObject` under schema 190 and reuses
+`EventOther` for the captured host. The parser and complete native program are
+corrected without moving the trigger off the Aura. Cantrip's runtime capture gap
+remains explicit. See the [capture contract, migrations and evidence](vampiric-embrace-capture-20261111.md).
 
 ## Decisions for the 13 broader groups
 
@@ -161,3 +160,12 @@ explicitly allowed population. For Alora's newly valid direct return-cost receip
 also advance the compiled model provider and Cargo.lock to the fix commit once.
 This is a validation bug fix under the same wire schema, not a schema migration.
 Do not edit gold or add local equality aliases to make these changes disappear.
+
+The subsequent Vampiric fix advances the final compiled model to schema 190.
+Across both commits, four Source records and 22 normalized records have reviewed
+meaning/normal-form changes; all records also carry the new schema version.
+Use the capture follow-up proof for the final artifact and current adoption steps.
+
+Upstream Source reports: [timing #266](https://github.com/i5jb/mtgish/issues/266),
+[sacrifice #267](https://github.com/i5jb/mtgish/issues/267). The captured-host report
+is recorded in the follow-up receipts after publication.

@@ -488,6 +488,19 @@ pub enum EventSpec {
         condition: Condition,
         player: PlayerRef,
     },
+    /// Capture one secondary object's exact incarnation when `event` matches.
+    /// `object` is evaluated once in that event's matching view (including the
+    /// pre-departure view for leaves-battlefield events), with its primary
+    /// bindings available, before the new EventOther binding exists.
+    /// The body reads the retained identity through ObjectRef::EventOther;
+    /// attachment/control changes never re-evaluate this expression. It does
+    /// not follow later zone changes. A missing capture remains no object.
+    /// The inner event must not already bind EventOther. Ability source and
+    /// controller, and all primary event bindings, remain unchanged.
+    WithOtherObject {
+        event: Box<EventSpec>,
+        object: ObjectRef,
+    },
 }
 
 #[derive(

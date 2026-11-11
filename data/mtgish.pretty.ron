@@ -1449528,10 +1449528,13 @@ Card(
       ],
     ),
     TriggerA(
-      WhenAPermanentDies(And([
-        IsCardtype(Creature),
-        WasDealtDamageByPermanentThisTurn(HostPermanent),
-      ])),
+      WithOtherPermanent(
+        WhenAPermanentDies(And([
+          IsCardtype(Creature),
+          WasDealtDamageByPermanentThisTurn(HostPermanent),
+        ])),
+        HostPermanent,
+      ),
       ActionList([
         PutCounters([
           ACounterOfTypeOnPermanent(
@@ -1449539,7 +1449542,7 @@ Card(
               1,
               1,
             ),
-            Trigger_ThatPermanent,
+            Trigger_ThatOtherPermanent,
           ),
         ]),
       ]),

@@ -1,0 +1,152 @@
+{
+  "baseline_commit": "ab718c9bd15dc815686a1089b4329190ed36e524",
+  "schema": {
+    "from": 189,
+    "to": 190,
+    "only_changed_type": [
+      "EventSpec"
+    ],
+    "one_appended_variant": "WithOtherObject",
+    "old_variants_exact": true,
+    "no_removed_types": true
+  },
+  "source": {
+    "records": 33529,
+    "changed": 1,
+    "unchanged": 33528,
+    "face": "Vampiric Embrace",
+    "fresh_parser_matches_checked_in_corpus": true
+  },
+  "native": {
+    "records": 33529,
+    "changed_excluding_schema_versions": 1,
+    "unchanged_excluding_schema_versions": 33528,
+    "independent_exact_whole_program_transformation": true,
+    "all_other_operands_exact": true,
+    "no_result_canonicalization": true
+  },
+  "audit": {
+    "fingerprint_paths": [
+      "reviewed_sources/grammars/english_grammar.json5",
+      "review_inputs/grammars/english_grammar.json5",
+      "review_inputs/grammars/mtgish_grammar-triggers.json5",
+      "review_inputs/grammars/mtgish_grammar.json5"
+    ],
+    "review_entries_unchanged": true
+  },
+  "combined_batch": {
+    "first_commit": "ab718c9",
+    "source_changes": 4,
+    "native_changes_excluding_schema_versions": 22,
+    "native_unchanged_excluding_schema_versions": 33507
+  },
+  "engine_execution_claimed": false,
+  "capability_gap": "trigger-time secondary object capture",
+  "reference_report_sha256": "d9e6c484e39752c238e93280e3a843253ce4ba1564cea5159bcf33a4c5d533cb",
+  "rust": {
+    "passed": 1958,
+    "failed": 0,
+    "ignored": 21,
+    "targets": 189,
+    "workspace": true,
+    "features": "cantrip",
+    "role_followup": {
+      "targets": [
+        "trigger_object_capture",
+        "damage",
+        "scopes"
+      ],
+      "passed": 161,
+      "failed": 0,
+      "new_test": "explicit capture must not become a legacy damage-recipient alias",
+      "additional_tests_over_full_run": 1
+    },
+    "fixture_followup": "One frozen189 fixture was initially loaded as current IR; changed the test to the explicit migration reader. All five tests in that target pass on rerun. Other targets were not repeated."
+  },
+  "go": "ok  \tgo_mtg_parser\t70.450s",
+  "browser_catalog": {
+    "expected": 33529,
+    "records": 33529,
+    "blockRoundtrips": 33529,
+    "bindingPortCards": 33529,
+    "wasmValid": 33529,
+    "failures": []
+  },
+  "actual_browser_workspaces": {
+    "actualWorkspaceCards": [
+      "Alora, Cheerful Scout",
+      "Balustrade Wurm",
+      "Barrage of Boulders",
+      "Determined",
+      "Demonlord of Ashmouth",
+      "Draconic Intervention",
+      "Foreboding Steamboat",
+      "Giant Regrowth",
+      "Maskwood Nexus",
+      "Mind Raker",
+      "Murk Strider",
+      "Nightclub Bouncer",
+      "Phyrexian Totem",
+      "Resurrected Cultist",
+      "Ruin Processor",
+      "Skyline Savior",
+      "Suffocation",
+      "Talion's Throneguard",
+      "Temporal Firestorm",
+      "Ulamog's Reclaimer",
+      "Wasteland Strangler",
+      "Alliance of Arms",
+      "Vulshok Factory",
+      "Draining Whelk",
+      "Ebonblade Reaper",
+      "Veteran Ghoulcaller",
+      "Vampiric Embrace",
+      "Karn's Touch"
+    ],
+    "exactIR": true,
+    "wasmValidation": true,
+    "errors": []
+  },
+  "wasm_glue_target": "no-modules",
+  "wasm_glue_sha256": "691b6ef0505393b04f01f31ce392fc8457e4314301885dd8c1f19b59999e935e",
+  "wasm_builds": 1,
+  "wasm_reused": false,
+  "wasm_sha256": "eb1d25ec139224cdfbabdc89a123b33ce6beacce88f073b37e76d2f512157126",
+  "sha256": {
+    "data/grammar_audit_review.json": "8b2d45ac5e89be04a7f8bfe824e08ec20578e909ef98f98b243699f3176e1ba1",
+    "data/mtgish.lines.json": "f715b62e6696e50c9c0afd3865c2efce7f51ab078c12639e3820ef26b29ba155",
+    "data/mtgish.lines.ron": "11e328e34ce724e1c17abd608adb9b42d6e5f9a3e96082775fdba4e50c7ca721",
+    "data/mtgish.pretty.ron": "a97dda9665323751edd92caf3275f45d759a0fd0844147367d763ae7c6da4fef",
+    "grammars/english_grammar.json5": "683f1e96a4dffbe6620d072d11c7a6e32e8ca7ef0931fb1f7559722ab50730e2",
+    "grammars/mtgish_grammar-triggers.json5": "a1223b99a63f094455b8e4bddd8ec37ad05a5c26d013b118c5345d658e7719f7",
+    "grammars/mtgish_grammar.json5": "dd9cc01cec2d3df6815575abb38a1d5ddb72925af3159abe32c84cc988e78178",
+    "rust_syntax/bindings/Trigger.ts": "aac8e3551ab66f7e6ccf09220987adf375ac52047d8fbe73f965aad4c77da9a1",
+    "rust_syntax/ir/schema/190.json": "99cce38b049c6e507087702de0bd9819f970cd805061613d759476110aebf0f2",
+    "rust_syntax/ir/schema/190.txt": "e0dc086cd49c76938d9116bfd41aa39101a43d477f04c54118e8866951eab816",
+    "rust_syntax/ir/src/ir.rs": "20a9822800f20f332db934f6c774e76e3a0ea285f4a56fce73c8d60328a1e04f",
+    "rust_syntax/ir/src/ir/events.rs": "9f317df241426f100a4f20e6c198a10170ff65cc1ed3496324d5bb57d11f7e21",
+    "rust_syntax/normalize/src/cantrip/triggers.rs": "092feff77866ec990862ac2ba72f0b37c40c21048ca301e1395456b8e6d00193",
+    "rust_syntax/normalize/src/inventory.rs": "1fae5951ad2a31b1cb2f161ec6442344e64478d2101c72f2026cd899acb2c782",
+    "rust_syntax/normalize/src/lower.rs": "2edc2ee9c31be5a83a751bc3ed9b4f1634424c056781f7d01679b6a2ec91a3ff",
+    "rust_syntax/normalize/src/lower_damage.rs": "3435b6c86ddd1f79087ef344c31fc5f39b21bd26fd414d151b84b48b9f6e4bad",
+    "rust_syntax/normalize/src/lower_events.rs": "113919fa2178be08e7c36b1535ed0258b24fcde32193bb9d7a4222ec655cec64",
+    "rust_syntax/normalize/src/migrate.rs": "dfbd8928a297ee2cb2dd48c2ed91673e79747986f3fcc9f0dee7d1b5808b19a2",
+    "rust_syntax/normalize/src/migrate/schema.rs": "52a89a90fb552f0ff3b90b7e7e77be075429bf4c896aa7995ff5171ec0906200",
+    "rust_syntax/normalize/src/migrate/typed.rs": "79e518769997dbe5759faa5017e53ff67a88f8e86f50135dac02105b5de7eae8",
+    "rust_syntax/normalize/src/semantics.rs": "c2beb21eedf2cbe4dc56dcaa00070a3caf32850fdfab78e767230df114bec70d",
+    "rust_syntax/normalize/src/validate.rs": "0b59e82a42f9b30221f93ee5ae76d9d21a58ba3c4ae6a4d566c954a02e7e08ae",
+    "rust_syntax/normalize/tests/fixtures/reference_decisions_20261111.ronl": "f3b487e1f0ca5d8039a8283c5485e6900c638239c93b6002a7813b9a8b1c1081",
+    "rust_syntax/normalize/tests/fixtures/reference_decisions_20261111_expected.json": "d60e37cd97bbb5083f0026ab227f771ad067308798f5523a155bd3a46ba3cf7c",
+    "rust_syntax/normalize/tests/fixtures/reference_decisions_source_20261111.ronl": "22a32796f3a0cc538a42307ef877ded61c6f52d3aac701f76d5af0b79e1fa5d1",
+    "rust_syntax/normalize/tests/fixtures/vampiric_embrace_capture_20261111.ronl": "053676190312b6b476713e854f81f2ffefcf7e183f5cb15d019a3d7271a65835",
+    "rust_syntax/normalize/tests/fixtures/vampiric_embrace_schema189.json": "66ee44c919f4c9b39f0e444b4a739c48a4c36d4448c92680ab234ca980e45d2e",
+    "rust_syntax/normalize/tests/reference_continuous_20261111.rs": "93720ae888cc74510a26293419958e63c066333c06615a8015bce2c790b9df3f",
+    "rust_syntax/normalize/tests/trigger_object_capture.rs": "33be430b37d7caa71ac51865426d7a1736d43ebebe69ec4e72a884e457c44057",
+    "rust_syntax/src/mtg_types.rs": "258920636fcef8277932a3120363f2fd0d45a754ba229acc3c76bca7d8319329",
+    "typescript_types/oracle_cards.d.ts": "bf4354b7b77404c6f2dedea1b8af269140f5ab0d727f076d963f870c56409493"
+  },
+  "comment_scan": {
+    "evidence": "/mnt/vizier/reference-decisions-20261111/recent-upstream-comments.json",
+    "no_new_confirmed_reference_findings": true
+  }
+}

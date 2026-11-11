@@ -11390,6 +11390,9 @@ pub enum Trigger {
   // _operators
   Or(Vec<Trigger>),
   If(Box<Condition>, Box<Trigger>),
+
+  /// Capture a secondary permanent in the matched event view, before resolution.
+  WithOtherPermanent(Box<Trigger>, Box<Permanent>),
 }
 
 

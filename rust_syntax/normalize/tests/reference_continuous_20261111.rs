@@ -57,7 +57,8 @@ fn discarded_source_shuffle_uses_exact_cost_output_and_keeps_absent_branch() {
         let result = unified::lower(&source);
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
         validate::unified(&result.card).unwrap();
-        let expected: mtgish_ast::ir::UnifiedCard = serde_json::from_str(include_str!(
+        // Preserve the frozen189 fixture and use its explicit typed migration.
+        let expected = mtgish_ast::migrate::read_json(include_str!(
             "fixtures/reference_kogla_20261111_expected.json"
         ))
         .unwrap();

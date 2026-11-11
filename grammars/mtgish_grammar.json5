@@ -2988,6 +2988,7 @@
     "WhenAPlayerNextAttacksThisTurn({{PLAYERS}})": "",
     "WhenAPlayerPlaneswalks({{PLAYERS}})": "",
     "WhenPermanentDies({{PERMANENT}})": "",
+    "WithOtherPermanent({{TRIGGER}}, {{PERMANENT}})": "",
     "WhenAPermanentDies({{PERMANENTS}})": "",
     "WhenPermanentBecomesUntapped({{PERMANENT}})": "",
     "WhenPermanentIsPutIntoAPlayersGraveyard({{PERMANENT}}, {{PLAYERS}})": "",

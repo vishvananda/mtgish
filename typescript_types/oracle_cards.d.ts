@@ -9126,7 +9126,8 @@ type Trigger =
 | { "_Trigger": "WhenAPermanentIsTurnedFaceUp", "args": Permanents }
 | { "_Trigger": "WhenAPlayerTurnsAPermanentFaceUp", "args": [Players, Permanents] }
 | { "_Trigger": "Or", "args": Array<Trigger> }
-| { "_Trigger": "If", "args": [Condition, Trigger] };
+| { "_Trigger": "If", "args": [Condition, Trigger] }
+| { "_Trigger": "WithOtherPermanent", "args": [Trigger, Permanent] };
 type UnspentMana =
 | { "_UnspentMana": "AnyUnspentMana" }
 | { "_UnspentMana": "UnspentGreenMana" }

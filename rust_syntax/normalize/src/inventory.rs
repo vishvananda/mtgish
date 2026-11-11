@@ -3238,6 +3238,10 @@ impl Inventory<'_> {
                 self.condition(condition);
                 self.player(player)
             },
+            EventSpec::WithOtherObject { event, object } => {
+                self.event(event);
+                self.object(object);
+            },
             EventSpec::AnyOf(events) => {
                 for event in events {
                     self.event(event);

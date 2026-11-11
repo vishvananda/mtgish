@@ -1,0 +1,204 @@
+{
+  "schema_version": 189,
+  "layout": "Card",
+  "faces": [
+    {
+      "schema_version": 189,
+      "name": "Vampiric Embrace",
+      "characteristics": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [
+          "Aura"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Black"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "abilities": [
+        {
+          "kind": "Enchant",
+          "args": {
+            "hosts": {
+              "Permanents": {
+                "kind": "CardType",
+                "args": "Creature"
+              }
+            }
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "AttachedTo",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Pump",
+                "args": {
+                  "power": {
+                    "kind": "Constant",
+                    "args": 2
+                  },
+                  "toughness": {
+                    "kind": "Constant",
+                    "args": 2
+                  }
+                }
+              },
+              {
+                "kind": "GrantKeyword",
+                "args": {
+                  "kind": "Flying"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "Condition",
+                      "args": {
+                        "kind": "Compare",
+                        "args": {
+                          "left": {
+                            "kind": "EventHistory",
+                            "args": {
+                              "event": {
+                                "Damage": {
+                                  "source_kind": "Permanent",
+                                  "sources": {
+                                    "kind": "SameObject",
+                                    "args": {
+                                      "kind": "AttachedTo",
+                                      "args": {
+                                        "kind": "Source"
+                                      }
+                                    }
+                                  },
+                                  "recipients": {
+                                    "Objects": {
+                                      "kind": "SameObject",
+                                      "args": {
+                                        "kind": "Candidate"
+                                      }
+                                    }
+                                  },
+                                  "kind": "Any",
+                                  "grouping": "SourceRecipient",
+                                  "subject": "Recipient"
+                                }
+                              },
+                              "window": "ThisTurn",
+                              "measure": "Occurrences"
+                            }
+                          },
+                          "test": {
+                            "kind": "Compare",
+                            "args": {
+                              "comparison": "GreaterOrEqual",
+                              "value": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "from": "Battlefield",
+                "to": "Graveyard"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "PowerToughness": [
+                                1,
+                                1
+                              ]
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "data": []
+}
