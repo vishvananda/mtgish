@@ -1706,11 +1706,11 @@
       "log": "generator-thirteen-suite.log"
     },
     "full_native_last_pass": {
-      "passed": 22587,
+      "passed": 22604,
       "failed": 0,
       "ignored": 15,
-      "log": "workspace-ten-tests.log",
-      "revision": "d8d0d26b7"
+      "log": "workspace-thirteen-tests.log",
+      "revision": "c97d4ac45"
     },
     "focused_keyword_families": 2,
     "all_card_keyword_family_oracle_test": 1,
@@ -1779,17 +1779,21 @@
     "glyph-delusion-representations-tests.log": "1edbcf762d0a66077d17f744c88a0c7a932aad64ca6623f16416a1aa51ab6d63",
     "glyph-counter-tests.log": "d011138a9c6a61cc4ea4905858b3d4b6370aeb7d71e5bb6dd23e7e74aeb8b64e",
     "generator-glyph-scope.log": "d9b538bf0de6a2a476aff7e3a384f195e8db513a0755a5d45bde4c6a931c5852",
-    "generator-thirteen-suite.log": "466a7830d2f610cbc41c85464f223280c8207ade8c2e8a0829a0e74f388d2e90"
+    "generator-thirteen-suite.log": "466a7830d2f610cbc41c85464f223280c8207ade8c2e8a0829a0e74f388d2e90",
+    "benchmark-thirteen-control.log": "d7214216d884d2cb23818ff440d874dc56f399f9e91d0a988864de5421f60b9b",
+    "benchmark-thirteen-after-control.log": "2508d71fd5c98a1e9adac056c9de0454b95d6c5c404e13236ee8f41076bfbaba",
+    "workspace-thirteen-tests.log": "82a687dc7cb0991d8f71bb5051a1733e6d141aaabdcc1bf13da468762a0dc347"
   },
   "candidate_api_fingerprint": "58863f5e2acbbc66c7a0e9b7e21a6ba41e730bdaed85d097f47efde6cd1a3e88",
   "benchmark_current_batch": {
     "games": 128,
-    "allocation_kb_per_decision": 26.74,
-    "control_engine_us": 59.36,
-    "after_control_engine_us": 60.4,
+    "control_allocation_kb_per_decision": 26.74,
+    "allocation_kb_per_decision": 26.79,
+    "control_engine_us": 58.87,
+    "after_control_engine_us": 50.49,
     "statistical_speed_claim": false,
     "shared_machine": true,
     "sequential_control_runs": true,
-    "native_revision": "d8d0d26b7"
+    "native_revision": "c97d4ac45"
   }
 }

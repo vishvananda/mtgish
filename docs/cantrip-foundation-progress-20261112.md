@@ -41,8 +41,7 @@ The ninth primitive gives rampage and cumulative upkeep typed family metadata.
 Rapid Fire and Balduvian Shaman now generate without gaps. Two native tests cover
 identity through grants, loss and copying; an Oracle audit verifies metadata on
 every implemented card. Two generated runtime scenarios cover both positive
-and negative keyword checks. The complete workspace gates below cover the first ten groups. The eleventh and twelfth
-have focused native tests and the generated runtime validation.
+and negative keyword checks. The complete workspace gates below cover all twelve groups and the dependent-target repair.
 
 Earthlore and Tourach's Gate required only a generator repair. Their typed
 “enchant land you control” restriction proves the host belongs to the payer
@@ -101,20 +100,21 @@ the pristine foundation. The generated runtime suite now passes 44 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The complete generator suite now passes 1,581 tests (22 ignored) in a serialized
-run. The batched native workspace gate passes 22587 tests (15 ignored), through
-`d8d0d26b7`, with verification enabled. The .NET SDK is unavailable, so no .NET
+run. The batched native workspace gate passes 22604 tests (15 ignored), through
+`c97d4ac45`, with verification enabled. The .NET SDK is unavailable, so no .NET
 pass is claimed.
 
-The current 128-game benchmark allocates 26.74 KB per decision, unchanged.
-Sequential control runs measured 59.36 µs on the original base and 60.40 µs
-on `d8d0d26b7`; both finished all 128 games. Shared-machine variability does
-not establish a statistically meaningful speed change.
+The current 128-game benchmark allocates 26.79 KB per decision, versus 26.74 KB
+on the original base. The small increase includes the added dense counter
+entries. Sequential control runs measured 58.87 µs on the original base and
+50.49 µs on `c97d4ac45`; both finished all 128 games. Shared-machine variability
+does not establish a statistically meaningful speed change.
 
 A direct compilation probe now passes all 189 generation-ready modules against
 the pristine foundation. The native catalog appends Cube (91), Doom (92) and Glyph (93)
 for Delif's Cube, Armageddon Clock and Glyph of Delusion, preserving existing IDs. No overlay is
 used. These three i32 entries follow the existing dense counter design and add
-twelve bytes per object; the next batch's benchmark will include that change.
+twelve bytes per object; the current benchmark includes that change.
 
 Candidate generation can now run from the CLI without advancing the normal
 upstream API pin:
