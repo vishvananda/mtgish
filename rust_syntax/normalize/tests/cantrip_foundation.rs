@@ -301,6 +301,47 @@ fn hand_sizes_and_reselected_values_use_their_native_interfaces() {
 fn gaps(row:&serde_json::Value)->Vec<&str> {
     row["faces"].as_array().unwrap().iter().flat_map(|f|f["gaps"].as_array().unwrap()).map(|g|g["feature"].as_str().unwrap()).collect()
 }
+fn band_profiles() -> &'static (Rows,Rows) {
+    static ROWS:OnceLock<(Rows,Rows)>=OnceLock::new();
+    ROWS.get_or_init(|| {
+        let fixtures=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-bands-baseline.jsonl");
+        let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-bands-candidate.jsonl");
+        let source=fixtures.join("early_set_bands.ronl");let oracle=fixtures.join("early_set_bands.oracle.json");
+        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        let mut features=FOUNDATION.to_vec();features.push("bands-with-other");
+        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        (read(&baseline),read(&candidate))
+    })
+}
+#[test]
+fn bands_with_other_use_parameterized_abilities_and_keep_their_qualities() {
+    let (baseline,candidate)=band_profiles();assert_eq!(candidate.len(),8);
+    for (name,row) in candidate {
+        assert!(!gaps(&baseline[name]).is_empty(),"{name}");
+        assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
+        syn::parse_file(code(row)).unwrap_or_else(|e|panic!("{name}: {e}"));
+    }
+    for name in ["Adventurers' Guildhouse","Cathedral of Serra","Mountain Stronghold","Seafarer's Quay","Unholy Citadel"] {
+        let module=code(&candidate[name]);assert!(module.contains("banding::with_others("),"{name}");
+        assert!(module.contains("q.chars(id).supertypes.legendary"),"{name}");
+        assert!(module.contains("AbilityRef::delayed("),"the land grants an actual ability");
+    }
+    assert!(code(&candidate["Master of the Hunt"]).contains("Wolves of the Hunt"));
+    for name in ["Shelkin Brownie","Tolaria"] {assert!(code(&candidate[name]).contains("EffectKind::LoseBandsWithOthers"));}
+}
+#[test]
+fn contextual_band_qualities_keep_an_explicit_gap_instead_of_losing_their_holder() {
+    use mtgish_ast::{ir::*,mtg_types::OracleCard,unified};
+    let source:OracleCard=ron::from_str(include_str!("fixtures/early_set_bands.ronl").lines().next().unwrap()).unwrap();
+    let mut card=unified::lower(&source);
+    card.card.faces[0].abilities=vec![Ability::Mechanic {mechanic:Mechanic::BandsWithOthers,cost:None,amount:None,
+        filter:Some(ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)))}];
+    cantrip::planned::with_additional_features(&["bands-with-other"],|| {
+        let generated=cantrip::whole(&source,&card.card).unwrap();
+        assert!(generated.faces.iter().flat_map(|f|&f.gaps).any(|g|g.feature=="bands with other of a contextual quality"));
+    });
+}
 fn code(row:&serde_json::Value)->&str { row["faces"][0]["rust"].as_str().unwrap() }
 #[test]
 fn foundation_removes_only_its_four_requirements_from_the_33_affected_cards() {
@@ -338,10 +379,10 @@ fn foundation_generated_cards_execute_in_cantrip() {
     let fixture=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let old=root.join("earlier-candidate.jsonl");
     cantrip::planned::with_additional_features(FOUNDATION,||cantrip::planned::tracked(&fixture.join("early_set_generator_gaps.ronl"),&fixture.join("early_set_generator_gaps.oracle.json"),&old).unwrap());
-    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());cards.extend(mana_tap_profiles().1.clone());cards.extend(attack_haste_profiles().1.clone());cards.extend(skip_step_profiles().1.clone());cards.extend(player_value_profiles().1.clone());
+    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());cards.extend(mana_tap_profiles().1.clone());cards.extend(attack_haste_profiles().1.clone());cards.extend(skip_step_profiles().1.clone());cards.extend(player_value_profiles().1.clone());cards.extend(band_profiles().1.clone());
     // Modules actually used by these scenarios; candidate modules also have separate compile probes.
     // Cube and Doom counter declarations are intentionally separate from these runtime cases.
-    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth","Instill Energy","Chaos Lord","Glyph of Delusion","Stasis","Necropotence","Cursed Rack","Shapeshifter","Jin-Gitaxias, Core Augur"];
+    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth","Instill Energy","Chaos Lord","Glyph of Delusion","Stasis","Necropotence","Cursed Rack","Shapeshifter","Jin-Gitaxias, Core Augur","Adventurers' Guildhouse","Cathedral of Serra","Master of the Hunt","Mountain Stronghold","Seafarer's Quay","Shelkin Brownie","Tolaria","Unholy Citadel"];
     let mut lib=String::from("#![allow(dead_code,unused_imports,unused_variables,unused_mut)]\n");
     for name in modules {
         let row=&cards[name];assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
@@ -363,6 +404,7 @@ fn foundation_generated_cards_execute_in_cantrip() {
     lib.push_str(include_str!("fixtures/early_set_glyph_delusion_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_skip_steps_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_player_values_scenarios.rs"));
+    lib.push_str(include_str!("fixtures/early_set_bands_scenarios.rs"));
     fs::write(root.join("src/lib.rs"),lib).unwrap();
     let mut manifest=String::from("[package]\nname=\"mtgish-foundation-runtime\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\n");
     for name in ["cantrip-api","cantrip-state","cantrip-mechanics","cantrip-rules"] {manifest.push_str(&format!("{name}={{path={:?}}}\n",checkout.join("crates").join(name)));}

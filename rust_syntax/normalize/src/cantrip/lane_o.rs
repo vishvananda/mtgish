@@ -2511,6 +2511,7 @@ impl Compiler {
         }
         match word.as_str() {
             "AnyLandwalk" => Ok(vec!["EffectKind::LoseKeywords(Keywords::LANDWALKS)".into()]),
+            "AnyBandsWithOthers" => Ok(vec![lane_g::planned_kind(&failed.feature, "EffectKind::LoseBandsWithOthers".into())]),
             // The enchant ability is the engine's to take.
             "Enchant" => Ok(vec![format!(
                 "EffectKind::LoseEnchant({})",

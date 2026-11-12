@@ -1,0 +1,96 @@
+[
+  {
+    "name": "Adventurers' Guildhouse",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Adventurers' Guildhouse",
+        "type": "Land",
+        "text": "Green legendary creatures you control have \"bands with other legendary creatures.\" (Any legendary creatures can attack in a band as long as at least one has \"bands with other legendary creatures.\" Bands are blocked as a group. If at least two legendary creatures you control, one of which has \"bands with other legendary creatures,\" are blocking or being blocked by the same creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)"
+      }
+    ]
+  },
+  {
+    "name": "Cathedral of Serra",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cathedral of Serra",
+        "type": "Land",
+        "text": "White legendary creatures you control have \"bands with other legendary creatures.\" (Any legendary creatures can attack in a band as long as at least one has \"bands with other legendary creatures.\" Bands are blocked as a group. If at least two legendary creatures you control, one of which has \"bands with other legendary creatures,\" are blocking or being blocked by the same creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)"
+      }
+    ]
+  },
+  {
+    "name": "Master of the Hunt",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Master of the Hunt",
+        "manaCost": "{2}{G}{G}",
+        "type": "Creature — Human",
+        "text": "{2}{G}{G}: Create a 1/1 green Wolf creature token named Wolves of the Hunt. It has \"bands with other creatures named Wolves of the Hunt.\" (Any creatures named Wolves of the Hunt can attack in a band as long as at least one has \"bands with other creatures named Wolves of the Hunt.\" Bands are blocked as a group. If at least two creatures named Wolves of the Hunt you control, one of which has \"bands with other creatures named Wolves of the Hunt,\" are blocking or being blocked by the same creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Mountain Stronghold",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mountain Stronghold",
+        "type": "Land",
+        "text": "Red legendary creatures you control have \"bands with other legendary creatures.\" (Any legendary creatures can attack in a band as long as at least one has \"bands with other legendary creatures.\" Bands are blocked as a group. If at least two legendary creatures you control, one of which has \"bands with other legendary creatures,\" are blocking or being blocked by the same creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)"
+      }
+    ]
+  },
+  {
+    "name": "Seafarer's Quay",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Seafarer's Quay",
+        "type": "Land",
+        "text": "Blue legendary creatures you control have \"bands with other legendary creatures.\" (Any legendary creatures can attack in a band as long as at least one has \"bands with other legendary creatures.\" Bands are blocked as a group. If at least two legendary creatures you control, one of which has \"bands with other legendary creatures,\" are blocking or being blocked by the same creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)"
+      }
+    ]
+  },
+  {
+    "name": "Shelkin Brownie",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Shelkin Brownie",
+        "manaCost": "{1}{G}",
+        "type": "Creature — Ouphe",
+        "text": "{T}: Target creature loses all \"bands with other\" abilities until end of turn.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Tolaria",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Tolaria",
+        "type": "Legendary Land",
+        "text": "{T}: Add {U}.\n{T}: Target creature loses banding and all \"bands with other\" abilities until end of turn. Activate only during any upkeep step."
+      }
+    ]
+  },
+  {
+    "name": "Unholy Citadel",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Unholy Citadel",
+        "type": "Land",
+        "text": "Black legendary creatures you control have \"bands with other legendary creatures.\" (Any legendary creatures can attack in a band as long as at least one has \"bands with other legendary creatures.\" Bands are blocked as a group. If at least two legendary creatures you control, one of which has \"bands with other legendary creatures,\" are blocking or being blocked by the same creature, you divide that creature's combat damage, not its controller, among any of the creatures it's being blocked by or is blocking.)"
+      }
+    ]
+  }
+]

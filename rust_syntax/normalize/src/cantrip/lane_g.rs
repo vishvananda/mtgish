@@ -3165,8 +3165,19 @@ impl Compiler {
             }
             K::BandsWithOthers => {
                 let filter = filter.ok_or_else(|| gap(feature.clone()))?;
-                let test = self.cost_filter(filter, &format!("{label}_bands"))?;
-                entries.push(("statics", format!("{M}::banding::with_others({test})")));
+                // Printed qualities are closed descriptions: legendary creatures or creatures of a fixed name.
+                // The holder is not a lexical source for the quality, so no choosing/granting context is invented.
+                fn closed(filter: &ObjectFilter) -> bool {
+                    match filter {
+                        ObjectFilter::AllOf(parts) => parts.iter().all(closed),
+                        ObjectFilter::CardType(_) | ObjectFilter::Supertype(_) | ObjectFilter::Name(_) => true,
+                        _ => false,
+                    }
+                }
+                if !closed(filter) { return Err(gap("bands with other of a contextual quality")); }
+                let body = self.filter(filter, &Candidate::of("id"))?;
+                let test = self.rule_fn(&feature, &format!("{label}_bands"), "q: &dyn Query, id: ObjectId", "bool", &body);
+                entries.push(("abilities", format!("{M}::banding::with_others({test}, {word:?})")));
             }
             K::UmbraArmor => {
                 entries.push(("replacements", format!("{M}::umbra_armor::REPLACEMENT")));

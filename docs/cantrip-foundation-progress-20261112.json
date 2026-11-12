@@ -1,7 +1,8 @@
 {
-  "native_foundation": "cfac93547",
+  "native_foundation": "bc15adfec",
   "scoped_missing": 286,
   "generation_ready": [
+    "Adventurers' Guildhouse",
     "Anti-Magic Aura",
     "Arboria",
     "Armageddon Clock",
@@ -15,6 +16,7 @@
     "Blue Mana Battery",
     "Boris Devilboon",
     "Call to Arms",
+    "Cathedral of Serra",
     "Chaos Lord",
     "Chaos Moon",
     "Cleansing",
@@ -107,6 +109,7 @@
     "Mana Short",
     "Mana Vortex",
     "Manabarbs",
+    "Master of the Hunt",
     "Mercenaries",
     "Merieke Ri Berit",
     "Metamorphosis",
@@ -117,6 +120,7 @@
     "Mirror Universe",
     "Mishra's War Machine",
     "Monsoon",
+    "Mountain Stronghold",
     "Mudslide",
     "Musician",
     "Mystic Might",
@@ -145,10 +149,12 @@
     "Ring of Ma'rûf",
     "Rohgahh of Kher Keep",
     "Sandals of Abdallah",
+    "Seafarer's Quay",
     "Sentinel",
     "Seraph",
     "Serendib Djinn",
     "Shapeshifter",
+    "Shelkin Brownie",
     "Shyft",
     "Sibilant Spirit",
     "Sindbad",
@@ -168,6 +174,7 @@
     "Thelonite Monk",
     "Thermokarst",
     "Titania's Song",
+    "Tolaria",
     "Total War",
     "Touch of Vitae",
     "Tourach's Gate",
@@ -176,6 +183,7 @@
     "Twiddle",
     "Two-Headed Giant of Foriys",
     "Undertow",
+    "Unholy Citadel",
     "Untamed Wilds",
     "Ur-Drago",
     "Urza's Mine",
@@ -201,10 +209,6 @@
       "mana choice among different bundles",
       "mana spending purpose"
     ],
-    "Adventurers' Guildhouse": [
-      "engine: no BandsWithOthers",
-      "engine: no BandsWithOthers granted"
-    ],
     "Aladdin's Lamp": [
       "the X of the ability that made a replacement effect"
     ],
@@ -219,10 +223,6 @@
     ],
     "Camouflage": [
       "operation GameEffect"
-    ],
-    "Cathedral of Serra": [
-      "engine: no BandsWithOthers",
-      "engine: no BandsWithOthers granted"
     ],
     "Caverns of Despair": [
       "static rule CombatGroup Attacker",
@@ -365,19 +365,12 @@
     "Library of Leng": [
       "replacement event Discard"
     ],
-    "Master of the Hunt": [
-      "engine: no BandsWithOthers"
-    ],
     "Melee": [
       "event trigger for EndOfCombat",
       "player rule for a while Decides"
     ],
     "Merseine": [
       "engine: no cost copies a mana cost"
-    ],
-    "Mountain Stronghold": [
-      "engine: no BandsWithOthers",
-      "engine: no BandsWithOthers granted"
     ],
     "Nafs Asp": [
       "operation DelayedUnlessPaid"
@@ -443,15 +436,8 @@
       "damage prevented by an effect of this ability",
       "target reference"
     ],
-    "Seafarer's Quay": [
-      "engine: no BandsWithOthers",
-      "engine: no BandsWithOthers granted"
-    ],
     "Season of the Witch": [
       "object state CouldntAttack"
-    ],
-    "Shelkin Brownie": [
-      "losing ability AnyBandsWithOthers"
     ],
     "Silhouette": [
       "replacement event Caused"
@@ -489,13 +475,6 @@
       "operation Note",
       "several objects arriving attached"
     ],
-    "Tolaria": [
-      "losing ability AnyBandsWithOthers"
-    ],
-    "Unholy Citadel": [
-      "engine: no BandsWithOthers",
-      "engine: no BandsWithOthers granted"
-    ],
     "Voodoo Doll": [
       "engine: no rule on an ability's X"
     ],
@@ -519,31 +498,6 @@
     ]
   },
   "features": [
-    {
-      "feature": "engine: no BandsWithOthers",
-      "affected": 6,
-      "sole_blocker": 1,
-      "cards": [
-        "Adventurers' Guildhouse",
-        "Cathedral of Serra",
-        "Master of the Hunt",
-        "Mountain Stronghold",
-        "Seafarer's Quay",
-        "Unholy Citadel"
-      ]
-    },
-    {
-      "feature": "engine: no BandsWithOthers granted",
-      "affected": 5,
-      "sole_blocker": 0,
-      "cards": [
-        "Adventurers' Guildhouse",
-        "Cathedral of Serra",
-        "Mountain Stronghold",
-        "Seafarer's Quay",
-        "Unholy Citadel"
-      ]
-    },
     {
       "feature": "a hand played revealed",
       "affected": 3,
@@ -639,15 +593,6 @@
       "cards": [
         "Goblin Flotilla",
         "Melee"
-      ]
-    },
-    {
-      "feature": "losing ability AnyBandsWithOthers",
-      "affected": 2,
-      "sole_blocker": 2,
-      "cards": [
-        "Shelkin Brownie",
-        "Tolaria"
       ]
     },
     {
@@ -1652,33 +1597,38 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 48,
+    "generated_runtime_scenarios": 51,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
     "focused_random_discard_costs": 4,
     "full_generator": {
-      "passed": 1584,
+      "passed": 2005,
       "failed": 0,
-      "ignored": 22,
-      "log": "generator-fifteen-suite.log"
+      "ignored": 24,
+      "targets": 194,
+      "log": "generator-sixteen-suite.log",
+      "revision": "working tree based on cb24df1",
+      "scope": "entire rust_syntax workspace with cantrip"
     },
     "full_native_last_pass": {
-      "passed": 22616,
+      "passed": 22625,
       "failed": 0,
       "ignored": 15,
-      "log": "workspace-fifteen-tests-rerun.log",
-      "revision": "cfac93547"
+      "targets": 236,
+      "log": "workspace-sixteen-tests.log",
+      "revision": "bc15adfec",
+      "scope": "native workspace"
     },
     "focused_keyword_families": 2,
     "all_card_keyword_family_oracle_test": 1,
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 193,
+      "passed": 201,
       "pending_named_counters": {},
-      "log": "generator-player-values-ready-compile.log",
-      "revision": "994d7b122"
+      "log": "generator-bands-ready-compile.log",
+      "revision": "bc15adfec"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1701,6 +1651,10 @@
       "encoded_payloads_changed": 0,
       "reason": "Two fewer answered priority requests after the first draw step is skipped",
       "revision": "cfac93547"
+    },
+    "focused_bands_with_other": {
+      "passed": 9,
+      "log": "bands-tests-resumed.log"
     }
   },
   "evidence": {
@@ -1773,20 +1727,32 @@
     "benchmark-fifteen-control.log": "91d3ef8ebbdf50e20b452d7dc241bdd5f8c8fd9772ab305bf545482e5bcf2ce8",
     "benchmark-fifteen-after-control.log": "268d6a0024c6bddeee898202a700204bc8341c5b20e468729ddfa821380364b8",
     "workspace-fifteen-tests-rerun.log": "450c25500b431b074dfb0b80fbb56470e38b32381abdd866e6583e5f28f5071b",
-    "encode-goldens-skip-step-review.log": "138eb65281884ae20214219020829aeba6026f12a4cdfa691f743b91f8f2bac7"
+    "encode-goldens-skip-step-review.log": "138eb65281884ae20214219020829aeba6026f12a4cdfa691f743b91f8f2bac7",
+    "bands-tests-resumed.log": "9d437b6b066a0a6df55809e83ce791d12c542bb5bf827b27e6893057c4e5e498",
+    "bands-workspace-check.log": "87c58724dcae9986432aa7d255ef416a56322184854f960a8247675049705c0c",
+    "bands-vocabulary.log": "039305169f6f34fb13e464c5acda0cae964e8bdc680c94904b27dd526588ac76",
+    "generator-bands-foundation-tests.log": "4a831a8de73781d97a21f43acd1632b7d7d44e0611ee6dfa69549f9cf342c7c6",
+    "generator-bands-native-runtime.log": "88f0b98dbd5c24f25bf5ac0ff1e94f13c650d647b6001b6375ee71d0846c4a42",
+    "generator-bands-ready-compile.log": "1b7fbbfbe97b86095243b7036bf8087bd2f616811b6a3fd17e077c572bce06a9",
+    "generator-bands-scope.log": "36e3d2b68f79e2cba2442b8bada42f2af74aef55639593d6b95e5a50de8530f4",
+    "generator-sixteen-suite.log": "e1bc2e1d15af42c7d9821b9d69afd124d8e407926abb57491efb99cd6b66807d",
+    "workspace-sixteen-tests.log": "d4d23fcaafea8ba4e973e40329392cc66ff6747650ebaacff116c949a0d3616d",
+    "benchmark-bands-control.log": "63221d7c4a4f3671e99654f6e38fb852121212eeae1a14b0bfc80fcb88182613",
+    "benchmark-bands-after.log": "fadfb70a57a57a2b3e30fa3717fec19ad6f7be2a181d695ef5096d9df85add59"
   },
-  "candidate_api_fingerprint": "6ad08f9f7bed0f018080845653f3ab7ce7f6806d78514579e765553d5f821fee",
+  "candidate_api_fingerprint": "47eb7fc214cd9aa5fa0d622a8d790330817dfe1d8bb61317976663ecb98a49b6",
   "benchmark_current_batch": {
     "games": 128,
-    "control_allocation_kb_per_decision": 26.74,
     "allocation_kb_per_decision": 27.04,
-    "control_engine_us": 49.44,
-    "after_control_engine_us": 50.16,
+    "control_allocation_kb_per_decision": 27.04,
+    "control_engine_us": 44.35,
+    "after_control_engine_us": 45.61,
     "statistical_speed_claim": false,
     "shared_machine": true,
     "sequential_control_runs": true,
-    "native_revision": "994d7b122",
-    "game_paths_differ": true,
-    "note": "Correctly skipping the first draw step changes the random seats paths; allocation and timing are whole-run observations, not isolated costs of new APIs."
+    "native_revision": "bc15adfec",
+    "control_native_revision": "a5644df7d",
+    "game_paths_differ": false,
+    "note": "Single sequential pair; ordinary benchmark decks do not exercise bands-with-other. No per-object fields added."
   }
 }

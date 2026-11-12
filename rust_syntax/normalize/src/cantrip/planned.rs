@@ -107,6 +107,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("attack-as-though-haste", "pub attacks_as_though_haste: &'static [AttackHasteRule],", &["static-rule-attack-exception-summoning-sickness"]),
     ("nonmana-mana-tap-triggers", "pub const TAPPED_FOR_MANA: EventMask", &[]),
     ("keyword-family-metadata", "pub keyword_family: Option<KeywordFamily>,", &[]),
+    ("bands-with-other", "pub struct BandsWithOthersDef {", &["engine-no-bands-with-others", "engine-no-bands-with-others-granted", "losing-ability-any-bands-with-others"]),
     ("rechosen-values", "fn remember_chosen(&mut self, by: Linked, value: ChosenValue);", &["a-choice-of-number-made-again", "a-choice-of-color-made-again"]),
     ("hand-size-rules", "pub hand_size_rules: &'static [HandSizeRule],", &["a-maximum-hand-size-of-other-players"]),
     ("skip-steps", "pub skip_steps: &'static [SkipStep],", &["skipping-a-step-of-the-turn"]),
