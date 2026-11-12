@@ -23,11 +23,26 @@ pub(super) struct Matched {
     pub batch: Option<bool>,
     /// A batch's events about one subject are one event of their total.
     pub sums: bool,
-    /// Tapping for mana, which the engine shows only to mana abilities.
+    /// Tapping for mana; true while compiling a possible triggered mana ability.
     pub mana: bool,
     pub phrase: String,
     /// What Cantrip must add before this event triggers anything: see `lane_g`.
     pub planned: Vec<String>,
+}
+
+/// Only this resolution's lexical actions can make it a mana ability. Merely
+/// granting or declaring another ability that adds mana does not qualify it.
+fn could_add_mana(body: &Program) -> bool {
+    use crate::visit::{Visitor, Walk};
+    struct Find(bool);
+    impl Visitor for Find {
+        fn ability(&mut self, _: &Ability) -> bool { false }
+        fn operation(&mut self, op: &Operation) -> bool {
+            self.0 |= matches!(op, Operation::AddMana { .. });
+            !self.0
+        }
+    }
+    let mut find = Find(false);body.walk(&mut find);find.0
 }
 
 /// Whether simultaneous damage is one event of its total to this subject
@@ -2121,11 +2136,23 @@ impl Compiler {
                 || !body.instructions.iter().all(adds_mana))
         {
             matched.mana = false;
-            self.plan_event(
-                &mut matched,
-                "engine: only a mana ability triggers on tapping for mana",
-                false,
-            )?;
+            // Ordinary triggers use the stack, after the mana activation completes.
+            // A mixed/conditional mana-producing body still needs its own correct
+            // immediate-mana classification and advice; do not enable that broader
+            // old diagnostic merely because ordinary observers are now supported.
+            if planned::switched_on("nonmana-mana-tap-triggers")
+                && announcement.modes.is_none() && !could_add_mana(body)
+            {
+                for mask in &mut matched.masks {
+                    if *mask == "TAPPED" { *mask = "TAPPED_FOR_MANA"; }
+                }
+            } else {
+                self.plan_event(
+                    &mut matched,
+                    "engine: only a mana ability triggers on tapping for mana",
+                    false,
+                )?;
+            }
         }
         self.event_planned = !matched.planned.iter().all(|f| planned::landed(f));
         let implied = match body.instructions.is_empty() {

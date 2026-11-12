@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Burning Earth",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Burning Earth",
+        "manaCost": "{3}{R}",
+        "type": "Enchantment",
+        "text": "Whenever a player taps a nonbasic land for mana, this enchantment deals 1 damage to that player."
+      }
+    ]
+  },
+  {
+    "name": "Manabarbs",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Manabarbs",
+        "manaCost": "{3}{R}",
+        "type": "Enchantment",
+        "text": "Whenever a player taps a land for mana, this enchantment deals 1 damage to that player."
+      }
+    ]
+  },
+  {
+    "name": "Overabundance",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Overabundance",
+        "manaCost": "{1}{R}{G}",
+        "type": "Enchantment",
+        "text": "Whenever a player taps a land for mana, that player adds one mana of any type that land produced, and this enchantment deals 1 damage to the player."
+      }
+    ]
+  }
+]

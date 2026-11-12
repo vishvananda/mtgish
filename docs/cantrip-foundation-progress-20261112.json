@@ -1,5 +1,5 @@
 {
-  "native_foundation": "d8d0d26b7",
+  "native_foundation": "4220fb88a",
   "scoped_missing": 286,
   "generation_ready": [
     "Anti-Magic Aura",
@@ -102,6 +102,7 @@
     "Magus of the Unseen",
     "Mana Short",
     "Mana Vortex",
+    "Manabarbs",
     "Mercenaries",
     "Merieke Ri Berit",
     "Metamorphosis",
@@ -369,9 +370,6 @@
     ],
     "Library of Leng": [
       "replacement event Discard"
-    ],
-    "Manabarbs": [
-      "engine: only a mana ability triggers on tapping for mana"
     ],
     "Master of the Hunt": [
       "engine: no BandsWithOthers"
@@ -647,15 +645,6 @@
       "cards": [
         "Dance of the Dead",
         "Tawnos's Coffin"
-      ]
-    },
-    {
-      "feature": "engine: only a mana ability triggers on tapping for mana",
-      "affected": 2,
-      "sole_blocker": 1,
-      "cards": [
-        "Manabarbs",
-        "Snowfall"
       ]
     },
     {
@@ -981,6 +970,14 @@
       "sole_blocker": 1,
       "cards": [
         "Rock Hydra"
+      ]
+    },
+    {
+      "feature": "engine: only a mana ability triggers on tapping for mana",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Snowfall"
       ]
     },
     {
@@ -1704,7 +1701,7 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 40,
+    "generated_runtime_scenarios": 41,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
@@ -1727,20 +1724,13 @@
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 183,
-      "pending_named_counters": {
-        "Armageddon Clock": "Doom",
-        "Delif's Cube": "Cube"
-      },
-      "log": "generator-eleven-ready183-compile.log"
+      "passed": 186,
+      "pending_named_counters": {},
+      "log": "generator-twelve-ready-compile.log",
+      "revision": "4220fb88a"
     },
-    "full_native_current_batch": {
-      "passed": 22587,
-      "failed": 0,
-      "ignored": 15,
-      "log": "workspace-ten-tests.log",
-      "revision": "d8d0d26b7"
-    }
+    "focused_nonmana_mana_tap": 7,
+    "counter_vocabulary": 13
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1772,9 +1762,15 @@
     "generator-eleven-ready183-compile.log": "ed6b407015160692a266818eb289ca0163e5391f48af439b81cbd3c37284d500",
     "benchmark-ten-control.log": "592c2277285e87eb5259f28bb046b76d648cdf0aea73bcbced4638cfab072c24",
     "benchmark-ten-after-control.log": "5b8e9e160a4333649b784be966f47ea60440f62c2cada0b0878cf03e284c1e28",
-    "workspace-ten-tests.log": "fa8bf259339f8ae294e9bbc4e03dc927962b42b63fc8dabbda3e5ec4721a9848"
+    "workspace-ten-tests.log": "fa8bf259339f8ae294e9bbc4e03dc927962b42b63fc8dabbda3e5ec4721a9848",
+    "early-set-counter-names-tests.log": "572751d43c2c820879fc9f3e147aae1913e0ab3b08675dc4eb267bd651d119ab",
+    "nonmana-mana-tap-tests.log": "6b120caaa2b775252833b1f6eeace1197323789b6c80c079c58acd0ee59ed6ca",
+    "generator-mana-tap-tests.log": "2b1a3c28a88ad8e7662623ee9b9522452aad3eee119f99c73ce6063b956142ab",
+    "generator-twelve-native-runtime.log": "e1c34f74858c0595f91f867060ad01905387df87242039ad7aeef0f95caa36a1",
+    "generator-twelve-scope.log": "b71fcc01139c33ea2d20f685dd13955e52c2e0b948016429c50d72a5d33495ab",
+    "generator-twelve-ready-compile.log": "e5c89ab5551b765a9d6f3d50251c69b22506b46d9cd7461a8e69c671d3474ec2"
   },
-  "candidate_api_fingerprint": "8ea43b005590aae51b9210657e270e1f808d3e0f1d7719cdb05528fe6255af0b",
+  "candidate_api_fingerprint": "035cf290a6c02386e9c00376afef3ad839b15bc9924804b6c7704cdbbb696642",
   "benchmark_current_batch": {
     "games": 128,
     "allocation_kb_per_decision": 26.74,

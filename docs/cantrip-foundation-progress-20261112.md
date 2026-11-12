@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`d8d0d26b7`. Ten focused feature groups are implemented. The new step-deadline
+`4220fb88a`. Eleven focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,7 +16,7 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **185 generate without recorded feature gaps and 101
+Of the 286 scoped cards, **186 generate without recorded feature gaps and 100
 remain gapped**. Those 178 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
@@ -41,7 +41,8 @@ The ninth primitive gives rampage and cumulative upkeep typed family metadata.
 Rapid Fire and Balduvian Shaman now generate without gaps. Two native tests cover
 identity through grants, loss and copying; an Oracle audit verifies metadata on
 every implemented card. Two generated runtime scenarios cover both positive
-and negative keyword checks. All ten feature groups are covered by the complete workspace gates below.
+and negative keyword checks. The complete workspace gates below cover the first ten groups. The eleventh
+has seven focused native tests and the generated runtime validation.
 
 Earthlore and Tourach's Gate required only a generator repair. Their typed
 “enchant land you control” restriction proves the host belongs to the payer
@@ -57,6 +58,14 @@ an animated land counts for both creature and land limits. Seven native tests
 cover overlap, copies, loss, optional untaps, stun replacements and undo.
 Two generated runtime scenarios cover all three cards and combined limits.
 
+The eleventh primitive makes ordinary observers of mana taps, such as Manabarbs
+and Burning Earth, queue for the stack. Triggered mana abilities still resolve
+immediately, including during spell payment; producing zero still triggers
+ordinary observers. Seven native tests cover timing, grants/loss, other zones
+and the interest guard, and one runtime scenario exercises both generated cards.
+Overabundance and Snowfall retain their mixed-mana classification/advice gap;
+the adapter does not silently turn those into ordinary stack triggers.
+
 The original roadmap still has bands with other, computed X constraints, and
 persistent public visibility pending. The full remaining ledger also identifies
 other needs, including forced mana activations,
@@ -66,7 +75,7 @@ adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 40 scenarios,
+the pristine foundation. The generated runtime suite now passes 41 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The complete generator suite now passes 1,577 tests (22 ignored) in a serialized
@@ -79,11 +88,11 @@ Sequential control runs measured 59.36 µs on the original base and 60.40 µs
 on `d8d0d26b7`; both finished all 128 games. Shared-machine variability does
 not establish a statistically meaningful speed change.
 
-A direct compilation probe covers all 185 generation-ready modules. The only
-failures are the missing native counter names Doom (Armageddon Clock) and Cube
-(Delif's Cube). Excluding those two named-counter prerequisites, all 183 other
-modules compile against the pristine foundation. No temporary counter overlay
-is used for this receipt.
+A direct compilation probe now passes all 186 generation-ready modules against
+the pristine foundation. The native catalog appends Cube (91) and Doom (92)
+for Delif's Cube and Armageddon Clock, preserving existing IDs. No overlay is
+used. These two i32 entries follow the existing dense counter design and add
+eight bytes per object; the next batch's benchmark will include that change.
 
 Candidate generation can now run from the CLI without advancing the normal
 upstream API pin:
@@ -94,7 +103,7 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --features cantri
   landwalk-blocking-exceptions independent-pt-settings \
   no-combat-damage-assignment world-rule other-activators \
   step-deadlines counted-untap-steps explicit-mana-loss random-discard-costs \
-  keyword-family-metadata untap-limits
+  keyword-family-metadata untap-limits nonmana-mana-tap-triggers
 ```
 
 These flags explicitly select capabilities; they do not prove that an engine

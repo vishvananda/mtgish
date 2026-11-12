@@ -203,6 +203,29 @@ fn simultaneous_untap_limits_use_the_shared_interface() {
     }
     assert!(code(&candidate["Winter Orb"]).contains("!(q.state().obj(candidate).tapped)"));
 }
+fn mana_tap_profiles() -> &'static (Rows,Rows) {
+    static ROWS:OnceLock<(Rows,Rows)>=OnceLock::new();
+    ROWS.get_or_init(|| {
+        let fixtures=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let source=fixtures.join("early_set_mana_tap.ronl");let oracle=fixtures.join("early_set_mana_tap.oracle.json");
+        let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-mana-tap-baseline.jsonl");
+        let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-mana-tap-candidate.jsonl");
+        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        let mut features=FOUNDATION.to_vec();features.push("nonmana-mana-tap-triggers");
+        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        (read(&baseline),read(&candidate))
+    })
+}
+#[test]
+fn ordinary_mana_tap_triggers_land_without_misclassifying_mana_production() {
+    let (baseline,candidate)=mana_tap_profiles();assert_eq!(candidate.len(),3);
+    for name in ["Manabarbs","Burning Earth"] {
+        assert!(gaps(&baseline[name]).contains(&"engine: only a mana ability triggers on tapping for mana"));
+        let row=&candidate[name];assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
+        assert!(code(row).contains("EventMask::TAPPED_FOR_MANA"));assert!(!code(row).contains(".mana_ability("));syn::parse_file(code(row)).unwrap();
+    }
+    assert!(gaps(&candidate["Overabundance"]).contains(&"engine: only a mana ability triggers on tapping for mana"),"mixed mana production must not be silently compiled as an ordinary stack trigger");
+}
 fn gaps(row:&serde_json::Value)->Vec<&str> {
     row["faces"].as_array().unwrap().iter().flat_map(|f|f["gaps"].as_array().unwrap()).map(|g|g["feature"].as_str().unwrap()).collect()
 }
@@ -243,10 +266,10 @@ fn foundation_generated_cards_execute_in_cantrip() {
     let fixture=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let old=root.join("earlier-candidate.jsonl");
     cantrip::planned::with_additional_features(FOUNDATION,||cantrip::planned::tracked(&fixture.join("early_set_generator_gaps.ronl"),&fixture.join("early_set_generator_gaps.oracle.json"),&old).unwrap());
-    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());
+    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());cards.extend(mana_tap_profiles().1.clone());
     // Modules actually used by these scenarios; candidate modules also have separate compile probes.
     // Cube and Doom counter declarations are intentionally separate from these runtime cases.
-    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb"];
+    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth"];
     let mut lib=String::from("#![allow(dead_code,unused_imports,unused_variables,unused_mut)]\n");
     for name in modules {
         let row=&cards[name];assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
@@ -263,6 +286,7 @@ fn foundation_generated_cards_execute_in_cantrip() {
     lib.push_str(include_str!("fixtures/early_set_keyword_family_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_attached_cost_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_untap_limits_scenarios.rs"));
+    lib.push_str(include_str!("fixtures/early_set_mana_tap_scenarios.rs"));
     fs::write(root.join("src/lib.rs"),lib).unwrap();
     let mut manifest=String::from("[package]\nname=\"mtgish-foundation-runtime\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\n");
     for name in ["cantrip-api","cantrip-state","cantrip-mechanics","cantrip-rules"] {manifest.push_str(&format!("{name}={{path={:?}}}\n",checkout.join("crates").join(name)));}
