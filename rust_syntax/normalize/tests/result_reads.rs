@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 #[path = "support/epoch189.rs"]
 mod epoch189;
 #[path = "support/query_aliases.rs"]
@@ -314,7 +316,7 @@ fn whole_membership_records_preserve_operands_with_the_reviewed_permanent_domain
             );
             *filter = serde_json::json!({"kind":"Any"});
         }
-        assert_eq!(actual, expected, "{line}");
+        fresh_producer::assert_matches("result_membership_before.jsonl", &expected, &actual);
     }
 }
 

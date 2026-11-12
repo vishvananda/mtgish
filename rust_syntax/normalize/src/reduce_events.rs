@@ -743,6 +743,14 @@ fn event_alias(form: &str) -> bool {
 
 pub fn reduce_object(name: String, operands: Vec<Operand>) -> ObjectRef {
     let form = name.split_once("::").map_or("", |(_, form)| form);
+    // A singular cloaked-permanent reference names the resulting object,
+    // just as the existing manifest/result spelling does. Do not rewrite other
+    // Recorded receipts, which can name attempted control changes or batches.
+    if form == "ThePermanentCloakedThisWay" {
+        if let [Operand::Result(result)] = operands.as_slice() {
+            return ObjectRef::Result { result: result.clone(), phase: ObjectPhase::After, index: 0 };
+        }
+    }
     if let [.., Operand::Result(result)] = operands.as_slice() {
         let by = operands.iter().find_map(|operand| match operand {
             Operand::Player(player) => Some(player.clone()),

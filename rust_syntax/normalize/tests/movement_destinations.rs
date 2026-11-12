@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{
     canonical, corpus,
     human::{self, document::Document},
@@ -38,7 +40,7 @@ fn authentic_movement_records_upgrade_to_exact_source_and_preserve_all_binding_o
                 }
                 assert_eq!(original_relation(&mut historical_source), 1);
             }
-            assert_eq!(after, historical_source, "{}", before["faces"]);
+            fresh_producer::assert_matches("movement_destinations_v185.jsonl", &after, &historical_source);
             assert!(mapped.map.introduced.is_empty());
             for (from, to) in mapped.map.sites {
                 for to in to {

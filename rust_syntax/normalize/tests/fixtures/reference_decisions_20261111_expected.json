@@ -151,11 +151,11 @@
                 "kind": "AllOf",
                 "args": [
                   {
-                    "kind": "Attacking"
-                  },
-                  {
                     "kind": "CardType",
                     "args": "Creature"
+                  },
+                  {
+                    "kind": "Attacking"
                   }
                 ]
               },
@@ -172,7 +172,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "CreateContinuousEffect",
                   "args": {
@@ -181,14 +181,8 @@
                     },
                     "affected": {
                       "Objects": {
-                        "kind": "One",
-                        "args": {
-                          "kind": "Target",
-                          "args": {
-                            "slot": 0,
-                            "index": 0
-                          }
-                        }
+                        "kind": "Targets",
+                        "args": 0
                       }
                     },
                     "changes": [
@@ -212,7 +206,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 1,
+                "result": 4294967293,
                 "operation": {
                   "kind": "CreateDelayedTrigger",
                   "args": {
@@ -232,7 +226,7 @@
                         {
                           "kind": "Effect",
                           "args": {
-                            "result": 1,
+                            "result": 0,
                             "operation": {
                               "kind": "PayCost",
                               "args": {
@@ -278,14 +272,14 @@
                           "args": {
                             "condition": {
                               "kind": "PaymentChosen",
-                              "args": 1
+                              "args": 0
                             },
                             "then": {
                               "instructions": [
                                 {
                                   "kind": "Effect",
                                   "args": {
-                                    "result": 2,
+                                    "result": 4294967294,
                                     "operation": {
                                       "kind": "CreatePerpetualEffect",
                                       "args": {
@@ -293,7 +287,7 @@
                                           "kind": "CostObjects",
                                           "args": {
                                             "payment": {
-                                              "Resolution": 1
+                                              "Resolution": 0
                                             },
                                             "component": [
                                               0
@@ -1608,7 +1602,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 1,
+                "result": 4294967295,
                 "operation": {
                   "kind": "Attach",
                   "args": {
@@ -1619,10 +1613,11 @@
                       }
                     },
                     "host": {
-                      "kind": "Recorded",
+                      "kind": "Result",
                       "args": {
                         "result": 0,
-                        "by": null
+                        "phase": "After",
+                        "index": 0
                       }
                     }
                   }
@@ -1661,26 +1656,7 @@
                 "args": 0
               }
             }
-          }
-        ]
-      }
-    },
-    {
-      "kind": "Static",
-      "args": {
-        "kind": "Ordinary",
-        "affected": {
-          "Objects": {
-            "kind": "One",
-            "args": {
-              "kind": "AttachedTo",
-              "args": {
-                "kind": "Source"
-              }
-            }
-          }
-        },
-        "changes": [
+          },
           {
             "kind": "Rule",
             "args": {
@@ -1730,7 +1706,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "Move",
                   "args": {
@@ -2083,15 +2059,15 @@
           }
         },
         "intervening_if": {
-          "kind": "ObjectMatches",
-          "args": {
-            "object": {
-              "kind": "EventSubject"
-            },
-            "filter": {
-              "kind": "AllOf",
-              "args": [
-                {
+          "kind": "AllOf",
+          "args": [
+            {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
                   "kind": "Cast",
                   "args": {
                     "by": {
@@ -2112,55 +2088,52 @@
                       }
                     }
                   }
-                },
-                {
-                  "kind": "Condition",
+                }
+              }
+            },
+            {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
                   "args": {
-                    "kind": "Compare",
+                    "kind": "Difference",
                     "args": {
-                      "left": {
-                        "kind": "CountObjects",
+                      "objects": {
+                        "kind": "Zone",
                         "args": {
-                          "kind": "Difference",
-                          "args": {
-                            "objects": {
-                              "kind": "Zone",
-                              "args": {
-                                "scope": {
-                                  "Shared": "Battlefield"
-                                },
-                                "kind": "Permanent",
-                                "filter": {
-                                  "kind": "CardType",
-                                  "args": "Creature"
-                                }
-                              }
-                            },
-                            "excluding": {
-                              "kind": "One",
-                              "args": {
-                                "kind": "Candidate"
-                              }
-                            }
+                          "scope": {
+                            "Shared": "Battlefield"
+                          },
+                          "kind": "Permanent",
+                          "filter": {
+                            "kind": "CardType",
+                            "args": "Creature"
                           }
                         }
                       },
-                      "test": {
-                        "kind": "Compare",
+                      "excluding": {
+                        "kind": "One",
                         "args": {
-                          "comparison": "GreaterOrEqual",
-                          "value": {
-                            "kind": "Constant",
-                            "args": 5
-                          }
+                          "kind": "Source"
                         }
                       }
                     }
                   }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 5
+                    }
+                  }
                 }
-              ]
+              }
             }
-          }
+          ]
         },
         "limits": {
           "per_turn": null,
@@ -2175,7 +2148,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "Destroy",
                   "args": {
@@ -2190,17 +2163,17 @@
                           "kind": "AllOf",
                           "args": [
                             {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            },
+                            {
                               "kind": "Not",
                               "args": {
                                 "kind": "SameObject",
                                 "args": {
-                                  "kind": "EventSubject"
+                                  "kind": "Source"
                                 }
                               }
-                            },
-                            {
-                              "kind": "CardType",
-                              "args": "Creature"
                             }
                           ]
                         }
@@ -2948,7 +2921,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "Counter",
                   "args": {
@@ -2976,7 +2949,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 1,
+                "result": 4294967294,
                 "operation": {
                   "kind": "PutCounters",
                   "args": {
@@ -2998,15 +2971,17 @@
                           ]
                         },
                         "amount": {
-                          "kind": "Earlier",
+                          "kind": "ObjectProperty",
                           "args": {
-                            "what": "Countered",
-                            "measure": {
-                              "Of": "ManaValue"
+                            "object": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
                             },
-                            "result": null,
-                            "filter": null,
-                            "by": null
+                            "property": "ManaValue",
+                            "information": "CurrentOrLastKnown"
                           }
                         },
                         "selection": null
@@ -3058,43 +3033,32 @@
               "kind": "If",
               "args": {
                 "condition": {
-                  "kind": "ObjectMatches",
+                  "kind": "PlayerDid",
                   "args": {
-                    "object": {
-                      "kind": "EventSubject"
+                    "player": {
+                      "kind": "AbilityController"
                     },
-                    "filter": {
-                      "kind": "Condition",
-                      "args": {
-                        "kind": "PlayerDid",
-                        "args": {
-                          "player": {
-                            "kind": "AbilityController"
+                    "event": {
+                      "CastSpell": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "Color",
+                            "args": "Blue"
                           },
-                          "event": {
-                            "CastSpell": {
-                              "kind": "AllOf",
-                              "args": [
-                                {
-                                  "kind": "Color",
-                                  "args": "Blue"
-                                },
-                                {
-                                  "kind": "Not",
-                                  "args": {
-                                    "kind": "SameObject",
-                                    "args": {
-                                      "kind": "Source"
-                                    }
-                                  }
-                                }
-                              ]
+                          {
+                            "kind": "Not",
+                            "args": {
+                              "kind": "SameObject",
+                              "args": {
+                                "kind": "Source"
+                              }
                             }
-                          },
-                          "window": "ThisTurn"
-                        }
+                          }
+                        ]
                       }
-                    }
+                    },
+                    "window": "ThisTurn"
                   }
                 },
                 "then": {
@@ -3102,7 +3066,7 @@
                     {
                       "kind": "Effect",
                       "args": {
-                        "result": 0,
+                        "result": 4294967295,
                         "operation": {
                           "kind": "Draw",
                           "args": {
@@ -3161,7 +3125,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "LoseLife",
                   "args": {
@@ -3178,7 +3142,7 @@
                           "kind": "PlayerNumber",
                           "args": {
                             "player": {
-                              "kind": "Acting"
+                              "kind": "AbilityController"
                             },
                             "number": "Life"
                           }
@@ -3234,7 +3198,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "LoseLife",
                   "args": {
@@ -3318,7 +3282,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "ModifyEvent",
                   "args": {
@@ -3330,7 +3294,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 1,
+                "result": 0,
                 "operation": {
                   "kind": "PayCost",
                   "args": {
@@ -3359,18 +3323,7 @@
                                     },
                                     "kind": "Card",
                                     "filter": {
-                                      "kind": "InZone",
-                                      "args": {
-                                        "Players": {
-                                          "zone": "Graveyard",
-                                          "players": {
-                                            "kind": "One",
-                                            "args": {
-                                              "kind": "AbilityController"
-                                            }
-                                          }
-                                        }
-                                      }
+                                      "kind": "Any"
                                     }
                                   }
                                 },
@@ -3404,7 +3357,7 @@
                   "kind": "Not",
                   "args": {
                     "kind": "PaymentChosen",
-                    "args": 1
+                    "args": 0
                   }
                 },
                 "then": {
@@ -3412,7 +3365,7 @@
                     {
                       "kind": "Effect",
                       "args": {
-                        "result": 2,
+                        "result": 4294967294,
                         "operation": {
                           "kind": "ModifyEvent",
                           "args": {
@@ -3424,7 +3377,7 @@
                     {
                       "kind": "Effect",
                       "args": {
-                        "result": 3,
+                        "result": 4294967293,
                         "operation": {
                           "kind": "Keyword",
                           "args": {
@@ -3460,9 +3413,6 @@
               "kind": "AllOf",
               "args": [
                 {
-                  "kind": "Any"
-                },
-                {
                   "kind": "OwnedBy",
                   "args": {
                     "kind": "One",
@@ -3488,7 +3438,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "ModifyEvent",
                   "args": {
@@ -5149,7 +5099,7 @@
                 {
                   "kind": "Effect",
                   "args": {
-                    "result": 0,
+                    "result": 4294967295,
                     "operation": {
                       "kind": "CreateContinuousEffect",
                       "args": {
@@ -5185,17 +5135,17 @@
                 {
                   "kind": "Effect",
                   "args": {
-                    "result": 1,
+                    "result": 4294967294,
                     "operation": {
                       "kind": "SetTapped",
                       "args": {
                         "objects": {
                           "kind": "One",
                           "args": {
-                            "kind": "Recorded",
+                            "kind": "Target",
                             "args": {
-                              "result": 0,
-                              "by": null
+                              "slot": 0,
+                              "index": 0
                             }
                           }
                         },
@@ -5207,7 +5157,7 @@
                 {
                   "kind": "Effect",
                   "args": {
-                    "result": 2,
+                    "result": 4294967293,
                     "operation": {
                       "kind": "CreateContinuousEffect",
                       "args": {
@@ -5218,10 +5168,10 @@
                           "Objects": {
                             "kind": "One",
                             "args": {
-                              "kind": "Recorded",
+                              "kind": "Target",
                               "args": {
-                                "result": 0,
-                                "by": null
+                                "slot": 0,
+                                "index": 0
                               }
                             }
                           }
@@ -5243,7 +5193,7 @@
                 {
                   "kind": "Effect",
                   "args": {
-                    "result": 3,
+                    "result": 4294967291,
                     "operation": {
                       "kind": "CreateDelayedTrigger",
                       "args": {
@@ -5263,7 +5213,7 @@
                             {
                               "kind": "Effect",
                               "args": {
-                                "result": 3,
+                                "result": 4294967292,
                                 "operation": {
                                   "kind": "Sacrifice",
                                   "args": {
@@ -5276,10 +5226,10 @@
                                     "objects": {
                                       "kind": "One",
                                       "args": {
-                                        "kind": "Recorded",
+                                        "kind": "Target",
                                         "args": {
-                                          "result": 0,
-                                          "by": null
+                                          "slot": 0,
+                                          "index": 0
                                         }
                                       }
                                     },
@@ -5336,7 +5286,7 @@
                 {
                   "kind": "Effect",
                   "args": {
-                    "result": 0,
+                    "result": 4294967295,
                     "operation": {
                       "kind": "CreateContinuousEffect",
                       "args": {
@@ -5372,17 +5322,17 @@
                 {
                   "kind": "Effect",
                   "args": {
-                    "result": 1,
+                    "result": 4294967294,
                     "operation": {
                       "kind": "SetTapped",
                       "args": {
                         "objects": {
                           "kind": "One",
                           "args": {
-                            "kind": "Recorded",
+                            "kind": "Target",
                             "args": {
-                              "result": 0,
-                              "by": null
+                              "slot": 0,
+                              "index": 0
                             }
                           }
                         },
@@ -5394,7 +5344,7 @@
                 {
                   "kind": "Effect",
                   "args": {
-                    "result": 2,
+                    "result": 4294967293,
                     "operation": {
                       "kind": "CreateContinuousEffect",
                       "args": {
@@ -5405,10 +5355,10 @@
                           "Objects": {
                             "kind": "One",
                             "args": {
-                              "kind": "Recorded",
+                              "kind": "Target",
                               "args": {
-                                "result": 0,
-                                "by": null
+                                "slot": 0,
+                                "index": 0
                               }
                             }
                           }
@@ -6295,19 +6245,13 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "Move",
                   "args": {
                     "objects": {
-                      "kind": "One",
-                      "args": {
-                        "kind": "Target",
-                        "args": {
-                          "slot": 0,
-                          "index": 0
-                        }
-                      }
+                      "kind": "Targets",
+                      "args": 0
                     },
                     "destination": {
                       "OwnersHand": {
@@ -6382,7 +6326,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "Destroy",
                   "args": {
@@ -6404,7 +6348,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 1,
+                "result": 4294967294,
                 "operation": {
                   "kind": "LoseLife",
                   "args": {
@@ -6488,7 +6432,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "LoseLife",
                   "args": {
@@ -6518,34 +6462,21 @@
                                 "Players": {
                                   "zone": "Graveyard",
                                   "players": {
-                                    "kind": "All"
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    }
                                   }
                                 }
                               },
                               "kind": "Card",
                               "filter": {
-                                "kind": "AllOf",
-                                "args": [
-                                  {
-                                    "kind": "CardType",
-                                    "args": "Creature"
-                                  },
-                                  {
-                                    "kind": "InZone",
-                                    "args": {
-                                      "Players": {
-                                        "zone": "Graveyard",
-                                        "players": {
-                                          "kind": "One",
-                                          "args": {
-                                            "kind": "Prior",
-                                            "args": "That"
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                ]
+                                "kind": "CardType",
+                                "args": "Creature"
                               }
                             }
                           }
@@ -7001,7 +6932,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "PutCounters",
                   "args": {
@@ -7036,7 +6967,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 1,
+                "result": 0,
                 "operation": {
                   "kind": "Move",
                   "args": {
@@ -7087,7 +7018,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 2,
+                "result": 4294967294,
                 "operation": {
                   "kind": "CreateContinuousEffect",
                   "args": {
@@ -7108,10 +7039,14 @@
                         "args": {
                           "PlayPermission": {
                             "cards": {
-                              "kind": "Transition",
+                              "kind": "One",
                               "args": {
-                                "result": 1,
-                                "phase": "After"
+                                "kind": "Result",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "After",
+                                  "index": 0
+                                }
                               }
                             },
                             "from": "Exile",
@@ -7316,15 +7251,11 @@
         "kind": "Ordinary",
         "affected": {
           "Objects": {
-            "kind": "Zone",
+            "kind": "One",
             "args": {
-              "scope": {
-                "Shared": "Battlefield"
-              },
-              "kind": "Permanent",
-              "filter": {
-                "kind": "CardType",
-                "args": "Creature"
+              "kind": "AttachedTo",
+              "args": {
+                "kind": "Source"
               }
             }
           }
@@ -7335,22 +7266,12 @@
             "args": {
               "RequireCombat": {
                 "action": {
-                  "Block": {
-                    "kind": "SameObject",
-                    "args": {
-                      "kind": "AttachedTo",
-                      "args": {
-                        "kind": "Source"
-                      }
-                    }
+                  "BeBlocked": {
+                    "kind": "CardType",
+                    "args": "Creature"
                   }
                 },
-                "amount": {
-                  "AtLeast": {
-                    "kind": "Constant",
-                    "args": 1
-                  }
-                }
+                "amount": "Each"
               }
             }
           }
@@ -7430,7 +7351,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "Attach",
                   "args": {
@@ -8250,7 +8171,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "LoseLife",
                   "args": {
@@ -8275,7 +8196,11 @@
                               "players": {
                                 "kind": "One",
                                 "args": {
-                                  "kind": "Acting"
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
                                 }
                               }
                             }
@@ -8884,14 +8809,8 @@
                           "kind": "Move",
                           "args": {
                             "objects": {
-                              "kind": "One",
-                              "args": {
-                                "kind": "Target",
-                                "args": {
-                                  "slot": 0,
-                                  "index": 0
-                                }
-                              }
+                              "kind": "Targets",
+                              "args": 0
                             },
                             "destination": {
                               "OwnersHand": {
@@ -8924,7 +8843,7 @@
                             {
                               "kind": "Effect",
                               "args": {
-                                "result": 1,
+                                "result": 4294967295,
                                 "operation": {
                                   "kind": "CreatePerpetualEffect",
                                   "args": {
@@ -8996,19 +8915,11 @@
                         }
                       },
                       "filter": {
-                        "kind": "AllOf",
-                        "args": [
-                          {
-                            "kind": "Not",
-                            "args": {
-                              "kind": "CardType",
-                              "args": "Land"
-                            }
-                          },
-                          {
-                            "kind": "Any"
-                          }
-                        ]
+                        "kind": "Not",
+                        "args": {
+                          "kind": "CardType",
+                          "args": "Land"
+                        }
                       },
                       "players": null,
                       "distribute": null,
@@ -9023,19 +8934,13 @@
                     {
                       "kind": "Effect",
                       "args": {
-                        "result": 0,
+                        "result": 1,
                         "operation": {
                           "kind": "Move",
                           "args": {
                             "objects": {
-                              "kind": "One",
-                              "args": {
-                                "kind": "Target",
-                                "args": {
-                                  "slot": 0,
-                                  "index": 0
-                                }
-                              }
+                              "kind": "Targets",
+                              "args": 0
                             },
                             "destination": {
                               "OwnersHand": {
@@ -9068,14 +8973,14 @@
                             {
                               "kind": "Effect",
                               "args": {
-                                "result": 1,
+                                "result": 4294967294,
                                 "operation": {
                                   "kind": "CreatePerpetualEffect",
                                   "args": {
                                     "objects": {
                                       "kind": "Transition",
                                       "args": {
-                                        "result": 0,
+                                        "result": 1,
                                         "phase": "After"
                                       }
                                     },
@@ -10926,11 +10831,16 @@
         "event": {
           "ZoneChange": {
             "objects": {
-              "kind": "OwnedBy",
+              "kind": "InZone",
               "args": {
-                "kind": "One",
-                "args": {
-                  "kind": "AbilityController"
+                "Players": {
+                  "zone": "Graveyard",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
                 }
               }
             },
@@ -10952,7 +10862,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "Conjure",
                   "args": {
@@ -11329,7 +11239,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "AddMana",
                   "args": {
@@ -11356,7 +11266,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 1,
+                "result": 4294967294,
                 "operation": {
                   "kind": "PutCounters",
                   "args": {
@@ -11437,7 +11347,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "CreateTokens",
                   "args": {
@@ -11477,21 +11387,7 @@
                                     "args": {
                                       "kind": "One",
                                       "args": {
-                                        "kind": "Query",
-                                        "args": {
-                                          "objects": {
-                                            "kind": "CostObjects",
-                                            "args": {
-                                              "payment": "Activation",
-                                              "component": [
-                                                2
-                                              ],
-                                              "view": "Inputs",
-                                              "phase": "Before"
-                                            }
-                                          },
-                                          "index": 0
-                                        }
+                                        "kind": "Source"
                                       }
                                     }
                                   },
@@ -11509,21 +11405,7 @@
                                     "args": {
                                       "kind": "One",
                                       "args": {
-                                        "kind": "Query",
-                                        "args": {
-                                          "objects": {
-                                            "kind": "CostObjects",
-                                            "args": {
-                                              "payment": "Activation",
-                                              "component": [
-                                                2
-                                              ],
-                                              "view": "Inputs",
-                                              "phase": "Before"
-                                            }
-                                          },
-                                          "index": 0
-                                        }
+                                        "kind": "Source"
                                       }
                                     }
                                   },
@@ -12033,7 +11915,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "CreateTokens",
                   "args": {
@@ -12103,7 +11985,7 @@
                                       {
                                         "kind": "Effect",
                                         "args": {
-                                          "result": 0,
+                                          "result": 4294967295,
                                           "operation": {
                                             "kind": "PutCounters",
                                             "args": {
@@ -12207,210 +12089,199 @@
         "body": {
           "instructions": [
             {
-              "kind": "Group",
+              "kind": "Effect",
               "args": {
-                "instructions": [
-                  {
-                    "kind": "Effect",
-                    "args": {
-                      "result": 0,
-                      "operation": {
-                        "kind": "LookAt",
-                        "args": {
-                          "player": {
-                            "kind": "AbilityController"
-                          },
-                          "objects": {
-                            "kind": "Take",
-                            "args": {
-                              "objects": {
-                                "kind": "Zone",
-                                "args": {
-                                  "scope": {
-                                    "Players": {
-                                      "zone": "Library",
-                                      "players": {
-                                        "kind": "One",
-                                        "args": {
-                                          "kind": "AbilityController"
-                                        }
-                                      }
-                                    }
-                                  },
-                                  "kind": "Card",
-                                  "filter": {
-                                    "kind": "Any"
+                "result": 0,
+                "operation": {
+                  "kind": "LookAt",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "objects": {
+                      "kind": "Take",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Players": {
+                                "zone": "Library",
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
                                   }
                                 }
-                              },
-                              "count": {
-                                "kind": "Constant",
-                                "args": 6
-                              },
-                              "from": "Top"
+                              }
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "Any"
                             }
                           }
-                        }
+                        },
+                        "count": {
+                          "kind": "Constant",
+                          "args": 6
+                        },
+                        "from": "Top"
                       }
                     }
-                  },
-                  {
-                    "kind": "Effect",
-                    "args": {
-                      "result": 1,
-                      "operation": {
-                        "kind": "ChooseObjects",
-                        "args": {
-                          "player": {
-                            "kind": "AbilityController"
-                          },
-                          "objects": {
-                            "kind": "Matching",
-                            "args": {
-                              "objects": {
-                                "kind": "InZone",
-                                "args": {
-                                  "objects": {
-                                    "kind": "Observed",
-                                    "args": 0
-                                  },
-                                  "zone": "Library"
-                                }
-                              },
-                              "filter": {
-                                "kind": "AnyOf",
-                                "args": [
-                                  {
-                                    "kind": "CardType",
-                                    "args": "Planeswalker"
-                                  },
-                                  {
-                                    "kind": "AllOf",
-                                    "args": [
-                                      {
-                                        "kind": "Supertype",
-                                        "args": "Basic"
-                                      },
-                                      {
-                                        "kind": "Subtype",
-                                        "args": "Plains"
-                                      },
-                                      {
-                                        "kind": "CardType",
-                                        "args": "Land"
-                                      }
-                                    ]
-                                  }
-                                ]
-                              }
-                            }
-                          },
-                          "count": {
-                            "UpTo": {
-                              "kind": "Constant",
-                              "args": 1
-                            }
-                          },
-                          "constraints": [
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "ChooseObjects",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "objects": {
+                      "kind": "Matching",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Observed",
+                              "args": 0
+                            },
+                            "zone": "Library"
+                          }
+                        },
+                        "filter": {
+                          "kind": "AnyOf",
+                          "args": [
                             {
-                              "CanMoveTo": {
-                                "destination": {
-                                  "OwnersHand": {
-                                    "counters": [],
-                                    "states": []
-                                  }
+                              "kind": "CardType",
+                              "args": "Planeswalker"
+                            },
+                            {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "Supertype",
+                                  "args": "Basic"
+                                },
+                                {
+                                  "kind": "Subtype",
+                                  "args": "Plains"
                                 }
-                              }
+                              ]
                             }
                           ]
                         }
                       }
-                    }
-                  },
-                  {
-                    "kind": "Effect",
-                    "args": {
-                      "result": 2,
-                      "operation": {
-                        "kind": "Reveal",
-                        "args": {
-                          "objects": {
-                            "kind": "Selected",
-                            "args": 1
-                          }
-                        }
+                    },
+                    "count": {
+                      "UpTo": {
+                        "kind": "Constant",
+                        "args": 1
                       }
-                    }
-                  },
-                  {
-                    "kind": "Effect",
-                    "args": {
-                      "result": 3,
-                      "operation": {
-                        "kind": "Move",
-                        "args": {
-                          "objects": {
-                            "kind": "Selected",
-                            "args": 1
-                          },
+                    },
+                    "constraints": [
+                      {
+                        "CanMoveTo": {
                           "destination": {
                             "OwnersHand": {
                               "counters": [],
                               "states": []
                             }
-                          },
-                          "qualifiers": []
+                          }
                         }
                       }
-                    }
-                  },
-                  {
-                    "kind": "Effect",
-                    "args": {
-                      "result": 4,
-                      "operation": {
-                        "kind": "ReorderLibrary",
-                        "args": {
-                          "chooser": {
-                            "kind": "AbilityController"
-                          },
-                          "library_owner": {
-                            "kind": "AbilityController"
-                          },
-                          "objects": {
-                            "kind": "InZone",
-                            "args": {
-                              "objects": {
-                                "kind": "Difference",
-                                "args": {
-                                  "objects": {
-                                    "kind": "Observed",
-                                    "args": 0
-                                  },
-                                  "excluding": {
-                                    "kind": "Union",
-                                    "args": [
-                                      {
-                                        "kind": "Transition",
-                                        "args": {
-                                          "result": 3,
-                                          "phase": "Before"
-                                        }
-                                      }
-                                    ]
-                                  }
-                                }
-                              },
-                              "zone": "Library"
-                            }
-                          },
-                          "end": "Bottom",
-                          "order": "Random"
-                        }
-                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967295,
+                "operation": {
+                  "kind": "Reveal",
+                  "args": {
+                    "objects": {
+                      "kind": "Selected",
+                      "args": 1
                     }
                   }
-                ]
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "Move",
+                  "args": {
+                    "objects": {
+                      "kind": "Selected",
+                      "args": 1
+                    },
+                    "destination": {
+                      "OwnersHand": {
+                        "counters": [],
+                        "states": []
+                      }
+                    },
+                    "qualifiers": []
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 4294967294,
+                "operation": {
+                  "kind": "ReorderLibrary",
+                  "args": {
+                    "chooser": {
+                      "kind": "AbilityController"
+                    },
+                    "library_owner": {
+                      "kind": "AbilityController"
+                    },
+                    "objects": {
+                      "kind": "InZone",
+                      "args": {
+                        "objects": {
+                          "kind": "Difference",
+                          "args": {
+                            "objects": {
+                              "kind": "Observed",
+                              "args": 0
+                            },
+                            "excluding": {
+                              "kind": "Union",
+                              "args": [
+                                {
+                                  "kind": "Transition",
+                                  "args": {
+                                    "result": 2,
+                                    "phase": "Before"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "zone": "Library"
+                      }
+                    },
+                    "end": "Bottom",
+                    "order": "Random"
+                  }
+                }
               }
             }
           ]
@@ -12449,7 +12320,7 @@
             {
               "kind": "Effect",
               "args": {
-                "result": 0,
+                "result": 4294967295,
                 "operation": {
                   "kind": "CreateTokens",
                   "args": {
@@ -12545,6 +12416,19 @@
                 "kind": "AllOf",
                 "args": [
                   {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "ControlledBy",
+                    "args": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  {
                     "kind": "Not",
                     "args": {
                       "kind": "SameObject",
@@ -12552,24 +12436,6 @@
                         "kind": "Source"
                       }
                     }
-                  },
-                  {
-                    "kind": "AllOf",
-                    "args": [
-                      {
-                        "kind": "CardType",
-                        "args": "Creature"
-                      },
-                      {
-                        "kind": "ControlledBy",
-                        "args": {
-                          "kind": "One",
-                          "args": {
-                            "kind": "AbilityController"
-                          }
-                        }
-                      }
-                    ]
                   }
                 ]
               },
@@ -12591,14 +12457,8 @@
                   "kind": "Move",
                   "args": {
                     "objects": {
-                      "kind": "One",
-                      "args": {
-                        "kind": "Target",
-                        "args": {
-                          "slot": 0,
-                          "index": 0
-                        }
-                      }
+                      "kind": "Targets",
+                      "args": 0
                     },
                     "destination": {
                       "OwnersHand": {
@@ -12653,7 +12513,7 @@
                     {
                       "kind": "Effect",
                       "args": {
-                        "result": 1,
+                        "result": 4294967295,
                         "operation": {
                           "kind": "PutCounters",
                           "args": {

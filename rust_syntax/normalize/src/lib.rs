@@ -23,6 +23,8 @@ pub mod presentation;
 pub mod report;
 pub mod result_reads;
 mod source_values;
+#[cfg(feature = "legacy")]
+mod producer_forms;
 pub mod validate;
 
 mod subtype;

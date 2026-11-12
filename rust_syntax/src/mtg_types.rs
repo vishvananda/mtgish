@@ -5103,6 +5103,7 @@ pub enum Cards {
   OwnedByAPlayer(Box<Players>),
   ControlledByAPlayer(Box<Players>),
   TheChosenLibraryFilter,
+  TotalPowerAndToughnessIs(Box<Comparison>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
@@ -10738,6 +10739,9 @@ pub enum StaticLayerEffect {
   AdjustPT(i32, i32),
   SetPT(PT),
   AdjustPTForEach(i32, i32, Box<GameNumber>),
+  // A rule change can share a static ability with characteristic changes.
+  // Preserve printed order without splitting one ability into several.
+  Rule(Box<PermanentRule>),
 }
 
 // ------------------------------------------------------------------------- //

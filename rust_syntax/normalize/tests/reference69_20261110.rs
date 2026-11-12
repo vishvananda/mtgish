@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 #[path = "support/epoch189.rs"]
 mod epoch189;
 use mtgish_ast::{canonical, corpus, ir::*, migrate, mtg_types as source, unified, validate};
@@ -17,7 +19,7 @@ fn canonical_abilities(mut value: Value) -> Value {
     value
 }
 #[test]
-fn all_58_independent_whole_card_proposals_match() {
+fn all_58_independent_proposals_have_only_reviewed_producer_changes() {
     corpus::on_large_stack(|| {
         let expected: Value = serde_json::from_str(include_str!("fixtures/reference58_expected_20261110.json")).unwrap();
         let mut count = 0;
@@ -37,6 +39,12 @@ fn all_58_independent_whole_card_proposals_match() {
             }
             let want = canonical_abilities(want);
             count += 1;
+            if card.name == "Kharasha Foothills" {
+                // The independent proposal remains frozen. Its dependent
+                // optional creation now uses the shared explicit payment form.
+                fresh_producer::assert_named("reference58_expected_20261110.json", &card.name, &want, &actual);
+                continue;
+            }
             if actual != want {
                 if let Ok(dir)=std::env::var("REFERENCE_FIX_EVIDENCE") {
                     std::fs::write(format!("{dir}/{}.actual.json",card.name),serde_json::to_vec_pretty(&actual).unwrap()).unwrap();

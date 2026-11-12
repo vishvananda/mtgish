@@ -6868,11 +6868,16 @@
         "event": {
           "ZoneChange": {
             "objects": {
-              "kind": "OwnedBy",
+              "kind": "InZone",
               "args": {
-                "kind": "One",
-                "args": {
-                  "kind": "AbilityController"
+                "Players": {
+                  "zone": "Graveyard",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
                 }
               }
             },

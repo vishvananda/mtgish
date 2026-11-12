@@ -69,15 +69,8 @@ fn spell(c: &Card) -> &Program {
         .unwrap()
 }
 fn spent_filter(c: &Card) -> &Expr {
-    let Condition::ObjectMatches {
-        filter: ObjectFilter::Condition(condition),
-        ..
-    } = intervening(c)
-    else {
-        panic!()
-    };
-    let Condition::Compare { left, .. } = condition.as_ref() else {
-        panic!()
+    let Condition::Compare { left, .. } = intervening(c) else {
+        panic!("expected a directly bound spent-mana condition")
     };
     left
 }
@@ -225,11 +218,7 @@ fn spent_mana_queries_use_actual_types_and_count_repeated_requirements() {
     let c=custom("SpellActions(ActionList([If(CastSpellPassesFilter(ManaWasSpentToCastIt([ManaProduceW,ManaProduceW,ManaProduceR])),[DrawACard])]))").unwrap();
     validate::card(&c).unwrap();
     let Instruction::If {
-        condition:
-            Condition::ObjectMatches {
-                filter: ObjectFilter::AllOf(filters),
-                ..
-            },
+        condition: Condition::AllOf(filters),
         ..
     } = &spell(&c).instructions[0]
     else {
@@ -237,7 +226,7 @@ fn spent_mana_queries_use_actual_types_and_count_repeated_requirements() {
     };
     assert_eq!(filters.len(), 2);
     assert!(
-        matches!(&filters[0],ObjectFilter::Condition(condition) if matches!(condition.as_ref(),Condition::Compare { left:Expr::ManaSpent {object:ObjectRef::Candidate,filter:SpentManaFilter {colors:Some(colors),snow:false},aggregation:SpentManaAggregation::Count}, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(2) } } if colors==&vec![ManaColor::White]))
+        matches!(&filters[0],Condition::Compare { left:Expr::ManaSpent {object:ObjectRef::Source,filter:SpentManaFilter {colors:Some(colors),snow:false},aggregation:SpentManaAggregation::Count}, test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(2) } } if colors==&vec![ManaColor::White])
     );
     let c = card("Clockwork Servant");
     assert!(matches!(
@@ -258,16 +247,10 @@ fn spent_mana_queries_use_actual_types_and_count_repeated_requirements() {
     else {
         panic!()
     };
-    let Condition::ObjectMatches {
-        object: ObjectRef::EventSubject,
-        filter: ObjectFilter::Condition(condition),
-    } = condition.as_ref()
-    else {
-        panic!()
-    };
     assert!(matches!(
         condition.as_ref(),
         Condition::Compare { left: Expr::ManaSpent {
+                object: ObjectRef::EventSubject,
                 aggregation: SpentManaAggregation::DistinctColors,
                 ..
             }, .. }
@@ -275,18 +258,14 @@ fn spent_mana_queries_use_actual_types_and_count_repeated_requirements() {
     let c=custom("SpellActions(ActionList([If(CastSpellPassesFilter(NoColoredManaWasSpentToCastIt),[DrawACard])]))").unwrap();
     validate::card(&c).unwrap();
     let Instruction::If {
-        condition:
-            Condition::ObjectMatches {
-                filter: ObjectFilter::Condition(condition),
-                ..
-            },
+        condition,
         ..
     } = &spell(&c).instructions[0]
     else {
         panic!()
     };
     assert!(
-        matches!(condition.as_ref(),Condition::Compare { left:Expr::ManaSpent {filter:SpentManaFilter {colors:Some(colors),..},..}, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(0) } } if colors.len()==5 && !colors.contains(&ManaColor::Colorless))
+        matches!(condition,Condition::Compare { left:Expr::ManaSpent {object:ObjectRef::Source,filter:SpentManaFilter {colors:Some(colors),..},..}, test: NumberTest::Compare { comparison: Comparison::Equal, value: Expr::Constant(0) } } if colors.len()==5 && !colors.contains(&ManaColor::Colorless))
     );
 }
 
@@ -314,18 +293,10 @@ fn snow_mana_and_recorded_amounts_are_independent_of_mana_cost_and_color() {
 #[test]
 fn entry_conditions_reuse_queries_without_rebinding_nested_candidates() {
     let c = card("Deathbringer Regent");
-    let Condition::ObjectMatches {
-        filter: ObjectFilter::AllOf(filters),
-        ..
-    } = intervening(&c)
-    else {
-        panic!()
-    };
-    let ObjectFilter::Condition(condition) = &filters[1] else {
-        panic!()
-    };
+    let Condition::AllOf(filters) = intervening(&c) else { panic!() };
+    let condition = &filters[1];
     assert!(
-        matches!(condition.as_ref(),Condition::Compare { left:Expr::CountObjects(objects), .. } if matches!(objects.as_ref(),ObjectSet::Difference {excluding,..} if matches!(excluding.as_ref(),ObjectSet::One(ObjectRef::Candidate))))
+        matches!(condition,Condition::Compare { left:Expr::CountObjects(objects), .. } if matches!(objects.as_ref(),ObjectSet::Difference {excluding,..} if matches!(excluding.as_ref(),ObjectSet::One(ObjectRef::EventSubject))))
     );
 }
 
@@ -398,10 +369,7 @@ fn spell_event_filters_bind_the_cast_spell_and_source_spell_bodies_keep_the_sour
     validate::card(&c).unwrap();
     assert!(matches!(
         intervening(&c),
-        Condition::ObjectMatches {
-            object: ObjectRef::EventSubject,
-            ..
-        }
+        Condition::Compare { left: Expr::ManaSpent { object: ObjectRef::EventSubject, .. }, .. }
     ));
     let c = card("Increasing Confusion");
     assert!(matches!(

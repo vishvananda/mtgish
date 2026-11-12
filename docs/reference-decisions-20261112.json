@@ -1,6 +1,6 @@
 {
   "schema_version": 190,
-  "scope": "The exact 53 different faces in the allowed 32755-face baseline; not 53 confirmed reference defects. Foundation goal remains paused.",
+  "scope": "The exact 53 different faces in the allowed 32755-face baseline; not 53 confirmed reference defects. Historical gameplay classifications are preserved; consistency_followup records the completed producer review.",
   "oracle_grammar_revision": "1fe5782",
   "report_sha256": "90c96d3fe4921c1eeb99a475ead9678a4d552011e9445741c8b74c5a7e36a724",
   "reference_pin": "7228b84b2b9398976246b595098f7f5e5fb4fc88",
@@ -39,9 +39,12 @@
       "classification": "retained_equivalent_form",
       "decision": "Cloak produces at most one permanent. Recorded and Result After/index0 select that permanent, or none. A producer-wide normal-form change needs its own receipt-family boundary; no current gameplay defect.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Use the singular cloak After result directly; leave other recorded receipts distinct.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -49,9 +52,12 @@
       "classification": "retained_valid_contract",
       "decision": "Keep optional resolving payment and its PaymentChosen follow-ups (CR 118.12). Receipt consumption and attempted payment differ from unconditional follow-ups around an optional body; the report's preferred spelling is not sufficient to drop those guards.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Matching optional-entry templates and proven dependent entry/creation sequences share an explicit payment and guard; retain exact entry receipts.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -59,9 +65,12 @@
       "classification": "retained_equivalent_form",
       "decision": "Candidate is scoped to Source by the outer ObjectMatches, so its other-creatures count excludes the entering Regent. Splitting the conjunction is a valid normal-form preference; no candidate rebinding counterexample was found.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Lift the free other-creatures condition and bind its outer Candidate to the matched original object; preserve cast-from-hand and nested candidate scopes.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -70,9 +79,12 @@
       "decision": "Resolved by exact event binding: AttacksAndIsNotBlocked matches SameObject(captured Target), so EventSubject is that original target in this callback. Keep explicit target; no global delayed-event subject rewrite. Backend NoAssignment capability is a separate refusal.",
       "followup": "docs/reference-nine-resolutions-20261112.md",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Created stable-object events matching exactly one captured target use that captured target in their bodies, like Delif's Cone/Niko Aris/Barreling Attack. Zone-change arrivals remain distinct.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -80,9 +92,12 @@
       "classification": "retained_valid_contract",
       "decision": "Counter receipt preserves the target's mana value even when countering fails; the official TSR notes support this. Current generator saves the target before the counter. No dependence on successfully countering is introduced.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Use targeted spell mana value with current/LKI information, matching Spell Swindle and Plasm Capture even when countering fails.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -90,9 +105,12 @@
       "classification": "retained_equivalent_form",
       "decision": "ObjectMatches does not add an InZone(Battlefield) predicate; Source can be read with its last-known identity after departure. Filter Condition(PlayerDid) and the history comparison preserve the same actor, time window and own-spell exclusion. A frontend simplification is possible, not a demonstrated source bug.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Lift the free PlayerDid condition without an unnecessary object-match wrapper; keep its actor, window and other-spell exclusion.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -100,9 +118,12 @@
       "classification": "retained_valid_contract",
       "decision": "Acting reads the current player receiving this life-loss operation. This preserves the controller in Reaper's attack trigger, the damaged player in its combat trigger, and the owner for Personal Incarnation. Explicitly naming those same players is stylistic.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Singular life-loss quantities bind the same named player as their operation; plural simultaneous loss keeps recipient-relative Acting.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -110,9 +131,12 @@
       "classification": "retained_valid_contract",
       "decision": "Keep explicit ability Source in the reflexive body/announcement. A reflexive payment is not automatically an object event that rebinds EventSubject to the departed source. Compound entry/death frames and new graveyard incarnations must remain distinct.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Reflexive self references share the proven creator-source binding across matching entry/death/attack templates; payment does not create a new object subject.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -120,9 +144,12 @@
       "classification": "retained_equivalent_form",
       "decision": "The selected population is already the controller's graveyard. Repeating InZone in that population's filter changes no candidates.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Remove only the identical own-graveyard filter already supplied by the payment population; preserve other-player intersections and payment guards.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -149,9 +176,12 @@
       "decision": "Resolved: both choose uniformly one creature card from the controller's graveyard during resolution; empty pool returns nothing. random_of delegates multi-item selection to choose_at_random. Official rulings confirm untargeted resolution-time population. RNG-consumption identity is not claimed.",
       "followup": "docs/reference-nine-resolutions-20261112.md",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Random movement uses resolution-time Chance preparation over the original untargeted pool, preserving its empty-pool count semantics.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -160,9 +190,12 @@
       "decision": "Resolved for this sole-target, mandatory one-sacrifice, damage-only follow-up. No eligible sacrifice gives no damage in both forms; modified sacrifice still pays under CR118.11 and original Before input supplies mana value. Keep the explicit resolving-cost receipt. Not a global cost/effect equivalence.",
       "followup": "docs/reference-nine-resolutions-20261112.md",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Mandatory sole-sacrifice damage follow-ups share the resolving-payment/Input-Before contract with Rupture; casting payments retain their separate namespace.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -170,9 +203,12 @@
       "classification": "retained_valid_contract",
       "decision": "Keep optional resolving payment and its PaymentChosen follow-ups (CR 118.12). Receipt consumption and attempted payment differ from unconditional follow-ups around an optional body; the report's preferred spelling is not sufficient to drop those guards.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Matching optional-entry templates share explicit payment/guard structure and exact performed After objects for delayed follow-ups.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -180,9 +216,12 @@
       "classification": "retained_equivalent_form",
       "decision": "With one target, Recorded from control change still names the attempted object even when changing its controller fails. It is not merely a successful-move receipt. Illegal sole target stops the spell. Target spelling is equivalent here, not a fix.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Control, untap, haste and delayed sacrifice retain the originally targeted object, independent of whether changing control succeeds.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -234,9 +273,12 @@
       "classification": "retained_equivalent_form",
       "decision": "The one targeted opponent is the only Prior(That) player in the per-recipient life-loss row. Optional one-target return selects zero or one object either as Targets or scalar Target. No changed outcome established.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Use the zero-or-one target population as Targets; bind life-loss and graveyard quantities to the named targeted player.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -245,9 +287,12 @@
       "decision": "Resolved: damage source filter matches captured Target and the event subject is Source. Keep exact exile-cost component and full Performed/After receipt, plus still-in-Exile filtering. Return-only follow-up has no object if replacement sends the card elsewhere. No engine change needed to establish binding equivalence.",
       "followup": "docs/reference-nine-resolutions-20261112.md",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Use the proven captured target in the created stable damage-source event; preserve exact optional exile payment component and full Performed/After return receipt.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -260,9 +305,12 @@
       "classification": "retained_valid_contract",
       "decision": "Keep optional resolving payment and its PaymentChosen follow-ups (CR 118.12). Receipt consumption and attempted payment differ from unconditional follow-ups around an optional body; the report's preferred spelling is not sufficient to drop those guards.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Dependent optional creations share explicit payment/guard structure; keep the entire Created set, including replacement multiplication, for delayed exile.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -270,9 +318,12 @@
       "classification": "retained_equivalent_form",
       "decision": "The one-top-card exile has zero or one result, so its full After Transition and scalar Result select the same available card. An aggregate receipt is not itself a rules error.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Use singular After permission for a single top-card exile, consistently across three matching templates; preserve plural permissions elsewhere.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -280,9 +331,12 @@
       "classification": "retained_valid_contract",
       "decision": "Before sacrifice Transition plus CurrentOrLastKnown pins the exact original object and its power. A bare event subject is safe only if the consumer preserves the same last-known view; retaining the explicit receipt is appropriate.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "The generic sacrifice-it/power template reads the exact originally named object with LKI, without requiring a successful sacrifice transition.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -290,9 +344,12 @@
       "classification": "retained_equivalent_form",
       "decision": "Requiring every able blocker to block the equipped creature and requiring that creature to be blocked by each able creature express the same blocking requirement here. Preserve combat legality; no source bug established.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Attach the all-able-blockers requirement to the creature to be blocked, matching Lure and the shared targeted/self template forms.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -301,9 +358,12 @@
       "decision": "Resolved by pair-role contract and complete generated-code equality: EventSubject is BlockPair(Blocker) in its blocks clause. A permanent regression compares both executable programs excluding fingerprints.",
       "followup": "docs/reference-nine-resolutions-20261112.md",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Use explicit BlockPair Attacker/Blocker roles in both mirrored predicates and effects.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -311,9 +371,12 @@
       "classification": "retained_valid_contract",
       "decision": "The combat-damage event subject is the source creature here. Connive is object-directed (CR 701.50a-b); the object's current/last controller performs it. The backend correctly calls connive_n with that object and ignores the generic actor field. A Source/ControllerOf cosmetic rewrite is not a fix and must not override keyword semantics.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Connive names its object and that object's current/LKI controller as actor; proven self damage events name Source explicitly.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -331,9 +394,12 @@
       "classification": "retained_valid_contract",
       "decision": "Keep explicit ability Source in the reflexive body/announcement. A reflexive payment is not automatically an object event that rebinds EventSubject to the departed source. Compound entry/death frames and new graveyard incarnations must remain distinct.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Reflexive target filters retain the proven creator-source binding, matching other self-attack/reflexive controls.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -346,9 +412,12 @@
       "classification": "retained_valid_contract",
       "decision": "Acting reads the current player receiving this life-loss operation. This preserves the controller in Reaper's attack trigger, the damaged player in its combat trigger, and the owner for Personal Incarnation. Explicitly naming those same players is stylistic.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Name the losing owner directly in both the loss and its life-total quantity; preserve last-known source ownership.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -361,9 +430,12 @@
       "classification": "retained_valid_contract",
       "decision": "Keep explicit ability Source in the reflexive body/announcement. A reflexive payment is not automatically an object event that rebinds EventSubject to the departed source. Compound entry/death frames and new graveyard incarnations must remain distinct.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Reflexive self exclusion follows the proven creator-source binding across entry/death branches; graveyard payment incarnation and full result remain separate.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -382,9 +454,12 @@
       "classification": "retained_equivalent_form",
       "decision": "The Pump, keyword and attack requirement apply in their rules-defined layers; swapping those cross-layer list positions changes no result. Do not reorder arbitrary same-layer changes merely to match written word order.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Keep keyword, attack requirement and pump in one ordered static payload; Source Rule(PermanentRule) lowers to the existing portable Change::Rule.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -392,9 +467,12 @@
       "classification": "retained_equivalent_form",
       "decision": "Acting is the named one-player life-loss row. It is the sole target for that operation. An explicit target is a possible normal form, not an additional rules correction.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "The hand-count quantity names the same targeted losing player as the operation.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -424,9 +502,12 @@
       "classification": "retained_valid_contract",
       "decision": "Keep DuplicateLastKnown so copying the departed card retains definition/perpetual changes. OwnedBy beside an own Graveyard departure versus explicit InZone is a separate equivalent filter spelling, not justification for switching to a live Duplicate.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Keep the actual graveyard-origin predicate and share the recorded-definition/LKI duplication contract with library-to-hand control Kithkin Brinefarer.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -434,9 +515,12 @@
       "classification": "retained_valid_contract",
       "decision": "Keep exact activation sacrifice component Inputs/Before with CurrentOrLastKnown. It records the sacrificed original's counters rather than looking at a later zone incarnation.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "An explicitly sacrificed activation source names Source when its cost proves that identity; its counter values retain current/LKI information.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -445,9 +529,12 @@
       "decision": "Resolved for this program: both nest optional look and eligible optional reveal, and gain life only following reveal. Declining either, empty library and an already-revealed top card agree; official kinship rulings confirm those choices. Retain guarded Source.",
       "followup": "docs/reference-nine-resolutions-20261112.md",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Kinship templates share explicit optional look, eligibility test, optional reveal and guarded follow-up structure.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -473,9 +560,12 @@
       "classification": "retained_equivalent_form",
       "decision": "Basic Plains already denotes a land. The explicit Land test is redundant; retain it without introducing a comparison alias.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_producer_family",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Basic Plains retains both Basic and Plains without an additional redundant Land test; preserve the separate planeswalker alternative.",
+        "evidence": "reference-remaining30-20261112.md",
+        "validation": "reference-remaining30-20261112.proof.json"
       }
     },
     {
@@ -487,12 +577,14 @@
   "final_nine_resolved": true,
   "consistency_followup": {
     "faces": 36,
-    "status": "in_progress",
+    "status": "complete",
     "scope": "Source and Rust producer normal forms, not scoring aliases or gold edits.",
     "tracking": "docs/reference-consistency-20261112.md",
     "upstream_issue": "https://github.com/i5jb/mtgish/issues/275",
     "satya": "Separate rejected scalar proposal; not one of these 36.",
-    "completed_faces": 4,
-    "pending_faces": 32
+    "completed_faces": 36,
+    "pending_faces": 0,
+    "latest_batch": "docs/reference-remaining30-20261112.md",
+    "latest_proof": "docs/reference-remaining30-20261112.proof.json"
   }
 }

@@ -31298,10 +31298,10 @@ Card(
         TargetPermanent(IsCardtype(Creature)),
       ],
       ActionList([
-        CreateEachPermanentRuleEffectUntil(
-          IsCardtype(Creature),
+        CreatePermanentRuleEffectUntil(
+          Ref_TargetPermanent,
           [
-            MustBlockAttacker(Ref_TargetPermanent),
+            AllCreaturesMustBlockIt(IsCardtype(Creature)),
           ],
           UntilEndOfTurn,
         ),
@@ -64821,10 +64821,10 @@ Split(
             TargetPermanent(IsCardtype(Creature)),
           ],
           ActionList([
-            CreateEachPermanentRuleEffectUntil(
-              IsCardtype(Creature),
+            CreatePermanentRuleEffectUntil(
+              Ref_TargetPermanent,
               [
-                MustBlockAttacker(Ref_TargetPermanent),
+                AllCreaturesMustBlockIt(IsCardtype(Creature)),
               ],
               UntilEndOfTurn,
             ),
@@ -66546,28 +66546,31 @@ Card(
         ManaCostR,
       ]),
       ActionList([
-        MayActions([
-          PutACardFromHandOnBattlefield(
-            IsCardtype(Artifact),
-            [
-              EntersNormally,
-            ],
-          ),
-          CreatePermanentLayerEffect(
-            ThePermanentPutOnTheBattlefieldThisWay,
-            [
-              AddAbility([
-                Haste,
+        MayCost(PutACardFromHandOnBattlefield(
+          IsCardtype(Artifact),
+          [
+            EntersNormally,
+          ],
+        )),
+        If(
+          CostWasPaid,
+          [
+            CreatePermanentLayerEffect(
+              ThePermanentPutOnTheBattlefieldThisWay,
+              [
+                AddAbility([
+                  Haste,
+                ]),
+              ],
+            ),
+            CreateFutureTrigger(
+              AtTheBeginningOfTheNextEndStep,
+              ActionList([
+                SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
               ]),
-            ],
-          ),
-          CreateFutureTrigger(
-            AtTheBeginningOfTheNextEndStep,
-            ActionList([
-              SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
-            ]),
-          ),
-        ]),
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -84409,12 +84412,7 @@ Card(
         AddAbility([
           DoubleStrike,
         ]),
-      ],
-    ),
-    EachPermanentRuleEffect(
-      IsCardtype(Creature),
-      [
-        MustAttack,
+        Rule(MustAttack),
       ],
     ),
   ],
@@ -140327,10 +140325,10 @@ Card(
         TargetPermanent(IsCardtype(Creature)),
       ],
       ActionList([
-        CreateEachPermanentRuleEffectUntil(
-          IsCardtype(Creature),
+        CreatePermanentRuleEffectUntil(
+          Ref_TargetPermanent,
           [
-            MustBlockAttacker(Ref_TargetPermanent),
+            AllCreaturesMustBlockIt(IsCardtype(Creature)),
           ],
           UntilEndOfTurn,
         ),
@@ -199241,28 +199239,31 @@ Card(
             ),
           ],
         ),
-        MayActions([
-          PutACardFromHandOnBattlefield(
-            IsCardtype(Creature),
-            [
-              EntersNormally,
-            ],
-          ),
-          CreatePermanentLayerEffect(
-            ThePermanentPutOnTheBattlefieldThisWay,
-            [
-              AddAbility([
-                Haste,
+        MayCost(PutACardFromHandOnBattlefield(
+          IsCardtype(Creature),
+          [
+            EntersNormally,
+          ],
+        )),
+        If(
+          CostWasPaid,
+          [
+            CreatePermanentLayerEffect(
+              ThePermanentPutOnTheBattlefieldThisWay,
+              [
+                AddAbility([
+                  Haste,
+                ]),
+              ],
+            ),
+            CreateFutureTrigger(
+              AtTheBeginningOfTheNextEndStep,
+              ActionList([
+                ControllersSacrificeEachPermanent(SinglePermanent(ThePermanentPutOnTheBattlefieldThisWay)),
               ]),
-            ],
-          ),
-          CreateFutureTrigger(
-            AtTheBeginningOfTheNextEndStep,
-            ActionList([
-              ControllersSacrificeEachPermanent(SinglePermanent(ThePermanentPutOnTheBattlefieldThisWay)),
-            ]),
-          ),
-        ]),
+            ),
+          ],
+        ),
       ]),
     )),
   ],
@@ -289473,7 +289474,7 @@ Card(
         CreatePlayerEffectUntil(
           You,
           [
-            MayPlayExiledCards(TheCardsExiledThisWay),
+            MayPlayExiledCard(TheCardExiledThisWay),
           ],
           UntilEndOfTurn,
         ),
@@ -320915,10 +320916,10 @@ Split(
             TargetPermanent(IsCardtype(Creature)),
           ],
           ActionList([
-            CreateEachPermanentRuleEffectUntil(
-              IsCardtype(Creature),
+            CreatePermanentRuleEffectUntil(
+              Ref_TargetPermanent,
               [
-                MustBlockAttacker(Ref_TargetPermanent),
+                AllCreaturesMustBlockIt(IsCardtype(Creature)),
               ],
               UntilEndOfTurn,
             ),
@@ -351088,7 +351089,7 @@ Card(
           CounterSpell(Ref_TargetSpell),
           PutCounters([
             NumberCountersOfTypeOnPermanent(
-              CounterSpell_ManaValueOfCounteredSpell,
+              ManaValueOfSpell(Ref_TargetSpell),
               PTCounter(
                 1,
                 1,
@@ -598662,15 +598663,7 @@ Card(
         AddAbility([
           Haste,
         ]),
-      ],
-    ),
-    EachPermanentRuleEffect(
-      And([
-        IsCardtype(Creature),
-        ControlledByAPlayer(SinglePlayer(You)),
-      ]),
-      [
-        MustAttack,
+        Rule(MustAttack),
       ],
     ),
   ],
@@ -643933,9 +643926,9 @@ Card(
             Ref_TargetPermanent,
             UntilEndOfTurn,
           ),
-          UntapPermanent(ThePermanentGainedControlOfThisWay),
+          UntapPermanent(Ref_TargetPermanent),
           CreatePermanentLayerEffectUntil(
-            ThePermanentGainedControlOfThisWay,
+            Ref_TargetPermanent,
             [
               AddAbility([
                 Haste,
@@ -643946,7 +643939,7 @@ Card(
           CreateFutureTrigger(
             AtTheBeginningOfTheNextEndStep,
             ActionList([
-              SacrificePermanent(ThePermanentGainedControlOfThisWay),
+              SacrificePermanent(Ref_TargetPermanent),
             ]),
           ),
         ]),
@@ -643960,9 +643953,9 @@ Card(
             Ref_TargetPermanent,
             UntilEndOfTurn,
           ),
-          UntapPermanent(ThePermanentGainedControlOfThisWay),
+          UntapPermanent(Ref_TargetPermanent),
           CreatePermanentLayerEffectUntil(
-            ThePermanentGainedControlOfThisWay,
+            Ref_TargetPermanent,
             [
               AddAbility([
                 Haste,
@@ -644727,32 +644720,35 @@ Card(
         TapPermanent(ThisPermanent),
       ]),
       ActionList([
-        MayActions([
-          PutACardFromHandOnBattlefield(
-            And([
-              IsCreatureType(Elemental),
-              IsCardtype(Creature),
-            ]),
-            [
-              EntersNormally,
-            ],
-          ),
-          CreatePermanentLayerEffectUntil(
-            ThePermanentPutOnTheBattlefieldThisWay,
-            [
-              AddAbility([
-                Haste,
+        MayCost(PutACardFromHandOnBattlefield(
+          And([
+            IsCreatureType(Elemental),
+            IsCardtype(Creature),
+          ]),
+          [
+            EntersNormally,
+          ],
+        )),
+        If(
+          CostWasPaid,
+          [
+            CreatePermanentLayerEffectUntil(
+              ThePermanentPutOnTheBattlefieldThisWay,
+              [
+                AddAbility([
+                  Haste,
+                ]),
+              ],
+              UntilEndOfTurn,
+            ),
+            CreateFutureTrigger(
+              AtTheBeginningOfTheNextEndStep,
+              ActionList([
+                SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
               ]),
-            ],
-            UntilEndOfTurn,
-          ),
-          CreateFutureTrigger(
-            AtTheBeginningOfTheNextEndStep,
-            ActionList([
-              SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
-            ]),
-          ),
-        ]),
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -651979,19 +651975,30 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              EachPlayerAction(
-                Opponent,
-                MillNumberCards(Integer(3)),
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
               ),
-            ],
-          ),
-        ]),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    EachPlayerAction(
+                      Opponent,
+                      MillNumberCards(Integer(3)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -704526,37 +704533,40 @@ Card(
   ],
   Rules: [
     SpellActions(ActionList([
-      MayActions([
-        PutACardFromHandOnBattlefield(
-          Or([
-            IsCardtype(Artifact),
-            IsCardtype(Creature),
-          ]),
-          [
-            EntersNormally,
-          ],
-        ),
-        CreatePerpetualPermanentEffect(
-          ThePermanentPutOnTheBattlefieldThisWay,
-          [
-            AddCardtype(Artifact),
-            AddCardtype(Creature),
-            SetPT(PT(
-              4,
-              4,
-            )),
-            AddAbility([
-              Haste,
+      MayCost(PutACardFromHandOnBattlefield(
+        Or([
+          IsCardtype(Artifact),
+          IsCardtype(Creature),
+        ]),
+        [
+          EntersNormally,
+        ],
+      )),
+      If(
+        CostWasPaid,
+        [
+          CreatePerpetualPermanentEffect(
+            ThePermanentPutOnTheBattlefieldThisWay,
+            [
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
+              SetPT(PT(
+                4,
+                4,
+              )),
+              AddAbility([
+                Haste,
+              ]),
+            ],
+          ),
+          CreateFutureTrigger(
+            AtTheBeginningOfTheNextEndStep,
+            ActionList([
+              SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
             ]),
-          ],
-        ),
-        CreateFutureTrigger(
-          AtTheBeginningOfTheNextEndStep,
-          ActionList([
-            SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
-          ]),
-        ),
-      ]),
+          ),
+        ],
+      ),
     ])),
   ],
 )
@@ -721385,31 +721395,42 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              CreatePermanentLayerEffectUntil(
-                ThisPermanent,
-                [
-                  AdjustPT(
-                    2,
-                    2,
-                  ),
-                  AddAbility([
-                    Flying,
-                  ]),
-                  AddAbility([
-                    Vigilance,
-                  ]),
-                ],
-                UntilEndOfTurn,
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
               ),
-            ],
-          ),
-        ]),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    CreatePermanentLayerEffectUntil(
+                      ThisPermanent,
+                      [
+                        AdjustPT(
+                          2,
+                          2,
+                        ),
+                        AddAbility([
+                          Flying,
+                        ]),
+                        AddAbility([
+                          Vigilance,
+                        ]),
+                      ],
+                      UntilEndOfTurn,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -749489,16 +749510,27 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              MayAction(PlayTopCardOfLibraryWithoutPaying),
-            ],
-          ),
-        ]),
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
+              ),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    MayAction(PlayTopCardOfLibraryWithoutPaying),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -819958,31 +819990,34 @@ Card(
         ManaCostR,
       ]),
       ActionList([
-        MayActions([
-          PutACardFromHandOnBattlefield(
-            And([
-              IsCardtype(Creature),
-              TotalPowerAndToughnessIs(LessThanOrEqualTo(Integer(5))),
-            ]),
-            [
-              EntersNormally,
-            ],
-          ),
-          CreatePermanentLayerEffect(
-            ThePermanentPutOnTheBattlefieldThisWay,
-            [
-              AddAbility([
-                Haste,
+        MayCost(PutACardFromHandOnBattlefield(
+          And([
+            IsCardtype(Creature),
+            TotalPowerAndToughnessIs(LessThanOrEqualTo(Integer(5))),
+          ]),
+          [
+            EntersNormally,
+          ],
+        )),
+        If(
+          CostWasPaid,
+          [
+            CreatePermanentLayerEffect(
+              ThePermanentPutOnTheBattlefieldThisWay,
+              [
+                AddAbility([
+                  Haste,
+                ]),
+              ],
+            ),
+            CreateFutureTrigger(
+              AtTheBeginningOfTheNextEndStep,
+              ActionList([
+                SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
               ]),
-            ],
-          ),
-          CreateFutureTrigger(
-            AtTheBeginningOfTheNextEndStep,
-            ActionList([
-              SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
-            ]),
-          ),
-        ]),
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -849454,7 +849489,7 @@ Card(
         CreatePlayerEffectUntil(
           You,
           [
-            MayPlayExiledCards(TheCardsExiledThisWay),
+            MayPlayExiledCard(TheCardExiledThisWay),
           ],
           UntilTheEndOfPlayersNextTurn(You),
         ),
@@ -853422,7 +853457,7 @@ Card(
         CreatePlayerEffectUntil(
           You,
           [
-            MayPlayExiledCards(TheCardsExiledThisWay),
+            MayPlayExiledCard(TheCardExiledThisWay),
           ],
           UntilTheEndOfPlayersNextTurn(You),
         ),
@@ -863219,10 +863254,10 @@ Card(
         ManaCostG,
       ]),
       ActionList([
-        CreateEachPermanentRuleEffectUntil(
-          IsCardtype(Creature),
+        CreatePermanentRuleEffectUntil(
+          ThisPermanent,
           [
-            MustBlockAttacker(ThisPermanent),
+            AllCreaturesMustBlockIt(IsCardtype(Creature)),
           ],
           UntilEndOfTurn,
         ),
@@ -867399,25 +867434,36 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              CreatePermanentLayerEffectUntil(
-                ThisPermanent,
-                [
-                  AdjustPT(
-                    1,
-                    1,
-                  ),
-                ],
-                UntilEndOfTurn,
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
               ),
-            ],
-          ),
-        ]),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    CreatePermanentLayerEffectUntil(
+                      ThisPermanent,
+                      [
+                        AdjustPT(
+                          1,
+                          1,
+                        ),
+                      ],
+                      UntilEndOfTurn,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -875126,7 +875172,7 @@ Card(
         CreateTokens(
           [
             NumberTokens(
-              PowerOfTheSacrificedCreature,
+              PowerOfPermanent(Trigger_ThatPermanent),
               TokenWithPT(
                 PT(
                   1,
@@ -890357,10 +890403,10 @@ Card(
     ManaCostGeneric(3),
   ],
   Rules: [
-    EachPermanentRuleEffect(
-      IsCardtype(Creature),
+    PermanentRuleEffect(
+      HostPermanent,
       [
-        MustBlockAttacker(HostPermanent),
+        AllCreaturesMustBlockIt(IsCardtype(Creature)),
       ],
     ),
     Equip(
@@ -899535,19 +899581,30 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              EachPlayerAction(
-                Opponent,
-                LoseLife(Integer(2)),
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
               ),
-            ],
-          ),
-        ]),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    EachPlayerAction(
+                      Opponent,
+                      LoseLife(Integer(2)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -905724,7 +905781,7 @@ Card(
         IsCardtype(Creature),
         And([
           IsCardtype(Creature),
-          PowerIs(LessThan(PowerOfPermanent(Trigger_ThatCreature))),
+          PowerIs(LessThan(PowerOfPermanent(Trigger_TheBlockingCreature))),
         ]),
       ),
       ActionList([
@@ -946830,32 +946887,35 @@ Card(
         TapPermanent(ThisPermanent),
       ]),
       ActionList([
-        MayActions([
-          PutACardFromHandOnBattlefield(
-            Or([
-              IsCardtype(Creature),
-              IsArtifactType(Vehicle),
-            ]),
-            [
-              EntersNormally,
-            ],
-          ),
-          If(
-            APermanentOfTypeWasPutOntoTheBattlefieldThisWay(IsCardtype(Artifact)),
-            [
-              PutCounters([
-                NumberCountersOfTypeOnPermanent(
-                  Integer(2),
-                  PTCounter(
-                    1,
-                    1,
+        MayCost(PutACardFromHandOnBattlefield(
+          Or([
+            IsCardtype(Creature),
+            IsArtifactType(Vehicle),
+          ]),
+          [
+            EntersNormally,
+          ],
+        )),
+        If(
+          CostWasPaid,
+          [
+            If(
+              APermanentOfTypeWasPutOntoTheBattlefieldThisWay(IsCardtype(Artifact)),
+              [
+                PutCounters([
+                  NumberCountersOfTypeOnPermanent(
+                    Integer(2),
+                    PTCounter(
+                      1,
+                      1,
+                    ),
+                    ThePermanentPutOnTheBattlefieldThisWay,
                   ),
-                  ThePermanentPutOnTheBattlefieldThisWay,
-                ),
-              ]),
-            ],
-          ),
-        ]),
+                ]),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -982179,20 +982239,23 @@ Card(
         ManaCostR,
       ]),
       ActionList([
-        MayActions([
-          PutACardFromHandOnBattlefield(
-            IsCardtype(Planeswalker),
-            [
-              EntersNormally,
-            ],
-          ),
-          CreateFutureTrigger(
-            AtTheBeginningOfTheNextEndStep,
-            ActionList([
-              SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
-            ]),
-          ),
-        ]),
+        MayCost(PutACardFromHandOnBattlefield(
+          IsCardtype(Planeswalker),
+          [
+            EntersNormally,
+          ],
+        )),
+        If(
+          CostWasPaid,
+          [
+            CreateFutureTrigger(
+              AtTheBeginningOfTheNextEndStep,
+              ActionList([
+                SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
+              ]),
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1014915,20 +1014978,31 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              PermanentDealsDamage(
-                ThisPermanent,
-                Integer(2),
-                EachPermanent(IsCardtype(Creature)),
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
               ),
-            ],
-          ),
-        ]),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    PermanentDealsDamage(
+                      ThisPermanent,
+                      Integer(2),
+                      EachPermanent(IsCardtype(Creature)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1085486,10 +1085560,10 @@ Card(
         TargetPermanent(IsCardtype(Creature)),
       ],
       ActionList([
-        CreateEachPermanentRuleEffectUntil(
-          IsCardtype(Creature),
+        CreatePermanentRuleEffectUntil(
+          Ref_TargetPermanent,
           [
-            MustBlockAttacker(Ref_TargetPermanent),
+            AllCreaturesMustBlockIt(IsCardtype(Creature)),
           ],
           UntilEndOfTurn,
         ),
@@ -1102634,17 +1102708,22 @@ Card(
   ],
   Rules: [
     SpellActions(ActionList([
-      SacrificeAPermanent(IsCardtype(Creature)),
-      SpellDealsDamage(
-        ThisSpell,
-        PowerOfPermanent(ThePermanentSacrificedThisWay),
-        MultipleRecipients([
-          EachPermanent(And([
-            IsCardtype(Creature),
-            DoesntHaveAbility(Flying),
-          ])),
-          EachPlayer(AnyPlayer),
-        ]),
+      MustCost(SacrificeAPermanent(IsCardtype(Creature))),
+      If(
+        CostWasPaid,
+        [
+          SpellDealsDamage(
+            ThisSpell,
+            PowerOfPermanent(ThePermanentSacrificedThisWay),
+            MultipleRecipients([
+              EachPermanent(And([
+                IsCardtype(Creature),
+                DoesntHaveAbility(Flying),
+              ])),
+              EachPlayer(AnyPlayer),
+            ]),
+          ),
+        ],
       ),
     ])),
   ],
@@ -1152436,23 +1152515,34 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              EachPlayerAction(
-                AnyPlayer,
-                DiscardHand,
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
               ),
-              EachPlayerAction(
-                AnyPlayer,
-                DrawNumberCards(Integer(4)),
-              ),
-            ],
-          ),
-        ]),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    EachPlayerAction(
+                      AnyPlayer,
+                      DiscardHand,
+                    ),
+                    EachPlayerAction(
+                      AnyPlayer,
+                      DrawNumberCards(Integer(4)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1173186,10 +1173276,10 @@ Card(
           TargetPermanent(IsCardtype(Creature)),
         ],
         ActionList([
-          CreateEachPermanentRuleEffectUntil(
-            IsCardtype(Creature),
+          CreatePermanentRuleEffectUntil(
+            Ref_TargetPermanent,
             [
-              MustBlockAttacker(Ref_TargetPermanent),
+              AllCreaturesMustBlockIt(IsCardtype(Creature)),
             ],
             UntilEndOfTurn,
           ),
@@ -1194940,6 +1195030,7 @@ Card(
         AddAbility([
           Trample,
         ]),
+        Rule(MustAttack),
         AdjustPTX(
           PlusX,
           Zero,
@@ -1194949,15 +1195040,6 @@ Card(
             ControlledByAPlayer(SinglePlayer(You)),
           ])),
         ),
-      ],
-    ),
-    EachPermanentRuleEffect(
-      And([
-        IsCreatureType(Skeleton),
-        ControlledByAPlayer(SinglePlayer(You)),
-      ]),
-      [
-        MustAttack,
       ],
     ),
     TriggerA(
@@ -1215019,28 +1215101,31 @@ Card(
         ManaCostR,
       ]),
       ActionList([
-        MayActions([
-          PutACardFromHandOnBattlefield(
-            IsCardtype(Creature),
-            [
-              EntersNormally,
-            ],
-          ),
-          CreatePermanentLayerEffect(
-            ThePermanentPutOnTheBattlefieldThisWay,
-            [
-              AddAbility([
-                Haste,
+        MayCost(PutACardFromHandOnBattlefield(
+          IsCardtype(Creature),
+          [
+            EntersNormally,
+          ],
+        )),
+        If(
+          CostWasPaid,
+          [
+            CreatePermanentLayerEffect(
+              ThePermanentPutOnTheBattlefieldThisWay,
+              [
+                AddAbility([
+                  Haste,
+                ]),
+              ],
+            ),
+            CreateFutureTrigger(
+              AtTheBeginningOfTheNextEndStep,
+              ActionList([
+                SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
               ]),
-            ],
-          ),
-          CreateFutureTrigger(
-            AtTheBeginningOfTheNextEndStep,
-            ActionList([
-              SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay),
-            ]),
-          ),
-        ]),
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1253786,19 +1253871,30 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              EachPlayerAction(
-                Opponent,
-                DiscardACard,
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
               ),
-            ],
-          ),
-        ]),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    EachPlayerAction(
+                      Opponent,
+                      DiscardACard,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1320140,10 +1320236,10 @@ Card(
         TargetPermanent(IsCardtype(Creature)),
       ],
       ActionList([
-        CreateEachPermanentRuleEffectUntil(
-          IsCardtype(Creature),
+        CreatePermanentRuleEffectUntil(
+          Ref_TargetPermanent,
           [
-            MustBlockAttacker(Ref_TargetPermanent),
+            AllCreaturesMustBlockIt(IsCardtype(Creature)),
           ],
           UntilEndOfTurn,
         ),
@@ -1331598,45 +1331694,48 @@ Card(
   ],
   Rules: [
     SpellActions(ActionList([
-      MayActions([
-        PutACardFromHandOnBattlefield(
-          Or([
-            IsCardtype(Artifact),
-            IsCardtype(Creature),
-          ]),
-          [
-            EntersNormally,
-          ],
-        ),
-        CreatePermanentLayerEffect(
-          ThePermanentPutOnTheBattlefieldThisWay,
-          [
-            AddAbility([
-              Haste,
-            ]),
-            AddAbility([
-              TriggerA(
-                WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)),
-                ActionList([
-                  PermanentDealsDamage(
-                    Trigger_ThatPermanent,
-                    ManaValueOfPermanent(Trigger_ThatPermanent),
-                    EachPermanent(IsCardtype(Creature)),
-                  ),
-                ]),
-              ),
-            ]),
-            AddAbility([
-              TriggerA(
-                AtTheBeginningOfAPlayersEndStep(SinglePlayer(You)),
-                ActionList([
-                  SacrificePermanent(ThisPermanent),
-                ]),
-              ),
-            ]),
-          ],
-        ),
-      ]),
+      MayCost(PutACardFromHandOnBattlefield(
+        Or([
+          IsCardtype(Artifact),
+          IsCardtype(Creature),
+        ]),
+        [
+          EntersNormally,
+        ],
+      )),
+      If(
+        CostWasPaid,
+        [
+          CreatePermanentLayerEffect(
+            ThePermanentPutOnTheBattlefieldThisWay,
+            [
+              AddAbility([
+                Haste,
+              ]),
+              AddAbility([
+                TriggerA(
+                  WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)),
+                  ActionList([
+                    PermanentDealsDamage(
+                      Trigger_ThatPermanent,
+                      ManaValueOfPermanent(Trigger_ThatPermanent),
+                      EachPermanent(IsCardtype(Creature)),
+                    ),
+                  ]),
+                ),
+              ]),
+              AddAbility([
+                TriggerA(
+                  AtTheBeginningOfAPlayersEndStep(SinglePlayer(You)),
+                  ActionList([
+                    SacrificePermanent(ThisPermanent),
+                  ]),
+                ),
+              ]),
+            ],
+          ),
+        ],
+      ),
     ])),
   ],
 )
@@ -1502261,27 +1502360,38 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              CreateEachPermanentLayerEffectUntil(
-                And([
-                  IsCardtype(Creature),
-                  ControlledByAPlayer(SinglePlayer(You)),
-                ]),
-                [
-                  AddAbility([
-                    Flying,
-                  ]),
-                ],
-                UntilEndOfTurn,
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
               ),
-            ],
-          ),
-        ]),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    CreateEachPermanentLayerEffectUntil(
+                      And([
+                        IsCardtype(Creature),
+                        ControlledByAPlayer(SinglePlayer(You)),
+                      ]),
+                      [
+                        AddAbility([
+                          Flying,
+                        ]),
+                      ],
+                      UntilEndOfTurn,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1523949,24 +1524059,35 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              PutCounters([
-                ACounterOfTypeOnPermanent(
-                  PTCounter(
-                    1,
-                    1,
-                  ),
-                  ThisPermanent,
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
+              ),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    PutCounters([
+                      ACounterOfTypeOnPermanent(
+                        PTCounter(
+                          1,
+                          1,
+                        ),
+                        ThisPermanent,
+                      ),
+                    ]),
+                  ],
                 ),
-              ]),
-            ],
-          ),
-        ]),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1530077,37 +1530198,48 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        MayActions([
-          LookAtTopOfLibrary,
-          MayCost(RevealTopCardOfLibraryOfType(SharesACreatureTypeWithPermanent(ThisPermanent))),
-          If(
-            CostWasPaid,
-            [
-              CreateTokens(
-                [
-                  TokenWithPT(
-                    PT(
-                      2,
-                      2,
-                    ),
-                    Colors([
-                      Green,
-                    ]),
-                    [],
-                    [
-                      Creature,
-                    ],
-                    SubtypesList([
-                      Wolf,
-                    ]),
-                    [],
-                  ),
-                ],
-                [],
+        MayCost(LookAtTopOfLibrary),
+        If(
+          CostWasPaid,
+          [
+            If(
+              TopCardOfPlayersLibraryPassesFilter(
+                You,
+                SharesACreatureTypeWithPermanent(ThisPermanent),
               ),
-            ],
-          ),
-        ]),
+              [
+                MayCost(RevealTopCardOfLibrary),
+                If(
+                  CostWasPaid,
+                  [
+                    CreateTokens(
+                      [
+                        TokenWithPT(
+                          PT(
+                            2,
+                            2,
+                          ),
+                          Colors([
+                            Green,
+                          ]),
+                          [],
+                          [
+                            Creature,
+                          ],
+                          SubtypesList([
+                            Wolf,
+                          ]),
+                          [],
+                        ),
+                      ],
+                      [],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ]),
     ),
   ],
@@ -1535614,7 +1535746,6 @@ Card(
               And([
                 IsSupertype(Basic),
                 IsLandType(Plains),
-                IsCardtype(Land),
               ]),
             ])),
             PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder,
@@ -1545672,13 +1545803,13 @@ Card(
             ],
             UntilEndOfTurn,
           ),
-          CreateEachPermanentRuleEffectUntil(
-            And([
-              IsCardtype(Creature),
-              ControlledByAPlayer(Opponent),
-            ]),
+          CreatePermanentRuleEffectUntil(
+            Ref_TargetPermanent,
             [
-              MustBlockAttacker(Ref_TargetPermanent),
+              AllCreaturesMustBlockIt(And([
+                IsCardtype(Creature),
+                ControlledByAPlayer(Opponent),
+              ])),
             ],
             UntilEndOfTurn,
           ),

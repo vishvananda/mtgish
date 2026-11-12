@@ -1,5 +1,10 @@
 # Reopened reference consistency review
 
+**Completed:** all 36 reopened faces now have producer-family resolutions, with
+zero pending. The [last 30 cases](reference-remaining30-20261112.md) include the
+final full workspace/parser gates and corpus-wide IR validation. The earlier
+counts and receipts below describe their historical checkpoints.
+
 The previous 53-face review answered whether a proposed replacement was required
 for game behavior. That was not sufficient to close the 36 retained
 equivalent/contract cases. Matching Oracle wording should have a common producer

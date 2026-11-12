@@ -1058,7 +1058,7 @@ impl Context {
     /// A card put from a graveyard into a hand comes from that player's own graveyard:
     /// every card with the row says so, and its filter names no graveyard.
     pub(crate) fn own_graveyard(objects: ObjectSet, player: &PlayerRef) -> ObjectSet {
-        match objects {
+        let mut objects = match objects {
             ObjectSet::Zone {
                 scope:
                     ZoneScope::Players {
@@ -1076,7 +1076,23 @@ impl Context {
                 filter,
             },
             objects => objects,
+        };
+        // The population already supplies this zone and owner. Remove only
+        // an identical qualification; an opponent's graveyard remains a real
+        // restriction and cannot be widened to the payer's.
+        if let ObjectSet::Zone { scope, filter, .. } = &mut objects {
+            match filter {
+                ObjectFilter::InZone(inner) if serde_json::to_value(&*scope).unwrap() == serde_json::to_value(&*inner).unwrap() => *filter = ObjectFilter::Any,
+                ObjectFilter::AllOf(items) => {
+                    let scope = serde_json::to_value(&*scope).unwrap();
+                    items.retain(|item| !matches!(item, ObjectFilter::InZone(inner) if serde_json::to_value(inner).unwrap() == scope));
+                    if items.is_empty() { *filter = ObjectFilter::Any; }
+                    else if items.len() == 1 { *filter = items.pop().unwrap(); }
+                }
+                _ => {}
+            }
         }
+        objects
     }
     fn put_from_graveyard_into_hand(
         &mut self,

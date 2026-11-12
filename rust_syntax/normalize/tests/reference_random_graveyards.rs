@@ -50,7 +50,7 @@ fn random_returns_use_your_graveyard_and_keep_type_randomness_and_actual_receipt
         ("Surreal Memoir", "Instant"),
     ] {
         let card = serde_json::to_value(fixtures::card(name)).unwrap();
-        let choose = operation(&card, "ChooseObjects");
+        let choose = &operation(&card, "WithSelections")["steps"][0];
         assert_eq!(
             choose["objects"]["args"]["scope"],
             json!({"Players":{
@@ -65,9 +65,10 @@ fn random_returns_use_your_graveyard_and_keep_type_randomness_and_actual_receipt
             choose["count"],
             json!({"AsManyAsCan":{"kind":"Constant","args":1}})
         );
-        assert_eq!(choose["constraints"], json!(["AtRandom"]));
+        assert_eq!(choose["chooser"], "Chance");
+        assert_eq!(choose["constraints"], json!([]));
         let movement = operation(&card, "Move");
-        assert_eq!(movement["objects"], json!({"kind":"Selected","args":0}));
+        assert_eq!(movement["objects"], json!({"kind":"Prepared","args":0}));
         assert_eq!(
             movement["destination"],
             json!({"OwnersHand":{"counters":[],"states":[]}})
@@ -79,8 +80,8 @@ fn random_returns_use_your_graveyard_and_keep_type_randomness_and_actual_receipt
 fn a_named_actor_randomly_returns_from_that_actors_graveyard() {
     let card = custom("SpellActions(Targeted([TargetPlayer(Opponent)],ActionList([PlayerAction(Ref_TargetPlayer,PutACardFromGraveyardIntoHandAtRandom(IsCardtype(Creature)))])))");
     let target = json!({"kind":"Target","args":{"slot":0,"index":0}});
-    let choose = operation(&card, "ChooseObjects");
-    assert_eq!(choose["player"], target);
+    let choose = &operation(&card, "WithSelections")["steps"][0];
+    assert_eq!(choose["chooser"], "Chance");
     assert_eq!(
         choose["objects"]["args"]["scope"],
         json!({"Players":{

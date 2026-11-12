@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{
     canonical, corpus,
     human::{self, document::Document},
@@ -45,7 +47,7 @@ fn authentic_api_and_all_layout_examples_migrate_to_exact_source_with_complete_o
                     "objects":{"kind":"CostObjects","args":{"payment":{"Resolution":1},"component":[0],"view":"Performed","phase":"After"}},
                     "changes":[{"kind":"Pump","args":{"power":{"kind":"Constant","args":1},"toughness":{"kind":"Constant","args":1}}}]}});
             }
-            assert_eq!(expected, serde_json::to_value(fresh.card).unwrap());
+            fresh_producer::assert_matches("api_layouts_v184.jsonl", &expected, &serde_json::to_value(fresh.card).unwrap());
             for (from, to) in mapped.map.sites {
                 for to in to {
                     assert_eq!(before.pointer(&from), after.pointer(&to), "{from} -> {to}");

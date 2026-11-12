@@ -504,6 +504,7 @@ pub fn bind(structural: &Structural) -> Result<ir::Card, Vec<crate::lower::Diagn
 }
 fn validate_final(value: ir::Card) -> Result<ir::Card, Vec<crate::lower::Diagnostic>> {
     let mut value = crate::movement::normalize_card(value);
+    crate::producer_forms::normalize_card(&mut value);
     crate::coin_policies::source_card(&mut value).map_err(stage_error)?;
     crate::validate::card(&value).map_err(|message| {
         vec![crate::lower::Diagnostic {

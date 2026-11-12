@@ -40,25 +40,20 @@
               "kind": "AllOf",
               "args": [
                 {
+                  "kind": "CardType",
+                  "args": "Creature"
+                },
+                {
                   "kind": "Not",
                   "args": {
                     "kind": "SameObject",
                     "args": {
-                      "kind": "EventSubject"
+                      "kind": "Source"
                     }
                   }
                 },
                 {
-                  "kind": "AllOf",
-                  "args": [
-                    {
-                      "kind": "Attacking"
-                    },
-                    {
-                      "kind": "CardType",
-                      "args": "Creature"
-                    }
-                  ]
+                  "kind": "Attacking"
                 }
               ]
             },
@@ -75,7 +70,7 @@
           {
             "kind": "Effect",
             "args": {
-              "result": 0,
+              "result": 4294967295,
               "operation": {
                 "kind": "PutCounters",
                 "args": {
@@ -86,7 +81,7 @@
                         "args": {
                           "kind": "One",
                           "args": {
-                            "kind": "EventSubject"
+                            "kind": "Source"
                           }
                         }
                       },
@@ -136,7 +131,7 @@
           {
             "kind": "Effect",
             "args": {
-              "result": 2,
+              "result": 4294967294,
               "operation": {
                 "kind": "CreateContinuousEffect",
                 "args": {
@@ -145,14 +140,8 @@
                   },
                   "affected": {
                     "Objects": {
-                      "kind": "One",
-                      "args": {
-                        "kind": "Target",
-                        "args": {
-                          "slot": 0,
-                          "index": 0
-                        }
-                      }
+                      "kind": "Targets",
+                      "args": 0
                     }
                   },
                   "changes": [

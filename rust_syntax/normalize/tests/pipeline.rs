@@ -2663,7 +2663,7 @@ fn a_random_move_is_picked_by_the_game() {
     let text = ability_json(
         "SpellActions(ActionList([PutACardFromGraveyardIntoHandAtRandom(IsCardtype(Creature))]))",
     );
-    assert!(text.contains("AtRandom"), "{text}");
+    assert!(text.contains("\"chooser\":\"Chance\""), "{text}");
     assert!(text.contains("OwnersHand"), "{text}");
 }
 

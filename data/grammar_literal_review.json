@@ -9783,6 +9783,28 @@
    "template": "As long as a card exiled with this creature is a creature card, this creature has the power, toughness, and creature types of the last creature card exiled with it. It's still {{a}} {{Zombie}}",
    "result": "If(ExiledCardPassesFilter(TheLastExiledCard, IsCardtype(Creature)), [PermanentLayerEffect(ThisPermanent, [SetPower(PowerOfExiledCard(TheLastExiledCard)), SetToughness(ToughnessOfExiledCard(TheLastExiledCard)), AddCreatureTypeVariable(CreatureTypesOfExiled(TheLastExiledCard))])])",
    "reason": "2026-11-10: This still-a-Zombie effect retains its own types under CR205.1b; adding the exiled creature types is intentional, even without the mined addition word."
+  },
+  {
+   "id": "91013a6283579344969b9dfe13311f0a373d1aa9a4258326347a8b071901342a",
+   "kind": "mined_token",
+   "rule": "QuotedAbility[ThisCreature]",
+   "token": "PowerOfTheSacrificedCreature",
+   "word": "s",
+   "support": "32/34",
+   "template": "{{ManaCost}}, Sacrifice this creature: It deals damage equal to its power to any target",
+   "result": "Activated(And([PayMana({{ManaCost[0]}}), SacrificePermanent(ThisPermanent)]), Targeted([AnyTarget], ActionList([PermanentDealsDamage(ThePermanentSacrificedThisWay, PowerOfTheSacrificedCreature, Ref_AnyTarget)])))",
+   "reason": "Reviewed 2026-11-12: the mined word s comes from possessive creature's in other templates. These self-sacrifice activations say its power; their exact original sacrificed input and last-known power remain explicit. No missing semantic word or token."
+  },
+  {
+   "id": "f82e4736b0c3c06e6f18c51b5c38ea762339a45564b4018d20c8c38f404945b2",
+   "kind": "mined_token",
+   "rule": "QuotedAbility[ThisCreature]",
+   "token": "PowerOfTheSacrificedCreature",
+   "word": "s",
+   "support": "32/34",
+   "template": "{{ManaCost}}, Sacrifice this creature: It deals X damage divided as you choose among any number of target {{Creatures}}, where X is its power",
+   "result": "Activated(And([PayMana({{ManaCost[0]}}), SacrificePermanent(ThisPermanent)]), TargetedDistributed([AnyNumberOfTargetPermanents({{Creatures[0]}})], DistributeNumberAmongTargets(PowerOfTheSacrificedCreature), ActionList([SacrificedPermanentDealsDistributedDamage])))",
+   "reason": "Reviewed 2026-11-12: the mined word s comes from possessive creature's in other templates. These self-sacrifice activations say its power; their exact original sacrificed input and last-known power remain explicit. No missing semantic word or token."
   }
  ]
 }

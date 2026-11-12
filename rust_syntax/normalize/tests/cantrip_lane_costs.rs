@@ -36,7 +36,7 @@ const CARDS: &[(&str, &str)] = &[
     ("Plumb the Forbidden", "VariableCost::SacrificeOneOrMore"),
     // Who a payment or a choice ended up with, and who was asked to pay.
     ("Sin Prodder", "who_"),
-    ("Seizures", "Some(payer_"),
+    ("Seizures", "let payer_"),
     // The player who cast the spell that gave this ability.
     ("Hellish Rebuke", "granted_by(q, asker)"),
     // "Any time they could cast a sorcery", asked before the spell is on the stack.

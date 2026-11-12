@@ -373,7 +373,7 @@ fn references_read_the_slot_of_their_arity() {
         "SpellActions(Targeted([AnyNumberOfTargetPermanents(AnyPermanent), UptoOneTargetPermanent(AnyPermanent), TargetPermanent(AnyPermanent)], ActionList([DestroyPermanent(Ref_TargetPermanent1), DestroyPermanent(Ref_TargetPermanent2)])))",
     );
     assert!(
-        numbered.contains("objects: One(Target { slot: TargetSlot(1)"),
+        numbered.contains("objects: Targets(TargetSlot(1))"),
         "{numbered}"
     );
     assert!(
@@ -1368,7 +1368,8 @@ fn life_floors_mana_sources_and_acting_players() {
     let half = lowered(
         "TriggerA(WhenACreatureAttacks(SinglePermanent(ThisPermanent)), ActionList([LoseLife(HalfRoundedUp(LifeTotalOfPlayer(LoseLife_ThatPlayer)))]))",
     );
-    assert!(half.contains("Acting"), "{half}");
+    assert!(half.contains("player: AbilityController"), "{half}");
+    assert!(!half.contains("Acting"), "{half}");
     assert!(!half.contains("Primitive"), "{half}");
     let spent = lowered(
         "StackSpellsEffect(And([CastByPlayer(You), ManaFromAPermanentWasSpentToCastIt(IsCardtype(Artifact))]), [SplitSecond])",

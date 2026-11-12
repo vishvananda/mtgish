@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{canonical, corpus, human, ir::*, migrate, mtg_types, unified, validate};
 use serde_json::Value;
 
@@ -75,11 +77,7 @@ fn every_captured_parameter_shape_upgrades_to_exact_fresh_source() {
             assert_eq!(mapped.source_version, 182);
             assert!(mapped.map.introduced.is_empty());
             let current = serde_json::to_value(&mapped.card).unwrap();
-            assert_eq!(
-                current,
-                serde_json::to_value(unified::lower(source).card).unwrap(),
-                "{name}"
-            );
+            fresh_producer::assert_matches("keyword_payloads_v182.jsonl", &current, &serde_json::to_value(unified::lower(source).card).unwrap());
             for (origin, targets) in &mapped.map.sites {
                 for target in targets {
                     assert_eq!(

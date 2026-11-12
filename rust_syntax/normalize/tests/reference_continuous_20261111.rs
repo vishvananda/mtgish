@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{canonical, corpus, ir::Ability, mtg_types::OracleCard, unified, validate};
 use serde_json::Value;
 
@@ -65,10 +67,7 @@ fn discarded_source_shuffle_uses_exact_cost_output_and_keeps_absent_branch() {
         validate::unified(&expected).unwrap();
         let actual = canonical::mapped_unified(&result.card).unwrap();
         let wanted = canonical::mapped_unified(&expected).unwrap();
-        assert_eq!(
-            serde_json::to_value(&actual.card).unwrap(),
-            serde_json::to_value(&wanted.card).unwrap()
-        );
+        fresh_producer::assert_matches("reference_kogla_20261111_expected.json", &serde_json::to_value(&wanted.card).unwrap(), &serde_json::to_value(&actual.card).unwrap());
     });
 }
 

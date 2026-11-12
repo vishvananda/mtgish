@@ -4159,20 +4159,6 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
     })
 }
 
-fn graveyard_origin_filter(filter: &ObjectFilter) -> ObjectFilter {
-    match filter {
-        ObjectFilter::InZone(ZoneScope::Players {
-            zone: EventZone::Graveyard,
-            players,
-        }) => ObjectFilter::OwnedBy(players.clone()),
-        ObjectFilter::InZone(ZoneScope::Shared(EventZone::Graveyard)) => ObjectFilter::Any,
-        ObjectFilter::AllOf(filters) => ObjectFilter::AllOf(filters.iter().map(graveyard_origin_filter).collect()),
-        ObjectFilter::AnyOf(filters) => ObjectFilter::AnyOf(filters.iter().map(graveyard_origin_filter).collect()),
-        ObjectFilter::Not(filter) => ObjectFilter::Not(Box::new(graveyard_origin_filter(filter))),
-        _ => filter.clone(),
-    }
-}
-
 fn event_filter(objects: &ObjectSet) -> Option<ObjectFilter> {
     if let Some(filter) = objects.battlefield_filter() {
         return Some(filter.clone());
@@ -4625,7 +4611,7 @@ fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
                 objects: cards.clone(),
             }),
             "Trigger::WhenAGraveyardCardIsPutIntoHand" => Some(EventSpec::ZoneChange {
-                objects: graveyard_origin_filter(cards),
+                objects: cards.clone(),
                 from: Some(EventZone::Graveyard),
                 to: EventZone::Hand,
             }),

@@ -7919,7 +7919,7 @@
       39
     ],
     "contains": [
-      "MayActions([PutACardFromHandOnBattlefield"
+      "MayCost(PutACardFromHandOnBattlefield"
     ],
     "excludes": []
   },
@@ -10348,7 +10348,7 @@
       54
     ],
     "contains": [
-      "layer(You))]))], ActionList([MustCost(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersNormally])), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), If(CostWasPaid, [CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay)]))]), MayActions([PutACardFromHandOnBattlefield(IsCardtype(Creature), [EntersNormally]), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ControllersSacrificeEachPermanent(SinglePermanent(ThePermanentPutOnTheBattlefieldThisWay))]))])])))])"
+      "layer(You))]))], ActionList([MustCost(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersNormally])), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), If(CostWasPaid, [CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay)]))]), MayCost(PutACardFromHandOnBattlefield(IsCardtype(Creature), [EntersNormally])), If(CostWasPaid, [CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ControllersSacrificeEachPermanent(SinglePermanent(ThePermanentPutOnTheBattlefieldThisWay))]))])])))])"
     ],
     "excludes": [
       "layer(You))]))], ActionList([MayCost(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersNormally])), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), If(CostWasPaid, [CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay)]))]), MayActions([PutACardFromHandOnBattlefield(IsCardtype(Creature), [EntersNormally]), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ControllersSacrificeEachPermanent(TheTokensCreatedThisWay)]))])])))])"

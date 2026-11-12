@@ -812,6 +812,7 @@ impl Context {
             }
         }
         let (ordinal, index) = match value {
+            S::ThisSacrificedPermanent if self.sacrificed_source => return Ok(ObjectRef::Source),
             S::ThePermanentSacrificedThisWay
             | S::TheSacrificedPermanent
             | S::ThisSacrificedPermanent => {
@@ -2650,6 +2651,10 @@ impl Context {
         let mut changes = Vec::new();
         for (i, value) in values.iter().enumerate() {
             let change = match value {
+                S::Rule(rule) => {
+                    changes.extend(self.rule_changes(std::slice::from_ref(rule.as_ref()))?);
+                    continue;
+                },
                 S::AdjustPT(p, t) => T::AdjustPT(*p, *t),
                 S::AdjustPTX(p, t, x) => T::AdjustPTX(p.clone(), t.clone(), x.clone()),
                 S::AdjustPTForEach(p, t, n) => T::AdjustPTForEach(*p, *t, n.clone()),
@@ -4531,6 +4536,18 @@ impl Context {
                 // EventDestination deliberately excludes hidden-zone moves.
                 // Duplicate the recorded pre-move card, even if its hand
                 // incarnation has already moved again before resolution.
+                Operation::Conjure {
+                    actor: actor.clone(),
+                    card: ConjuredCard::DuplicateLastKnown(ObjectRef::EventSubject),
+                    count: Expr::Constant(1), owner: None,
+                    destination: ConjureDestination::Hand(CardArrival::default()),
+                }
+            },
+            S::ConjureDuplicateOfCardInHandIntoHand(card)
+                if self.event.moved_to_hand && matches!(card, source::CardInHand::Trigger_ThatCardInHand) =>
+            {
+                // The same recorded-card contract applies to library -> hand
+                // and graveyard -> hand. Neither searches a later hand.
                 Operation::Conjure {
                     actor: actor.clone(),
                     card: ConjuredCard::DuplicateLastKnown(ObjectRef::EventSubject),
@@ -6512,6 +6529,7 @@ fn keyword(value: &source::Rule) -> Result<Keyword> {
 pub fn card(value: &source::OracleCard) -> std::result::Result<Card, Vec<Diagnostic>> {
     crate::corpus::on_large_stack(|| crate::pipeline::lower(value)).and_then(|card| {
         let mut card = crate::movement::normalize_card(card);
+        crate::producer_forms::normalize_card(&mut card);
         crate::coin_policies::source_card(&mut card).map_err(|message| vec![invalid(&message)])?;
         Ok(card)
     })

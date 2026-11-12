@@ -1,0 +1,1869 @@
+{
+  "api_layouts_v184.jsonl": {
+    "Alora, Cheerful Scout": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/affected/Objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/affected/Objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ],
+    "Bottomless Pool": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ]
+  },
+  "movement_destinations_v185.jsonl": {
+    "Better Offer": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/kind",
+        "before": "Group",
+        "after": "Effect"
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args",
+        "before": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "ChooseObjects",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Players": {
+                            "zone": "Library",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Card",
+                        "filter": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            },
+                            {
+                              "kind": "Property",
+                              "args": {
+                                "property": "ManaValue",
+                                "test": {
+                                  "kind": "Compare",
+                                  "args": {
+                                    "comparison": "LessOrEqual",
+                                    "value": {
+                                      "kind": "AnnouncedX"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "count": {
+                      "AsManyAsCan": {
+                        "kind": "Constant",
+                        "args": 1
+                      }
+                    },
+                    "constraints": [
+                      "AtRandom"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "Move",
+                  "args": {
+                    "objects": {
+                      "kind": "Selected",
+                      "args": 0
+                    },
+                    "destination": {
+                      "Battlefield": {
+                        "controller": {
+                          "Player": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "arrival": {
+                          "controller": null,
+                          "tapped": false,
+                          "counters": [],
+                          "states": [
+                            {
+                              "Perpetual": [
+                                {
+                                  "kind": "SetBasePowerToughness",
+                                  "args": {
+                                    "power": {
+                                      "kind": "AnnouncedX"
+                                    },
+                                    "toughness": {
+                                      "kind": "AnnouncedX"
+                                    }
+                                  }
+                                },
+                                {
+                                  "kind": "GrantAbility",
+                                  "args": {
+                                    "kind": "Keyword",
+                                    "args": {
+                                      "kind": "Ward",
+                                      "args": {
+                                        "parts": [
+                                          {
+                                            "Mana": [
+                                              {
+                                                "Generic": 1
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "qualifiers": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "after": {
+          "result": 0,
+          "operation": {
+            "kind": "WithSelections",
+            "args": {
+              "steps": [
+                {
+                  "binding": 0,
+                  "chooser": "Chance",
+                  "objects": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Library",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          },
+                          {
+                            "kind": "Property",
+                            "args": {
+                              "property": "ManaValue",
+                              "test": {
+                                "kind": "Compare",
+                                "args": {
+                                  "comparison": "LessOrEqual",
+                                  "value": {
+                                    "kind": "AnnouncedX"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "count": {
+                    "AsManyAsCan": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "constraints": []
+                }
+              ],
+              "action": {
+                "kind": "Move",
+                "args": {
+                  "objects": {
+                    "kind": "Prepared",
+                    "args": 0
+                  },
+                  "destination": {
+                    "Battlefield": {
+                      "controller": {
+                        "Player": {
+                          "kind": "AbilityController"
+                        }
+                      },
+                      "arrival": {
+                        "controller": null,
+                        "tapped": false,
+                        "counters": [],
+                        "states": [
+                          {
+                            "Perpetual": [
+                              {
+                                "kind": "SetBasePowerToughness",
+                                "args": {
+                                  "power": {
+                                    "kind": "AnnouncedX"
+                                  },
+                                  "toughness": {
+                                    "kind": "AnnouncedX"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "GrantAbility",
+                                "args": {
+                                  "kind": "Keyword",
+                                  "args": {
+                                    "kind": "Ward",
+                                    "args": {
+                                      "parts": [
+                                        {
+                                          "Mana": [
+                                            {
+                                              "Generic": 1
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "qualifiers": []
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "Calim, Djinn Emperor": [
+      {
+        "path": "/faces/0/abilities/2/args/ability/args/body/instructions/0/args/operation/args/objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/2/args/ability/args/body/instructions/0/args/operation/args/objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ],
+    "Forum Filibuster": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/instructions/1/args/operation/args/body/instructions/0/args/operation/args/objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/instructions/1/args/operation/args/body/instructions/0/args/operation/args/objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ],
+    "Hellkite Courser": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/kind",
+        "before": "Optional",
+        "after": "Group"
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args",
+        "before": {
+          "decider": {
+            "kind": "AbilityController"
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 0,
+                  "operation": {
+                    "kind": "WithSelections",
+                    "args": {
+                      "steps": [
+                        {
+                          "binding": 0,
+                          "chooser": {
+                            "Players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          },
+                          "objects": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Shared": "Command"
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "AllOf",
+                                    "args": [
+                                      {
+                                        "kind": "State",
+                                        "args": "Commander"
+                                      },
+                                      {
+                                        "kind": "OwnedBy",
+                                        "args": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "filter": {
+                                "kind": "OwnedBy",
+                                "args": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": []
+                        }
+                      ],
+                      "action": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Prepared",
+                            "args": 0
+                          },
+                          "destination": {
+                            "Battlefield": {
+                              "controller": "Owner",
+                              "arrival": {
+                                "controller": null,
+                                "tapped": false,
+                                "counters": [],
+                                "states": []
+                              }
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 1,
+                  "operation": {
+                    "kind": "CreateContinuousEffect",
+                    "args": {
+                      "source": {
+                        "kind": "Source"
+                      },
+                      "affected": {
+                        "Objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Result",
+                            "args": {
+                              "result": 0,
+                              "phase": "After",
+                              "index": 0
+                            }
+                          }
+                        }
+                      },
+                      "changes": [
+                        {
+                          "kind": "GrantKeyword",
+                          "args": {
+                            "kind": "Haste"
+                          }
+                        }
+                      ],
+                      "duration": "Indefinite",
+                      "evaluation": "Snapshot"
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 2,
+                  "operation": {
+                    "kind": "CreateDelayedTrigger",
+                    "args": {
+                      "event": {
+                        "Turn": {
+                          "point": "EndStepBegins",
+                          "players": {
+                            "kind": "All"
+                          }
+                        }
+                      },
+                      "start": "Immediately",
+                      "expires": null,
+                      "intervening_if": null,
+                      "body": {
+                        "instructions": [
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 2,
+                              "operation": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Result",
+                                      "args": {
+                                        "result": 0,
+                                        "phase": "After",
+                                        "index": 0
+                                      }
+                                    }
+                                  },
+                                  "destination": {
+                                    "CommandZone": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "after": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 3,
+                "operation": {
+                  "kind": "PayCost",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "cost": {
+                      "parts": [
+                        {
+                          "PlayerAction": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 0,
+                                    "operation": {
+                                      "kind": "WithSelections",
+                                      "args": {
+                                        "steps": [
+                                          {
+                                            "binding": 0,
+                                            "chooser": {
+                                              "Players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            },
+                                            "objects": {
+                                              "kind": "Matching",
+                                              "args": {
+                                                "objects": {
+                                                  "kind": "Zone",
+                                                  "args": {
+                                                    "scope": {
+                                                      "Shared": "Command"
+                                                    },
+                                                    "kind": "Card",
+                                                    "filter": {
+                                                      "kind": "AllOf",
+                                                      "args": [
+                                                        {
+                                                          "kind": "State",
+                                                          "args": "Commander"
+                                                        },
+                                                        {
+                                                          "kind": "OwnedBy",
+                                                          "args": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "AbilityController"
+                                                            }
+                                                          }
+                                                        }
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "filter": {
+                                                  "kind": "OwnedBy",
+                                                  "args": {
+                                                    "kind": "One",
+                                                    "args": {
+                                                      "kind": "AbilityController"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "count": {
+                                              "Exactly": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              }
+                                            },
+                                            "constraints": []
+                                          }
+                                        ],
+                                        "action": {
+                                          "kind": "Move",
+                                          "args": {
+                                            "objects": {
+                                              "kind": "Prepared",
+                                              "args": 0
+                                            },
+                                            "destination": {
+                                              "Battlefield": {
+                                                "controller": "Owner",
+                                                "arrival": {
+                                                  "controller": null,
+                                                  "tapped": false,
+                                                  "counters": [],
+                                                  "states": []
+                                                }
+                                              }
+                                            },
+                                            "qualifiers": []
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "optional": true
+                  }
+                }
+              }
+            },
+            {
+              "kind": "If",
+              "args": {
+                "condition": {
+                  "kind": "PaymentChosen",
+                  "args": 3
+                },
+                "then": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 1,
+                        "operation": {
+                          "kind": "CreateContinuousEffect",
+                          "args": {
+                            "source": {
+                              "kind": "Source"
+                            },
+                            "affected": {
+                              "Objects": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Result",
+                                  "args": {
+                                    "result": 0,
+                                    "phase": "After",
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            },
+                            "changes": [
+                              {
+                                "kind": "GrantKeyword",
+                                "args": {
+                                  "kind": "Haste"
+                                }
+                              }
+                            ],
+                            "duration": "Indefinite",
+                            "evaluation": "Snapshot"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 2,
+                        "operation": {
+                          "kind": "CreateDelayedTrigger",
+                          "args": {
+                            "event": {
+                              "Turn": {
+                                "point": "EndStepBegins",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "start": "Immediately",
+                            "expires": null,
+                            "intervening_if": null,
+                            "body": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 2,
+                                    "operation": {
+                                      "kind": "Move",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Result",
+                                            "args": {
+                                              "result": 0,
+                                              "phase": "After",
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "destination": {
+                                          "CommandZone": {
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        },
+                                        "qualifiers": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "otherwise": {
+                  "instructions": []
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "keyword_payloads_v182.jsonl": {
+    "A.I.M. Scientists": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/actor/args",
+        "before": {
+          "kind": "AbilityController"
+        },
+        "after": {
+          "kind": "ControllerOf",
+          "args": {
+            "kind": "Source"
+          }
+        }
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/action/Connive/object/kind",
+        "before": "EventSubject",
+        "after": "Source"
+      }
+    ],
+    "Alacrian Armory": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/then/instructions/0/args/operation/args/affected/Objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/then/instructions/0/args/operation/args/affected/Objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ],
+    "Aragorn, King of Gondor": [
+      {
+        "path": "/faces/0/abilities/3/args/body/instructions/0/args/operation/args/affected/Objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/3/args/body/instructions/0/args/operation/args/affected/Objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ],
+    "Cyclonus, Cybertronian Fighter": [
+      {
+        "path": "/faces/1/abilities/2/args/body/instructions/0/args/operation/args/actor/args",
+        "before": {
+          "kind": "AbilityController"
+        },
+        "after": {
+          "kind": "ControllerOf",
+          "args": {
+            "kind": "Damage",
+            "args": "Source"
+          }
+        }
+      }
+    ],
+    "Fossil Find": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/kind",
+        "before": "Group",
+        "after": "Effect"
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args",
+        "before": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "ChooseObjects",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Card",
+                        "filter": {
+                          "kind": "InZone",
+                          "args": {
+                            "Players": {
+                              "zone": "Graveyard",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "count": {
+                      "AsManyAsCan": {
+                        "kind": "Constant",
+                        "args": 1
+                      }
+                    },
+                    "constraints": [
+                      "AtRandom"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 1,
+                "operation": {
+                  "kind": "Move",
+                  "args": {
+                    "objects": {
+                      "kind": "Selected",
+                      "args": 0
+                    },
+                    "destination": {
+                      "OwnersHand": {
+                        "counters": [],
+                        "states": []
+                      }
+                    },
+                    "qualifiers": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "after": {
+          "result": 0,
+          "operation": {
+            "kind": "WithSelections",
+            "args": {
+              "steps": [
+                {
+                  "binding": 0,
+                  "chooser": "Chance",
+                  "objects": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "InZone",
+                        "args": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "count": {
+                    "AsManyAsCan": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "constraints": []
+                }
+              ],
+              "action": {
+                "kind": "Move",
+                "args": {
+                  "objects": {
+                    "kind": "Prepared",
+                    "args": 0
+                  },
+                  "destination": {
+                    "OwnersHand": {
+                      "counters": [],
+                      "states": []
+                    }
+                  },
+                  "qualifiers": []
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/1/args/result",
+        "before": 2,
+        "after": 1
+      }
+    ],
+    "Mask of the Schemer": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/actor/args",
+        "before": {
+          "kind": "AbilityController"
+        },
+        "after": {
+          "kind": "ControllerOf",
+          "args": {
+            "kind": "Damage",
+            "args": "Source"
+          }
+        }
+      }
+    ]
+  },
+  "mode_policies_v183.jsonl": {
+    "Consider the Prime Directive": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/1/body/instructions/0/args/operation/args/objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/1/body/instructions/0/args/operation/args/objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ],
+    "Gearbane Orangutan": [
+      {
+        "path": "/faces/0/abilities/1/args/announcement/modes/options/0/body/instructions/0/args/operation/args/objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/1/args/announcement/modes/options/0/body/instructions/0/args/operation/args/objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ],
+    "Kami of Restless Shadows": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/0/body/instructions/0/args/operation/args/objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/0/body/instructions/0/args/operation/args/objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ]
+  },
+  "result_membership_before.jsonl": {
+    "Davriel, Soul Broker": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/2/instructions/0/kind",
+        "before": "Group",
+        "after": "Effect"
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/2/instructions/0/args",
+        "before": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 2,
+                "operation": {
+                  "kind": "ChooseObjects",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Card",
+                        "filter": {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        }
+                      }
+                    },
+                    "count": {
+                      "AsManyAsCan": {
+                        "kind": "Constant",
+                        "args": 2
+                      }
+                    },
+                    "constraints": [
+                      "AtRandom"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 3,
+                "operation": {
+                  "kind": "Move",
+                  "args": {
+                    "objects": {
+                      "kind": "Selected",
+                      "args": 2
+                    },
+                    "destination": {
+                      "OwnersHand": {
+                        "counters": [],
+                        "states": []
+                      }
+                    },
+                    "qualifiers": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "after": {
+          "result": 2,
+          "operation": {
+            "kind": "WithSelections",
+            "args": {
+              "steps": [
+                {
+                  "binding": 0,
+                  "chooser": "Chance",
+                  "objects": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      }
+                    }
+                  },
+                  "count": {
+                    "AsManyAsCan": {
+                      "kind": "Constant",
+                      "args": 2
+                    }
+                  },
+                  "constraints": []
+                }
+              ],
+              "action": {
+                "kind": "Move",
+                "args": {
+                  "objects": {
+                    "kind": "Prepared",
+                    "args": 0
+                  },
+                  "destination": {
+                    "OwnersHand": {
+                      "counters": [],
+                      "states": []
+                    }
+                  },
+                  "qualifiers": []
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/2/instructions/1/args/result",
+        "before": 4,
+        "after": 3
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/2/instructions/1/args/operation/args/objects/args/filter/args/args",
+        "before": 3,
+        "after": 2
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/3/instructions/0/kind",
+        "before": "Group",
+        "after": "Effect"
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/3/instructions/0/args",
+        "before": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 5,
+                "operation": {
+                  "kind": "ChooseObjects",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Card",
+                        "filter": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            },
+                            {
+                              "kind": "Property",
+                              "args": {
+                                "property": "ManaValue",
+                                "test": {
+                                  "kind": "Compare",
+                                  "args": {
+                                    "comparison": "Equal",
+                                    "value": {
+                                      "kind": "Aggregate",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "Zone",
+                                          "args": {
+                                            "scope": {
+                                              "Players": {
+                                                "zone": "Graveyard",
+                                                "players": {
+                                                  "kind": "One",
+                                                  "args": {
+                                                    "kind": "AbilityController"
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "kind": "Card",
+                                            "filter": {
+                                              "kind": "CardType",
+                                              "args": "Creature"
+                                            }
+                                          }
+                                        },
+                                        "property": "ManaValue",
+                                        "aggregation": "Maximum"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "count": {
+                      "AsManyAsCan": {
+                        "kind": "Constant",
+                        "args": 1
+                      }
+                    },
+                    "constraints": [
+                      "AtRandom"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 6,
+                "operation": {
+                  "kind": "Move",
+                  "args": {
+                    "objects": {
+                      "kind": "Selected",
+                      "args": 5
+                    },
+                    "destination": {
+                      "Battlefield": {
+                        "controller": {
+                          "Player": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "arrival": {
+                          "controller": null,
+                          "tapped": false,
+                          "counters": [],
+                          "states": []
+                        }
+                      }
+                    },
+                    "qualifiers": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "after": {
+          "result": 4,
+          "operation": {
+            "kind": "WithSelections",
+            "args": {
+              "steps": [
+                {
+                  "binding": 0,
+                  "chooser": "Chance",
+                  "objects": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          },
+                          {
+                            "kind": "Property",
+                            "args": {
+                              "property": "ManaValue",
+                              "test": {
+                                "kind": "Compare",
+                                "args": {
+                                  "comparison": "Equal",
+                                  "value": {
+                                    "kind": "Aggregate",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Graveyard",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "CardType",
+                                            "args": "Creature"
+                                          }
+                                        }
+                                      },
+                                      "property": "ManaValue",
+                                      "aggregation": "Maximum"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "count": {
+                    "AsManyAsCan": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "constraints": []
+                }
+              ],
+              "action": {
+                "kind": "Move",
+                "args": {
+                  "objects": {
+                    "kind": "Prepared",
+                    "args": 0
+                  },
+                  "destination": {
+                    "Battlefield": {
+                      "controller": {
+                        "Player": {
+                          "kind": "AbilityController"
+                        }
+                      },
+                      "arrival": {
+                        "controller": null,
+                        "tapped": false,
+                        "counters": [],
+                        "states": []
+                      }
+                    }
+                  },
+                  "qualifiers": []
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/4/instructions/0/args/result",
+        "before": 7,
+        "after": 5
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/5/instructions/0/args/result",
+        "before": 8,
+        "after": 6
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/6/instructions/0/args/result",
+        "before": 9,
+        "after": 7
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/options/7/instructions/0/args/result",
+        "before": 10,
+        "after": 8
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/0/instructions/0/args/result",
+        "before": 11,
+        "after": 9
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/1/instructions/0/args/instructions/0/args/result",
+        "before": 12,
+        "after": 10
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/1/instructions/0/args/instructions/1/args/result",
+        "before": 13,
+        "after": 11
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/1/instructions/0/args/instructions/1/args/operation/args/objects/args",
+        "before": 12,
+        "after": 10
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/1/instructions/1/args/condition/args/left/args/args/result",
+        "before": 13,
+        "after": 11
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/1/instructions/1/args/then/instructions/0/args/result",
+        "before": 14,
+        "after": 12
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/1/instructions/1/args/then/instructions/0/args/operation/args/amount/args/1/args/args/result",
+        "before": 13,
+        "after": 11
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/2/instructions/0/args/result",
+        "before": 15,
+        "after": 13
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/3/instructions/0/args/result",
+        "before": 16,
+        "after": 14
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/4/instructions/0/args/result",
+        "before": 17,
+        "after": 15
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/5/instructions/0/args/result",
+        "before": 18,
+        "after": 16
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/6/instructions/0/args/result",
+        "before": 19,
+        "after": 17
+      },
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/options/7/instructions/0/args/result",
+        "before": 20,
+        "after": 18
+      }
+    ]
+  },
+  "reference_kogla_20261111_expected.json": {
+    "Kogla and Yidaro": [
+      {
+        "path": "/faces/0/abilities/1/args/ability/args/body/instructions/0/args/operation/args/objects/kind",
+        "before": "One",
+        "after": "Targets"
+      },
+      {
+        "path": "/faces/0/abilities/1/args/ability/args/body/instructions/0/args/operation/args/objects/args",
+        "before": {
+          "kind": "Target",
+          "args": {
+            "slot": 0,
+            "index": 0
+          }
+        },
+        "after": 0
+      }
+    ]
+  },
+  "reference58_expected_20261110.json": {
+    "Kharasha Foothills": [
+      {
+        "path": "/0/args/body/instructions/0/args/body/instructions",
+        "before": [
+          {
+            "kind": "Optional",
+            "args": {
+              "decider": {
+                "kind": "AbilityController"
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "CreateTokens",
+                        "args": {
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "tokens": [
+                            {
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "words": "CreatingEffect",
+                              "recipe": {
+                                "Copy": {
+                                  "object": {
+                                    "kind": "EventSubject"
+                                  },
+                                  "exceptions": []
+                                }
+                              }
+                            }
+                          ],
+                          "entry": {
+                            "controller": null,
+                            "tapped": true,
+                            "counters": [],
+                            "states": [
+                              {
+                                "Attacking": {
+                                  "player": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  },
+                                  "or_planeswalker": false
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967294,
+                      "operation": {
+                        "kind": "CreateDelayedTrigger",
+                        "args": {
+                          "event": {
+                            "Turn": {
+                              "point": "EndStepBegins",
+                              "players": {
+                                "kind": "All"
+                              }
+                            }
+                          },
+                          "start": "Immediately",
+                          "expires": null,
+                          "intervening_if": null,
+                          "body": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 4294967295,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Created",
+                                        "args": 0
+                                      },
+                                      "destination": {
+                                        "Exile": {
+                                          "visibility": "FaceUp",
+                                          "arrival": {
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "Effect",
+            "args": {
+              "result": 1,
+              "operation": {
+                "kind": "PayCost",
+                "args": {
+                  "player": {
+                    "kind": "AbilityController"
+                  },
+                  "cost": {
+                    "parts": [
+                      {
+                        "PlayerAction": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "body": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 0,
+                                  "operation": {
+                                    "kind": "CreateTokens",
+                                    "args": {
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      },
+                                      "tokens": [
+                                        {
+                                          "amount": {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          },
+                                          "words": "CreatingEffect",
+                                          "recipe": {
+                                            "Copy": {
+                                              "object": {
+                                                "kind": "EventSubject"
+                                              },
+                                              "exceptions": []
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "entry": {
+                                        "controller": null,
+                                        "tapped": true,
+                                        "counters": [],
+                                        "states": [
+                                          {
+                                            "Attacking": {
+                                              "player": {
+                                                "kind": "Bound",
+                                                "args": 0
+                                              },
+                                              "or_planeswalker": false
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "optional": true
+                }
+              }
+            }
+          },
+          {
+            "kind": "If",
+            "args": {
+              "condition": {
+                "kind": "PaymentChosen",
+                "args": 1
+              },
+              "then": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967294,
+                      "operation": {
+                        "kind": "CreateDelayedTrigger",
+                        "args": {
+                          "event": {
+                            "Turn": {
+                              "point": "EndStepBegins",
+                              "players": {
+                                "kind": "All"
+                              }
+                            }
+                          },
+                          "start": "Immediately",
+                          "expires": null,
+                          "intervening_if": null,
+                          "body": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 4294967295,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Created",
+                                        "args": 0
+                                      },
+                                      "destination": {
+                                        "Exile": {
+                                          "visibility": "FaceUp",
+                                          "arrival": {
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "otherwise": {
+                "instructions": []
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

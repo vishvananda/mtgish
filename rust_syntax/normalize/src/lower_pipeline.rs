@@ -13,6 +13,19 @@ impl Context {
             O::Many(players) => self.players(players)?,
         })
     }
+    /// A zero-or-one target used as an object population has the target slot's
+    /// cardinality, rather than an implicit first element. Mandatory scalar
+    /// references and larger/multi-element slots retain their own contracts.
+    fn target_objects(&self, object: ObjectRef) -> ObjectSet {
+        if let ObjectRef::Target { slot, index: 0 } = &object {
+            if self.targets.iter().any(|spec| spec.slot.0 == slot.0
+                && matches!(spec.count, Count::UpTo(Expr::Constant(1)))) {
+                return ObjectSet::Targets(slot.clone());
+            }
+        }
+        ObjectSet::One(object)
+    }
+
     fn pipeline_subjects(
         &self,
         subjects: &crate::pipeline::Subjects,
@@ -25,17 +38,17 @@ impl Context {
             crate::pipeline::CardZone::Library => EventZone::Library,
         };
         Ok(match subjects {
-            S::Permanent(p) => ObjectSet::One(self.object(p)?),
+            S::Permanent(p) => self.target_objects(self.object(p)?),
             S::Permanents(p) => self.objects(p)?,
-            S::GraveCard(c) => ObjectSet::One(self.grave_card(c)?),
+            S::GraveCard(c) => self.target_objects(self.grave_card(c)?),
             S::GraveCards(c) => self.grave_cards(c)?,
             S::ExiledCard(c) => self.still_exiled(match self.exiled_followup_group(c) {
                 Some(objects) => objects,
                 None => ObjectSet::One(self.exiled_card(c)?),
             }),
             S::ExiledCards(c) => self.still_exiled(self.exile_cards(c)?),
-            S::Spell(s) => ObjectSet::One(self.spell(s)?),
-            S::HandCard(c) => ObjectSet::One(self.hand_card(c)?),
+            S::Spell(s) => self.target_objects(self.spell(s)?),
+            S::HandCard(c) => self.target_objects(self.hand_card(c)?),
             S::HandCards(c) => {
                 if self.hand_has_scope(c)? {
                     return Err(unsupported(c));
@@ -170,21 +183,31 @@ impl Context {
                 return Err(invalid("resolution selection requires one actor"));
             };
             let random = matches!(&recipe, R::Move { random: true, .. });
-            let choose = self.effect(Operation::ChooseObjects {
-                player: player.clone(),
-                objects,
-                count,
-                constraints: if random {
-                    vec![SelectionConstraint::AtRandom]
-                } else {
-                    vec![]
-                },
-            });
-            let Instruction::Effect { result, .. } = &choose else {
-                unreachable!()
-            };
-            objects = ObjectSet::Selected(result.clone());
-            instructions.push(choose);
+            // Random movement is one operation with resolution-time chance
+            // preparation, like the other random-zone movement producers. It
+            // has no independent observation/choice receipt for later effects.
+            if let (true, Count::AsManyAsCan(amount)) = (random, &count) {
+                objects = ObjectSet::DraftRandom {
+                    objects: Box::new(objects),
+                    count: amount.clone(),
+                };
+            } else {
+                let choose = self.effect(Operation::ChooseObjects {
+                    player: player.clone(),
+                    objects,
+                    count,
+                    constraints: if random {
+                        vec![SelectionConstraint::AtRandom]
+                    } else {
+                        vec![]
+                    },
+                });
+                let Instruction::Effect { result, .. } = &choose else {
+                    unreachable!()
+                };
+                objects = ObjectSet::Selected(result.clone());
+                instructions.push(choose);
+            }
         }
         let operation = match recipe {
             R::ContinuousEffect {

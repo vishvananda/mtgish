@@ -4642,6 +4642,16 @@ impl Compiler {
         let EffectSubjects::Objects(affected) = affected else {
             return Err(gap("continuous effect on players"));
         };
+        if matches!(source, ObjectRef::Source)
+            && matches!(affected, ObjectSet::One(_))
+            && matches!(changes, [Change::Rule(RuleChange::RequireCombat {
+                action: ObjectAction::BeBlocked(ObjectFilter::Any | ObjectFilter::CardType(crate::mtg_types::CardType::Creature)),
+                amount: RequirementAmount::Each,
+            })])
+            && self.lasting_rules(affected, changes, duration, out)?
+        {
+            return Ok(());
+        }
         let becoming = self.becoming_replaces(changes);
         let changes = becoming.as_deref().unwrap_or(changes);
         // Establish the creature card type before setting its creature types.

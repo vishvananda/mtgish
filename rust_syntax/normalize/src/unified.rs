@@ -45,6 +45,7 @@ struct Walk {
 pub fn lower(value: &OracleCard) -> Lowered {
     let mut lowered = crate::corpus::on_large_stack(|| lower_record(value));
     crate::movement::normalize_unified(&mut lowered.card);
+    crate::producer_forms::normalize(&mut lowered.card);
     if let Err(message) = crate::coin_policies::source_unified(&mut lowered.card) {
         lowered.diagnostics.push(Diagnostic {
             path: "".into(),

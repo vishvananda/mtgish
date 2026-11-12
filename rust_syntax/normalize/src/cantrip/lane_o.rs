@@ -547,6 +547,23 @@ impl Compiler {
         out: &mut String,
     ) -> Result<bool> {
         use crate::ir::Duration as D;
+        // The portable requirement belongs to the attacker. This backend's
+        // lasting-rule table instead requires each eligible creature to block
+        // that captured attacker. Legality already limits blockers to creatures.
+        if let (ObjectSet::One(attacker), [Change::Rule(RuleChange::RequireCombat {
+            action: ObjectAction::BeBlocked(ObjectFilter::Any | ObjectFilter::CardType(crate::mtg_types::CardType::Creature)),
+            amount: RequirementAmount::Each,
+        })]) = (affected, changes) {
+            let blockers = ObjectSet::Zone {
+                scope: ZoneScope::Shared(EventZone::Battlefield), kind: ObjectKind::Permanent,
+                filter: ObjectFilter::CardType(crate::mtg_types::CardType::Creature),
+            };
+            let rule = Change::Rule(RuleChange::RequireCombat {
+                action: ObjectAction::Block(ObjectFilter::SameObject(attacker.clone())),
+                amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+            });
+            return self.lasting_rules(&blockers, &[rule], duration, out);
+        }
         let crate::battlefield_query!(filter) = affected else {
             return Ok(false);
         };

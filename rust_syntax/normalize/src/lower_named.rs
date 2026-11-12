@@ -1197,8 +1197,12 @@ impl Context {
             },
             (
                 "Player::LoseLife_ThatPlayer"
-                | "Player::PlayerAction_ThatPlayer"
-                | "Player::SpellDealsDamage_ThatPlayer"
+                | "Player::LoseLifeForEach_ThatPlayer"
+                | "Player::PlayerAction_ThatPlayer",
+                [],
+            ) => self.acting.clone().or_else(|| self.iterated.clone()).unwrap_or(PlayerRef::Acting),
+            (
+                "Player::SpellDealsDamage_ThatPlayer"
                 | "Player::DealsDamage_ThatPlayer"
                 | "Player::Condition_ThatPlayer",
                 [],

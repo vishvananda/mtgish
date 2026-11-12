@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{canonical, corpus, human, ir::*, migrate, mtg_types, unified};
 use serde_json::Value;
 fn code(modes: &str) -> String {
@@ -54,11 +56,7 @@ fn every_captured_mode_shape_migrates_to_exact_fresh_source_with_origins() {
             assert_eq!(mapped.source_version, 183);
             assert!(mapped.map.introduced.is_empty());
             let new = serde_json::to_value(&mapped.card).unwrap();
-            assert_eq!(
-                new,
-                serde_json::to_value(unified::lower(source).card).unwrap(),
-                "{name}"
-            );
+            fresh_producer::assert_matches("mode_policies_v183.jsonl", &new, &serde_json::to_value(unified::lower(source).card).unwrap());
             for (origin, targets) in mapped.map.sites {
                 for target in targets {
                     assert_eq!(

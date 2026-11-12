@@ -50,10 +50,7 @@ fn trygon_keeps_one_batch_and_the_complete_independent_target_followup() {
             .all(|p| matches!(p.amount, Expr::Constant(1))));
         assert!(matches!(
             affected,
-            EffectSubjects::Objects(ObjectSet::One(ObjectRef::Target {
-                slot: TargetSlot(0),
-                index: 0
-            }))
+            EffectSubjects::Objects(ObjectSet::Targets(TargetSlot(0)))
         ));
         assert!(matches!(
             changes.as_slice(),

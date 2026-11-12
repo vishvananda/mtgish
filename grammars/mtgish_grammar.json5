@@ -6150,6 +6150,7 @@
     "[{{STATIC_LAYER_EFFECT}}]": ""
   },
   "{{STATIC_LAYER_EFFECT}}": {
+    "Rule({{PERMANENT_RULE}})": "",
     "{{STATIC_LAYER_1_PERMANENT_EFFECT}}": "",
     "{{STATIC_LAYER_2_PERMANENT_EFFECT}}": "",
     "{{STATIC_LAYER_3_PERMANENT_EFFECT}}": "",
