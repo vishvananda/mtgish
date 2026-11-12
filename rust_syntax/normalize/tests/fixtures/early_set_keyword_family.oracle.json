@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Balduvian Shaman",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Balduvian Shaman",
+        "manaCost": "{U}",
+        "type": "Creature — Human Cleric Shaman",
+        "text": "{T}: Change the text of target white enchantment you control that doesn't have cumulative upkeep by replacing all instances of one color word with another. (For example, you may change \"black creatures can't attack\" to \"blue creatures can't attack.\") That enchantment gains \"Cumulative upkeep {1}.\" (At the beginning of its controller's upkeep, that player puts an age counter on it, then sacrifices it unless they pay its upkeep cost for each age counter on it.)",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Rapid Fire",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Rapid Fire",
+        "manaCost": "{3}{W}",
+        "type": "Instant",
+        "text": "Cast this spell only before blockers are declared.\nTarget creature gains first strike until end of turn. If it doesn't have rampage, that creature gains rampage 2 until end of turn. (Whenever the creature becomes blocked, it gets +2/+2 until end of turn for each creature blocking it beyond the first.)"
+      }
+    ]
+  }
+]

@@ -2653,6 +2653,14 @@ impl Compiler {
                     "({printed} || q.state().permissions.iter().any(|p| p.grant.flashback && q.state().permission_covers(p, {id})) || q.state().battlefield().iter().any(|&p| !q.lost_all_abilities(p) && q.card(q.chars(p).card).granted_ways.iter().any(|w| w.flashback && q.state().obj({id}).zone.is(w.from) && (w.cost)(q, &Asker::new(p, q.controller(p)), {id}, q.state().obj({id}).owner).is_some())))"
                 )
             }
+            KeywordFamily::Rampage | KeywordFamily::CumulativeUpkeep if planned::switched_on("keyword-family-metadata") => {
+                let wanted = format!("Some(cantrip_api::KeywordFamily::{})", form(family));
+                if self.reader == Reader::Layer {
+                    format!("{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Triggered(t) if t.keyword_family == {wanted}))")
+                } else {
+                    format!("{chars}.abilities().any(|a| q.triggered_ability(a).is_some_and(|t| t.keyword_family == {wanted}))")
+                }
+            }
             KeywordFamily::Landwalk => format!("{chars}.keywords.has_landwalk()"),
             other => planned::planned_value(
                 "object filter HasKeywordFamily",

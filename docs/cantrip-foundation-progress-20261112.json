@@ -1,5 +1,5 @@
 {
-  "native_foundation": "4deb96071",
+  "native_foundation": "fb68ed4c8",
   "scoped_missing": 286,
   "generation_ready": [
     "Anti-Magic Aura",
@@ -8,6 +8,7 @@
     "Ashen Ghoul",
     "Axelrod Gunnarson",
     "Balduvian Hydra",
+    "Balduvian Shaman",
     "Battle Cry",
     "Black Mana Battery",
     "Blood of the Martyr",
@@ -130,6 +131,7 @@
     "Quagmire",
     "Quarum Trench Gnomes",
     "Rabid Wombat",
+    "Rapid Fire",
     "Ray of Command",
     "Reality Twist",
     "Ring of Ma'rûf",
@@ -198,9 +200,6 @@
     ],
     "Arcum's Weathervane": [
       "engine: no effect changes supertypes"
-    ],
-    "Balduvian Shaman": [
-      "object filter HasKeywordFamily"
     ],
     "Barbarian Guides": [
       "landwalk of AllOf"
@@ -431,9 +430,6 @@
       "a lasting block rule reading what its ability chose",
       "a pile's name kept on its objects for a lasting rule",
       "player collection Scoped"
-    ],
-    "Rapid Fire": [
-      "object filter HasKeywordFamily"
     ],
     "Rasputin Dreamweaver": [
       "object state StartedTurnUntapped",
@@ -734,15 +730,6 @@
       "cards": [
         "Takklemaggot",
         "Tawnos's Coffin"
-      ]
-    },
-    {
-      "feature": "object filter HasKeywordFamily",
-      "affected": 2,
-      "sole_blocker": 2,
-      "cards": [
-        "Balduvian Shaman",
-        "Rapid Fire"
       ]
     },
     {
@@ -1746,7 +1733,7 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 34,
+    "generated_runtime_scenarios": 36,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
@@ -1764,13 +1751,8 @@
       "log": "workspace-eight-tests.log",
       "revision": "4deb96071"
     },
-    "full_native_current_batch": {
-      "passed": 22577,
-      "failed": 0,
-      "ignored": 15,
-      "log": "workspace-eight-tests.log",
-      "revision": "4deb96071"
-    }
+    "focused_keyword_families": 2,
+    "all_card_keyword_family_oracle_test": 1
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1785,9 +1767,13 @@
     "generator-eight-native-runtime.log": "29d0248eeaf7705d3051ce03785089336e1942460982ffc6d4fef24caf82f1b2",
     "pipeline-fingerprint-recheck.log": "829e831d16e066ba23dcdc047ab57dce8e245ca519ab28f2f72baa793353bf25",
     "generator-eight-suite-serialized.log": "9467b05fade6452f91f19495552ac1994b252646fa6eea9fae59e35d56fab507",
-    "workspace-eight-tests.log": "b2a1269686873490f5e21f4216c104cfadab224189df55b5475891f9ed9a680b"
+    "workspace-eight-tests.log": "b2a1269686873490f5e21f4216c104cfadab224189df55b5475891f9ed9a680b",
+    "keyword-family-tests.log": "605d138b6d5da010586aab91fa59dc04368d6ccc83ca9a13fc498b6eed4d8131",
+    "keyword-family-oracle-tests.log": "b3a5f02eed16d340f7da39021957860be32e36e7844c88e17391001dbabb9935",
+    "generator-nine-native-runtime.log": "0b1fe0c059574fff9ec1a419f40c7fdf71864da40eeb58bfa08936b64dc17beb",
+    "generator-nine-scope.log": "60f44f684eab7e11857bc93dd10706c69bf6dcb516ea5ce814220bd9eb407e59"
   },
-  "candidate_api_fingerprint": "339e1feff503ccc66edccf4d7615b103fdf3d36b4f51486e0134ccfba5e36788",
+  "candidate_api_fingerprint": "a750b4fbc44b4d5fe6974d83040aef51bffad801847f2d494f99c58286040773",
   "benchmark_current_batch": {
     "games": 128,
     "allocation_kb_per_decision": 26.74,

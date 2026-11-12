@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`4deb96071`. Eight focused feature groups are implemented. The new step-deadline
+`fb68ed4c8`. Nine focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,12 +16,12 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **178 generate without recorded feature gaps and 108
+Of the 286 scoped cards, **180 generate without recorded feature gaps and 106
 remain gapped**. Those 178 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 107 raw requirement labels
-are not 109 independent engine features: some are generator gaps, some overlap,
+remaining requirement and its affected cards. Its 106 raw requirement labels
+are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
 The seventh primitive explicitly empties unspent mana for Mana Short and Power
@@ -37,16 +37,23 @@ recorded random choices without replacement, and never offer a card-selection
 prompt. Four focused native tests and a generated scenario exercising all
 three cards pass. Variable-X random discard costs retain their explicit gap.
 
+The ninth primitive gives rampage and cumulative upkeep typed family metadata.
+Rapid Fire and Balduvian Shaman now generate without gaps. Two native tests cover
+identity through grants, loss and copying; an Oracle audit verifies metadata on
+every implemented card. Two generated runtime scenarios cover both positive
+and negative keyword checks. The latest complete workspace gates below cover
+the first eight feature groups; the ninth has focused and runtime validation.
+
 The original roadmap still has bands with other, computed X constraints, and
 persistent public visibility pending. The full remaining ledger also identifies
-other needs, including untap limits, mana-pool emptying, random discard costs,
+other needs, including untap limits, forced mana activations,
 combat changes/costs, targeting by other players and delayed-trigger lifetimes.
 Treat that as an investigation queue; verify existing native support before
 adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 34 scenarios,
+the pristine foundation. The generated runtime suite now passes 36 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The complete generator suite now passes 1,573 tests (22 ignored) in a serialized
@@ -67,7 +74,8 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --features cantri
   --bin ast -- cantrip-candidate subset.ronl subset.oracle.json rows.jsonl \
   landwalk-blocking-exceptions independent-pt-settings \
   no-combat-damage-assignment world-rule other-activators \
-  step-deadlines counted-untap-steps explicit-mana-loss random-discard-costs
+  step-deadlines counted-untap-steps explicit-mana-loss random-discard-costs \
+  keyword-family-metadata
 ```
 
 These flags explicitly select capabilities; they do not prove that an engine

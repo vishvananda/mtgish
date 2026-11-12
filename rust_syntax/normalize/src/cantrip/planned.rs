@@ -104,6 +104,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("counted-untap-steps", "DuringControllersNextUntapSteps(u32),", &["duration-during-controllers-next-untap-steps"]),
     ("explicit-mana-loss", "fn empty_mana_pool(&mut self, player: PlayerId) -> ManaPool;", &[]),
     ("random-discard-costs", "pub discard_at_random: u8,", &[]),
+    ("keyword-family-metadata", "pub keyword_family: Option<KeywordFamily>,", &[]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";
