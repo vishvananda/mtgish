@@ -99,6 +99,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("independent-pt-settings", "SetPower(i32),", &["engine-no-effect-sets-power-or-toughness-alone"]),
     ("no-combat-damage-assignment", "NoCombatDamageAssignment,", &[]),
     ("world-rule", "pub world_since: u32,", &[]),
+    ("other-activators", "pub activators: Option<ActivationPlayers>,", &["engine-no-activation-by-other-players"]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

@@ -1,0 +1,168 @@
+{
+  "native_base": "6814db9c8c564e8c51c6f698c1f487189baf48f7",
+  "native_foundation": "de790242f",
+  "native_branch": "engine/early-set-foundation-20261112",
+  "native_feature_commits": [
+    "5c1c4d363",
+    "756278d37",
+    "d4bf69bb8",
+    "1617f06d8",
+    "de790242f"
+  ],
+  "generator_parent": "6a9d523",
+  "ast_schema": 190,
+  "default_api_pin_unchanged": true,
+  "candidate_api_fingerprint": "b7a201827a4c5b025ab119576e5b0c4787ff6b9a70bbd3aaecb3daac6d0d30aa",
+  "validation": {
+    "workspace-five-tests.log": {
+      "passed": 22565,
+      "failed": 0,
+      "ignored": 15,
+      "targets": 235,
+      "sha256": "6abd32aa1b5acf3bd1f34ae78124f87b7aac8fb3ceac893cae6a9a6f395f9e07"
+    },
+    "generator-five-suite.log": {
+      "passed": 1570,
+      "failed": 0,
+      "ignored": 22,
+      "targets": 185,
+      "sha256": "09479611cad1dd4eec226ff3c4a71e396a89fc049628e12ed53b13dbd09b64b1"
+    },
+    "activation-players-tests.log": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 7,
+      "sha256": "4e04c038827cb05159906a399a27e9d384594913d777a530392ef5d53d4739f5"
+    }
+  },
+  "candidate_cards": {
+    "affected": 40,
+    "generation_ready": [
+      "Arboria",
+      "Armageddon Clock",
+      "Clergy of the Holy Nimbus",
+      "Cloak of Confusion",
+      "Concordant Crossroads",
+      "Crevasse",
+      "Deadfall",
+      "Delif's Cone",
+      "Delif's Cube",
+      "Farrel's Mantle",
+      "Farrel's Zealot",
+      "Floral Spuzzem",
+      "Gaze of Pain",
+      "Gosta Dirk",
+      "Gravity Sphere",
+      "Great Wall",
+      "Ifh-Bíff Efreet",
+      "In the Eye of Chaos",
+      "Infinite Hourglass",
+      "Island of Wak-Wak",
+      "Land's Edge",
+      "Living Plane",
+      "Lord Magnus",
+      "Mercenaries",
+      "Nether Void",
+      "Orcish Squatters",
+      "Quagmire",
+      "Sentinel",
+      "Singing Tree",
+      "Staff of the Ages",
+      "Storm World",
+      "The Abyss",
+      "Undertow",
+      "Ur-Drago",
+      "Wall of Tombstones"
+    ],
+    "still_gapped": {
+      "Caverns of Despair": [
+        "static rule CombatGroup Attacker",
+        "static rule CombatGroup Blocker"
+      ],
+      "Field of Dreams": [
+        "a library's top card open to view"
+      ],
+      "Revelation": [
+        "a hand played revealed"
+      ],
+      "Merseine": [
+        "engine: no cost copies a mana cost"
+      ],
+      "Personal Incarnation": [
+        "replacement of damage to a named recipient"
+      ]
+    },
+    "installed_cards": 0
+  },
+  "native_module_compile": {
+    "cards": 40,
+    "exit": 0,
+    "errors": []
+  },
+  "counter_overlay": {
+    "engine_commit": "de790242fef18ecc4b092162d3e49f71c9352bb8",
+    "declarations": {
+      "Cube": 91,
+      "Doom": 92
+    },
+    "original_ids": "0-90 unchanged",
+    "behavior_changes": false,
+    "patch_sha256": "e1823b3358b970a43fc8c585b902b24530f588e78b52430e1a5ad0b855863782",
+    "overlay_build": "dev-dependencies omitted; four native crates only",
+    "patch": "--- a/crates/cantrip-state/src/vocab.rs\n+++ b/crates/cantrip-state/src/vocab.rs\n@@ -1657,6 +1657,8 @@\n     Storage = 88, \"storage\", \"Storage\";\n     Tide = 89, \"tide\", \"Tide\";\n     Music = 90, \"music\", \"Music\";\n+    Cube = 91, \"cube\", \"Cube\";\n+    Doom = 92, \"doom\", \"Doom\";\n \n }\n \n",
+    "temporary_sources_and_target_removed": true
+  },
+  "native_generated_runtime": {
+    "passed": 27,
+    "failed": 0,
+    "pristine_foundation": true,
+    "counter_overlay": false,
+    "verification": true,
+    "sha256": "5ae12788595bcc1dbf4c9d0509f6e27fbece8d173b9369352bcbcea9f1abd49b"
+  },
+  "benchmark": {
+    "games_per_run": 128,
+    "allocation_kb_per_decision": 26.74,
+    "shared_machine": true,
+    "controlled_comparison": false,
+    "notes": "Timing runs used the shared machine with concurrent builds. Additional runs had overlapping copy/presentation phases. Treat variability as unresolved; no statistically established timing improvement or regression is claimed. Initial release rebuild hit the compiler stack limit; successful retry uses RUST_MIN_STACK=16777216.",
+    "runs": {
+      "benchmark-before.log": {
+        "engine_us_per_decision": 45.24,
+        "sha256": "e13dee086589aa007c53bf287af66b649c4b4663f423871f92d1a7cdd1301aa9"
+      },
+      "benchmark-after-five.log": {
+        "engine_us_per_decision": 48.81,
+        "sha256": "719b192df5a3c5688d922459c542b179b5915ca8b1b91a98fc48207867e2308e"
+      },
+      "paired-before-a.log": {
+        "engine_us_per_decision": 46.67,
+        "sha256": "039d79bebcbdc7a799dfc5d244720c098c086f9daa58be20de79194b0c28f607"
+      },
+      "paired-after-a.log": {
+        "engine_us_per_decision": 42.55,
+        "sha256": "fcd9e910a124f9f49d4122895692c595c476dec9a957ec4f2d0da1f9e9a8c566"
+      },
+      "paired-before-b.log": {
+        "engine_us_per_decision": 44.12,
+        "sha256": "538dff411c1cbacffc96c602260506bf8d8b1c1ee3d85464c9b6df873fe78907"
+      },
+      "paired-after-b.log": {
+        "engine_us_per_decision": 43.47,
+        "sha256": "fac4aff292df7b4d5bba6532fad8f2a6229f447970467bf779b82128eccc76aa"
+      }
+    }
+  },
+  "dotnet": {
+    "passed": false,
+    "reason": "SDK unavailable; full test script stopped before tests in the first batch. Rust --engine gate passed."
+  },
+  "remaining_roadmap_groups": [
+    "bands-with-other",
+    "step-durations",
+    "computed-x",
+    "public-visibility"
+  ],
+  "evidence_directory": "/mnt/vizier/early-set-foundation-20261112"
+}

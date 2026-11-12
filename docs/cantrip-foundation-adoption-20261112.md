@@ -1,5 +1,8 @@
 # Generator adapters for the early-set foundation
 
+The [fifth feature and updated batch receipt](cantrip-foundation-activators-20261112.md)
+follow this frozen four-feature result.
+
 The first four engine features are on Cantrip fork branch
 [`engine/early-set-foundation-20261112`](https://github.com/vishvananda/cantrip-rs/tree/engine/early-set-foundation-20261112),
 currently through `1617f06d8`. Each feature is a separate commit:

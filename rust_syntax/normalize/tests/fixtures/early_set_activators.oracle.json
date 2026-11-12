@@ -1,0 +1,106 @@
+[
+  {
+    "name": "Armageddon Clock",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Armageddon Clock",
+        "manaCost": "{6}",
+        "type": "Artifact",
+        "text": "At the beginning of your upkeep, put a doom counter on this artifact.\nAt the beginning of your draw step, this artifact deals damage equal to the number of doom counters on it to each player.\n{4}: Remove a doom counter from this artifact. Any player may activate this ability but only during any upkeep step."
+      }
+    ]
+  },
+  {
+    "name": "Clergy of the Holy Nimbus",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Clergy of the Holy Nimbus",
+        "manaCost": "{W}",
+        "type": "Creature — Human Cleric",
+        "text": "If this creature would be destroyed, regenerate it.\n{1}: This creature can't be regenerated this turn. Only your opponents may activate this ability.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Ifh-Bíff Efreet",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ifh-Bíff Efreet",
+        "manaCost": "{2}{G}{G}",
+        "type": "Creature — Efreet",
+        "text": "Flying\n{G}: This creature deals 1 damage to each creature with flying and each player. Any player may activate this ability.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Infinite Hourglass",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Infinite Hourglass",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "At the beginning of your upkeep, put a time counter on this artifact.\nAll creatures get +1/+0 for each time counter on this artifact.\n{3}: Remove a time counter from this artifact. Any player may activate this ability but only during any upkeep step."
+      }
+    ]
+  },
+  {
+    "name": "Land's Edge",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Land's Edge",
+        "manaCost": "{1}{R}{R}",
+        "type": "World Enchantment",
+        "text": "Discard a card: If the discarded card was a land card, this enchantment deals 2 damage to target player or planeswalker. Any player may activate this ability."
+      }
+    ]
+  },
+  {
+    "name": "Mercenaries",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mercenaries",
+        "manaCost": "{3}{W}",
+        "type": "Creature — Human Mercenary",
+        "text": "{3}: The next time this creature would deal damage to you this turn, prevent that damage. Any player may activate this ability.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Merseine",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Merseine",
+        "manaCost": "{2}{U}{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nThis Aura enters with three net counters on it.\nEnchanted creature doesn't untap during its controller's untap step if this Aura has a net counter on it.\nPay enchanted creature's mana cost: Remove a net counter from this Aura. Only the controller of the enchanted creature may activate this ability."
+      }
+    ]
+  },
+  {
+    "name": "Personal Incarnation",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Personal Incarnation",
+        "manaCost": "{3}{W}{W}{W}",
+        "type": "Creature — Avatar Incarnation",
+        "text": "{0}: The next 1 damage that would be dealt to this creature this turn is dealt to its owner instead. Only this creature's owner may activate this ability.\nWhen this creature dies, its owner loses half their life, rounded up.",
+        "power": "6",
+        "toughness": "6"
+      }
+    ]
+  }
+]
