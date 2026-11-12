@@ -1710,10 +1710,10 @@
     "focused_explicit_mana_loss": 2,
     "focused_random_discard_costs": 4,
     "full_generator": {
-      "passed": 1573,
+      "passed": 1577,
       "failed": 0,
       "ignored": 22,
-      "log": "generator-eight-suite-serialized.log"
+      "log": "generator-ten-suite-serialized.log"
     },
     "full_native_last_pass": {
       "passed": 22577,
@@ -1725,7 +1725,15 @@
     "focused_keyword_families": 2,
     "all_card_keyword_family_oracle_test": 1,
     "focused_controlled_attachment_generator": 2,
-    "focused_untap_limits": 7
+    "focused_untap_limits": 7,
+    "generation_ready_module_typecheck": {
+      "passed": 183,
+      "pending_named_counters": {
+        "Armageddon Clock": "Doom",
+        "Delif's Cube": "Cube"
+      },
+      "log": "generator-eleven-ready183-compile.log"
+    }
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1751,17 +1759,22 @@
     "generator-untap-limit-tests.log": "b26531a2ff1a88291b81651ca9970251ecc496f97d7e7df955309a2de2161b8a",
     "untap-limit-tests.log": "28cd1c8c577b53019d1cb7fe6209529c00acf7422ff1b4d11147ee49580b9410",
     "generator-eleven-native-runtime.log": "438a506157c886e71ce4d7eee09e738dfdb0eb313f3a8d1118e5ca35c47d4444",
-    "generator-eleven-scope.log": "a28efb623b449e62a263b5699feeffa5a3dc83bfa6e18bd2898ac1d895cbc29a"
+    "generator-eleven-scope.log": "a28efb623b449e62a263b5699feeffa5a3dc83bfa6e18bd2898ac1d895cbc29a",
+    "generator-ten-suite-serialized.log": "8407f6750bc03af91fc84b2d9c4e60154e8fae7fd362a81f03777f51f8afc05d",
+    "generator-eleven-ready-compile.log": "a498b7a23b4a6b18ff8d04a5b3988e2d21c023f52707ce59f89f8f487b2798ab",
+    "generator-eleven-ready183-compile.log": "ed6b407015160692a266818eb289ca0163e5391f48af439b81cbd3c37284d500",
+    "benchmark-ten-control.log": "592c2277285e87eb5259f28bb046b76d648cdf0aea73bcbced4638cfab072c24",
+    "benchmark-ten-after-control.log": "5b8e9e160a4333649b784be966f47ea60440f62c2cada0b0878cf03e284c1e28"
   },
   "candidate_api_fingerprint": "8ea43b005590aae51b9210657e270e1f808d3e0f1d7719cdb05528fe6255af0b",
   "benchmark_current_batch": {
     "games": 128,
     "allocation_kb_per_decision": 26.74,
-    "control_engine_us": 49.88,
-    "after_control_engine_us": 44.79,
-    "initial_after_under_builds_engine_us": 77.01,
+    "control_engine_us": 59.36,
+    "after_control_engine_us": 60.4,
     "statistical_speed_claim": false,
     "shared_machine": true,
-    "sequential_control_runs": true
+    "sequential_control_runs": true,
+    "native_revision": "d8d0d26b7"
   }
 }

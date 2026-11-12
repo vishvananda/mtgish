@@ -48,16 +48,14 @@ const CARDS: &[(&str, &str)] = &[
     // What a copy keeps of the object that copied.
     ("Vesuvan Doppelganger", "own.colors.unwrap_or("),
     ("Hulking Metamorph", "own.power.unwrap_or(0)"),
+    // The enchant restriction proves the host is controlled by the activation payer.
+    ("Earthlore", "tap_untapped(1,"),
     // These hold, as what they want the engine has no way to say.
     ("Ominous Lockbox", "a value chosen in secret"),
     ("Doomsday", "cards found in two zones put on top of a library"),
     (
         "Alien Symbiosis",
         "engine: a card's own terms to cast it from its graveyard",
-    ),
-    (
-        "Earthlore",
-        "engine: a cost that taps what its payer may not control",
     ),
     ("Urianger Augurelt", "engine: a play permission that costs less"),
     (

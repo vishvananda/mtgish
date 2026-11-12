@@ -70,15 +70,22 @@ workspace type-checks. All six affected generated modules type-check against
 the pristine foundation. The generated runtime suite now passes 40 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
-spanning two untap steps. The complete generator suite now passes 1,573 tests (22 ignored) in a serialized
+spanning two untap steps. The complete generator suite now passes 1,577 tests (22 ignored) in a serialized
 run. The batched native workspace gate passes 22,577 tests (15 ignored), through
-`4deb96071`, with verification enabled. The .NET SDK is unavailable, so no .NET
+`4deb96071`, with verification enabled. The ten-feature native workspace gate
+is running; its result is not yet claimed. The .NET SDK is unavailable, so no .NET
 pass is claimed.
 
-The 128-game benchmark's allocation remains 26.74 KB per decision. Sequential
-control runs measured 49.88 µs before and 44.79 µs after; an earlier after-run
-during builds measured 77.01. This shared-machine variability does not establish
-a statistically meaningful speed change.
+The current 128-game benchmark allocates 26.74 KB per decision, unchanged.
+Sequential control runs measured 59.36 µs on the original base and 60.40 µs
+on `d8d0d26b7`; both finished all 128 games. Shared-machine variability does
+not establish a statistically meaningful speed change.
+
+A direct compilation probe covers all 185 generation-ready modules. The only
+failures are the missing native counter names Doom (Armageddon Clock) and Cube
+(Delif's Cube). Excluding those two named-counter prerequisites, all 183 other
+modules compile against the pristine foundation. No temporary counter overlay
+is used for this receipt.
 
 Candidate generation can now run from the CLI without advancing the normal
 upstream API pin:
