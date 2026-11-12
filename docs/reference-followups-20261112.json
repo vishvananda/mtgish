@@ -2752,5 +2752,6 @@
     "ability_aliases.ronl: Darksteel Mutation",
     "pipeline_generated.ronl: Surprise Deployment"
   ],
-  "upstream_report": null
+  "upstream_report": "https://github.com/i5jb/mtgish/issues/275#issuecomment-6839286355",
+  "implementation_commit": "35d1f2b70eb2c7dc0b684018c0cbe0254a8ff81f"
 }

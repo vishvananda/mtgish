@@ -118,4 +118,6 @@ identities, input hashes, changed paths, and final verification counts.
 Oracle Grammar should adopt the published fork commit, prepare its reference
 again, and remove resolved seeded alternatives rather than teach its scorer
 that different receipt namespaces or batch semantics are equal. The upstream
-handoff is tracked in [MTGish #275](https://github.com/i5jb/mtgish/issues/275).
+handoff is tracked in [MTGish #275, follow-up report](https://github.com/i5jb/mtgish/issues/275#issuecomment-6839286355).
+Implementation: `35d1f2b70eb2c7dc0b684018c0cbe0254a8ff81f`, pushed to
+`fork/main`.
