@@ -207,8 +207,8 @@ impl Compiler {
         }))
     }
     /// "This Vehicle can't be blocked as long as ...": the keyword its rule is,
-    /// while the condition holds, so that the keyword is what it has (CR 604.2,
-    /// 613.1f; Watertight Gondola's descend 8). Only the combat ones.
+    /// while the condition holds, so that the internal rule keyword is what it
+    /// has (CR 604.2, 613.1f; Watertight Gondola and Glyph of Delusion).
     pub(super) fn keyword_as_long_as(
         &mut self,
         label: &str,
@@ -219,7 +219,7 @@ impl Compiler {
             return Ok(false);
         };
         // A level's lines are the stage's, said as the rule they were.
-        if !matches!(word, "CantBeBlocked" | "CantBlock") || !self.stages.is_empty() {
+        if !matches!(word, "CantBeBlocked" | "CantBlock" | "DoesNotUntap") || !self.stages.is_empty() {
             return Ok(false);
         }
         let saved = (self.reader, self.event_at);

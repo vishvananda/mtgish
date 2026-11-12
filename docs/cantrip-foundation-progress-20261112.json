@@ -1,5 +1,5 @@
 {
-  "native_foundation": "ee188afee",
+  "native_foundation": "c97d4ac45",
   "scoped_missing": 286,
   "generation_ready": [
     "Anti-Magic Aura",
@@ -63,6 +63,7 @@
     "Ghazbán Ogre",
     "Giant Slug",
     "Glacial Chasm",
+    "Glyph of Delusion",
     "Glyph of Doom",
     "Goblin Artisans",
     "Gosta Dirk",
@@ -303,9 +304,6 @@
     "Ghostly Flame": [
       "static change ColorlessDamageSource",
       "static rule Unique"
-    ],
-    "Glyph of Delusion": [
-      "granted Conditional"
     ],
     "Glyph of Reincarnation": [
       "player reference AsOf"
@@ -981,14 +979,6 @@
       "sole_blocker": 1,
       "cards": [
         "Stangg"
-      ]
-    },
-    {
-      "feature": "granted Conditional",
-      "affected": 1,
-      "sole_blocker": 1,
-      "cards": [
-        "Glyph of Delusion"
       ]
     },
     {
@@ -1684,20 +1674,36 @@
       "Yawgmoth Demon",
       "Zur's Weirding"
     ],
-    "source_sha256": "d63d310c54c40c52df42ff2d3112f5c23b173a5fca3053188d8cbdbe7f8890e1"
+    "source_sha256": "d63d310c54c40c52df42ff2d3112f5c23b173a5fca3053188d8cbdbe7f8890e1",
+    "source_correction": {
+      "original_source": "source.ronl",
+      "original_sha256": "d63d310c54c40c52df42ff2d3112f5c23b173a5fca3053188d8cbdbe7f8890e1",
+      "corrected_source": "source-corrected.ronl",
+      "corrected_sha256": "68b00abdab940361279f6bb68db613106fafd3e7e732a12ea7317056bab4856b",
+      "unchanged_records": 285,
+      "changed_records": 1,
+      "corrections": [
+        {
+          "name": "Glyph of Delusion",
+          "change": "EndOfTurn grant duration removed; Oracle specifies no duration",
+          "upstream_issue": "https://github.com/i5jb/mtgish/issues/269",
+          "all_other_operands_exact": true
+        }
+      ]
+    }
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 43,
+    "generated_runtime_scenarios": 44,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
     "focused_random_discard_costs": 4,
     "full_generator": {
-      "passed": 1577,
+      "passed": 1581,
       "failed": 0,
       "ignored": 22,
-      "log": "generator-ten-suite-serialized.log"
+      "log": "generator-thirteen-suite.log"
     },
     "full_native_last_pass": {
       "passed": 22587,
@@ -1711,14 +1717,19 @@
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 186,
+      "passed": 189,
       "pending_named_counters": {},
-      "log": "generator-twelve-ready-compile.log",
-      "revision": "4220fb88a"
+      "log": "generator-thirteen-ready-compile.log",
+      "revision": "c97d4ac45"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
-    "focused_attack_only_haste": 6
+    "focused_attack_only_haste": 6,
+    "focused_dependent_targets": {
+      "passed": 14,
+      "new_regressions": 3,
+      "log": "dependent-target-tests.log"
+    }
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1760,9 +1771,17 @@
     "attack-haste-tests.log": "e4a57517a217815170faff2845bb7212845e8af18ca36558c1c8a4c7f2f2ea92",
     "generator-attack-haste-tests.log": "d3ebb3a5ba659a4938d9305e1ab433ed7639af9814d991c126bab1905e8e1095",
     "generator-thirteen-native-runtime.log": "a1ca71de22d3cfede66fafb3ddb5af6aa8152ae24cb3a3c1208b265959b2f14a",
-    "generator-thirteen-scope.log": "99cb26dae2b4414109ed420b75f5062ef4d24c1a782e6ce7f42507a906f6564f"
+    "generator-thirteen-scope.log": "99cb26dae2b4414109ed420b75f5062ef4d24c1a782e6ce7f42507a906f6564f",
+    "dependent-target-tests.log": "55bfac275485a4f3c0c47d658e498ef63a2b2c8060c4c8b7b171b8b6be035750",
+    "generator-glyph-native-runtime.log": "f3a3a4676620e243c60fb54a57ab8d8d60e5937bd0d0bbc68ba33b68e7ead508",
+    "generator-thirteen-ready-compile.log": "f49f8ffd51bc4253d1f1d04a238a36270a6cf2bba4198b23ae6cb0c587051e71",
+    "glyph-delusion-parser-tests.log": "52db557158c9bbc779c6d591126be22b6e71cefdeece7b21ae4a2c8707fd5207",
+    "glyph-delusion-representations-tests.log": "1edbcf762d0a66077d17f744c88a0c7a932aad64ca6623f16416a1aa51ab6d63",
+    "glyph-counter-tests.log": "d011138a9c6a61cc4ea4905858b3d4b6370aeb7d71e5bb6dd23e7e74aeb8b64e",
+    "generator-glyph-scope.log": "d9b538bf0de6a2a476aff7e3a384f195e8db513a0755a5d45bde4c6a931c5852",
+    "generator-thirteen-suite.log": "466a7830d2f610cbc41c85464f223280c8207ade8c2e8a0829a0e74f388d2e90"
   },
-  "candidate_api_fingerprint": "65b87d7c6fe521bbb88a984a3cf695578d2d7529f78489577357b9dc7f859653",
+  "candidate_api_fingerprint": "58863f5e2acbbc66c7a0e9b7e21a6ba41e730bdaed85d097f47efde6cd1a3e88",
   "benchmark_current_batch": {
     "games": 128,
     "allocation_kb_per_decision": 26.74,

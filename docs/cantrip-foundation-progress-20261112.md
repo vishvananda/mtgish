@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`ee188afee`. Twelve focused feature groups are implemented. The new step-deadline
+`c97d4ac45`. Twelve focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,8 +16,8 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **188 generate without recorded feature gaps and 98
-remain gapped**. Those 178 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **189 generate without recorded feature gaps and 97
+remain gapped**. Those 189 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
 remaining requirement and its affected cards. Its 103 raw requirement labels
@@ -72,6 +72,22 @@ costs, and it preserves defender-specific and independent restrictions. Six
 native tests and two generated runtime scenarios pass, including Chaos Lord
 changing control this turn versus entering this turn.
 
+Glyph of Delusion required a source-reference correction: Oracle grants its two
+abilities without a duration, but the English template injected end of turn.
+The parser, current source representations and generator now retain an indefinite
+grant. The generator uses the existing native conditional static-ability path.
+A runtime scenario follows the creature through two later upkeeps and its next
+untap. The source defect is [reported upstream](https://github.com/i5jb/mtgish/issues/269).
+
+The runtime probe also found an existing engine availability bug: dependent
+target slots were checked without earlier targets. The foundation now reuses
+its bounded ordered announcement search, preserving optional slot positions
+and deferring undecided X bounds. Three new regressions and eleven existing
+retargeting tests pass. Glyph of Delusion and Goblin Welder both need this rule.
+The frozen 286-card membership and original source input are retained; the
+current audit input changes only Glyph's erroneous duration, with its provenance
+recorded in the JSON ledger and `full-scope/source-corrections.json`.
+
 The original roadmap still has bands with other, computed X constraints, and
 persistent public visibility pending. The full remaining ledger also identifies
 other needs, including forced mana activations,
@@ -81,10 +97,10 @@ adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 43 scenarios,
+the pristine foundation. The generated runtime suite now passes 44 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
-spanning two untap steps. The complete generator suite now passes 1,577 tests (22 ignored) in a serialized
+spanning two untap steps. The complete generator suite now passes 1,581 tests (22 ignored) in a serialized
 run. The batched native workspace gate passes 22587 tests (15 ignored), through
 `d8d0d26b7`, with verification enabled. The .NET SDK is unavailable, so no .NET
 pass is claimed.
@@ -94,11 +110,11 @@ Sequential control runs measured 59.36 µs on the original base and 60.40 µs
 on `d8d0d26b7`; both finished all 128 games. Shared-machine variability does
 not establish a statistically meaningful speed change.
 
-A direct compilation probe now passes all 186 generation-ready modules against
-the pristine foundation. The native catalog appends Cube (91) and Doom (92)
-for Delif's Cube and Armageddon Clock, preserving existing IDs. No overlay is
-used. These two i32 entries follow the existing dense counter design and add
-eight bytes per object; the next batch's benchmark will include that change.
+A direct compilation probe now passes all 189 generation-ready modules against
+the pristine foundation. The native catalog appends Cube (91), Doom (92) and Glyph (93)
+for Delif's Cube, Armageddon Clock and Glyph of Delusion, preserving existing IDs. No overlay is
+used. These three i32 entries follow the existing dense counter design and add
+twelve bytes per object; the next batch's benchmark will include that change.
 
 Candidate generation can now run from the CLI without advancing the normal
 upstream API pin:

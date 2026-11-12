@@ -291,7 +291,7 @@ fn foundation_generated_cards_execute_in_cantrip() {
     let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());cards.extend(mana_tap_profiles().1.clone());cards.extend(attack_haste_profiles().1.clone());
     // Modules actually used by these scenarios; candidate modules also have separate compile probes.
     // Cube and Doom counter declarations are intentionally separate from these runtime cases.
-    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth","Instill Energy","Chaos Lord"];
+    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth","Instill Energy","Chaos Lord","Glyph of Delusion"];
     let mut lib=String::from("#![allow(dead_code,unused_imports,unused_variables,unused_mut)]\n");
     for name in modules {
         let row=&cards[name];assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
@@ -310,6 +310,7 @@ fn foundation_generated_cards_execute_in_cantrip() {
     lib.push_str(include_str!("fixtures/early_set_untap_limits_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_mana_tap_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_attack_haste_scenarios.rs"));
+    lib.push_str(include_str!("fixtures/early_set_glyph_delusion_scenarios.rs"));
     fs::write(root.join("src/lib.rs"),lib).unwrap();
     let mut manifest=String::from("[package]\nname=\"mtgish-foundation-runtime\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\n");
     for name in ["cantrip-api","cantrip-state","cantrip-mechanics","cantrip-rules"] {manifest.push_str(&format!("{name}={{path={:?}}}\n",checkout.join("crates").join(name)));}

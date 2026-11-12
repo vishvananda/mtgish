@@ -530272,7 +530272,7 @@ Card(
             Ref_TargetPermanent2,
           ),
         ]),
-        CreatePermanentLayerEffectUntil(
+        CreatePermanentLayerEffect(
           Ref_TargetPermanent2,
           [
             AddAbility([
@@ -530305,7 +530305,6 @@ Card(
               ),
             ]),
           ],
-          UntilEndOfTurn,
         ),
       ]),
     )),
