@@ -22,9 +22,11 @@
       "classification": "retained_equivalent_form",
       "decision": "The source exclusion is redundant: source is normally a nontoken creature. A sacrificed token copy is sacrificed by its controller, who also controls the look-back trigger, not their own opponent (CR 701.21a/603.10a). No rules bug.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_source",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Removed the unprinted source exclusion from the opponent-sacrifice body-player template; event filters now agree across body-binding variants.",
+        "evidence": "reference-consistency-20261112.md"
       }
     },
     {
@@ -134,9 +136,11 @@
       "classification": "retained_equivalent_form",
       "decision": "On entry, EventSubject is Source. On the haunt-death branch, the haunted creature is departed and the haunting card is exiled, so neither exclusion removes a battlefield creature. Preserve the separate identities despite equivalent exclusion here.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_source",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Implicit other now excludes ThisPermanent, independent of whether the event was source entry or the haunted creature death.",
+        "evidence": "reference-consistency-20261112.md"
       }
     },
     {
@@ -191,9 +195,11 @@
       "classification": "retained_equivalent_form",
       "decision": "Affected denotes the characteristic subject being evaluated. Here it is the same single target. Keep the existing descriptive characteristic contract.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_source",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "The duplicate artifact-animation templates now both read the target mana value in the snapshot effect, matching Karn, Sydri and Toymaker.",
+        "evidence": "reference-consistency-20261112.md"
       }
     },
     {
@@ -206,9 +212,11 @@
       "classification": "retained_valid_contract",
       "decision": "The outer event is this source entering or attacking; its EventSubject is the sacrifice exclusion in both branches. Equivalent to Source in this particular self trigger, without a global event-reference rewrite.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_source",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "resolution": "Self enters-or-attacks templates bind the named permanent to ThisPermanent across all body variants, including matching Sephiroth and Hei Bai controls.",
+        "evidence": "reference-consistency-20261112.md"
       }
     },
     {
@@ -479,6 +487,8 @@
     "scope": "Source and Rust producer normal forms, not scoring aliases or gold edits.",
     "tracking": "docs/reference-consistency-20261112.md",
     "upstream_issue": "https://github.com/i5jb/mtgish/issues/275",
-    "satya": "Separate rejected scalar proposal; not one of these 36."
+    "satya": "Separate rejected scalar proposal; not one of these 36.",
+    "completed_faces": 4,
+    "pending_faces": 32
   }
 }

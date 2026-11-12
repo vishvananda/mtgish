@@ -909,15 +909,6 @@
               "kind": "AllOf",
               "args": [
                 {
-                  "kind": "Not",
-                  "args": {
-                    "kind": "SameObject",
-                    "args": {
-                      "kind": "Source"
-                    }
-                  }
-                },
-                {
                   "kind": "AllOf",
                   "args": [
                     {
@@ -4376,7 +4367,7 @@
                                 "args": {
                                   "kind": "SameObject",
                                   "args": {
-                                    "kind": "EventSubject"
+                                    "kind": "Source"
                                   }
                                 }
                               },
@@ -6084,7 +6075,11 @@
                             "kind": "ObjectProperty",
                             "args": {
                               "object": {
-                                "kind": "Affected"
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
                               },
                               "property": "ManaValue",
                               "information": "CurrentOrLastKnown"
@@ -6094,7 +6089,11 @@
                             "kind": "ObjectProperty",
                             "args": {
                               "object": {
-                                "kind": "Affected"
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
                               },
                               "property": "ManaValue",
                               "information": "CurrentOrLastKnown"

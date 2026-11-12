@@ -1,0 +1,72 @@
+{
+  "base_revision": "f3de962f061abe589d78147b3832cc1c89e3b26c",
+  "schema_version": 190,
+  "source_template_families_fixed": 4,
+  "source_records_changed": 30,
+  "source_records_total": 33529,
+  "other_cached_records_byte_identical": 33499,
+  "self_enters_or_attacks_records_changed": 27,
+  "fresh_parser_before": {
+    "parsed": 33570,
+    "refused": 1477
+  },
+  "fresh_parser_after": {
+    "parsed": 33570,
+    "refused": 1477
+  },
+  "fresh_parse_success_sets_equal": true,
+  "all_changed_cached_records_matched_fresh_before": true,
+  "original_reopened_faces": 36,
+  "completed_faces": [
+    "Bloodroot Apothecary",
+    "Graven Dominator",
+    "Karn's Touch",
+    "Korvold, Fae-Cursed King"
+  ],
+  "pending_faces": 32,
+  "source_fixture_records": 40,
+  "validation": {
+    "rust": {
+      "command": "RUST_MIN_STACK=16777216 CARGO_BUILD_JOBS=8 cargo test --manifest-path rust_syntax/Cargo.toml --workspace --features cantrip --no-fail-fast",
+      "exit_code": 0,
+      "passed": 2014,
+      "failed": 0,
+      "ignored": 24,
+      "targets_including_doctests": 196
+    },
+    "parser": {
+      "command": "go test ./... -count=1",
+      "cwd": "go_mtg_parser",
+      "exit_code": 0,
+      "seconds": 169.06
+    }
+  },
+  "independent_proposal_fixture_modified": false,
+  "oracle_grammar_worktree_modified": false,
+  "comparison": "Existing single-self-event inference extended only when every alternative event independently proves that same source; paired with actual parser production changes and a mixed-object negative control.",
+  "rejected_experiment": "A broader lowering-context self-reference rewrite was removed after a return-callback scope regression. It is not included or claimed as a completed fix.",
+  "ast_layout_changed": false,
+  "ast_schema_changed": false,
+  "cantrip_interface_changed": false,
+  "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+  "sha256": {
+    "grammars/english_grammar.json5": "98162403e9365e23ca6384dd68492233e4e03fedf8cc91cbb54e9b2f0692ee33",
+    "data/mtgish.lines.ron": "58b874e691df4a80894d969d3c7a1a0e9560fee2ecd3509449a3f7f9faa26201",
+    "data/mtgish.lines.json": "1e37ef3dd0552807ee238c40e98d7e5a3b764a8ede26731d0a2a96e7449e0665",
+    "data/mtgish.pretty.ron": "0761dfe7b8ff86e83b316afa1325abbd655c9e9442f15810004bdb3e405bb580",
+    "data/grammar_audit_review.json": "5dbafd178d27c5ed9ab433d4b4e7a1fd5eae520c721fa348215644b7f6cc2690",
+    "rust_syntax/normalize/src/canonical/events.rs": "bb6492750e3dbdb02bcdce2b30751afcfdbb544ca94e29ab5c52b2469792bb22",
+    "rust_syntax/normalize/tests/canonical.rs": "254fd1516940e6bd74171d9e33f2c984445eb8961078dc86c6ff5a17b59faf6a",
+    "rust_syntax/normalize/tests/reference_consistency_20261112.rs": "a6a5b00a7efbcb4a1c26a09ae7e983a01ea7e943e3cf5f0fe6b94bcb60b05e66",
+    "rust_syntax/normalize/tests/fixtures/reference_consistency_20261112.ronl": "bc8878104d2a7392e7948d9834d868b3ef8dab5d45f43afa04ea9aec5d82e65f",
+    "rust_syntax/normalize/tests/fixtures/reference53_20261112_expected.json": "d68f294a53224aaf6da8d0fec54a1af0a5fcecaaf45970036a80f200062470eb",
+    "docs/reference-decisions-20261112.json": "7dd94fdfab57914c5018606c1b203bb0701f27ad25ad7942f353cd6d193ed6db"
+  },
+  "evidence_sha256": {
+    "export-before.log": "cea3d27cfaf0caf29630f202a92700291e87f4256bf1ec74a1dd968d39cee660",
+    "export-after.log": "55fe883c70921e7a733b2b1158f3b5366423a718116e41b97c05983767777a92",
+    "source-delta.json": "792f1674f4e9456b79976fa6e86af396f5bf117c06753501aecd5ccf818606fa",
+    "workspace-final-tests.log": "d83d75ff961177d102a086429e6a64a0dd8b1e01ddd091c924d99e00bdeb277e",
+    "parser-final-tests.log": "045f959ebadf10e9cb0f34c5f401fbc35baf02805793b4d7c79e34e849c0ed6d"
+  }
+}

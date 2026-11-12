@@ -200,6 +200,28 @@ fn a_trigger_on_the_source_calls_its_subject_the_source() {
 }
 
 #[test]
+fn every_alternative_must_prove_the_same_source_before_folding_a_self_reference() {
+    let source = json!({"kind":"SameObject","args":{"kind":"Source"}});
+    let enter = json!({"ZoneChange":{"objects":source.clone(),"from":null,"to":"Battlefield"}});
+    let attack = json!({"Object":{"event":"Attacks","objects":source}});
+    let event = json!({"AnyOf":[enter.clone(),attack]});
+    let mut subject = triggered(event.clone(), json!({"kind":"EventSubject"}));
+    let mut named = triggered(event, json!({"kind":"Source"}));
+    canonical::abilities(&mut subject).unwrap();
+    canonical::abilities(&mut named).unwrap();
+    assert_eq!(subject, named);
+
+    // Graven Dominator's haunted-creature branch identifies a different object.
+    let other_dies = json!({"ZoneChange":{"objects":{"kind":"State","args":"HauntedBySource"},"from":"Battlefield","to":"Graveyard"}});
+    let mixed = json!({"AnyOf":[enter,other_dies]});
+    let mut subject = triggered(mixed.clone(), json!({"kind":"EventSubject"}));
+    let mut named = triggered(mixed, json!({"kind":"Source"}));
+    canonical::abilities(&mut subject).unwrap();
+    canonical::abilities(&mut named).unwrap();
+    assert_ne!(subject, named);
+}
+
+#[test]
 fn another_creature_keeps_its_event_subject() {
     let event =
         json!({"Object":{"event":"Attacks","objects":{"kind":"CardType","args":"Creature"}}});

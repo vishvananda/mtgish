@@ -1,3 +1,10 @@
+## November 12 consistency follow-up
+
+Four Source-template families are now fixed across 30 cached records; 32 of the
+reopened faces remain pending. See [the current family worklist](reference-consistency-20261112.md)
+for current decisions and final validation rather than the historical gameplay-only
+classifications below.
+
 # Decisions for the 53 Oracle Grammar mismatches
 
 **Consistency review reopened:** the gameplay-equivalence decisions below are historical.

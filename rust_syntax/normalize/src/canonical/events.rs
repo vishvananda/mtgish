@@ -7,6 +7,20 @@ pub(super) struct Frame {
 }
 
 pub(super) fn subject(event: &Value) -> super::Subject {
+    // The same existing self-reference proof applies to an alternative event
+    // only when every branch independently identifies that same source.
+    // In particular, a self entry OR a haunted creature's death is not self.
+    if let Some(events) = event.get("AnyOf").and_then(Value::as_array) {
+        return if !events.is_empty()
+            && events
+                .iter()
+                .all(|event| matches!(subject(event), super::Subject::Source))
+        {
+            super::Subject::Source
+        } else {
+            super::Subject::Other
+        };
+    }
     let source = json!({"kind":"SameObject","args":{"kind":"Source"}});
     if super::event_objects(event) == Some(&source) {
         super::Subject::Source

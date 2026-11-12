@@ -50488,7 +50488,7 @@ Card(
         Targeted(
           [
             TargetPermanent(And([
-              Other(Trigger_ThatPermanent),
+              Other(ThisPermanent),
               And([
                 IsNonCardtype(Land),
                 ControlledByAPlayer(SinglePlayer(You)),
@@ -52438,7 +52438,7 @@ Card(
               1,
             ),
             And([
-              Other(Trigger_ThatPermanent),
+              Other(ThisPermanent),
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
             ]),
@@ -52447,7 +52447,7 @@ Card(
         GainLifeForEach(
           Integer(1),
           TheNumberOfPermanentsOnTheBattlefield(And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             IsCardtype(Creature),
             ControlledByAPlayer(SinglePlayer(You)),
           ])),
@@ -53091,7 +53091,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             And([
               IsCreatureType(Warrior),
               IsCardtype(Creature),
@@ -66257,7 +66257,7 @@ Card(
         ActionList([
           MayAction(AttachEachPermanentToPermanent(
             Ref_TargetPermanents,
-            Trigger_ThatPermanent,
+            ThisPermanent,
           )),
         ]),
       ),
@@ -140262,11 +140262,8 @@ Card(
       WhenAPlayerSacrificesAPermanent(
         Opponent,
         And([
-          Other(ThisPermanent),
-          And([
-            IsNonCardtype(Creature),
-            IsToken,
-          ]),
+          IsNonCardtype(Creature),
+          IsToken,
         ]),
       ),
       ActionList([
@@ -385758,7 +385755,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -442526,7 +442523,7 @@ Card(
               1,
               1,
             ),
-            SinglePermanent(Trigger_ThatPermanent),
+            SinglePermanent(ThisPermanent),
           )),
           PlayerAction(
             Ref_TargetPlayer,
@@ -493156,7 +493153,7 @@ Card(
         Targeted(
           [
             TargetPermanent(And([
-              Other(Trigger_ThatPermanent),
+              Other(ThisPermanent),
               IsCardtype(Creature),
             ])),
           ],
@@ -553287,7 +553284,7 @@ Card(
       ActionList([
         CreateEachPermanentLayerEffectUntil(
           And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             IsCardtype(Creature),
           ]),
           [
@@ -649478,7 +649475,7 @@ Card(
         ],
         DistributeNumberAmongTargets(Integer(3)),
         ActionList([
-          PermanentDealsDistributedDamage(Trigger_ThatPermanent),
+          PermanentDealsDistributedDamage(ThisPermanent),
         ]),
       ),
     ),
@@ -656917,7 +656914,7 @@ Card(
       ActionList([
         EndureWithPermanent(
           Integer(2),
-          Trigger_ThatPermanent,
+          ThisPermanent,
         ),
       ]),
     ),
@@ -701406,7 +701403,7 @@ Card(
               Artifact,
               Creature,
             ]),
-            SetPowerAndToughnessBoth(ManaValueOfPermanent(EachablePermanent)),
+            SetPowerAndToughnessBoth(ManaValueOfPermanent(Ref_TargetPermanent)),
           ],
           UntilEndOfTurn,
         ),
@@ -730354,7 +730351,7 @@ Card(
       ]),
       ActionList([
         SacrificeAPermanent(And([
-          Other(Trigger_ThatPermanent),
+          Other(ThisPermanent),
           AnyPermanent,
         ])),
       ]),
@@ -945086,7 +945083,7 @@ Card(
         ],
         ActionList([
           PermanentDealsDamage(
-            Trigger_ThatPermanent,
+            ThisPermanent,
             Integer(4),
             Ref_AnyTarget,
           ),
@@ -969968,7 +969965,7 @@ Card(
         ],
         ActionList([
           PermanentDealsDamage(
-            Trigger_ThatPermanent,
+            ThisPermanent,
             Integer(3),
             Ref_AnyTarget,
           ),
@@ -974917,7 +974914,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -1094814,13 +1094811,13 @@ Card(
         PutCounters([
           ACounterOfTypeOnPermanent(
             BlightCounter,
-            Trigger_ThatPermanent,
+            ThisPermanent,
           ),
         ]),
         ActionNumberTimes(
           TheTotalNumberOfCountersOfTypeAmongPermanents(
             BlightCounter,
-            SinglePermanent(Trigger_ThatPermanent),
+            SinglePermanent(ThisPermanent),
           ),
           [
             ActionForEachPlayer(
@@ -1096981,7 +1096978,7 @@ Card(
                   1,
                   1,
                 ),
-                SinglePermanent(Trigger_ThatPermanent),
+                SinglePermanent(ThisPermanent),
               ),
               TokenWithPT(
                 PT(
@@ -1123728,7 +1123725,7 @@ Card(
         Targeted(
           [
             TargetPermanent(And([
-              Other(Trigger_ThatPermanent),
+              Other(ThisPermanent),
               IsCardtype(Creature),
             ])),
           ],
@@ -1138672,7 +1138669,7 @@ Card(
         WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       ]),
       ActionList([
-        CreatureConnives(Trigger_ThatPermanent),
+        CreatureConnives(ThisPermanent),
       ]),
     ),
   ],
@@ -1153739,7 +1153736,7 @@ Transforming(
         ]),
         ActionList([
           MayCost(SacrificeAPermanent(And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             IsCardtype(Creature),
           ]))),
           If(
@@ -1177372,7 +1177369,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -1203980,7 +1203977,7 @@ Card(
         ],
         ActionList([
           PermanentDealsDamage(
-            Trigger_ThatPermanent,
+            ThisPermanent,
             Integer(3),
             Permanent(Ref_TargetPermanent),
           ),
@@ -1210236,7 +1210233,7 @@ Card(
       Targeted(
         [
           UptoOneTargetPermanent(And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             IsCardtype(Creature),
           ])),
         ],
@@ -1240571,7 +1240568,7 @@ Card(
       ]),
       ActionList([
         CreatePermanentsList(And([
-          Other(Trigger_ThatPermanent),
+          Other(ThisPermanent),
           IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
@@ -1308392,7 +1308389,7 @@ Card(
       ActionList([
         CreateEachPermanentLayerEffectUntil(
           And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             And([
               IsCardtype(Creature),
               ControlledByAPlayer(SinglePlayer(You)),
@@ -1334875,7 +1334872,7 @@ Transforming(
         Targeted(
           [
             UptoOneTargetPermanent(And([
-              Other(Trigger_ThatPermanent),
+              Other(ThisPermanent),
               And([
                 IsDoubleFaced,
                 IsCardtype(Artifact),
@@ -1356348,7 +1356345,7 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            Other(Trigger_ThatPermanent),
+            Other(ThisPermanent),
             IsCardtype(Creature),
           ])),
         ],
@@ -1374637,7 +1374634,7 @@ Card(
         CreateTokens(
           [
             NumberTokens(
-              PowerOfPermanent(Trigger_ThatPermanent),
+              PowerOfPermanent(ThisPermanent),
               TokenWithPT(
                 PT(
                   1,
@@ -1387105,10 +1387102,10 @@ Card(
       ]),
       ActionList([
         MayCost(DrawNumberCards(TheNumberOfPermanentsOnTheBattlefield(And([
-          Other(Trigger_ThatPermanent),
+          Other(ThisPermanent),
           IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
-          SharesACreatureTypeWithPermanent(Trigger_ThatPermanent),
+          SharesACreatureTypeWithPermanent(ThisPermanent),
         ])))),
         If(
           CostWasPaid,

@@ -4,25 +4,35 @@ use mtgish_ast::{corpus, mtg_types::OracleCard};
 use serde_json::Value;
 use std::{collections::BTreeMap, io::BufRead};
 fn untag(value: Value) -> Value {
+    untag_value(value, true)
+}
+fn untag_value(value: Value, root: bool) -> Value {
     match value {
-        Value::Array(values) => Value::Array(values.into_iter().map(untag).collect()),
+        Value::Array(values) => {
+            Value::Array(values.into_iter().map(|v| untag_value(v, false)).collect())
+        }
         Value::Object(mut fields) => {
             if let Some(tag) = fields.keys().find(|key| key.starts_with('_')).cloned() {
                 let variant = fields.remove(&tag).unwrap().as_str().unwrap().to_owned();
+                // Nested card faces are Source structs, despite legacy JSON
+                // adding the same tag used for the root OracleCard enum.
+                if tag == "_OracleCard" && !root {
+                    return untag_value(Value::Object(fields), false);
+                }
                 if fields.is_empty() {
                     return Value::String(variant);
                 }
                 let payload = if fields.len() == 1 && fields.contains_key("args") {
-                    untag(fields.remove("args").unwrap())
+                    untag_value(fields.remove("args").unwrap(), false)
                 } else {
-                    untag(Value::Object(fields))
+                    untag_value(Value::Object(fields), false)
                 };
                 Value::Object([(variant, payload)].into_iter().collect())
             } else {
                 Value::Object(
                     fields
                         .into_iter()
-                        .map(|(key, value)| (key, untag(value)))
+                        .map(|(key, value)| (key, untag_value(value, false)))
                         .collect(),
                 )
             }
@@ -49,10 +59,10 @@ pub fn assert_fixture_matches(text: &str) {
             continue;
         }
         let tagged: Value = serde_json::from_str(&line).unwrap();
-        let name = tagged["Name"].as_str().unwrap().to_owned();
         let value = untag(tagged);
+        let card: OracleCard = serde_json::from_value(value.clone()).unwrap();
+        let name = corpus::Identity::of(&card).unwrap().names.remove(0);
         assert_eq!(value, source[&name], "{name}");
-        let _: OracleCard = serde_json::from_value(value).unwrap();
         checked += 1;
     }
     assert_eq!(checked, source.len());
