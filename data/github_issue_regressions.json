@@ -1837,7 +1837,7 @@
       7
     ],
     "contains": [
-      "UntapEachPermanent(ThePermanentsGainedControlOfThisWay)"
+      "UntapEachPermanent(Ref_TargetPermanents)"
     ]
   },
   {
@@ -4899,10 +4899,10 @@
       15
     ],
     "contains": [
-      "layer(You))])])), ActionList([CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PT(4, 4)), SetCreatureTypes([Phyrexian, Eye]), SetCardtypes([Artifact, Creature])], UntilEndOfTurn)]))])"
+      "layer(You))])])), ActionList([CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PT(4, 4)), SetCreatureTypes([Phyrexian, Eye]), AddCardtype(Artifact), AddCardtype(Creature)], UntilEndOfTurn)]))])"
     ],
     "excludes": [
-      "layer(You))])])), ActionList([CreatePermanentLayerEffect(ThisPermanent, [SetPT(PT(4, 4)), SetCreatureTypes([Phyrexian, Eye]), SetCardtypes([Artifact, Creature])])]))])"
+      "layer(You))])])), ActionList([CreatePermanentLayerEffect(ThisPermanent, [SetPT(PT(4, 4)), SetCreatureTypes([Phyrexian, Eye]), AddCardtype(Artifact), AddCardtype(Creature)])]))])"
     ]
   },
   {
@@ -5404,10 +5404,10 @@
       15
     ],
     "contains": [
-      "pe(Creature)]))], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [SetPT(PT(4, 4)), SetCreatureType(Angel), SetCardtypes([Artifact, Creature]), AddAbility([Flying])], UntilEndOfTurn), DrawACard])))"
+      "pe(Creature)]))], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [SetPT(PT(4, 4)), SetCreatureType(Angel), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([Flying])], UntilEndOfTurn), DrawACard])))"
     ],
     "excludes": [
-      "pe(Creature)]))], ActionList([CreatePermanentLayerEffect(Ref_TargetPermanent, [SetPT(PT(4, 4)), SetCreatureType(Angel), SetCardtypes([Artifact, Creature]), AddAbility([Flying])]), DrawACard])))"
+      "pe(Creature)]))], ActionList([CreatePermanentLayerEffect(Ref_TargetPermanent, [SetPT(PT(4, 4)), SetCreatureType(Angel), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([Flying])]), DrawACard])))"
     ]
   },
   {
@@ -6040,10 +6040,10 @@
       15
     ],
     "contains": [
-      "Player(You))]))], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [SetPT(PT(3, 1)), SetCreatureType(Construct), SetCardtypes([Artifact, Creature]), AddAbility([Flying])], UntilEndOfTurn)])))], CardPT: "
+      "Player(You))]))], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [SetPT(PT(3, 1)), SetCreatureType(Construct), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([Flying])], UntilEndOfTurn)])))], CardPT: "
     ],
     "excludes": [
-      "Player(You))]))], ActionList([CreatePermanentLayerEffect(Ref_TargetPermanent, [SetPT(PT(3, 1)), SetCreatureType(Construct), SetCardtypes([Artifact, Creature]), AddAbility([Flying])])])))], CardPT: "
+      "Player(You))]))], ActionList([CreatePermanentLayerEffect(Ref_TargetPermanent, [SetPT(PT(3, 1)), SetCreatureType(Construct), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([Flying])])])))], CardPT: "
     ]
   },
   {

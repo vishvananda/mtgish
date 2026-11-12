@@ -1,0 +1,1142 @@
+{
+  "reference_decisions_20261111_expected.json": {
+    "Cache Grab": [
+      {
+        "path": "/0/args/body/instructions/2/args/condition/args/1",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Matching",
+                "args": {
+                  "objects": {
+                    "kind": "Transition",
+                    "args": {
+                      "result": 2,
+                      "phase": "After"
+                    }
+                  },
+                  "filter": {
+                    "kind": "Subtype",
+                    "args": "Squirrel"
+                  }
+                }
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "ObjectMatches",
+          "args": {
+            "object": {
+              "kind": "Result",
+              "args": {
+                "result": 2,
+                "phase": "After",
+                "index": 0
+              }
+            },
+            "filter": {
+              "kind": "Subtype",
+              "args": "Squirrel"
+            }
+          }
+        },
+        "reason": "a proven singleton transition uses a scalar type/property test"
+      }
+    ],
+    "Dream Thief": [
+      {
+        "path": "/1/args/body/instructions/0/args/condition",
+        "before": {
+          "kind": "PlayerDid",
+          "args": {
+            "player": {
+              "kind": "AbilityController"
+            },
+            "event": {
+              "CastSpell": {
+                "kind": "AllOf",
+                "args": [
+                  {
+                    "kind": "Color",
+                    "args": "Blue"
+                  },
+                  {
+                    "kind": "Not",
+                    "args": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "window": "ThisTurn"
+          }
+        },
+        "after": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "EventHistory",
+              "args": {
+                "event": {
+                  "Spell": {
+                    "event": "Cast",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "spells": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Blue"
+                        },
+                        {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "SameObject",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "window": "ThisTurn",
+                "measure": "Occurrences"
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "reason": "shared cast-spell occurrence history"
+      }
+    ],
+    "Giant Regrowth": [
+      {
+        "path": "/0/args/body/instructions/1/args/condition",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Matching",
+                "args": {
+                  "objects": {
+                    "kind": "Transition",
+                    "args": {
+                      "result": 0,
+                      "phase": "After"
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "ObjectMatches",
+          "args": {
+            "object": {
+              "kind": "Result",
+              "args": {
+                "result": 0,
+                "phase": "After",
+                "index": 0
+              }
+            },
+            "filter": {
+              "kind": "CardType",
+              "args": "Creature"
+            }
+          }
+        },
+        "reason": "a proven singleton transition uses a scalar type/property test"
+      }
+    ],
+    "Jared Carthalion": [
+      {
+        "path": "/2/args/body/instructions/1/args/condition",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Matching",
+                "args": {
+                  "objects": {
+                    "kind": "Transition",
+                    "args": {
+                      "result": 0,
+                      "phase": "After"
+                    }
+                  },
+                  "filter": {
+                    "kind": "Property",
+                    "args": {
+                      "property": "ColorCount",
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "Equal",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 5
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "ObjectMatches",
+          "args": {
+            "object": {
+              "kind": "Result",
+              "args": {
+                "result": 0,
+                "phase": "After",
+                "index": 0
+              }
+            },
+            "filter": {
+              "kind": "Property",
+              "args": {
+                "property": "ColorCount",
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 5
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "reason": "a proven singleton transition uses a scalar type/property test"
+      }
+    ],
+    "Karn's Touch": [
+      {
+        "path": "/0/args/body/instructions/0/args/operation/args/changes",
+        "before": [
+          {
+            "kind": "SetCardTypes",
+            "args": [
+              "Artifact",
+              "Creature"
+            ]
+          },
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              },
+              "toughness": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "AddCardType",
+            "args": "Artifact"
+          },
+          {
+            "kind": "AddCardType",
+            "args": "Creature"
+          },
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              },
+              "toughness": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              }
+            }
+          }
+        ],
+        "reason": "CR 205.1b artifact-creature wording retains existing card types"
+      }
+    ],
+    "Tamiyo, Seasoned Scholar": [
+      {
+        "path": "/1/args/body/instructions/1/args/condition",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Matching",
+                "args": {
+                  "objects": {
+                    "kind": "Transition",
+                    "args": {
+                      "result": 0,
+                      "phase": "After"
+                    }
+                  },
+                  "filter": {
+                    "kind": "Color",
+                    "args": "Green"
+                  }
+                }
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "ObjectMatches",
+          "args": {
+            "object": {
+              "kind": "Result",
+              "args": {
+                "result": 0,
+                "phase": "After",
+                "index": 0
+              }
+            },
+            "filter": {
+              "kind": "Color",
+              "args": "Green"
+            }
+          }
+        },
+        "reason": "a proven singleton transition uses a scalar type/property test"
+      }
+    ],
+    "Town Greeter": [
+      {
+        "path": "/0/args/body/instructions/2/args/condition",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Matching",
+                "args": {
+                  "objects": {
+                    "kind": "Transition",
+                    "args": {
+                      "result": 2,
+                      "phase": "After"
+                    }
+                  },
+                  "filter": {
+                    "kind": "Subtype",
+                    "args": "Town"
+                  }
+                }
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "ObjectMatches",
+          "args": {
+            "object": {
+              "kind": "Result",
+              "args": {
+                "result": 2,
+                "phase": "After",
+                "index": 0
+              }
+            },
+            "filter": {
+              "kind": "Subtype",
+              "args": "Town"
+            }
+          }
+        },
+        "reason": "a proven singleton transition uses a scalar type/property test"
+      }
+    ],
+    "Vengeful Rebirth": [
+      {
+        "path": "/0/args/body/instructions/1/args/condition",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Matching",
+                "args": {
+                  "objects": {
+                    "kind": "Transition",
+                    "args": {
+                      "result": 0,
+                      "phase": "After"
+                    }
+                  },
+                  "filter": {
+                    "kind": "Not",
+                    "args": {
+                      "kind": "CardType",
+                      "args": "Land"
+                    }
+                  }
+                }
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "ObjectMatches",
+          "args": {
+            "object": {
+              "kind": "Result",
+              "args": {
+                "result": 0,
+                "phase": "After",
+                "index": 0
+              }
+            },
+            "filter": {
+              "kind": "Not",
+              "args": {
+                "kind": "CardType",
+                "args": "Land"
+              }
+            }
+          }
+        },
+        "reason": "a proven singleton transition uses a scalar type/property test"
+      },
+      {
+        "path": "/0/args/body/instructions/1/args/then/instructions/0/args/operation/args/amount",
+        "before": {
+          "kind": "Aggregate",
+          "args": {
+            "objects": {
+              "kind": "Transition",
+              "args": {
+                "result": 0,
+                "phase": "After"
+              }
+            },
+            "property": "ManaValue",
+            "aggregation": "Sum"
+          }
+        },
+        "after": {
+          "kind": "ObjectProperty",
+          "args": {
+            "object": {
+              "kind": "Result",
+              "args": {
+                "result": 0,
+                "phase": "After",
+                "index": 0
+              }
+            },
+            "property": "ManaValue",
+            "information": "CurrentOrLastKnown"
+          }
+        },
+        "reason": "a proven singleton transition uses a scalar property read"
+      }
+    ]
+  },
+  "reference53_20261112_expected.json": {
+    "Dream Thief": [
+      {
+        "path": "/1/args/body/instructions/0/args/condition",
+        "before": {
+          "kind": "PlayerDid",
+          "args": {
+            "player": {
+              "kind": "AbilityController"
+            },
+            "event": {
+              "CastSpell": {
+                "kind": "AllOf",
+                "args": [
+                  {
+                    "kind": "Color",
+                    "args": "Blue"
+                  },
+                  {
+                    "kind": "Not",
+                    "args": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "window": "ThisTurn"
+          }
+        },
+        "after": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "EventHistory",
+              "args": {
+                "event": {
+                  "Spell": {
+                    "event": "Cast",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "spells": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Blue"
+                        },
+                        {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "SameObject",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "window": "ThisTurn",
+                "measure": "Occurrences"
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "reason": "shared cast-spell occurrence history"
+      }
+    ],
+    "Omen Machine": [
+      {
+        "path": "/1/args/body/instructions/1/args/condition",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Matching",
+                "args": {
+                  "objects": {
+                    "kind": "Transition",
+                    "args": {
+                      "result": 0,
+                      "phase": "After"
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Land"
+                  }
+                }
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "ObjectMatches",
+          "args": {
+            "object": {
+              "kind": "Result",
+              "args": {
+                "result": 0,
+                "phase": "After",
+                "index": 0
+              }
+            },
+            "filter": {
+              "kind": "CardType",
+              "args": "Land"
+            }
+          }
+        },
+        "reason": "a proven singleton transition uses a scalar type/property test"
+      }
+    ]
+  },
+  "nyla_reviewed_proposal_v180.json": {
+    "Nyla, Shirshu Sleuth": [
+      {
+        "path": "/0/args/body/instructions/1/args/condition",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "CountObjects",
+              "args": {
+                "kind": "Matching",
+                "args": {
+                  "objects": {
+                    "kind": "Transition",
+                    "args": {
+                      "result": 0,
+                      "phase": "After"
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Greater",
+                "value": {
+                  "kind": "Constant",
+                  "args": 0
+                }
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "ObjectMatches",
+          "args": {
+            "object": {
+              "kind": "Result",
+              "args": {
+                "result": 0,
+                "phase": "After",
+                "index": 0
+              }
+            },
+            "filter": {
+              "kind": "CardType",
+              "args": "Creature"
+            }
+          }
+        },
+        "reason": "a proven singleton transition uses a scalar type/property test"
+      }
+    ]
+  },
+  "reference32_expected_20261110.json": {
+    "Tezzeret, Agent of Bolas": [
+      {
+        "path": "/1/args/body/instructions/0/args/operation/args/changes",
+        "before": [
+          {
+            "kind": "SetCardTypes",
+            "args": [
+              "Artifact",
+              "Creature"
+            ]
+          },
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "Constant",
+                "args": 5
+              },
+              "toughness": {
+                "kind": "Constant",
+                "args": 5
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "AddCardType",
+            "args": "Artifact"
+          },
+          {
+            "kind": "AddCardType",
+            "args": "Creature"
+          },
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "Constant",
+                "args": 5
+              },
+              "toughness": {
+                "kind": "Constant",
+                "args": 5
+              }
+            }
+          }
+        ],
+        "reason": "CR 205.1b artifact-creature wording retains existing card types"
+      }
+    ]
+  },
+  "reference69_controls_20261110.json": {
+    "Karn, Silver Golem": [
+      {
+        "path": "/1/args/body/instructions/0/args/operation/args/changes",
+        "before": [
+          {
+            "kind": "SetCardTypes",
+            "args": [
+              "Artifact",
+              "Creature"
+            ]
+          },
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              },
+              "toughness": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "AddCardType",
+            "args": "Artifact"
+          },
+          {
+            "kind": "AddCardType",
+            "args": "Creature"
+          },
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              },
+              "toughness": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              }
+            }
+          }
+        ],
+        "reason": "CR 205.1b artifact-creature wording retains existing card types"
+      }
+    ],
+    "Thunder Totem": [
+      {
+        "path": "/1/args/body/instructions/0/args/operation/args/changes",
+        "before": [
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "Constant",
+                "args": 2
+              },
+              "toughness": {
+                "kind": "Constant",
+                "args": 2
+              }
+            }
+          },
+          {
+            "kind": "Colors",
+            "args": {
+              "mode": "Set",
+              "colors": [
+                "White"
+              ]
+            }
+          },
+          {
+            "kind": "CreatureTypes",
+            "args": {
+              "mode": "Set",
+              "types": {
+                "Listed": [
+                  "Spirit"
+                ]
+              }
+            }
+          },
+          {
+            "kind": "SetCardTypes",
+            "args": [
+              "Artifact",
+              "Creature"
+            ]
+          },
+          {
+            "kind": "GrantKeyword",
+            "args": {
+              "kind": "Flying"
+            }
+          },
+          {
+            "kind": "GrantKeyword",
+            "args": {
+              "kind": "FirstStrike"
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "Constant",
+                "args": 2
+              },
+              "toughness": {
+                "kind": "Constant",
+                "args": 2
+              }
+            }
+          },
+          {
+            "kind": "Colors",
+            "args": {
+              "mode": "Set",
+              "colors": [
+                "White"
+              ]
+            }
+          },
+          {
+            "kind": "CreatureTypes",
+            "args": {
+              "mode": "Set",
+              "types": {
+                "Listed": [
+                  "Spirit"
+                ]
+              }
+            }
+          },
+          {
+            "kind": "AddCardType",
+            "args": "Artifact"
+          },
+          {
+            "kind": "AddCardType",
+            "args": "Creature"
+          },
+          {
+            "kind": "GrantKeyword",
+            "args": {
+              "kind": "Flying"
+            }
+          },
+          {
+            "kind": "GrantKeyword",
+            "args": {
+              "kind": "FirstStrike"
+            }
+          }
+        ],
+        "reason": "CR 205.1b artifact-creature wording retains existing card types"
+      }
+    ],
+    "Toymaker": [
+      {
+        "path": "/0/args/body/instructions/0/args/operation/args/changes",
+        "before": [
+          {
+            "kind": "SetCardTypes",
+            "args": [
+              "Artifact",
+              "Creature"
+            ]
+          },
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              },
+              "toughness": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "AddCardType",
+            "args": "Artifact"
+          },
+          {
+            "kind": "AddCardType",
+            "args": "Creature"
+          },
+          {
+            "kind": "SetBasePowerToughness",
+            "args": {
+              "power": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              },
+              "toughness": {
+                "kind": "ObjectProperty",
+                "args": {
+                  "object": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  },
+                  "property": "ManaValue",
+                  "information": "CurrentOrLastKnown"
+                }
+              }
+            }
+          }
+        ],
+        "reason": "CR 205.1b artifact-creature wording retains existing card types"
+      }
+    ]
+  }
+}

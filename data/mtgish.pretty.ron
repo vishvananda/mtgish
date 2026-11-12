@@ -45705,10 +45705,8 @@ Adventurer(
                 0,
                 0,
               )),
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
             ],
           ),
           PutCounters([
@@ -112873,10 +112871,8 @@ Card(
             CreatePermanentLayerEffectUntil(
               Ref_TargetPermanent,
               [
-                SetCardtypes([
-                  Artifact,
-                  Creature,
-                ]),
+                AddCardtype(Artifact),
+                AddCardtype(Creature),
                 SetPT(PT(
                   1,
                   1,
@@ -112889,10 +112885,8 @@ Card(
             CreatePermanentLayerEffectUntil(
               Ref_TargetPermanent,
               [
-                SetCardtypes([
-                  Artifact,
-                  Creature,
-                ]),
+                AddCardtype(Artifact),
+                AddCardtype(Creature),
                 SetPT(PT(
                   4,
                   3,
@@ -219454,10 +219448,8 @@ Card(
               3,
             )),
             SetCreatureType(Turtle),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
           ],
           UntilEndOfTurn,
         ),
@@ -219497,10 +219489,8 @@ Card(
           ThisPermanent,
           [
             SetCreatureType(Construct),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             AddAbility([
               PermanentLayerEffect(
                 ThisPermanent,
@@ -238845,10 +238835,16 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        VoteForAWord([
-          "Carnage",
-          "Homage",
-        ]),
+        EachPlayerStartingWithAction(
+          AnyPlayer,
+          You,
+          [
+            VoteForAWord([
+              "Carnage",
+              "Homage",
+            ]),
+          ],
+        ),
         If(
           MostVotesForWordIs("Carnage"),
           [
@@ -260385,12 +260381,18 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        VoteForColor([
-          Blue,
-          Black,
-          Red,
-          Green,
-        ]),
+        EachPlayerStartingWithAction(
+          AnyPlayer,
+          You,
+          [
+            VoteForColor([
+              Blue,
+              Black,
+              Red,
+              Green,
+            ]),
+          ],
+        ),
         CreatePermanentLayerEffect(
           ThisPermanent,
           [
@@ -293653,10 +293655,8 @@ Card(
       HostPermanent,
       [
         SetCreatureType(Insect),
-        SetCardtypes([
-          Artifact,
-          Creature,
-        ]),
+        AddCardtype(Artifact),
+        AddCardtype(Creature),
         SetPT(PT(
           0,
           1,
@@ -373500,10 +373500,8 @@ Card(
               TheDiceResult,
             )),
             SetCreatureType(Insect),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             AddAbility([
               Flying,
             ]),
@@ -424268,10 +424266,8 @@ Card(
               Phyrexian,
               Eye,
             ]),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
           ],
           UntilEndOfTurn,
         ),
@@ -548169,11 +548165,16 @@ Card(
             AnyTarget,
           ],
           ActionList([
-            SacrificeAPermanent(IsCardtype(Creature)),
-            SpellDealsDamage(
-              ThisSpell,
-              PowerOfTheSacrificedCreature,
-              Ref_AnyTarget,
+            MustCost(SacrificeAPermanent(IsCardtype(Creature))),
+            If(
+              CostWasPaid,
+              [
+                SpellDealsDamage(
+                  ThisSpell,
+                  PowerOfTheSacrificedCreature,
+                  Ref_AnyTarget,
+                ),
+              ],
             ),
           ]),
         ),
@@ -644085,9 +644086,9 @@ Card(
               Ref_TargetPermanents,
               UntilEndOfTurn,
             ),
-            UntapEachPermanent(ThePermanentsGainedControlOfThisWay),
+            UntapEachPermanent(Ref_TargetPermanents),
             CreateEachPermanentLayerEffectUntil(
-              ThePermanentsGainedControlOfThisWay,
+              Ref_TargetPermanents,
               [
                 AddAbility([
                   Haste,
@@ -668126,10 +668127,8 @@ Card(
           CreatePermanentLayerEffect(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               SetPT(PT(
                 5,
                 5,
@@ -676689,10 +676688,8 @@ Card(
               4,
             )),
             SetCreatureType(Spirit),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
           ],
           UntilEndOfTurn,
         ),
@@ -701406,10 +701403,8 @@ Card(
         CreatePermanentLayerEffectUntil(
           Ref_TargetPermanent,
           [
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             SetPowerAndToughnessBoth(ManaValueOfPermanent(Ref_TargetPermanent)),
           ],
           UntilEndOfTurn,
@@ -701759,10 +701754,8 @@ Card(
           CreatePermanentLayerEffectUntil(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               SetPowerAndToughnessBoth(ManaValueOfPermanent(Ref_TargetPermanent)),
             ],
             UntilEndOfTurn,
@@ -701814,10 +701807,8 @@ Card(
           CreatePermanentLayerEffectUntil(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               SetPowerAndToughnessBoth(ManaValueOfPermanent(Ref_TargetPermanent)),
             ],
             UntilPlayersNextTurn(You),
@@ -704357,10 +704348,8 @@ Card(
           CreatePermanentLayerEffectUntil(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               AddAbility([
                 Flying,
               ]),
@@ -711427,10 +711416,8 @@ Card(
                 0,
                 0,
               )),
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               SetCreatureType(Homunculus),
               AddAbility([
                 Flying,
@@ -758676,13 +758663,19 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        VoteForAWord([
-          "Strength",
-          "Numbers",
-        ]),
+        EachPlayerStartingWithAction(
+          AnyPlayer,
+          You,
+          [
+            VoteForAWord([
+              "Strength",
+              "Numbers",
+            ]),
+          ],
+        ),
         PutCounters([
           NumberCountersOfTypeOnPermanent(
-            TheNumberOfVotesForWord("Feather"),
+            TheNumberOfVotesForWord("Strength"),
             PTCounter(
               1,
               1,
@@ -768356,10 +768349,8 @@ Card(
           CreatePermanentLayerEffectUntil(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               SetPT(PT(
                 3,
                 3,
@@ -792515,10 +792506,16 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        VoteForAWord([
-          "Grace",
-          "Condemnation",
-        ]),
+        EachPlayerStartingWithAction(
+          AnyPlayer,
+          You,
+          [
+            VoteForAWord([
+              "Grace",
+              "Condemnation",
+            ]),
+          ],
+        ),
         If(
           MostVotesForWordIs("Grace"),
           [
@@ -796448,10 +796445,8 @@ Card(
               4,
             )),
             SetCreatureType(Angel),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             AddAbility([
               Flying,
             ]),
@@ -827802,10 +827797,16 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        VoteForAWord([
-          "Feather",
-          "Quill",
-        ]),
+        EachPlayerStartingWithAction(
+          AnyPlayer,
+          You,
+          [
+            VoteForAWord([
+              "Feather",
+              "Quill",
+            ]),
+          ],
+        ),
         PutCounters([
           NumberCountersOfTypeOnPermanent(
             TheNumberOfVotesForWord("Feather"),
@@ -830946,10 +830947,8 @@ Card(
         PermanentLayerEffect(
           ThisPermanent,
           [
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
           ],
         ),
       ],
@@ -835940,10 +835939,8 @@ Card(
         CreatePermanentLayerEffectUntil(
           Ref_TargetPermanent,
           [
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             SetPT(PT(
               4,
               5,
@@ -849165,10 +849162,8 @@ Card(
         CreatePermanentLayerEffectUntil(
           ThisPermanent,
           [
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             AdjustPT(
               1,
               1,
@@ -858205,10 +858200,8 @@ Card(
               Phyrexian,
               Construct,
             ]),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             LosesAllAbilities,
             AddAbility([
               Indestructible,
@@ -934232,10 +934225,16 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        VoteForAWord([
-          "Sprout",
-          "Harvest",
-        ]),
+        EachPlayerStartingWithAction(
+          AnyPlayer,
+          You,
+          [
+            VoteForAWord([
+              "Sprout",
+              "Harvest",
+            ]),
+          ],
+        ),
         PutCounters([
           NumberCountersOfTypeOnPermanent(
             Multiply(
@@ -1104144,10 +1104143,8 @@ Card(
               5,
               5,
             )),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             SetCreatureType(Golem),
           ],
         ),
@@ -1149021,7 +1149018,7 @@ Card(
             PermanentDealsDamage(
               ThisPermanent,
               Integer(3),
-              Player(PlayerAction_ThatPlayer),
+              Player(ControllerOfPermanent(Trigger_ThatPermanent)),
             ),
           ],
         ),
@@ -1210728,10 +1210725,8 @@ Card(
           [
             SetPowerAndToughnessBoth(ManaValueOfTheDiscardedCard),
             SetCreatureType(Cat),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
           ],
           UntilEndOfTurn,
         ),
@@ -1245618,15 +1245613,12 @@ Card(
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
         TargetPermanent(And([
-          Other(Ref_TargetPermanent1),
-          And([
-            Or([
-              IsAttacking,
-              IsBlocking,
-            ]),
-            IsCardtype(Creature),
-            ControlledByAPlayer(Opponent),
+          Or([
+            IsAttacking,
+            IsBlocking,
           ]),
+          IsCardtype(Creature),
+          ControlledByAPlayer(Opponent),
         ])),
       ],
       ActionList([
@@ -1260482,10 +1260474,8 @@ Card(
           ControlledByAPlayer(SinglePlayer(You)),
         ]),
         [
-          SetCardtypes([
-            Artifact,
-            Creature,
-          ]),
+          AddCardtype(Artifact),
+          AddCardtype(Creature),
         ],
         UntilEndOfTurn,
       ),
@@ -1284679,10 +1284669,8 @@ Card(
         CreatePermanentLayerEffectUntil(
           Ref_TargetPermanent,
           [
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             SetPT(PT(
               4,
               5,
@@ -1296745,7 +1296733,7 @@ Card(
   Rules: [
     CastEffect(CantBeCastUnless(IsDuringCombat)),
     SpellActions(ActionList([
-      MayAction(PutACardFromHandOnBattlefield(
+      MayCost(PutACardFromHandOnBattlefield(
         And([
           IsNonColor(White),
           IsCardtype(Creature),
@@ -1296754,11 +1296742,16 @@ Card(
           EntersNormally,
         ],
       )),
-      CreateFutureTrigger(
-        AtTheBeginningOfTheNextEndStep,
-        ActionList([
-          PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay),
-        ]),
+      If(
+        CostWasPaid,
+        [
+          CreateFutureTrigger(
+            AtTheBeginningOfTheNextEndStep,
+            ActionList([
+              PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay),
+            ]),
+          ),
+        ],
       ),
     ])),
   ],
@@ -1304366,10 +1304359,8 @@ Card(
           CreatePermanentLayerEffectUntil(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               SetPowerAndToughnessBoth(ManaValueOfPermanent(Ref_TargetPermanent)),
             ],
             UntilEndOfTurn,
@@ -1336258,10 +1336249,8 @@ Card(
                 CreatePermanentLayerEffect(
                   Ref_TargetPermanent,
                   [
-                    SetCardtypes([
-                      Artifact,
-                      Creature,
-                    ]),
+                    AddCardtype(Artifact),
+                    AddCardtype(Creature),
                     SetPT(PT(
                       5,
                       5,
@@ -1336335,10 +1336324,8 @@ Card(
             ControlledByAPlayer(SinglePlayer(You)),
           ]),
           [
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             SetPT(PT(
               5,
               5,
@@ -1336703,10 +1336690,8 @@ Card(
           CreatePermanentLayerEffect(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               SetPT(PT(
                 5,
                 5,
@@ -1336885,10 +1336870,8 @@ Card(
           CreatePermanentLayerEffect(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
             ],
           ),
           If(
@@ -1341483,10 +1341466,8 @@ Card(
                 4,
                 4,
               )),
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
             ],
             ForAsLongAsPermanentRemainsTapped(ThisPermanent),
           ),
@@ -1353435,10 +1353416,8 @@ Card(
                 1,
               )),
               SetCreatureType(Construct),
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               AddAbility([
                 Flying,
               ]),
@@ -1377426,10 +1377405,8 @@ Card(
               White,
             ])),
             SetCreatureType(Spirit),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             AddAbility([
               Flying,
             ]),
@@ -1399549,10 +1399526,8 @@ Card(
           CreatePermanentLayerEffectUntil(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               SetPowerAndToughnessBoth(ManaValueOfPermanent(Ref_TargetPermanent)),
             ],
             UntilEndOfTurn,
@@ -1484656,10 +1484631,8 @@ Card(
         CreatePermanentLayerEffectUntil(
           ThisPermanent,
           [
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             AddAbility([
               Flying,
             ]),
@@ -1496582,10 +1496555,8 @@ Card(
               3,
             )),
             SetCreatureType(Gargoyle),
-            SetCardtypes([
-              Artifact,
-              Creature,
-            ]),
+            AddCardtype(Artifact),
+            AddCardtype(Creature),
             AddAbility([
               Flying,
             ]),
@@ -1532131,6 +1532102,7 @@ Card(
           FindACardOfType(And([
             IsNonSupertype(Legendary),
             IsColor(Green),
+            IsCardtype(Creature),
             ManaValueIs(LessThanOrEqualTo(Integer(3))),
           ])),
           PutFoundCardsOntoBattlefield([
@@ -1540404,10 +1540376,8 @@ Card(
           CreatePermanentLayerEffectUntil(
             Ref_TargetPermanent,
             [
-              SetCardtypes([
-                Artifact,
-                Creature,
-              ]),
+              AddCardtype(Artifact),
+              AddCardtype(Creature),
               SetPowerAndToughnessBoth(ManaValueOfPermanent(Ref_TargetPermanent)),
             ],
             UntilNextUpkeep(You),

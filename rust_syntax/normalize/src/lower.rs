@@ -220,6 +220,10 @@ struct Context {
     damage_permanent_recipient: bool,
     chosen_damage_source: Option<ResultId>,
     entered: Option<ResultId>,
+    /// A typed entry payment supersedes an earlier ordinary entry receipt.
+    paid_entry_latest: bool,
+    /// Lexical entry history restored on a branch where an entry payment failed.
+    entry_before_payment: std::collections::BTreeMap<u32, PriorEntry>,
     /// A return of every card produced by one pre-exile object.
     entered_from_one: Option<ResultId>,
     open_searches: Vec<PlayerRef>,
@@ -443,6 +447,7 @@ impl Context {
                 self.exiled_permanents = false;
             }
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
+                self.paid_entry_latest = false;
                 self.entered_from_one = self
                     .exiled_followup_group(&source::CardInExile::TheCardExiledThisWay)
                     .filter(|group| {
@@ -635,6 +640,7 @@ impl Context {
                 .retain(|p| !crate::semantics::shuffle_closes(p, players));
         }
         if matches!(operation, Operation::CreateTokens { .. }) {
+            self.paid_entry_latest = false;
             self.created_tokens = Some(ResultId(self.result));
         }
         self.note_attachment_host(&operation);
@@ -746,7 +752,9 @@ impl Context {
         if self.extra_turn.as_ref().map(|r| r.0) != child.extra_turn.as_ref().map(|r| r.0) {
             self.extra_turn = None;
         }
-        if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0) {
+        if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0)
+            || self.paid_entry_latest != child.paid_entry_latest {
+            self.paid_entry_latest = false;
             self.entered = None;
             self.entered_from_one = None;
         }
@@ -918,13 +926,10 @@ impl Context {
                     .created_tokens
                     .as_ref()
                     .filter(|r| self.singular.contains(&r.0));
-                if let (None, None, Some((objects, true))) =
-                    (&self.entered, token, self.paid_entered())
-                {
-                    return Ok(ObjectRef::Query {
-                        objects: Box::new(objects),
-                        index: 0,
-                    });
+                if self.paid_entry_latest {
+                    let (objects, singular) = self.paid_entered().ok_or_else(|| invalid("entry reference has no unique payment component"))?;
+                    if !singular { return Err(invalid("singular entry reference has a plural payment")); }
+                    return Ok(ObjectRef::Query { objects: Box::new(objects), index: 0 });
                 }
                 if self.entered.is_none() && self.created_tokens.is_none() {
                     if let Some(put) = &self.inspected_put {
@@ -1349,8 +1354,9 @@ impl Context {
             value,
             source::Permanents::ThePermanentsPutOnTheBattlefieldThisWay
         ) {
-            if let (None, Some((objects, _))) = (&self.entered, self.paid_entered()) {
-                return Ok(objects);
+            if self.paid_entry_latest {
+                return self.paid_entered().map(|(objects,_)|objects)
+                    .ok_or_else(|| invalid("entry reference has no unique payment component"));
             }
             return Ok(match (&self.entered, &self.created_tokens) {
                 (Some(result), _) => ObjectSet::Transition {

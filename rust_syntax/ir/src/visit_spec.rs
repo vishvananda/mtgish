@@ -13,6 +13,7 @@ const HOOKS: &[(&str, &str)] = &[
     ("ObjectRef", "object_ref"),
     ("PlayerRef", "player_ref"),
     ("Expr", "expr"),
+    ("Condition", "condition"),
     ("Cost", "cost"),
     ("CostPart", "cost_part"),
     ("Announcement", "announcement"),

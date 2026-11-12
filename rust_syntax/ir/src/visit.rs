@@ -29,6 +29,9 @@ pub trait Visitor {
     fn player_ref(&mut self, _: &PlayerRef) -> bool {
         true
     }
+    fn condition(&mut self, _: &Condition) -> bool {
+        true
+    }
     fn expr(&mut self, _: &Expr) -> bool {
         true
     }
@@ -107,6 +110,10 @@ pub trait VisitorMut {
         true
     }
     fn player_ref_end(&mut self, _: &mut PlayerRef) {}
+    fn condition(&mut self, _: &mut Condition) -> bool {
+        true
+    }
+    fn condition_end(&mut self, _: &mut Condition) {}
     fn expr(&mut self, _: &mut Expr) -> bool {
         true
     }

@@ -36,9 +36,11 @@ impl Context {
     ) -> Result<Instruction> {
         let mut then_context = self.clone();
         then_context.entered_from_one = None;
+        then_context.entry_payment_branch(&condition, true);
         let then = then(&mut then_context)?;
         let mut other_context = self.clone();
         other_context.entered_from_one = None;
+        other_context.entry_payment_branch(&condition, false);
         other_context.result = then_context.result;
         let otherwise = otherwise(&mut other_context)?;
         self.result = other_context.result;

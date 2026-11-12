@@ -18,6 +18,19 @@ fn negated(condition: Condition) -> Condition {
 }
 
 fn did(player: &PlayerRef, event: PlayerHistory, window: ObjectWindow) -> Condition {
+    let history_window = match &window {
+        ObjectWindow::ThisTurn => Some(HistoryWindow::ThisTurn),
+        ObjectWindow::ThisCombat => Some(HistoryWindow::ThisCombat),
+        ObjectWindow::ThisGame => Some(HistoryWindow::ThisGame),
+        ObjectWindow::SinceLastTurnOf(player) => Some(HistoryWindow::SinceLastTurnOf(player.clone())),
+        _ => None,
+    };
+    if let (PlayerHistory::CastSpell(spells), Some(window)) = (&event, history_window) {
+        return compared(Expr::EventHistory {
+            event: Box::new(EventSpec::Spell {event:SpellEvent::Cast,players:PlayerSet::One(player.clone()),spells:(**spells).clone()}),
+            window,measure:HistoryMeasure::Occurrences,
+        }, &Comparison::Greater, &Expr::Constant(0));
+    }
     Condition::PlayerDid {
         player: player.clone(),
         event,

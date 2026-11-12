@@ -162,7 +162,7 @@ fn optional_modes_retained_subtypes_actual_counter_outcomes_and_forward_enchant_
             let source:source::OracleCard=ron::from_str(line).unwrap();
             for card in unified::lower(&source).card.faces {
                 validate::card(&card).unwrap();
-                assert_eq!(canonical_abilities(serde_json::to_value(&card.abilities).unwrap()),canonical_abilities(expected[&card.name].clone()),"{}",card.name);count+=1;
+                fresh_producer::assert_named("reference69_controls_20261110.json", &card.name, &canonical_abilities(expected[&card.name].clone()), &canonical_abilities(serde_json::to_value(&card.abilities).unwrap()));count+=1;
             }
         }
         assert_eq!(count,19);

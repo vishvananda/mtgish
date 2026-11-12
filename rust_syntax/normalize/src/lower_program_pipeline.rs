@@ -79,7 +79,13 @@ impl Context {
             self.acted.insert(*action, result.clone());
         }
         self.created_tokens = child.created_tokens.clone().or(self.created_tokens.take());
-        self.entered = child.entered.clone().or(self.entered.take());
+        if child.paid_entry_latest {
+            self.entered = None;
+            self.paid_entry_latest = true;
+        } else if child.entered.is_some() {
+            self.paid_entry_latest = false;
+            self.entered = child.entered.clone();
+        }
         if child.exiled.is_some() {
             self.exiled = child.exiled.clone();
             self.exile_found = child.exile_found.clone();

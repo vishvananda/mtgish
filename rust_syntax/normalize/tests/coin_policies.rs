@@ -27,8 +27,24 @@ fn authentic_coin_records_upgrade_to_exact_source_and_preserve_all_binding_origi
                 // Fresh Source now tests the card in exile (2026-11-12 fix).
                 let phase = "/faces/0/abilities/0/args/body/instructions/1/args/condition/args/left/args/args/objects/args/phase";
                 assert_eq!(after.pointer(phase).unwrap(), "Before");
-                assert_eq!(fresh_value.pointer(phase).unwrap(), "After");
                 *expected_source.pointer_mut(phase).unwrap() = json!("After");
+                // The fresh producer also scalarizes this proven one-card
+                // transition. Saved migration and its origin paths stay intact.
+                let path = "/faces/0/abilities/0/args/body/instructions/1/args/condition";
+                let condition = expected_source.pointer(path).unwrap();
+                assert_eq!(condition["kind"], "Compare");
+                let matching = &condition["args"]["left"];
+                assert_eq!(matching["kind"], "CountObjects");
+                assert_eq!(matching["args"]["kind"], "Matching");
+                let matching = &matching["args"]["args"];
+                assert_eq!(matching["objects"]["kind"], "Transition");
+                assert_eq!(matching["objects"]["args"]["phase"], "After");
+                let scalar = json!({"kind":"ObjectMatches","args":{
+                    "object":{"kind":"Result","args":{
+                        "result":matching["objects"]["args"]["result"],"phase":"After","index":0}},
+                    "filter":matching["filter"]}});
+                assert_eq!(fresh_value.pointer(path), Some(&scalar));
+                *expected_source.pointer_mut(path).unwrap() = scalar;
             }
             assert_eq!(expected_source, fresh_value, "{}", before["faces"]);
             assert!(mapped.map.introduced.is_empty());

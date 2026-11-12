@@ -1,0 +1,2756 @@
+{
+  "baseline_commit": "19027c6d4afb0109cab8c6efe5296ee329ad3eba",
+  "schema_version": 190,
+  "oracle_grammar_reference_pin": "5408607bc4342aa3cdde1e764e2f405e71dccd39",
+  "oracle_grammar_report_initial_sha256": "c60ba3d9afcc85408c72a891167f331d5f237fd31b1b163681de4d69369f341e",
+  "oracle_grammar_report_final_sha256": "44ea48b1972bcfa7f8da004ed9f11465822a1d10687e04a4e6d0eac05eaaad46",
+  "parser": {
+    "accepted": 33570,
+    "refused": 1477,
+    "lost_names": [],
+    "new_names": []
+  },
+  "source": {
+    "records": 33529,
+    "changed": 48,
+    "unchanged": 33481,
+    "records_changed": [
+      {
+        "name": "Animating Faerie // Bring to Life",
+        "before_sha256": "6794e59efc74474716d8d45353508582e381c938c3c000e030b4767d3d68239a",
+        "after_sha256": "cdbfb6b4cd5ab4307ae9bca55d31caa038330f8a0764002bdd1845ae1d72203f"
+      },
+      {
+        "name": "Behind the Mask",
+        "before_sha256": "f54e7a92b2ef48f1934b5b6c9ebc48e7533195011944a952d5388c36d399e64f",
+        "after_sha256": "617f1fcc35b79fb0c5ae1ce66dc67a26273d3955462f1d39a442ef72ebe5748f"
+      },
+      {
+        "name": "Chimeric Idol",
+        "before_sha256": "51ce27233da35109d2bb861de09467e545cdd4e2fabc03c0edf7abcb1ae640cd",
+        "after_sha256": "ac835fefd2fc59c207fca01587dedb25aeea1ca8c3a6cd69b4a5cc94e7271617"
+      },
+      {
+        "name": "Chimeric Mass",
+        "before_sha256": "b44d81cd23a25775826ccc24ed4f737cb4aa35d01fef6b8ac10ff39716f215a7",
+        "after_sha256": "fa85d0580e0f5c6f66d1f3bde095997904c78d7dd86d61c9d1293f5b9bf2e4d4"
+      },
+      {
+        "name": "Coercive Portal",
+        "before_sha256": "a35c810ac47c888dc0f89681dbb1b7f3ff332c0059752ffec93ba70009536ce6",
+        "after_sha256": "d4059c6a78c2a0a1c2300c8f2e27212b7f587d41a1b34979b8452284fab47148"
+      },
+      {
+        "name": "Council Guardian",
+        "before_sha256": "e131807c1dc89f51b7e41a62f5defd5c1950fb4598105138209e5526cde44b32",
+        "after_sha256": "93c96e7b099a05d54197f4a2255243774dec3b551fd010b46741f9168281316a"
+      },
+      {
+        "name": "Darksteel Mutation",
+        "before_sha256": "8e566470b020c418c16488e40de5b49ec80f82000d14fca78cea04b1b320ff93",
+        "after_sha256": "f74dbc676769665c7dd95635f0c5d1202dae37730bafdfc88543a7fd2ce5adf0"
+      },
+      {
+        "name": "Ebony Fly",
+        "before_sha256": "ad374bc572f0f5458a4ec65b4dbc68996e4f7eac5f0fc9122f5d74f759cd12ef",
+        "after_sha256": "75c2608ca3158bf14a6e89459e752ca69d1aa9db4429f22da053ea7f7a27d515"
+      },
+      {
+        "name": "Eye of Malcator",
+        "before_sha256": "475752e6b6571478bf635a53d3f030d85137dc97018630800480bfd67e663a80",
+        "after_sha256": "38d6903453ce81528a5ae0b0b0bd1c459dd5ec5a68878e1d979989b4e5647d67"
+      },
+      {
+        "name": "Grab the Reins",
+        "before_sha256": "a7f18f0234d969ec2baa0f38d6353a81a76091bbb54c24389dafc654390c32dc",
+        "after_sha256": "f69a3cf04f7e897e4e3a31a61237c544b639d710260e4f6bfdc1309af231c7b9"
+      },
+      {
+        "name": "In the Darkness Bind Them",
+        "before_sha256": "4560bf35f482576c0cb8b08efa2f813b20a5fba2e18e1d66ebd29b5e4e83c3ef",
+        "after_sha256": "ae007a9a7bc59ccb38fcfe7cea0a8046935726524d85bd47fa0df79f892d87f3"
+      },
+      {
+        "name": "Iron Man, Futurist Paragon",
+        "before_sha256": "aa61a85d0a066edc30a57196ef7d4ac7fb9bd1bef3520d1d4cad82eee60cfb01",
+        "after_sha256": "ba02e0160cb05c9ad590e5caf537a484ed1e5066e5c0047cd06e838799c88d80"
+      },
+      {
+        "name": "Jade Idol",
+        "before_sha256": "deee9c3a2282dc806db65963cf59fa28547f84492e3ccd38eff008264019b10f",
+        "after_sha256": "a9bce388c58bb853f7b0e0d7c47bbd98f0f4f25731c7472dcd62a632b31657f2"
+      },
+      {
+        "name": "Karn's Touch",
+        "before_sha256": "339905d56294f6fd5a22e8ba9d0f16515ea48e03e092a384a978cebdaec80b7d",
+        "after_sha256": "389dd5de8cbcba7f4550d7927cd4bc9478025245d88e1d4d65cc41730c148845"
+      },
+      {
+        "name": "Karn, Silver Golem",
+        "before_sha256": "9e3b84688fe2c8efa5d49fdac32a15403942278a7a57fb9a4232adc460540285",
+        "after_sha256": "382f9715fd4549aac39d5970966a3240561fcff9c7452a36546b18381788baaf"
+      },
+      {
+        "name": "Karn, the Great Creator",
+        "before_sha256": "75c5a98d4b4e0051efd8ef66c4dcc33006d080489d6a591b0ff35514cc50832c",
+        "after_sha256": "56938ba739bc1d775ffc237bc39dee99d46d041a2d1495c74d776532d4ea9b4c"
+      },
+      {
+        "name": "Katsumasa, the Animator",
+        "before_sha256": "25c6bb4be0dc545d77534c3d3fe9e4b0d92f4e186ad3970a68ea886125a058db",
+        "after_sha256": "c8d982cd3bc293da7888da8f60a7f4d14db5f362ce4338463ca54024c46e22f5"
+      },
+      {
+        "name": "Kenku Artificer",
+        "before_sha256": "8e5bb58314dbaefa3752f66d3416ef4f5d7dc83349f218f2afdf4d55a4055d5d",
+        "after_sha256": "06915cc942fd66ab68da314a0b45bc54e9ae60633e764a333efffcd8a5ee2367"
+      },
+      {
+        "name": "Lieutenants of the Guard",
+        "before_sha256": "eab38585ada03d240e66b363dea45e838a4a9b94e2cd44251bb3d3c8c8daebb3",
+        "after_sha256": "e216c5f246911a058cc02c7c32ebeaebecb949930fd24f2b853ba29a1b7fee12"
+      },
+      {
+        "name": "Living Brain, Mechanical Marvel",
+        "before_sha256": "4a767f0b2f486ed5c85a8836546918e190662c2a521a5131c6a848156b400781",
+        "after_sha256": "50f6bc63e40479ce132033d17d91c618f5db51075c1fb692264f4b30a31d8a1c"
+      },
+      {
+        "name": "Magister of Worth",
+        "before_sha256": "d86514e1b887885d04234f4f15bc0bcd2ac0fac67c53db767a7705f61f798f99",
+        "after_sha256": "6fb8b18ea3141a514b2816064c321bed931dc952efc8ce92673524fbaf720c2f"
+      },
+      {
+        "name": "Majestic Metamorphosis",
+        "before_sha256": "e0502762d0c3cc427329e3459315bc4dd66c53ed4b3b3ebfaa8d2e60498edaab",
+        "after_sha256": "4250f106fdf8f39b77c2fcd72b9d9d941f32322843449ae3ebadc4e76fd61f5c"
+      },
+      {
+        "name": "Messenger Jays",
+        "before_sha256": "62122ee16444c0aec5667fcb27217fe6a045de56e261c50662ed8ef61c1774c8",
+        "after_sha256": "7bb3cf674cd806c4a47a18f93f8724dbebe6afbd849597dd366a5a7fa253f5ee"
+      },
+      {
+        "name": "Midnight Mangler",
+        "before_sha256": "6b5effc527c646c09d94000b7c157366807136b175771f8b4dfe97a1acdfa264",
+        "after_sha256": "7f813326c0724e472387e1de4931a12569df9128bbc79310c61c3c0323673a5c"
+      },
+      {
+        "name": "Mind Transfer Protocol",
+        "before_sha256": "90014081f5540957c4716696a80d0e9bf320245aac408dff04861bc50114d38c",
+        "after_sha256": "f4e51beb2c2d87ce3fe418dd64b1cceddb2cad29e95ba75a2bf02387f94d0c9d"
+      },
+      {
+        "name": "Mizzium Tank",
+        "before_sha256": "8e48b2af97cffe50ebf2bfe0b753d8f5d3e8e07fbdc5b54ef00b6405a5305c84",
+        "after_sha256": "7b56685b508d9bfa592306684142826fd2dae6eff4d74e4e7327dbbd8c7e0155"
+      },
+      {
+        "name": "Monument to Perfection",
+        "before_sha256": "14c90979b2991adbe367b39ea581110676ed33f90b34a453162d2ab6e3816dfe",
+        "after_sha256": "5da646116a4a4dc67eef20fec617103c6f37250c47993bde6374b4899d69f972"
+      },
+      {
+        "name": "Orchard Elemental",
+        "before_sha256": "d6dc99791fda58be65c08d12f5e5041c59aa68a3b93b7d15bf612d67f8defe96",
+        "after_sha256": "d1cf4638c775c9fed4d94b582590a5302b8e6c158a74bd7c441c1ed8a270cb7f"
+      },
+      {
+        "name": "Rusted Relic",
+        "before_sha256": "398b034c32617da8f0e73bf92bb69eb1eabad0ca5ae561e39067e4ae317e5afd",
+        "after_sha256": "7334423c312ccac21ed6e425d754396d760c339bba862471c480e4f69c646fee"
+      },
+      {
+        "name": "Seizures",
+        "before_sha256": "0f082643dd796933152421fc0e85d15785b07a7194583c83dd9204c16ec6af77",
+        "after_sha256": "19f53fdf3869215106ec6672d1fbf830d3b6b6a360066289f2fb08990a75cee2"
+      },
+      {
+        "name": "Slumbering Tora",
+        "before_sha256": "57ffb300908d6377e7c67c2432b046a556dee6557e5cb1a2c4ed19df908cabc0",
+        "after_sha256": "3bd073f836d15b8df5613b03e9e8d95e79fab017b22e188988a6aa1163f6551e"
+      },
+      {
+        "name": "Spirit Flare",
+        "before_sha256": "f70d9eaa8c94fab912b63db88ed2b6f27ab9ff933f09f80e5081c29e89a88829",
+        "after_sha256": "451328de03e1cb281cd7a4edc0ea97d59420c069dd86f06524461f343b300cbb"
+      },
+      {
+        "name": "Start Your Engines",
+        "before_sha256": "eb8fdcdcd9ef74b9e517fb683028b9359b45749c99351a04e188f92716edbcb3",
+        "after_sha256": "b40f725fcc97d1d700ac4a792702cb9bad6ac5d39a50eccf0f91aacf5b5fe308"
+      },
+      {
+        "name": "Suit Up",
+        "before_sha256": "9b5ae259e64e2a764562b946fd667f7c1ca4e354698021353fece72596d68edc",
+        "after_sha256": "517f762e7223e3d6df786879ca875332aaa50051bd320c52c787838df0488449"
+      },
+      {
+        "name": "Surprise Deployment",
+        "before_sha256": "29d4c97aea53927047e36cb9cfd1ff1f0147facefcf9669aa336b5cf0177f3ec",
+        "after_sha256": "3e2ccd82159f9f39b3df4068f4fe7c786eddf6026bc3f6ecd33865fb7598def0"
+      },
+      {
+        "name": "Sydri, Galvanic Genius",
+        "before_sha256": "2fec642c56ecf0f1f4a87bfc7c413ef5eed59999810f7df9d196ed9306c38c45",
+        "after_sha256": "3df615a66822498af27de233019c7efb6d52313032e6b1784adabe2bc57cce0b"
+      },
+      {
+        "name": "Tezzeret the Schemer",
+        "before_sha256": "527f1d488c020f63c0f75fb39b10b7f762743bfa50ef99f7bdc73a749f2813e4",
+        "after_sha256": "2ecd2812158571d1d95641396bf46641d08ea849b85dd6a3817ba09296d48b08"
+      },
+      {
+        "name": "Tezzeret the Seeker",
+        "before_sha256": "7259d89d673d6b4a306994acee5c593a373fa42be56d9ca9ae993938764fd703",
+        "after_sha256": "1bec629d420393977b4abc4c1062f69e904e54202ccd890a49f3de2ad282ffa7"
+      },
+      {
+        "name": "Tezzeret, Agent of Bolas",
+        "before_sha256": "1197da1ca17406e0b8d0c64e08919fc2a2862b7de15ca0974ef20e67c9272d56",
+        "after_sha256": "8e9bac6229f6b08a3c5bfca196c1426dc350a5493e8f16a28c2124b387cbe929"
+      },
+      {
+        "name": "Tezzeret, Betrayer of Flesh",
+        "before_sha256": "dcbaf3da49924d731c1a89fa3a39cc36faf071990f8da7550999e435dd88f6dd",
+        "after_sha256": "879c178dd950304441803fbbbcf661e8f4ba9452d01e77273d8a2b435f11b55c"
+      },
+      {
+        "name": "The Blackstaff of Waterdeep",
+        "before_sha256": "c8e8265f4bb5da2f87a958bcd1f46a99006a3738df3b97d75d0d7a8174ede6e8",
+        "after_sha256": "79a0d96c17eb38a8f88a1641b9b382447f8e09596d41102c9891c406216377a2"
+      },
+      {
+        "name": "The Mechanist, Aerial Artisan",
+        "before_sha256": "8af610a3449f60f05fbaf38724a041536d1cb90069bc0abc08e5854641c37a58",
+        "after_sha256": "fced49058f107515638d17410a73f4c8305f2ae7b87cbb85478590b85b8ecaa8"
+      },
+      {
+        "name": "Thunder Totem",
+        "before_sha256": "38bfc9e2f1252557452bc29a63313b901717ced24435963f1907714bdfdd6620",
+        "after_sha256": "5d0e14ef72b1abe93e8c1af87def848a5346fb9d99ef32c3c3c3aad506f3d359"
+      },
+      {
+        "name": "Toymaker",
+        "before_sha256": "dce937d20d67b9183e872781b825b9692417d2a673ba54cf8c8607654d04a5a8",
+        "after_sha256": "d0246af8a722526515804d276c242442d411c6fdcb29f8427f6601f3e7c68a88"
+      },
+      {
+        "name": "Voyager Glidecar",
+        "before_sha256": "0b5f6000e15c0b9b20063e20388b972fbffb62a8fdbdc0b2ac8b148077e2dfba",
+        "after_sha256": "8401868e7256a7c11af6db5551b2d21130c034d3799336a31d1a1deda6b916b3"
+      },
+      {
+        "name": "Warden of the Wall",
+        "before_sha256": "d70a06ddb4bae68d5bd6b81a7cd6d904e47ba827dd47824aaabcf58b164e0270",
+        "after_sha256": "e7ffcc13b2a99146b6a6493faeaf5a105671c60e1fd3ae47fbec5c0c8c9188f7"
+      },
+      {
+        "name": "Woodland Bellower",
+        "before_sha256": "553501c4514141a94a25dd1b7f773ea7e2561d9f2c6e703c5f85cf3c8d7adf48",
+        "after_sha256": "f83efadab81c630f38eecba62013bba53593768b7c6b4d0f46370bb38e1412ac"
+      },
+      {
+        "name": "Xenic Poltergeist",
+        "before_sha256": "8cad51501ac0b89c9f5c0cf7aafa56ffae885b71b2514cb1c01a9723d24e81a2",
+        "after_sha256": "4e9fd49fdf6a66a544066670e5454c9dcd7d45f9325e73aae03549357d25ba07"
+      }
+    ]
+  },
+  "unified": {
+    "records": 33529,
+    "changed": 159,
+    "unchanged": 33370,
+    "families": {
+      "English Source correction": 48,
+      "cast-spell history": 5,
+      "latest successful entry receipt": 1,
+      "pure prevention branch order": 4,
+      "singleton condition": 83,
+      "singleton property": 12,
+      "starting-life operand order": 7,
+      "typed perpetual graveyard incarnation": 2
+    },
+    "changes": [
+      {
+        "record_index": 173,
+        "faces": [
+          "Acolyte Hybrid"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "bc7cb9aee1c8994d7c1eddabf0873cb1c24bce3816bfd5a90889caa2c836a03c",
+        "after_sha256": "67fe8d3f90264d30980ea5b8860f672305241841d597e44c1c2a0062d6a3a8b9",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 389,
+        "faces": [
+          "Agatha's Soul Cauldron"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "63bb4bfe7f42991f23c3d67033d507164eec01b6cb1e27286c90695a287e0625",
+        "after_sha256": "eec5c53bf4a955b328f35301c367a0d51c1c56692aee7ecbcbd694e0c65b390e",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/0/args/instructions/1/args/operation/args/condition"
+        ]
+      },
+      {
+        "record_index": 504,
+        "faces": [
+          "Ajani, Strength of the Pride"
+        ],
+        "source_changed": false,
+        "families": [
+          "starting-life operand order"
+        ],
+        "before_sha256": "c6ebbd6a45a940610e116e8e0726aad36b4338cd6c9840c1cf3af9f92613d3df",
+        "after_sha256": "c71825cbf16ad67e4d67db8bb939b3d1aef3431ca02c8e566aedad988af72376",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/0/args/condition/args/test/args/value/args/0",
+          "/faces/0/abilities/2/args/body/instructions/0/args/condition/args/test/args/value/args/1"
+        ]
+      },
+      {
+        "record_index": 586,
+        "faces": [
+          "Alaundo the Seer"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton property"
+        ],
+        "before_sha256": "b436ddb19af58da1705404baece5b29a9f14b3869375f275b4a0698d3f8ce85b",
+        "after_sha256": "f8dcd07c327b328355f35eb44ee14fc8eb02856583cc5086d13400a0050c6fd6",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/2/args/operation/args/placements/0/amount"
+        ]
+      },
+      {
+        "record_index": 881,
+        "faces": [
+          "Angel of Destiny"
+        ],
+        "source_changed": false,
+        "families": [
+          "starting-life operand order"
+        ],
+        "before_sha256": "4fb1f901b88450b1b3f39f41f5c0b47a3bf31abd2230d8d09e592721789aa3c9",
+        "after_sha256": "c07ea80c584ba091e4ce957e6fa716ca6d80bedc6ccacb4437df2fec7144576a",
+        "paths": [
+          "/faces/0/abilities/3/args/intervening_if/args/test/args/value/args/0",
+          "/faces/0/abilities/3/args/intervening_if/args/test/args/value/args/1"
+        ]
+      },
+      {
+        "record_index": 978,
+        "faces": [
+          "Animating Faerie",
+          "Bring to Life"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "64ac07c2b684d5719803eb81325a0caaf67bfad2b895118df9ffce0219fba617",
+        "after_sha256": "9aef184a8cec3f23b1ff5834c7850af8c07afd1126a972e59aa47b4bdf7f2c88",
+        "paths": [
+          "/faces/1/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 1169,
+        "faces": [
+          "Arcane Artisan"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "4ab536cc3741f716af6785cbd7d96ef089212be2ce09e6d6b39996269242a002",
+        "after_sha256": "f97e82d78be1401b37373d10d801e9b7962eeab65dab169b84d8f295dce17066",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 1316,
+        "faces": [
+          "Ardyn, the Usurper"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "fee7eecf03ecacd64e361cb631274c02dae5f2eccd3a74af79638731727e3c92",
+        "after_sha256": "dc6dafd185de013b1a1e1b19af6a825d8bf847b83a37364ce7779270dbc65392",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 1352,
+        "faces": [
+          "Arid Archway"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "17c1d463eef84a957f9f99718d80287383de8070fbb8b47a3788a432910558d9",
+        "after_sha256": "f5fffbb0aa5c2c3dd4013d5b2370e5a578025e4a117766bca5380a1c0483bf07",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 1404,
+        "faces": [
+          "Armored Skyhunter"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "707e3dd4ac58611b33641d5fb9e273001f622662596bf72d328cb335745f3077",
+        "after_sha256": "2461471f30950e69a6963ca31b127de746094cfa4b682efa950c2c7c17390599",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/instructions/3/args/condition"
+        ]
+      },
+      {
+        "record_index": 1665,
+        "faces": [
+          "Audacious Swap"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "54e504db6c67d4187d1135493c3e857a6307c51cad3f013909db0a68d2256bf1",
+        "after_sha256": "c70229786bcd37f34953d360a7e1e546dbff22697dbffcdd9dd9839169ce15fc",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 2399,
+        "faces": [
+          "Behind the Mask"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "aab9d472419039bafa19fc253b16760171bc87c576dc039cc28e982cf317e02f",
+        "after_sha256": "ae5c88427b1f16b043203df95de41a6d4806ea269236e02704ac731463958cdf",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/then/instructions/0/args/operation/args/changes",
+          "/faces/0/abilities/1/args/body/instructions/0/args/otherwise/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 2595,
+        "faces": [
+          "Bioplasm"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "9a3f9181f37a40008d89c8927852a77d591e355b654f0ca46f5b1a2c2f1ad9b2",
+        "after_sha256": "72f7e7d4dc45c12b499e6ec0169c5187eb8e7bd370e3a4245ce47cdae551b479",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 3473,
+        "faces": [
+          "Break Expectations"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "392be727878b3d86e6e4722dd26ce346e99a7d1d4ce60f353aa502c5590a65c7",
+        "after_sha256": "4aa1cb7e0c18e6d191476dd18601787a028e741bc1b113676607e89ada6dbc0a",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 3481,
+        "faces": [
+          "Break the Spell"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "8e4eee1984e15f1966c5c9a758361362c0f4f34ae1df86e71b1d73b3d05a0c0c",
+        "after_sha256": "f0177b43bc77d4b20cadf7ee089b382e3b0550a96bd56bad60eead096295d243",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 3864,
+        "faces": [
+          "Cache Grab"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "ea2477d9bfbbaa77cd9257a3c7870f87a525ace63f6cdc59dc70623f150f3787",
+        "after_sha256": "36112e95689d46dd4355c089f4d71a2339873985e9fa3f14fe7520460818db88",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/2/args/condition/args/1"
+        ]
+      },
+      {
+        "record_index": 4157,
+        "faces": [
+          "Carrion Locust"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "fe09b56f14152bcbd1ca58995f5e2bd5fd09ec5615d961d269253ed44e2049af",
+        "after_sha256": "b016d5c4e8d494abdd93ce48d9d3e580c89e7dab618bf1349b62e52f5f82cded",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 4274,
+        "faces": [
+          "Cauldron Dance"
+        ],
+        "source_changed": false,
+        "families": [
+          "latest successful entry receipt"
+        ],
+        "before_sha256": "916c4a2cd19816afca4f070bd9aca6b629dd115098e7d2edc67da894ee6f7c66",
+        "after_sha256": "6527f4fad5def1cb583dbc2bbbd43ba1040fb3e805d1a719ff359ab7b8f4208a",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/4/args/then/instructions/0/args/operation/args/affected/Objects/args",
+          "/faces/0/abilities/1/args/body/instructions/4/args/then/instructions/1/args/operation/args/body/instructions/0/args/operation/args/objects/args"
+        ]
+      },
+      {
+        "record_index": 4356,
+        "faces": [
+          "Cellar Door"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "44f0216c3aa559289f266e1687aa0eca76379b11be28a06d847321f91463d0a5",
+        "after_sha256": "148b01003d425f221bf1704f922368374bfff340c2520c801a8d99c8ea8681ee",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 4396,
+        "faces": [
+          "Cephalid Illusionist"
+        ],
+        "source_changed": false,
+        "families": [
+          "pure prevention branch order"
+        ],
+        "before_sha256": "76d613dee37a3124a7c4c8d6c83615c7e51060fed0be59e12774426ec9406511",
+        "after_sha256": "5f99f804674365f6d0d777aaaa781aaec4d169db73fde2c57d8ffbe9b4ae64c2",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/0/Damage/source_kind",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/0/Damage/sources",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/0/Damage/recipients",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/1/Damage/source_kind",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/1/Damage/sources",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/1/Damage/recipients"
+        ]
+      },
+      {
+        "record_index": 4458,
+        "faces": [
+          "Chalice of Death",
+          "Chalice of Life"
+        ],
+        "source_changed": false,
+        "families": [
+          "starting-life operand order"
+        ],
+        "before_sha256": "a3f059f2da14f2ef1bcdf96bf209c3f260d38b6ebcbea193a322c599154fd008",
+        "after_sha256": "b03e7444d741c1c4be96647d96b86feb4b0d49a1c12d6e4172cbae7a1223ecbf",
+        "paths": [
+          "/faces/1/abilities/0/args/body/instructions/1/args/condition/args/test/args/value/args/0",
+          "/faces/1/abilities/0/args/body/instructions/1/args/condition/args/test/args/value/args/1"
+        ]
+      },
+      {
+        "record_index": 4565,
+        "faces": [
+          "Chaos Harlequin"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "6c604577027cc201292a6d61d28eb2cdb70bdf4a38ce5041d7520ba97e7f88df",
+        "after_sha256": "53f4d493b4afd4776afde32183cdf1e0c0d2c80b5470b93b6f5d46f7af2f58ee",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 4647,
+        "faces": [
+          "Check for Traps"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "9bc7039bb7607fa1643823f629a5a6cbb1a3d3e8fc6fa755a661f82d7fca1c98",
+        "after_sha256": "259630f81bad9a3f93365a685a507e46ab994dc177212ac58846d00bc89bb4c7",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 4690,
+        "faces": [
+          "Chimeric Idol"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "6f02c917903570323dc5643381c3c6eb05ba898c852941db5a082f977ecef1a2",
+        "after_sha256": "02663f97015517e3bf2188e1a1cfc082412963657ba0262a115b3fa57dcbadfe",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 4691,
+        "faces": [
+          "Chimeric Mass"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "f1a6589c89abc3386f0c829853c22d7ab356e1cf347ffa063d245a6e447488c4",
+        "after_sha256": "f96bdee5df8392c7b1a59fc92616f938a278c7ac6b74ab2556f991faf7acce59",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 4795,
+        "faces": [
+          "Cinder Cloud"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "d7638942425632212f5bee8e0a9ac89ca85424f754f905b3d5001e1058c6b8b4",
+        "after_sha256": "2f171f2e5f64236b2539195c9d0dbc6e0650cbb7b36f10f611799229e6f55e3d",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 4944,
+        "faces": [
+          "Cleric Class"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton property"
+        ],
+        "before_sha256": "04703eb802477b6aeb48d7e99826040a1872a765ff9a5f7f5c7f89e270be9927",
+        "after_sha256": "ea785bf31eda6fe652a47b9219ad3d27a2d6077057f4244428035ec5ae3c5537",
+        "paths": [
+          "/faces/0/abilities/1/args/levels/1/abilities/0/args/body/instructions/1/args/operation/args/amount"
+        ]
+      },
+      {
+        "record_index": 5111,
+        "faces": [
+          "Coercive Portal"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "f92c456ad6c1e5cfae390fbddf5f4b0ead61db632815b20985e8651f5cbc0a8c",
+        "after_sha256": "06d209687ed069e62cbbe8340c05f42d7c4dd5cb842e18ea6897e1f66c5c6ec5",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0"
+        ]
+      },
+      {
+        "record_index": 5522,
+        "faces": [
+          "Corpse Appraiser"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "37f9afc739af1960760c27453c2b5c4137d5ad5bf0d0d1db06fe312c7b21e2c2",
+        "after_sha256": "487ebb35993da35fd941b5b2d48c1c745d0f98278e4eefae7b6c15c576611573",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 5592,
+        "faces": [
+          "Council Guardian"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "0d070e24b87d2fba8734c819dc64623a4cb0f74156d6333f9a11a8ac998774c0",
+        "after_sha256": "18f6b8f8f56a7d72896d24cdf913f27fec9c89752558351545aa9aef806832c5",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0"
+        ]
+      },
+      {
+        "record_index": 6044,
+        "faces": [
+          "Currency Converter"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "fb1d64b947f2b619b559478d62e5d2be157ca699fe055fc1370335f8d5a05b10",
+        "after_sha256": "e72f20936884366ffc241c06638ecd3ad75e99d0c29b76fd6006ea469687f4e5",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/1/args/condition",
+          "/faces/0/abilities/2/args/body/instructions/2/args/condition"
+        ]
+      },
+      {
+        "record_index": 6251,
+        "faces": [
+          "Daredevil, Fearless Fighter"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton property"
+        ],
+        "before_sha256": "be23b5dbaae7c0b24b7098a1393d800a35254d4056d0a2ba19a176b9fd834142",
+        "after_sha256": "fb0f9c9bde03c44cf1a90db5038c46387cb1781ddf3d5dc17f6be90ceffac144",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/operation/args/amount"
+        ]
+      },
+      {
+        "record_index": 6252,
+        "faces": [
+          "Daredevil, Man Without Fear"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "78bcf7c2dae30f3571de97e62bbfb42bd063367a9c05da8348018517277b58e4",
+        "after_sha256": "72e7bead8d9eb1d91dee781829b218b27e84238438c5a479d80ae0f1ccc650bf",
+        "paths": [
+          "/faces/0/abilities/3/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 6348,
+        "faces": [
+          "Darksteel Mutation"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "2aabe309b3aad13787824bc47ccf1853c3c13f008cfb47af81c51136dffa373d",
+        "after_sha256": "5af6c2a2ff4701d17ce1f4f7f5b56ba0c8ab004148e4830072577d59fb533963",
+        "paths": [
+          "/faces/0/abilities/1/args/changes"
+        ]
+      },
+      {
+        "record_index": 6588,
+        "faces": [
+          "Deathgorge Scavenger"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "b01087d85afb4f2f3c3afbf666f826c578c18a23c3f3e517450efc1e7dfff12c",
+        "after_sha256": "69505b7d3e9aef2c631a77ca8a3f714b9427f6967d031a1ad321d73097d70034",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition",
+          "/faces/0/abilities/0/args/body/instructions/2/args/condition"
+        ]
+      },
+      {
+        "record_index": 7084,
+        "faces": [
+          "Dimensional Infiltrator"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "b0f68401abab14aa81d9a9b2822f9f941e6a0569e99d2da117d6ad67e83ddb8a",
+        "after_sha256": "11ea22792b83f68323f5c4416ab21707ddcf8ecc4011fb2bd3e936be5c2b676b",
+        "paths": [
+          "/faces/0/abilities/3/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 7140,
+        "faces": [
+          "Dire-Strain Rampage"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "0954165e99a7310280b6f89239bffccbdb350c34576642a651c86d75dcaea461",
+        "after_sha256": "3294e3d17ed3fedebc195052075543395454e6f0358616b0100fbab7670ec821",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 7150,
+        "faces": [
+          "Diregraf Scavenger"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "509635c56db3c582649780be8cdae7ec8f715e1ea8ad5b2e21acc3da031aef45",
+        "after_sha256": "4aedc97e81495db1427dc1d61f3b97e80d5a22581aee7b8c35642d345151b184",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 7356,
+        "faces": [
+          "Doctor Strange, Surgeon"
+        ],
+        "source_changed": false,
+        "families": [
+          "starting-life operand order"
+        ],
+        "before_sha256": "345fd56b416f64900a9600ea78722021763cf124f18d9812dfa2dabfb0c29876",
+        "after_sha256": "e94bf193a8cb871ac3b87b234e4e7bae483b5d5e0f3c1456887547e13cadae97",
+        "paths": [
+          "/faces/0/abilities/2/args/intervening_if/args/test/args/value/args/0",
+          "/faces/0/abilities/2/args/intervening_if/args/test/args/value/args/1"
+        ]
+      },
+      {
+        "record_index": 7711,
+        "faces": [
+          "Dream Thief"
+        ],
+        "source_changed": false,
+        "families": [
+          "cast-spell history"
+        ],
+        "before_sha256": "797c469ff61e9a55188d08c273b4f130639958f29d803e8c20d14a0836a80301",
+        "after_sha256": "a24e2e65c811f4a2d553f2e6dcb17be25c7024ebc3ae8c9f8dac8461def772a2",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/condition"
+        ]
+      },
+      {
+        "record_index": 8117,
+        "faces": [
+          "Ebony Fly"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "64896f46a0ea5e41f19278ab49eb703a84b3d633c0cc04c922dd736fd62b4a1e",
+        "after_sha256": "9fd7182b5260d984d3f49734bc28d8da49a6527be682eb6ea2f9ffe7dde8610c",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 8319,
+        "faces": [
+          "Elenda, Saint of Dusk"
+        ],
+        "source_changed": false,
+        "families": [
+          "starting-life operand order"
+        ],
+        "before_sha256": "5c69b1508d6260a74019f27361fdf8bc80e58a8cf735606fb479db43f2ac13d2",
+        "after_sha256": "156cbb0900c3ae49eef921121ff0a3281bb73f74cdec532bd9e218e3defbca6a",
+        "paths": [
+          "/faces/0/abilities/3/args/condition/args/test/args/value/args/0",
+          "/faces/0/abilities/3/args/condition/args/test/args/value/args/1"
+        ]
+      },
+      {
+        "record_index": 8369,
+        "faces": [
+          "Elminster"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton property"
+        ],
+        "before_sha256": "9741922dc34ae73329c283dca2f22a8e150c9ee3d442d9625557015ab1f12369",
+        "after_sha256": "760df3d063e7c11d3aad9c4677ba85beff6025b58fcc8b90f2fd3573b4a09012",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/1/args/operation/args/tokens/0/amount"
+        ]
+      },
+      {
+        "record_index": 8650,
+        "faces": [
+          "Energy Arc"
+        ],
+        "source_changed": false,
+        "families": [
+          "pure prevention branch order"
+        ],
+        "before_sha256": "090014f2cf537f46b8b266fea21954913ded6d33a58fa2c7a330453e853546c5",
+        "after_sha256": "8d9c36eea5323b9aef832ff8e8e10b692a61a16f6a3a38673c2efc947f8cee4d",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/event/Either/0/Damage/source_kind",
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/event/Either/0/Damage/sources",
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/event/Either/0/Damage/recipients",
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/event/Either/1/Damage/source_kind",
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/event/Either/1/Damage/sources",
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/event/Either/1/Damage/recipients"
+        ]
+      },
+      {
+        "record_index": 8925,
+        "faces": [
+          "Ethereal Absolution"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "7ea2731506a73c58c9ed1c1106928084e3ef21a656b2762ca4248d0f3373f63f",
+        "after_sha256": "05468d5e62425ffb7e8416a93751aba15665d17b0543b74f1d96f62e1722a1d1",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 9196,
+        "faces": [
+          "Eye of Malcator"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "569cbe16a82424c1abf3366ea47a1a0270179dc58151099db260a9963340165c",
+        "after_sha256": "514d0ff7892933837aa0c3d91862394a255726b9779ff30e1cece48b80b0e0af",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 9629,
+        "faces": [
+          "Feral Appetite"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "3f0d071299b35c8b2cf2a131e43cac138b8cb7988c50b3c0dbb36890b71e9273",
+        "after_sha256": "789a1089f17d003a6b9d6dfb6cb315d4fc206b55015647b7f22a1a025028b953",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 9932,
+        "faces": [
+          "Fishing Gear"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "aa281f401ffaa1540503bd17f3daf9753138d54bdbb6e643632a26472b4fcb8d",
+        "after_sha256": "f5a3bd4295a4f1f0465036c92d938ce78cf844c43ac26595ee456df1da4fda0c",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 10285,
+        "faces": [
+          "Forbidden Ritual"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "0f1599d1e836f8f24143b4c73b233ae335c658e3b00d4b373ba31b01190ecae0",
+        "after_sha256": "19dbdbe0eb3fdf5768ce6947b1191232cd989eb23254dd0c112f39583128d2cd",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 10338,
+        "faces": [
+          "Forgeborn Phoenix"
+        ],
+        "source_changed": false,
+        "families": [
+          "typed perpetual graveyard incarnation"
+        ],
+        "before_sha256": "6ad126b991a825cdd0ca42f93f6530ca7879cbd89527a73b9af8076f602adf86",
+        "after_sha256": "b42f2913b6cfdc53bbfaa3fdd169ed85976aeba162447c246df0009e17e3d8ca",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/0/args/operation"
+        ]
+      },
+      {
+        "record_index": 10831,
+        "faces": [
+          "Gargantuan Gorilla"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "fdbbf7fcd47fcd4dea67e13b6340911bed62eabc073bf944bcfedd66c5816c37",
+        "after_sha256": "1ab679d6710142f43c7e8250cb39571276eda7f8625d067987f12d748f154e9a",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 10986,
+        "faces": [
+          "General's Enforcer"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "037691506c4a2762c4109b33619437f7aa820e90b6f933d593ca2217bd6070bb",
+        "after_sha256": "921c3681522da0b64633fd29e1358777bdd44aee7dedb0e82ee19b528f588a08",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 11186,
+        "faces": [
+          "Giant Regrowth"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "7a83c260f84a2dd5948a1ccb8458f61f01c0d9205b8f342cf26625364e99fce4",
+        "after_sha256": "37530a55ce815a69036ec86ecc7894c2496ae32d616eb26408a2140dfce7fc52",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 11610,
+        "faces": [
+          "Goblin Crash Pilot"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "6af9f597740bec29920e728eb094a6e5998a4d64b8e72f559378def5e8d2e968",
+        "after_sha256": "645a0705c833727a939c47772406b2f80f5139008105c943f33eb256ddbc1de9",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/body/instructions/0/args/instructions/1/args/operation/args/condition"
+        ]
+      },
+      {
+        "record_index": 11908,
+        "faces": [
+          "Grab the Reins"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "2de02f402a4a1bbead8b67bedfab744d4ee83769737193148ee449456f56e227",
+        "after_sha256": "a8c5090e64b31bdbf4ecb35507d7fcc87177edfec6624fca028ba65b5a1aa914",
+        "paths": [
+          "/faces/0/abilities/0/args/paid/args/announcement/modes/options/1/body/instructions/0/args/operation",
+          "/faces/0/abilities/0/args/paid/args/announcement/modes/options/1/body/instructions/1",
+          "/faces/0/abilities/0/args/unpaid/args/announcement/modes/options/1/body/instructions/0/args/operation",
+          "/faces/0/abilities/0/args/unpaid/args/announcement/modes/options/1/body/instructions/1"
+        ]
+      },
+      {
+        "record_index": 11984,
+        "faces": [
+          "Grave Choice"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "37cc09af1f00ca23bc7b500631e541dfaac9d6d429cbe56d52961d466973a18c",
+        "after_sha256": "460b353b374378f1bf42ae313bca9378235d328fd64ff7ec243e8606c7e9ed66",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 12033,
+        "faces": [
+          "Graveyard Shovel"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "d6d72a61e597d6e6e4a2598fcb09c7dc3000f66a05fe50faee5c920e2701226c",
+        "after_sha256": "97a4fd01216260b530ace91ccccad450baa5b00d6a3a5a35275a101ab4b66dbe",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 12034,
+        "faces": [
+          "Graveyard Glutton",
+          "Graveyard Trespasser"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "5c3e6c506409e9e4a5b947cc8e11be82c670339f18f0630f59514f207bcead0d",
+        "after_sha256": "77d8a5ec982b4b27863eec320848d0ad62a5e520dfeba23d33c59fdc6e7dc798",
+        "paths": [
+          "/faces/1/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 12140,
+        "faces": [
+          "Grenzo, Dungeon Warden"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "78c990e4a839704dbff3927de6f664a189ebe9907738b77531dafdf1010ecef4",
+        "after_sha256": "f530408ff69ffbfe42830e6d22b92a9dbe11deb5b411540f00f8fac07761d4bc",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 13158,
+        "faces": [
+          "Hidetsugu and Kairi"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "c87c287ed21a736f0cc136c3724331408dc1fb198c9af3897fe86f050ec3a6a9",
+        "after_sha256": "a7591b48137c36fdfe98cb2c2bf9e09ad5e7eb4bb2f9e53f13c93266adf459f6",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/2/args/condition"
+        ]
+      },
+      {
+        "record_index": 13160,
+        "faces": [
+          "Hidetsugu, Devouring Chaos"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition",
+          "singleton property"
+        ],
+        "before_sha256": "5b82748884fdf8dd06e699d2c43d737713744374c6a844e337ada2f0fb414fbf",
+        "after_sha256": "80705b26a64a0594639e52ec331ca3068fb395afe3e1e54bde8d3d96a8fa2d1d",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/instructions/1/args/operation/args/condition",
+          "/faces/0/abilities/1/args/body/instructions/0/args/instructions/1/args/operation/args/body/instructions/0/args/operation/args/amount"
+        ]
+      },
+      {
+        "record_index": 13368,
+        "faces": [
+          "Hook Horror"
+        ],
+        "source_changed": false,
+        "families": [
+          "typed perpetual graveyard incarnation"
+        ],
+        "before_sha256": "9c3e6ef9a375dd02304c49074347a83b6de4e928ae229f7be61dadb3191f2729",
+        "after_sha256": "86ffd640b14aa2bba7a4618768cfca690d429128597ac2ff8f761a67907ba3fb",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation"
+        ]
+      },
+      {
+        "record_index": 13459,
+        "faces": [
+          "Hotheaded Giant"
+        ],
+        "source_changed": false,
+        "families": [
+          "cast-spell history"
+        ],
+        "before_sha256": "0d09fa4661b8f9f9a9bc3dc0d41ad2c1508273639fc8f3f5c70730732315fafc",
+        "after_sha256": "603b73b938890f97061c68cb3595f866348d8469697267bfea6fe7601e00b18d",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/condition/args"
+        ]
+      },
+      {
+        "record_index": 13686,
+        "faces": [
+          "I Bask in Your Silent Awe"
+        ],
+        "source_changed": false,
+        "families": [
+          "cast-spell history"
+        ],
+        "before_sha256": "0802b34d0cf6919a681ec12b3de175ad05afd6bf1ae2e3b5493f4d6b0ddc869e",
+        "after_sha256": "01470b87b02272207cb1fe64d802528b231a114c94c720d8b7073c99ad07716f",
+        "paths": [
+          "/faces/0/abilities/1/args/intervening_if/args/left/args/args/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 13782,
+        "faces": [
+          "Ignis Scientia"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "f10d1344aab48cbbe7dfe1bea619d20e124790b9ce420a4e78df10edd1cac954",
+        "after_sha256": "1b920b72fb5bec99a00db5087d8da5a080608120ba79f0f2bfc9008a2b23b44c",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 13964,
+        "faces": [
+          "In the Darkness Bind Them"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "5e4d78d2aadf91ead139d24c6aff2e88043ee05b58e1ff90c02f84c40e75712b",
+        "after_sha256": "86c1cf1e9ab8c84ed9e1b8033d84a8bce3acbc4be38b22c239d1e52768a907e9",
+        "paths": [
+          "/faces/0/abilities/0/args/chapters/3/args/body/instructions/1/args/operation/args/objects",
+          "/faces/0/abilities/0/args/chapters/3/args/body/instructions/2/args/operation/args/affected/Objects"
+        ]
+      },
+      {
+        "record_index": 14335,
+        "faces": [
+          "Deluge of the Dead",
+          "Invasion of Innistrad"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "13713da6ae2abc7e4a6ebc16bf79b2397065834c7d66e7ee92999b66e934454d",
+        "after_sha256": "f5384f802cbb88ddaa331e465ba028711d9d33ff7ea300d52ed205284d5e8359",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 14453,
+        "faces": [
+          "Iron Man, Futurist Paragon"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "8b77f4be30d5e51f8e70b87a0abc3f4ef2e8e6dafd28224dd199617e6bb7b7b0",
+        "after_sha256": "6bfa2615ef32e3839ec53db8f8e426cd240bcfe9a714c2242a72561a08aa7e0b",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 14632,
+        "faces": [
+          "Jade Idol"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "5a370563ccda5a72f451215afa75d1ac0b6fd7c02181bf0d7a7b5cbb5b8540ce",
+        "after_sha256": "af278626cbe0f768c0bb17689fd4817c278307f9fef49c82d1dd7a21fee8ca41",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 14677,
+        "faces": [
+          "Jared Carthalion"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "b0671ddb517a080f8afa6f6cee9bae0dcb57d6f173bddf2ae824c640e9166eac",
+        "after_sha256": "320fc5c0de21cd1396aa676505699a487cee8904ef7445d40df69af1b969acda",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 15102,
+        "faces": [
+          "Karn's Touch"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "984d26f2d99f4b0e2748cc98b05390b4732cd7576d270d770f2578a1dc394e91",
+        "after_sha256": "fa66adbf4a46c18c89f363222816e221a54ff7ff12d894e85d4cefbcfe44959d",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 15108,
+        "faces": [
+          "Karn, Silver Golem"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "d9f9440d321cff38d8ed956d9c4013834e694478345da842cd81b2a76b90ee7f",
+        "after_sha256": "6576c423d5a7f10d370ba5ab06cc6473851d3653e9602f62ba451cfdc051d921",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 15109,
+        "faces": [
+          "Karn, the Great Creator"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "51741ffab1b2faa82ef2aea914f31d707796757d5da994af3a1e76968f53ca7b",
+        "after_sha256": "c39677b7cfb8fa4687fc48b712b6f29acd4bd1928adc2c17d4adb23128f51e0b",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 15158,
+        "faces": [
+          "Katsumasa, the Animator"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "0fab55130aa3f4edae24a8e48b1a70587ab47d131aa97cbb6f1ecbc9b1f8c13d",
+        "after_sha256": "e75fbee4e58dce9151c56b4229257514e2e6171a2eff99254fc4bf7f94c1b678",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 15188,
+        "faces": [
+          "Kaya, Intangible Slayer"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "480a2b4c87eafce80b1b4d15696c6289562724d2f92202d3337117dd9f0a8058",
+        "after_sha256": "e02f4c591a8f013a6a301c38ea6ad12b03c415e54ec390998bbb76df14421aa6",
+        "paths": [
+          "/faces/0/abilities/3/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 15276,
+        "faces": [
+          "Kellan, Inquisitive Prodigy",
+          "Tail the Suspect"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "b1568c96ee7dd15f1f9589a8ca845ea0d924022d311f2f35b2867436629b1d7e",
+        "after_sha256": "113396bc8d27de9f399caa792038ad83bdd42990dc6b44801b71725b5ab3232f",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 15293,
+        "faces": [
+          "Kenku Artificer"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "ceac3e695f8551101b684ace4c0e8a855c65090ce3a54ba78a02975a4ed4619b",
+        "after_sha256": "bac1ac408a7014009b91da70f2c0d732b174d8a665af6c0f1d4f7d1d6f9d2841",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 15351,
+        "faces": [
+          "Imbraham, Dean of Theory",
+          "Kianne, Dean of Substance"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "e21db616906a8a694bb81ed6a23d15c23a2e088a36b8bb6b701b06d382ec8a79",
+        "after_sha256": "4d7fff01664f66f172a84a96d630405fe72ff31fb68ce15d1036298ce6ca4ad0",
+        "paths": [
+          "/faces/1/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 15537,
+        "faces": [
+          "Klothys, God of Destiny"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "d1814936cf58a94725400a6f13dd1a8503aee006eadd9790a3aede15f83e7bb2",
+        "after_sha256": "f7aa8f9c53f57cd0f03ffbf5d7c281ec63258c26b6582bb84d5d358409637499",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 15869,
+        "faces": [
+          "Laboratory Drudge"
+        ],
+        "source_changed": false,
+        "families": [
+          "cast-spell history"
+        ],
+        "before_sha256": "22008bf80af6e8204430767a86504cb9b361f3470357d0a378cd56e4c31be66c",
+        "after_sha256": "0051a9d2cb54487a85a6dda7b168588b52e675973529cbe5411cae29125cff2d",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/condition/args/0"
+        ]
+      },
+      {
+        "record_index": 16063,
+        "faces": [
+          "Lazav, Familiar Stranger"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "12cc1c90a28f373a9675743df32af0d029d00b960c9b5cc023c9ebec4be0a24d",
+        "after_sha256": "0f06da0b54f6ca40a8be8ae25b92e02cd73614f7cdc71c980b80726332fa867b",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/2/args/condition"
+        ]
+      },
+      {
+        "record_index": 16234,
+        "faces": [
+          "Leyline of Hope"
+        ],
+        "source_changed": false,
+        "families": [
+          "starting-life operand order"
+        ],
+        "before_sha256": "21ae1fdd68a4fd5935d9e10111b8cd09ee362c3fc2162d8232b1f04e4d7037cd",
+        "after_sha256": "930ff7c5abca13a4671fb780317b4f6ae4814d55f9c933a5c2d14998816ca8da",
+        "paths": [
+          "/faces/0/abilities/2/args/condition/args/test/args/value/args/0",
+          "/faces/0/abilities/2/args/condition/args/test/args/value/args/1"
+        ]
+      },
+      {
+        "record_index": 16283,
+        "faces": [
+          "Lieutenants of the Guard"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "9672fb2c675a7f8f5b5717753f3a80fc05bf37137f00c399f3af7a15999473e0",
+        "after_sha256": "9e1c3e580e98bd4ce13891abbd6536ba95fdb38bab5de977a912c79b661aa6ad",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0",
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/placements/0/amount/args/Word"
+        ]
+      },
+      {
+        "record_index": 16451,
+        "faces": [
+          "Lion Sash"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "276f48addc8c72aae1cb8fd4b285ab9e38d6758a3b0aa20096c57d6f370d8098",
+        "after_sha256": "1d54bf3d2cbbd37c7bb61c12cf4650c479b6e2fc493b632899d1d4d14f1f281e",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 16485,
+        "faces": [
+          "Living Brain, Mechanical Marvel"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "e6afee9bfd39a8d71b26e941b1cd172a1427d03f0afffeffcce1a62996d393bd",
+        "after_sha256": "88a5c0adda83dabf274c8198a830be2b4d81ef0195b713febb0b594f0daab976",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 17001,
+        "faces": [
+          "Magister of Worth"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "ed48b21421a367288e0541e25f41d1212b02104d91628bac8435c5af3613916b",
+        "after_sha256": "231247cf029c4d09e84f547a2109f445344913683d88bebfeec09b72e57c0061",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0"
+        ]
+      },
+      {
+        "record_index": 17084,
+        "faces": [
+          "Majestic Metamorphosis"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "7bc657ca1ded090ed0e4e42e0be16f62304c331e1b6e3d9db17e40ebc5abc332",
+        "after_sha256": "7aea8d873241e482ece0286b1f803054ba7628a01ae68181c84e744cf4f81f65",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 17093,
+        "faces": [
+          "Make Yourself Useful"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition",
+          "singleton property"
+        ],
+        "before_sha256": "72748f96011f6a379f97d03b0fbe4639e34e8d58badaa0abe76d24763ea0aa16",
+        "after_sha256": "0da0a7779739eab3f360fa819f6f7c6f07c7050d617b6b80e2e3081db87eaae6",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition",
+          "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/operation/args/amount"
+        ]
+      },
+      {
+        "record_index": 17495,
+        "faces": [
+          "Mastermind Plum"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "a07449834af71e1b9dfcaca3e1ad57c94430079275c821453a527144b163c3b5",
+        "after_sha256": "089decfd6e3b67723f84049d014a783955ec5fd25a13e5c3191558b6414e9f12",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 17776,
+        "faces": [
+          "Messenger Jays"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "e919c6c075c4fdfa5781d8ab283cd1c7da9a0521b69fd9118753e032d30f002e",
+        "after_sha256": "098f242d8825a3d4f7d5be8368c8f0843c8a9724ef0d3696ed43df94ee44a246",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0"
+        ]
+      },
+      {
+        "record_index": 17847,
+        "faces": [
+          "Midnight Mangler"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "32d388cd8fba57a09d4d815b883920edcbf8c4ed97f5be7304268bc4a6f6d914",
+        "after_sha256": "e85a6b5c36e25c0006341987318fc810563b7999a5d3f835b33c30eda023677b",
+        "paths": [
+          "/faces/0/abilities/0/args/then/0/args/changes"
+        ]
+      },
+      {
+        "record_index": 17954,
+        "faces": [
+          "Mind Transfer Protocol"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "d206d047f7e7515feaeaa9e5417ddcd9ddde331120c6dc6f7c1f72c3933fc55e",
+        "after_sha256": "2dd43b12996d22273148c18ad4109b082296f099aecdbfd89fc86c0468a068ea",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 17961,
+        "faces": [
+          "Mind's Dilation"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "fb92b0709022139470d36f05923bc47b7549a8a3fa488ae36081dcb94ba2c7f4",
+        "after_sha256": "62a33681189b1b588d8b0c39e765d1730b92ab671713455249739e271b1f8df9",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 18042,
+        "faces": [
+          "Minsc & Boo, Timeless Heroes"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "bcd45fc85c385b88e57d2d50fa8b72e24c97d6dd7ae5aeee1c90d70af3e2e4ed",
+        "after_sha256": "57d377b39ce1aafb2053285502af2e16204e9104a93fe5bb79958caa19d612a6",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/0/args/instructions/1/args/operation/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 18147,
+        "faces": [
+          "Misfortune Teller"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "94610e97daf668a6cca24c1c83f29a076c3ee465e06120ac97424d97831db25b",
+        "after_sha256": "f67db5f2cceb7cab9ee5e46a5444d74b4f943600dde20d9aee718670e27843a9",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition",
+          "/faces/0/abilities/1/args/body/instructions/2/args/condition",
+          "/faces/0/abilities/1/args/body/instructions/3/args/condition/args/args/0",
+          "/faces/0/abilities/1/args/body/instructions/3/args/condition/args/args/1"
+        ]
+      },
+      {
+        "record_index": 18244,
+        "faces": [
+          "Mizzium Tank"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "a1172bea052bf6ef88d808f66d5492f8f001a4db16ee4bab246b03301c3ca433",
+        "after_sha256": "12ebb8a108105882767add242bc6a47b23ac9cf787e91eebaf3f9c259e1f5898",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 18439,
+        "faces": [
+          "Monument to Perfection"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "4fc58dda33e54352d548931f0182d7b53f68597ff30cbb9a0c7a3ee7af870bef",
+        "after_sha256": "65ab9aefb64151d45e5d93de195f9cc5cca392626b2d661a06efb215e7a0fbfc",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 19114,
+        "faces": [
+          "Negative Zone Portal"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "78154d94dd168632e9a87db2de969ace7a4ea9210a07610f725a70d46ccc2e40",
+        "after_sha256": "30f2e362cb4faced812228dcc62ee1d0e6a645a3d060390ccebf1a865c1e2cf4",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 19257,
+        "faces": [
+          "Nick Fury, Agent of S.H.I.E.L.D."
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "cb2961ce5ac1c28d40b5a7f660c6d5690ed39805868c4d1e9557a243153494d2",
+        "after_sha256": "8e3a7ba6a083214e50655f61280bc716aa2690733c1aca642e27ecfede289982",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/instructions/3/args/condition"
+        ]
+      },
+      {
+        "record_index": 19589,
+        "faces": [
+          "Nurturing Pixie"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "1d2fb9abb4c9cac9e07b162f529c3406ea15b278e8200055221f8448c4f02610",
+        "after_sha256": "7d7b5bef36207484a40ffea085c345cc422053229fada78354c19d28e348fbf6",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 19595,
+        "faces": [
+          "Nyla, Shirshu Sleuth"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "92a5117e02871ad22f9d8735ade944ab684a85d30eb3bf6492f55fddc9f69aaf",
+        "after_sha256": "19c031a15b6b1ce518c51397a548e19b45486000aafaee1ca0fd2309a768e591",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 19869,
+        "faces": [
+          "Omen Machine"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "3a0ed2168af2dfbd2adaf641c757caaeb6c93af728574737cca018e16506bd67",
+        "after_sha256": "a1ed6b52d15b5aa8c8d7854ef2b0993973bdae0e4297b7b79168f7528e66b9a2",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 20034,
+        "faces": [
+          "Orchard Elemental"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "3fc22f32a5494b5cb74270777039268903d3450dc4390d5d1c7dd384683a6529",
+        "after_sha256": "c1f4fd411c5dae527510dc4e1a26160bde809c6dcfe35302ac28a5850790ccf1",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0"
+        ]
+      },
+      {
+        "record_index": 20119,
+        "faces": [
+          "Oriq Loremage"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "bbf5e635d1b58e41973fe0b9f8894078857152a6dc3c65dff469fb3013f4c94b",
+        "after_sha256": "a3aa166e4645eac491f9f384331e7f967e14b612b467636d2083cbb1db067273",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 21128,
+        "faces": [
+          "Plunderer's Prize"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "b8043d8dd4b75893cfed4018dcb429d43f12008937160427017f99bc5db6bace",
+        "after_sha256": "5d3cee858de146a61ee14f5ec98a19f44fc11c493f27fcf449a85bf55f92bee8",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/2/args/condition"
+        ]
+      },
+      {
+        "record_index": 21402,
+        "faces": [
+          "Primal Surge"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "9334a20505d1986ebb842cbdb4d66398a1dc85c6d568579a3d9174853a84f6f6",
+        "after_sha256": "3048a9b8bd73b17966a2699d7ad447b99b51bc01e72534210c2de93f9c8c93bd",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 22329,
+        "faces": [
+          "Raven Eagle"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "858ebf7d64c402415d37882089e529eec72cff28af66517176d32f39a6e03c14",
+        "after_sha256": "3f2d0fb5ae27f5baac8ddf44166436f4659849ff7a4b48a5197914fe2e5eede8",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 22843,
+        "faces": [
+          "Rescue, Pepper Potts"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "b4abd2ff9e11ecde99b57037c2ed93667c163821f217fb39c4e309776a6ad59e",
+        "after_sha256": "7af14b444e398ba880fb73eb09c32b218e4cf96ee5e08dc95637c801ec7aba28",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 23022,
+        "faces": [
+          "Reviving Vapors"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton property"
+        ],
+        "before_sha256": "cc09ebd4e98afccc6253cf4170cd7d8420c10d435b03de53689a7c5353e6d6ca",
+        "after_sha256": "585c625b36f09136edf990b7cfb6fe9530e669921ad4d652d57d579a0a1167e3",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/amount"
+        ]
+      },
+      {
+        "record_index": 23132,
+        "faces": [
+          "Righteous Valkyrie"
+        ],
+        "source_changed": false,
+        "families": [
+          "starting-life operand order"
+        ],
+        "before_sha256": "7f23ffee98abf25d956749825b214c31f82b62d25f9d60ae9d24a283a2bc6c68",
+        "after_sha256": "920912c754ec33e2d71de54b43d0f5cef6a28d5f75773c7dfdbb36062f6388e6",
+        "paths": [
+          "/faces/0/abilities/2/args/condition/args/test/args/value/args/0",
+          "/faces/0/abilities/2/args/condition/args/test/args/value/args/1"
+        ]
+      },
+      {
+        "record_index": 23448,
+        "faces": [
+          "Rona, Tolarian Obliterator",
+          "Rona, Herald of Invasion"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "9677bdd2b762f1e2d43c215290206ab28a00ca9d858d96e552d250043836d6de",
+        "after_sha256": "759b5c73a1fa3534283e20f7972952086428b4b36ee5eadf35feb1ab76c49fb3",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 23753,
+        "faces": [
+          "Rusted Relic"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "770293a41a72f9960c7dc26153a2bb9e49b80351dd3b403c8a13407db27b557a",
+        "after_sha256": "4fd3f5713a586257b592afd563a5e4cc98f92dd1b54667e027fc91316c39f6c3",
+        "paths": [
+          "/faces/0/abilities/0/args/then/0/args/changes"
+        ]
+      },
+      {
+        "record_index": 24314,
+        "faces": [
+          "Scavenging Ooze"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "9ffe6f11eb26fe531a3079405b3c3645b6be241979155d62482abc9c731b1879",
+        "after_sha256": "8a79dcd27f269d7ed315f900faad5bb9e095093f9f0129f62bebc89ef2e7703b",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 24468,
+        "faces": [
+          "Scrib Nibblers"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "34e7a29637057813b575e7147ce5fc743ea24a5b2422eeadbcb9d7799e5911d6",
+        "after_sha256": "f3c41d20812b3b1ebac708dc96e0da7399c2698bd20af5de3c67eda0af16d5ca",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 24736,
+        "faces": [
+          "Seizures"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "d6e32bab84929bdb259edab1c1586919004b0cd91b0f27b2fc10d77a7829834f",
+        "after_sha256": "4965aec982317433c2563d0ff0be5968ce28f552f423ea0e1702360dd716af83",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/then/instructions/0/args/operation/args/recipients/args/args"
+        ]
+      },
+      {
+        "record_index": 24854,
+        "faces": [
+          "Serendib Djinn"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "517742d8c3083d23908f3608518552cb6c078a30cf9e684bdd53baa32fc29f0d",
+        "after_sha256": "dc5a208249fb16a4840e26d48e0d3464d1057dc6f2f556f48fa676252ec1440e",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 25179,
+        "faces": [
+          "Sheoldred's Assimilator"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "b3ec21c0f5e27e8d815df717fb0a8855b72da4a585b3c81a7a1fb91f90c22de9",
+        "after_sha256": "1fb6d28e9902df8b3594a6f828196e249e23a0513a5e9d37602dd8885cd35e9e",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 25352,
+        "faces": [
+          "Shredder's Technique"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "58c73ee66d9c06029b81ad0587641f942f47e6817f7bb74ea3d40965c9c05829",
+        "after_sha256": "e4e8ebf24750ae257aadc5534b1842da208db59b69847a6da6f10b5612f8180c",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 25644,
+        "faces": [
+          "Sin, Spira's Punishment"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "4dc834ef19b7ba8d5affe82689233b424afed7ce6b8613a72fb75dea7a33e9f5",
+        "after_sha256": "534157d6394c5612a1f5ce962fdf480827fc9473741afde7d797574556cc6572",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/instructions/2/args/condition"
+        ]
+      },
+      {
+        "record_index": 26099,
+        "faces": [
+          "Slumbering Tora"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "1941fec91d8e47079634af0b89bfd12b5b74219db5187d1530d4aae930d644cf",
+        "after_sha256": "b610cad460450666f9bbafc800087ee6394205366a94ff008ccf964b8bad12a0",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 26110,
+        "faces": [
+          "Smashing Success"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "5db88d15d33428bbaa06a1118645cea6424b80b8e0417b421b3ee0b9adff17af",
+        "after_sha256": "9b9506a066b4d93792c51bf37cb351f6ddcb2958110dded0d1101de7ab3c2909",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 26369,
+        "faces": [
+          "Soratami Cloud Chariot"
+        ],
+        "source_changed": false,
+        "families": [
+          "pure prevention branch order"
+        ],
+        "before_sha256": "0d001eacedc5638e8bdad70e55616b9ed78e9e8dad2d57db21fd88eaeb68f5c2",
+        "after_sha256": "e7148c010d872783ffb175452cb1d2a3edbd8d4c458cb526853327883655277b",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/0/Damage/source_kind",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/0/Damage/sources",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/0/Damage/recipients",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/1/Damage/source_kind",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/1/Damage/sources",
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/event/Either/1/Damage/recipients"
+        ]
+      },
+      {
+        "record_index": 26433,
+        "faces": [
+          "Soul Search"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "6c53fba61ffd362f72af5ef09f6cee4b4aa7ec9b7120911663e779ecf696cd97",
+        "after_sha256": "6399f9b771a833640ac8a6bb6d5da45732603d4fdd42d1bf3eeac6042bff6962",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 26488,
+        "faces": [
+          "Soulfire Eruption"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton property"
+        ],
+        "before_sha256": "6697460f29f0158ec93b2d8a7885be7addd21d64e272b1ed3ca0ca061d38967b",
+        "after_sha256": "ce61ce394e11d3379d97dd6abf9683c782f673dd1de972d248cff0f2c86e283a",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/body/instructions/1/args/operation/args/amount"
+        ]
+      },
+      {
+        "record_index": 26611,
+        "faces": [
+          "Specter's Shriek"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "b261647f74753fd024825434a82d0fc96a4656de25dbc7e4ea4f20367c32fa25",
+        "after_sha256": "80d245d3e580c91e88f85c0ee02b8cd49ebffa5048ba2aaef7316e514df22f5f",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/2/args/condition"
+        ]
+      },
+      {
+        "record_index": 26694,
+        "faces": [
+          "Spelunking"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "c0aa7c96a0c70353d3160ea2e45bcd81a4bb1b7960a12acec862b2dc8d124e5f",
+        "after_sha256": "baac66f510f05a5ab015747b09e6df9ead9a1eac4db3bf29d0bf033fa7d82c96",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/2/args/condition"
+        ]
+      },
+      {
+        "record_index": 26746,
+        "faces": [
+          "Spider-Man 2099"
+        ],
+        "source_changed": false,
+        "families": [
+          "cast-spell history"
+        ],
+        "before_sha256": "aa1b918efc32ed914c67e21d8b35dbcef006f2c9d1fc734508e6adbb8c6caecf",
+        "after_sha256": "b6ca7e60baf69241b60cc1dbbbbe1cd58a800f70dc13e78471f551aff988f545",
+        "paths": [
+          "/faces/0/abilities/3/args/intervening_if/args/1"
+        ]
+      },
+      {
+        "record_index": 26857,
+        "faces": [
+          "Spirit Flare"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "c140ba9a3333affd87de090c926a779758ef97865b5d7f44428c15a69e76d725",
+        "after_sha256": "fc0a93e6d2f45305e5b690d511a497c383e5497c45954851ac381f1c647991bb",
+        "paths": [
+          "/faces/0/abilities/0/args/announcement/targets/1/filter/args"
+        ]
+      },
+      {
+        "record_index": 27192,
+        "faces": [
+          "Start Your Engines"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "50a8affe8d63170f59af008e80ee97ab5350df6b4992f8572cf1897ca1c71921",
+        "after_sha256": "ddb890f4e5a8625a1aa8b6edbfa50907c088a4a370cc3714b5c312b06e4464b6",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 27209,
+        "faces": [
+          "Statecraft"
+        ],
+        "source_changed": false,
+        "families": [
+          "pure prevention branch order"
+        ],
+        "before_sha256": "76389dad34021e794c641d20cec4b868bae69140f15a86608851dd655ed8a62f",
+        "after_sha256": "ac1d7a68283ce5bc013855efe02d60a5280122494e0f2eb308e1c84c64f47f2d",
+        "paths": [
+          "/faces/0/abilities/0/args/event/Either/0/Damage/source_kind",
+          "/faces/0/abilities/0/args/event/Either/0/Damage/sources",
+          "/faces/0/abilities/0/args/event/Either/0/Damage/recipients",
+          "/faces/0/abilities/0/args/event/Either/1/Damage/source_kind",
+          "/faces/0/abilities/0/args/event/Either/1/Damage/sources",
+          "/faces/0/abilities/0/args/event/Either/1/Damage/recipients"
+        ]
+      },
+      {
+        "record_index": 27743,
+        "faces": [
+          "Suit Up"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "1fdbd8dfbc6e1cd5db32f6f30aedb3d6f20d08d92766148c6e7d905a530dd366",
+        "after_sha256": "df6fcd0aa60e0509801f576fd5340ca2829af0f7f5144c4c218d32b09e182a5e",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 27889,
+        "faces": [
+          "Sunpearl Kirin"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "c6636bbfff8f329984c5569c45742a900a68d4403e0c166f8565974d0f5b685f",
+        "after_sha256": "3a5629f18e541629eab24440869c159880e87ff78cedbf8495c72af289b09183",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 27996,
+        "faces": [
+          "Surprise Deployment"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "324d42cb0ef5dc43c0fae6b35d19c153c4d99546f0692654afe3619d1fe7d583",
+        "after_sha256": "b26101a6f014092fd12b18c8db9776e3f525df44386258bbc533f489d9d137ba",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0",
+          "/faces/0/abilities/1/args/body/instructions/1"
+        ]
+      },
+      {
+        "record_index": 28008,
+        "faces": [
+          "Surtland Flinger"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "e49612d84838ad2f2194eb6e92b740ad12c90dfb5de28f01057e230f4653d184",
+        "after_sha256": "7f7e1157f4f3f1d7f30fa269af354f790be037cb554d2b632efe73d5302e4d21",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/body/instructions/0/args/instructions/1/args/operation/args/body/instructions/0/args/condition"
+        ]
+      },
+      {
+        "record_index": 28160,
+        "faces": [
+          "Sydri, Galvanic Genius"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "deb647af5665345e47ebfba4f2c598de722c456d4edc3e1a95fec47708e4480a",
+        "after_sha256": "59474e386b0b386b4538ecd2e118bb70667ff6df71699f8abb33756916bd018a",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 28404,
+        "faces": [
+          "Tamiyo, Seasoned Scholar",
+          "Tamiyo, Inquisitive Student"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "3c6a58e638af93acbe84de0f9fe1bb8923d4fd6bf90017b7fab3f7ec1748cd2f",
+        "after_sha256": "1693d48581890200fd2a3cf1326972c6b499308ea1a32e3d4bf05c63466ef0cb",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 28504,
+        "faces": [
+          "Tavern Brawler"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton property"
+        ],
+        "before_sha256": "bb8aa13dcb5af8561ddbbd4610327c54cc00f7ae789c3560504b81d901ab4984",
+        "after_sha256": "865e7a96efd24a3c12b7a66d40adeec7622d3c21952b3b5a322e091b5a5f8e59",
+        "paths": [
+          "/faces/0/abilities/0/args/changes/0/args/args/body/instructions/1/args/operation/args/changes/0/args/power"
+        ]
+      },
+      {
+        "record_index": 28825,
+        "faces": [
+          "Teyo, Aegis Adept"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton property"
+        ],
+        "before_sha256": "8cc49f8c2e3087e7de3140b3d26d7802315e29b6a1e522d3d82386da62bd3dfb",
+        "after_sha256": "59d1e0280859f2037187b6e27780595423ee6e07318a494fb01c6424d9ca07a8",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/abilities/0/args/body/instructions/1/args/operation/args/amount"
+        ]
+      },
+      {
+        "record_index": 28836,
+        "faces": [
+          "Tezzeret the Schemer"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "1680b71f6a380820ee5e922a01776f87a937bb18c49f6e8dc314db7b769a78ee",
+        "after_sha256": "0d4c1600da8314cbaac4b62a5080f8d47fa0b0c6599ef39390f2bedc51f8959e",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 28837,
+        "faces": [
+          "Tezzeret the Seeker"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "2971c831ea714c7794bfc3b0776277634022da2ee204b48c89ff56b062030efe",
+        "after_sha256": "7f0245429a44360f393f25226789833e7e39eda92481e91bcd178f0b9c7455e7",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 28846,
+        "faces": [
+          "Tezzeret, Agent of Bolas"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "f02bca1bf20a53d75f1c7147cdd51cb3457e3f1e8e2f3c0310151c4e55656118",
+        "after_sha256": "b2b936460bfac0271e6b36fdeb320a6f9df5148ca10d0663050c1c0ccbde5dad",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 28848,
+        "faces": [
+          "Tezzeret, Betrayer of Flesh"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "dd15f6ff8705257044d22498051bf9b6521e7d445717d6b4828d8fe99a8f4374",
+        "after_sha256": "5cdba3739087b0843caa5b07fff8c049613c6b41fa335c9242d70538527bb57d",
+        "paths": [
+          "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 28928,
+        "faces": [
+          "The Blackstaff of Waterdeep"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "86d0ad334b09bcbcaf2ee23154a732147994d027ff373ca50fe0da1fa4a2d87a",
+        "after_sha256": "107a9c06bde8ae036ee3ededc23b2f5d459a37be5b2cd799614097231ad58a93",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 29110,
+        "faces": [
+          "The Mechanist, Aerial Artisan"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "8f9067bcd5d31827a275ba5054fb2a968f3c5c4d85727c1a6dd3a1d538fe5268",
+        "after_sha256": "65dd2eff147177b6f864187e3d9263fc0ca6c100eec78ee7e36805cd010604fe",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 29571,
+        "faces": [
+          "Thunder Totem"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "54d087e51c80b2b443e26c30937dc4f74360bbfb9bc03595b1d750838a3b7504",
+        "after_sha256": "36013ee3d2a42c793a5cc338ae534bc4828b854e8c0e4c014284b0f8baa69090",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 29968,
+        "faces": [
+          "Flamethrower Sonata",
+          "Torrent Sculptor"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton property"
+        ],
+        "before_sha256": "c5170f3c6e46159e0512064911983cf3793961891c101fef14916ea20ba497c9",
+        "after_sha256": "992b33418c0dcf821dc1fd5e0ce9dbf5f8b6640090e7a7f6847827b2995b574c",
+        "paths": [
+          "/faces/1/abilities/1/args/body/instructions/1/args/operation/args/placements/0/amount/args/numerator"
+        ]
+      },
+      {
+        "record_index": 30031,
+        "faces": [
+          "Town Greeter"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "758ba3be1a43f0aa79e51c2dcbf8ea32a6c25020a8e10fffc83901c76ba3ca7f",
+        "after_sha256": "49a8d7fd84bdb94cfdd4756da1f351b3d18e0736b19f0ae1ef92c38dbab05ad1",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/2/args/condition"
+        ]
+      },
+      {
+        "record_index": 30044,
+        "faces": [
+          "Toymaker"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "b05a00c2a17735663dc410659a797e950040688b024080f1b0e661d944781371",
+        "after_sha256": "e5368520ff2764684e5fc3877fd577c14424dd78be4ced0560e02216a8f41859",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 30117,
+        "faces": [
+          "Transforming Flourish"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "c4347615218c75a7c99dfef9a9bf42b7dde52073cc90e86961557b29a74b24c7",
+        "after_sha256": "7c93c7821050e0addcfbf8d90a8e544bcb92bf2afb4679d129e95f9b36693257",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 30549,
+        "faces": [
+          "Tyrant of Discord"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "0d9b5a4a729589176634c3213357110795aafb75e79b0a05094388057d8fe662",
+        "after_sha256": "c3bab5e614adedc7c7ea359eb9bc686b258986ca6500c1c043aa0a8a36c9567c",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 31142,
+        "faces": [
+          "Spitfire Bastion",
+          "Vance's Blasting Cannons"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "dcd53d12e891cd7f87e96a72bb951a1055ce0211a37319c89c6b373fc21fe4ae",
+        "after_sha256": "b032a54176f43ee07916ebcdee3579394e356e682a72beabfdf53a4a0793d9da",
+        "paths": [
+          "/faces/1/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 31193,
+        "faces": [
+          "Vault 101: Birthday Party"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "0510e70ac56974b758a1fc75595dca2b5c7ace2cab414eaa00a10122511ae4ed",
+        "after_sha256": "b444cf2931d7c9eaf804ddbabd55143ec9d642f13674d928cc0f71acbb033823",
+        "paths": [
+          "/faces/0/abilities/0/args/chapters/1/args/body/instructions/0/args/body/instructions/1/args/condition",
+          "/faces/0/abilities/0/args/chapters/2/args/body/instructions/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 31299,
+        "faces": [
+          "Vengeful Rebirth"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition",
+          "singleton property"
+        ],
+        "before_sha256": "39abbb25db466436a1fc2308ca8c4ff569a4b0c1a5d435ed7f08c34862ba999c",
+        "after_sha256": "111488192a58800ed13e1f88f3e8ee0f0eb47986dfed5b33b17e75c432551c45",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition",
+          "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/operation/args/amount"
+        ]
+      },
+      {
+        "record_index": 31885,
+        "faces": [
+          "Voyager Glidecar"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "52b8a5eb9b8987b0fa74cd2c487e35cd2732dd754df8bd1bf137c33aad091f29",
+        "after_sha256": "fda5ff66e26bf3068ed4ead9df06b5cd6d6aacdb02154a0b052da69768210697",
+        "paths": [
+          "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/changes"
+        ]
+      },
+      {
+        "record_index": 32148,
+        "faces": [
+          "Warden of the Wall"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "a948d9eaa74e3ac7ada25d9d1709d95c70fddf8f29e4186d802f8d385813cb53",
+        "after_sha256": "6ebb630d11c9b6f483de5d60ff316a627503aa0310c7392cc43d6df06c970513",
+        "paths": [
+          "/faces/0/abilities/2/args/then/0/args/changes"
+        ]
+      },
+      {
+        "record_index": 32191,
+        "faces": [
+          "Warren Pilferers"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "c98cb447da7babc41dfb81a3bce477da74d9192544a4e561116c7aa429076097",
+        "after_sha256": "3a6cfa56a54813342208eb9e25364f5e83fa1751b4a3b23fd7b7b241cc4fc4f1",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 32195,
+        "faces": [
+          "Warren Weirding"
+        ],
+        "source_changed": false,
+        "families": [
+          "singleton condition"
+        ],
+        "before_sha256": "bfd61b80759f9636d15c2d5e71d365a61299a2e6be68708a9a27de5ba2c18f06",
+        "after_sha256": "f3e41f474507ad07fc781fbf93aca73f0305c61ceb4b2e20411cd813105b34d3",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/1/args/condition"
+        ]
+      },
+      {
+        "record_index": 32945,
+        "faces": [
+          "Woodland Bellower"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "123be4cccb785564ff08c96afc3546e14d1f4875b8777590f2d8b68fc6b00eaf",
+        "after_sha256": "7a4ae25ae450859161b04cdc3a272f1dddcd9865420e4ea3afe6004dca1b077b",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/body/instructions/0/args/instructions/0/args/operation/args/choices/0/filter/args"
+        ]
+      },
+      {
+        "record_index": 33131,
+        "faces": [
+          "Xenic Poltergeist"
+        ],
+        "source_changed": true,
+        "families": [
+          "English Source correction"
+        ],
+        "before_sha256": "a4b8981f89ae9cf67c9a036e7db4c7d7e775478207b5d06ada2f55c961a520f0",
+        "after_sha256": "aed26c97c818e9f32a9fb11c76dcad985486062e7363b46ee57e282f360b694d",
+        "paths": [
+          "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/changes"
+        ]
+      }
+    ]
+  },
+  "verification": {
+    "complete": 33529,
+    "unified": 33529,
+    "complete_without_primitives": 33529,
+    "unreduced_forms": 0,
+    "rust": {
+      "passed": 2097,
+      "failed": 0,
+      "ignored": 24,
+      "targets": 203
+    },
+    "go_full_uncached": "PASS (89.513s)",
+    "go_final_packet": "PASS (146 Source records)",
+    "rust_packet_tests": 15,
+    "rust_cardinality_boundary_tests": 3,
+    "historical_snapshot_exact_changes": 16
+  },
+  "preserved_controls": [
+    "Evershrike",
+    "Phage the Untouchable Avatar",
+    "Uchuulon",
+    "Satya, Aetherflux Genius",
+    "Lucius the Eternal",
+    "Liliana, Heretical Healer",
+    "Reborn Hero",
+    "Lamplight Phoenix"
+  ],
+  "source_cache_hashes": {
+    "data/mtgish.lines.ron": "6e59a5f782285a0eae2f2a5b2a0664223746324f03ab32f6472b3b243e64157b",
+    "data/mtgish.lines.json": "87b61b57642a49d6c4c8ace0a25145b3f2a109fa8dd990dff893c7baed5a6f50",
+    "data/mtgish.pretty.ron": "84aca743003c12c456c9b0aa44cc23c2a2bfc6ccee3010ec4658a3458a039c37"
+  },
+  "historical_source_inputs_retained": [
+    "ability_aliases.ronl: Darksteel Mutation",
+    "pipeline_generated.ronl: Surprise Deployment"
+  ],
+  "upstream_report": null
+}

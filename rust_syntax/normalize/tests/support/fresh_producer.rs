@@ -12,7 +12,8 @@ pub fn assert_named(baseline: &str, name: &str, saved: &Value, fresh: &Value) {
     let mut expected = saved.clone();
     for data in [include_str!("../fixtures/reference_remaining30_fresh_changes.json"),
         include_str!("../fixtures/target_populations_fresh_changes_20261112.json"),
-        include_str!("../fixtures/random_damage_fresh_changes_20261112.json")] {
+        include_str!("../fixtures/random_damage_fresh_changes_20261112.json"),
+        include_str!("../fixtures/reference_followups_fresh_changes_20261112.json")] {
         let reviewed: Value=serde_json::from_str(data).unwrap();
         if let Some(changes) = reviewed[baseline][name].as_array() {
             for change in changes {

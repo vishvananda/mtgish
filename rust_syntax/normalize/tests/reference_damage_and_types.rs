@@ -158,9 +158,10 @@ fn explicit_add_type_source_and_successful_destruction_receipts_remain_distinct(
         json!("Add")
     );
     let gain = operation(&c, "GainLife");
-    assert_eq!(gain["amount"]["kind"], json!("Aggregate"));
     assert_eq!(
-        gain["amount"]["args"]["objects"],
-        json!({"kind":"Transition","args":{"result":1,"phase":"Before"}})
+        gain["amount"],
+        json!({"kind":"ObjectProperty","args":{
+            "object":{"kind":"Result","args":{"result":1,"phase":"Before","index":0}},
+            "property":"Toughness","information":"CurrentOrLastKnown"}})
     );
 }

@@ -1115,37 +1115,37 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "39ddcae7f5c6cbf0b4b7f8c3dcf550d422f15d537737bedad6100a3a107dfcbf",
+   "id": "dc92276b46d1ec8ca183c83ba82915a38bac590be8d7c4743a640e214813d0e7",
    "kind": "mined_token",
    "rule": "ActivatedActions(~Permanent)",
    "token": "RollAD6",
    "word": "die",
    "support": "12/14",
    "template": "Roll a d6. Until end of turn, you may have this artifact become {{a}} {{PTX}} {{Zombie}} artifact creature with {{Hasable}}, where X is the result",
-   "result": "ActionList([RollAD6, MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PTX({{PTX[0]}}, TheDiceResult)), SetCreatureType({{Zombie[0]}}), SetCardtypes([Artifact, Creature]), AddAbility([{{Hasable[0]}}])], UntilEndOfTurn))])",
-   "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+   "result": "ActionList([RollAD6, MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PTX({{PTX[0]}}, TheDiceResult)), SetCreatureType({{Zombie[0]}}), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([{{Hasable[0]}}])], UntilEndOfTurn))])",
+   "reason": "reviewed 2026-11-12: d6 explicitly names a six-sided die; artifact-creature type additions do not change this roll"
   },
   {
-   "id": "a820567587a466cd02c7f328964b8a37d2f2589a910c60525d244d1c4cce3892",
+   "id": "0d8af0157a8b75a5011ea743a0ed938beaf9f4f652b87a3fb96c40b7f7faa485",
    "kind": "mined_token",
    "rule": "ActivatedActions(~Permanent)",
    "token": "RollAD6",
    "word": "sided",
    "support": "12/14",
    "template": "Roll a d6. Until end of turn, you may have this artifact become {{a}} {{PTX}} {{Zombie}} artifact creature with {{Hasable}}, where X is the result",
-   "result": "ActionList([RollAD6, MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PTX({{PTX[0]}}, TheDiceResult)), SetCreatureType({{Zombie[0]}}), SetCardtypes([Artifact, Creature]), AddAbility([{{Hasable[0]}}])], UntilEndOfTurn))])",
-   "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+   "result": "ActionList([RollAD6, MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PTX({{PTX[0]}}, TheDiceResult)), SetCreatureType({{Zombie[0]}}), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([{{Hasable[0]}}])], UntilEndOfTurn))])",
+   "reason": "reviewed 2026-11-12: d6 explicitly names a six-sided die; artifact-creature type additions do not change this roll"
   },
   {
-   "id": "3b9416c0ce9b143723a86b3d8079bd287dae8ef72b88a4a66eb50fb6733a9698",
+   "id": "c11c0935b273fa6910d0d7a52662169cbc310b542c90c0478a18d3c37729b98c",
    "kind": "mined_token",
    "rule": "ActivatedActions(~Permanent)",
    "token": "RollAD6",
    "word": "six",
    "support": "12/14",
    "template": "Roll a d6. Until end of turn, you may have this artifact become {{a}} {{PTX}} {{Zombie}} artifact creature with {{Hasable}}, where X is the result",
-   "result": "ActionList([RollAD6, MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PTX({{PTX[0]}}, TheDiceResult)), SetCreatureType({{Zombie[0]}}), SetCardtypes([Artifact, Creature]), AddAbility([{{Hasable[0]}}])], UntilEndOfTurn))])",
-   "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+   "result": "ActionList([RollAD6, MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PTX({{PTX[0]}}, TheDiceResult)), SetCreatureType({{Zombie[0]}}), AddCardtype(Artifact), AddCardtype(Creature), AddAbility([{{Hasable[0]}}])], UntilEndOfTurn))])",
+   "reason": "reviewed 2026-11-12: d6 explicitly names a six-sided die; artifact-creature type additions do not change this roll"
   },
   {
    "id": "f1d00652cea2e3e0359a868ac3d03128ad248cf06b34b1842605fa79ff211495",

@@ -6636,6 +6636,7 @@
     "EachPlayerAction({{PLAYERS}}, SwapWordChoice({{VOTE_OPTION}}, {{VOTE_OPTION}}))": "",
 
     "EachPlayerStartingWithAction({{PLAYERS}}, {{PLAYER}}, [VoteForAWord([{{VOTE_OPTION}}, {{VOTE_OPTION}}])])": "",
+    "EachPlayerStartingWithAction({{PLAYERS}}, {{PLAYER}}, [VoteForColor([{{COLOR}}, {{COLOR}}, {{COLOR}}, {{COLOR}}])])": "",
     "EachPlayerStartingWithAction({{PLAYERS}}, {{PLAYER}}, [VoteForAPermanent({{PERMANENTS}})])": "",
     "EachPlayerStartingWithAction({{PLAYERS}}, {{PLAYER}}, [VoteForACardInGraveyard({{CARDS_IN_GRAVEYARDS}})])": "",
 

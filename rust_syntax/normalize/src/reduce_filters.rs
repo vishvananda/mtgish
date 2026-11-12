@@ -63,8 +63,8 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
             return condition(did(
                 player,
                 PlayerHistory::CastSpell(Box::new(ObjectFilter::AllOf(vec![
-                    spells.clone(),
                     other,
+                    spells.clone(),
                 ]))),
                 ObjectWindow::ThisTurn,
             ));

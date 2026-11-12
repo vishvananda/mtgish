@@ -691,6 +691,7 @@ impl Context {
         use source::Action as S;
         let effects = match value {
             S::CreatePerpetualTriggeredCardEffect(effects)
+            | S::CreatePerpetualDeadCardEffect(effects)
             | S::CreatePerpetualCardsInHandEffect(_, effects)
             | S::CreatePerpetualPermanentEffect(_, effects)
             | S::CreatePerpetualCardInHandEffect(_, effects)
@@ -716,6 +717,9 @@ impl Context {
             _ => None,
         };
         let objects = match (value, subject) {
+            (S::CreatePerpetualDeadCardEffect(_), _) if self.event.moved => {
+                ObjectSet::One(self.grave_card(&source::CardInGraveyards::Trigger_ThatGraveyardCard).ok()?)
+            }
             _ if exiled_followup.is_some() => self.still_exiled(exiled_followup?),
             (S::CreatePerpetualTriggeredCardEffect(_), _) if self.event.moved => {
                 ObjectSet::One(ObjectRef::EventDestination)

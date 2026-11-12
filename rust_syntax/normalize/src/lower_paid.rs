@@ -6,7 +6,37 @@ struct PaidBinding {
     component: Vec<u32>,
     singular: bool,
 }
+#[derive(Clone)]
+struct PriorEntry {
+    entered: Option<ResultId>,
+    entered_from_one: Option<ResultId>,
+    paid_entry_latest: bool,
+    paid: Option<Option<PaidBinding>>,
+}
 impl Context {
+    /// A declined entry cannot replace the earlier creature (Evershrike).
+    fn entry_payment_branch(&mut self, condition: &Condition, truth: bool) {
+        match condition {
+            Condition::Not(inner) => self.entry_payment_branch(inner, !truth),
+            Condition::PaymentChosen(result) if !truth && self.paid_entry_latest => {
+                use crate::number_spec::PaymentAction::Enter;
+                let current = self.paid.get(&Enter).and_then(Option::as_ref);
+                if current.is_none_or(|b| !matches!(&b.payment, PaymentRef::Resolution(r) if r.0 == result.0)) {
+                    return;
+                }
+                if let Some(prior) = self.entry_before_payment.get(&result.0).cloned() {
+                    self.entered = prior.entered;
+                    self.entered_from_one = prior.entered_from_one;
+                    self.paid_entry_latest = prior.paid_entry_latest;
+                    match prior.paid {
+                        Some(binding) => { self.paid.insert(Enter, binding); }
+                        None => { self.paid.remove(&Enter); }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
     fn proposal(&self) -> Self {
         let mut context = self.clone();
         context.announcing = true;
@@ -31,6 +61,19 @@ impl Context {
                 .entry(action)
                 .and_modify(|v| *v = None)
                 .or_insert(Some(binding));
+        }
+        if found.contains_key(&crate::number_spec::PaymentAction::Enter) {
+            if let PaymentRef::Resolution(result) = &payment {
+                self.entry_before_payment.insert(result.0, PriorEntry {
+                    entered: self.entered.clone(),
+                    entered_from_one: self.entered_from_one.clone(),
+                    paid_entry_latest: self.paid_entry_latest,
+                    paid: self.paid.get(&crate::number_spec::PaymentAction::Enter).cloned(),
+                });
+            }
+            self.paid_entry_latest = true;
+            self.entered = None;
+            self.entered_from_one = None;
         }
         for action in found.keys() {
             self.acted.remove(action);

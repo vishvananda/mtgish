@@ -32,6 +32,7 @@ fn normalize_value<T: Walk + WalkMut>(card: &mut T) {
         next_result: results.0.checked_add(1).expect("result id overflow"),
         populations: Default::default(),
     });
+    card.walk_mut(&mut single_cards::Normalize::default());
 }
 
 /// Only object references are substituted. A player's event binding can name
@@ -370,12 +371,24 @@ fn stable_subject(event: &EventSpec) -> Option<ObjectRef> {
     }
 }
 
+/// Pure prevention does not observe which branch matched. Use recipient-before-source order.
+fn prevention_order(event: &mut ReplacementEvent, body: &Program) {
+    if !matches!(body.instructions.as_slice(),[Instruction::Effect {operation:Operation::ModifyEvent {change:EventChange::PreventDamage},..}]) { return; }
+    let ReplacementEvent::Either(events)=event else{return};
+    if events.len()!=2{return;}
+    if matches!(&events[0],ReplacementEvent::Damage(DamageEvent {source_kind:ObjectKind::Permanent,recipients:DamageRecipients::Any,..}))
+        && matches!(&events[1],ReplacementEvent::Damage(DamageEvent {sources:ObjectFilter::Any,recipients:DamageRecipients::Objects(_),..})) {
+        events.swap(0,1);
+    }
+}
+
 struct Normalize {
     next_result: u32,
     populations: crate::target_populations::TargetPopulations,
 }
 impl VisitorMut for Normalize {
-    fn ability(&mut self, _: &mut Ability) -> bool {
+    fn ability(&mut self, ability: &mut Ability) -> bool {
+        if let Ability::Replacement {event,body,..}=ability {prevention_order(event,body);}
         self.populations.push(false);
         true
     }
@@ -390,7 +403,15 @@ impl VisitorMut for Normalize {
         self.populations.declare(target);
         true
     }
+    fn expr_end(&mut self, number:&mut Expr) {
+        if let Expr::Add(left, right) = number {
+            if matches!((left.as_ref(), right.as_ref()), (Expr::Constant(_), Expr::StartingLife(_))) {
+                std::mem::swap(left, right);
+            }
+        }
+    }
     fn operation(&mut self, op: &mut Operation) -> bool {
+        if let Operation::CreateReplacement {event,body,..}=op {prevention_order(event,body);}
         if let Operation::WithSelections { steps, .. } = op {
             for step in steps {
                 if matches!(step.chooser, SelectionChooser::Chance) {
@@ -577,3 +598,6 @@ impl VisitorMut for Normalize {
 #[cfg(test)]
 #[path = "target_populations_tests.rs"]
 mod target_populations_tests;
+
+#[path = "producer_single_cards.rs"]
+mod single_cards;

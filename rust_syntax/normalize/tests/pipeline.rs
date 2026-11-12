@@ -298,6 +298,9 @@ fn stage_recipe_roundtrips_and_final_export_stays_atomic_on_unresolved_data() {
 fn automatically_selected_corpus_fixtures_cover_the_registry_and_preserve_partial_and_final_forms()
 {
     let (mut rules, mut cards, mut count) = (BTreeSet::new(), vec![], 0);
+    // Keep the historical Surprise Deployment recipe here to cover the legacy
+    // CardsInHand.IsNonColor selector. Fresh English now emits a guarded entry
+    // cost, covered by reference_followups_20261112 and its Go parser test.
     let fixtures = root().join("rust_syntax/normalize/tests/fixtures/pipeline_generated.ronl");
     mtgish_ast::corpus::map_cards(
         &fixtures,
@@ -2116,7 +2119,8 @@ fn this_way_histories_read_the_action_that_did_it() {
         ability_json("SpellActions(ActionList([LoseLife(Integer(3)),GainLife(LifeLostThisWay)]))");
     assert!(text.contains(r#""Performed""#), "{text}");
     let text = ability_json("SpellActions(Targeted([TargetPermanent(AnyPermanent)],ActionList([DestroyPermanent(Ref_TargetPermanent),If(APermanentWasDestroyedThisWay(IsCardtype(Creature)),[DrawACard])])))");
-    assert!(text.contains(r#""Transition""#), "{text}");
+    assert!(text.contains(r#""ObjectMatches""#), "{text}");
+    assert!(text.contains(r#""Result""#) && text.contains(r#""phase":"Before""#), "{text}");
     let unbound = custom("SpellActions(ActionList([GainLife(LifeLostThisWay)]))");
     assert!(pipeline::finalize(&unbound).is_err());
 }

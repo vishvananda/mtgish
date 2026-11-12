@@ -52,7 +52,7 @@ impl Context {
         match value {
             source::SingleCard::ThisCard => Ok(ObjectRef::Source),
             source::SingleCard::TheCardPutOntoTheBattlefieldThisWay => {
-                self.result_object(self.entered.as_ref(), 0)
+                self.object(&source::Permanent::ThePermanentPutOnTheBattlefieldThisWay)
             }
             _ => Err(unsupported(value)),
         }

@@ -245,7 +245,8 @@ fn lifted_conditions_keep_the_outer_object_and_inner_filter_candidates_separate(
         assert_eq!(found(condition, "Cast").len(), 1);
         let thief = abilities(&cards["Dream Thief"]);
         let conditions = found(&thief, "If");
-        assert_eq!(conditions[0]["condition"]["kind"], "PlayerDid");
+        assert_eq!(conditions[0]["condition"]["kind"], "Compare");
+        assert_eq!(found(&conditions[0]["condition"], "EventHistory").len(), 1);
         assert_eq!(found(&conditions[0]["condition"], "Not").len(), 1);
     });
 }

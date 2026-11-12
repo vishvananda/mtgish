@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{canonical, corpus, mtg_types::OracleCard, unified, validate};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -124,7 +126,7 @@ fn complete_programs_change_only_the_reviewed_meanings_and_normal_forms() {
         let current = cards();
         assert_eq!(expected.len(), 53);
         for (name, wanted) in expected {
-            assert_eq!(current[&name], wanted, "{name}");
+            fresh_producer::assert_named("reference53_20261112_expected.json", &name, &wanted, &current[&name]);
         }
     });
 }
@@ -154,9 +156,10 @@ fn is_characteristic_applies_on_entry_and_card_tests_read_the_exiled_state() {
             );
         }
         let event = &c["Omen Machine"][1]["args"]["body"]["instructions"][1]["args"]["condition"];
-        let reads = found(event, "Transition");
+        let reads = found(event, "Result");
         assert_eq!(reads.len(), 1);
         assert_eq!(reads[0]["phase"], "After");
+        assert_eq!(event["kind"], "ObjectMatches");
     });
 }
 
