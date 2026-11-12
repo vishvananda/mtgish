@@ -1701,8 +1701,8 @@ impl Compiler {
             PlayerRule::HandSize(size) => {
                 let size = match size {
                     HandSizeRule::Unlimited => "HandSize::Unlimited".to_string(),
-                    HandSizeRule::Set(Expr::Constant(n)) => format!("HandSize::Set({n})"),
-                    HandSizeRule::Adjust(Expr::Constant(n)) => format!("HandSize::Adjust({n})"),
+                    HandSizeRule::Set(Expr::Constant(n)) if u32::try_from(*n).is_ok() => format!("HandSize::Set({n})"),
+                    HandSizeRule::Adjust(Expr::Constant(n)) if i32::try_from(*n).is_ok() => format!("HandSize::Adjust({n})"),
                     other => return Err(gap(format!("player rule HandSize {}", form(other)))),
                 };
                 const FEATURE: &str = "a maximum hand size of other players";

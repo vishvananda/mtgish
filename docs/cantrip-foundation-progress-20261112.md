@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`f9822eae6`. Thirteen focused feature groups are implemented. The new step-deadline
+`994d7b122`. Fifteen focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **191 generate without recorded feature gaps and 95
-remain gapped**. Those 191 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **193 generate without recorded feature gaps and 93
+remain gapped**. Those 193 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 101 raw requirement labels
+remaining requirement and its affected cards. Its 98 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -96,6 +96,26 @@ also entirely skipped under CR 103.8a. Unsupported combat-step skips are rejecte
 at table construction. The full gate and benchmark below cover `c97d4ac45`;
 the new skipped-step group has focused validation pending the next batched gate.
 
+The fourteenth primitive applies static hand-size rules to the players they name,
+in timestamp order alongside existing resolved and granted rules. Cursed Rack's
+chosen opponent is distinct from Jin-Gitaxias's opponents. Setters, adjustments
+and unlimited sizes compose in order; negative intermediate sizes are clamped
+only at the final cleanup limit. Four new native regressions and an actual
+Cursed Rack casting/cleanup scenario pass.
+
+The fifteenth primitive keeps reselected colors and numbers with their linked
+abilities. Shapeshifter reuses its existing chosen-number carrier, keeping entry
+choices, grants and copied text separate. Two state regressions and an actual
+Shapeshifter casting/two-upkeep scenario pass. Chromatic Armor's color choice
+now generates, while its computed-X gap remains explicit. No quantity bounds,
+AST schema, per-object fields or history counters change.
+
+The generator's test/candidate capability profile also exceeded its old 64-bit
+mask. It now uses a fixed array of words sized to the capability table, with an
+explicit pinned-profile sentinel. Six profile tests include the word boundary
+and thread-local restoration. This is generator configuration, with no change
+to card numbers or native state storage.
+
 The original roadmap still has bands with other, computed X constraints, and
 persistent public visibility pending. The full remaining ledger also identifies
 other needs, including forced mana activations,
@@ -105,21 +125,22 @@ adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 46 scenarios,
+the pristine foundation. The generated runtime suite now passes 48 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
-spanning two untap steps. The complete generator suite now passes 1,581 tests (22 ignored) in a serialized
+spanning two untap steps. The complete generator suite now passes 1,584 tests (22 ignored) in a serialized
 run. The batched native workspace gate passes 22604 tests (15 ignored), through
 `c97d4ac45`, with verification enabled. The .NET SDK is unavailable, so no .NET
 pass is claimed.
 
-The current 128-game benchmark allocates 26.79 KB per decision, versus 26.74 KB
-on the original base. The small increase includes the added dense counter
-entries. Sequential control runs measured 58.87 µs on the original base and
-50.49 µs on `c97d4ac45`; both finished all 128 games. Shared-machine variability
-does not establish a statistically meaningful speed change.
+The current 128-game benchmark allocates 27.04 KB per decision, versus 26.74 KB
+on the original base. Sequential controls measured 49.44 µs on the base and
+50.16 µs on `994d7b122`; both completed all 128 games. Correctly skipping the
+first draw step changes the random seats' game paths, so these are whole-run
+observations, not isolated costs of the new APIs. Shared-host variability does
+not establish a statistically meaningful timing change.
 
-A direct compilation probe now passes all 191 generation-ready modules against
+A direct compilation probe now passes all 193 generation-ready modules against
 the pristine foundation. The native catalog appends Cube (91), Doom (92) and Glyph (93)
 for Delif's Cube, Armageddon Clock and Glyph of Delusion, preserving existing IDs. No overlay is
 used. These three i32 entries follow the existing dense counter design and add
@@ -134,7 +155,7 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --features cantri
   landwalk-blocking-exceptions independent-pt-settings \
   no-combat-damage-assignment world-rule other-activators \
   step-deadlines counted-untap-steps explicit-mana-loss random-discard-costs \
-  keyword-family-metadata untap-limits nonmana-mana-tap-triggers attack-as-though-haste skip-steps
+  keyword-family-metadata untap-limits nonmana-mana-tap-triggers attack-as-though-haste skip-steps hand-size-rules rechosen-values
 ```
 
 These flags explicitly select capabilities; they do not prove that an engine

@@ -107,6 +107,8 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("attack-as-though-haste", "pub attacks_as_though_haste: &'static [AttackHasteRule],", &["static-rule-attack-exception-summoning-sickness"]),
     ("nonmana-mana-tap-triggers", "pub const TAPPED_FOR_MANA: EventMask", &[]),
     ("keyword-family-metadata", "pub keyword_family: Option<KeywordFamily>,", &[]),
+    ("rechosen-values", "fn remember_chosen(&mut self, by: Linked, value: ChosenValue);", &["a-choice-of-number-made-again", "a-choice-of-color-made-again"]),
+    ("hand-size-rules", "pub hand_size_rules: &'static [HandSizeRule],", &["a-maximum-hand-size-of-other-players"]),
     ("skip-steps", "pub skip_steps: &'static [SkipStep],", &["skipping-a-step-of-the-turn"]),
     ("untap-limits", "pub untap_limits: &'static [UntapLimit],", &["a-limit-on-what-untaps-in-an-untap-step"]),
 ];
@@ -114,12 +116,14 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
 pub(super) const LASTING_RULES: &str = "lasting-rules";
 
 // A stand-in for the snapshot's FEATURES, for tests that write both forms.
-// One bit per SWITCHED entry, or NO_STAND_IN.
+// One bit per SWITCHED entry; None means the pinned snapshot. Fixed words scale
+// with the catalog and allocate nothing, including past the first 64 features.
 std::thread_local! {
     // A test's profile must not change concurrent generation using the snapshot.
-    static STAND_IN: std::cell::Cell<u64> = const { std::cell::Cell::new(NO_STAND_IN) };
+    static STAND_IN: std::cell::Cell<Option<FeatureBits>> = const { std::cell::Cell::new(None) };
 }
-const NO_STAND_IN: u64 = u64::MAX;
+const FEATURE_WORDS: usize = SWITCHED.len().div_ceil(64);
+type FeatureBits = [u64; FEATURE_WORDS];
 
 /// Writes as if the pinned Cantrip had exactly the `SWITCHED` features
 /// `features` while `f` runs, one caller at a time. For tests only: the
@@ -129,12 +133,13 @@ pub fn with_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
     static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _held = ONE_AT_A_TIME.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     assert!(!(features.contains(&"wide-effect-quantities") && features.contains(&"32-bit-effect-quantities")), "conflicting quantity profiles");
-    let mut bits = 0;
+    let mut bits = [0u64; FEATURE_WORDS];
     for feature in features {
-        let at = SWITCHED.iter().position(|s| s.0 == *feature);
-        bits |= 1 << at.unwrap_or_else(|| panic!("{feature:?} is no feature of SWITCHED"));
+        let at = SWITCHED.iter().position(|s| s.0 == *feature)
+            .unwrap_or_else(|| panic!("{feature:?} is no feature of SWITCHED"));
+        bits[at / 64] |= 1u64 << (at % 64);
     }
-    in_features(bits, f)
+    in_features(Some(bits), f)
 }
 
 /// Use the pinned native profile plus additional features, for checking a candidate native foundation.
@@ -160,8 +165,8 @@ pub fn without_features<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
     with_features(&remaining, f)
 }
 
-fn in_features<R>(bits: u64, f: impl FnOnce() -> R) -> R {
-    struct Restore(u64);
+fn in_features<R>(bits: Option<FeatureBits>, f: impl FnOnce() -> R) -> R {
+    struct Restore(Option<FeatureBits>);
     impl Drop for Restore {
         fn drop(&mut self) {
             STAND_IN.with(|stand_in| stand_in.set(self.0));
@@ -184,8 +189,8 @@ pub(super) fn map_cards<T: Send>(
 /// Whether the Cantrip being written for has the `SWITCHED` feature `name`.
 pub(super) fn switched_on(name: &str) -> bool {
     match STAND_IN.with(std::cell::Cell::get) {
-        NO_STAND_IN => crate::cantrip_vocab::FEATURES.contains(&name),
-        bits => SWITCHED.iter().position(|s| s.0 == name).is_some_and(|at| bits & (1 << at) != 0),
+        None => crate::cantrip_vocab::FEATURES.contains(&name),
+        Some(bits) => SWITCHED.iter().position(|s| s.0 == name).is_some_and(|at| bits[at / 64] & (1u64 << (at % 64)) != 0),
     }
 }
 
@@ -911,6 +916,20 @@ mod tests {
 
     /// The snapshot names only features the generator writes for, and the names
     /// the generator asks for are the table's.
+    #[test]
+    fn feature_profiles_cross_word_boundaries_without_aliasing_or_losing_the_snapshot() {
+        let pinned: Vec<_> = SWITCHED.iter().map(|s| switched_on(s.0)).collect();
+        for at in [63, 64] {
+            let name=SWITCHED[at].0;
+            with_features(&[name], || {
+                for (i, feature) in SWITCHED.iter().enumerate() {
+                    assert_eq!(switched_on(feature.0), i==at, "{} at {i}", feature.0);
+                }
+            });
+        }
+        assert_eq!(SWITCHED.iter().map(|s| switched_on(s.0)).collect::<Vec<_>>(),pinned);
+    }
+
     #[test]
     fn features_are_switched_ones() {
         for feature in crate::cantrip_vocab::FEATURES.iter().chain([&LASTING_RULES]) {

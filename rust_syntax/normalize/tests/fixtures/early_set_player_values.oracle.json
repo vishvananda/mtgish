@@ -1,0 +1,54 @@
+[
+  {
+    "name": "Chromatic Armor",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Chromatic Armor",
+        "manaCost": "{1}{W}{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nAs this Aura enters, choose a color.\nThis Aura enters with a sleight counter on it.\nPrevent all damage that would be dealt to enchanted creature by sources of the last chosen color.\n{X}: Put a sleight counter on this Aura and choose a color. X is the number of sleight counters on this Aura."
+      }
+    ]
+  },
+  {
+    "name": "Cursed Rack",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cursed Rack",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "As this artifact enters, choose an opponent.\nThe chosen player's maximum hand size is four."
+      }
+    ]
+  },
+  {
+    "name": "Jin-Gitaxias, Core Augur",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Jin-Gitaxias, Core Augur",
+        "manaCost": "{8}{U}{U}",
+        "type": "Legendary Creature — Phyrexian Praetor",
+        "text": "Flash\nAt the beginning of your end step, draw seven cards.\nEach opponent's maximum hand size is reduced by seven.",
+        "power": "5",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Shapeshifter",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Shapeshifter",
+        "manaCost": "{6}",
+        "type": "Artifact Creature — Shapeshifter",
+        "text": "As this creature enters, choose a number between 0 and 7.\nAt the beginning of your upkeep, you may choose a number between 0 and 7.\nShapeshifter's power is equal to the last chosen number and its toughness is equal to 7 minus that number.",
+        "power": "*",
+        "toughness": "7-*"
+      }
+    ]
+  }
+]
