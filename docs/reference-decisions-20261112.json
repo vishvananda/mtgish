@@ -6,14 +6,15 @@
   "reference_pin": "7228b84b2b9398976246b595098f7f5e5fb4fc88",
   "baseline_sha256": "6d487dca152a1d33cdc80368ef28b571878cc3010c87f9ede46e1b05f83cde33",
   "counts": {
+    "retained_equivalent_form": 20,
     "fixed_source": 6,
-    "fixed_source_and_lowering": 1,
+    "retained_valid_contract": 16,
+    "unified_equivalent_source": 4,
     "fixed_lowering": 3,
     "fixed_source_binding": 1,
-    "unified_equivalent_source": 3,
-    "retained_valid_contract": 14,
-    "retained_equivalent_form": 16,
-    "needs_witness": 9
+    "retained_reference_rejects_proposal": 1,
+    "fixed_source_and_lowering": 1,
+    "unified_source_quantity_shield": 1
   },
   "findings": [
     {
@@ -43,8 +44,9 @@
     },
     {
       "card": "Delif's Cube",
-      "classification": "needs_witness",
-      "decision": "Keep captured target identity in the delayed ability. Its own attack/damage event may name the same object, but delayed turn events do not supply an object subject. Lurker also uses the exact exile cost and post-cost receipt. No blanket Target-to-EventSubject rewrite; a capture-frame witness is needed for broader unification."
+      "classification": "retained_equivalent_form",
+      "decision": "Resolved by exact event binding: AttacksAndIsNotBlocked matches SameObject(captured Target), so EventSubject is that original target in this callback. Keep explicit target; no global delayed-event subject rewrite. Backend NoAssignment capability is a separate refusal.",
+      "followup": "docs/reference-nine-resolutions-20261112.md"
     },
     {
       "card": "Draining Whelk",
@@ -73,8 +75,9 @@
     },
     {
       "card": "Goblin Snowman",
-      "classification": "needs_witness",
-      "decision": "Both prevent all combat damage to/from the same creature for the turn. Separate replacement effects versus one disjunction requires testing overlapping self-damage and ordering with other replacements before consolidation. No concrete rules error established."
+      "classification": "unified_equivalent_source",
+      "decision": "Use one unlimited end-of-turn prevention effect over damage to OR by the captured creature. Matches the one printed prevention instruction and other bidirectional templates. A normal form, not an established old gameplay defect; no general merge of separate or limited prevention effects.",
+      "followup": "docs/reference-nine-resolutions-20261112.md"
     },
     {
       "card": "Graven Dominator",
@@ -83,13 +86,15 @@
     },
     {
       "card": "Haunted Fengraf",
-      "classification": "needs_witness",
-      "decision": "Chance selection versus ChooseObjects/AtRandom needs population, count and batch proof. No demonstrated change in random distribution or legal population in this one-card return; do not label an uncommon wrapper wrong."
+      "classification": "retained_equivalent_form",
+      "decision": "Resolved: both choose uniformly one creature card from the controller's graveyard during resolution; empty pool returns nothing. random_of delegates multi-item selection to choose_at_random. Official rulings confirm untargeted resolution-time population. RNG-consumption identity is not claimed.",
+      "followup": "docs/reference-nine-resolutions-20261112.md"
     },
     {
       "card": "Hit",
-      "classification": "needs_witness",
-      "decision": "Mandatory resolving sacrifice payment and a plain sacrifice effect require a failed-payment/replacement witness before substitution. Existing CostObjects Inputs/Before preserves sacrificed mana value and PaymentChosen. CR 118.12 resolving costs are not casting/activation costs; Yasharn/Angel of Jubilation alone is not a counterexample."
+      "classification": "retained_valid_contract",
+      "decision": "Resolved for this sole-target, mandatory one-sacrifice, damage-only follow-up. No eligible sacrifice gives no damage in both forms; modified sacrifice still pays under CR118.11 and original Before input supplies mana value. Keep the explicit resolving-cost receipt. Not a global cost/effect equivalence.",
+      "followup": "docs/reference-nine-resolutions-20261112.md"
     },
     {
       "card": "Ilharg, the Raze-Boar",
@@ -138,8 +143,9 @@
     },
     {
       "card": "Long River Lurker",
-      "classification": "needs_witness",
-      "decision": "Keep captured target identity in the delayed ability. Its own attack/damage event may name the same object, but delayed turn events do not supply an object subject. Lurker also uses the exact exile cost and post-cost receipt. No blanket Target-to-EventSubject rewrite; a capture-frame witness is needed for broader unification."
+      "classification": "retained_valid_contract",
+      "decision": "Resolved: damage source filter matches captured Target and the event subject is Source. Keep exact exile-cost component and full Performed/After receipt, plus still-in-Exile filtering. Return-only follow-up has no object if replacement sends the card elsewhere. No engine change needed to establish binding equivalence.",
+      "followup": "docs/reference-nine-resolutions-20261112.md"
     },
     {
       "card": "Minds Aglow",
@@ -168,8 +174,9 @@
     },
     {
       "card": "No Quarter",
-      "classification": "needs_witness",
-      "decision": "The mirrored pair events bind attacker/blocker roles separately. EventSubject in the blocks trigger is the blocker, so the proposed spelling may coincide, but a pair-role test must establish both role captures before changing general event references."
+      "classification": "retained_equivalent_form",
+      "decision": "Resolved by pair-role contract and complete generated-code equality: EventSubject is BlockPair(Blocker) in its blocks clause. A permanent regression compares both executable programs excluding fingerprints.",
+      "followup": "docs/reference-nine-resolutions-20261112.md"
     },
     {
       "card": "Norman Osborn",
@@ -213,8 +220,9 @@
     },
     {
       "card": "Satya, Aetherflux Genius",
-      "classification": "needs_witness",
-      "decision": "Aggregate(Created, ManaValue, Sum) supports the zero-or-one creation, including zero targets. Scalar replacement needs the same empty/LKI behavior and one token incarnation. No arbitrary aggregate-to-scalar rewrite."
+      "classification": "retained_reference_rejects_proposal",
+      "decision": "Counterexample found: token doubling creates two actual MV-3 tokens from one requested token; scalar first-result cost is 3 for a sacrifice addressing both, while aggregate keeps the full creation receipt and sum 6. The proposed zero-or-one invariant ignores replacements. Retain Aggregate(Created,ManaValue,Sum).",
+      "followup": "docs/reference-nine-resolutions-20261112.md"
     },
     {
       "card": "Shared Trauma",
@@ -258,13 +266,15 @@
     },
     {
       "card": "Wandering Graybeard",
-      "classification": "needs_witness",
-      "decision": "The guarded optional look and optional reveal remain separate choices. Compare declining the look, failure to reveal, and an empty library before changing the program; optional/payment wrappers are not automatically interchangeable."
+      "classification": "retained_equivalent_form",
+      "decision": "Resolved for this program: both nest optional look and eligible optional reveal, and gain life only following reveal. Declining either, empty library and an already-revealed top card agree; official kinship rulings confirm those choices. Retain guarded Source.",
+      "followup": "docs/reference-nine-resolutions-20261112.md"
     },
     {
       "card": "Ward of Piety",
-      "classification": "needs_witness",
-      "decision": "A one-point redirection with NextOccurrence may coincide with a TotalDamage(1) shield for ordinary positive damage. Zero/prevented/replaced/split events and replacement consumption need a distinguishing witness. Keep the explicit one-point action; no unconditional normalization of shields."
+      "classification": "unified_source_quantity_shield",
+      "decision": "Use TotalDamage(1) plus RedirectDamage. The generic next-N template previously used NextOccurrence plus RedirectSomeDamage(N): N=3 with successive one-point hits loses the remaining budget. Correct the parameterized template; active card N=1 is a clearer normal form, without claiming a demonstrated ordinary one-point bug.",
+      "followup": "docs/reference-nine-resolutions-20261112.md"
     },
     {
       "card": "Waterspout Warden",
@@ -281,5 +291,6 @@
       "classification": "fixed_source",
       "decision": "Use DrawsCard filtered by Not(FirstDrawInOwnDrawStep(EventSubject)). Outside-step first draws trigger and each separate own draw step exempts its own first draw. Upstream #270; Orcish Bowmasters control."
     }
-  ]
+  ],
+  "final_nine_resolved": true
 }

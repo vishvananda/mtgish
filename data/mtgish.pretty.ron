@@ -538804,14 +538804,10 @@ Card(
       WhenACreatureBlocks(SinglePermanent(ThisPermanent)),
       ActionList([
         CreatePreventDamageUntil(
-          CombatDamageWouldBeDealtByCreature(Trigger_ThatCreature),
-          [
-            PreventThatDamage,
-          ],
-          UntilEndOfTurn,
-        ),
-        CreatePreventDamageUntil(
-          CombatDamageWouldBeDealtToRecipient(Permanent(Trigger_ThatCreature)),
+          Or([
+            CombatDamageWouldBeDealtToRecipient(Permanent(Trigger_ThatCreature)),
+            CombatDamageWouldBeDealtByCreature(Trigger_ThatCreature),
+          ]),
           [
             PreventThatDamage,
           ],
@@ -1495983,12 +1495979,12 @@ Card(
         ],
         ActionList([
           CreateFutureReplaceWouldDealDamage(
-            NextTimeDamageWouldBeDealtThisTurnToRecipient(Permanent(HostPermanent)),
+            NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(
+              Integer(1),
+              Permanent(HostPermanent),
+            ),
             [
-              DealSomeDamageToRecipientInstead(
-                Integer(1),
-                Ref_AnyTarget,
-              ),
+              DealToAnyTargetInstead(Ref_AnyTarget),
             ],
           ),
         ]),

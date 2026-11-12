@@ -5,7 +5,8 @@ from Oracle Grammar `1fe5782`, reference/model pin `7228b84`, schema 190. The
 allowed population contains 32,755 faces: 32,702 equal, 53 different, no refusals.
 Those are disagreements, not 53 established reference defects. The
 [per-card ledger](reference-decisions-20261112.json) covers all 53 with decisions
-and evidence; no Oracle Grammar gold, grammar, pins or worker files were changed.
+and evidence. The [final-nine follow-up](reference-nine-resolutions-20261112.md)
+closes the questions left open in the initial batch; no Oracle Grammar gold, grammar, pins or worker files were changed.
 
 ## Correctness changes
 
@@ -49,7 +50,7 @@ there is no larger runtime representation or new allocation-bearing AST field.
 
 ## Equivalent outputs consolidated
 
-Three faces receive producer normal forms, not additional gameplay bug claims:
+Five faces receive producer normal forms, not additional gameplay bug claims:
 
 - Old Man Willow uses one optional sacrifice over “another creature or token”,
   followed by one reflexive trigger. The previous choice of sacrifice branches
@@ -58,29 +59,28 @@ Three faces receive producer normal forms, not additional gameplay bug claims:
   Toph's granted self-tap trigger use EventSubject for “it”. This applies only
   to these holder-own events, without globally merging Source and EventSubject.
 
+The final-nine follow-up also consolidates Goblin Snowman to one compound
+prevention and Ward of Piety to an explicit damage-quantity budget.
+
 The full-program regression compares all 53 outputs to reviewed expected
-programs, preserving the other 39. Alongside the 11 correctness updates, this
-makes **14 changed faces** in the original packet. Only **12** now exactly match
+programs, preserving the other 37. Alongside the 11 correctness updates, this
+makes **16 changed faces** in the original packet. Only **14** now exactly match
 the independent proposal: Omen and Lamplight still have intentionally different
-corrected representations. A 53-to-41 exact-difference count is therefore not a
-claim that 41 reference bugs remain, nor a fresh full-corpus score.
+corrected representations. A 53-to-39 exact-difference count is therefore not a
+claim that 39 reference bugs remain, nor a fresh full-corpus score.
 
 ## What remains
 
-The ledger retains **30** other outputs: 14 preserve valid cost, identity,
-keyword or receipt contracts; 16 are equivalent or redundant forms. Source and
-EventSubject must stay distinct outside a proven self frame, resolving payments
-must keep their guards, and last-known receipts must not become live-zone reads.
-Connive is directed at the permanent: its current or last controller acts under
-CR 701.50a-b, regardless of a generic actor field in the wrapper.
+The final ledger retains **37** other outputs: 16 preserve valid cost, identity,
+keyword or receipt contracts, 20 are equivalent or redundant forms, and Satya's
+aggregate is retained because the proposed scalar fails token multiplication.
+Source and EventSubject stay distinct outside a proven self frame; resolving
+payments keep their guards; last-known receipts do not become live-zone reads.
 
-**Nine** cases remain open for a concrete witness or a broader normal-form proof:
-Delif's Cube, Long River Lurker, Haunted Fengraf, Goblin Snowman, Hit, Satya,
-No Quarter, Wandering Graybeard and Ward of Piety. The ledger states the exact
-capture, cost, replacement, cardinality or optional-choice boundary to test.
-Keeping those questions explicit is preferable to deleting meaningful structure
-to increase reference equality. For example, Yasharn's casting/activation cost
-restriction alone does not distinguish Hit's resolving payment from sacrifice.
+All nine questions from the initial batch are now dispositioned in the
+[follow-up](reference-nine-resolutions-20261112.md): seven retained outputs and
+two producer normal forms. This closes the nine investigation questions; it does
+not assert that nine gameplay bugs were fixed. No engine feature was needed.
 
 ## Upstream coordination
 
@@ -89,6 +89,7 @@ restriction alone does not distinguish Hit's resolving payment from sacrifice.
 - Draw exceptions: [#270](https://github.com/i5jb/mtgish/issues/270).
 - Veko Set versus Add: [#271](https://github.com/i5jb/mtgish/issues/271).
 - Nontoken entry characteristics: [#272](https://github.com/i5jb/mtgish/issues/272).
+- Generic next-N redirection template: [#273](https://github.com/i5jb/mtgish/issues/273).
 - Ordinary-return tracking, card After tests and per-recipient scheme damage
   are our Rust lowering fixes, not additional upstream Source bug reports.
 
@@ -140,7 +141,7 @@ comparison aliases.
 
 The checked-in packet has 66 Source records and 68 faces, including named
 controls, Run accompanying Hit, and Green Goblin accompanying Norman Osborn.
-The 18 changed Source records are compared against the
+The 20 changed Source records are compared against the
 English parser and tagged JSON. The immutable original 53 and corpus provenance
 are recorded separately in the ledger and local evidence directory. Validation
 results and checksums are in [the proof receipt](reference-decisions-20261112.proof.json).

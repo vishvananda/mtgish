@@ -182,3 +182,109 @@ fn scheme_damage_binds_each_recipient_and_self_return_names_its_own_cost() {
         assert!(body.to_string().contains("CollectEvidence"));
     });
 }
+
+fn source_face(name: &str) -> mtgish_ast::ir::Card {
+    let line = include_str!("fixtures/reference53_20261112.ronl")
+        .lines()
+        .find(|l| l.contains(&format!("Name: {name:?},")))
+        .unwrap();
+    let source: OracleCard = ron::from_str(line).unwrap();
+    unified::lower(&source).card.faces.remove(0)
+}
+
+#[test]
+#[cfg(feature = "cantrip")]
+fn no_quarters_blocker_role_and_event_subject_compile_identically() {
+    corpus::on_large_stack(|| {
+        let card = source_face("No Quarter");
+        let mut alternate = card.clone();
+        let mut abilities = serde_json::to_value(&card.abilities).unwrap();
+        fn explicit_blocker(value: &mut Value) -> usize {
+            if value["kind"] == "ObjectProperty"
+                && value["args"]["object"]["kind"] == "EventSubject"
+            {
+                value["args"]["object"] = serde_json::json!({"kind":"BlockPair","args":"Blocker"});
+                return 1;
+            }
+            match value {
+                Value::Object(m) => m.values_mut().map(explicit_blocker).sum(),
+                Value::Array(a) => a.iter_mut().map(explicit_blocker).sum(),
+                _ => 0,
+            }
+        }
+        assert_eq!(explicit_blocker(&mut abilities[1]["args"]["event"]), 1);
+        alternate.abilities = serde_json::from_value(abilities).unwrap();
+        validate::card(&alternate).unwrap();
+        let original = mtgish_ast::cantrip::module(&card).unwrap();
+        let alternate = mtgish_ast::cantrip::module(&alternate).unwrap();
+        // Normalized IR fingerprints differ; every executable line agrees.
+        assert_eq!(
+            original.lines().skip(2).collect::<Vec<_>>(),
+            alternate.lines().skip(2).collect::<Vec<_>>()
+        );
+    });
+}
+
+#[test]
+#[cfg(feature = "cantrip")]
+fn satya_keeps_the_entire_created_token_receipt_for_token_multipliers() {
+    corpus::on_large_stack(|| {
+        let card = source_face("Satya, Aetherflux Genius");
+        let value = serde_json::to_value(&card.abilities).unwrap();
+        let sums = found(&value, "Aggregate");
+        assert!(sums.iter().any(|sum| sum["property"] == "ManaValue"
+            && sum["aggregation"] == "Sum"
+            && sum["objects"]["kind"] == "Created"));
+        // Doubling a requested MV-3 token yields a two-object receipt. Keeping
+        // both costs 6 energy, not the first object's 3; literal create-count
+        // one therefore does not justify scalarizing this follow-up.
+        let code = mtgish_ast::cantrip::module(&card).unwrap();
+        let payment = code.lines().find(|l| l.contains("Cost { energy:")).unwrap();
+        assert!(payment.contains("sum::<i64>()"));
+        assert!(!payment.contains("first().copied()"));
+    });
+}
+
+#[test]
+fn next_n_damage_is_a_quantity_budget_not_the_first_damage_occurrence() {
+    corpus::on_large_stack(|| {
+        let line = include_str!("fixtures/reference53_20261112.ronl")
+            .lines()
+            .find(|l| l.contains("Name: \"Ward of Piety\""))
+            .unwrap();
+        assert_eq!(line.matches("Integer(1)").count(), 1);
+        for n in [1, 3] {
+            let line = line.replace("Integer(1)", &format!("Integer({n})"));
+            let source: OracleCard = ron::from_str(&line).unwrap();
+            let card = unified::lower(&source);
+            assert!(card.diagnostics.is_empty());
+            validate::card(&card.card.faces[0]).unwrap();
+            let value = serde_json::to_value(&card.card.faces[0].abilities).unwrap();
+            let replacements = found(&value, "CreateReplacement");
+            assert_eq!(replacements.len(), 1);
+            assert_eq!(
+                replacements[0]["limit"],
+                serde_json::json!({"TotalDamage":{"kind":"Constant","args":n}})
+            );
+            assert!(
+                !found(&value, "RedirectDamage").is_empty()
+                    || value.to_string().contains("RedirectDamage")
+            );
+            assert!(!value.to_string().contains("RedirectSomeDamage"));
+        }
+    });
+}
+
+#[test]
+fn snowman_has_one_unlimited_prevention_over_both_damage_directions() {
+    corpus::on_large_stack(|| {
+        let card = source_face("Goblin Snowman");
+        let value = serde_json::to_value(&card.abilities).unwrap();
+        let prevention = found(&value, "CreateReplacement");
+        assert_eq!(prevention.len(), 1);
+        assert_eq!(prevention[0]["limit"], "UntilExpired");
+        let branches = prevention[0]["event"]["Either"].as_array().unwrap();
+        assert_eq!(branches.len(), 2);
+        assert!(branches.iter().all(|e| e["Damage"]["kind"] == "Combat"));
+    });
+}

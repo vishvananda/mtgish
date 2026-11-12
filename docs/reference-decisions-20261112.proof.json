@@ -6,16 +6,16 @@
   "original_mismatches": 53,
   "packet_source_records": 66,
   "packet_faces": 68,
-  "changed_source_records": 18,
-  "original_packet_changed_faces": 14,
+  "changed_source_records": 20,
+  "original_packet_changed_faces": 16,
   "correctness_faces": 11,
-  "equivalent_normal_form_faces": 3,
-  "unchanged_packet_faces": 39,
-  "matching_independent_proposal_now": 12,
-  "remaining_exact_differences": 41,
+  "equivalent_normal_form_faces": 5,
+  "unchanged_packet_faces": 37,
+  "matching_independent_proposal_now": 14,
+  "remaining_exact_differences": 39,
   "fresh_full_corpus_rescore": false,
   "generator_tests": {
-    "passed": 1591,
+    "passed": 1595,
     "failed": 0,
     "ignored": 22,
     "targets_including_doctests": 187
@@ -23,7 +23,7 @@
   "parser_tests": {
     "status": "passed",
     "command": "go test ./... -count=1",
-    "seconds": 92.301
+    "seconds": 73.538
   },
   "fixture_checks": {
     "all_packet_faces_validate_without_lowering_diagnostics": true,
@@ -31,28 +31,42 @@
     "full_53_programs_match_reviewed_expected": true,
     "saved_migrations_preserve_original_meaning_and_origins": true,
     "source_corpus_record_count_unchanged": 33529,
-    "original_audit_review_provenance_preserved": true
+    "original_audit_review_provenance_preserved": true,
+    "no_quarter_executable_code_identical_except_fingerprint_headers": true,
+    "satya_retains_full_created_token_receipt": true,
+    "ward_generic_quantity_regression_at_1_and_3": true,
+    "snowman_one_unlimited_bidirectional_prevention": true
   },
   "sha256": {
-    "data/mtgish.lines.ron": "cf8af9eb10b21b215f3e850fef7d316980ac321687a8a79c7fee027b9dcb0436",
-    "data/mtgish.lines.json": "05364d4d999e4d1fc00a5828561448dd17a0ec75edf26aabb550132d07eb7d3f",
-    "grammars/english_grammar.json5": "b113af12d59f5d8e11563859822886edb736decd700b65f2ce7926bf7be544bf",
-    "rust_syntax/normalize/tests/fixtures/reference53_20261112.ronl": "012dccff95c7683ae90d61c05e0719ace010bb9e2bb0d971c21d5e25c0f13fb9",
-    "rust_syntax/normalize/tests/fixtures/reference53_20261112_expected.json": "c95935d0e0200de9afae8a0cb280fb82260f5b2c0274531804108547d7825336",
-    "rust_syntax/normalize/tests/fixtures/reference53_source_20261112.ronl": "759532f57ccbdf77b4e0751fdb0ffe4fa1414aaab4045a06d5f942b10156ec02"
+    "data/mtgish.lines.ron": "fe248bf35858dfbb015b1998fc29029b0b3237996efc92a54807f3b5765156fb",
+    "data/mtgish.lines.json": "edfed42d4c797874961d064b7764d1eb440d1a0126c8ddbbe608a744faa4cf9c",
+    "grammars/english_grammar.json5": "03123200d23c9aadbcec257d4755cf2836f2c5a1c454f3463db0e0bc6d63fe99",
+    "rust_syntax/normalize/tests/fixtures/reference53_20261112.ronl": "4eac029f992c4749d9a38b2a9396d0bd5f55a598ca88226102d29784d2b9368d",
+    "rust_syntax/normalize/tests/fixtures/reference53_20261112_expected.json": "6e4764d4a04ab83f4be6a41a77078aadfdb300d210a930441627c63522146499",
+    "rust_syntax/normalize/tests/fixtures/reference53_source_20261112.ronl": "03fc86a50f2a8652398b4c515ec72557a74f065b5b43a11db729bff23d006051"
   },
   "log_sha256": {
-    "complete-generator-gate.log": "12bf67e931e3f24493de6a81ae4336663c21480196f738bcbdd03904ab5fcea3",
-    "final-parser-uncached-tests.log": "9f7b10ca38f3161f837b62fd03d200f1ed98d3846599a1b1947e4081d52385ba"
+    "complete-generator-gate.log": "c7b844513fe9cb27c5b24e593a6eacb262081a3fa6996bc3be03a5ec5f12ab51",
+    "full-parser-tests.log": "b461f2f8f6fcfa1ae8d53493ceff18d5e300ff8787af3189d5fb41b2c33f2f04",
+    "packet-tests.log": "24c0a162bbf458e82be18caa46efdeba5d9b79e4480dd3cb57542292492938f4",
+    "probe-tests.log": "8f1a999a91b68fc9f38ea2609bfadc5b60fad0196430ab0dbe01a9d499a84ba5"
   },
   "upstream_issues": [
     139,
     270,
     271,
-    272
+    272,
+    273
   ],
   "issue106_followup": "https://github.com/i5jb/mtgish/issues/106#issuecomment-6814939068",
   "engine_or_runtime_interface_changes": false,
   "new_ast_fields": false,
-  "oracle_grammar_worktree_modified": false
+  "oracle_grammar_worktree_modified": false,
+  "first_validated_batch": "2f4f673",
+  "final_nine_open_questions": 0,
+  "final_nine_disposition": {
+    "retained_reference": 7,
+    "producer_normal_forms": 2
+  },
+  "nine_native_runtime_simulations_claimed": false
 }

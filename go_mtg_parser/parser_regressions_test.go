@@ -75,11 +75,20 @@ func TestParserSemanticRegressions(t *testing.T) {
 	deathControl.Cards = append([]MtgJsonAtomic(nil), deathControl.Cards...)
 	deathControl.Cards[0].Text = strings.ReplaceAll(deathControl.Cards[0].Text, "if no creatures died this turn", "if a creature died this turn")
 	cards["Positive Death Trigger Control"] = deathControl
+	// A quantity shield must survive multiple smaller damage occurrences.
+	wardControl := cards["Ward of Piety"]
+	wardControl.Cards = append([]MtgJsonAtomic(nil), wardControl.Cards...)
+	if !strings.Contains(wardControl.Cards[0].Text, "next 1 damage") {
+		t.Fatal("missing Ward of Piety quantity control")
+	}
+	wardControl.Cards[0].Text = strings.Replace(wardControl.Cards[0].Text, "next 1 damage", "next 3 damage", 1)
+	cards["Three Point Redirection Control"] = wardControl
 	cases := []struct {
 		name     string
 		contains []string
 		excludes []string
 	}{
+		{"Three Point Redirection Control", []string{"NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(Integer(3), Permanent(HostPermanent))", "DealToAnyTargetInstead(Ref_AnyTarget)"}, []string{"NextTimeDamageWouldBeDealtThisTurnToRecipient", "DealSomeDamageToRecipientInstead"}},
 		{"Sami, Wildcat Captain", []string{"StackSpellsEffect(And([AnySpell, CastByPlayer(You)]), [Affinity(IsCardtype(Artifact))])"}, nil},
 		{"Tezzeret, Master of the Bridge", []string{"StackSpellsEffect(And([Or([IsCardtype(Creature), IsCardtype(Planeswalker)]), CastByPlayer(You)]), [Affinity(IsCardtype(Artifact))])", "CreateValueX("}, nil},
 		{"Mycosynth Golem", []string{"StackSpellsEffect(And([And([IsCardtype(Artifact), IsCardtype(Creature)]), CastByPlayer(You)]), [Affinity(IsCardtype(Artifact))])"}, nil},
