@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{canonical, corpus, ir::*, mtg_types::OracleCard, unified, validate};
 use serde_json::Value;
 fn card() -> Card {
@@ -19,7 +21,8 @@ fn trygon_keeps_one_batch_and_the_complete_independent_target_followup() {
         let expected: Vec<Ability> =
             serde_json::from_str(include_str!("fixtures/trygon_counter_timing_expected.json"))
                 .unwrap();
-        assert_eq!(normalized(&card.abilities), normalized(&expected));
+        fresh_producer::assert_named("trygon_counter_timing_expected.json", &card.name,
+            &normalized(&expected), &normalized(&card.abilities));
         let Ability::Triggered {
             announcement, body, ..
         } = &card.abilities[0]

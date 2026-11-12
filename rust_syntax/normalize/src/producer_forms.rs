@@ -30,6 +30,7 @@ fn normalize_value<T: Walk + WalkMut>(card: &mut T) {
     card.walk(&mut results);
     card.walk_mut(&mut Normalize {
         next_result: results.0.checked_add(1).expect("result id overflow"),
+        populations: Default::default(),
     });
 }
 
@@ -66,7 +67,7 @@ fn subject(event: &EventSpec) -> Option<ObjectRef> {
         }
         EventSpec::Attack { attackers, .. } => attackers,
         EventSpec::Filtered { event, .. } | EventSpec::FirstEachTurn(event) => {
-            return subject(event)
+            return subject(event);
         }
         EventSpec::AnyOf(events) => {
             let first = subject(events.first()?)?;
@@ -296,10 +297,96 @@ fn dependent(i: &Instruction, first: &ResultId) -> bool {
     }
 }
 
+fn stable_subject(event: &EventSpec) -> Option<ObjectRef> {
+    match event {
+        // The matcher can test an old object but bind its actual
+        // new arrival. Captured targets retain the old incarnation.
+        EventSpec::ZoneChange { .. } => None,
+        EventSpec::Filtered { event, .. } | EventSpec::FirstEachTurn(event) => {
+            stable_subject(event)
+        }
+        EventSpec::AnyOf(events) => {
+            let first = stable_subject(events.first()?)?;
+            events
+                .iter()
+                .all(|e| stable_subject(e).is_some_and(|s| same_object(&first, &s)))
+                .then_some(first)
+        }
+        _ => subject(event),
+    }
+}
+
 struct Normalize {
     next_result: u32,
+    populations: crate::target_populations::TargetPopulations,
 }
 impl VisitorMut for Normalize {
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        self.populations.push(false);
+        true
+    }
+    fn mode(&mut self, _: &mut Mode) -> bool {
+        self.populations.push(true);
+        true
+    }
+    fn mode_end(&mut self, _: &mut Mode) {
+        self.populations.pop();
+    }
+    fn target_spec(&mut self, target: &mut TargetSpec) -> bool {
+        self.populations.declare(target);
+        true
+    }
+    fn operation(&mut self, op: &mut Operation) -> bool {
+        // Bind the captured event subject before visiting its body: population
+        // cardinality then sees the final target reference on this same walk.
+        if let Operation::CreateTrigger {
+            event,
+            body,
+            intervening_if,
+            ..
+        } = op
+        {
+            if let Some(object @ ObjectRef::Target { .. }) = stable_subject(event) {
+                body.walk_mut(&mut Subject(object.clone()));
+                if let Some(c) = intervening_if {
+                    c.walk_mut(&mut Subject(object));
+                }
+            }
+        }
+        if matches!(
+            op,
+            Operation::CreateTrigger { .. }
+                | Operation::ReflexiveTrigger { .. }
+                | Operation::CreateDelayedTrigger { .. }
+                | Operation::CreateReplacement { .. }
+        ) {
+            self.populations.push(true);
+        }
+        true
+    }
+    fn cost(&mut self, _: &mut Cost) -> bool {
+        self.populations.cost_depth += 1;
+        true
+    }
+    fn cost_end(&mut self, _: &mut Cost) {
+        self.populations.cost_depth -= 1;
+    }
+    fn cost_part(&mut self, part: &mut CostPart) -> bool {
+        self.populations.cost_part(part);
+        true
+    }
+    fn object_set(&mut self, objects: &mut ObjectSet) -> bool {
+        self.populations.objects(objects);
+        true
+    }
+    fn player_set(&mut self, players: &mut PlayerSet) -> bool {
+        self.populations.players(players);
+        true
+    }
+    fn recipients(&mut self, recipients: &mut Recipients) -> bool {
+        self.populations.recipients(recipients);
+        true
+    }
     fn instruction_end(&mut self, i: &mut Instruction) {
         if let Instruction::If { condition: c, .. } = i {
             condition(c);
@@ -358,37 +445,8 @@ impl VisitorMut for Normalize {
         }
     }
     fn operation_end(&mut self, op: &mut Operation) {
-        if let Operation::CreateTrigger {
-            event,
-            body,
-            intervening_if,
-            ..
-        } = op
+        if let Operation::CreateTrigger { intervening_if, .. } = op
         {
-            fn stable_subject(event: &EventSpec) -> Option<ObjectRef> {
-                match event {
-                    // The matcher can test an old object but bind its actual
-                    // new arrival. Captured targets retain the old incarnation.
-                    EventSpec::ZoneChange { .. } => None,
-                    EventSpec::Filtered { event, .. } | EventSpec::FirstEachTurn(event) => {
-                        stable_subject(event)
-                    }
-                    EventSpec::AnyOf(events) => {
-                        let first = stable_subject(events.first()?)?;
-                        events
-                            .iter()
-                            .all(|e| stable_subject(e).is_some_and(|s| same_object(&first, &s)))
-                            .then_some(first)
-                    }
-                    _ => subject(event),
-                }
-            }
-            if let Some(object @ ObjectRef::Target { .. }) = stable_subject(event) {
-                body.walk_mut(&mut Subject(object.clone()));
-                if let Some(c) = intervening_if {
-                    c.walk_mut(&mut Subject(object));
-                }
-            }
             if let Some(c) = intervening_if {
                 condition(c);
             }
@@ -399,6 +457,15 @@ impl VisitorMut for Normalize {
         } = op
         {
             *actor = PlayerSet::One(PlayerRef::ControllerOf(Box::new(object.clone())));
+        }
+        if matches!(
+            op,
+            Operation::CreateTrigger { .. }
+                | Operation::ReflexiveTrigger { .. }
+                | Operation::CreateDelayedTrigger { .. }
+                | Operation::CreateReplacement { .. }
+        ) {
+            self.populations.pop();
         }
     }
     fn ability_end(&mut self, ability: &mut Ability) {
@@ -442,5 +509,10 @@ impl VisitorMut for Normalize {
                 condition(c);
             }
         }
+        self.populations.pop();
     }
 }
+
+#[cfg(test)]
+#[path = "target_populations_tests.rs"]
+mod target_populations_tests;

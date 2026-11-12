@@ -9,25 +9,17 @@ pub fn assert_matches(baseline: &str, saved: &Value, fresh: &Value) {
 }
 
 pub fn assert_named(baseline: &str, name: &str, saved: &Value, fresh: &Value) {
-    let reviewed: Value = serde_json::from_str(include_str!(
-        "../fixtures/reference_remaining30_fresh_changes.json"
-    ))
-    .unwrap();
     let mut expected = saved.clone();
-    if let Some(changes) = reviewed[baseline][name].as_array() {
-        for change in changes {
-            let path = change["path"].as_str().unwrap();
-            assert_eq!(
-                expected.pointer(path),
-                Some(&change["before"]),
-                "{baseline}/{name}: original {path}"
-            );
-            assert_eq!(
-                fresh.pointer(path),
-                Some(&change["after"]),
-                "{baseline}/{name}: current {path}"
-            );
-            *expected.pointer_mut(path).unwrap() = change["after"].clone();
+    for data in [include_str!("../fixtures/reference_remaining30_fresh_changes.json"),
+        include_str!("../fixtures/target_populations_fresh_changes_20261112.json")] {
+        let reviewed: Value=serde_json::from_str(data).unwrap();
+        if let Some(changes) = reviewed[baseline][name].as_array() {
+            for change in changes {
+                let path=change["path"].as_str().unwrap();
+                assert_eq!(expected.pointer(path),Some(&change["before"]),"{baseline}/{name}: original {path}");
+                assert_eq!(fresh.pointer(path),Some(&change["after"]),"{baseline}/{name}: current {path}");
+                *expected.pointer_mut(path).unwrap()=change["after"].clone();
+            }
         }
     }
     assert_eq!(

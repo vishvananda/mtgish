@@ -267,7 +267,11 @@ fn created_event_subjects_with_one_captured_target_use_that_target() {
                     found(&trigger["body"], "EventSubject").is_empty(),
                     "{name}: {trigger}"
                 );
-                assert!(!found(&trigger["body"], "Target").is_empty(), "{name}");
+                if name=="Niko Aris" {
+                    assert_eq!(found(&trigger["body"],"Targets"),vec![&json!(0)]);
+                } else {
+                    assert!(!found(&trigger["body"], "Target").is_empty(), "{name}");
+                }
             }
         }
         let value = abilities(&cards["Long River Lurker"]);

@@ -32,7 +32,19 @@ pub trait Visitor {
     fn expr(&mut self, _: &Expr) -> bool {
         true
     }
+    fn cost_part(&mut self, _: &CostPart) -> bool {
+        true
+    }
     fn cost(&mut self, _: &Cost) -> bool {
+        true
+    }
+    fn mode(&mut self, _: &Mode) -> bool {
+        true
+    }
+    fn player_set(&mut self, _: &PlayerSet) -> bool {
+        true
+    }
+    fn recipients(&mut self, _: &Recipients) -> bool {
         true
     }
     fn announcement(&mut self, _: &Announcement) -> bool {
@@ -99,10 +111,26 @@ pub trait VisitorMut {
         true
     }
     fn expr_end(&mut self, _: &mut Expr) {}
+    fn cost_part(&mut self, _: &mut CostPart) -> bool {
+        true
+    }
+    fn cost_part_end(&mut self, _: &mut CostPart) {}
     fn cost(&mut self, _: &mut Cost) -> bool {
         true
     }
     fn cost_end(&mut self, _: &mut Cost) {}
+    fn mode(&mut self, _: &mut Mode) -> bool {
+        true
+    }
+    fn mode_end(&mut self, _: &mut Mode) {}
+    fn player_set(&mut self, _: &mut PlayerSet) -> bool {
+        true
+    }
+    fn player_set_end(&mut self, _: &mut PlayerSet) {}
+    fn recipients(&mut self, _: &mut Recipients) -> bool {
+        true
+    }
+    fn recipients_end(&mut self, _: &mut Recipients) {}
     fn announcement(&mut self, _: &mut Announcement) -> bool {
         true
     }

@@ -14,7 +14,11 @@ const HOOKS: &[(&str, &str)] = &[
     ("PlayerRef", "player_ref"),
     ("Expr", "expr"),
     ("Cost", "cost"),
+    ("CostPart", "cost_part"),
     ("Announcement", "announcement"),
+    ("Mode", "mode"),
+    ("PlayerSet", "player_set"),
+    ("Recipients", "recipients"),
     ("TargetSpec", "target_spec"),
     ("EventSpec", "event_spec"),
 ];

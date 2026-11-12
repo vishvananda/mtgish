@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{canonical, corpus, ir::*, mtg_types::OracleCard, unified, validate};
 use serde_json::Value;
 
@@ -27,12 +29,8 @@ fn six_complete_shared_verb_programs_match_independent_batch_proposals() {
         for card in cards {
             validate::card(&card).unwrap_or_else(|e| panic!("{}: {e}", card.name));
             let want: Vec<Ability> = serde_json::from_value(expected[&card.name].clone()).unwrap();
-            assert_eq!(
-                normalized(&card.abilities),
-                normalized(&want),
-                "{}",
-                card.name
-            );
+            fresh_producer::assert_named("counter_timing_20261110_expected.json", &card.name,
+                &normalized(&want), &normalized(&card.abilities));
             let program = card
                 .abilities
                 .iter()

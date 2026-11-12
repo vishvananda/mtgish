@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{canonical, corpus, ir::*, mtg_types::OracleCard, unified, validate};
 use serde_json::Value;
 
@@ -23,12 +25,8 @@ fn reviewed_repairs_normal_forms_and_retained_contracts_match_complete_programs(
                 validate::card(card).unwrap_or_else(|e| panic!("{}: {e}", card.name));
                 let wanted: Vec<Ability> =
                     serde_json::from_value(expected[&card.name].clone()).unwrap();
-                assert_eq!(
-                    normalized(&card.abilities),
-                    normalized(&wanted),
-                    "{}",
-                    card.name
-                );
+                fresh_producer::assert_named("reference_decisions_20261111_expected.json", &card.name,
+                    &normalized(&wanted), &normalized(&card.abilities));
                 count += 1;
             }
         }

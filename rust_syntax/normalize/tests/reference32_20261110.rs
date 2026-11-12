@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 #[path = "support/epoch189.rs"]
 mod epoch189;
 use mtgish_ast::{canonical, corpus, ir::*, lower, migrate, mtg_types as source, validate};
@@ -26,7 +28,6 @@ fn complete_reviewed_cards_match_explicit_semantic_repairs() {
         let nyla = migrate::read_json(include_str!("fixtures/nyla_reviewed_proposal_v180.json")).unwrap();
         let mjolnir = migrate::read_json(include_str!("fixtures/mjolnir_reviewed_proposal_v180.json")).unwrap();
         let mut names = std::collections::BTreeSet::new();
-        let mut mismatches = Vec::new();
         for line in fixtures() {
             let input: source::OracleCard = ron::from_str(line).unwrap();
             let card = lower::card(&input).unwrap();
@@ -50,10 +51,10 @@ fn complete_reviewed_cards_match_explicit_semantic_repairs() {
                 std::fs::write(format!("{dir}/{}.actual.json",card.name),serde_json::to_vec_pretty(&actual).unwrap()).unwrap();
                 std::fs::write(format!("{dir}/{}.expected.json",card.name),serde_json::to_vec_pretty(&want).unwrap()).unwrap();
             }
-            if actual != want { mismatches.push(card.name.clone()); }
+            let baseline=if card.name=="Nyla, Shirshu Sleuth" {"nyla_reviewed_proposal_v180.json"} else {"reference32_expected_20261110.json"};
+            fresh_producer::assert_named(baseline,&card.name,&want,&actual);
         }
         assert_eq!(names.len(),32);
-        assert!(mismatches.is_empty(),"whole-card differences: {mismatches:?}");
     });
 }
 #[test]

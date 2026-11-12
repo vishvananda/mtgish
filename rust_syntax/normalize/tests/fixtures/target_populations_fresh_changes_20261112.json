@@ -1,0 +1,300 @@
+{
+  "api_layouts_v184.jsonl": {
+    "Alora, Cheerful Scout": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/body/instructions/0/args/operation/args/cost/parts/0/Move/selections/0/objects",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/body/instructions/0/args/operation/args/cost/parts/0/Move/selections/0/choose",
+        "before": null,
+        "after": {
+          "Exactly": {
+            "kind": "Constant",
+            "args": 1
+          }
+        },
+        "reason": "retain required singleton payment cardinality explicitly"
+      }
+    ],
+    "Aragorn, Company Leader": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/to/args",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ]
+  },
+  "keyword_payloads_v182.jsonl": {
+    "The Mind Stone": [
+      {
+        "path": "/faces/0/abilities/3/args/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ]
+  },
+  "mode_policies_v183.jsonl": {
+    "By Elspeth's Command": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/0/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ],
+    "Consider the Prime Directive": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/1/body/instructions/1/args/operation/args/placements/0/recipients/args",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ],
+    "Heritage Reclamation": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/2/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ],
+    "Sol'Kanar the Tainted": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/2/body/instructions/0/args/operation/args/recipients/args",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ]
+  },
+  "reference_decisions_20261111_expected.json": {
+    "Alora, Cheerful Scout": [
+      {
+        "path": "/0/args/body/instructions/1/args/operation/args/body/instructions/0/args/operation/args/cost/parts/0/Move/selections/0/objects",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      },
+      {
+        "path": "/0/args/body/instructions/1/args/operation/args/body/instructions/0/args/operation/args/cost/parts/0/Move/selections/0/choose",
+        "before": null,
+        "after": {
+          "Exactly": {
+            "kind": "Constant",
+            "args": 1
+          }
+        },
+        "reason": "retain required singleton payment cardinality explicitly"
+      }
+    ]
+  },
+  "reference32_expected_20261110.json": {
+    "Aragorn, Company Leader": [
+      {
+        "path": "/1/args/body/instructions/0/args/operation/args/to/args",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ]
+  },
+  "trygon_counter_timing_expected.json": {
+    "Trygon Prime": [
+      {
+        "path": "/0/args/body/instructions/0/args/operation/args/placements/1/recipients/args",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ]
+  },
+  "counter_timing_20261110_expected.json": {
+    "Drillworks Mole": [
+      {
+        "path": "/0/args/body/instructions/0/args/operation/args/placements/1/recipients/args",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ],
+    "River Heralds' Boon": [
+      {
+        "path": "/0/args/body/instructions/0/args/operation/args/placements/1/recipients/args",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 1,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 1
+        },
+        "reason": "optional target population"
+      }
+    ]
+  },
+  "nyla_reviewed_proposal_v180.json": {
+    "Nyla, Shirshu Sleuth": [
+      {
+        "path": "/0/args/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Target",
+            "args": {
+              "slot": 0,
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Targets",
+          "args": 0
+        },
+        "reason": "optional target population"
+      }
+    ]
+  }
+}

@@ -76,6 +76,17 @@ impl<'a> Scope<'a> {
         crate::cost_history::component(cost, path)
             .ok_or("payment history has an invalid component path".into())
     }
+    fn at_most_one(&self, objects: &ObjectSet) -> bool {
+        match objects {
+            ObjectSet::One(_) => true,
+            ObjectSet::Targets(slot) => self.slots.get(&slot.0).is_some_and(|spec| {
+                matches!(spec.count, Count::Exactly(Expr::Constant(1)) | Count::UpTo(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1)))
+            }),
+            ObjectSet::InZone { objects, .. } | ObjectSet::Matching { objects, .. }
+                | ObjectSet::Difference { objects, .. } => self.at_most_one(objects),
+            _ => false,
+        }
+    }
     fn singular_history(&self, objects: &ObjectSet, index: u32) -> bool {
         // "The second card exiled this way": what was performed keeps its order.
         if let ObjectSet::CostObjects {
@@ -96,8 +107,11 @@ impl<'a> Scope<'a> {
         if index != 0 {
             return false;
         }
-        if let ObjectSet::InZone { objects, .. } = objects {
-            return matches!(**objects, ObjectSet::One(_));
+        // An optional target population can contain no object, but never
+        // more than one. Index zero therefore needs no ordering, including
+        // through a zone or filtering qualification. Missing selects nothing.
+        if self.at_most_one(objects) {
+            return true;
         }
         // "The target card in that player's graveyard": one per owner.
         if let ObjectSet::Matching {

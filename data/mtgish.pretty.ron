@@ -37292,7 +37292,7 @@ Card(
         [
           UptoOneTargetPermanent(IsArtifactType(Equipment)),
           UptoOneTargetPermanent(And([
-            Other(Ref_TargetPermanent1),
+            Other(ThisPermanent),
             And([
               IsAttacking,
               IsCardtype(Creature),
@@ -677828,7 +677828,7 @@ Card(
           UptoNumberTargetPermanents(
             Integer(2),
             And([
-              Other(Ref_TargetPermanent),
+              Other(ThisPermanent),
               IsCardtype(Creature),
             ]),
           ),
@@ -1071829,7 +1071829,7 @@ Card(
           UptoNumberTargetPermanents(
             Integer(3),
             And([
-              Other(Ref_TargetPermanent),
+              Other(ThisPermanent),
               IsCardtype(Creature),
             ]),
           ),

@@ -42,14 +42,15 @@ fn bellowing_fiend_deals_both_parts_simultaneously_with_the_actual_damaged_creat
     );
 }
 
-fn two_target_damage(name: &str, source: &str, first_ability: usize) {
+fn two_target_damage(name: &str, source: &str, first_ability: usize, optional: bool) {
     let c = card(name);
     let damage = operation(&c, "DealDamageParts");
+    let second = if optional {json!({"kind":"Targets","args":1})} else {json!({"kind":"One","args":{"kind":"Target","args":{"slot":1,"index":0}}})};
     assert_eq!(
         *damage,
         json!({"source":{"kind":source},"preventable":true,"parts":[
             {"amount":{"kind":"Constant","args":3},"recipients":{"kind":"Targets","args":0}},
-            {"amount":{"kind":"Constant","args":3},"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"Target","args":{"slot":1,"index":0}}}}}
+            {"amount":{"kind":"Constant","args":3},"recipients":{"kind":"Objects","args":second}}
         ]})
     );
     let ability = &c["abilities"][first_ability]["args"];
@@ -62,7 +63,7 @@ fn two_target_damage(name: &str, source: &str, first_ability: usize) {
 
 #[test]
 fn burning_suns_avatar_preserves_two_damage_parts_even_when_both_slots_name_one_object() {
-    two_target_damage("Burning Sun's Avatar", "EventSubject", 0);
+    two_target_damage("Burning Sun's Avatar", "EventSubject", 0, true);
     let c = card("Burning Sun's Avatar");
     let targets = &c["abilities"][0]["args"]["announcement"]["targets"];
     assert_eq!(
@@ -77,7 +78,7 @@ fn burning_suns_avatar_preserves_two_damage_parts_even_when_both_slots_name_one_
 
 #[test]
 fn punish_the_enemy_keeps_both_required_targets_and_separate_damage_parts() {
-    two_target_damage("Punish the Enemy", "Source", 0);
+    two_target_damage("Punish the Enemy", "Source", 0, false);
     let c = card("Punish the Enemy");
     for target in c["abilities"][0]["args"]["announcement"]["targets"]
         .as_array()
