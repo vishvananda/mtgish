@@ -108,6 +108,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("nonmana-mana-tap-triggers", "pub const TAPPED_FOR_MANA: EventMask", &[]),
     ("keyword-family-metadata", "pub keyword_family: Option<KeywordFamily>,", &[]),
     ("combat-event-delays", "DelayedWhen::ThisCombat", &["event-trigger-for-end-of-combat"]),
+    ("computed-x", "pub x_rule: Option<XRule>,", &["engine-no-rule-on-an-ability-s-x"]),
     ("bands-with-other", "pub struct BandsWithOthersDef {", &["engine-no-bands-with-others", "engine-no-bands-with-others-granted", "losing-ability-any-bands-with-others"]),
     ("rechosen-values", "fn remember_chosen(&mut self, by: Linked, value: ChosenValue);", &["a-choice-of-number-made-again", "a-choice-of-color-made-again"]),
     ("hand-size-rules", "pub hand_size_rules: &'static [HandSizeRule],", &["a-maximum-hand-size-of-other-players"]),

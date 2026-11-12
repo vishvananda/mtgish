@@ -2290,8 +2290,12 @@ impl Compiler {
             }
             ActivationRule::XIs(NumberTest::Compare { comparison: Comparison::Equal, value: n }) | ActivationRule::XAtMost(n) => {
                 let exact = matches!(rule, ActivationRule::XIs(_));
-                let bound = self.asked_number(n)?;
                 let method = if exact { "x_is" } else { "x_at_most" };
+                if planned::switched_on(x_rules::FEATURE) {
+                    let callback = self.x_value_callback(n, &format!("{label}_{method}"))?;
+                    return Ok(format!("{def}.{method}({callback})"));
+                }
+                let bound = self.asked_number(n)?;
                 const FEATURE: &str = "engine: no rule on an ability's X";
                 // The number, asked as the ability is activated: a `fn` it holds.
                 let function = format!("{label}_{method}");

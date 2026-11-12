@@ -368,6 +368,61 @@ fn combat_event_watchers_expire_with_the_phase_without_claiming_blocker_control(
     let held=gaps(&candidate["Melee"]);assert!(!held.is_empty());
     assert!(held.iter().all(|g|*g=="player rule for a while Decides"));
 }
+fn computed_x_profiles() -> &'static (Rows,Rows) {
+    static ROWS:OnceLock<(Rows,Rows)>=OnceLock::new();
+    ROWS.get_or_init(|| {
+        let fixtures=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-computed-x-baseline.jsonl");
+        let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-computed-x-candidate.jsonl");
+        let source=fixtures.join("early_set_computed_x.ronl");let oracle=fixtures.join("early_set_computed_x.oracle.json");
+        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        let mut features=FOUNDATION.to_vec();features.extend(["computed-x","rechosen-values"]);
+        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        (read(&baseline),read(&candidate))
+    })
+}
+#[test]
+fn computed_x_costs_and_casting_limits_use_the_real_announcement_interface() {
+    let (baseline,candidate)=computed_x_profiles();assert_eq!(candidate.len(),5);
+    for (name,row) in candidate {
+        assert!(!gaps(&baseline[name]).is_empty());
+        assert!(!gaps(row).iter().any(|g|*g=="engine: no rule on an ability's X"||*g=="a limit on the X announced"),"{name}: {:?}",gaps(row));
+        syn::parse_file(code(row)).unwrap();
+    }
+    for name in ["Chromatic Armor","Voodoo Doll","Spoils of War","Winter's Chill"] { assert!(gaps(&candidate[name]).is_empty(),"{name}: {:?}",gaps(&candidate[name])); }
+    assert_eq!(gaps(&candidate["Reflecting Mirror"]),["a spell's target changed to a player"]);
+    for name in ["Chromatic Armor","Voodoo Doll","Reflecting Mirror"] {
+        let rust=code(&candidate[name]);assert!(rust.contains(".x_is("));assert!(rust.contains("targets: &[Target]) -> u32"));
+    }
+    assert!(code(&candidate["Reflecting Mirror"]).contains("targets.get(0)"));
+    assert!(code(&candidate["Spoils of War"]).contains("XRule::OfPlayer"));
+    assert!(code(&candidate["Spoils of War"]).contains("Some(player).into_iter()"));
+    assert!(code(&candidate["Spoils of War"]).contains("Zone::graveyard(p)"));
+    assert!(code(&candidate["Winter's Chill"]).contains("XRule::AtMost"));
+    // Casting an unsupported relation must not silently turn it into an equality.
+    use mtgish_ast::{ir::*,mtg_types::OracleCard,unified};
+    let source:OracleCard=ron::from_str(include_str!("fixtures/early_set_computed_x.ronl").lines().find(|l|l.contains("Name: \"Winter's Chill\"" )).unwrap()).unwrap();
+    let mut lowered=unified::lower(&source);
+    for ability in &mut lowered.card.faces[0].abilities {
+        if let Ability::Casting(CastingRule::Require(Condition::Compare {left:Expr::AnnouncedX,test:NumberTest::Compare {comparison,..}}))=ability { *comparison=Comparison::Greater; }
+    }
+    cantrip::planned::with_additional_features(&["computed-x"],|| {
+        let row=cantrip::whole(&source,&lowered.card).unwrap();
+        assert!(row.faces[0].gaps.iter().any(|g|g.feature=="a limit on the X announced"));
+    });
+}
+#[test]
+fn a_dynamic_effect_definition_is_not_silently_read_as_the_frozen_cost_x() {
+    use mtgish_ast::{ir::*,mtg_types::OracleCard,unified};
+    let source:OracleCard=ron::from_str(include_str!("fixtures/early_set_computed_x.ronl").lines().find(|l|l.contains("Name: \"Voodoo Doll\"" )).unwrap()).unwrap();
+    let mut lowered=unified::lower(&source);
+    let Ability::Activated {body,..}=&mut lowered.card.faces[0].abilities[2] else {panic!()};
+    *body=Program {instructions:vec![Instruction::Effect {result:ResultId(0),operation:Operation::Draw {players:PlayerSet::One(PlayerRef::AbilityController),amount:Expr::AnnouncedX}}]};
+    cantrip::planned::with_additional_features(&["computed-x"],|| {
+        let generated=cantrip::whole(&source,&lowered.card).unwrap();
+        assert!(generated.faces[0].gaps.iter().any(|g|g.feature=="dynamic text-defined X in an activated effect"));
+    });
+}
 fn code(row:&serde_json::Value)->&str { row["faces"][0]["rust"].as_str().unwrap() }
 #[test]
 fn foundation_removes_only_its_four_requirements_from_the_33_affected_cards() {
@@ -405,10 +460,10 @@ fn foundation_generated_cards_execute_in_cantrip() {
     let fixture=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let old=root.join("earlier-candidate.jsonl");
     cantrip::planned::with_additional_features(FOUNDATION,||cantrip::planned::tracked(&fixture.join("early_set_generator_gaps.ronl"),&fixture.join("early_set_generator_gaps.oracle.json"),&old).unwrap());
-    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());cards.extend(mana_tap_profiles().1.clone());cards.extend(attack_haste_profiles().1.clone());cards.extend(skip_step_profiles().1.clone());cards.extend(player_value_profiles().1.clone());cards.extend(band_profiles().1.clone());cards.extend(combat_delay_profiles().1.clone());
+    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());cards.extend(mana_tap_profiles().1.clone());cards.extend(attack_haste_profiles().1.clone());cards.extend(skip_step_profiles().1.clone());cards.extend(player_value_profiles().1.clone());cards.extend(band_profiles().1.clone());cards.extend(combat_delay_profiles().1.clone());cards.extend(computed_x_profiles().1.clone());
     // Modules actually used by these scenarios; candidate modules also have separate compile probes.
     // Cube and Doom counter declarations are intentionally separate from these runtime cases.
-    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth","Instill Energy","Chaos Lord","Glyph of Delusion","Stasis","Necropotence","Cursed Rack","Shapeshifter","Jin-Gitaxias, Core Augur","Adventurers' Guildhouse","Cathedral of Serra","Master of the Hunt","Mountain Stronghold","Seafarer's Quay","Shelkin Brownie","Tolaria","Unholy Citadel","Goblin Flotilla"];
+    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth","Instill Energy","Chaos Lord","Glyph of Delusion","Stasis","Necropotence","Cursed Rack","Shapeshifter","Jin-Gitaxias, Core Augur","Adventurers' Guildhouse","Cathedral of Serra","Master of the Hunt","Mountain Stronghold","Seafarer's Quay","Shelkin Brownie","Tolaria","Unholy Citadel","Goblin Flotilla","Chromatic Armor","Voodoo Doll","Spoils of War","Winter's Chill"];
     let mut lib=String::from("#![allow(dead_code,unused_imports,unused_variables,unused_mut)]\n");
     for name in modules {
         let row=&cards[name];assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
@@ -432,6 +487,7 @@ fn foundation_generated_cards_execute_in_cantrip() {
     lib.push_str(include_str!("fixtures/early_set_player_values_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_bands_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_combat_delays_scenarios.rs"));
+    lib.push_str(include_str!("fixtures/early_set_computed_x_scenarios.rs"));
     fs::write(root.join("src/lib.rs"),lib).unwrap();
     let mut manifest=String::from("[package]\nname=\"mtgish-foundation-runtime\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\n");
     for name in ["cantrip-api","cantrip-state","cantrip-mechanics","cantrip-rules"] {manifest.push_str(&format!("{name}={{path={:?}}}\n",checkout.join("crates").join(name)));}

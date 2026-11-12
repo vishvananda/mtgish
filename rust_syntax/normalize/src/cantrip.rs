@@ -53,6 +53,7 @@ mod replacements;
 mod statics;
 mod survey;
 mod triggers;
+mod x_rules;
 pub use crate::report::BackendDiagnostic as Diagnostic;
 use effects::rule_name;
 pub use lane_f::{is_card, whole, whole_gaps, whole_module, whole_printed, Whole, WholeFace};
@@ -160,6 +161,10 @@ fn generator_fingerprint() -> &'static str {
             (
                 "cantrip/casting.rs",
                 include_bytes!("cantrip/casting.rs").as_slice(),
+            ),
+            (
+                "cantrip/x_rules.rs",
+                include_bytes!("cantrip/x_rules.rs").as_slice(),
             ),
             (
                 "cantrip/costs.rs",

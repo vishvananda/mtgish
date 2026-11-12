@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Chromatic Armor",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Chromatic Armor",
+        "manaCost": "{1}{W}{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nAs this Aura enters, choose a color.\nThis Aura enters with a sleight counter on it.\nPrevent all damage that would be dealt to enchanted creature by sources of the last chosen color.\n{X}: Put a sleight counter on this Aura and choose a color. X is the number of sleight counters on this Aura."
+      }
+    ]
+  },
+  {
+    "name": "Reflecting Mirror",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Reflecting Mirror",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{X}, {T}: Change the target of target spell with a single target if that target is you. The new target must be a player. X is twice the mana value of that spell."
+      }
+    ]
+  },
+  {
+    "name": "Spoils of War",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Spoils of War",
+        "manaCost": "{X}{B}",
+        "type": "Sorcery",
+        "text": "X is the number of artifact and/or creature cards in an opponent's graveyard as you cast this spell.\nDistribute X +1/+1 counters among any number of target creatures."
+      }
+    ]
+  },
+  {
+    "name": "Voodoo Doll",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Voodoo Doll",
+        "manaCost": "{6}",
+        "type": "Artifact",
+        "text": "At the beginning of your upkeep, put a pin counter on this artifact.\nAt the beginning of your end step, if this artifact is untapped, destroy this artifact and it deals damage to you equal to the number of pin counters on it.\n{X}{X}, {T}: This artifact deals damage equal to the number of pin counters on it to any target. X is the number of pin counters on this artifact."
+      }
+    ]
+  },
+  {
+    "name": "Winter's Chill",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Winter's Chill",
+        "manaCost": "{X}{U}",
+        "type": "Instant",
+        "text": "Cast this spell only during combat before blockers are declared.\nX can't be greater than the number of snow lands you control.\nChoose X target attacking creatures. For each of those creatures, its controller may pay {1} or {2}. If that player doesn't, destroy that creature at end of combat. If that player pays only {1}, prevent all combat damage that would be dealt to and dealt by that creature this combat."
+      }
+    ]
+  }
+]

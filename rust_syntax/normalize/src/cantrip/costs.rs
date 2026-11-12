@@ -883,6 +883,9 @@ impl Compiler {
         body: &Program,
         scope: Option<Scope>,
     ) -> Result<String> {
+        if planned::switched_on(x_rules::FEATURE) && x_rules::unresolved_effect_x(limits, body) {
+            return Err(gap("dynamic text-defined X in an activated effect"));
+        }
         let waterbent = waterbend_as_mana(price);
         let price = waterbent.as_ref().unwrap_or(price);
         let text = self.said(lane_k::Said::Activated, ability_text(body));

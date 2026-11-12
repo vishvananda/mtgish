@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`4494834c7`. Seventeen focused feature groups are implemented. The new step-deadline
+`47fd50a31`. Eighteen focused feature groups are implemented. The step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **202 generate without recorded feature gaps and 84
-remain gapped**. Those 202 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **206 generate without recorded feature gaps and 80
+remain gapped**. Those 206 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 94 raw requirement labels
+remaining requirement and its affected cards. Its 92 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -172,7 +172,7 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --features cantri
   landwalk-blocking-exceptions independent-pt-settings \
   no-combat-damage-assignment world-rule other-activators \
   step-deadlines counted-untap-steps explicit-mana-loss random-discard-costs \
-  keyword-family-metadata untap-limits nonmana-mana-tap-triggers attack-as-though-haste skip-steps hand-size-rules rechosen-values bands-with-other combat-event-delays
+  keyword-family-metadata untap-limits nonmana-mana-tap-triggers attack-as-though-haste skip-steps hand-size-rules rechosen-values bands-with-other combat-event-delays computed-x
 ```
 
 These flags explicitly select capabilities; they do not prove that an engine
@@ -191,5 +191,14 @@ combined suite is rerun serialized for the batch receipt.
 
 The user narrowed the next stopping milestone to the [shared five-card and
 three-card groups](cantrip-foundation-shared-stop-20261112.md). Finish those
-seven families, run the batched gates, then pause. Independent two-card and
+six remaining families, run the batched gates, then pause. Independent two-card and
 single-card work is deferred for focused engine-plus-card PRs.
+
+The [computed-X checkpoint](cantrip-foundation-computed-x-20261112.md) clears
+Chromatic Armor, Voodoo Doll, Spoils of War and Winter's Chill. Reflecting Mirror
+retains only its player-retargeting requirement. The final complete native gate
+passes 22,642 tests (15 ignored, 236 targets); the generated runtime probe passes
+56 scenarios, and 206 ready modules plus Mirror's partial callback control
+type-check. These probes require the documented names-only Pin/Sleight counter
+overlay; the native branch's counter vocabulary is unchanged. The earlier
+202-module compilation receipt above describes the preceding checkpoint.

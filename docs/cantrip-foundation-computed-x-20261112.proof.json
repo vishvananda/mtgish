@@ -1,0 +1,114 @@
+{
+  "date": "2026-11-12",
+  "native_branch": "engine/early-set-foundation-20261112",
+  "native_commit": "47fd50a3195aab5107bfa2ae5d226af88a7acc64",
+  "schema": 190,
+  "default_api_pin_advanced": false,
+  "api_fingerprint": "ae317ffcaad2617f2f425ffb381fc0b4134add4990fdae8d37926df7a65d984a",
+  "scope": {
+    "cards": 286,
+    "ready": 206,
+    "gapped": 80,
+    "raw_labels": 92,
+    "newly_ready": [
+      "Chromatic Armor",
+      "Spoils of War",
+      "Voodoo Doll",
+      "Winter's Chill"
+    ],
+    "mirror_remaining": [
+      "a spell's target changed to a player"
+    ],
+    "other_gap_lists_unchanged": true
+  },
+  "validation": {
+    "native_workspace": {
+      "passed": 22642,
+      "ignored": 15,
+      "targets": 236,
+      "exit": 0
+    },
+    "native_focused": 10,
+    "rules_lib": {
+      "passed": 1467,
+      "ignored": 1
+    },
+    "runtime_scenarios": 56,
+    "ready_modules_compiled": 206,
+    "partial_callback_controls": [
+      "Reflecting Mirror"
+    ],
+    "workspace_typecheck": true,
+    "generator_foundation": {
+      "passed": 20,
+      "ignored": 1
+    },
+    "generator_workspace_before_codsworth": {
+      "passed": 2016,
+      "ignored": 24,
+      "targets": 196,
+      "exit": 0
+    },
+    "dotnet": "SDK unavailable; no pass claimed",
+    "generator_workspace_final": {
+      "passed": 2018,
+      "ignored": 24,
+      "targets": 197,
+      "exit": 0,
+      "log": "/mnt/vizier/reference-codsworth-20261112/rust-workspace-tests.log"
+    }
+  },
+  "counter_prerequisites": {
+    "Pin": 94,
+    "Sleight": 95,
+    "names_only_overlay": true,
+    "native_vocabulary_changed": false,
+    "per_object_counter_entries_added_in_overlay": 2
+  },
+  "performance": {
+    "games_per_run": 128,
+    "allocation_kb_per_decision": 27.04,
+    "statistical_speed_claim": false,
+    "runs": [
+      {
+        "run": "before-fast-a",
+        "engine_us": 74.45,
+        "allocation_kb": 27.04
+      },
+      {
+        "run": "after-fast-a",
+        "engine_us": 50.89,
+        "allocation_kb": 27.04
+      },
+      {
+        "run": "after-fast-b",
+        "engine_us": 48.86,
+        "allocation_kb": 27.04
+      },
+      {
+        "run": "before-fast-b",
+        "engine_us": 47.92,
+        "allocation_kb": 27.04
+      }
+    ]
+  },
+  "evidence_root": "/mnt/vizier/early-set-foundation-20261112",
+  "sha256": {
+    "computed-x-scope-result.json": "921b3103d333db08827a30401eb3fdd28bb2b7891d29f0dc353cb1ad1b8b2e7d",
+    "computed-x-ready-compile.log": "35333a2ec736ea3f439d7e18ea1792a818f989c254073cfea2b79273c1d183d1",
+    "computed-x-final-native-runtime.log": "d0c09b8ab244decdf381557cb81b0d75807b20a11ec4bd0d87951826054a64ba",
+    "computed-x-final-all-rules-tests.log": "8c0733e7cd3aef24beeae6c4a4301edffa5ac436d66683b91f95d0a77a9d0b05",
+    "computed-x-tests-resumed.log": "e7f0730f09d91e491bfa236c7f4c2f83137a05d2716b855f07dd7824a69d9dc5",
+    "computed-x-workspace-check.log": "477b2264e7a07bb4da326fce1a216058bee29c367689364c60a06f0c717f5911",
+    "workspace-computed-x-final-tests.log": "19cfc57d242d92a45f1dcf33b7bd90ecf4f6e0b03eeafaeb05da0a98d5e59720",
+    "generator-computed-x-suite.log": "09bac011bf086aaad44616c0d1e287407d94450c082802de02c4950042fe63e8",
+    "computed-x-foundation-tests.log": "205ad803fa41ae3e864f0ff9c43d11235ee2deb2f6bbb8a07855ff7f30951a5d",
+    "benchmark-computed-x-fast-path-summary.json": "711c3b2eb1b0f0d7d9bae687c2139af5a5af75395de8d5e1510958c0f368c2be",
+    "counter-overlay-manifest.json": "cb5f43f315c3857631f059629915c62d212ab1abe056ef8c36eba94743bc0c37",
+    "counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
+    "full-scope/source-corrected.ronl": "1037ba5d73a9e4a9c5e8e179119252bf3bda99cc73d78ba2db95960051f1108c",
+    "full-scope/computed-x-feature-rows.jsonl": "cb279935395f27651cea8781d99b5a770db6b7f627039d7ea0477a493c7e6313",
+    "computed-x-features.json": "39910398da30a6709505fbcf99d6a21020327295a04efd57256a4070aa82234d",
+    "/mnt/vizier/reference-codsworth-20261112/rust-workspace-tests.log": "b491a3f1d1d83610e06a07f3ee08b2f53a4e67b30c6e29a3d5d1567563eb4958"
+  }
+}

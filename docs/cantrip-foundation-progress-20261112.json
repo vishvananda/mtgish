@@ -1,5 +1,5 @@
 {
-  "native_foundation": "4494834c7",
+  "native_foundation": "47fd50a31",
   "scoped_missing": 286,
   "generation_ready": [
     "Adventurers' Guildhouse",
@@ -19,6 +19,7 @@
     "Cathedral of Serra",
     "Chaos Lord",
     "Chaos Moon",
+    "Chromatic Armor",
     "Cleansing",
     "Clergy of the Holy Nimbus",
     "Cloak of Confusion",
@@ -163,6 +164,7 @@
     "Smoke",
     "Soul Exchange",
     "Spirit Shackle",
+    "Spoils of War",
     "Staff of the Ages",
     "Stasis",
     "Stench of Evil",
@@ -194,6 +196,7 @@
     "Venomous Breath",
     "Vesuvan Doppelganger",
     "Vexing Arcanix",
+    "Voodoo Doll",
     "Wall of Putrid Flesh",
     "Wall of Tombstones",
     "Wand of Ith",
@@ -201,6 +204,7 @@
     "Whirling Dervish",
     "Winds of Change",
     "Winter Orb",
+    "Winter's Chill",
     "Wood Elemental",
     "Xenic Poltergeist",
     "Yawgmoth Demon"
@@ -228,9 +232,6 @@
     "Caverns of Despair": [
       "static rule CombatGroup Attacker",
       "static rule CombatGroup Blocker"
-    ],
-    "Chromatic Armor": [
-      "engine: no rule on an ability's X"
     ],
     "City in a Bottle": [
       "object collection EventGroup",
@@ -417,8 +418,7 @@
       "static rule CombatCost other than mana"
     ],
     "Reflecting Mirror": [
-      "a spell's target changed to a player",
-      "engine: no rule on an ability's X"
+      "a spell's target changed to a player"
     ],
     "Revelation": [
       "a hand played revealed"
@@ -450,9 +450,6 @@
       "engine: no rule on the mana spent on a spell",
       "numeric expression ManaOf"
     ],
-    "Spoils of War": [
-      "a limit on the X announced"
-    ],
     "Stangg": [
       "event trigger carrying values"
     ],
@@ -472,17 +469,11 @@
       "operation Note",
       "several objects arriving attached"
     ],
-    "Voodoo Doll": [
-      "engine: no rule on an ability's X"
-    ],
     "Wall of Shadows": [
       "object filter CanTargetOnly"
     ],
     "Whippoorwill": [
       "continuous rule Unique"
-    ],
-    "Winter's Chill": [
-      "a limit on the X announced"
     ],
     "Word of Command": [
       "operation PickFromHand"
@@ -503,16 +494,6 @@
         "Enduring Renewal",
         "Revelation",
         "Zur's Weirding"
-      ]
-    },
-    {
-      "feature": "engine: no rule on an ability's X",
-      "affected": 3,
-      "sole_blocker": 2,
-      "cards": [
-        "Chromatic Armor",
-        "Reflecting Mirror",
-        "Voodoo Doll"
       ]
     },
     {
@@ -563,15 +544,6 @@
         "Cuombajj Witches",
         "Nova Pentacle",
         "Preacher"
-      ]
-    },
-    {
-      "feature": "a limit on the X announced",
-      "affected": 2,
-      "sole_blocker": 2,
-      "cards": [
-        "Spoils of War",
-        "Winter's Chill"
       ]
     },
     {
@@ -699,7 +671,7 @@
     {
       "feature": "a spell's target changed to a player",
       "affected": 1,
-      "sole_blocker": 0,
+      "sole_blocker": 1,
       "cards": [
         "Reflecting Mirror"
       ]
@@ -1591,27 +1563,27 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 52,
+    "generated_runtime_scenarios": 56,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
     "focused_random_discard_costs": 4,
     "full_generator": {
-      "passed": 2005,
+      "passed": 2018,
       "failed": 0,
       "ignored": 24,
-      "targets": 194,
-      "log": "generator-sixteen-suite.log",
-      "revision": "working tree based on cb24df1",
-      "scope": "entire rust_syntax workspace with cantrip"
+      "targets": 197,
+      "log": "/mnt/vizier/reference-codsworth-20261112/rust-workspace-tests.log",
+      "revision": "computed-X working tree plus Codsworth reference fix 7d5544b",
+      "scope": "entire rust_syntax workspace with cantrip; terminal exit 0"
     },
     "full_native_last_pass": {
-      "passed": 22625,
+      "passed": 22642,
       "failed": 0,
       "ignored": 15,
       "targets": 236,
-      "log": "workspace-sixteen-tests.log",
-      "revision": "bc15adfec",
+      "log": "workspace-computed-x-final-tests.log",
+      "revision": "47fd50a31",
       "scope": "native workspace"
     },
     "focused_keyword_families": 2,
@@ -1619,10 +1591,16 @@
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 202,
-      "pending_named_counters": {},
-      "log": "generator-combat-delays-ready-compile.log",
-      "revision": "4494834c7"
+      "passed": 206,
+      "partial_callback_controls": [
+        "Reflecting Mirror"
+      ],
+      "pending_named_counters": {
+        "Pin": 94,
+        "Sleight": 95
+      },
+      "log": "computed-x-ready-compile.log",
+      "revision": "47fd50a31"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1655,23 +1633,24 @@
       "log": "combat-delayed-tests.log"
     },
     "all_rules_lib_current": {
-      "passed": 1457,
+      "passed": 1467,
       "ignored": 1,
-      "log": "combat-delayed-all-rules-tests.log"
+      "log": "computed-x-final-all-rules-tests.log"
     },
     "generator_foundation_tests_current": {
-      "passed": 18,
+      "passed": 20,
       "ignored": 1,
-      "log": "generator-combat-delays-tests.log"
+      "log": "computed-x-foundation-tests.log"
     },
     "full_batch_pending": "After remaining shared five-card/three-card groups, before the user-requested pause.",
     "source_correction_audit": {
       "records": 286,
-      "ready": 202,
-      "gapped": 84,
-      "ready_rows_byte_identical_to_previous": true,
-      "log": "generator-mirror-corrected-scope.log"
-    }
+      "ready": 206,
+      "gapped": 80,
+      "unchanged_other_gap_lists": true,
+      "log": "computed-x-scope.log"
+    },
+    "focused_computed_x": 10
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1764,34 +1743,69 @@
     "generator-combat-delays-scope.log": "2b3e0f804ced97bbe60903f7c8dfbb385daf98ccc17cfc212ca572d774ddf77d",
     "generator-combat-delays-ready-compile.log": "6d92cb7d7b8c407ebc6acb580e5c0bd1f2fb13a62dbd8a9affd3f5644042804f",
     "benchmark-combat-delays-after.log": "6c06a59916aa528b9f5fcc2bdc3d5fe9cc0b713c34d6655cf9acc30c35294730",
-    "generator-mirror-corrected-scope.log": "b6d0784c6ffc2a578e86da31c948f9f88ae4861f2311349d1b3f2c65abe48c01"
+    "generator-mirror-corrected-scope.log": "b6d0784c6ffc2a578e86da31c948f9f88ae4861f2311349d1b3f2c65abe48c01",
+    "workspace-computed-x-final-tests.log": "19cfc57d242d92a45f1dcf33b7bd90ecf4f6e0b03eeafaeb05da0a98d5e59720",
+    "computed-x-final-all-rules-tests.log": "8c0733e7cd3aef24beeae6c4a4301edffa5ac436d66683b91f95d0a77a9d0b05",
+    "computed-x-final-native-runtime.log": "d0c09b8ab244decdf381557cb81b0d75807b20a11ec4bd0d87951826054a64ba",
+    "computed-x-workspace-check.log": "477b2264e7a07bb4da326fce1a216058bee29c367689364c60a06f0c717f5911",
+    "generator-computed-x-suite.log": "09bac011bf086aaad44616c0d1e287407d94450c082802de02c4950042fe63e8",
+    "computed-x-ready-compile.log": "35333a2ec736ea3f439d7e18ea1792a818f989c254073cfea2b79273c1d183d1",
+    "computed-x-scope-result.json": "921b3103d333db08827a30401eb3fdd28bb2b7891d29f0dc353cb1ad1b8b2e7d",
+    "benchmark-computed-x-fast-path-summary.json": "711c3b2eb1b0f0d7d9bae687c2139af5a5af75395de8d5e1510958c0f368c2be",
+    "/mnt/vizier/reference-codsworth-20261112/rust-workspace-tests.log": "b491a3f1d1d83610e06a07f3ee08b2f53a4e67b30c6e29a3d5d1567563eb4958"
   },
-  "candidate_api_fingerprint": "0770b864482c3382c14df19adfb3de771c561f23e3ccccb634d4a0098ac0eb3c",
+  "candidate_api_fingerprint": "ae317ffcaad2617f2f425ffb381fc0b4134add4990fdae8d37926df7a65d984a",
   "benchmark_current_batch": {
     "games": 128,
-    "control_native_revision": "bc15adfec",
-    "native_revision": "4494834c7",
-    "control_engine_us": 45.61,
-    "after_control_engine_us": 43.61,
+    "control_native_revision": "4494834c7",
+    "native_revision": "47fd50a31",
+    "control_engine_us": 44.8,
+    "initial_after_engine_us": 48.18,
     "allocation_kb_per_decision": 27.04,
     "control_allocation_kb_per_decision": 27.04,
+    "interleaved_fast_path_runs": [
+      {
+        "run": "before-fast-a",
+        "engine_us": 74.45,
+        "allocation_kb": 27.04
+      },
+      {
+        "run": "after-fast-a",
+        "engine_us": 50.89,
+        "allocation_kb": 27.04
+      },
+      {
+        "run": "after-fast-b",
+        "engine_us": 48.86,
+        "allocation_kb": 27.04
+      },
+      {
+        "run": "before-fast-b",
+        "engine_us": 47.92,
+        "allocation_kb": 27.04
+      }
+    ],
     "shared_machine": true,
     "statistical_speed_claim": false,
-    "sequential_control_runs": true,
-    "game_paths_differ": false
+    "same_binary_variability_us": [
+      47.92,
+      74.45
+    ]
   },
   "stopping_milestone": {
     "instruction": "Finish computed X and all six shared three-card groups, then pause.",
     "decision_doc": "cantrip-foundation-shared-stop-20261112.md",
     "defer": "Independent two-card and single-card features; prefer focused engine-plus-card PRs.",
     "pending_families": [
-      "computed-x",
       "revealed-hands",
       "combat-group-constraints",
       "nonmana-combat-costs",
       "other-player-targets",
       "combat-relationship-changes",
       "noted-values"
+    ],
+    "completed_families": [
+      "computed-x"
     ]
   }
 }

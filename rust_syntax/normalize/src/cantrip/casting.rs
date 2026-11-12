@@ -531,6 +531,11 @@ impl Compiler {
                     .is_some_and(|cost| cost.contains("VariableCost::BlightX"))
                 && format!("{right:?}").contains("Toughness")
                 && format!("{right:?}").contains("Maximum") => {}
+            CastingRule::Require(required) if condition.is_none() && planned::switched_on(x_rules::FEATURE)
+                && matches!(required, Condition::Compare { left: Expr::AnnouncedX, test: NumberTest::Compare { comparison: Comparison::Equal | Comparison::LessOrEqual, .. } }) => {
+                let rule = self.printed_spell_x(required, label)?.expect("matched X definition or limit");
+                one_field(parts, "x_rule", format!("Some({rule})"))?;
+            }
             // A test of what may be cast has no X to read: none is announced yet.
             CastingRule::Require(required)
                 if condition.is_none() && format!("{required:?}").contains("AnnouncedX") =>
