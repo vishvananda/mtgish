@@ -6147,49 +6147,69 @@
         "body": {
           "instructions": [
             {
-              "kind": "Effect",
+              "kind": "ForEachPlayer",
               "args": {
-                "result": 0,
-                "operation": {
-                  "kind": "DealDamage",
+                "players": {
+                  "kind": "OpponentsOf",
                   "args": {
-                    "source": {
-                      "kind": "Source"
-                    },
-                    "recipients": {
-                      "kind": "Players",
+                    "kind": "AbilityController"
+                  }
+                },
+                "binding": 0,
+                "starting_with": null,
+                "in_chosen_direction": false,
+                "body": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
                       "args": {
-                        "kind": "OpponentsOf",
-                        "args": {
-                          "kind": "AbilityController"
-                        }
-                      }
-                    },
-                    "amount": {
-                      "kind": "CountObjects",
-                      "args": {
-                        "kind": "Zone",
-                        "args": {
-                          "scope": {
-                            "Players": {
-                              "zone": "Hand",
-                              "players": {
+                        "result": 4294967295,
+                        "operation": {
+                          "kind": "DealDamage",
+                          "args": {
+                            "source": {
+                              "kind": "Source"
+                            },
+                            "recipients": {
+                              "kind": "Players",
+                              "args": {
                                 "kind": "One",
                                 "args": {
-                                  "kind": "Acting"
+                                  "kind": "Bound",
+                                  "args": 0
                                 }
                               }
-                            }
-                          },
-                          "kind": "Card",
-                          "filter": {
-                            "kind": "Any"
+                            },
+                            "amount": {
+                              "kind": "CountObjects",
+                              "args": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Hand",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Bound",
+                                          "args": 0
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              }
+                            },
+                            "preventable": true
                           }
                         }
                       }
-                    },
-                    "preventable": true
-                  }
+                    }
+                  ]
                 }
               }
             }

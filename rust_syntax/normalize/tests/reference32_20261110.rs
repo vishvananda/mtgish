@@ -38,7 +38,14 @@ fn complete_reviewed_cards_match_explicit_semantic_repairs() {
             } else if card.name == "Mjölnir, Storm Hammer" {
                 serde_json::to_value(&mjolnir.faces[0].abilities).unwrap()
             } else { expected[&card.name].clone() };
-            let want = canonical_abilities(want);
+            let mut want = canonical_abilities(want);
+            if card.name == "Nyla, Shirshu Sleuth" {
+                // The historical reviewed proposal is not rewritten by migration.
+                // Fresh Source checks the exiled card's After characteristics.
+                let phase = &mut want[0]["args"]["body"]["instructions"][1]["args"]["condition"]["args"]["left"]["args"]["args"]["objects"]["args"]["phase"];
+                assert_eq!(*phase, json!("Before"));
+                *phase = json!("After");
+            }
             if let Ok(dir) = std::env::var("REFERENCE_FIX_EVIDENCE") {
                 std::fs::write(format!("{dir}/{}.actual.json",card.name),serde_json::to_vec_pretty(&actual).unwrap()).unwrap();
                 std::fs::write(format!("{dir}/{}.expected.json",card.name),serde_json::to_vec_pretty(&want).unwrap()).unwrap();

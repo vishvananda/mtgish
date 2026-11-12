@@ -464,7 +464,6 @@ impl Context {
     /// Damage forms that differ only in who deals it and how the amount is read.
     fn damage_action(&mut self, value: &source::Action) -> Option<Result<Instruction>> {
         use source::Action as S;
-        let source = Ok(ObjectRef::Source);
         let operation = match value {
             S::PermanentDealsDamageForEach(permanent, amount, recipients, each) => {
                 self.deal(self.object(permanent), self.per_each(amount, each), recipients)
@@ -492,7 +491,9 @@ impl Context {
             | S::EmblemDealsDamage(source::Emblem::ThisEmblem, amount, recipients)
             | S::DeadGuestPermanentDealsDamage(amount, recipients)
             | S::PermanentOrDeadPermanentDealsDamage(amount, recipients) => {
-                self.deal(source, self.number(amount), recipients)
+                return Some(self.damage_each_recipient(
+                    ObjectRef::Source, amount, recipients, true,
+                ));
             }
             S::SpellDealsDamageDividedAmongRecipientsRoundedDown(spell, amount, recipients) => self
                 .deal_with(

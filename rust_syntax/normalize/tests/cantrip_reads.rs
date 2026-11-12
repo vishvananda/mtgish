@@ -44,8 +44,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Inferno Trap", "dealt.chars(q)"),
     // "Abilities that aren't mana abilities" is all a ban is told.
     ("Karn's Sylex", "matches!(costing, CostFor::Ability)"),
-    // Their own or the total: only the printed line says.
-    ("Minds Aglow", "an amount read by each player as their own"),
+    // The corrected join-forces producer explicitly names the shared total.
+    ("Minds Aglow", "done_total_"),
     // "Your choice", which the data says of no one.
     ("Hinder", "counter into OwnersLibraryTopOrBottom"),
     ("Ilharg, the Raze-Boar", "may_put_onto_battlefield_attacking"),

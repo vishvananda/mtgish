@@ -246,7 +246,7 @@ struct Context {
     narrowed_choice: Option<ResultId>,
     extra_turn: Option<ResultId>,
     iterated_object: Option<LoopBinding>,
-    /// The card a row just put into a hand: seeked, drafted or conjured.
+    /// The cards a row just put into a hand, including an ordinary return.
     to_hand: Option<ResultId>,
     /// The latest snapshot of a set, for "those creatures".
     noted: Option<ResultId>,
@@ -435,6 +435,7 @@ impl Context {
             _ => return,
         };
         match destination {
+            Destination::OwnersHand | Destination::Hand(_) => self.to_hand = Some(result),
             Destination::Exile => {
                 self.exiled_one_input =
                     matches!(objects, ObjectSet::One(_)).then(|| result.clone());
@@ -2344,7 +2345,9 @@ impl Context {
                 Condition::Compare { left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                         objects: Box::new(ObjectSet::Transition {
                             result,
-                            phase: ObjectPhase::Before,
+                            // Card characteristics are read in exile. The
+                            // permanent form deliberately reads Before instead.
+                            phase: ObjectPhase::After,
                         }),
                         filter: self.card_filter(cards)?,
                     })), test: NumberTest::Compare { comparison: Comparison::Greater, value: Expr::Constant(0) } }

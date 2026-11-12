@@ -70244,13 +70244,10 @@ Card(
               Ref_TargetGraveyardCard,
               [
                 EntersWithACounter(FlyingCounter),
-              ],
-            ),
-            CreatePermanentLayerEffect(
-              ThePermanentPutOnTheBattlefieldThisWay,
-              [
-                AddCreatureType(Angel),
-                AddCreatureType(Warrior),
+                EntersWithLayerEffect([
+                  AddCreatureType(Angel),
+                  AddCreatureType(Warrior),
+                ]),
               ],
             ),
           ]),
@@ -71770,12 +71767,9 @@ Card(
           ]),
           [
             EntersUnderPlayersControl(You),
-          ],
-        ),
-        CreatePermanentLayerEffect(
-          ThePermanentPutOnTheBattlefieldThisWay,
-          [
-            AddCreatureType(Nightmare),
+            EntersWithLayerEffect([
+              AddCreatureType(Nightmare),
+            ]),
           ],
         ),
       ]),
@@ -207270,15 +207264,12 @@ Card(
             Ref_TargetGraveyardCard,
             [
               EntersUnderPlayersControl(You),
-            ],
-          ),
-          CreatePermanentLayerEffect(
-            ThePermanentPutOnTheBattlefieldThisWay,
-            [
-              SetColor(SimpleColorList([
-                Black,
-              ])),
-              AddCreatureType(Nightmare),
+              EntersWithLayerEffect([
+                SetColor(SimpleColorList([
+                  Black,
+                ])),
+                AddCreatureType(Nightmare),
+              ]),
             ],
           ),
         ]),
@@ -241073,7 +241064,7 @@ Card(
         AnyPlayer,
         SearchLibrary([
           FindNumberCardsOfType(
-            AmountOfManaPaidThisWay,
+            TheTotalAmountOfManaPaidThisWay,
             And([
               IsSupertype(Basic),
               IsCardtype(Land),
@@ -551594,16 +551585,13 @@ Card(
                 1,
                 1,
               )),
-            ]),
-            CreatePermanentLayerEffect(
-              ThePermanentPutOnTheBattlefieldThisWay,
-              [
+              EntersWithLayerEffect([
                 AddColor(SimpleColorList([
                   Black,
                 ])),
                 AddCreatureType(Zombie),
-              ],
-            ),
+              ]),
+            ]),
           ]),
         ),
       ]),
@@ -674865,7 +674853,7 @@ Card(
                     AnySpell,
                   ),
                   ActionList([
-                    SacrificePermanent(ThisPermanent),
+                    SacrificePermanent(Trigger_ThatPermanent),
                   ]),
                 ),
               ],
@@ -742806,7 +742794,7 @@ Card(
           CostWasPaid,
           [
             PutExiledCardOntoBattlefield(
-              ThisExiledCard,
+              TheExiledDeadPermanent,
               [
                 EntersTapped,
               ],
@@ -751254,10 +751242,7 @@ Card(
   ],
   Rules: [
     TriggerA(
-      WhenAPlayerDrawsTheirNthCardDuringTheirDrawStep(
-        Opponent,
-        NotEqualTo(Integer(1)),
-      ),
+      WhenAPlayerDrawsACardExceptTheFirstCardDuringTheirDrawStep(Opponent),
       ActionList([
         PutCounters([
           ACounterOfTypeOnPermanent(
@@ -764531,16 +764516,12 @@ Card(
           PutGraveyardCardOntoBattlefield(
             Ref_TargetGraveyardCard,
             [
-              EntersNormally,
-            ],
-          ),
-          CreatePermanentLayerEffect(
-            ThePermanentPutOnTheBattlefieldThisWay,
-            [
-              AddColor(SimpleColorList([
-                Black,
-              ])),
-              AddCreatureType(Zombie),
+              EntersWithLayerEffect([
+                AddColor(SimpleColorList([
+                  Black,
+                ])),
+                AddCreatureType(Zombie),
+              ]),
             ],
           ),
         ]),
@@ -775975,13 +775956,10 @@ Card(
           [
             ReturnNewGraveyardCardToBattlefield([
               EntersUnderPlayersControl(You),
-            ]),
-            CreatePermanentLayerEffect(
-              ThePermanentPutOnTheBattlefieldThisWay,
-              [
+              EntersWithLayerEffect([
                 AddCreatureType(Warlock),
-              ],
-            ),
+              ]),
+            ]),
           ],
         ),
       ]),
@@ -837174,7 +837152,7 @@ Card(
       ),
       EachPlayerAction(
         AnyPlayer,
-        DrawNumberCards(AmountOfManaPaidThisWay),
+        DrawNumberCards(TheTotalAmountOfManaPaidThisWay),
       ),
     ])),
   ],
@@ -924881,68 +924859,37 @@ Card(
     TriggerA(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       ActionList([
-        ChooseAnAction([
+        MayAction(Reflexive_Sacrifice_WhenYouDo(
           [
-            Reflexive_Sacrifice_WhenYouDo(
-              [
-                APermanent(And([
-                  Other(Trigger_ThatCreature),
-                  IsCardtype(Creature),
-                ])),
-              ],
-              Targeted(
+            APermanent(Or([
+              And([
+                Other(Trigger_ThatCreature),
+                IsCardtype(Creature),
+              ]),
+              IsToken,
+            ])),
+          ],
+          Targeted(
+            [
+              TargetPermanent(And([
+                IsCardtype(Creature),
+                ControlledByAPlayer(Opponent),
+              ])),
+            ],
+            ActionList([
+              CreatePermanentLayerEffectUntil(
+                Ref_TargetPermanent,
                 [
-                  TargetPermanent(And([
-                    IsCardtype(Creature),
-                    ControlledByAPlayer(Opponent),
-                  ])),
-                ],
-                ActionList([
-                  CreatePermanentLayerEffectUntil(
-                    Ref_TargetPermanent,
-                    [
-                      AdjustPT(
-                        -2,
-                        -2,
-                      ),
-                    ],
-                    UntilEndOfTurn,
+                  AdjustPT(
+                    -2,
+                    -2,
                   ),
-                ]),
-              ),
-            ),
-          ],
-          [
-            Reflexive_Sacrifice_WhenYouDo(
-              [
-                APermanent(IsToken),
-              ],
-              Targeted(
-                [
-                  TargetPermanent(And([
-                    IsCardtype(Creature),
-                    ControlledByAPlayer(Opponent),
-                  ])),
                 ],
-                ActionList([
-                  CreatePermanentLayerEffectUntil(
-                    Ref_TargetPermanent,
-                    [
-                      AdjustPT(
-                        -2,
-                        -2,
-                      ),
-                    ],
-                    UntilEndOfTurn,
-                  ),
-                ]),
+                UntilEndOfTurn,
               ),
-            ),
-          ],
-          [
-            DoNothing,
-          ],
-        ]),
+            ]),
+          ),
+        )),
       ]),
     ),
   ],
@@ -988511,12 +988458,9 @@ Card(
             Ref_TargetGraveyardCard,
             [
               EntersUnderPlayersControl(You),
-            ],
-          ),
-          CreatePermanentLayerEffect(
-            ThePermanentPutOnTheBattlefieldThisWay,
-            [
-              AddCreatureType(Phyrexian),
+              EntersWithLayerEffect([
+                AddCreatureType(Phyrexian),
+              ]),
             ],
           ),
         ]),
@@ -1166148,7 +1166092,7 @@ Card(
       ),
       EachPlayerAction(
         AnyPlayer,
-        MillNumberCards(AmountOfManaPaidThisWay),
+        MillNumberCards(TheTotalAmountOfManaPaidThisWay),
       ),
     ])),
   ],
@@ -1224507,13 +1224451,9 @@ Card(
           PutGraveyardCardOntoBattlefield(
             Ref_TargetGraveyardCard,
             [
-              EntersNormally,
-            ],
-          ),
-          CreatePermanentLayerEffect(
-            ThePermanentPutOnTheBattlefieldThisWay,
-            [
-              AddCreatureType(Vampire),
+              EntersWithLayerEffect([
+                AddCreatureType(Vampire),
+              ]),
             ],
           ),
         ]),
@@ -1313198,7 +1313138,7 @@ Card(
                     1,
                     1,
                   ),
-                  ThisPermanent,
+                  Trigger_ThatPermanent,
                 ),
               ]),
             ]),
@@ -1455485,7 +1455425,7 @@ Card(
           CreatePerpetualCardInHandEffect(
             TheCardPutInHandThisWay,
             [
-              AddCreatureType(Spirit),
+              SetCreatureType(Spirit),
               SetPT(PT(
                 1,
                 1,
@@ -1541064,10 +1541004,7 @@ Card(
   Rules: [
     Flying,
     TriggerA(
-      WhenAPlayerDrawsTheirNthCardDuringTheirDrawStep(
-        Opponent,
-        NotEqualTo(Integer(1)),
-      ),
+      WhenAPlayerDrawsACardExceptTheFirstCardDuringTheirDrawStep(Opponent),
       ActionList([
         CreateTokens(
           [

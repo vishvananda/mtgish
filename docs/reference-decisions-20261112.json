@@ -1,0 +1,285 @@
+{
+  "schema_version": 190,
+  "scope": "The exact 53 different faces in the allowed 32755-face baseline; not 53 confirmed reference defects. Foundation goal remains paused.",
+  "oracle_grammar_revision": "1fe5782",
+  "report_sha256": "90c96d3fe4921c1eeb99a475ead9678a4d552011e9445741c8b74c5a7e36a724",
+  "reference_pin": "7228b84b2b9398976246b595098f7f5e5fb4fc88",
+  "baseline_sha256": "6d487dca152a1d33cdc80368ef28b571878cc3010c87f9ede46e1b05f83cde33",
+  "counts": {
+    "fixed_source": 6,
+    "fixed_source_and_lowering": 1,
+    "fixed_lowering": 3,
+    "fixed_source_binding": 1,
+    "unified_equivalent_source": 3,
+    "retained_valid_contract": 14,
+    "retained_equivalent_form": 16,
+    "needs_witness": 9
+  },
+  "findings": [
+    {
+      "card": "Bloodroot Apothecary",
+      "classification": "retained_equivalent_form",
+      "decision": "The source exclusion is redundant: source is normally a nontoken creature. A sacrificed token copy is sacrificed by its controller, who also controls the look-back trigger, not their own opponent (CR 701.21a/603.10a). No rules bug."
+    },
+    {
+      "card": "Collective Voyage",
+      "classification": "fixed_source",
+      "decision": "All players read PerformedTotal, never the current player's own Performed payment. The 3/0 mana witness gives both players 3. Existing upstream issue #139; Alliance of Arms is the retained total-payment control."
+    },
+    {
+      "card": "Cryptic Coat",
+      "classification": "retained_equivalent_form",
+      "decision": "Cloak produces at most one permanent. Recorded and Result After/index0 select that permanent, or none. A producer-wide normal-form change needs its own receipt-family boundary; no current gameplay defect."
+    },
+    {
+      "card": "Dawn of the Dead",
+      "classification": "retained_valid_contract",
+      "decision": "Keep optional resolving payment and its PaymentChosen follow-ups (CR 118.12). Receipt consumption and attempted payment differ from unconditional follow-ups around an optional body; the report's preferred spelling is not sufficient to drop those guards."
+    },
+    {
+      "card": "Deathbringer Regent",
+      "classification": "retained_equivalent_form",
+      "decision": "Candidate is scoped to Source by the outer ObjectMatches, so its other-creatures count excludes the entering Regent. Splitting the conjunction is a valid normal-form preference; no candidate rebinding counterexample was found."
+    },
+    {
+      "card": "Delif's Cube",
+      "classification": "needs_witness",
+      "decision": "Keep captured target identity in the delayed ability. Its own attack/damage event may name the same object, but delayed turn events do not supply an object subject. Lurker also uses the exact exile cost and post-cost receipt. No blanket Target-to-EventSubject rewrite; a capture-frame witness is needed for broader unification."
+    },
+    {
+      "card": "Draining Whelk",
+      "classification": "retained_valid_contract",
+      "decision": "Counter receipt preserves the target's mana value even when countering fails; the official TSR notes support this. Current generator saves the target before the counter. No dependence on successfully countering is introduced."
+    },
+    {
+      "card": "Dream Thief",
+      "classification": "retained_equivalent_form",
+      "decision": "ObjectMatches does not add an InZone(Battlefield) predicate; Source can be read with its last-known identity after departure. Filter Condition(PlayerDid) and the history comparison preserve the same actor, time window and own-spell exclusion. A frontend simplification is possible, not a demonstrated source bug."
+    },
+    {
+      "card": "Ebonblade Reaper",
+      "classification": "retained_valid_contract",
+      "decision": "Acting reads the current player receiving this life-loss operation. This preserves the controller in Reaper's attack trigger, the damaged player in its combat trigger, and the owner for Personal Incarnation. Explicitly naming those same players is stylistic."
+    },
+    {
+      "card": "Electro, Assaulting Battery",
+      "classification": "retained_valid_contract",
+      "decision": "Keep explicit ability Source in the reflexive body/announcement. A reflexive payment is not automatically an object event that rebinds EventSubject to the departed source. Compound entry/death frames and new graveyard incarnations must remain distinct."
+    },
+    {
+      "card": "Forbidden Crypt",
+      "classification": "retained_equivalent_form",
+      "decision": "The selected population is already the controller's graveyard. Repeating InZone in that population's filter changes no candidates."
+    },
+    {
+      "card": "Goblin Snowman",
+      "classification": "needs_witness",
+      "decision": "Both prevent all combat damage to/from the same creature for the turn. Separate replacement effects versus one disjunction requires testing overlapping self-damage and ordering with other replacements before consolidation. No concrete rules error established."
+    },
+    {
+      "card": "Graven Dominator",
+      "classification": "retained_equivalent_form",
+      "decision": "On entry, EventSubject is Source. On the haunt-death branch, the haunted creature is departed and the haunting card is exiled, so neither exclusion removes a battlefield creature. Preserve the separate identities despite equivalent exclusion here."
+    },
+    {
+      "card": "Haunted Fengraf",
+      "classification": "needs_witness",
+      "decision": "Chance selection versus ChooseObjects/AtRandom needs population, count and batch proof. No demonstrated change in random distribution or legal population in this one-card return; do not label an uncommon wrapper wrong."
+    },
+    {
+      "card": "Hit",
+      "classification": "needs_witness",
+      "decision": "Mandatory resolving sacrifice payment and a plain sacrifice effect require a failed-payment/replacement witness before substitution. Existing CostObjects Inputs/Before preserves sacrificed mana value and PaymentChosen. CR 118.12 resolving costs are not casting/activation costs; Yasharn/Angel of Jubilation alone is not a counterexample."
+    },
+    {
+      "card": "Ilharg, the Raze-Boar",
+      "classification": "retained_valid_contract",
+      "decision": "Keep optional resolving payment and its PaymentChosen follow-ups (CR 118.12). Receipt consumption and attempted payment differ from unconditional follow-ups around an optional body; the report's preferred spelling is not sufficient to drop those guards."
+    },
+    {
+      "card": "In Thrall to the Pit",
+      "classification": "retained_equivalent_form",
+      "decision": "With one target, Recorded from control change still names the attempted object even when changing its controller fails. It is not merely a successful-move receipt. Illegal sole target stops the spell. Target spelling is equivalent here, not a fix."
+    },
+    {
+      "card": "Jace, Cunning Castaway",
+      "classification": "unified_equivalent_source",
+      "decision": "The pronoun in these holder-own triggers names EventSubject. Change only the token self-target sacrifice and granted self-tap counter recipient; do not globally equate granting Source with a granted holder."
+    },
+    {
+      "card": "Karn's Touch",
+      "classification": "retained_equivalent_form",
+      "decision": "Affected denotes the characteristic subject being evaluated. Here it is the same single target. Keep the existing descriptive characteristic contract."
+    },
+    {
+      "card": "Know Naught but Fire",
+      "classification": "fixed_lowering",
+      "decision": "Scheme/plane/emblem/self-departure damage now uses the existing damage_each_recipient path. Explicit ForEachPlayer binding connects each opponent to their own hand count. The prior damage_action fast path evaluated one amount before building its recipient batch."
+    },
+    {
+      "card": "Korvold, Fae-Cursed King",
+      "classification": "retained_valid_contract",
+      "decision": "The outer event is this source entering or attacking; its EventSubject is the sacrifice exclusion in both branches. Equivalent to Source in this particular self trigger, without a global event-reference rewrite."
+    },
+    {
+      "card": "Lamplight Phoenix",
+      "classification": "fixed_source_binding",
+      "decision": "Use the specific exiled-dead-card reference: CostObjects Resolution(0), component [0], Performed, After, guarded by PaymentChosen and still-in-exile. CollectEvidence remains its separate component. Neither Source nor a Query of the old Graveyard EventDestination is a substitute. This clarifies Source binding; no new Source constructor/engine feature required."
+    },
+    {
+      "card": "Leela, Sevateem Warrior",
+      "classification": "fixed_source",
+      "decision": "Use DrawsCard filtered by Not(FirstDrawInOwnDrawStep(EventSubject)). Outside-step first draws trigger and each separate own draw step exempts its own first draw. Upstream #270; Orcish Bowmasters control."
+    },
+    {
+      "card": "Liliana, Death Mage",
+      "classification": "retained_equivalent_form",
+      "decision": "The one targeted opponent is the only Prior(That) player in the per-recipient life-loss row. Optional one-target return selects zero or one object either as Targets or scalar Target. No changed outcome established."
+    },
+    {
+      "card": "Long River Lurker",
+      "classification": "needs_witness",
+      "decision": "Keep captured target identity in the delayed ability. Its own attack/damage event may name the same object, but delayed turn events do not supply an object subject. Lurker also uses the exact exile cost and post-cost receipt. No blanket Target-to-EventSubject rewrite; a capture-frame witness is needed for broader unification."
+    },
+    {
+      "card": "Minds Aglow",
+      "classification": "fixed_source",
+      "decision": "All players read PerformedTotal, never the current player's own Performed payment. The 3/0 mana witness gives both players 3. Existing upstream issue #139; Alliance of Arms is the retained total-payment control."
+    },
+    {
+      "card": "Mirror Mockery",
+      "classification": "retained_valid_contract",
+      "decision": "Keep optional resolving payment and its PaymentChosen follow-ups (CR 118.12). Receipt consumption and attempted payment differ from unconditional follow-ups around an optional body; the report's preferred spelling is not sufficient to drop those guards."
+    },
+    {
+      "card": "Molly Hayes, Runaway",
+      "classification": "retained_equivalent_form",
+      "decision": "The one-top-card exile has zero or one result, so its full After Transition and scalar Result select the same available card. An aggregate receipt is not itself a rules error."
+    },
+    {
+      "card": "Myriad Construct",
+      "classification": "retained_valid_contract",
+      "decision": "Before sacrifice Transition plus CurrentOrLastKnown pins the exact original object and its power. A bare event subject is safe only if the consumer preserves the same last-known view; retaining the explicit receipt is appropriate."
+    },
+    {
+      "card": "Nemesis Mask",
+      "classification": "retained_equivalent_form",
+      "decision": "Requiring every able blocker to block the equipped creature and requiring that creature to be blocked by each able creature express the same blocking requirement here. Preserve combat legality; no source bug established."
+    },
+    {
+      "card": "No Quarter",
+      "classification": "needs_witness",
+      "decision": "The mirrored pair events bind attacker/blocker roles separately. EventSubject in the blocks trigger is the blocker, so the proposed spelling may coincide, but a pair-role test must establish both role captures before changing general event references."
+    },
+    {
+      "card": "Norman Osborn",
+      "classification": "retained_valid_contract",
+      "decision": "The combat-damage event subject is the source creature here. Connive is object-directed (CR 701.50a-b); the object's current/last controller performs it. The backend correctly calls connive_n with that object and ignores the generic actor field. A Source/ControllerOf cosmetic rewrite is not a fix and must not override keyword semantics."
+    },
+    {
+      "card": "Old Man Willow",
+      "classification": "unified_equivalent_source",
+      "decision": "One optional sacrifice over (another creature OR token), followed by one reflexive trigger. The previous branch choice also chose one sacrifice, not two; no distinct gameplay witness was found. Use the same normal form as other disjunctive sacrifice templates."
+    },
+    {
+      "card": "Omen Machine",
+      "classification": "fixed_lowering",
+      "decision": "ACardWasExiledThisWay tests After card characteristics, not Before library/permanent characteristics. Preserve APermanentWasExiledThisWay Before semantics. Count(Matching(full After Transition)) and the independent scalar Result spellings still differ; do not count that spelling as an unresolved correctness defect."
+    },
+    {
+      "card": "Passenger Ferry",
+      "classification": "retained_valid_contract",
+      "decision": "Keep explicit ability Source in the reflexive body/announcement. A reflexive payment is not automatically an object event that rebinds EventSubject to the departed source. Compound entry/death frames and new graveyard incarnations must remain distinct."
+    },
+    {
+      "card": "Paths of Tuinvale",
+      "classification": "fixed_lowering",
+      "decision": "Track ordinary moves into a hand, then use the full After Transition for a perpetual follow-up. Keep exact CostObjects and PaymentChosen on resolving-cost returns (Alora); do not globally replace scalar references."
+    },
+    {
+      "card": "Personal Incarnation",
+      "classification": "retained_valid_contract",
+      "decision": "Acting reads the current player receiving this life-loss operation. This preserves the controller in Reaper's attack trigger, the damaged player in its combat trigger, and the owner for Personal Incarnation. Explicitly naming those same players is stylistic."
+    },
+    {
+      "card": "Portal to Phyrexia",
+      "classification": "fixed_source",
+      "decision": "CR 611.2e: is a Phyrexian applies simultaneously with entry, including type-dependent entry replacements (Metallic Mimic); use entry Changes, not a later continuous effect. Eight matching templates/cards corrected with entry flags. Upstream #272."
+    },
+    {
+      "card": "Resplendent Marshal",
+      "classification": "retained_valid_contract",
+      "decision": "Keep explicit ability Source in the reflexive body/announcement. A reflexive payment is not automatically an object event that rebinds EventSubject to the departed source. Compound entry/death frames and new graveyard incarnations must remain distinct."
+    },
+    {
+      "card": "Satya, Aetherflux Genius",
+      "classification": "needs_witness",
+      "decision": "Aggregate(Created, ManaValue, Sum) supports the zero-or-one creation, including zero targets. Scalar replacement needs the same empty/LKI behavior and one token incarnation. No arbitrary aggregate-to-scalar rewrite."
+    },
+    {
+      "card": "Shared Trauma",
+      "classification": "fixed_source",
+      "decision": "All players read PerformedTotal, never the current player's own Performed payment. The 3/0 mana witness gives both players 3. Existing upstream issue #139; Alliance of Arms is the retained total-payment control."
+    },
+    {
+      "card": "Skeletal Swarming",
+      "classification": "retained_equivalent_form",
+      "decision": "The Pump, keyword and attack requirement apply in their rules-defined layers; swapping those cross-layer list positions changes no result. Do not reorder arbitrary same-layer changes merely to match written word order."
+    },
+    {
+      "card": "Skybreen",
+      "classification": "retained_equivalent_form",
+      "decision": "Acting is the named one-player life-loss row. It is the sole target for that operation. An explicit target is a possible normal form, not an additional rules correction."
+    },
+    {
+      "card": "Storm Entity",
+      "classification": "retained_equivalent_form",
+      "decision": "Entry replacement's EventSubject is the entering Source, cast or not. Own-spell exclusion is the same. A global Source/EventSubject rewrite would be unsafe in other events."
+    },
+    {
+      "card": "Tale of Katara and Toph",
+      "classification": "unified_equivalent_source",
+      "decision": "The pronoun in these holder-own triggers names EventSubject. Change only the token self-target sacrifice and granted self-tap counter recipient; do not globally equate granting Source with a granted holder."
+    },
+    {
+      "card": "Veko, Death's Doorkeeper",
+      "classification": "fixed_source_and_lowering",
+      "decision": "Spirit replaces old creature types; no additive clause. Full returned After Transition includes every resulting card, including a returned meld. Upstream #271 concerns only Add versus Set; receipt tracking is local."
+    },
+    {
+      "card": "Veteran Ghoulcaller",
+      "classification": "retained_valid_contract",
+      "decision": "Keep DuplicateLastKnown so copying the departed card retains definition/perpetual changes. OwnedBy beside an own Graveyard departure versus explicit InZone is a separate equivalent filter spelling, not justification for switching to a live Duplicate."
+    },
+    {
+      "card": "Vulshok Factory",
+      "classification": "retained_valid_contract",
+      "decision": "Keep exact activation sacrifice component Inputs/Before with CurrentOrLastKnown. It records the sacrificed original's counters rather than looking at a later zone incarnation."
+    },
+    {
+      "card": "Wandering Graybeard",
+      "classification": "needs_witness",
+      "decision": "The guarded optional look and optional reveal remain separate choices. Compare declining the look, failure to reveal, and an empty library before changing the program; optional/payment wrappers are not automatically interchangeable."
+    },
+    {
+      "card": "Ward of Piety",
+      "classification": "needs_witness",
+      "decision": "A one-point redirection with NextOccurrence may coincide with a TotalDamage(1) shield for ordinary positive damage. Zero/prevented/replaced/split events and replacement consumption need a distinguishing witness. Keep the explicit one-point action; no unconditional normalization of shields."
+    },
+    {
+      "card": "Waterspout Warden",
+      "classification": "retained_equivalent_form",
+      "decision": "EventHistory does not rebind the enclosing event frame. Outer EventSubject remains the attacking Warden and equals Source in this own attack trigger. No current rebinding witness; normal-form cleanup is optional."
+    },
+    {
+      "card": "Worzel, the Protector",
+      "classification": "retained_equivalent_form",
+      "decision": "Basic Plains already denotes a land. The explicit Land test is redundant; retain it without introducing a comparison alias."
+    },
+    {
+      "card": "Xyris, the Writhing Storm",
+      "classification": "fixed_source",
+      "decision": "Use DrawsCard filtered by Not(FirstDrawInOwnDrawStep(EventSubject)). Outside-step first draws trigger and each separate own draw step exempts its own first draw. Upstream #270; Orcish Bowmasters control."
+    }
+  ]
+}

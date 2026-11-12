@@ -20,12 +20,17 @@ fn authentic_coin_records_upgrade_to_exact_source_and_preserve_all_binding_origi
             let fresh = unified::lower(&source);
             assert!(fresh.diagnostics.is_empty(), "{:?}", fresh.diagnostics);
             let after = serde_json::to_value(&mapped.card).unwrap();
-            assert_eq!(
-                after,
-                serde_json::to_value(&fresh.card).unwrap(),
-                "{}",
-                before["faces"]
-            );
+            let fresh_value = serde_json::to_value(&fresh.card).unwrap();
+            let mut expected_source = after.clone();
+            if fresh.card.faces[0].name == "Negative Zone Portal" {
+                // Saved v185 meaning stays Before, including its origin map.
+                // Fresh Source now tests the card in exile (2026-11-12 fix).
+                let phase = "/faces/0/abilities/0/args/body/instructions/1/args/condition/args/left/args/args/objects/args/phase";
+                assert_eq!(after.pointer(phase).unwrap(), "Before");
+                assert_eq!(fresh_value.pointer(phase).unwrap(), "After");
+                *expected_source.pointer_mut(phase).unwrap() = json!("After");
+            }
+            assert_eq!(expected_source, fresh_value, "{}", before["faces"]);
             assert!(mapped.map.introduced.is_empty());
             for (from, to) in mapped.map.sites {
                 for to in to {

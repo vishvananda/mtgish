@@ -11,6 +11,8 @@ const CARDS: &[(&str, &str)] = &[
     // Excess damage is the event's own number.
     // A later slot's rule reads what an earlier slot chose.
     ("Band Together", "q.chosen_targets()"),
+    // Join forces reads the combined mana payment for every player.
+    ("Minds Aglow", "done_total_"),
     // "Whenever you cast a spell with one or more targets": how many it has.
     ("Voracious Bibliophile", "q.state().targets(i).len()"),
     // "Each token ... is created under your control instead".
@@ -67,7 +69,6 @@ const CARDS: &[(&str, &str)] = &[
 /// spell" as anything. Each keeps its gap.
 const LOST: &[(&str, &str)] = &[
     ("Harsh Mentor", "a mana ability test that lost its negation"),
-    ("Minds Aglow", "an amount read by each player as their own"),
 ];
 
 fn modules(names: Vec<String>) -> Option<BTreeMap<String, String>> {

@@ -1,0 +1,58 @@
+{
+  "base_revision": "3f68b55",
+  "schema_version": 190,
+  "foundation_goal": "paused",
+  "allowed_baseline_faces": 32755,
+  "original_mismatches": 53,
+  "packet_source_records": 66,
+  "packet_faces": 68,
+  "changed_source_records": 18,
+  "original_packet_changed_faces": 14,
+  "correctness_faces": 11,
+  "equivalent_normal_form_faces": 3,
+  "unchanged_packet_faces": 39,
+  "matching_independent_proposal_now": 12,
+  "remaining_exact_differences": 41,
+  "fresh_full_corpus_rescore": false,
+  "generator_tests": {
+    "passed": 1591,
+    "failed": 0,
+    "ignored": 22,
+    "targets_including_doctests": 187
+  },
+  "parser_tests": {
+    "status": "passed",
+    "command": "go test ./... -count=1",
+    "seconds": 92.301
+  },
+  "fixture_checks": {
+    "all_packet_faces_validate_without_lowering_diagnostics": true,
+    "tagged_json_matches_changed_source_ron": true,
+    "full_53_programs_match_reviewed_expected": true,
+    "saved_migrations_preserve_original_meaning_and_origins": true,
+    "source_corpus_record_count_unchanged": 33529,
+    "original_audit_review_provenance_preserved": true
+  },
+  "sha256": {
+    "data/mtgish.lines.ron": "cf8af9eb10b21b215f3e850fef7d316980ac321687a8a79c7fee027b9dcb0436",
+    "data/mtgish.lines.json": "05364d4d999e4d1fc00a5828561448dd17a0ec75edf26aabb550132d07eb7d3f",
+    "grammars/english_grammar.json5": "b113af12d59f5d8e11563859822886edb736decd700b65f2ce7926bf7be544bf",
+    "rust_syntax/normalize/tests/fixtures/reference53_20261112.ronl": "012dccff95c7683ae90d61c05e0719ace010bb9e2bb0d971c21d5e25c0f13fb9",
+    "rust_syntax/normalize/tests/fixtures/reference53_20261112_expected.json": "c95935d0e0200de9afae8a0cb280fb82260f5b2c0274531804108547d7825336",
+    "rust_syntax/normalize/tests/fixtures/reference53_source_20261112.ronl": "759532f57ccbdf77b4e0751fdb0ffe4fa1414aaab4045a06d5f942b10156ec02"
+  },
+  "log_sha256": {
+    "complete-generator-gate.log": "12bf67e931e3f24493de6a81ae4336663c21480196f738bcbdd03904ab5fcea3",
+    "final-parser-uncached-tests.log": "9f7b10ca38f3161f837b62fd03d200f1ed98d3846599a1b1947e4081d52385ba"
+  },
+  "upstream_issues": [
+    139,
+    270,
+    271,
+    272
+  ],
+  "issue106_followup": "https://github.com/i5jb/mtgish/issues/106#issuecomment-6814939068",
+  "engine_or_runtime_interface_changes": false,
+  "new_ast_fields": false,
+  "oracle_grammar_worktree_modified": false
+}
