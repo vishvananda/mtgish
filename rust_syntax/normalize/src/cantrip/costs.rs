@@ -3,6 +3,20 @@
 //! then publishes nothing, so no card loses an ability silently.
 use super::*;
 
+/// Activation notes belong to this effect, not to abilities or delayed closures it creates.
+fn notes_activation_mana(body: &Program) -> bool {
+    use crate::visit::{Visitor, Walk};
+    struct Notes(bool);
+    impl Visitor for Notes {
+        fn ability(&mut self, _: &Ability) -> bool { false }
+        fn operation(&mut self, op: &Operation) -> bool {
+            if matches!(op, Operation::Note(NoteKind::ManaSpent { .. })) { self.0 = true; }
+            !matches!(op, Operation::CreateTrigger { .. } | Operation::CreateDelayedTrigger { .. })
+        }
+    }
+    let mut visitor = Notes(false); body.walk(&mut visitor); visitor.0
+}
+
 /// A cost that picks what it pays by the X announced.
 pub(super) const COST_FILTER_X: &str = "a cost's filter reading the X announced";
 
@@ -978,6 +992,9 @@ impl Compiler {
             )
         };
         def.push_str(suffix);
+        if planned::switched_on("noted-values") && notes_activation_mana(body) {
+            def.push_str(".tracks_mana_spent()");
+        }
         if waterbent.is_some() {
             if def.starts_with("mana_ability") {
                 return Err(gap("waterbend on a mana ability"));

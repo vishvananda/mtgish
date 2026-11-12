@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Ice Cauldron",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ice Cauldron",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{X}, {T}: You may exile a nonland card from your hand. You may cast that card for as long as it remains exiled. Put a charge counter on this artifact and note the type and amount of mana spent to pay this activation cost. Activate only if there are no charge counters on this artifact.\n{T}, Remove a charge counter from this artifact: Add this artifact's last noted type and amount of mana. Spend this mana only to cast the last card exiled with this artifact."
+      }
+    ]
+  },
+  {
+    "name": "Jeweled Amulet",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Jeweled Amulet",
+        "manaCost": "{0}",
+        "type": "Artifact",
+        "text": "{1}, {T}: Put a charge counter on this artifact. Note the type of mana spent to pay this activation cost. Activate only if there are no charge counters on this artifact.\n{T}, Remove a charge counter from this artifact: Add one mana of this artifact's last noted type."
+      }
+    ]
+  },
+  {
+    "name": "Tawnos's Coffin",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Tawnos's Coffin",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "You may choose not to untap this artifact during your untap step.\n{3}, {T}: Exile target creature and all Auras attached to it. Note the number and kind of counters that were on that creature. When this artifact leaves the battlefield or becomes untapped, return that exiled card to the battlefield under its owner's control tapped with the noted number and kind of counters on it. If you do, return the other exiled cards to the battlefield under their owner's control attached to that permanent."
+      }
+    ]
+  }
+]

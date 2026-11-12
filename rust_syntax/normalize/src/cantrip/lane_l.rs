@@ -1685,6 +1685,15 @@ impl Compiler {
                 let players = self.fetch(self.players(players)?);
                 self.plan_code(&feature, &format!("{M}::notes::most_common_creature_type(g, asker, &{players})"), out);
             }
+            Operation::Note(NoteKind::ManaSpent { amount }) if planned::switched_on("noted-values") => {
+                if !self.stack_item { return Err(gap("noting mana spent outside a stack activation")); }
+                writeln!(out, "{M}::notes::note_mana_spent(g, item, {amount});").unwrap();
+            }
+            Operation::Note(NoteKind::CountersOn(object)) if planned::switched_on("noted-values") => {
+                let object = self.fetch(self.object(object)?);
+                let by = if self.stack_item { "g.linked(item)" } else { "g.linked_to(asker)" };
+                writeln!(out, "if let Some(object) = {object} {{ let counters = g.obj(object).counter_kinds().collect(); let by = {by}; g.note_value(by, NotedValue::Counters(counters)); }}").unwrap();
+            }
             Operation::Note(kind) => {
                 // Kept by the ability that notes it, as a chosen name is
                 // (`remember_chosen_name`), for the abilities linked to it: the

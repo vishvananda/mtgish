@@ -1129,6 +1129,16 @@ impl Compiler {
         rest: &[Instruction],
         label: &str,
     ) -> Result<Option<String>> {
+        if let (ManaProduction::LastNoted { amount }, []) = (mana, rest) {
+            if planned::switched_on("noted-values") {
+                let (lasting, restriction) = mana_lasting(restriction);
+                if lasting.is_some() { return Err(gap("noted mana with extended lifetime")); }
+                let only = restriction.map(|r| self.mana_use(r)).transpose()?.map_or("None".into(), |r|format!("Some({r})"));
+                writeln!(self.functions, "fn {label}(g: &mut dyn Game, asker: &Asker, _: Option<Color>) -> Result<(), Suspend> {{ {M}::notes::add_last_mana(g, asker, asker.controller, {amount}, {only}) }}").unwrap();
+                // Unknown yield advice stays open. The engine's could-produce procedure executes this callback.
+                return Ok(Some(format!("add_by({label})")));
+            }
+        }
         // "Add two mana of different colors" (CR 106.1b): each a color the ones
         // before it aren't, chosen as the ability resolves (Wizards' Rockets asks
         // its colors the same way).

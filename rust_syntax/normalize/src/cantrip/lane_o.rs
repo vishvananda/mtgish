@@ -3902,6 +3902,16 @@ impl Compiler {
         failed: Diagnostic,
         out: &mut String,
     ) -> Result<()> {
+        if let ManaProduction::LastNoted { amount } = mana {
+            if planned::switched_on("noted-values") {
+                let (lasting, restriction) = lane_g::mana_lasting(restriction);
+                if lasting.is_some() { return Err(gap("noted mana with extended lifetime")); }
+                let only = restriction.map(|r| self.mana_use(r)).transpose()?.map_or("None".into(), |r|format!("Some({r})"));
+                let players = self.fetch(self.players(players)?);
+                writeln!(out, "for player in {players} {{ {M}::notes::add_last_mana(g, asker, player, {amount}, {only})?; }}").unwrap();
+                return Ok(());
+            }
+        }
         // "Add mana equal to enchanted permanent's mana cost": a mana of each colored
         // and Phyrexian symbol's color, {C} for each generic, and for a symbol of two
         // kinds ({W/U}, {C/W}, {2/W}: CR 107.4e) the kind its controller chooses.

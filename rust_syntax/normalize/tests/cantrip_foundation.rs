@@ -368,6 +368,68 @@ fn combat_event_watchers_expire_with_the_phase_without_claiming_blocker_control(
     let held=gaps(&candidate["Melee"]);assert!(!held.is_empty());
     assert!(held.iter().all(|g|*g=="player rule for a while Decides"));
 }
+fn notes_profiles() -> &'static (Rows,Rows) {
+    static ROWS:OnceLock<(Rows,Rows)>=OnceLock::new();
+    ROWS.get_or_init(|| {
+        let fixture=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let source=fixture.join("early_set_notes.ronl");let oracle=fixture.join("early_set_notes.oracle.json");
+        let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-notes-baseline.jsonl");
+        let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-notes-candidate.jsonl");
+        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        let mut features=FOUNDATION.to_vec();features.push("noted-values");
+        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        (read(&baseline),read(&candidate))
+    })
+}
+#[test]
+fn noted_values_enable_the_shared_forms_without_enabling_unrelated_note_kinds() {
+    let(baseline,candidate)=notes_profiles();assert_eq!(candidate.len(),3);
+    for name in ["Ice Cauldron","Jeweled Amulet","Tawnos's Coffin"] {
+        assert!(gaps(&baseline[name]).contains(&"operation Note"),"{name}");
+        assert!(!gaps(&candidate[name]).contains(&"operation Note"),"{name}");
+    }
+    assert!(gaps(&candidate["Jeweled Amulet"]).is_empty(),"{:?}",gaps(&candidate["Jeweled Amulet"]));
+    assert!(gaps(&candidate["Ice Cauldron"]).contains(&"mana spending predicate"));
+    assert!(gaps(&candidate["Tawnos's Coffin"]).contains(&"a triggered ability carrying separate groups of objects"));
+    assert!(code(&candidate["Jeweled Amulet"]).contains(".tracks_mana_spent()"));
+    assert!(code(&candidate["Jeweled Amulet"]).contains("notes::add_last_mana"));
+    assert!(!code(&candidate["Jeweled Amulet"]).contains(".yields_any("));
+    for name in ["Jeweled Amulet","Ice Cauldron"] { assert!(!gaps(&candidate[name]).contains(&"mana production LastNoted")); }
+}
+#[test]
+fn other_note_kinds_remain_explicit_gaps() {
+    use mtgish_ast::{ir::*,mtg_types::OracleCard,unified};
+    let source:OracleCard=ron::from_str(include_str!("fixtures/early_set_notes.ronl").lines().find(|l|l.contains("Name: \"Jeweled Amulet\"")).unwrap()).unwrap();
+    for note in [NoteKind::Number(Expr::Constant(7)),NoteKind::LifeTotal,NoteKind::Player(PlayerRef::AbilityController)] {
+        let mut lowered=unified::lower(&source);let Ability::Activated {body,..}=&mut lowered.card.faces[0].abilities[0] else{panic!()};
+        *body=Program {instructions:vec![Instruction::Effect {result:ResultId(0),operation:Operation::Note(note)}]};
+        cantrip::planned::with_additional_features(&["noted-values"],|| {
+            let row=cantrip::whole(&source,&lowered.card).unwrap();assert!(row.faces[0].gaps.iter().any(|g|g.feature=="operation Note"));
+        });
+    }
+}
+// Execute the real Coffin exile and note instructions without claiming its unresolved delayed return.
+fn coffin_note_probe() -> serde_json::Value {
+    use mtgish_ast::{ir::*,mtg_types::OracleCard,unified};
+    let source:OracleCard=ron::from_str(include_str!("fixtures/early_set_notes.ronl").lines().find(|l|l.contains("Name: \"Tawnos's Coffin\"")).unwrap()).unwrap();
+    let mut lowered=unified::lower(&source);let mut found=false;
+    for ability in &mut lowered.card.faces[0].abilities {
+        if let Ability::Activated {body,..}=ability {
+            let at=body.instructions.iter().position(|i|matches!(i,Instruction::Effect {operation:Operation::Note(NoteKind::CountersOn(_)),..})).unwrap();
+            assert!(at>0);body.instructions.truncate(at+1);found=true;
+        }
+    }
+    assert!(found);
+    cantrip::planned::with_additional_features(&["world-rule","noted-values"],|| {
+        let row=cantrip::whole(&source,&lowered.card).unwrap();
+        serde_json::json!({"faces":row.faces.iter().map(|face|serde_json::json!({"rust":face.rust,"gaps":face.gaps})).collect::<Vec<_>>()})
+    })
+}
+#[test]
+fn coffins_counter_snapshot_compiles_with_its_preceding_exile() {
+    let probe=coffin_note_probe();assert!(gaps(&probe).is_empty(),"{:?}",gaps(&probe));
+    assert!(code(&probe).contains("counter_kinds().collect()"));assert!(code(&probe).contains("NotedValue::Counters"));syn::parse_file(code(&probe)).unwrap();
+}
 fn blocking_profiles() -> &'static (Rows,Rows) {
     static ROWS:OnceLock<(Rows,Rows)>=OnceLock::new();
     ROWS.get_or_init(|| {
@@ -625,7 +687,9 @@ fn foundation_generated_cards_execute_in_cantrip() {
     // Cube and Doom counter declarations are intentionally separate from these runtime cases.
     let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth","Instill Energy","Chaos Lord","Glyph of Delusion","Stasis","Necropotence","Cursed Rack","Shapeshifter","Jin-Gitaxias, Core Augur","Adventurers' Guildhouse","Cathedral of Serra","Master of the Hunt","Mountain Stronghold","Seafarer's Quay","Shelkin Brownie","Tolaria","Unholy Citadel","Goblin Flotilla","Chromatic Armor","Voodoo Doll","Spoils of War","Winter's Chill","Enduring Renewal","Revelation","Zur's Weirding","Caverns of Despair","Errantry","Orcish Conscripts","Flooded Woodlands","Leviathan","Reclamation","Cuombajj Witches","Preacher"];
     cards.extend(blocking_profiles().1.clone());
-    let modules=modules.into_iter().chain(["False Orders","General Jarkeld","Sorrow's Path"]);
+    cards.extend(notes_profiles().1.clone());
+    cards.insert("Coffin notes probe".into(),coffin_note_probe());
+    let modules=modules.into_iter().chain(["False Orders","General Jarkeld","Sorrow's Path","Jeweled Amulet","Coffin notes probe"]);
     let mut lib=String::from("#![allow(dead_code,unused_imports,unused_variables,unused_mut)]\n");
     for name in modules {
         let row=&cards[name];assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
@@ -655,6 +719,7 @@ fn foundation_generated_cards_execute_in_cantrip() {
     lib.push_str(include_str!("fixtures/early_set_combat_payments_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_target_choosers_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_blocking_scenarios.rs"));
+    lib.push_str(include_str!("fixtures/early_set_notes_scenarios.rs"));
     fs::write(root.join("src/lib.rs"),lib).unwrap();
     let mut manifest=String::from("[package]\nname=\"mtgish-foundation-runtime\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\n");
     for name in ["cantrip-api","cantrip-state","cantrip-mechanics","cantrip-rules"] {manifest.push_str(&format!("{name}={{path={:?}}}\n",checkout.join("crates").join(name)));}
