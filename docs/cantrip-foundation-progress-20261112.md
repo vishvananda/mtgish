@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`4220fb88a`. Eleven focused feature groups are implemented. The new step-deadline
+`ee188afee`. Twelve focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **186 generate without recorded feature gaps and 100
+Of the 286 scoped cards, **188 generate without recorded feature gaps and 98
 remain gapped**. Those 178 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 104 raw requirement labels
+remaining requirement and its affected cards. Its 103 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -41,8 +41,8 @@ The ninth primitive gives rampage and cumulative upkeep typed family metadata.
 Rapid Fire and Balduvian Shaman now generate without gaps. Two native tests cover
 identity through grants, loss and copying; an Oracle audit verifies metadata on
 every implemented card. Two generated runtime scenarios cover both positive
-and negative keyword checks. The complete workspace gates below cover the first ten groups. The eleventh
-has seven focused native tests and the generated runtime validation.
+and negative keyword checks. The complete workspace gates below cover the first ten groups. The eleventh and twelfth
+have focused native tests and the generated runtime validation.
 
 Earthlore and Tourach's Gate required only a generator repair. Their typed
 “enchant land you control” restriction proves the host belongs to the payer
@@ -66,6 +66,12 @@ and the interest guard, and one runtime scenario exercises both generated cards.
 Overabundance and Snowfall retain their mixed-mana classification/advice gap;
 the adapter does not silently turn those into ordinary stack triggers.
 
+The twelfth primitive supplies attack-only summoning-sickness exceptions for
+Instill Energy and Chaos Lord. It does not grant haste or enable tap-symbol
+costs, and it preserves defender-specific and independent restrictions. Six
+native tests and two generated runtime scenarios pass, including Chaos Lord
+changing control this turn versus entering this turn.
+
 The original roadmap still has bands with other, computed X constraints, and
 persistent public visibility pending. The full remaining ledger also identifies
 other needs, including forced mana activations,
@@ -75,7 +81,7 @@ adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 41 scenarios,
+the pristine foundation. The generated runtime suite now passes 43 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The complete generator suite now passes 1,577 tests (22 ignored) in a serialized
@@ -103,7 +109,7 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --features cantri
   landwalk-blocking-exceptions independent-pt-settings \
   no-combat-damage-assignment world-rule other-activators \
   step-deadlines counted-untap-steps explicit-mana-loss random-discard-costs \
-  keyword-family-metadata untap-limits nonmana-mana-tap-triggers
+  keyword-family-metadata untap-limits nonmana-mana-tap-triggers attack-as-though-haste
 ```
 
 These flags explicitly select capabilities; they do not prove that an engine

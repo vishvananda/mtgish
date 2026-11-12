@@ -104,6 +104,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("counted-untap-steps", "DuringControllersNextUntapSteps(u32),", &["duration-during-controllers-next-untap-steps"]),
     ("explicit-mana-loss", "fn empty_mana_pool(&mut self, player: PlayerId) -> ManaPool;", &[]),
     ("random-discard-costs", "pub discard_at_random: u8,", &[]),
+    ("attack-as-though-haste", "pub attacks_as_though_haste: &'static [AttackHasteRule],", &["static-rule-attack-exception-summoning-sickness"]),
     ("nonmana-mana-tap-triggers", "pub const TAPPED_FOR_MANA: EventMask", &[]),
     ("keyword-family-metadata", "pub keyword_family: Option<KeywordFamily>,", &[]),
     ("untap-limits", "pub untap_limits: &'static [UntapLimit],", &["a-limit-on-what-untaps-in-an-untap-step"]),

@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Chaos Lord",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Chaos Lord",
+        "manaCost": "{4}{R}{R}{R}",
+        "type": "Creature — Human",
+        "text": "First strike\nAt the beginning of your upkeep, target opponent gains control of this creature if the number of permanents is even.\nThis creature can attack as though it had haste unless it entered this turn.",
+        "power": "7",
+        "toughness": "7"
+      }
+    ]
+  },
+  {
+    "name": "Instill Energy",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Instill Energy",
+        "manaCost": "{G}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature can attack as though it had haste.\n{0}: Untap enchanted creature. Activate only during your turn and only once each turn."
+      }
+    ]
+  }
+]
