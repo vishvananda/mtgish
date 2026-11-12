@@ -1053348,10 +1053348,7 @@ Card(
       ]),
       Targeted(
         [
-          TargetSpell(And([
-            TargetsOnlyASingleTarget,
-            ManaValueIs(EqualTo(ValueX)),
-          ])),
+          TargetSpell(TargetsOnlyASingleTarget),
         ],
         ActionList([
           If(

@@ -1570,14 +1570,20 @@
       "original_source": "source.ronl",
       "original_sha256": "d63d310c54c40c52df42ff2d3112f5c23b173a5fca3053188d8cbdbe7f8890e1",
       "corrected_source": "source-corrected.ronl",
-      "corrected_sha256": "68b00abdab940361279f6bb68db613106fafd3e7e732a12ea7317056bab4856b",
-      "unchanged_records": 285,
-      "changed_records": 1,
+      "corrected_sha256": "1037ba5d73a9e4a9c5e8e179119252bf3bda99cc73d78ba2db95960051f1108c",
+      "unchanged_records": 284,
+      "changed_records": 2,
       "corrections": [
         {
           "name": "Glyph of Delusion",
           "change": "EndOfTurn grant duration removed; Oracle specifies no duration",
           "upstream_issue": "https://github.com/i5jb/mtgish/issues/269",
+          "all_other_operands_exact": true
+        },
+        {
+          "name": "Reflecting Mirror",
+          "change": "Remove the unintended target mana-value-equals-X restriction; retain single target, resolution-time condition and twice-mana-value X definition.",
+          "upstream_issue": "https://github.com/i5jb/mtgish/issues/274",
           "all_other_operands_exact": true
         }
       ]
