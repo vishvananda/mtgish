@@ -1,5 +1,5 @@
 {
-  "native_foundation": "c97d4ac45",
+  "native_foundation": "f9822eae6",
   "scoped_missing": 286,
   "generation_ready": [
     "Anti-Magic Aura",
@@ -124,6 +124,7 @@
     "Nameless Race",
     "Necrite",
     "Necropolis",
+    "Necropotence",
     "Nether Void",
     "Oath of Lim-Dûl",
     "Orcish Farmer",
@@ -154,6 +155,7 @@
     "Soul Exchange",
     "Spirit Shackle",
     "Staff of the Ages",
+    "Stasis",
     "Stench of Evil",
     "Storm World",
     "Stormbind",
@@ -382,9 +384,6 @@
     "Nafs Asp": [
       "operation DelayedUnlessPaid"
     ],
-    "Necropotence": [
-      "skipping a step of the turn"
-    ],
     "Night Soil": [
       "engine: no set rule on what a cost chooses",
       "move cost Exile from Matching"
@@ -478,9 +477,6 @@
     ],
     "Stangg": [
       "event trigger carrying values"
-    ],
-    "Stasis": [
-      "skipping a step of the turn"
     ],
     "Sunglasses of Urza": [
       "player rule SpendColorAs"
@@ -720,15 +716,6 @@
       "cards": [
         "Dark Sphere",
         "Forcefield"
-      ]
-    },
-    {
-      "feature": "skipping a step of the turn",
-      "affected": 2,
-      "sole_blocker": 2,
-      "cards": [
-        "Necropotence",
-        "Stasis"
       ]
     },
     {
@@ -1694,7 +1681,7 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 44,
+    "generated_runtime_scenarios": 46,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
@@ -1717,10 +1704,10 @@
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 189,
+      "passed": 191,
       "pending_named_counters": {},
-      "log": "generator-thirteen-ready-compile.log",
-      "revision": "c97d4ac45"
+      "log": "generator-skip-steps-ready-compile.log",
+      "revision": "f9822eae6"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1729,7 +1716,8 @@
       "passed": 14,
       "new_regressions": 3,
       "log": "dependent-target-tests.log"
-    }
+    },
+    "focused_skip_steps": 6
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1782,9 +1770,15 @@
     "generator-thirteen-suite.log": "466a7830d2f610cbc41c85464f223280c8207ade8c2e8a0829a0e74f388d2e90",
     "benchmark-thirteen-control.log": "d7214216d884d2cb23818ff440d874dc56f399f9e91d0a988864de5421f60b9b",
     "benchmark-thirteen-after-control.log": "2508d71fd5c98a1e9adac056c9de0454b95d6c5c404e13236ee8f41076bfbaba",
-    "workspace-thirteen-tests.log": "82a687dc7cb0991d8f71bb5051a1733e6d141aaabdcc1bf13da468762a0dc347"
+    "workspace-thirteen-tests.log": "82a687dc7cb0991d8f71bb5051a1733e6d141aaabdcc1bf13da468762a0dc347",
+    "skip-step-tests.log": "a61365669d64a1ab44d0f76de7de982715b5719c535e19fa401d08988957e381",
+    "generator-skip-steps-tests.log": "bbded0b81150ad404ed46397bcf5d5e99692e976ac27d44bf48260b0ec34240d",
+    "generator-skip-steps-all-foundation-tests.log": "6f488e906112c56cc596293dab55c8cbc3f83ac628fc62407de90f8c68475c1b",
+    "generator-skip-steps-native-runtime.log": "2a9fa18624c639c9bd51015be3812c7df7024b9b1c28fd521e7a58899d691413",
+    "generator-skip-steps-ready-compile.log": "89c325db3af5b964d522cf1d8b50229ce3051c86a821b4e70e18f333e35066c7",
+    "generator-skip-steps-scope.log": "84f9b92c8c60a6957a34c607b5afece35a12c69b413154d607d4916631cc4b00"
   },
-  "candidate_api_fingerprint": "58863f5e2acbbc66c7a0e9b7e21a6ba41e730bdaed85d097f47efde6cd1a3e88",
+  "candidate_api_fingerprint": "b4f3def48477b59150955c197b70f1cb7096aa131753ad6de1e803e2d398e927",
   "benchmark_current_batch": {
     "games": 128,
     "control_allocation_kb_per_decision": 26.74,

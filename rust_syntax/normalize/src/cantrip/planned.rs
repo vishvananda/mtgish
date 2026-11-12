@@ -107,6 +107,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("attack-as-though-haste", "pub attacks_as_though_haste: &'static [AttackHasteRule],", &["static-rule-attack-exception-summoning-sickness"]),
     ("nonmana-mana-tap-triggers", "pub const TAPPED_FOR_MANA: EventMask", &[]),
     ("keyword-family-metadata", "pub keyword_family: Option<KeywordFamily>,", &[]),
+    ("skip-steps", "pub skip_steps: &'static [SkipStep],", &["skipping-a-step-of-the-turn"]),
     ("untap-limits", "pub untap_limits: &'static [UntapLimit],", &["a-limit-on-what-untaps-in-an-untap-step"]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.

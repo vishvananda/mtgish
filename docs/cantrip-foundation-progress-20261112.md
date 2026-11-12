@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`c97d4ac45`. Twelve focused feature groups are implemented. The new step-deadline
+`f9822eae6`. Thirteen focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **189 generate without recorded feature gaps and 97
-remain gapped**. Those 189 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **191 generate without recorded feature gaps and 95
+remain gapped**. Those 191 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 103 raw requirement labels
+remaining requirement and its affected cards. Its 101 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -87,6 +87,15 @@ The frozen 286-card membership and original source input are retained; the
 current audit input changes only Glyph's erroneous duration, with its provenance
 recorded in the JSON ledger and `full-scope/source-corrections.json`.
 
+The thirteenth primitive skips beginning-phase steps for Stasis and Necropotence.
+A skipped step has no turn-based actions, beginning triggers, priority or deadline
+expiry. Skipping untap still begins the turn and expires turn-bound effects;
+phasing, day/night, exert and counted untap effects wait. Six native tests and
+two generated runtime scenarios pass. The first player's first draw step is
+also entirely skipped under CR 103.8a. Unsupported combat-step skips are rejected
+at table construction. The full gate and benchmark below cover `c97d4ac45`;
+the new skipped-step group has focused validation pending the next batched gate.
+
 The original roadmap still has bands with other, computed X constraints, and
 persistent public visibility pending. The full remaining ledger also identifies
 other needs, including forced mana activations,
@@ -96,7 +105,7 @@ adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 44 scenarios,
+the pristine foundation. The generated runtime suite now passes 46 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The complete generator suite now passes 1,581 tests (22 ignored) in a serialized
@@ -110,7 +119,7 @@ entries. Sequential control runs measured 58.87 µs on the original base and
 50.49 µs on `c97d4ac45`; both finished all 128 games. Shared-machine variability
 does not establish a statistically meaningful speed change.
 
-A direct compilation probe now passes all 189 generation-ready modules against
+A direct compilation probe now passes all 191 generation-ready modules against
 the pristine foundation. The native catalog appends Cube (91), Doom (92) and Glyph (93)
 for Delif's Cube, Armageddon Clock and Glyph of Delusion, preserving existing IDs. No overlay is
 used. These three i32 entries follow the existing dense counter design and add
@@ -125,7 +134,7 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --features cantri
   landwalk-blocking-exceptions independent-pt-settings \
   no-combat-damage-assignment world-rule other-activators \
   step-deadlines counted-untap-steps explicit-mana-loss random-discard-costs \
-  keyword-family-metadata untap-limits nonmana-mana-tap-triggers attack-as-though-haste
+  keyword-family-metadata untap-limits nonmana-mana-tap-triggers attack-as-though-haste skip-steps
 ```
 
 These flags explicitly select capabilities; they do not prove that an engine
