@@ -1,0 +1,109 @@
+{
+  "native_base": "6814db9c8c564e8c51c6f698c1f487189baf48f7",
+  "native_foundation": "1617f06d8",
+  "native_branch": "engine/early-set-foundation-20261112",
+  "native_commits": [
+    "5c1c4d363",
+    "756278d37",
+    "d4bf69bb8",
+    "1617f06d8"
+  ],
+  "candidate_api_fingerprint": "9af791a8f438fcce8ba2fc7209c4afbc790433f502873ef14fe3e8a9b69cc002",
+  "pinned_api_unchanged": true,
+  "ast_schema": 190,
+  "validation": {
+    "workspace-tests.log": {
+      "passed": 22556,
+      "failed": 0,
+      "ignored": 15,
+      "sha256": "fc9e752413817b92fe281964b4eefe24bc2e8762a05a8e86672c3614f5eb0d19"
+    },
+    "generator-suite.log": {
+      "passed": 1569,
+      "failed": 0,
+      "ignored": 22,
+      "sha256": "4b64a5bfa05f78f8d123f0324576aa09da442484b9f14c67ea5b6c36bbc62a7e"
+    }
+  },
+  "candidate_cards": {
+    "affected": 33,
+    "generation_ready": [
+      "Arboria",
+      "Cloak of Confusion",
+      "Concordant Crossroads",
+      "Crevasse",
+      "Deadfall",
+      "Delif's Cone",
+      "Delif's Cube",
+      "Farrel's Mantle",
+      "Farrel's Zealot",
+      "Floral Spuzzem",
+      "Gaze of Pain",
+      "Gosta Dirk",
+      "Gravity Sphere",
+      "Great Wall",
+      "In the Eye of Chaos",
+      "Island of Wak-Wak",
+      "Living Plane",
+      "Lord Magnus",
+      "Nether Void",
+      "Orcish Squatters",
+      "Quagmire",
+      "Sentinel",
+      "Singing Tree",
+      "Staff of the Ages",
+      "Storm World",
+      "The Abyss",
+      "Undertow",
+      "Ur-Drago",
+      "Wall of Tombstones"
+    ],
+    "still_gapped": {
+      "Caverns of Despair": [
+        "static rule CombatGroup Attacker",
+        "static rule CombatGroup Blocker"
+      ],
+      "Field of Dreams": [
+        "a library's top card open to view"
+      ],
+      "Land's Edge": [
+        "engine: no activation by other players"
+      ],
+      "Revelation": [
+        "a hand played revealed"
+      ]
+    }
+  },
+  "native_module_compile": {
+    "cards": 33,
+    "passed": true,
+    "counter_overlay": "append Cube=91; preserve original IDs 0-90; declaration only; not committed to foundation"
+  },
+  "native_generated_runtime": {
+    "passed": 25,
+    "failed": 0,
+    "pristine_foundation": true,
+    "verification": true
+  },
+  "legacy_generated_runtime": {
+    "passed": 21,
+    "failed": 0
+  },
+  "default_target_compatibility": {
+    "cards": 33529,
+    "changed_bodies": [],
+    "changed_gaps": []
+  },
+  "benchmark": {
+    "games": 128,
+    "before_engine_us": 45.24,
+    "after_engine_us": 45.44,
+    "allocation_kb_per_decision": 26.74,
+    "shared_machine": true
+  },
+  "dotnet": {
+    "passed": false,
+    "reason": "dotnet executable unavailable; tools/test.sh stopped before tests"
+  },
+  "evidence_directory": "/mnt/vizier/early-set-foundation-20261112"
+}

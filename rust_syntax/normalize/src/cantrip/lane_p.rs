@@ -24,9 +24,11 @@ pub(super) fn printed_subtype(word: &str) -> String {
 /// `Supertypes` of a card, with the words Cantrip has no field for.
 pub(super) fn printed_supertypes(flags: [bool; 3], others: &[String]) -> String {
     let [basic, legendary, snow] = flags;
-    let known = format!("basic: {basic}, legendary: {legendary}, snow: {snow}");
+    let mut known = format!("basic: {basic}, legendary: {legendary}, snow: {snow}");
+    let world = planned::switched_on("world-rule");
+    if world { write!(known, ", world: {}", others.iter().any(|s| s == "World")).unwrap(); }
     let mut value = format!("Supertypes {{ {known} }}");
-    for other in others {
+    for other in others.iter().filter(|s| !(world && s.as_str() == "World")) {
         let field = other.to_lowercase();
         value = planned::planned_value(
             &format!("supertype {other}"),

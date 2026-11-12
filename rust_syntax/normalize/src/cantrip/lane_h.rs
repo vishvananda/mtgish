@@ -1252,6 +1252,8 @@ impl Compiler {
             )]
         };
         Ok(match rule {
+            R::CombatDamage(CombatDamageRule::NoAssignment) if planned::switched_on("no-combat-damage-assignment") =>
+                vec!["EffectKind::NoCombatDamageAssignment".into()],
             R::AttackException {
                 ignore: AttackCheck::Defender,
                 defenders: AttackDefenders::Any,

@@ -6,9 +6,9 @@ static FILLER: CardDef = CardDef { name: "Filler", types: TypeSet::of(&[CardType
 static BEAR: CardDef = CardDef { name: "White fixture bear", cost: mana("{2}"), has_cost: true,
     types: TypeSet::of(&[CardType::Creature]), colors: Some(ColorSet::of(Color::White)), power: Some(2), toughness: Some(2), ..CardDef::BLANK };
 static BASIC: CardDef = CardDef { name: "Fixture basic Plains", types: TypeSet::of(&[CardType::Land]),
-    subtypes: SubtypeSet::of(&[Subtype::Plains]), supertypes: Supertypes { basic: true, legendary: false, snow: false }, ..CardDef::BLANK };
+    subtypes: SubtypeSet::of(&[Subtype::Plains]), supertypes: Supertypes { basic: true, ..CardDef::BLANK.supertypes }, ..CardDef::BLANK };
 static DUAL: CardDef = CardDef { name: "Fixture nonbasic Plains Forest", subtypes: SubtypeSet::of(&[Subtype::Plains, Subtype::Forest]),
-    supertypes: Supertypes { basic: false, legendary: false, snow: false }, ..BASIC };
+    supertypes: Supertypes { basic: false, ..CardDef::BLANK.supertypes }, ..BASIC };
 fn permanent(q: &dyn Query, _: &Asker, t: Target) -> bool { t.object().is_some_and(|o| q.is_on_battlefield(o)) }
 static PERMANENT: &[TargetSpec] = &[target(permanent)];
 fn bounce(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {

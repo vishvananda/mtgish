@@ -199,6 +199,19 @@ impl Compiler {
             "(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool";
         let function = format!("{label}_rule");
         match rule {
+            RuleChange::BlockedAsThoughLacking(ability) if planned::switched_on("landwalk-blocking-exceptions") => {
+                let ignored = match &**ability {
+                    Operand::Term { family, form, operands } if family == "CheckHasable" && form == "AnyLandwalk" && operands.is_empty() => "Keywords::LANDWALKS".to_string(),
+                    Operand::Term { family, form, operands } if family == "CheckHasable" && form == "Landwalk" => {
+                        let [Operand::Objects(crate::battlefield_query!(filter))] = operands.as_slice() else { return Ok(false) };
+                        lane_k::keyword_mask(&lane_p::landwalk(filter)?, "asker.source")
+                    }
+                    _ => return Ok(false),
+                };
+                let applies = self.rule_subject(affected, "attacker")?;
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, blocker: ObjectId, attacker: ObjectId) -> Keywords {{ if {guard}{applies} {{ {ignored} }} else {{ Keywords::NONE }} }}").unwrap();
+                parts.table("landwalk_exceptions", function);
+            }
             RuleChange::Prohibit(ObjectAction::BeAttachedBy { attachments, keep_existing: false })
                 if self.static_guard.is_none() && planned::switched_on("no-other-auras") =>
             {

@@ -1,0 +1,415 @@
+[
+  {
+    "name": "Arboria",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Arboria",
+        "manaCost": "{2}{G}{G}",
+        "type": "World Enchantment",
+        "text": "Creatures can't attack a player unless that player cast a spell or put a nontoken permanent onto the battlefield during their last turn."
+      }
+    ]
+  },
+  {
+    "name": "Caverns of Despair",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Caverns of Despair",
+        "manaCost": "{2}{R}{R}",
+        "type": "World Enchantment",
+        "text": "No more than two creatures can attack each combat.\nNo more than two creatures can block each combat."
+      }
+    ]
+  },
+  {
+    "name": "Cloak of Confusion",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cloak of Confusion",
+        "manaCost": "{1}{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature you control\nWhenever enchanted creature attacks and isn't blocked, you may have it assign no combat damage this turn. If you do, defending player discards a card at random."
+      }
+    ]
+  },
+  {
+    "name": "Concordant Crossroads",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Concordant Crossroads",
+        "manaCost": "{G}",
+        "type": "World Enchantment",
+        "text": "All creatures have haste."
+      }
+    ]
+  },
+  {
+    "name": "Crevasse",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Crevasse",
+        "manaCost": "{2}{R}",
+        "type": "Enchantment",
+        "text": "Creatures with mountainwalk can be blocked as though they didn't have mountainwalk."
+      }
+    ]
+  },
+  {
+    "name": "Deadfall",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Deadfall",
+        "manaCost": "{2}{G}",
+        "type": "Enchantment",
+        "text": "Creatures with forestwalk can be blocked as though they didn't have forestwalk."
+      }
+    ]
+  },
+  {
+    "name": "Delif's Cone",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Delif's Cone",
+        "manaCost": "{0}",
+        "type": "Artifact",
+        "text": "{T}, Sacrifice this artifact: This turn, when target creature you control attacks and isn't blocked, you may gain life equal to its power. If you do, it assigns no combat damage this turn."
+      }
+    ]
+  },
+  {
+    "name": "Delif's Cube",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Delif's Cube",
+        "manaCost": "{1}",
+        "type": "Artifact",
+        "text": "{2}, {T}: This turn, when target creature you control attacks and isn't blocked, it assigns no combat damage this turn and you put a cube counter on this artifact.\n{2}, Remove a cube counter from this artifact: Regenerate target creature."
+      }
+    ]
+  },
+  {
+    "name": "Farrel's Mantle",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Farrel's Mantle",
+        "manaCost": "{2}{W}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nWhenever enchanted creature attacks and isn't blocked, its controller may have it deal damage equal to its power plus 2 to another target creature. If that player does, the attacking creature assigns no combat damage this turn."
+      }
+    ]
+  },
+  {
+    "name": "Farrel's Zealot",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Farrel's Zealot",
+        "manaCost": "{1}{W}{W}",
+        "type": "Creature — Human",
+        "text": "Whenever this creature attacks and isn't blocked, you may have it deal 3 damage to target creature. If you do, this creature assigns no combat damage this turn.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Field of Dreams",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Field of Dreams",
+        "manaCost": "{U}",
+        "type": "World Enchantment",
+        "text": "Players play with the top card of their libraries revealed."
+      }
+    ]
+  },
+  {
+    "name": "Floral Spuzzem",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Floral Spuzzem",
+        "manaCost": "{3}{G}",
+        "type": "Creature — Elemental",
+        "text": "Whenever this creature attacks and isn't blocked, you may destroy target artifact defending player controls. If you do, this creature assigns no combat damage this turn.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Gaze of Pain",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gaze of Pain",
+        "manaCost": "{1}{B}",
+        "type": "Sorcery",
+        "text": "Until end of turn, whenever a creature you control attacks and isn't blocked, you may choose to have it deal damage equal to its power to a target creature. If you do, it assigns no combat damage this turn."
+      }
+    ]
+  },
+  {
+    "name": "Gosta Dirk",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gosta Dirk",
+        "manaCost": "{3}{W}{W}{U}{U}",
+        "type": "Legendary Creature — Human Warrior",
+        "text": "First strike\nCreatures with islandwalk can be blocked as though they didn't have islandwalk.",
+        "power": "4",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Gravity Sphere",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gravity Sphere",
+        "manaCost": "{2}{R}",
+        "type": "World Enchantment",
+        "text": "All creatures lose flying."
+      }
+    ]
+  },
+  {
+    "name": "Great Wall",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Great Wall",
+        "manaCost": "{2}{W}",
+        "type": "Enchantment",
+        "text": "Creatures with plainswalk can be blocked as though they didn't have plainswalk."
+      }
+    ]
+  },
+  {
+    "name": "In the Eye of Chaos",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "In the Eye of Chaos",
+        "manaCost": "{2}{U}",
+        "type": "World Enchantment",
+        "text": "Whenever a player casts an instant spell, counter it unless that player pays {X}, where X is its mana value."
+      }
+    ]
+  },
+  {
+    "name": "Island of Wak-Wak",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Island of Wak-Wak",
+        "type": "Land",
+        "text": "{T}: Target creature with flying has base power 0 until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "Land's Edge",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Land's Edge",
+        "manaCost": "{1}{R}{R}",
+        "type": "World Enchantment",
+        "text": "Discard a card: If the discarded card was a land card, this enchantment deals 2 damage to target player or planeswalker. Any player may activate this ability."
+      }
+    ]
+  },
+  {
+    "name": "Living Plane",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Living Plane",
+        "manaCost": "{2}{G}{G}",
+        "type": "World Enchantment",
+        "text": "All lands are 1/1 creatures that are still lands."
+      }
+    ]
+  },
+  {
+    "name": "Lord Magnus",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Lord Magnus",
+        "manaCost": "{3}{G}{W}{W}",
+        "type": "Legendary Creature — Human Druid",
+        "text": "First strike\nCreatures with plainswalk can be blocked as though they didn't have plainswalk.\nCreatures with forestwalk can be blocked as though they didn't have forestwalk.",
+        "power": "4",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Nether Void",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Nether Void",
+        "manaCost": "{3}{B}",
+        "type": "World Enchantment",
+        "text": "Whenever a player casts a spell, counter it unless that player pays {3}."
+      }
+    ]
+  },
+  {
+    "name": "Orcish Squatters",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Orcish Squatters",
+        "manaCost": "{4}{R}",
+        "type": "Creature — Orc",
+        "text": "Whenever this creature attacks and isn't blocked, you may gain control of target land defending player controls for as long as you control this creature. If you do, this creature assigns no combat damage this turn.",
+        "power": "2",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Quagmire",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Quagmire",
+        "manaCost": "{2}{B}",
+        "type": "Enchantment",
+        "text": "Creatures with swampwalk can be blocked as though they didn't have swampwalk."
+      }
+    ]
+  },
+  {
+    "name": "Revelation",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Revelation",
+        "manaCost": "{G}",
+        "type": "World Enchantment",
+        "text": "Players play with their hands revealed."
+      }
+    ]
+  },
+  {
+    "name": "Sentinel",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sentinel",
+        "manaCost": "{4}",
+        "type": "Artifact Creature — Shapeshifter",
+        "text": "{0}: This creature's base toughness becomes equal to 1 plus the power of target creature blocking or blocked by this creature. (This effect lasts indefinitely.)",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Singing Tree",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Singing Tree",
+        "manaCost": "{3}{G}",
+        "type": "Creature — Plant",
+        "text": "{T}: Target attacking creature has base power 0 until end of turn.",
+        "power": "0",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Staff of the Ages",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Staff of the Ages",
+        "manaCost": "{3}",
+        "type": "Artifact",
+        "text": "Creatures with landwalk abilities can be blocked as though they didn't have those abilities."
+      }
+    ]
+  },
+  {
+    "name": "Storm World",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Storm World",
+        "manaCost": "{R}",
+        "type": "World Enchantment",
+        "text": "At the beginning of each player's upkeep, this enchantment deals X damage to that player, where X is 4 minus the number of cards in their hand."
+      }
+    ]
+  },
+  {
+    "name": "The Abyss",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "The Abyss",
+        "manaCost": "{3}{B}",
+        "type": "World Enchantment",
+        "text": "At the beginning of each player's upkeep, destroy target nonartifact creature that player controls of their choice. It can't be regenerated."
+      }
+    ]
+  },
+  {
+    "name": "Undertow",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Undertow",
+        "manaCost": "{2}{U}",
+        "type": "Enchantment",
+        "text": "Creatures with islandwalk can be blocked as though they didn't have islandwalk."
+      }
+    ]
+  },
+  {
+    "name": "Ur-Drago",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ur-Drago",
+        "manaCost": "{3}{U}{U}{B}{B}",
+        "type": "Legendary Creature — Elemental",
+        "text": "First strike\nCreatures with swampwalk can be blocked as though they didn't have swampwalk.",
+        "power": "4",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Wall of Tombstones",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Wall of Tombstones",
+        "manaCost": "{1}{B}",
+        "type": "Creature — Wall",
+        "text": "Defender (This creature can't attack.)\nAt the beginning of your upkeep, this creature's base toughness becomes equal to 1 plus the number of creature cards in your graveyard. (This effect lasts indefinitely.)",
+        "power": "0",
+        "toughness": "1"
+      }
+    ]
+  }
+]
