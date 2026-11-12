@@ -1758,11 +1758,19 @@
       "log": "generator-eight-suite-serialized.log"
     },
     "full_native_last_pass": {
-      "passed": 22565,
+      "passed": 22577,
+      "failed": 0,
       "ignored": 15,
-      "revision": "de790242f"
+      "log": "workspace-eight-tests.log",
+      "revision": "4deb96071"
     },
-    "full_native_current_batch": "running workspace-eight-tests.log"
+    "full_native_current_batch": {
+      "passed": 22577,
+      "failed": 0,
+      "ignored": 15,
+      "log": "workspace-eight-tests.log",
+      "revision": "4deb96071"
+    }
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1776,7 +1784,8 @@
     "generator-random-cost-tests.log": "3c38860d979d887b92a08105ef0c80376cfb83b2aea7d76a606dcbe899dc08ae",
     "generator-eight-native-runtime.log": "29d0248eeaf7705d3051ce03785089336e1942460982ffc6d4fef24caf82f1b2",
     "pipeline-fingerprint-recheck.log": "829e831d16e066ba23dcdc047ab57dce8e245ca519ab28f2f72baa793353bf25",
-    "generator-eight-suite-serialized.log": "9467b05fade6452f91f19495552ac1994b252646fa6eea9fae59e35d56fab507"
+    "generator-eight-suite-serialized.log": "9467b05fade6452f91f19495552ac1994b252646fa6eea9fae59e35d56fab507",
+    "workspace-eight-tests.log": "b2a1269686873490f5e21f4216c104cfadab224189df55b5475891f9ed9a680b"
   },
   "candidate_api_fingerprint": "339e1feff503ccc66edccf4d7615b103fdf3d36b4f51486e0134ccfba5e36788",
   "benchmark_current_batch": {

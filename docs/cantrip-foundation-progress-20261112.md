@@ -50,8 +50,9 @@ the pristine foundation. The generated runtime suite now passes 34 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The complete generator suite now passes 1,573 tests (22 ignored) in a serialized
-run. The batched native workspace gate is still running; its preceding full
-pass was 22,565 tests (15 ignored) at the five-feature revision.
+run. The batched native workspace gate passes 22,577 tests (15 ignored), through
+`4deb96071`, with verification enabled. The .NET SDK is unavailable, so no .NET
+pass is claimed.
 
 The 128-game benchmark's allocation remains 26.74 KB per decision. Sequential
 control runs measured 49.88 µs before and 44.79 µs after; an earlier after-run
