@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Damping Field",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Damping Field",
+        "manaCost": "{2}{W}",
+        "type": "Enchantment",
+        "text": "Players can't untap more than one artifact during their untap steps."
+      }
+    ]
+  },
+  {
+    "name": "Smoke",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Smoke",
+        "manaCost": "{R}{R}",
+        "type": "Enchantment",
+        "text": "Players can't untap more than one creature during their untap steps."
+      }
+    ]
+  },
+  {
+    "name": "Winter Orb",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Winter Orb",
+        "manaCost": "{2}",
+        "type": "Artifact",
+        "text": "As long as this artifact is untapped, players can't untap more than one land during their untap steps."
+      }
+    ]
+  }
+]

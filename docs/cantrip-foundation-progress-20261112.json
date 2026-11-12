@@ -1,5 +1,5 @@
 {
-  "native_foundation": "fb68ed4c8",
+  "native_foundation": "d8d0d26b7",
   "scoped_missing": 286,
   "generation_ready": [
     "Anti-Magic Aura",
@@ -23,6 +23,7 @@
     "Coral Helm",
     "Crevasse",
     "Curse Artifact",
+    "Damping Field",
     "Deadfall",
     "Deep Spawn",
     "Delif's Cone",
@@ -145,6 +146,7 @@
     "Sibilant Spirit",
     "Sindbad",
     "Singing Tree",
+    "Smoke",
     "Soul Exchange",
     "Spirit Shackle",
     "Staff of the Ages",
@@ -181,6 +183,7 @@
     "War Barge",
     "Whirling Dervish",
     "Winds of Change",
+    "Winter Orb",
     "Wood Elemental",
     "Xenic Poltergeist",
     "Yawgmoth Demon"
@@ -233,9 +236,6 @@
     ],
     "Cursed Rack": [
       "a maximum hand size of other players"
-    ],
-    "Damping Field": [
-      "a limit on what untaps in an untap step"
     ],
     "Dance of the Dead": [
       "a triggered ability carrying separate groups of objects",
@@ -470,9 +470,6 @@
     "Silhouette": [
       "replacement event Caused"
     ],
-    "Smoke": [
-      "a limit on what untaps in an untap step"
-    ],
     "Snowfall": [
       "engine: only a mana ability triggers on tapping for mana",
       "mana spending purpose"
@@ -525,9 +522,6 @@
     "Whippoorwill": [
       "continuous rule Unique"
     ],
-    "Winter Orb": [
-      "a limit on what untaps in an untap step"
-    ],
     "Winter's Chill": [
       "a limit on the X announced"
     ],
@@ -575,16 +569,6 @@
         "Enduring Renewal",
         "Revelation",
         "Zur's Weirding"
-      ]
-    },
-    {
-      "feature": "a limit on what untaps in an untap step",
-      "affected": 3,
-      "sole_blocker": 3,
-      "cards": [
-        "Damping Field",
-        "Smoke",
-        "Winter Orb"
       ]
     },
     {
@@ -1720,7 +1704,7 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 38,
+    "generated_runtime_scenarios": 40,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
@@ -1740,7 +1724,8 @@
     },
     "focused_keyword_families": 2,
     "all_card_keyword_family_oracle_test": 1,
-    "focused_controlled_attachment_generator": 2
+    "focused_controlled_attachment_generator": 2,
+    "focused_untap_limits": 7
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1762,9 +1747,13 @@
     "generator-nine-scope.log": "60f44f684eab7e11857bc93dd10706c69bf6dcb516ea5ce814220bd9eb407e59",
     "generator-attached-cost-tests.log": "263f6c8ec67fa41111532f4a5d4cdefb4c216edbf225cda12793f7ca66458dd7",
     "generator-ten-native-runtime.log": "4f9b43994f4af8a310442ef003450b71f482a5220b27a98351c821ae9a29bd79",
-    "generator-ten-scope.log": "33419f31bffae7c9cae5e9e742af5441de3a6024d8707be184e494f766af8bb5"
+    "generator-ten-scope.log": "33419f31bffae7c9cae5e9e742af5441de3a6024d8707be184e494f766af8bb5",
+    "generator-untap-limit-tests.log": "b26531a2ff1a88291b81651ca9970251ecc496f97d7e7df955309a2de2161b8a",
+    "untap-limit-tests.log": "28cd1c8c577b53019d1cb7fe6209529c00acf7422ff1b4d11147ee49580b9410",
+    "generator-eleven-native-runtime.log": "438a506157c886e71ce4d7eee09e738dfdb0eb313f3a8d1118e5ca35c47d4444",
+    "generator-eleven-scope.log": "a28efb623b449e62a263b5699feeffa5a3dc83bfa6e18bd2898ac1d895cbc29a"
   },
-  "candidate_api_fingerprint": "a750b4fbc44b4d5fe6974d83040aef51bffad801847f2d494f99c58286040773",
+  "candidate_api_fingerprint": "8ea43b005590aae51b9210657e270e1f808d3e0f1d7719cdb05528fe6255af0b",
   "benchmark_current_batch": {
     "games": 128,
     "allocation_kb_per_decision": 26.74,

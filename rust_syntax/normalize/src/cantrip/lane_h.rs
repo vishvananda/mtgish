@@ -1678,7 +1678,7 @@ impl Compiler {
             PlayerRule::UntapLimit {
                 permanents,
                 amount: Expr::Constant(n),
-            } => {
+            } if (0..=i64::from(u32::MAX)).contains(n) => {
                 const FEATURE: &str = "a limit on what untaps in an untap step";
                 let test = self.filter(permanents, &Candidate::of("id"))?;
                 let applies = self.player_test(players, FEATURE, &format!("{label}_untaps"))?;
