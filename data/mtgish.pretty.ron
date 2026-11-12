@@ -238647,7 +238647,7 @@ Card(
             ManaProduceW,
             ManaProduceW,
           ]),
-          CanOnlySpendOnSpells(And([
+          CanOnlySpendOnSpells(Or([
             IsEnchantmentType(Aura),
             IsArtifactType(Equipment),
           ])),
@@ -288875,7 +288875,7 @@ Card(
       You,
       [
         DecreaseSpellCost(
-          And([
+          Or([
             IsEnchantmentType(Aura),
             IsArtifactType(Equipment),
           ]),
@@ -542770,7 +542770,7 @@ Card(
       You,
       [
         DecreaseSpellCostX(
-          And([
+          Or([
             IsEnchantmentType(Aura),
             IsArtifactType(Equipment),
           ]),
@@ -1182753,7 +1182753,7 @@ Card(
     PlayerEffect(
       You,
       [
-        MayCastSpellsAsThoughTheyHadFlash(And([
+        MayCastSpellsAsThoughTheyHadFlash(Or([
           IsEnchantmentType(Aura),
           IsArtifactType(Equipment),
         ])),

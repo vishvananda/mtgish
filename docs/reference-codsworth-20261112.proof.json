@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-12",
+  "upstream_issue": "https://github.com/i5jb/mtgish/issues/276",
+  "schema": 190,
+  "reference_disputes_found": 1,
+  "affected_cards": [
+    "Codsworth, Handy Helper",
+    "Danitha Capashen, Paragon",
+    "Golden-Tail Trainer",
+    "Sigarda's Aid"
+  ],
+  "producer_templates_changed": 2,
+  "corpus": {
+    "data/mtgish.lines.ron": {
+      "changed": 4,
+      "sha256": "e624c8cd0245858c497b5d11f5db50de571c9e24af61295ef535978e7e5fd44f"
+    },
+    "data/mtgish.lines.json": {
+      "changed": 4,
+      "sha256": "53ce7effa0d82622c2dbbba01727e1e7a648f4910ef4994bc91bf10c871673c5"
+    },
+    "data/mtgish.pretty.ron": {
+      "changed": 4,
+      "sha256": "ea1e19e5f57a934c5b6adb04a6e683509fb8971f4ea78fead2326e97752e5bea"
+    },
+    "untouched_records": 33525,
+    "changed_cards": [
+      "Codsworth, Handy Helper",
+      "Danitha Capashen, Paragon",
+      "Golden-Tail Trainer",
+      "Sigarda's Aid"
+    ]
+  },
+  "validation": {
+    "rust_workspace_with_cantrip": {
+      "passed": 2018,
+      "ignored": 24,
+      "targets": 197,
+      "exit": 0
+    },
+    "go_full": {
+      "exit": 0,
+      "seconds": 90.692
+    },
+    "go_focused": {
+      "exit": 0,
+      "seconds": 2.301
+    },
+    "new_raw_ir_tests": 2,
+    "complete_parser_records": 8
+  },
+  "oracle_grammar_worktree_modified": false,
+  "gold_edited": false,
+  "pin_advanced": false,
+  "evidence_root": "/mnt/vizier/reference-codsworth-20261112",
+  "source_sha256": {
+    "grammars/english_grammar.json5": "e0740d12809a2d03a02cef3c2d26ece7fb2f19924a1dfdc7ee5fc12fe6bc7b06",
+    "data/grammar_audit_review.json": "4e9845f4930591a53c5ccc520828fc216bd52eab8f5c4ffe3c433643218b2767",
+    "data/mtgish.lines.ron": "e624c8cd0245858c497b5d11f5db50de571c9e24af61295ef535978e7e5fd44f",
+    "data/mtgish.lines.json": "53ce7effa0d82622c2dbbba01727e1e7a648f4910ef4994bc91bf10c871673c5",
+    "data/mtgish.pretty.ron": "ea1e19e5f57a934c5b6adb04a6e683509fb8971f4ea78fead2326e97752e5bea",
+    "rust_syntax/normalize/tests/fixtures/aura_equipment_spell_union.ronl": "e640dfd1ba0d5e92d00d24da556de8f685e46e09a8218643b285eab58e97cee7",
+    "go_mtg_parser/aura_equipment_spell_union_test.go": "ca9364d1839d6280582d59c610441c33b27eb7b1366f7bcc5e607fef5851e998",
+    "rust_syntax/normalize/tests/aura_equipment_spell_union.rs": "31dd7ff977f67caec4c58afc666b244da4d96ae328f76e9b9ff327df93191b65"
+  },
+  "log_sha256": {
+    "rust-workspace-tests.log": "b491a3f1d1d83610e06a07f3ee08b2f53a4e67b30c6e29a3d5d1567563eb4958",
+    "rust-tests.log": "92906f0a4bca047f4544f82e77db5e4342f7058395438846734e4e1e3dff9977",
+    "go-targeted-tests.log": "3bcd360b3a54867c4848f3437e412405ec81b17bc9d843e8fe69ca8cc3fef72a",
+    "go-full-tests.log": "9d409b8e5bbd731a0c9c63f8d03008707f4980fa416bfa76037ada03ccf3f3bf"
+  }
+}
