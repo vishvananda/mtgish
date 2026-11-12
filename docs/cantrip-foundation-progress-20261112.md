@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`bc15adfec`. Sixteen focused feature groups are implemented. The new step-deadline
+`4494834c7`. Seventeen focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **201 generate without recorded feature gaps and 85
-remain gapped**. Those 201 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **202 generate without recorded feature gaps and 84
+remain gapped**. Those 202 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 95 raw requirement labels
+remaining requirement and its affected cards. Its 94 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -41,7 +41,7 @@ The ninth primitive gives rampage and cumulative upkeep typed family metadata.
 Rapid Fire and Balduvian Shaman now generate without gaps. Two native tests cover
 identity through grants, loss and copying; an Oracle audit verifies metadata on
 every implemented card. Two generated runtime scenarios cover both positive
-and negative keyword checks. The complete workspace gates below cover all sixteen groups and the dependent-target repair.
+and negative keyword checks. The complete workspace gates below cover the first sixteen groups and the dependent-target repair.
 
 Earthlore and Tourach's Gate required only a generator repair. Their typed
 “enchant land you control” restriction proves the host belongs to the payer
@@ -118,7 +118,16 @@ to card numbers or native state storage.
 The original roadmap still has computed X constraints and persistent public
 visibility pending. The sixteenth group, [bands with other](cantrip-foundation-banding-20261112.md),
 clears all eight affected cards and covers the distinct formation and damage-assignment rules,
-ordinary banding loss, copying, grants and band persistence without per-object fields. The full remaining ledger also identifies
+ordinary banding loss, copying, grants and band persistence without per-object fields. The seventeenth group adds combat-limited delayed event watchers for Goblin
+Flotilla and Melee. Seven focused native tests, all 1,457 rules unit tests
+(one ignored), and 52 generated runtime scenarios pass; the workspace checks.
+Goblin Flotilla clears its last gap, while Melee retains blocker-choice control.
+The complete native gate above remains the sixteen-group checkpoint; batch
+full gates again before the requested pause. A 128-game control on the new
+revision completed all games at 43.61 µs per engine decision, with allocation
+unchanged at 27.04 KB. Shared-host timing variation is not a speed claim.
+
+The full remaining ledger also identifies
 other needs, including forced mana activations,
 combat changes/costs, targeting by other players and delayed-trigger lifetimes.
 Treat that as an investigation queue; verify existing native support before
@@ -126,7 +135,7 @@ adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 51 scenarios,
+the pristine foundation. The generated runtime suite now passes 52 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The entire generator workspace now passes 2,005 tests (24 ignored), across
@@ -147,7 +156,7 @@ The sixteen-group before/after 128-game controls completed every game and
 allocated the same 27.04 KB per decision. Engine time was 44.35 versus 45.61 µs
 on this shared machine; a single pair does not establish a timing change.
 
-A direct compilation probe now passes all 201 generation-ready modules against
+A direct compilation probe now passes all 202 generation-ready modules against
 the pristine foundation. The native catalog appends Cube (91), Doom (92) and Glyph (93)
 for Delif's Cube, Armageddon Clock and Glyph of Delusion, preserving existing IDs. No overlay is
 used. These three i32 entries follow the existing dense counter design and add
@@ -162,7 +171,7 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --features cantri
   landwalk-blocking-exceptions independent-pt-settings \
   no-combat-damage-assignment world-rule other-activators \
   step-deadlines counted-untap-steps explicit-mana-loss random-discard-costs \
-  keyword-family-metadata untap-limits nonmana-mana-tap-triggers attack-as-though-haste skip-steps hand-size-rules rechosen-values bands-with-other
+  keyword-family-metadata untap-limits nonmana-mana-tap-triggers attack-as-though-haste skip-steps hand-size-rules rechosen-values bands-with-other combat-event-delays
 ```
 
 These flags explicitly select capabilities; they do not prove that an engine
@@ -178,3 +187,8 @@ Run the candidate CLI build and the generator suite sequentially when sharing
 test invokes `CARGO_BIN_EXE_ast` can replace its matched binary and produce a
 saved-artifact fingerprint mismatch. The isolated serialized check passes; the
 combined suite is rerun serialized for the batch receipt.
+
+The user narrowed the next stopping milestone to the [shared five-card and
+three-card groups](cantrip-foundation-shared-stop-20261112.md). Finish those
+seven families, run the batched gates, then pause. Independent two-card and
+single-card work is deferred for focused engine-plus-card PRs.

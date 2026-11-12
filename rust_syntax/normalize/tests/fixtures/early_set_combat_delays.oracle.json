@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Goblin Flotilla",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Goblin Flotilla",
+        "manaCost": "{2}{R}",
+        "type": "Creature — Goblin",
+        "text": "Islandwalk (This creature can't be blocked as long as defending player controls an Island.)\nAt the beginning of each combat, unless you pay {R}, whenever this creature blocks or becomes blocked by a creature this combat, that creature gains first strike until end of turn.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Melee",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Melee",
+        "manaCost": "{4}{R}",
+        "type": "Instant",
+        "text": "Cast this spell only during combat on your turn before blockers are declared.\nYou choose which creatures block this combat and how those creatures block.\nWhenever a creature attacks and isn't blocked this combat, untap it and remove it from combat."
+      }
+    ]
+  }
+]

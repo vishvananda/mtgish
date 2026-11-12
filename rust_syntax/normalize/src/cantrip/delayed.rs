@@ -1078,6 +1078,8 @@ impl Compiler {
         }
         let when = match (duration, once) {
             (D::EndOfTurn, false) => "DelayedWhen::ThisTurn".to_string(),
+            (D::EndOfCombat, false) => planned::planned_value(
+                "event trigger for EndOfCombat", "DelayedWhen::ThisTurn", "DelayedWhen::ThisCombat"),
             (D::EndOfTurn, true) => "DelayedWhen::NextThisTurn".to_string(),
             (D::UntilNextTurn(player), false) => format!(
                 "DelayedWhen::UntilNextTurnOf({})",

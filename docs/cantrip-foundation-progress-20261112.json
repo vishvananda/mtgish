@@ -1,5 +1,5 @@
 {
-  "native_foundation": "bc15adfec",
+  "native_foundation": "4494834c7",
   "scoped_missing": 286,
   "generation_ready": [
     "Adventurers' Guildhouse",
@@ -69,6 +69,7 @@
     "Glyph of Delusion",
     "Glyph of Doom",
     "Goblin Artisans",
+    "Goblin Flotilla",
     "Gosta Dirk",
     "Gravity Sphere",
     "Great Wall",
@@ -308,9 +309,6 @@
     "Glyph of Reincarnation": [
       "player reference AsOf"
     ],
-    "Goblin Flotilla": [
-      "event trigger for EndOfCombat"
-    ],
     "Guardian Angel": [
       "player rule for a while SpecialAction"
     ],
@@ -366,7 +364,6 @@
       "replacement event Discard"
     ],
     "Melee": [
-      "event trigger for EndOfCombat",
       "player rule for a while Decides"
     ],
     "Merseine": [
@@ -584,15 +581,6 @@
       "cards": [
         "Dance of the Dead",
         "Tawnos's Coffin"
-      ]
-    },
-    {
-      "feature": "event trigger for EndOfCombat",
-      "affected": 2,
-      "sole_blocker": 1,
-      "cards": [
-        "Goblin Flotilla",
-        "Melee"
       ]
     },
     {
@@ -1111,7 +1099,7 @@
     {
       "feature": "player rule for a while Decides",
       "affected": 1,
-      "sole_blocker": 0,
+      "sole_blocker": 1,
       "cards": [
         "Melee"
       ]
@@ -1597,7 +1585,7 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 51,
+    "generated_runtime_scenarios": 52,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
@@ -1625,10 +1613,10 @@
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 201,
+      "passed": 202,
       "pending_named_counters": {},
-      "log": "generator-bands-ready-compile.log",
-      "revision": "bc15adfec"
+      "log": "generator-combat-delays-ready-compile.log",
+      "revision": "4494834c7"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1655,7 +1643,22 @@
     "focused_bands_with_other": {
       "passed": 9,
       "log": "bands-tests-resumed.log"
-    }
+    },
+    "focused_combat_delays": {
+      "passed": 7,
+      "log": "combat-delayed-tests.log"
+    },
+    "all_rules_lib_current": {
+      "passed": 1457,
+      "ignored": 1,
+      "log": "combat-delayed-all-rules-tests.log"
+    },
+    "generator_foundation_tests_current": {
+      "passed": 18,
+      "ignored": 1,
+      "log": "generator-combat-delays-tests.log"
+    },
+    "full_batch_pending": "After remaining shared five-card/three-card groups, before the user-requested pause."
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1738,21 +1741,43 @@
     "generator-sixteen-suite.log": "e1bc2e1d15af42c7d9821b9d69afd124d8e407926abb57491efb99cd6b66807d",
     "workspace-sixteen-tests.log": "d4d23fcaafea8ba4e973e40329392cc66ff6747650ebaacff116c949a0d3616d",
     "benchmark-bands-control.log": "63221d7c4a4f3671e99654f6e38fb852121212eeae1a14b0bfc80fcb88182613",
-    "benchmark-bands-after.log": "fadfb70a57a57a2b3e30fa3717fec19ad6f7be2a181d695ef5096d9df85add59"
+    "benchmark-bands-after.log": "fadfb70a57a57a2b3e30fa3717fec19ad6f7be2a181d695ef5096d9df85add59",
+    "combat-delayed-tests.log": "66731267f21398e87cab509a17cd915c853a1b521ade5b775e5fc09361734951",
+    "combat-delayed-all-rules-tests.log": "6f6f05e11622bb86f0d8c783491c99c97615694f08ad96707f2d9577e1b5860c",
+    "combat-delayed-workspace-check.log": "48ce5ded2dbd9f704a69e3d79fd61a51b950816a67a5fddaf8b8b97e8b985dc0",
+    "combat-delays-vocabulary.log": "bb913b2b1524a506a7e69fb1449cb1ea0ef0141f1bd9d0473de8e94849a63cf7",
+    "generator-combat-delays-tests.log": "424bea8131de04d82668ee3e0d7fb68570619e655d3be98e31859e2ae9a1b40a",
+    "generator-combat-delays-native-runtime.log": "6101243c82bb0f00776bb3d183a863ab37e469fb74e519de3fa21b4f1f4916d7",
+    "generator-combat-delays-scope.log": "2b3e0f804ced97bbe60903f7c8dfbb385daf98ccc17cfc212ca572d774ddf77d",
+    "generator-combat-delays-ready-compile.log": "6d92cb7d7b8c407ebc6acb580e5c0bd1f2fb13a62dbd8a9affd3f5644042804f",
+    "benchmark-combat-delays-after.log": "6c06a59916aa528b9f5fcc2bdc3d5fe9cc0b713c34d6655cf9acc30c35294730"
   },
-  "candidate_api_fingerprint": "47eb7fc214cd9aa5fa0d622a8d790330817dfe1d8bb61317976663ecb98a49b6",
+  "candidate_api_fingerprint": "0770b864482c3382c14df19adfb3de771c561f23e3ccccb634d4a0098ac0eb3c",
   "benchmark_current_batch": {
     "games": 128,
+    "control_native_revision": "bc15adfec",
+    "native_revision": "4494834c7",
+    "control_engine_us": 45.61,
+    "after_control_engine_us": 43.61,
     "allocation_kb_per_decision": 27.04,
     "control_allocation_kb_per_decision": 27.04,
-    "control_engine_us": 44.35,
-    "after_control_engine_us": 45.61,
-    "statistical_speed_claim": false,
     "shared_machine": true,
+    "statistical_speed_claim": false,
     "sequential_control_runs": true,
-    "native_revision": "bc15adfec",
-    "control_native_revision": "a5644df7d",
-    "game_paths_differ": false,
-    "note": "Single sequential pair; ordinary benchmark decks do not exercise bands-with-other. No per-object fields added."
+    "game_paths_differ": false
+  },
+  "stopping_milestone": {
+    "instruction": "Finish computed X and all six shared three-card groups, then pause.",
+    "decision_doc": "cantrip-foundation-shared-stop-20261112.md",
+    "defer": "Independent two-card and single-card features; prefer focused engine-plus-card PRs.",
+    "pending_families": [
+      "computed-x",
+      "revealed-hands",
+      "combat-group-constraints",
+      "nonmana-combat-costs",
+      "other-player-targets",
+      "combat-relationship-changes",
+      "noted-values"
+    ]
   }
 }
