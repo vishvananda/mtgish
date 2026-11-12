@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Cuombajj Witches",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cuombajj Witches",
+        "manaCost": "{B}{B}",
+        "type": "Creature \u2014 Human Wizard",
+        "text": "{T}: This creature deals 1 damage to any target and 1 damage to any target of an opponent's choice.",
+        "power": "1",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Nova Pentacle",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Nova Pentacle",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{3}, {T}: The next time a source of your choice would deal damage to you this turn, that damage is dealt to target creature of an opponent's choice instead."
+      }
+    ]
+  },
+  {
+    "name": "Preacher",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Preacher",
+        "manaCost": "{1}{W}{W}",
+        "type": "Creature \u2014 Human Cleric",
+        "text": "You may choose not to untap this creature during your untap step.\n{T}: For as long as this creature remains tapped, gain control of target creature of an opponent's choice they control.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  }
+]

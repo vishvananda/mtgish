@@ -5297,7 +5297,7 @@ impl Compiler {
         }
         if !self.stack_item || self.reader != Reader::Resolution {
             return self
-                .picked_elsewhere(players)
+                .picked_elsewhere(players, &key)
                 .map(|player| format!("Some({player})"));
         }
         if self.present.borrow().is_none() {

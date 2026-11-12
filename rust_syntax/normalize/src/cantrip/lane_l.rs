@@ -892,6 +892,9 @@ impl Compiler {
         if self.every_slot_chosen && self.chosen_by_subject(chooser) {
             return Ok(());
         }
+        if self.choosing == Some(0) && self.dividing.is_some() && super::planned::switched_on("other-player-targets") {
+            return Err(gap("divided targets chosen by another player"));
+        }
         // Who chooses, asked as the slot is chosen: a `fn` the slot holds.
         const FEATURE: &str = "targets chosen by another player";
         const ASKED: &str = "q: &dyn Query, asker: &Asker";

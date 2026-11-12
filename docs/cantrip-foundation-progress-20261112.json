@@ -1,5 +1,5 @@
 {
-  "native_foundation": "210d1eefa",
+  "native_foundation": "4712aa560",
   "scoped_missing": 286,
   "generation_ready": [
     "Adventurers' Guildhouse",
@@ -27,6 +27,7 @@
     "Concordant Crossroads",
     "Coral Helm",
     "Crevasse",
+    "Cuombajj Witches",
     "Curse Artifact",
     "Cursed Rack",
     "Damping Field",
@@ -146,6 +147,7 @@
     "Polar Kraken",
     "Power Sink",
     "Pox",
+    "Preacher",
     "Primordial Ooze",
     "Psychic Allergy",
     "Quagmire",
@@ -241,9 +243,6 @@
     "City in a Bottle": [
       "object collection EventGroup",
       "trigger event ObjectBecomes"
-    ],
-    "Cuombajj Witches": [
-      "targets chosen by another player"
     ],
     "Dance of the Dead": [
       "a triggered ability carrying separate groups of objects",
@@ -375,8 +374,7 @@
       "player rule for a while SpecialAction"
     ],
     "Nova Pentacle": [
-      "target reference outside a resolving ability",
-      "targets chosen by another player"
+      "target reference outside a resolving ability"
     ],
     "Personal Incarnation": [
       "replacement of damage to a named recipient"
@@ -386,10 +384,6 @@
     ],
     "Power Surge": [
       "engine: no record of the board as the turn began"
-    ],
-    "Preacher": [
-      "player reference OneOf",
-      "targets chosen by another player"
     ],
     "Psychic Purge": [
       "engine: no discard cause in events"
@@ -487,16 +481,6 @@
       ]
     },
     {
-      "feature": "targets chosen by another player",
-      "affected": 3,
-      "sole_blocker": 1,
-      "cards": [
-        "Cuombajj Witches",
-        "Nova Pentacle",
-        "Preacher"
-      ]
-    },
-    {
       "feature": "a triggered ability carrying separate groups of objects",
       "affected": 2,
       "sole_blocker": 0,
@@ -571,7 +555,7 @@
     {
       "feature": "target reference outside a resolving ability",
       "affected": 2,
-      "sole_blocker": 1,
+      "sole_blocker": 2,
       "cards": [
         "Jade Monolith",
         "Nova Pentacle"
@@ -975,14 +959,6 @@
       "sole_blocker": 1,
       "cards": [
         "Glyph of Reincarnation"
-      ]
-    },
-    {
-      "feature": "player reference OneOf",
-      "affected": 1,
-      "sole_blocker": 0,
-      "cards": [
-        "Preacher"
       ]
     },
     {
@@ -1504,7 +1480,7 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 65,
+    "generated_runtime_scenarios": 67,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
@@ -1532,7 +1508,7 @@
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 215,
+      "passed": 217,
       "partial_callback_controls": [
         "Reflecting Mirror"
       ],
@@ -1540,8 +1516,8 @@
         "Pin": 94,
         "Sleight": 95
       },
-      "log": "nonmana-combat/ready-compile-published.log",
-      "revision": "210d1eefa97f642ed10f2718b4ac2d024bcd48c5"
+      "log": "other-player-targets/ready-compile.log",
+      "revision": "4712aa560aa199539d21e70ac5e5579072ce257e"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1574,23 +1550,34 @@
       "log": "combat-delayed-tests.log"
     },
     "all_rules_lib_current": {
-      "passed": 1490,
+      "passed": 1500,
       "ignored": 1,
-      "log": "nonmana-combat/all-rules-published-tests.log"
+      "log": "other-player-targets/all-core-tests.log"
     },
     "generator_foundation_tests_current": {
-      "passed": 25,
+      "passed": 26,
       "ignored": 0,
-      "log": "nonmana-combat/foundation-published-tests.log",
-      "includes_explicit_native_runtime": true
+      "includes_explicit_native_runtime": true,
+      "log": "other-player-targets/foundation-tests.log"
     },
     "full_batch_pending": "After remaining shared five-card/three-card groups, before the user-requested pause.",
     "source_correction_audit": {
       "records": 286,
-      "ready": 215,
-      "gapped": 71,
+      "ready": 217,
+      "gapped": 69,
       "unchanged_other_gap_lists": true,
-      "log": "nonmana-combat/audit-published.log"
+      "partially_cleared": {
+        "Nova Pentacle": [
+          [
+            "target reference outside a resolving ability",
+            "targets chosen by another player"
+          ],
+          [
+            "target reference outside a resolving ability"
+          ]
+        ]
+      },
+      "log": "other-player-targets/audit.log"
     },
     "focused_computed_x": 10,
     "focused_revealed_hands": {
@@ -1605,13 +1592,17 @@
       "large_board_search_bound": true
     },
     "all_state_lib_current": {
-      "passed": 84,
+      "passed": 86,
       "ignored": 0,
-      "log": "combat-groups-all-core-tests.log"
+      "log": "other-player-targets/all-core-tests.log"
     },
     "focused_nonmana_attack_costs": {
       "passed": 11,
       "log": "nonmana-combat/all-rules-published-tests.log"
+    },
+    "focused_other_target_choosers": {
+      "rules": 10,
+      "state": 2
     }
   },
   "evidence": {
@@ -1755,17 +1746,32 @@
     "nonmana-combat/vocab.rs": "cc066688a5fdb8a81fb62a34765d556467a5875b9cc995bdabdd0d5e1de20ef3",
     "nonmana-combat/counter-overlay-manifest.json": "55a7c144a720939b397459a6b43ce85ab6ba76a32ce2874a74a9d0e415d6d524",
     "nonmana-combat/counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
-    "nonmana-combat/runtime-published.log": "7fbd4faaeabd5f56e4cc3a83796a06fc7553f93bf705baab9caed99e71165c24"
+    "nonmana-combat/runtime-published.log": "7fbd4faaeabd5f56e4cc3a83796a06fc7553f93bf705baab9caed99e71165c24",
+    "other-player-targets/all-core-tests.log": "5843e6b44b310e908b2450f1869b5d4b53095e3f9e73d228bfbc5acd3bf4492d",
+    "other-player-targets/workspace-check.log": "0108566c2283daf1960eb536e92ac00f8be03a76db472fa217c9ac1fa3ce5e4d",
+    "other-player-targets/target-choice-tests3.log": "4fcd32825855502dd4dbfb54c2ef8bdb7f5648a5a868005993470046ba622d8b",
+    "other-player-targets/foundation-tests.log": "4ce8509dd3e0ed8e3246e096de568cb42adef1997aecba13f59e224f254be6c6",
+    "other-player-targets/runtime-published.log": "14620380d2b7afe0a3f2620ef26da69565a5ceec3ba8f557f3e63dba489cd823",
+    "other-player-targets/profile-tests.log": "2ec9b854a2ef0aee47b5555817de02200d960466f3cf62296605d6eadb22970c",
+    "other-player-targets/audit.log": "58960e797107c56d0cbd936d8056761227870ffc7bf78d3b8e95feb2b1d232c5",
+    "other-player-targets/ready-compile.log": "ebde5c0cf4e225fd063d81409bb60416cd275da4c2d5cccf798403daf0b8e7fe",
+    "other-player-targets/final-scope-result.json": "871c5fed2f824fc29239aac26c8bfdff0e9b349996722b70242f88246b9e3a2b",
+    "other-player-targets/benchmark.log": "99611b697d009918a309fc6a7dcc332869f43dabdf4b83e4bd6850384a9d9b91",
+    "other-player-targets/layout.log": "3c6a51efa96e36d6f30ae61b8534ccd3bdb4587e0bd93f6e143950d3d6fda895",
+    "other-player-targets/vocab.rs": "d48fc61748c1b56320912878a7895d4c746815f91220abb84a92aa441ae63eb3",
+    "other-player-targets/counter-overlay-manifest.json": "38fc590d3aca4f25381bcd428ec5e56b02fcd2e8d55271f2e23ab7ae488036c8",
+    "other-player-targets/counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
+    "other-player-targets/cli-build.log": "4524b8881f1628e81aa50b2460cf16114f40f368c63282b6b8a7eec85285fc68"
   },
-  "candidate_api_fingerprint": "1ce5c60e80ccd77df37b388c73a40c5a986921915fee50a65625670ee0c6b055",
+  "candidate_api_fingerprint": "42d9d406b6c746c888c9a4c5c1c572a117075aeaec76b5b5bc9489722d23b653",
   "benchmark_current_batch": {
     "games": 128,
-    "native_revision": "210d1eefa97f642ed10f2718b4ac2d024bcd48c5",
-    "control_native_revision": "a09922634",
-    "control_engine_us": 50.26,
-    "final_engine_us": 48.7,
+    "native_revision": "4712aa560aa199539d21e70ac5e5579072ce257e",
+    "control_native_revision": "210d1eefa",
+    "control_engine_us": 48.7,
+    "final_engine_us": 45.09,
     "allocation_kb_per_decision": 27.31,
-    "control_allocation_kb_per_decision": 27.3,
+    "control_allocation_kb_per_decision": 27.31,
     "statistical_speed_claim": false,
     "shared_machine": true
   },
@@ -1774,7 +1780,6 @@
     "decision_doc": "cantrip-foundation-shared-stop-20261112.md",
     "defer": "Independent two-card and single-card features; prefer focused engine-plus-card PRs.",
     "pending_families": [
-      "other-player-targets",
       "combat-relationship-changes",
       "noted-values"
     ],
@@ -1782,7 +1787,8 @@
       "computed-x",
       "revealed-hands",
       "combat-group-constraints",
-      "nonmana-combat-costs"
+      "nonmana-combat-costs",
+      "other-player-targets"
     ]
   }
 }

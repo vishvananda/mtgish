@@ -12,13 +12,13 @@ the same primitive. Card workers remain paused and no upstream update is pulled.
 | Revealed hands — complete | Enduring Renewal; Revelation; Zur's Weirding | Native `adcd8efe8`; visibility and historical knowledge agree across readers. [Checkpoint](cantrip-foundation-revealed-hands-20261112.md). |
 | Combat group constraints — complete | Caverns of Despair; Errantry; Orcish Conscripts | Native `a09922634`; complete attack/block declaration constraints and requirement maximization. [Checkpoint](cantrip-foundation-combat-groups-20261112.md). |
 | Nonmana attack costs — complete | Flooded Woodlands; Leviathan; Reclamation | Native `210d1eefa`; shared declaration payment scheduler. [Checkpoint](cantrip-foundation-nonmana-combat-20261112.md). |
-| Targets chosen by another player | Cuombajj Witches; Nova Pentacle; Preacher | The effect's controller and target chooser differ; choices still obey targeting legality. |
+| Targets chosen by another player — complete | Cuombajj Witches; Nova Pentacle; Preacher | Native `4712aa560`; chooser provenance and targeting legality stay separate. [Checkpoint](cantrip-foundation-target-choosers-20261112.md). |
 | Changing combat relationships | False Orders; General Jarkeld; Sorrow's Path | Existing combat relationships, legal reassignment and resulting events must stay consistent. |
 | Noted values | Ice Cauldron; Jeweled Amulet; Tawnos's Coffin | Remembered mana and noted objects require typed, linked provenance. |
 
-Three pending three-card families remain, covering nine distinct cards. The
-latest frozen scope has **215 generation-ready candidates, 71 gapped cards and
-88 raw diagnostic labels**, out of the original 286 cards. These labels combine
+Two pending three-card families remain, covering six distinct cards. The
+latest frozen scope has **217 generation-ready candidates, 69 gapped cards and
+86 raw diagnostic labels**, out of the original 286 cards. These labels combine
 engine and generator requirements; they do not count independent engine features.
 
 The original seven-family milestone covers 23 distinct cards. Finishing a

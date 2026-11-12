@@ -3123,7 +3123,14 @@ impl Compiler {
     }
     /// "An opponent" where nothing is resolving to ask: the player picked as the
     /// ability is announced or as the permanent enters (CR 601.2c, 614.12).
-    pub(super) fn picked_elsewhere(&self, players: &PlayerSet) -> Result<String> {
+    pub(super) fn picked_elsewhere(&self, players: &PlayerSet, choice_key: &str) -> Result<String> {
+        if planned::switched_on("other-player-targets") && self.choosing.is_some() {
+            let same = self.slots.values().any(|(index, spec)| {
+                Some(*index) == self.choosing
+                    && matches!(&spec.chooser, Some(PlayerRef::OneOf(chosen)) if format!("{chosen:?}") == choice_key)
+            });
+            if same { return Ok("q.target_chooser().expect(\"the player choosing this target slot\")".into()); }
+        }
         Ok(planned::planned_value(
             "player reference OneOf",
             "asker.controller",
