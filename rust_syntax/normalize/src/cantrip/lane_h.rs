@@ -4230,6 +4230,25 @@ impl Compiler {
                         parts.table("attack_costs", function.to_string());
                     }
                     None => {
+                        // This interface locks fixed costs; it does not supply
+                        // an X announcement for a declaration of attackers.
+                        if super::planned::switched_on("nonmana-combat-costs") {
+                            use crate::visit::{Visitor, Walk};
+                            struct Announced(bool);
+                            impl Visitor for Announced {
+                                fn expr(&mut self, e: &Expr) -> bool {
+                                    self.0 |= matches!(e, Expr::AnnouncedX);
+                                    !self.0
+                                }
+                                fn cost_part(&mut self, p: &CostPart) -> bool {
+                                    self.0 |= matches!(p, CostPart::Mana(m) | CostPart::Waterbend(m) if m.iter().any(|s| matches!(s, ManaSymbol::X)));
+                                    !self.0
+                                }
+                            }
+                            let mut announced = Announced(false);
+                            cost.walk(&mut announced);
+                            if announced.0 { return Err(gap("engine: no announced X in an attack cost")); }
+                        }
                         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, attacker: ObjectId, defender: Target) -> bool {{ {guard}{test} && {at} }}").unwrap();
                         // The cost as an ability's is written (Cantrip's
                         // `AttackCost` is the decision's mana); its words if
@@ -4240,6 +4259,7 @@ impl Compiler {
                         self.mana_x = mana_x;
                         let paid = match paid {
                             Ok(code) => code,
+                            Err(error) if super::planned::switched_on("nonmana-combat-costs") => return Err(error),
                             Err(_) => {
                                 self.gaps.truncate(gaps);
                                 self.functions.truncate(functions);

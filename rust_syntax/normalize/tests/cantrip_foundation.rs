@@ -368,6 +368,50 @@ fn combat_event_watchers_expire_with_the_phase_without_claiming_blocker_control(
     let held=gaps(&candidate["Melee"]);assert!(!held.is_empty());
     assert!(held.iter().all(|g|*g=="player rule for a while Decides"));
 }
+fn combat_payment_profiles() -> &'static (Rows,Rows) {
+    static ROWS:OnceLock<(Rows,Rows)>=OnceLock::new();
+    ROWS.get_or_init(|| {
+        let fixture=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let source=fixture.join("early_set_combat_payments.ronl");let oracle=fixture.join("early_set_combat_payments.oracle.json");
+        let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-combat-payments-baseline.jsonl");
+        let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-combat-payments-candidate.jsonl");
+        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        let mut features=FOUNDATION.to_vec();features.push("nonmana-combat-costs");
+        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        (read(&baseline),read(&candidate))
+    })
+}
+#[test]
+fn nonmana_attack_costs_emit_separate_cost_rules_without_discarding_filters() {
+    let (baseline,candidate)=combat_payment_profiles();assert_eq!(candidate.len(),3);
+    for (name,row) in candidate {
+        assert!(gaps(&baseline[name]).contains(&"static rule CombatCost other than mana"),"{name}");
+        assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
+        assert!(code(row).contains("AttackPayment {"));assert!(code(row).contains("sacrifice("));
+        syn::parse_file(code(row)).unwrap();
+    }
+    assert!(code(&candidate["Leviathan"]).contains("Subtype::Island"));
+    assert!(code(&candidate["Flooded Woodlands"]).contains("Color::Green"));
+    assert!(code(&candidate["Reclamation"]).contains("Color::Black"));
+}
+#[test]
+fn fixed_attack_costs_do_not_pretend_to_announce_variable_sacrifice_counts() {
+    use mtgish_ast::{ir::*, mtg_types::OracleCard, unified, visit::{VisitorMut,WalkMut}};
+    let source:OracleCard=ron::from_str(include_str!("fixtures/early_set_combat_payments.ronl").lines().next().unwrap()).unwrap();
+    let mut lowered=unified::lower(&source);
+    struct Variable;
+    impl VisitorMut for Variable {
+        fn cost_part(&mut self, part:&mut CostPart)->bool {
+            if let CostPart::Sacrifice{choose,..}=part {*choose=Some(mtgish_ast::ir::Count::Exactly(Expr::AnnouncedX));}
+            true
+        }
+    }
+    lowered.card.walk_mut(&mut Variable);
+    cantrip::planned::with_additional_features(&["nonmana-combat-costs"],|| {
+        let generated=cantrip::whole(&source,&lowered.card).unwrap();
+        assert!(generated.faces.iter().flat_map(|f|&f.gaps).any(|g|g.feature=="engine: no announced X in an attack cost"));
+    });
+}
 fn combat_group_profiles() -> &'static (Rows,Rows) {
     static ROWS:OnceLock<(Rows,Rows)>=OnceLock::new();
     ROWS.get_or_init(|| {
@@ -507,10 +551,10 @@ fn foundation_generated_cards_execute_in_cantrip() {
     let fixture=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let old=root.join("earlier-candidate.jsonl");
     cantrip::planned::with_additional_features(FOUNDATION,||cantrip::planned::tracked(&fixture.join("early_set_generator_gaps.ronl"),&fixture.join("early_set_generator_gaps.oracle.json"),&old).unwrap());
-    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());cards.extend(mana_tap_profiles().1.clone());cards.extend(attack_haste_profiles().1.clone());cards.extend(skip_step_profiles().1.clone());cards.extend(player_value_profiles().1.clone());cards.extend(band_profiles().1.clone());cards.extend(combat_delay_profiles().1.clone());cards.extend(computed_x_profiles().1.clone());cards.extend(revealed_hands_profiles().1.clone());cards.extend(combat_group_profiles().1.clone());
+    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());cards.extend(mana_tap_profiles().1.clone());cards.extend(attack_haste_profiles().1.clone());cards.extend(skip_step_profiles().1.clone());cards.extend(player_value_profiles().1.clone());cards.extend(band_profiles().1.clone());cards.extend(combat_delay_profiles().1.clone());cards.extend(computed_x_profiles().1.clone());cards.extend(revealed_hands_profiles().1.clone());cards.extend(combat_group_profiles().1.clone());cards.extend(combat_payment_profiles().1.clone());
     // Modules actually used by these scenarios; candidate modules also have separate compile probes.
     // Cube and Doom counter declarations are intentionally separate from these runtime cases.
-    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth","Instill Energy","Chaos Lord","Glyph of Delusion","Stasis","Necropotence","Cursed Rack","Shapeshifter","Jin-Gitaxias, Core Augur","Adventurers' Guildhouse","Cathedral of Serra","Master of the Hunt","Mountain Stronghold","Seafarer's Quay","Shelkin Brownie","Tolaria","Unholy Citadel","Goblin Flotilla","Chromatic Armor","Voodoo Doll","Spoils of War","Winter's Chill","Enduring Renewal","Revelation","Zur's Weirding","Caverns of Despair","Errantry","Orcish Conscripts"];
+    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist","Mana Short","Power Sink","Coral Helm","Draconian Cylix","Stormbind","Balduvian Shaman","Rapid Fire","Earthlore","Tourach's Gate","Smoke","Damping Field","Winter Orb","Manabarbs","Burning Earth","Instill Energy","Chaos Lord","Glyph of Delusion","Stasis","Necropotence","Cursed Rack","Shapeshifter","Jin-Gitaxias, Core Augur","Adventurers' Guildhouse","Cathedral of Serra","Master of the Hunt","Mountain Stronghold","Seafarer's Quay","Shelkin Brownie","Tolaria","Unholy Citadel","Goblin Flotilla","Chromatic Armor","Voodoo Doll","Spoils of War","Winter's Chill","Enduring Renewal","Revelation","Zur's Weirding","Caverns of Despair","Errantry","Orcish Conscripts","Flooded Woodlands","Leviathan","Reclamation"];
     let mut lib=String::from("#![allow(dead_code,unused_imports,unused_variables,unused_mut)]\n");
     for name in modules {
         let row=&cards[name];assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
@@ -537,6 +581,7 @@ fn foundation_generated_cards_execute_in_cantrip() {
     lib.push_str(include_str!("fixtures/early_set_computed_x_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_revealed_hands_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_combat_groups_scenarios.rs"));
+    lib.push_str(include_str!("fixtures/early_set_combat_payments_scenarios.rs"));
     fs::write(root.join("src/lib.rs"),lib).unwrap();
     let mut manifest=String::from("[package]\nname=\"mtgish-foundation-runtime\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\n");
     for name in ["cantrip-api","cantrip-state","cantrip-mechanics","cantrip-rules"] {manifest.push_str(&format!("{name}={{path={:?}}}\n",checkout.join("crates").join(name)));}

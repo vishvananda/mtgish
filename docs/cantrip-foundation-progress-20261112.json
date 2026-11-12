@@ -1,5 +1,5 @@
 {
-  "native_foundation": "a09922634",
+  "native_foundation": "210d1eefa",
   "scoped_missing": 286,
   "generation_ready": [
     "Adventurers' Guildhouse",
@@ -58,6 +58,7 @@
     "Farrel's Mantle",
     "Farrel's Zealot",
     "Festival",
+    "Flooded Woodlands",
     "Floral Spuzzem",
     "Forgotten Lore",
     "Frankenstein's Monster",
@@ -107,6 +108,7 @@
     "Krovikan Vampire",
     "Land's Edge",
     "Lesser Werewolf",
+    "Leviathan",
     "Living Plane",
     "Lord Magnus",
     "Lost Order of Jarkeld",
@@ -152,6 +154,7 @@
     "Rapid Fire",
     "Ray of Command",
     "Reality Twist",
+    "Reclamation",
     "Revelation",
     "Ring of Ma'rûf",
     "Rohgahh of Kher Keep",
@@ -287,9 +290,6 @@
       "player rule for a while Prohibit PlayCard",
       "player rule for a while Visibility"
     ],
-    "Flooded Woodlands": [
-      "static rule CombatCost other than mana"
-    ],
     "Forcefield": [
       "prevention of part of the damage made at resolution"
     ],
@@ -354,9 +354,6 @@
     "Lava Burst": [
       "operation EffectOn"
     ],
-    "Leviathan": [
-      "static rule CombatCost other than mana"
-    ],
     "Library of Leng": [
       "replacement event Discard"
     ],
@@ -405,9 +402,6 @@
     "Rasputin Dreamweaver": [
       "object state StartedTurnUntapped",
       "static rule CounterLimit"
-    ],
-    "Reclamation": [
-      "static rule CombatCost other than mana"
     ],
     "Reflecting Mirror": [
       "a spell's target changed to a player"
@@ -490,16 +484,6 @@
         "Ice Cauldron",
         "Jeweled Amulet",
         "Tawnos's Coffin"
-      ]
-    },
-    {
-      "feature": "static rule CombatCost other than mana",
-      "affected": 3,
-      "sole_blocker": 3,
-      "cards": [
-        "Flooded Woodlands",
-        "Leviathan",
-        "Reclamation"
       ]
     },
     {
@@ -1520,7 +1504,7 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 62,
+    "generated_runtime_scenarios": 65,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
@@ -1548,7 +1532,7 @@
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 212,
+      "passed": 215,
       "partial_callback_controls": [
         "Reflecting Mirror"
       ],
@@ -1556,9 +1540,8 @@
         "Pin": 94,
         "Sleight": 95
       },
-      "log": "/mnt/vizier/reference-other-targets-20261112/foundation-ready-compile.log",
-      "revision": "a09922634",
-      "generator_revision": "5408607"
+      "log": "nonmana-combat/ready-compile-published.log",
+      "revision": "210d1eefa97f642ed10f2718b4ac2d024bcd48c5"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1591,22 +1574,23 @@
       "log": "combat-delayed-tests.log"
     },
     "all_rules_lib_current": {
-      "passed": 1479,
+      "passed": 1490,
       "ignored": 1,
-      "log": "combat-groups-all-core-tests.log"
+      "log": "nonmana-combat/all-rules-published-tests.log"
     },
     "generator_foundation_tests_current": {
-      "passed": 22,
-      "ignored": 1,
-      "log": "combat-groups-foundation-tests.log"
+      "passed": 25,
+      "ignored": 0,
+      "log": "nonmana-combat/foundation-published-tests.log",
+      "includes_explicit_native_runtime": true
     },
     "full_batch_pending": "After remaining shared five-card/three-card groups, before the user-requested pause.",
     "source_correction_audit": {
       "records": 286,
-      "ready": 212,
-      "gapped": 74,
+      "ready": 215,
+      "gapped": 71,
       "unchanged_other_gap_lists": true,
-      "log": "/mnt/vizier/reference-other-targets-20261112/foundation-scope.log"
+      "log": "nonmana-combat/audit-published.log"
     },
     "focused_computed_x": 10,
     "focused_revealed_hands": {
@@ -1624,6 +1608,10 @@
       "passed": 84,
       "ignored": 0,
       "log": "combat-groups-all-core-tests.log"
+    },
+    "focused_nonmana_attack_costs": {
+      "passed": 11,
+      "log": "nonmana-combat/all-rules-published-tests.log"
     }
   },
   "evidence": {
@@ -1755,17 +1743,29 @@
     "/mnt/vizier/reference-other-targets-20261112/workspace-final-tests.log": "72fd3e8800bab73e0a532e7f0eb69752a4fa75fd5e6e218fbe91e15ed7558a3f",
     "/mnt/vizier/reference-other-targets-20261112/foundation-runtime.log": "d62ea8552df5ea7e191ebccbaa743c81cb2471441aa7c8a652085b43f68445b0",
     "/mnt/vizier/reference-other-targets-20261112/foundation-scope-result.json": "a212b1417d210732e919b33fb77b96c812bec58300b7f3dee4eefcf86f18dd37",
-    "/mnt/vizier/reference-other-targets-20261112/foundation-ready-compile.log": "3f9a3e120b93e4e454ae7a306a1622df2e35a8c9adacae6eceaeae520da99996"
+    "/mnt/vizier/reference-other-targets-20261112/foundation-ready-compile.log": "3f9a3e120b93e4e454ae7a306a1622df2e35a8c9adacae6eceaeae520da99996",
+    "nonmana-combat/all-rules-published-tests.log": "a6ec22be644c1a613d30d99a7bcbbdf50dc7f2827787cc7b98188ab4f26c0277",
+    "nonmana-combat/workspace-published-check.log": "6a004f285a4d7308f7b16bb88c5f384aa3cf80b52883e6cabea2df3f6c20ac5f",
+    "nonmana-combat/foundation-published-tests.log": "489f4ecb3df94777f7ad3b6658075e138a20956ff6eed188bc9231705cca4dfc",
+    "nonmana-combat/profile-tests.log": "5a84acc548bd62744dad4b67590f336d3d1b4133a7bce0e0854cf7d9c6a35343",
+    "nonmana-combat/benchmark-published.log": "775e3b4b7162b7b1a56841932fd20da9cdfd4b702b95f33ef06a043b9643898a",
+    "nonmana-combat/audit-published.log": "cf762c673a252305b0a8e4355df2198d8c3e5624b2f02c5b2ffab17fe42bd57b",
+    "nonmana-combat/ready-compile-published.log": "808cdde2a887d75a38624f22a3a9f69f58e73f4a17129c9a2ee6fb6877ac6fd8",
+    "nonmana-combat/final-scope-result.json": "1820328c8001e9bc766aca86eb039ec7a39bad5693d0601d14cda6500ef155d4",
+    "nonmana-combat/vocab.rs": "cc066688a5fdb8a81fb62a34765d556467a5875b9cc995bdabdd0d5e1de20ef3",
+    "nonmana-combat/counter-overlay-manifest.json": "55a7c144a720939b397459a6b43ce85ab6ba76a32ce2874a74a9d0e415d6d524",
+    "nonmana-combat/counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
+    "nonmana-combat/runtime-published.log": "7fbd4faaeabd5f56e4cc3a83796a06fc7553f93bf705baab9caed99e71165c24"
   },
-  "candidate_api_fingerprint": "00a329f7df14576e2c5297577f999ee4046d8773dca19bee3a8f7ed5144c3888",
+  "candidate_api_fingerprint": "1ce5c60e80ccd77df37b388c73a40c5a986921915fee50a65625670ee0c6b055",
   "benchmark_current_batch": {
     "games": 128,
-    "native_revision": "a09922634",
-    "control_native_revision": "adcd8efe8",
-    "control_engine_us": 48.06,
-    "final_engine_us": 50.26,
-    "allocation_kb_per_decision": 27.3,
-    "control_allocation_kb_per_decision": 27.04,
+    "native_revision": "210d1eefa97f642ed10f2718b4ac2d024bcd48c5",
+    "control_native_revision": "a09922634",
+    "control_engine_us": 50.26,
+    "final_engine_us": 48.7,
+    "allocation_kb_per_decision": 27.31,
+    "control_allocation_kb_per_decision": 27.3,
     "statistical_speed_claim": false,
     "shared_machine": true
   },
@@ -1774,15 +1774,15 @@
     "decision_doc": "cantrip-foundation-shared-stop-20261112.md",
     "defer": "Independent two-card and single-card features; prefer focused engine-plus-card PRs.",
     "pending_families": [
-      "revealed-hands",
-      "combat-group-constraints",
-      "nonmana-combat-costs",
       "other-player-targets",
       "combat-relationship-changes",
       "noted-values"
     ],
     "completed_families": [
-      "computed-x"
+      "computed-x",
+      "revealed-hands",
+      "combat-group-constraints",
+      "nonmana-combat-costs"
     ]
   }
 }

@@ -1,0 +1,40 @@
+[
+  {
+    "name": "Flooded Woodlands",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Flooded Woodlands",
+        "manaCost": "{2}{U}{B}",
+        "type": "Enchantment",
+        "text": "Green creatures can't attack unless their controller sacrifices a land of their choice for each green creature they control that's attacking. (This cost is paid as attackers are declared.)"
+      }
+    ]
+  },
+  {
+    "name": "Leviathan",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Leviathan",
+        "manaCost": "{5}{U}{U}{U}{U}",
+        "type": "Creature \u2014 Leviathan",
+        "text": "Trample\nThis creature enters tapped and doesn't untap during your untap step.\nAt the beginning of your upkeep, you may sacrifice two Islands. If you do, untap this creature.\nThis creature can't attack unless you sacrifice two Islands. (This cost is paid as attackers are declared.)",
+        "power": "10",
+        "toughness": "10"
+      }
+    ]
+  },
+  {
+    "name": "Reclamation",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Reclamation",
+        "manaCost": "{2}{G}{W}",
+        "type": "Enchantment",
+        "text": "Black creatures can't attack unless their controller sacrifices a land of their choice for each black creature they control that's attacking. (This cost is paid as attackers are declared.)"
+      }
+    ]
+  }
+]

@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`a09922634`. Twenty focused feature groups are implemented. The step-deadline
+`210d1eefa`. Twenty-one focused feature groups are implemented. The step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **212 generate without recorded feature gaps and 74
-remain gapped**. Those 212 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **215 generate without recorded feature gaps and 71
+remain gapped**. Those 215 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 89 raw requirement labels
+remaining requirement and its affected cards. Its 88 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -218,3 +218,10 @@ The [other-targets reference update](reference-other-targets-20261112.md) at
 runtime scenarios. All 212 ready modules plus the Mirror partial control still
 type-check, and every frozen-scope gap list is unchanged. Four shared foundation
 families remain; this reference pass adds no engine feature.
+
+The twenty-first primitive supplies shared fixed nonmana attack costs for
+Flooded Woodlands, Reclamation and Leviathan. All 1,490 native rules tests,
+65 generated runtime scenarios and the 215-module compile pass. The
+[checkpoint](cantrip-foundation-nonmana-combat-20261112.md) records payment
+ordering, rollback, source context, current advice limits and performance.
+Three shared three-card families remain before the final broad gates and pause.
