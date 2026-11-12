@@ -48,6 +48,8 @@ pub(super) fn play_expiry(duration: &crate::ir::Duration) -> Result<String> {
             point: TurnPoint::EndStepBegins,
             players: PlayerSet::One(PlayerRef::AbilityController),
         } => "Expiry::UntilYourNextEndStep".to_string(),
+        D::UntilNext { point: TurnPoint::UpkeepBegins, players: PlayerSet::One(PlayerRef::AbilityController) }
+            if planned::switched_on("step-deadlines") => "Expiry::UntilYourNextStep(Step::Upkeep)".to_string(),
         D::WhileControlled {
             player: PlayerRef::AbilityController,
             object: ObjectRef::Source,
@@ -775,6 +777,13 @@ impl Compiler {
             D::DuringNextTurn(PlayerRef::ControllerOf(_)) => {
                 "Duration::DURING_ITS_CONTROLLERS_NEXT_TURN".into()
             }
+            D::UntilEndOfNextUpkeep(player) if planned::switched_on("step-deadlines") => format!(
+                "Duration::UntilEndOfNextStepOf {{ step: Step::Upkeep, player: Some({}) }}", self.fetch(self.certain_player(player)?)
+            ),
+            D::UntilNext { point: TurnPoint::UpkeepBegins, players: PlayerSet::One(player) }
+                if planned::switched_on("step-deadlines") => format!(
+                    "Duration::UntilNextStepOf {{ step: Step::Upkeep, player: Some({}) }}", self.fetch(self.certain_player(player)?)
+                ),
             D::UntilNext {
                 point: TurnPoint::UpkeepBegins,
                 players: PlayerSet::One(player),

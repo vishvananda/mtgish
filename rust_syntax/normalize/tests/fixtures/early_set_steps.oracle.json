@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Elkin Bottle",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Elkin Bottle",
+        "manaCost": "{3}",
+        "type": "Artifact",
+        "text": "{3}, {T}: Exile the top card of your library. Until the beginning of your next upkeep, you may play that card."
+      }
+    ]
+  },
+  {
+    "name": "Erhnam Djinn",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Erhnam Djinn",
+        "manaCost": "{3}{G}",
+        "type": "Creature — Djinn",
+        "text": "At the beginning of your upkeep, target non-Wall creature an opponent controls gains forestwalk until your next upkeep. (It can't be blocked as long as defending player controls a Forest.)",
+        "power": "4",
+        "toughness": "5"
+      }
+    ]
+  },
+  {
+    "name": "Gabriel Angelfire",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gabriel Angelfire",
+        "manaCost": "{3}{G}{G}{W}{W}",
+        "type": "Legendary Creature — Angel",
+        "text": "At the beginning of your upkeep, choose flying, first strike, trample, or rampage 3. Gabriel Angelfire gains that ability until your next upkeep. (Whenever a creature with rampage 3 becomes blocked, it gets +3/+3 until end of turn for each creature blocking it beyond the first.)",
+        "power": "4",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Halfdane",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Halfdane",
+        "manaCost": "{1}{W}{U}{B}",
+        "type": "Legendary Creature — Shapeshifter",
+        "text": "At the beginning of your upkeep, Halfdane's base power and toughness become equal to the power and toughness of target creature other than Halfdane until the end of your next upkeep.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Telekinesis",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Telekinesis",
+        "manaCost": "{U}{U}",
+        "type": "Instant",
+        "text": "Tap target creature. Prevent all combat damage that would be dealt by that creature this turn. It doesn't untap during its controller's next two untap steps."
+      }
+    ]
+  },
+  {
+    "name": "Xenic Poltergeist",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Xenic Poltergeist",
+        "manaCost": "{1}{B}{B}",
+        "type": "Creature — Spirit",
+        "text": "{T}: Until your next upkeep, target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  }
+]

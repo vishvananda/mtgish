@@ -193,6 +193,17 @@ fn run() -> Result<()> {
             #[cfg(not(feature="cantrip"))]
             {let _=(input,oracle,output);return Err("Cantrip generation requires --features cantrip".into());}
         }
+        [command, input, oracle, output, features @ ..] if command == "cantrip-candidate" && !features.is_empty() => {
+            #[cfg(feature="cantrip")]
+            {
+                let features: Vec<&str> = features.iter().map(String::as_str).collect();
+                let count = mtgish_ast::cantrip::planned::with_additional_features(&features, ||
+                    mtgish_ast::cantrip::planned::tracked(Path::new(input), Path::new(oracle), Path::new(output)))?;
+                eprintln!("{count} candidate cards; additional capabilities: {}", features.join(", "));
+            }
+            #[cfg(not(feature="cantrip"))]
+            {let _=(input,oracle,output,features);return Err("Cantrip generation requires --features cantrip".into());}
+        }
         [command, input, names @ ..] if command == "cantrip-module" && !names.is_empty() => {
             #[cfg(feature="cantrip")]
             for (name, module) in mtgish_ast::cantrip::modules_named(Path::new(input), names)? {
@@ -223,7 +234,7 @@ fn run() -> Result<()> {
             }
             out.commit()?;
         }
-        _ => return Err("usage: ast migrate-ir-mapped <old-or-current.ir.json>\n       ast canonical-ir <card.ir.json>\n       ast transport-card-document <document.json> <mapped.json>\n       ast format-card-code <card.card>\n       ast read-card-document <card.card>\n       ast format-card-document <document.json>\n       ast migrate-ir <old-or-current.ir.json>\n       ast card-code <corpus.ronl> <card name>\n       ast read-card-code <card.card>\n       ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast cantrip-gaps <corpus.ronl> <survey.json> (requires --features cantrip)\n       ast cantrip-files <corpus.ronl> <oracle.json> <rows.jsonl> (requires --features cantrip)\n       ast cantrip-module <corpus.ronl> <card name>... (requires --features cantrip)\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
+        _ => return Err("usage: ast migrate-ir-mapped <old-or-current.ir.json>\n       ast canonical-ir <card.ir.json>\n       ast transport-card-document <document.json> <mapped.json>\n       ast format-card-code <card.card>\n       ast read-card-document <card.card>\n       ast format-card-document <document.json>\n       ast migrate-ir <old-or-current.ir.json>\n       ast card-code <corpus.ronl> <card name>\n       ast read-card-code <card.card>\n       ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast cantrip-gaps <corpus.ronl> <survey.json> (requires --features cantrip)\n       ast cantrip-files <corpus.ronl> <oracle.json> <rows.jsonl> (requires --features cantrip)\n       ast cantrip-candidate <corpus.ronl> <oracle.json> <rows.jsonl> <additional-feature>... (requires --features cantrip)\n       ast cantrip-module <corpus.ronl> <card name>... (requires --features cantrip)\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
     }
     Ok(())
 }

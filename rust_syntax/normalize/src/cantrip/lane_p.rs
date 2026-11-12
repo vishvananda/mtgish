@@ -4340,6 +4340,9 @@ impl Compiler {
                 "Duration::DuringNextUntapStepOf({})",
                 self.fetch(self.certain_player(player)?)
             ),
+            D::DuringControllersNextUntapSteps(steps) if planned::switched_on("counted-untap-steps") => format!(
+                "Duration::DuringControllersNextUntapSteps({})", self.fetch(self.number(steps)?.amount(u32::MAX.into(), "u32")?)
+            ),
             D::DuringControllersNextUntapSteps(steps) => format!(
                 "Duration::ControllersNextUntapSteps({})",
                 self.fetch(self.number(steps)?.code)

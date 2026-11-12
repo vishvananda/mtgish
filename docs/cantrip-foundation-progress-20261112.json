@@ -1,0 +1,1791 @@
+{
+  "native_foundation": "452a0593b",
+  "scoped_missing": 286,
+  "generation_ready": [
+    "Anti-Magic Aura",
+    "Arboria",
+    "Armageddon Clock",
+    "Ashen Ghoul",
+    "Axelrod Gunnarson",
+    "Balduvian Hydra",
+    "Battle Cry",
+    "Black Mana Battery",
+    "Blood of the Martyr",
+    "Blue Mana Battery",
+    "Boris Devilboon",
+    "Call to Arms",
+    "Chaos Moon",
+    "Cleansing",
+    "Clergy of the Holy Nimbus",
+    "Cloak of Confusion",
+    "Concordant Crossroads",
+    "Crevasse",
+    "Curse Artifact",
+    "Deadfall",
+    "Deep Spawn",
+    "Delif's Cone",
+    "Delif's Cube",
+    "Diamond Valley",
+    "Disharmony",
+    "Dream Coat",
+    "Dreams of the Dead",
+    "Drop of Honey",
+    "Dwarven Armorer",
+    "Earthlink",
+    "Elder Druid",
+    "Elder Land Wurm",
+    "Elder Spawn",
+    "Elkin Bottle",
+    "Energy Storm",
+    "Energy Tap",
+    "Erg Raiders",
+    "Erhnam Djinn",
+    "Erosion",
+    "Eureka",
+    "Farrel's Mantle",
+    "Farrel's Zealot",
+    "Festival",
+    "Floral Spuzzem",
+    "Forgotten Lore",
+    "Frankenstein's Monster",
+    "Fumarole",
+    "Gabriel Angelfire",
+    "Gaea's Liege",
+    "Game of Chaos",
+    "Gauntlets of Chaos",
+    "Gaze of Pain",
+    "Ghazbán Ogre",
+    "Giant Slug",
+    "Glacial Chasm",
+    "Glyph of Doom",
+    "Goblin Artisans",
+    "Gosta Dirk",
+    "Gravity Sphere",
+    "Great Wall",
+    "Green Mana Battery",
+    "Halfdane",
+    "Halls of Mist",
+    "Hammerheim",
+    "Hasran Ogress",
+    "Homarid Warrior",
+    "Hyperion Blacksmith",
+    "Icatian Skirmishers",
+    "Ifh-Bíff Efreet",
+    "Illusionary Terrain",
+    "Imprison",
+    "In the Eye of Chaos",
+    "Infernal Darkness",
+    "Infinite Authority",
+    "Infinite Hourglass",
+    "Initiates of the Ebon Hand",
+    "Island Sanctuary",
+    "Island of Wak-Wak",
+    "Jester's Cap",
+    "Johtull Wurm",
+    "Juxtapose",
+    "Khabál Ghoul",
+    "Kjeldoran Elite Guard",
+    "Kjeldoran Guard",
+    "Kobold Overlord",
+    "Krovikan Sorcerer",
+    "Krovikan Vampire",
+    "Land's Edge",
+    "Lesser Werewolf",
+    "Living Plane",
+    "Lord Magnus",
+    "Lost Order of Jarkeld",
+    "Magus of the Unseen",
+    "Mana Vortex",
+    "Mercenaries",
+    "Merieke Ri Berit",
+    "Metamorphosis",
+    "Mijae Djinn",
+    "Mind Whip",
+    "Mindstab Thrull",
+    "Minion of Leshrac",
+    "Mirror Universe",
+    "Mishra's War Machine",
+    "Monsoon",
+    "Mudslide",
+    "Musician",
+    "Mystic Might",
+    "Márton Stromgald",
+    "Naked Singularity",
+    "Nameless Race",
+    "Necrite",
+    "Necropolis",
+    "Nether Void",
+    "Oath of Lim-Dûl",
+    "Orcish Farmer",
+    "Orcish Squatters",
+    "Phantasmal Mount",
+    "Polar Kraken",
+    "Pox",
+    "Primordial Ooze",
+    "Psychic Allergy",
+    "Quagmire",
+    "Quarum Trench Gnomes",
+    "Rabid Wombat",
+    "Ray of Command",
+    "Reality Twist",
+    "Ring of Ma'rûf",
+    "Rohgahh of Kher Keep",
+    "Sandals of Abdallah",
+    "Sentinel",
+    "Seraph",
+    "Serendib Djinn",
+    "Shyft",
+    "Sibilant Spirit",
+    "Sindbad",
+    "Singing Tree",
+    "Soul Exchange",
+    "Spirit Shackle",
+    "Staff of the Ages",
+    "Stench of Evil",
+    "Storm World",
+    "Telekinesis",
+    "Tetravus",
+    "The Abyss",
+    "Thelon's Curse",
+    "Thelonite Monk",
+    "Thermokarst",
+    "Titania's Song",
+    "Total War",
+    "Touch of Vitae",
+    "Tower of Coireall",
+    "Tracker",
+    "Twiddle",
+    "Two-Headed Giant of Foriys",
+    "Undertow",
+    "Untamed Wilds",
+    "Ur-Drago",
+    "Urza's Mine",
+    "Urza's Miter",
+    "Urza's Power Plant",
+    "Urza's Tower",
+    "Venomous Breath",
+    "Vesuvan Doppelganger",
+    "Vexing Arcanix",
+    "Wall of Putrid Flesh",
+    "Wall of Tombstones",
+    "Wand of Ith",
+    "War Barge",
+    "Whirling Dervish",
+    "Winds of Change",
+    "Wood Elemental",
+    "Xenic Poltergeist",
+    "Yawgmoth Demon"
+  ],
+  "remaining": {
+    "Adarkar Unicorn": [
+      "mana choice among different bundles",
+      "mana spending purpose"
+    ],
+    "Adventurers' Guildhouse": [
+      "engine: no BandsWithOthers",
+      "engine: no BandsWithOthers granted"
+    ],
+    "Aladdin's Lamp": [
+      "the X of the ability that made a replacement effect"
+    ],
+    "Ali from Cairo": [
+      "player rule DamageLifeFloor"
+    ],
+    "Arcum's Weathervane": [
+      "engine: no effect changes supertypes"
+    ],
+    "Balduvian Shaman": [
+      "object filter HasKeywordFamily"
+    ],
+    "Barbarian Guides": [
+      "landwalk of AllOf"
+    ],
+    "Camouflage": [
+      "operation GameEffect"
+    ],
+    "Cathedral of Serra": [
+      "engine: no BandsWithOthers",
+      "engine: no BandsWithOthers granted"
+    ],
+    "Caverns of Despair": [
+      "static rule CombatGroup Attacker",
+      "static rule CombatGroup Blocker"
+    ],
+    "Chaos Lord": [
+      "static rule AttackException SummoningSickness"
+    ],
+    "Chromatic Armor": [
+      "a choice of Color made again",
+      "engine: no rule on an ability's X"
+    ],
+    "City in a Bottle": [
+      "object collection EventGroup",
+      "trigger event ObjectBecomes"
+    ],
+    "Coral Helm": [
+      "engine: no random discard cost"
+    ],
+    "Cuombajj Witches": [
+      "targets chosen by another player"
+    ],
+    "Cursed Rack": [
+      "a maximum hand size of other players"
+    ],
+    "Damping Field": [
+      "a limit on what untaps in an untap step"
+    ],
+    "Dance of the Dead": [
+      "a triggered ability carrying separate groups of objects",
+      "enchant graveyard card"
+    ],
+    "Dark Sphere": [
+      "prevention of part of the damage made at resolution"
+    ],
+    "Derelor": [
+      "a spell costing colored mana more"
+    ],
+    "Divine Intervention": [
+      "counter removal with a named removing player"
+    ],
+    "Draconian Cylix": [
+      "engine: no random discard cost"
+    ],
+    "Drain Power": [
+      "engine: no effect empties a mana pool",
+      "keyword action ActivateManaAbility",
+      "mana production LostThisWay"
+    ],
+    "Drought": [
+      "activation cost with another cost",
+      "engine: no cost sized by the game",
+      "numeric expression ActivationCostSymbols",
+      "spell cost increase other than mana"
+    ],
+    "Earthlore": [
+      "engine: a cost that taps what its payer may not control"
+    ],
+    "Enduring Renewal": [
+      "a hand played revealed"
+    ],
+    "Equinox": [
+      "object filter WouldDestroy"
+    ],
+    "Errant Minion": [
+      "operation DealDamageWith"
+    ],
+    "Errantry": [
+      "static rule CombatGroup Attacker"
+    ],
+    "False Orders": [
+      "operation ChangeCombat"
+    ],
+    "Fasting": [
+      "replacement of BeginDrawStep"
+    ],
+    "Fellwar Stone": [
+      "engine: no reading of what a permanent could produce"
+    ],
+    "Field of Dreams": [
+      "a library's top card open to view"
+    ],
+    "Firestorm Phoenix": [
+      "player rule for a while Prohibit PlayCard",
+      "player rule for a while Visibility"
+    ],
+    "Flooded Woodlands": [
+      "static rule CombatCost other than mana"
+    ],
+    "Forcefield": [
+      "prevention of part of the damage made at resolution"
+    ],
+    "Freyalise's Winds": [
+      "replacement of UntapsInUntapStep"
+    ],
+    "General Jarkeld": [
+      "operation ChangeCombat"
+    ],
+    "Ghostly Flame": [
+      "static change ColorlessDamageSource",
+      "static rule Unique"
+    ],
+    "Glyph of Delusion": [
+      "granted Conditional"
+    ],
+    "Glyph of Reincarnation": [
+      "player reference AsOf"
+    ],
+    "Goblin Flotilla": [
+      "event trigger for EndOfCombat"
+    ],
+    "Guardian Angel": [
+      "player rule for a while SpecialAction"
+    ],
+    "Guardian Beast": [
+      "static rule Prohibit BeAttachedBy",
+      "static rule Prohibit ChangeControl"
+    ],
+    "Heroism": [
+      "damage prevented by what the effect asks as it would be dealt"
+    ],
+    "Hipparion": [
+      "static rule CombatCost Block"
+    ],
+    "Ice Cauldron": [
+      "mana production LastNoted",
+      "mana spending predicate",
+      "operation Note"
+    ],
+    "Illusionary Mask": [
+      "duration WhileMatches",
+      "object filter ManaCostPayableWith",
+      "operation PlayWith",
+      "replacement of AssignsCombatDamage",
+      "replacement of BecomesTapped"
+    ],
+    "Illusionary Presence": [
+      "landwalk of an unrestricted chosen land type"
+    ],
+    "Infernal Denizen": [
+      "operation PlayersDo"
+    ],
+    "Instill Energy": [
+      "static rule AttackException SummoningSickness"
+    ],
+    "Jade Monolith": [
+      "target reference outside a resolving ability"
+    ],
+    "Jeweled Amulet": [
+      "mana production LastNoted",
+      "operation Note"
+    ],
+    "Johan": [
+      "granted Static",
+      "player rule for a while AttackWithoutTapping"
+    ],
+    "Land Equilibrium": [
+      "event change then"
+    ],
+    "Lava Burst": [
+      "operation EffectOn"
+    ],
+    "Leviathan": [
+      "static rule CombatCost other than mana"
+    ],
+    "Library of Leng": [
+      "replacement event Discard"
+    ],
+    "Mana Short": [
+      "engine: no effect empties a mana pool"
+    ],
+    "Manabarbs": [
+      "engine: only a mana ability triggers on tapping for mana"
+    ],
+    "Master of the Hunt": [
+      "engine: no BandsWithOthers"
+    ],
+    "Melee": [
+      "event trigger for EndOfCombat",
+      "player rule for a while Decides"
+    ],
+    "Merseine": [
+      "engine: no cost copies a mana cost"
+    ],
+    "Mountain Stronghold": [
+      "engine: no BandsWithOthers",
+      "engine: no BandsWithOthers granted"
+    ],
+    "Nafs Asp": [
+      "operation DelayedUnlessPaid"
+    ],
+    "Necropotence": [
+      "skipping a step of the turn"
+    ],
+    "Night Soil": [
+      "engine: no set rule on what a cost chooses",
+      "move cost Exile from Matching"
+    ],
+    "North Star": [
+      "operation PlayWith",
+      "player rule for a while SpecialAction"
+    ],
+    "Nova Pentacle": [
+      "target reference outside a resolving ability",
+      "targets chosen by another player"
+    ],
+    "Orcish Conscripts": [
+      "static rule CombatGroup Attacker",
+      "static rule CombatGroup Blocker"
+    ],
+    "Personal Incarnation": [
+      "replacement of damage to a named recipient"
+    ],
+    "Power Leak": [
+      "operation DealDamageWith"
+    ],
+    "Power Sink": [
+      "engine: no effect empties a mana pool"
+    ],
+    "Power Surge": [
+      "engine: no record of the board as the turn began"
+    ],
+    "Preacher": [
+      "player reference OneOf",
+      "targets chosen by another player"
+    ],
+    "Psychic Purge": [
+      "engine: no discard cause in events"
+    ],
+    "Raging River": [
+      "a lasting block rule reading what its ability chose",
+      "a pile's name kept on its objects for a lasting rule",
+      "player collection Scoped"
+    ],
+    "Rapid Fire": [
+      "object filter HasKeywordFamily"
+    ],
+    "Rasputin Dreamweaver": [
+      "object state StartedTurnUntapped",
+      "static rule CounterLimit"
+    ],
+    "Reclamation": [
+      "static rule CombatCost other than mana"
+    ],
+    "Reflecting Mirror": [
+      "a spell's target changed to a player",
+      "engine: no rule on an ability's X"
+    ],
+    "Revelation": [
+      "a hand played revealed"
+    ],
+    "Rock Hydra": [
+      "engine: no static prevention with an effect besides"
+    ],
+    "Runesword": [
+      "engine: no resolving rule on an open set: Prohibit Regenerate"
+    ],
+    "Sacred Boon": [
+      "damage prevented by an effect of this ability",
+      "target reference"
+    ],
+    "Seafarer's Quay": [
+      "engine: no BandsWithOthers",
+      "engine: no BandsWithOthers granted"
+    ],
+    "Season of the Witch": [
+      "object state CouldntAttack"
+    ],
+    "Shapeshifter": [
+      "a choice of Number made again"
+    ],
+    "Shelkin Brownie": [
+      "losing ability AnyBandsWithOthers"
+    ],
+    "Silhouette": [
+      "replacement event Caused"
+    ],
+    "Smoke": [
+      "a limit on what untaps in an untap step"
+    ],
+    "Snowfall": [
+      "engine: only a mana ability triggers on tapping for mana",
+      "mana spending purpose"
+    ],
+    "Sorrow's Path": [
+      "operation ChangeCombat"
+    ],
+    "Soul Burn": [
+      "engine: no rule on the mana spent on a spell",
+      "numeric expression ManaOf"
+    ],
+    "Spoils of War": [
+      "a limit on the X announced"
+    ],
+    "Stangg": [
+      "event trigger carrying values"
+    ],
+    "Stasis": [
+      "skipping a step of the turn"
+    ],
+    "Stormbind": [
+      "engine: no random discard cost"
+    ],
+    "Sunglasses of Urza": [
+      "player rule SpendColorAs"
+    ],
+    "Sword of the Ages": [
+      "sacrificing any number of permanents to activate an ability"
+    ],
+    "Takklemaggot": [
+      "move arrival state",
+      "object reference Scoped"
+    ],
+    "Tawnos's Coffin": [
+      "a triggered ability carrying separate groups of objects",
+      "move arrival state",
+      "operation Note",
+      "several objects arriving attached"
+    ],
+    "Tolaria": [
+      "losing ability AnyBandsWithOthers"
+    ],
+    "Tourach's Gate": [
+      "engine: a cost that taps what its payer may not control"
+    ],
+    "Unholy Citadel": [
+      "engine: no BandsWithOthers",
+      "engine: no BandsWithOthers granted"
+    ],
+    "Voodoo Doll": [
+      "engine: no rule on an ability's X"
+    ],
+    "Wall of Shadows": [
+      "object filter CanTargetOnly"
+    ],
+    "Whippoorwill": [
+      "continuous rule Unique"
+    ],
+    "Winter Orb": [
+      "a limit on what untaps in an untap step"
+    ],
+    "Winter's Chill": [
+      "a limit on the X announced"
+    ],
+    "Word of Command": [
+      "operation PickFromHand"
+    ],
+    "Worms of the Earth": [
+      "cost part PlayerAction"
+    ],
+    "Zur's Weirding": [
+      "a hand played revealed"
+    ]
+  },
+  "features": [
+    {
+      "feature": "engine: no BandsWithOthers",
+      "affected": 6,
+      "sole_blocker": 1,
+      "cards": [
+        "Adventurers' Guildhouse",
+        "Cathedral of Serra",
+        "Master of the Hunt",
+        "Mountain Stronghold",
+        "Seafarer's Quay",
+        "Unholy Citadel"
+      ]
+    },
+    {
+      "feature": "engine: no BandsWithOthers granted",
+      "affected": 5,
+      "sole_blocker": 0,
+      "cards": [
+        "Adventurers' Guildhouse",
+        "Cathedral of Serra",
+        "Mountain Stronghold",
+        "Seafarer's Quay",
+        "Unholy Citadel"
+      ]
+    },
+    {
+      "feature": "a hand played revealed",
+      "affected": 3,
+      "sole_blocker": 3,
+      "cards": [
+        "Enduring Renewal",
+        "Revelation",
+        "Zur's Weirding"
+      ]
+    },
+    {
+      "feature": "a limit on what untaps in an untap step",
+      "affected": 3,
+      "sole_blocker": 3,
+      "cards": [
+        "Damping Field",
+        "Smoke",
+        "Winter Orb"
+      ]
+    },
+    {
+      "feature": "engine: no effect empties a mana pool",
+      "affected": 3,
+      "sole_blocker": 2,
+      "cards": [
+        "Drain Power",
+        "Mana Short",
+        "Power Sink"
+      ]
+    },
+    {
+      "feature": "engine: no random discard cost",
+      "affected": 3,
+      "sole_blocker": 3,
+      "cards": [
+        "Coral Helm",
+        "Draconian Cylix",
+        "Stormbind"
+      ]
+    },
+    {
+      "feature": "engine: no rule on an ability's X",
+      "affected": 3,
+      "sole_blocker": 1,
+      "cards": [
+        "Chromatic Armor",
+        "Reflecting Mirror",
+        "Voodoo Doll"
+      ]
+    },
+    {
+      "feature": "operation ChangeCombat",
+      "affected": 3,
+      "sole_blocker": 3,
+      "cards": [
+        "False Orders",
+        "General Jarkeld",
+        "Sorrow's Path"
+      ]
+    },
+    {
+      "feature": "operation Note",
+      "affected": 3,
+      "sole_blocker": 0,
+      "cards": [
+        "Ice Cauldron",
+        "Jeweled Amulet",
+        "Tawnos's Coffin"
+      ]
+    },
+    {
+      "feature": "static rule CombatCost other than mana",
+      "affected": 3,
+      "sole_blocker": 3,
+      "cards": [
+        "Flooded Woodlands",
+        "Leviathan",
+        "Reclamation"
+      ]
+    },
+    {
+      "feature": "static rule CombatGroup Attacker",
+      "affected": 3,
+      "sole_blocker": 1,
+      "cards": [
+        "Caverns of Despair",
+        "Errantry",
+        "Orcish Conscripts"
+      ]
+    },
+    {
+      "feature": "targets chosen by another player",
+      "affected": 3,
+      "sole_blocker": 1,
+      "cards": [
+        "Cuombajj Witches",
+        "Nova Pentacle",
+        "Preacher"
+      ]
+    },
+    {
+      "feature": "a limit on the X announced",
+      "affected": 2,
+      "sole_blocker": 2,
+      "cards": [
+        "Spoils of War",
+        "Winter's Chill"
+      ]
+    },
+    {
+      "feature": "a triggered ability carrying separate groups of objects",
+      "affected": 2,
+      "sole_blocker": 0,
+      "cards": [
+        "Dance of the Dead",
+        "Tawnos's Coffin"
+      ]
+    },
+    {
+      "feature": "engine: a cost that taps what its payer may not control",
+      "affected": 2,
+      "sole_blocker": 2,
+      "cards": [
+        "Earthlore",
+        "Tourach's Gate"
+      ]
+    },
+    {
+      "feature": "engine: only a mana ability triggers on tapping for mana",
+      "affected": 2,
+      "sole_blocker": 1,
+      "cards": [
+        "Manabarbs",
+        "Snowfall"
+      ]
+    },
+    {
+      "feature": "event trigger for EndOfCombat",
+      "affected": 2,
+      "sole_blocker": 1,
+      "cards": [
+        "Goblin Flotilla",
+        "Melee"
+      ]
+    },
+    {
+      "feature": "losing ability AnyBandsWithOthers",
+      "affected": 2,
+      "sole_blocker": 2,
+      "cards": [
+        "Shelkin Brownie",
+        "Tolaria"
+      ]
+    },
+    {
+      "feature": "mana production LastNoted",
+      "affected": 2,
+      "sole_blocker": 0,
+      "cards": [
+        "Ice Cauldron",
+        "Jeweled Amulet"
+      ]
+    },
+    {
+      "feature": "mana spending purpose",
+      "affected": 2,
+      "sole_blocker": 0,
+      "cards": [
+        "Adarkar Unicorn",
+        "Snowfall"
+      ]
+    },
+    {
+      "feature": "move arrival state",
+      "affected": 2,
+      "sole_blocker": 0,
+      "cards": [
+        "Takklemaggot",
+        "Tawnos's Coffin"
+      ]
+    },
+    {
+      "feature": "object filter HasKeywordFamily",
+      "affected": 2,
+      "sole_blocker": 2,
+      "cards": [
+        "Balduvian Shaman",
+        "Rapid Fire"
+      ]
+    },
+    {
+      "feature": "operation DealDamageWith",
+      "affected": 2,
+      "sole_blocker": 2,
+      "cards": [
+        "Errant Minion",
+        "Power Leak"
+      ]
+    },
+    {
+      "feature": "operation PlayWith",
+      "affected": 2,
+      "sole_blocker": 0,
+      "cards": [
+        "Illusionary Mask",
+        "North Star"
+      ]
+    },
+    {
+      "feature": "player rule for a while SpecialAction",
+      "affected": 2,
+      "sole_blocker": 1,
+      "cards": [
+        "Guardian Angel",
+        "North Star"
+      ]
+    },
+    {
+      "feature": "prevention of part of the damage made at resolution",
+      "affected": 2,
+      "sole_blocker": 2,
+      "cards": [
+        "Dark Sphere",
+        "Forcefield"
+      ]
+    },
+    {
+      "feature": "skipping a step of the turn",
+      "affected": 2,
+      "sole_blocker": 2,
+      "cards": [
+        "Necropotence",
+        "Stasis"
+      ]
+    },
+    {
+      "feature": "static rule AttackException SummoningSickness",
+      "affected": 2,
+      "sole_blocker": 2,
+      "cards": [
+        "Chaos Lord",
+        "Instill Energy"
+      ]
+    },
+    {
+      "feature": "static rule CombatGroup Blocker",
+      "affected": 2,
+      "sole_blocker": 0,
+      "cards": [
+        "Caverns of Despair",
+        "Orcish Conscripts"
+      ]
+    },
+    {
+      "feature": "target reference outside a resolving ability",
+      "affected": 2,
+      "sole_blocker": 1,
+      "cards": [
+        "Jade Monolith",
+        "Nova Pentacle"
+      ]
+    },
+    {
+      "feature": "a choice of Color made again",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Chromatic Armor"
+      ]
+    },
+    {
+      "feature": "a choice of Number made again",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Shapeshifter"
+      ]
+    },
+    {
+      "feature": "a lasting block rule reading what its ability chose",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Raging River"
+      ]
+    },
+    {
+      "feature": "a library's top card open to view",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Field of Dreams"
+      ]
+    },
+    {
+      "feature": "a maximum hand size of other players",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Cursed Rack"
+      ]
+    },
+    {
+      "feature": "a pile's name kept on its objects for a lasting rule",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Raging River"
+      ]
+    },
+    {
+      "feature": "a spell costing colored mana more",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Derelor"
+      ]
+    },
+    {
+      "feature": "a spell's target changed to a player",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Reflecting Mirror"
+      ]
+    },
+    {
+      "feature": "activation cost with another cost",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Drought"
+      ]
+    },
+    {
+      "feature": "continuous rule Unique",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Whippoorwill"
+      ]
+    },
+    {
+      "feature": "cost part PlayerAction",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Worms of the Earth"
+      ]
+    },
+    {
+      "feature": "counter removal with a named removing player",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Divine Intervention"
+      ]
+    },
+    {
+      "feature": "damage prevented by an effect of this ability",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Sacred Boon"
+      ]
+    },
+    {
+      "feature": "damage prevented by what the effect asks as it would be dealt",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Heroism"
+      ]
+    },
+    {
+      "feature": "duration WhileMatches",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Illusionary Mask"
+      ]
+    },
+    {
+      "feature": "enchant graveyard card",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Dance of the Dead"
+      ]
+    },
+    {
+      "feature": "engine: no cost copies a mana cost",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Merseine"
+      ]
+    },
+    {
+      "feature": "engine: no cost sized by the game",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Drought"
+      ]
+    },
+    {
+      "feature": "engine: no discard cause in events",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Psychic Purge"
+      ]
+    },
+    {
+      "feature": "engine: no effect changes supertypes",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Arcum's Weathervane"
+      ]
+    },
+    {
+      "feature": "engine: no reading of what a permanent could produce",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Fellwar Stone"
+      ]
+    },
+    {
+      "feature": "engine: no record of the board as the turn began",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Power Surge"
+      ]
+    },
+    {
+      "feature": "engine: no resolving rule on an open set: Prohibit Regenerate",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Runesword"
+      ]
+    },
+    {
+      "feature": "engine: no rule on the mana spent on a spell",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Soul Burn"
+      ]
+    },
+    {
+      "feature": "engine: no set rule on what a cost chooses",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Night Soil"
+      ]
+    },
+    {
+      "feature": "engine: no static prevention with an effect besides",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Rock Hydra"
+      ]
+    },
+    {
+      "feature": "event change then",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Land Equilibrium"
+      ]
+    },
+    {
+      "feature": "event trigger carrying values",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Stangg"
+      ]
+    },
+    {
+      "feature": "granted Conditional",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Glyph of Delusion"
+      ]
+    },
+    {
+      "feature": "granted Static",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Johan"
+      ]
+    },
+    {
+      "feature": "keyword action ActivateManaAbility",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Drain Power"
+      ]
+    },
+    {
+      "feature": "landwalk of AllOf",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Barbarian Guides"
+      ]
+    },
+    {
+      "feature": "landwalk of an unrestricted chosen land type",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Illusionary Presence"
+      ]
+    },
+    {
+      "feature": "mana choice among different bundles",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Adarkar Unicorn"
+      ]
+    },
+    {
+      "feature": "mana production LostThisWay",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Drain Power"
+      ]
+    },
+    {
+      "feature": "mana spending predicate",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Ice Cauldron"
+      ]
+    },
+    {
+      "feature": "move cost Exile from Matching",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Night Soil"
+      ]
+    },
+    {
+      "feature": "numeric expression ActivationCostSymbols",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Drought"
+      ]
+    },
+    {
+      "feature": "numeric expression ManaOf",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Soul Burn"
+      ]
+    },
+    {
+      "feature": "object collection EventGroup",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "City in a Bottle"
+      ]
+    },
+    {
+      "feature": "object filter CanTargetOnly",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Wall of Shadows"
+      ]
+    },
+    {
+      "feature": "object filter ManaCostPayableWith",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Illusionary Mask"
+      ]
+    },
+    {
+      "feature": "object filter WouldDestroy",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Equinox"
+      ]
+    },
+    {
+      "feature": "object reference Scoped",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Takklemaggot"
+      ]
+    },
+    {
+      "feature": "object state CouldntAttack",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Season of the Witch"
+      ]
+    },
+    {
+      "feature": "object state StartedTurnUntapped",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Rasputin Dreamweaver"
+      ]
+    },
+    {
+      "feature": "operation DelayedUnlessPaid",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Nafs Asp"
+      ]
+    },
+    {
+      "feature": "operation EffectOn",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Lava Burst"
+      ]
+    },
+    {
+      "feature": "operation GameEffect",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Camouflage"
+      ]
+    },
+    {
+      "feature": "operation PickFromHand",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Word of Command"
+      ]
+    },
+    {
+      "feature": "operation PlayersDo",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Infernal Denizen"
+      ]
+    },
+    {
+      "feature": "player collection Scoped",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Raging River"
+      ]
+    },
+    {
+      "feature": "player reference AsOf",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Glyph of Reincarnation"
+      ]
+    },
+    {
+      "feature": "player reference OneOf",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Preacher"
+      ]
+    },
+    {
+      "feature": "player rule DamageLifeFloor",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Ali from Cairo"
+      ]
+    },
+    {
+      "feature": "player rule SpendColorAs",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Sunglasses of Urza"
+      ]
+    },
+    {
+      "feature": "player rule for a while AttackWithoutTapping",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Johan"
+      ]
+    },
+    {
+      "feature": "player rule for a while Decides",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Melee"
+      ]
+    },
+    {
+      "feature": "player rule for a while Prohibit PlayCard",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Firestorm Phoenix"
+      ]
+    },
+    {
+      "feature": "player rule for a while Visibility",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Firestorm Phoenix"
+      ]
+    },
+    {
+      "feature": "replacement event Caused",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Silhouette"
+      ]
+    },
+    {
+      "feature": "replacement event Discard",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Library of Leng"
+      ]
+    },
+    {
+      "feature": "replacement of AssignsCombatDamage",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Illusionary Mask"
+      ]
+    },
+    {
+      "feature": "replacement of BecomesTapped",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Illusionary Mask"
+      ]
+    },
+    {
+      "feature": "replacement of BeginDrawStep",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Fasting"
+      ]
+    },
+    {
+      "feature": "replacement of UntapsInUntapStep",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Freyalise's Winds"
+      ]
+    },
+    {
+      "feature": "replacement of damage to a named recipient",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Personal Incarnation"
+      ]
+    },
+    {
+      "feature": "sacrificing any number of permanents to activate an ability",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Sword of the Ages"
+      ]
+    },
+    {
+      "feature": "several objects arriving attached",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Tawnos's Coffin"
+      ]
+    },
+    {
+      "feature": "spell cost increase other than mana",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Drought"
+      ]
+    },
+    {
+      "feature": "static change ColorlessDamageSource",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Ghostly Flame"
+      ]
+    },
+    {
+      "feature": "static rule CombatCost Block",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Hipparion"
+      ]
+    },
+    {
+      "feature": "static rule CounterLimit",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Rasputin Dreamweaver"
+      ]
+    },
+    {
+      "feature": "static rule Prohibit BeAttachedBy",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Guardian Beast"
+      ]
+    },
+    {
+      "feature": "static rule Prohibit ChangeControl",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Guardian Beast"
+      ]
+    },
+    {
+      "feature": "static rule Unique",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Ghostly Flame"
+      ]
+    },
+    {
+      "feature": "target reference",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "Sacred Boon"
+      ]
+    },
+    {
+      "feature": "the X of the ability that made a replacement effect",
+      "affected": 1,
+      "sole_blocker": 1,
+      "cards": [
+        "Aladdin's Lamp"
+      ]
+    },
+    {
+      "feature": "trigger event ObjectBecomes",
+      "affected": 1,
+      "sole_blocker": 0,
+      "cards": [
+        "City in a Bottle"
+      ]
+    }
+  ],
+  "goal": "Generate every unsupported Ice Age-and-earlier card except the cataloged exclusions.",
+  "scope": {
+    "description": "Unique cards from all core and expansion sets through Ice Age inclusive; exclude ante, dexterity and Shahrazad; retain flavor bans",
+    "native_base": "6814db9c8c564e8c51c6f698c1f487189baf48f7",
+    "cards": [
+      "Adarkar Unicorn",
+      "Adventurers' Guildhouse",
+      "Aladdin's Lamp",
+      "Ali from Cairo",
+      "Anti-Magic Aura",
+      "Arboria",
+      "Arcum's Weathervane",
+      "Armageddon Clock",
+      "Ashen Ghoul",
+      "Axelrod Gunnarson",
+      "Balduvian Hydra",
+      "Balduvian Shaman",
+      "Barbarian Guides",
+      "Battle Cry",
+      "Black Mana Battery",
+      "Blood of the Martyr",
+      "Blue Mana Battery",
+      "Boris Devilboon",
+      "Call to Arms",
+      "Camouflage",
+      "Cathedral of Serra",
+      "Caverns of Despair",
+      "Chaos Lord",
+      "Chaos Moon",
+      "Chromatic Armor",
+      "City in a Bottle",
+      "Cleansing",
+      "Clergy of the Holy Nimbus",
+      "Cloak of Confusion",
+      "Concordant Crossroads",
+      "Coral Helm",
+      "Crevasse",
+      "Cuombajj Witches",
+      "Curse Artifact",
+      "Cursed Rack",
+      "Damping Field",
+      "Dance of the Dead",
+      "Dark Sphere",
+      "Deadfall",
+      "Deep Spawn",
+      "Delif's Cone",
+      "Delif's Cube",
+      "Derelor",
+      "Diamond Valley",
+      "Disharmony",
+      "Divine Intervention",
+      "Draconian Cylix",
+      "Drain Power",
+      "Dream Coat",
+      "Dreams of the Dead",
+      "Drop of Honey",
+      "Drought",
+      "Dwarven Armorer",
+      "Earthlink",
+      "Earthlore",
+      "Elder Druid",
+      "Elder Land Wurm",
+      "Elder Spawn",
+      "Elkin Bottle",
+      "Enduring Renewal",
+      "Energy Storm",
+      "Energy Tap",
+      "Equinox",
+      "Erg Raiders",
+      "Erhnam Djinn",
+      "Erosion",
+      "Errant Minion",
+      "Errantry",
+      "Eureka",
+      "False Orders",
+      "Farrel's Mantle",
+      "Farrel's Zealot",
+      "Fasting",
+      "Fellwar Stone",
+      "Festival",
+      "Field of Dreams",
+      "Firestorm Phoenix",
+      "Flooded Woodlands",
+      "Floral Spuzzem",
+      "Forcefield",
+      "Forgotten Lore",
+      "Frankenstein's Monster",
+      "Freyalise's Winds",
+      "Fumarole",
+      "Gabriel Angelfire",
+      "Gaea's Liege",
+      "Game of Chaos",
+      "Gauntlets of Chaos",
+      "Gaze of Pain",
+      "General Jarkeld",
+      "Ghazbán Ogre",
+      "Ghostly Flame",
+      "Giant Slug",
+      "Glacial Chasm",
+      "Glyph of Delusion",
+      "Glyph of Doom",
+      "Glyph of Reincarnation",
+      "Goblin Artisans",
+      "Goblin Flotilla",
+      "Gosta Dirk",
+      "Gravity Sphere",
+      "Great Wall",
+      "Green Mana Battery",
+      "Guardian Angel",
+      "Guardian Beast",
+      "Halfdane",
+      "Halls of Mist",
+      "Hammerheim",
+      "Hasran Ogress",
+      "Heroism",
+      "Hipparion",
+      "Homarid Warrior",
+      "Hyperion Blacksmith",
+      "Icatian Skirmishers",
+      "Ice Cauldron",
+      "Ifh-Bíff Efreet",
+      "Illusionary Mask",
+      "Illusionary Presence",
+      "Illusionary Terrain",
+      "Imprison",
+      "In the Eye of Chaos",
+      "Infernal Darkness",
+      "Infernal Denizen",
+      "Infinite Authority",
+      "Infinite Hourglass",
+      "Initiates of the Ebon Hand",
+      "Instill Energy",
+      "Island Sanctuary",
+      "Island of Wak-Wak",
+      "Jade Monolith",
+      "Jester's Cap",
+      "Jeweled Amulet",
+      "Johan",
+      "Johtull Wurm",
+      "Juxtapose",
+      "Khabál Ghoul",
+      "Kjeldoran Elite Guard",
+      "Kjeldoran Guard",
+      "Kobold Overlord",
+      "Krovikan Sorcerer",
+      "Krovikan Vampire",
+      "Land Equilibrium",
+      "Land's Edge",
+      "Lava Burst",
+      "Lesser Werewolf",
+      "Leviathan",
+      "Library of Leng",
+      "Living Plane",
+      "Lord Magnus",
+      "Lost Order of Jarkeld",
+      "Magus of the Unseen",
+      "Mana Short",
+      "Mana Vortex",
+      "Manabarbs",
+      "Master of the Hunt",
+      "Melee",
+      "Mercenaries",
+      "Merieke Ri Berit",
+      "Merseine",
+      "Metamorphosis",
+      "Mijae Djinn",
+      "Mind Whip",
+      "Mindstab Thrull",
+      "Minion of Leshrac",
+      "Mirror Universe",
+      "Mishra's War Machine",
+      "Monsoon",
+      "Mountain Stronghold",
+      "Mudslide",
+      "Musician",
+      "Mystic Might",
+      "Márton Stromgald",
+      "Nafs Asp",
+      "Naked Singularity",
+      "Nameless Race",
+      "Necrite",
+      "Necropolis",
+      "Necropotence",
+      "Nether Void",
+      "Night Soil",
+      "North Star",
+      "Nova Pentacle",
+      "Oath of Lim-Dûl",
+      "Orcish Conscripts",
+      "Orcish Farmer",
+      "Orcish Squatters",
+      "Personal Incarnation",
+      "Phantasmal Mount",
+      "Polar Kraken",
+      "Power Leak",
+      "Power Sink",
+      "Power Surge",
+      "Pox",
+      "Preacher",
+      "Primordial Ooze",
+      "Psychic Allergy",
+      "Psychic Purge",
+      "Quagmire",
+      "Quarum Trench Gnomes",
+      "Rabid Wombat",
+      "Raging River",
+      "Rapid Fire",
+      "Rasputin Dreamweaver",
+      "Ray of Command",
+      "Reality Twist",
+      "Reclamation",
+      "Reflecting Mirror",
+      "Revelation",
+      "Ring of Ma'rûf",
+      "Rock Hydra",
+      "Rohgahh of Kher Keep",
+      "Runesword",
+      "Sacred Boon",
+      "Sandals of Abdallah",
+      "Seafarer's Quay",
+      "Season of the Witch",
+      "Sentinel",
+      "Seraph",
+      "Serendib Djinn",
+      "Shapeshifter",
+      "Shelkin Brownie",
+      "Shyft",
+      "Sibilant Spirit",
+      "Silhouette",
+      "Sindbad",
+      "Singing Tree",
+      "Smoke",
+      "Snowfall",
+      "Sorrow's Path",
+      "Soul Burn",
+      "Soul Exchange",
+      "Spirit Shackle",
+      "Spoils of War",
+      "Staff of the Ages",
+      "Stangg",
+      "Stasis",
+      "Stench of Evil",
+      "Storm World",
+      "Stormbind",
+      "Sunglasses of Urza",
+      "Sword of the Ages",
+      "Takklemaggot",
+      "Tawnos's Coffin",
+      "Telekinesis",
+      "Tetravus",
+      "The Abyss",
+      "Thelon's Curse",
+      "Thelonite Monk",
+      "Thermokarst",
+      "Titania's Song",
+      "Tolaria",
+      "Total War",
+      "Touch of Vitae",
+      "Tourach's Gate",
+      "Tower of Coireall",
+      "Tracker",
+      "Twiddle",
+      "Two-Headed Giant of Foriys",
+      "Undertow",
+      "Unholy Citadel",
+      "Untamed Wilds",
+      "Ur-Drago",
+      "Urza's Mine",
+      "Urza's Miter",
+      "Urza's Power Plant",
+      "Urza's Tower",
+      "Venomous Breath",
+      "Vesuvan Doppelganger",
+      "Vexing Arcanix",
+      "Voodoo Doll",
+      "Wall of Putrid Flesh",
+      "Wall of Shadows",
+      "Wall of Tombstones",
+      "Wand of Ith",
+      "War Barge",
+      "Whippoorwill",
+      "Whirling Dervish",
+      "Winds of Change",
+      "Winter Orb",
+      "Winter's Chill",
+      "Wood Elemental",
+      "Word of Command",
+      "Worms of the Earth",
+      "Xenic Poltergeist",
+      "Yawgmoth Demon",
+      "Zur's Weirding"
+    ],
+    "source_sha256": "d63d310c54c40c52df42ff2d3112f5c23b173a5fca3053188d8cbdbe7f8890e1"
+  },
+  "current_engine_tests": {
+    "focused_step_deadlines": 6,
+    "generated_runtime_scenarios": 31,
+    "six_card_modules_typecheck": 6,
+    "workspace_typecheck": true,
+    "full_regression_last_run": "five-feature foundation: 22565 native / 1570 generator; rerun after next batch"
+  },
+  "evidence": {
+    "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
+    "generator-steps-tests.log": "0c3243823454e01b6bb8a1bba9e2c7d698fb9b2377653293c41bc00f4c0d14bc",
+    "generator-steps-compile.log": "243707dca001a70ec7808df04c623c79545aa9e5f0d6599cb8fd1af49583c942",
+    "generator-six-native-runtime.log": "32497f9f8a5aa12dded209159e0051ee9a58030a2de6b328b094ed2b76a6db3f"
+  }
+}

@@ -3811,6 +3811,18 @@ impl Compiler {
         else {
             return Err(unsupported());
         };
+        // A rule on these exact objects, not an ability they gain (CR 611.2c). Untapping outside their
+        // controller's untap step remains possible; the duration owns how many future steps it spans.
+        let skips_untap = match effects.as_slice() {
+            [Operand::Vocabulary { family, form }] => family == "PermanentRule" && form == "DoesntUntapDuringControllersUntap",
+            [Operand::Term { family, form, operands }] => family == "PermanentRule" && form == "DoesntUntapDuringControllersUntap" && operands.is_empty(),
+            _ => false,
+        };
+        if let (true, EffectSubject::Objects(objects)) = (skips_untap, subject) {
+            let duration = match until { Some(duration) => self.duration(duration)?, None => "Duration::Indefinite".into() };
+            writeln!(out, "let objects_{id} = {}; let duration_{id} = {duration}; for object in objects_{id} {{ g.add_effect(asker.source, object, EffectKind::DoesntUntap, duration_{id}); }}", self.fetch(self.objects(objects)?)).unwrap();
+            return Ok(());
+        }
         if effects
             .iter()
             .any(|e| matches!(e, Operand::Term { family, .. } if family == "PerpetualEffect"))

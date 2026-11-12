@@ -100,6 +100,8 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("no-combat-damage-assignment", "NoCombatDamageAssignment,", &[]),
     ("world-rule", "pub world_since: u32,", &[]),
     ("other-activators", "pub activators: Option<ActivationPlayers>,", &["engine-no-activation-by-other-players"]),
+    ("step-deadlines", "UntilNextStepOf { step: Step, player: Option<PlayerId> },", &[]),
+    ("counted-untap-steps", "DuringControllersNextUntapSteps(u32),", &["duration-during-controllers-next-untap-steps"]),
 ];
 /// The feature of `SWITCHED` that writes rules on open sets of objects.
 pub(super) const LASTING_RULES: &str = "lasting-rules";

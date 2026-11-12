@@ -46,6 +46,28 @@ fn explicit_activators_use_the_real_interface_without_dropping_unrelated_require
     assert!(code(&candidate["Clergy of the Holy Nimbus"]).contains(".activated_by("));
     assert!(code(&candidate["Personal Incarnation"]).contains(".activated_by("));
 }
+fn step_profiles() -> &'static (Rows,Rows) {
+    static ROWS:OnceLock<(Rows,Rows)>=OnceLock::new();
+    ROWS.get_or_init(|| {
+        let fixtures=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let source=fixtures.join("early_set_steps.ronl");let oracle=fixtures.join("early_set_steps.oracle.json");
+        let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-steps-baseline.jsonl");
+        let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-steps-candidate.jsonl");
+        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        let mut features=FOUNDATION.to_vec();features.extend(["other-activators","step-deadlines","counted-untap-steps"]);
+        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        (read(&baseline),read(&candidate))
+    })
+}
+#[test]
+fn exact_step_deadlines_clear_their_requirements() {
+    let (baseline,candidate)=step_profiles();assert_eq!(baseline.len(),6);
+    assert!(baseline.values().all(|r|!gaps(r).is_empty()));
+    for (name,row) in candidate {println!("{name}: {:?}",gaps(row));syn::parse_file(code(row)).unwrap();}
+    for name in ["Elkin Bottle","Erhnam Djinn","Gabriel Angelfire","Halfdane","Telekinesis","Xenic Poltergeist"] {assert!(gaps(&candidate[name]).is_empty(),"{name}: {:?}",gaps(&candidate[name]));}
+    assert!(code(&candidate["Halfdane"]).contains("Duration::UntilEndOfNextStepOf"));
+    assert!(code(&candidate["Elkin Bottle"]).contains("Expiry::UntilYourNextStep"));
+}
 fn gaps(row:&serde_json::Value)->Vec<&str> {
     row["faces"].as_array().unwrap().iter().flat_map(|f|f["gaps"].as_array().unwrap()).map(|g|g["feature"].as_str().unwrap()).collect()
 }
@@ -86,10 +108,10 @@ fn foundation_generated_cards_execute_in_cantrip() {
     let fixture=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let old=root.join("earlier-candidate.jsonl");
     cantrip::planned::with_additional_features(FOUNDATION,||cantrip::planned::tracked(&fixture.join("early_set_generator_gaps.ronl"),&fixture.join("early_set_generator_gaps.oracle.json"),&old).unwrap());
-    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());
+    let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());
     // Modules actually used by these scenarios. All 40 affected modules have a separate compile probe;
     // Cube and Doom counter declarations are intentionally separate from these runtime cases.
-    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge"];
+    let modules=["Orcish Farmer","War Barge","Merieke Ri Berit","Ray of Command","Dreams of the Dead","Mirror Universe","Necropolis","Illusionary Terrain","Nameless Race","Forgotten Lore","Infernal Darkness","Tetravus","Frankenstein's Monster","Game of Chaos","Clockwork Beast","Anti-Magic Aura","Soul Exchange","Vision Charm","Island Sanctuary","Great Wall","Gaze of Pain","Arboria","Concordant Crossroads","Island of Wak-Wak", "Clergy of the Holy Nimbus","Land's Edge","Elkin Bottle","Halfdane","Telekinesis","Xenic Poltergeist"];
     let mut lib=String::from("#![allow(dead_code,unused_imports,unused_variables,unused_mut)]\n");
     for name in modules {
         let row=&cards[name];assert!(gaps(row).is_empty(),"{name}: {:?}",gaps(row));
@@ -100,6 +122,7 @@ fn foundation_generated_cards_execute_in_cantrip() {
     lib.push_str(include_str!("fixtures/early_set_generator_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_foundation_scenarios.rs"));
     lib.push_str(include_str!("fixtures/early_set_activators_scenarios.rs"));
+    lib.push_str(include_str!("fixtures/early_set_steps_scenarios.rs"));
     fs::write(root.join("src/lib.rs"),lib).unwrap();
     let mut manifest=String::from("[package]\nname=\"mtgish-foundation-runtime\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\n");
     for name in ["cantrip-api","cantrip-state","cantrip-mechanics","cantrip-rules"] {manifest.push_str(&format!("{name}={{path={:?}}}\n",checkout.join("crates").join(name)));}
