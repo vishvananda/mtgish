@@ -636,6 +636,8 @@ struct Compiler {
     sorcery: bool,
     /// The card types the face prints.
     printed_types: Vec<crate::mtg_types::CardType>,
+    /// The printed enchant restriction requires the source controller to control its host.
+    enchants_controlled: bool,
     /// The name of a card in a graveyard whose card types a filter reads off the card there (CR 715.4, 709.4): a way
     /// to cast granted to cards in a graveyard ("each instant and sorcery card in your graveyard has flashback") asks
     /// about the card, while `q.chars` reads it as the face it would be cast as (Bonecrusher Giant's Stomp is an
@@ -1425,6 +1427,7 @@ impl Compiler {
             kickers: Vec::new(),
             sorcery: false,
             printed_types: Vec::new(),
+            enchants_controlled: false,
             card_in_graveyard: None,
             entering_as: Default::default(),
             wanted_labels: None,
@@ -2733,6 +2736,8 @@ fn emit_face(
     c.sorcery = (card.characteristics.card_types.iter())
         .any(|t| matches!(t, crate::mtg_types::CardType::Sorcery));
     c.printed_types = card.characteristics.card_types.clone();
+    c.enchants_controlled = card.abilities.iter().any(|a| matches!(a,
+        Ability::Enchant { hosts: EnchantHosts::Permanents(filter) } if costs::yours(filter)));
     c.enters_choosing = chosen::enters_choosing(card);
     c.enters_choosing.extend(place.keeps.iter().copied());
     c.enters_two = chosen::enters_two(card);

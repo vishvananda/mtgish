@@ -35,6 +35,7 @@
     "Drop of Honey",
     "Dwarven Armorer",
     "Earthlink",
+    "Earthlore",
     "Elder Druid",
     "Elder Land Wurm",
     "Elder Spawn",
@@ -159,6 +160,7 @@
     "Titania's Song",
     "Total War",
     "Touch of Vitae",
+    "Tourach's Gate",
     "Tower of Coireall",
     "Tracker",
     "Twiddle",
@@ -257,9 +259,6 @@
       "engine: no cost sized by the game",
       "numeric expression ActivationCostSymbols",
       "spell cost increase other than mana"
-    ],
-    "Earthlore": [
-      "engine: a cost that taps what its payer may not control"
     ],
     "Enduring Renewal": [
       "a hand played revealed"
@@ -513,9 +512,6 @@
     "Tolaria": [
       "losing ability AnyBandsWithOthers"
     ],
-    "Tourach's Gate": [
-      "engine: a cost that taps what its payer may not control"
-    ],
     "Unholy Citadel": [
       "engine: no BandsWithOthers",
       "engine: no BandsWithOthers granted"
@@ -667,15 +663,6 @@
       "cards": [
         "Dance of the Dead",
         "Tawnos's Coffin"
-      ]
-    },
-    {
-      "feature": "engine: a cost that taps what its payer may not control",
-      "affected": 2,
-      "sole_blocker": 2,
-      "cards": [
-        "Earthlore",
-        "Tourach's Gate"
       ]
     },
     {
@@ -1733,7 +1720,7 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 36,
+    "generated_runtime_scenarios": 38,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
@@ -1752,7 +1739,8 @@
       "revision": "4deb96071"
     },
     "focused_keyword_families": 2,
-    "all_card_keyword_family_oracle_test": 1
+    "all_card_keyword_family_oracle_test": 1,
+    "focused_controlled_attachment_generator": 2
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1771,7 +1759,10 @@
     "keyword-family-tests.log": "605d138b6d5da010586aab91fa59dc04368d6ccc83ca9a13fc498b6eed4d8131",
     "keyword-family-oracle-tests.log": "b3a5f02eed16d340f7da39021957860be32e36e7844c88e17391001dbabb9935",
     "generator-nine-native-runtime.log": "0b1fe0c059574fff9ec1a419f40c7fdf71864da40eeb58bfa08936b64dc17beb",
-    "generator-nine-scope.log": "60f44f684eab7e11857bc93dd10706c69bf6dcb516ea5ce814220bd9eb407e59"
+    "generator-nine-scope.log": "60f44f684eab7e11857bc93dd10706c69bf6dcb516ea5ce814220bd9eb407e59",
+    "generator-attached-cost-tests.log": "263f6c8ec67fa41111532f4a5d4cdefb4c216edbf225cda12793f7ca66458dd7",
+    "generator-ten-native-runtime.log": "4f9b43994f4af8a310442ef003450b71f482a5220b27a98351c821ae9a29bd79",
+    "generator-ten-scope.log": "33419f31bffae7c9cae5e9e742af5441de3a6024d8707be184e494f766af8bb5"
   },
   "candidate_api_fingerprint": "a750b4fbc44b4d5fe6974d83040aef51bffad801847f2d494f99c58286040773",
   "benchmark_current_batch": {

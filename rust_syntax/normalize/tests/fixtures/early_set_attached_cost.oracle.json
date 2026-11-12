@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Earthlore",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Earthlore",
+        "manaCost": "{G}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant land you control\nTap enchanted land: Target blocking creature gets +1/+2 until end of turn. Activate only if enchanted land is untapped."
+      }
+    ]
+  },
+  {
+    "name": "Tourach's Gate",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Tourach's Gate",
+        "manaCost": "{1}{B}{B}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant land you control\nSacrifice a Thrull: Put three time counters on this Aura.\nAt the beginning of your upkeep, remove a time counter from this Aura. If there are no time counters on this Aura, sacrifice it.\nTap enchanted land: Attacking creatures you control get +2/-1 until end of turn. Activate only if enchanted land is untapped."
+      }
+    ]
+  }
+]

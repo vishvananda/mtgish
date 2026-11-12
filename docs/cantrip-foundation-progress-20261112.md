@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **180 generate without recorded feature gaps and 106
+Of the 286 scoped cards, **182 generate without recorded feature gaps and 104
 remain gapped**. Those 178 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 106 raw requirement labels
+remaining requirement and its affected cards. Its 105 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -44,6 +44,14 @@ every implemented card. Two generated runtime scenarios cover both positive
 and negative keyword checks. The latest complete workspace gates below cover
 the first eight feature groups; the ninth has focused and runtime validation.
 
+Earthlore and Tourach's Gate required only a generator repair. Their typed
+“enchant land you control” restriction proves the host belongs to the payer
+of a controller-only activation. Their named tap payment now uses existing
+`tap_untapped`, including for a summoning-sick creature land, rather than a
+`{T}` symbol. Unconstrained hosts, other activators, granted abilities and
+resolution costs retain the noncontroller gap. Two generator checks and two
+runtime scenarios cover the cost and host-control changes.
+
 The original roadmap still has bands with other, computed X constraints, and
 persistent public visibility pending. The full remaining ledger also identifies
 other needs, including untap limits, forced mana activations,
@@ -53,7 +61,7 @@ adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 36 scenarios,
+the pristine foundation. The generated runtime suite now passes 38 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The complete generator suite now passes 1,573 tests (22 ignored) in a serialized

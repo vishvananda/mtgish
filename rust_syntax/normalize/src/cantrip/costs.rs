@@ -842,6 +842,36 @@ impl Compiler {
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ let this = AbilityRef {{ card: {card}, index: {index} }}; (q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, .. }} if source == asker.source && ability == this)).count() as i64) < {n} }}").unwrap();
         function
     }
+    /// A host constrained by "enchant ... you control" belongs to the payer of
+    /// an ordinary controller-only activation. Lower its named tap payment to
+    /// the existing tap-permanents cost, never the source's {T} symbol. Keep the
+    /// general noncontroller gap for other Auras, other payers and resolution costs.
+    fn activation_price(&mut self, price: &Cost, limits: &ActivationLimits, label: &str) -> Result<String> {
+        if !self.enchants_controlled || self.granting
+            || !matches!(limits.activators, None | Some(PlayerSet::One(PlayerRef::AbilityController)))
+            || limits.modifiers.iter().any(|m| matches!(m,
+                Change::ActivationRule(ActivationRule::OnlyBy(p))
+                if !matches!(p, PlayerSet::One(PlayerRef::AbilityController))))
+        {
+            return self.cost(price, label);
+        }
+        let mut price = price.clone();
+        for part in &mut price.parts {
+            if let CostPart::ChangeTapState { selections, tapped: true, symbol: false } = part {
+                if let [CostObjectSelection { objects, choose: None }] = selections.as_mut_slice() {
+                    if matches!(objects, ObjectSet::One(ObjectRef::AttachedTo(host)) if matches!(**host, ObjectRef::Source)) {
+                        *objects = ObjectSet::Zone {
+                            scope: ZoneScope::Shared(EventZone::Battlefield),
+                            kind: ObjectKind::Permanent,
+                            filter: ObjectFilter::SameObject(ObjectRef::AttachedTo(Box::new(ObjectRef::Source))),
+                        };
+                        selections[0].choose = Some(Count::Exactly(Expr::Constant(1)));
+                    }
+                }
+            }
+        }
+        self.cost(&price, label)
+    }
     fn activated(
         &mut self,
         label: &str,
@@ -878,14 +908,14 @@ impl Compiler {
             let effect = self.implied_effect(announcement, label)?;
             format!(
                 "ability({}, {effect}, {}).targets({targets})",
-                self.cost(price, label)?,
+                self.activation_price(price, limits, label)?,
                 quoted(&text)
             )
         } else if announcement.modes.is_some() {
             let modal = self.modal(announcement, label, None)?;
             format!(
                 "modal_ability({}, &{modal}, {})",
-                self.cost(price, label)?,
+                self.activation_price(price, limits, label)?,
                 quoted(&text)
             )
         } else if crate::semantics::activation_kind(price, announcement, body)
@@ -894,7 +924,7 @@ impl Compiler {
             if let Some(colors) = lane_g::filter_land(body) {
                 format!(
                     "cantrip_mechanics::lands::filter_two::<{colors}>({}, {})",
-                    self.cost(price, label)?,
+                    self.activation_price(price, limits, label)?,
                     quoted(&text)
                 )
             } else {
@@ -906,7 +936,7 @@ impl Compiler {
                 let adds = adds?;
                 let colors = self.mana_colors.take();
                 self.paid_for = PaidFor::Mana;
-                let cost = self.cost(price, label);
+                let cost = self.activation_price(price, limits, label);
                 self.paid_for = PaidFor::Ability;
                 let mut made = format!(
                     "mana_ability({}, {adds}, {}){}",
@@ -940,7 +970,7 @@ impl Compiler {
             };
             format!(
                 "ability({}, {effect}, {}).targets({targets}){after_x}",
-                self.cost(price, label)?,
+                self.activation_price(price, limits, label)?,
                 quoted(&text)
             )
         };
@@ -1400,7 +1430,7 @@ impl Compiler {
                         let printed = before
                             .clone()
                             .said(lane_k::Said::Activated, ability_text(body));
-                        let first = before.clone().cost(cost, label)?;
+                        let first = before.clone().activation_price(cost, limits, label)?;
                         // An activated ability has one cost (`ActivatedDef::cost`); only a
                         // spell offers a choice of costs (`additional_choice`).
                         let unlike = gap(ACTIVATED_COST_CHOICE);
