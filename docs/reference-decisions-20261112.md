@@ -83,7 +83,7 @@ the independent proposal: Omen and Lamplight still have intentionally different
 corrected representations. A 53-to-39 exact-difference count is therefore not a
 claim that 39 reference bugs remain, nor a fresh full-corpus score.
 
-## What remains
+## Historical retained outputs
 
 The final ledger retains **37** other outputs: 16 preserve valid cost, identity,
 keyword or receipt contracts, 20 are equivalent or redundant forms, and Satya's

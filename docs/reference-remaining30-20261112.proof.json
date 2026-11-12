@@ -92,10 +92,10 @@
     "data/mtgish.lines.json": "369736570e58dff9d411372f0c0ec2088cf8bca5090dbce82fb4c30281537df1",
     "data/mtgish.lines.ron": "66e6d248359f0ed513ae0c2df7c9d46e3687221cb48b18ce1ad444f734f41eda",
     "data/mtgish.pretty.ron": "8cda9d7087a1684d74787b3fc78729b2d4b62489a7e82a205b5dff72f08dd479",
-    "docs/reference-consistency-20261112.md": "5f612ca3dd3f8923fcd9ea0cbf62084906238f824b722f0a180bdbac4fd1d762",
+    "docs/reference-consistency-20261112.md": "26eec8d236f8f470c5045469a7257559c0f524454417ee1f38749a4ea869730e",
     "docs/reference-decisions-20261112.json": "38235ebd6ae4d5632425af3757f3c90d227050cd582af08622c6492759369493",
-    "docs/reference-decisions-20261112.md": "0cdef9c37c92cf44e15a8d41ed862f3347489e29d82aa0aebc8e09d5d4dc92e1",
-    "docs/reference-remaining30-20261112.md": "853ec847cdd01c48bac9deaf8054514473476dd0b69214dae9d4315697549c24",
+    "docs/reference-decisions-20261112.md": "d25ce77f7a34d7c9813e9e54384b610f64af042fe67df94ca12288fb85e96470",
+    "docs/reference-remaining30-20261112.md": "abc3da1962acc0f61bffbd8dec1a9d9278e765028133e797812023856b1f8226",
     "go_mtg_parser/reference_remaining30_20261112_test.go": "926515dce35c65b77061d250d020240d6c8a7ff1b037eda32959b6ec73e79ee8",
     "grammars/english_grammar.json5": "101c9f69974f8684b5772ab097ec4b044e2f6956e7cfaaf9bbbf2f5ccd913df6",
     "grammars/mtgish_grammar.json5": "8d710c196727673603fb75a9ec7e42b95c5346c2fb5d7d0aca79da31017eaaf2",
@@ -150,5 +150,7 @@
     "full-corpus-ir.log": "607bbb0784e195730ea3d6e24abf071415c16caec6c6e0b0aa065a3b8dd25636",
     "full-corpus-ir.json": "4e628421972da55e06645a17e265ac7cccf5dce0b031f0aacd250da45b6f4ea1",
     "final-boundary-tests.log": "7b796087255a7203fea5650edaba59361a3deff69ebebc902361c3e6ce18b407"
-  }
+  },
+  "implementation_revision": "e8b29bb",
+  "upstream_implementation_followup": "https://github.com/i5jb/mtgish/issues/275#issuecomment-6830196760"
 }

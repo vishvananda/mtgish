@@ -118,7 +118,7 @@ The failed intermediate gate logs are retained as investigation evidence, not
 validation receipts for the published batch. Final validation is recorded below
 only after the final code passes.
 
-### Remaining family worklist
+### Historical family worklist (now completed)
 
 | Faces | Next producer investigation |
 | --- | --- |

@@ -84,3 +84,10 @@ investigation evidence, not successful validation receipts.
 
 After this reference pass, resume the shared foundation milestone described in
 [the foundation stop plan](cantrip-foundation-shared-stop-20261112.md).
+
+The [implementation follow-up](https://github.com/i5jb/mtgish/issues/275#issuecomment-6830196760) reports the Source families,
+remaining equivalent Source spelling differences, two input syntax additions and
+validation to MTGish #275. Implementation was pushed as `e8b29bb`. Upstream
+adoption remains with the maintainer. To adopt this producer in Oracle Grammar,
+advance its reference pin, re-prepare inputs and recount; the portable schema
+remains 190. No full model/reference equality rescore is claimed here.
