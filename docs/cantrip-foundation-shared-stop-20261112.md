@@ -13,17 +13,17 @@ the same primitive. Card workers remain paused and no upstream update is pulled.
 | Combat group constraints — complete | Caverns of Despair; Errantry; Orcish Conscripts | Native `a09922634`; complete attack/block declaration constraints and requirement maximization. [Checkpoint](cantrip-foundation-combat-groups-20261112.md). |
 | Nonmana attack costs — complete | Flooded Woodlands; Leviathan; Reclamation | Native `210d1eefa`; shared declaration payment scheduler. [Checkpoint](cantrip-foundation-nonmana-combat-20261112.md). |
 | Targets chosen by another player — complete | Cuombajj Witches; Nova Pentacle; Preacher | Native `4712aa560`; chooser provenance and targeting legality stay separate. [Checkpoint](cantrip-foundation-target-choosers-20261112.md). |
-| Changing combat relationships | False Orders; General Jarkeld; Sorrow's Path | Native mutation authority `3918b90ab` passes the focused core gates; explicit legality and generator adapters remain pending. [Checkpoint](cantrip-foundation-combat-authority-20261112.md). |
+| Changing combat relationships — complete | False Orders; General Jarkeld; Sorrow's Path | Native `5a4655b56`; atomic graph changes, explicit shared legality and generated runtime cases. [Checkpoint](cantrip-foundation-blocking-reassignment-20261112.md). |
 | Noted values | Ice Cauldron; Jeweled Amulet; Tawnos's Coffin | Remembered mana and noted objects require typed, linked provenance. |
 
-Two pending three-card families remain, covering six distinct cards. The
-latest frozen scope has **217 generation-ready candidates, 69 gapped cards and
-86 raw diagnostic labels**, out of the original 286 cards. These labels combine
+One pending three-card family remains, covering three distinct cards. The
+latest frozen scope has **220 generation-ready candidates, 66 gapped cards and
+85 raw diagnostic labels**, out of the original 286 cards. These labels combine
 engine and generator requirements; they do not count independent engine features.
 
 The original seven-family milestone covers 23 distinct cards. Finishing a
 family does not promise that every affected card is ready: Reflecting Mirror,
-Preacher, Nova Pentacle, Ice Cauldron and Tawnos's Coffin have additional
+Nova Pentacle, Ice Cauldron and Tawnos's Coffin have additional
 diagnostics. Preserve those unless the same primitive actually supplies them.
 Report residual card-specific work at the stopping checkpoint. Hipparion's
 blocker-payment procedure is still separate from the completed attack costs.

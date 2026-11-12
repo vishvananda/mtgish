@@ -8,11 +8,10 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`. Generator
-validation is through `4712aa560`, with twenty-two completed feature groups.
-Native `3918b90ab` adds the [first stage of combat reassignment](cantrip-foundation-combat-authority-20261112.md):
-atomic relationship changes, trigger identity and first-strike provenance.
-Explicit legality checks and generator adapters remain pending for that family;
-the candidate counts below are unchanged. The step-deadline
+validation is through `5a4655b56`, with twenty-three completed feature groups.
+The [combat-reassignment checkpoint](cantrip-foundation-blocking-reassignment-20261112.md)
+adds atomic relationship changes, explicit legality checks and generator adapters
+for False Orders, General Jarkeld and Sorrow's Path. The step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -20,11 +19,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **217 generate without recorded feature gaps and 69
-remain gapped**. Those 217 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **220 generate without recorded feature gaps and 66
+remain gapped**. Those 220 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 86 raw requirement labels
+remaining requirement and its affected cards. Its 85 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -238,3 +237,13 @@ scenarios and the 217-module compile pass. The
 [checkpoint](cantrip-foundation-target-choosers-20261112.md) records scope and
 performance. Two shared three-card families remain before the full gates and
 requested pause.
+
+The twenty-third primitive completes [blocking reassignment](cantrip-foundation-blocking-reassignment-20261112.md).
+False Orders, General Jarkeld and Sorrow's Path clear their last recorded gaps.
+All 1,526 rules tests, 86 state tests, 12 API tests, 74 generated runtime
+scenarios and the 220-module compile pass. The complete Rust workspace passes
+2,076 tests (24 ignored, 202 targets) at `6f9f2ef`. “Defending player” also
+uses the existing combat role consistently for False Orders, Blaze of Glory
+and Yare, with all 33,529 corpus records validating. Only the noted-values
+three-card family remains before the final complete native gate and requested
+pause. The normal API pin, numeric widths and AST layout stay unchanged.

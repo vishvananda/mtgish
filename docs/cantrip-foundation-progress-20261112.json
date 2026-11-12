@@ -1,5 +1,5 @@
 {
-  "native_foundation": "4712aa560",
+  "native_foundation": "5a4655b56",
   "scoped_missing": 286,
   "generation_ready": [
     "Adventurers' Guildhouse",
@@ -56,6 +56,7 @@
     "Erosion",
     "Errantry",
     "Eureka",
+    "False Orders",
     "Farrel's Mantle",
     "Farrel's Zealot",
     "Festival",
@@ -69,7 +70,8 @@
     "Game of Chaos",
     "Gauntlets of Chaos",
     "Gaze of Pain",
-    "Ghazbán Ogre",
+    "General Jarkeld",
+    "Ghazb\u00e1n Ogre",
     "Giant Slug",
     "Glacial Chasm",
     "Glyph of Delusion",
@@ -87,7 +89,7 @@
     "Homarid Warrior",
     "Hyperion Blacksmith",
     "Icatian Skirmishers",
-    "Ifh-Bíff Efreet",
+    "Ifh-B\u00edff Efreet",
     "Illusionary Terrain",
     "Imprison",
     "In the Eye of Chaos",
@@ -101,7 +103,7 @@
     "Jester's Cap",
     "Johtull Wurm",
     "Juxtapose",
-    "Khabál Ghoul",
+    "Khab\u00e1l Ghoul",
     "Kjeldoran Elite Guard",
     "Kjeldoran Guard",
     "Kobold Overlord",
@@ -132,14 +134,14 @@
     "Mudslide",
     "Musician",
     "Mystic Might",
-    "Márton Stromgald",
+    "M\u00e1rton Stromgald",
     "Naked Singularity",
     "Nameless Race",
     "Necrite",
     "Necropolis",
     "Necropotence",
     "Nether Void",
-    "Oath of Lim-Dûl",
+    "Oath of Lim-D\u00fbl",
     "Orcish Conscripts",
     "Orcish Farmer",
     "Orcish Squatters",
@@ -158,7 +160,7 @@
     "Reality Twist",
     "Reclamation",
     "Revelation",
-    "Ring of Ma'rûf",
+    "Ring of Ma'r\u00fbf",
     "Rohgahh of Kher Keep",
     "Sandals of Abdallah",
     "Seafarer's Quay",
@@ -172,6 +174,7 @@
     "Sindbad",
     "Singing Tree",
     "Smoke",
+    "Sorrow's Path",
     "Soul Exchange",
     "Spirit Shackle",
     "Spoils of War",
@@ -273,9 +276,6 @@
     "Errant Minion": [
       "operation DealDamageWith"
     ],
-    "False Orders": [
-      "operation ChangeCombat"
-    ],
     "Fasting": [
       "replacement of BeginDrawStep"
     ],
@@ -294,9 +294,6 @@
     ],
     "Freyalise's Winds": [
       "replacement of UntapsInUntapStep"
-    ],
-    "General Jarkeld": [
-      "operation ChangeCombat"
     ],
     "Ghostly Flame": [
       "static change ColorlessDamageSource",
@@ -420,9 +417,6 @@
       "engine: only a mana ability triggers on tapping for mana",
       "mana spending purpose"
     ],
-    "Sorrow's Path": [
-      "operation ChangeCombat"
-    ],
     "Soul Burn": [
       "engine: no rule on the mana spent on a spell",
       "numeric expression ManaOf"
@@ -460,16 +454,6 @@
     ]
   },
   "features": [
-    {
-      "feature": "operation ChangeCombat",
-      "affected": 3,
-      "sole_blocker": 3,
-      "cards": [
-        "False Orders",
-        "General Jarkeld",
-        "Sorrow's Path"
-      ]
-    },
     {
       "feature": "operation Note",
       "affected": 3,
@@ -1257,7 +1241,7 @@
       "Gauntlets of Chaos",
       "Gaze of Pain",
       "General Jarkeld",
-      "Ghazbán Ogre",
+      "Ghazb\u00e1n Ogre",
       "Ghostly Flame",
       "Giant Slug",
       "Glacial Chasm",
@@ -1282,7 +1266,7 @@
       "Hyperion Blacksmith",
       "Icatian Skirmishers",
       "Ice Cauldron",
-      "Ifh-Bíff Efreet",
+      "Ifh-B\u00edff Efreet",
       "Illusionary Mask",
       "Illusionary Presence",
       "Illusionary Terrain",
@@ -1302,7 +1286,7 @@
       "Johan",
       "Johtull Wurm",
       "Juxtapose",
-      "Khabál Ghoul",
+      "Khab\u00e1l Ghoul",
       "Kjeldoran Elite Guard",
       "Kjeldoran Guard",
       "Kobold Overlord",
@@ -1338,7 +1322,7 @@
       "Mudslide",
       "Musician",
       "Mystic Might",
-      "Márton Stromgald",
+      "M\u00e1rton Stromgald",
       "Nafs Asp",
       "Naked Singularity",
       "Nameless Race",
@@ -1349,7 +1333,7 @@
       "Night Soil",
       "North Star",
       "Nova Pentacle",
-      "Oath of Lim-Dûl",
+      "Oath of Lim-D\u00fbl",
       "Orcish Conscripts",
       "Orcish Farmer",
       "Orcish Squatters",
@@ -1375,7 +1359,7 @@
       "Reclamation",
       "Reflecting Mirror",
       "Revelation",
-      "Ring of Ma'rûf",
+      "Ring of Ma'r\u00fbf",
       "Rock Hydra",
       "Rohgahh of Kher Keep",
       "Runesword",
@@ -1480,18 +1464,18 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 67,
+    "generated_runtime_scenarios": 74,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
     "focused_random_discard_costs": 4,
     "full_generator": {
-      "passed": 2061,
+      "passed": 2076,
       "failed": 0,
       "ignored": 24,
-      "targets": 200,
-      "log": "/mnt/vizier/reference-other-targets-20261112/workspace-final-tests.log",
-      "revision": "5408607bc4342aa3cdde1e764e2f405e71dccd39",
+      "targets": 202,
+      "log": "/mnt/vizier/early-set-foundation-20261112/combat-reassignment/full-rust.log",
+      "revision": "6f9f2ef98b9ab64cba5d57ef6510a60d40c3e05c",
       "scope": "entire rust_syntax workspace with cantrip; exit 0"
     },
     "full_native_last_pass": {
@@ -1508,7 +1492,7 @@
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 217,
+      "passed": 220,
       "partial_callback_controls": [
         "Reflecting Mirror"
       ],
@@ -1516,8 +1500,8 @@
         "Pin": 94,
         "Sleight": 95
       },
-      "log": "other-player-targets/ready-compile.log",
-      "revision": "4712aa560aa199539d21e70ac5e5579072ce257e"
+      "log": "combat-reassignment/typecheck-defenders.log",
+      "revision": "5a4655b56c7b0e4becae361ca271b2cd372b54a2"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1550,34 +1534,24 @@
       "log": "combat-delayed-tests.log"
     },
     "all_rules_lib_current": {
-      "passed": 1500,
+      "passed": 1526,
       "ignored": 1,
-      "log": "other-player-targets/all-core-tests.log"
+      "log": "combat-reassignment/legality-all-core.log"
     },
     "generator_foundation_tests_current": {
-      "passed": 26,
+      "passed": 28,
       "ignored": 0,
       "includes_explicit_native_runtime": true,
-      "log": "other-player-targets/foundation-tests.log"
+      "log": "combat-reassignment/runtime-defenders-final.log"
     },
     "full_batch_pending": "After remaining shared five-card/three-card groups, before the user-requested pause.",
     "source_correction_audit": {
       "records": 286,
-      "ready": 217,
-      "gapped": 69,
+      "ready": 220,
+      "gapped": 66,
       "unchanged_other_gap_lists": true,
-      "partially_cleared": {
-        "Nova Pentacle": [
-          [
-            "target reference outside a resolving ability",
-            "targets chosen by another player"
-          ],
-          [
-            "target reference outside a resolving ability"
-          ]
-        ]
-      },
-      "log": "other-player-targets/audit.log"
+      "partially_cleared": {},
+      "log": "combat-reassignment/audit-defenders.log"
     },
     "focused_computed_x": 10,
     "focused_revealed_hands": {
@@ -1594,7 +1568,7 @@
     "all_state_lib_current": {
       "passed": 86,
       "ignored": 0,
-      "log": "other-player-targets/all-core-tests.log"
+      "log": "combat-reassignment/legality-all-core.log"
     },
     "focused_nonmana_attack_costs": {
       "passed": 11,
@@ -1603,6 +1577,17 @@
     "focused_other_target_choosers": {
       "rules": 10,
       "state": 2
+    },
+    "all_api_lib_current": {
+      "passed": 12,
+      "ignored": 0,
+      "log": "combat-reassignment/legality-all-core.log"
+    },
+    "focused_blocking_reassignment": {
+      "native": 26,
+      "generated_scenarios": 7,
+      "generator_profiles": 2,
+      "defender_role_tests": 2
     }
   },
   "evidence": {
@@ -1761,17 +1746,29 @@
     "other-player-targets/vocab.rs": "d48fc61748c1b56320912878a7895d4c746815f91220abb84a92aa441ae63eb3",
     "other-player-targets/counter-overlay-manifest.json": "38fc590d3aca4f25381bcd428ec5e56b02fcd2e8d55271f2e23ab7ae488036c8",
     "other-player-targets/counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
-    "other-player-targets/cli-build.log": "4524b8881f1628e81aa50b2460cf16114f40f368c63282b6b8a7eec85285fc68"
+    "other-player-targets/cli-build.log": "4524b8881f1628e81aa50b2460cf16114f40f368c63282b6b8a7eec85285fc68",
+    "combat-reassignment/legality-tests.log": "bb08a727dcaad3ca140234026324e5f2ba281b0112b9aa82191af3485002e303",
+    "combat-reassignment/legality-all-core.log": "b52e0480c048817700d8a0f8b8a4faa05d26ff5665426ef34b09ea89e7483650",
+    "combat-reassignment/workspace-check.log": "69cdf03ec52bea089f4bce1676ec88dc3c564de0ddb34c46316f62afb99902a8",
+    "combat-reassignment/legality-bench-final.log": "3f0b4379bd50fa13d6452437dda43eb0c0d5e1a78f8190d825d3f94af03920a7",
+    "combat-reassignment/runtime-defenders-final.log": "53626d38b9955fc8e28797de0d734ccf7c39537ecd6a41b354c80f7fae40ad7a",
+    "combat-reassignment/full-rust.log": "148bb797f5550330bf79930b70c1f615ababd758e5343f6b171d466dbf20e5d9",
+    "combat-reassignment/audit-defenders.log": "401df16622ba0ca7e46eadce170592742cc9be807cd3cbc3df21f43077d1ed80",
+    "combat-reassignment/typecheck-defenders.log": "5076c5cd8b862f44e0bd3082adf72e03663968a8ff106ac48a03474d82446834",
+    "combat-reassignment/final-scope-result.json": "6d12cfcba515729878c7da58b5552410069d07b44a94b2277abfe9eacbd16906",
+    "combat-reassignment/vocab.rs": "0bdcf645bb61b3fb7ebc2a5d4c7e4d066ceda6df9c83c57cd8b909b455044575",
+    "combat-reassignment/counter-overlay-manifest.json": "e1b29808440924019b4a39f8927f4b4a982a082adadfba084039ce19597edbb7",
+    "combat-reassignment/counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
+    "combat-reassignment/defenders-after.ronl": "2ff4deb90fbab562d234c8ff8657fdc25c8428a3c2804f9fd98d8708674f14b9",
+    "combat-reassignment/defenders-check.json": "8abd9713d5575f65c1acd09fd4191d98d41ffa95c24c63bc188702d9f1634b11",
+    "combat-reassignment/defenders-delta.json": "09616e4e6f3772c0eb112fdb34dc7df371ed9870573ea5269b757313382b2d21"
   },
-  "candidate_api_fingerprint": "42d9d406b6c746c888c9a4c5c1c572a117075aeaec76b5b5bc9489722d23b653",
+  "candidate_api_fingerprint": "bfbcc1fab73bec89bd4440f46558b9824cc8e9bfb68f9d171ac724d41adf9f95",
   "benchmark_current_batch": {
     "games": 128,
-    "native_revision": "4712aa560aa199539d21e70ac5e5579072ce257e",
-    "control_native_revision": "210d1eefa",
-    "control_engine_us": 48.7,
-    "final_engine_us": 45.09,
+    "native_revision": "5a4655b56c7b0e4becae361ca271b2cd372b54a2",
+    "final_engine_us": 48.12,
     "allocation_kb_per_decision": 27.31,
-    "control_allocation_kb_per_decision": 27.31,
     "statistical_speed_claim": false,
     "shared_machine": true
   },
@@ -1780,7 +1777,6 @@
     "decision_doc": "cantrip-foundation-shared-stop-20261112.md",
     "defer": "Independent two-card and single-card features; prefer focused engine-plus-card PRs.",
     "pending_families": [
-      "combat-relationship-changes",
       "noted-values"
     ],
     "completed_families": [
@@ -1788,15 +1784,8 @@
       "revealed-hands",
       "combat-group-constraints",
       "nonmana-combat-costs",
-      "other-player-targets"
+      "other-player-targets",
+      "combat-relationship-changes"
     ]
-  },
-  "in_progress_native": {
-    "native_head": "3918b90ab422d7521c1c863227d1ae76974f1795",
-    "family": "combat-relationship-changes",
-    "complete": false,
-    "stage": "mutation authority validated; explicit legality and generator adapters pending",
-    "checkpoint": "docs/cantrip-foundation-combat-authority-20261112.md",
-    "validated_generator_native_head": "4712aa560"
   }
 }

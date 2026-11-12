@@ -38,3 +38,7 @@ local evidence is under
 `runtime-defenders-final.log`. Oracle Grammar can refresh its producer
 expectations after adopting this implementation; its worktree, reference pin,
 gold and comparison logic are not edited here.
+
+Published correction: `6f9f2ef98b9ab64cba5d57ef6510a60d40c3e05c`.
+The complete Rust workspace passes **2,076 tests** (24 ignored, 202 targets).
+Upstream adoption note: [MTGish #275 follow-up](https://github.com/i5jb/mtgish/issues/275#issuecomment-6836737643).
