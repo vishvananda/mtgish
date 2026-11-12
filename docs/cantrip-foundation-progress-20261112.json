@@ -1664,7 +1664,14 @@
       "ignored": 1,
       "log": "generator-combat-delays-tests.log"
     },
-    "full_batch_pending": "After remaining shared five-card/three-card groups, before the user-requested pause."
+    "full_batch_pending": "After remaining shared five-card/three-card groups, before the user-requested pause.",
+    "source_correction_audit": {
+      "records": 286,
+      "ready": 202,
+      "gapped": 84,
+      "ready_rows_byte_identical_to_previous": true,
+      "log": "generator-mirror-corrected-scope.log"
+    }
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1756,7 +1763,8 @@
     "generator-combat-delays-native-runtime.log": "6101243c82bb0f00776bb3d183a863ab37e469fb74e519de3fa21b4f1f4916d7",
     "generator-combat-delays-scope.log": "2b3e0f804ced97bbe60903f7c8dfbb385daf98ccc17cfc212ca572d774ddf77d",
     "generator-combat-delays-ready-compile.log": "6d92cb7d7b8c407ebc6acb580e5c0bd1f2fb13a62dbd8a9affd3f5644042804f",
-    "benchmark-combat-delays-after.log": "6c06a59916aa528b9f5fcc2bdc3d5fe9cc0b713c34d6655cf9acc30c35294730"
+    "benchmark-combat-delays-after.log": "6c06a59916aa528b9f5fcc2bdc3d5fe9cc0b713c34d6655cf9acc30c35294730",
+    "generator-mirror-corrected-scope.log": "b6d0784c6ffc2a578e86da31c948f9f88ae4861f2311349d1b3f2c65abe48c01"
   },
   "candidate_api_fingerprint": "0770b864482c3382c14df19adfb3de771c561f23e3ccccb634d4a0098ac0eb3c",
   "benchmark_current_batch": {

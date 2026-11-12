@@ -84,7 +84,8 @@ its bounded ordered announcement search, preserving optional slot positions
 and deferring undecided X bounds. Three new regressions and eleven existing
 retargeting tests pass. Glyph of Delusion and Goblin Welder both need this rule.
 The frozen 286-card membership and original source input are retained; the
-current audit input changes only Glyph's erroneous duration, with its provenance
+current audit input corrects Glyph's erroneous duration and [Reflecting Mirror's
+unintended target restriction](reference-reflecting-mirror-20261112.md), with their provenance
 recorded in the JSON ledger and `full-scope/source-corrections.json`.
 
 The thirteenth primitive skips beginning-phase steps for Stasis and Necropotence.
