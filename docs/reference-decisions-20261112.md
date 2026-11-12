@@ -1,5 +1,11 @@
 # Decisions for the 53 Oracle Grammar mismatches
 
+**Consistency review reopened:** the gameplay-equivalence decisions below are historical.
+They do not waive alternate producer syntax. All 36 retained equivalent/contract
+cases are being audited under [the consistency follow-up](reference-consistency-20261112.md)
+and [upstream issue 275](https://github.com/i5jb/mtgish/issues/275). Satya remains
+a separate rejection of a scalar proposal with a token-multiplication counterexample.
+
 The foundation goal is paused. This pass reviews the exact 53 differing faces
 from Oracle Grammar `1fe5782`, reference/model pin `7228b84`, schema 190. The
 allowed population contains 32,755 faces: 32,702 equal, 53 different, no refusals.

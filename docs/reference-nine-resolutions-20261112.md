@@ -1,5 +1,11 @@
 # Resolution of the final nine reference questions
 
+**Consistency review reopened:** the gameplay-equivalence decisions below are historical.
+They do not waive alternate producer syntax. All 36 retained equivalent/contract
+cases are being audited under [the consistency follow-up](reference-consistency-20261112.md)
+and [upstream issue 275](https://github.com/i5jb/mtgish/issues/275). Satya remains
+a separate rejection of a scalar proposal with a token-multiplication counterexample.
+
 These nine were held for a witness in the initial 53-face review. The follow-up
 uses the complete native programs, generated code comparisons, local official
 rulings and the rules contracts. It requires no Cantrip engine additions. The
