@@ -1,0 +1,137 @@
+{
+  "date": "2026-11-12",
+  "native_parent": "4712aa560aa199539d21e70ac5e5579072ce257e",
+  "native_commit": "3918b90ab422d7521c1c863227d1ae76974f1795",
+  "family_complete": false,
+  "stage": "combat relationship mutation authority",
+  "generator_enabled": false,
+  "generation_ready": 217,
+  "remaining_gapped": 69,
+  "raw_labels": 86,
+  "frozen_scope": 286,
+  "new_native_tests": 12,
+  "checked_core_libraries": {
+    "rules": {
+      "passed": 1512,
+      "ignored": 1
+    },
+    "state": {
+      "passed": 86,
+      "ignored": 0
+    },
+    "api": {
+      "passed": 12,
+      "ignored": 0
+    },
+    "exit": 0
+  },
+  "candidate_api_fingerprint": "3107eb49497f1d800e0e9e581b649c7fc6754cc6cae0145473e5e230d7b50f34",
+  "default_generator_api_pin_advanced": false,
+  "ast_layout_changed": false,
+  "per_object_state_added": false,
+  "small_event_bound_bytes": 28,
+  "full_native_workspace_gate": "still required before final shared-family pause",
+  "benchmark": {
+    "baseline_commit": "4712aa560aa199539d21e70ac5e5579072ce257e",
+    "runs": [
+      {
+        "run": 1,
+        "build": "baseline",
+        "engine_us": 51.58,
+        "allocated_kb": 27.31,
+        "completed_games": 128,
+        "wall_seconds": 20.039
+      },
+      {
+        "run": 2,
+        "build": "candidate",
+        "engine_us": 49.16,
+        "allocated_kb": 27.31,
+        "completed_games": 128,
+        "wall_seconds": 19.858
+      },
+      {
+        "run": 3,
+        "build": "candidate",
+        "engine_us": 49.59,
+        "allocated_kb": 27.31,
+        "completed_games": 128,
+        "wall_seconds": 19.997
+      },
+      {
+        "run": 4,
+        "build": "baseline",
+        "engine_us": 51.41,
+        "allocated_kb": 27.31,
+        "completed_games": 128,
+        "wall_seconds": 19.651
+      },
+      {
+        "run": 5,
+        "build": "baseline",
+        "engine_us": 47.72,
+        "allocated_kb": 27.31,
+        "completed_games": 128,
+        "wall_seconds": 19.611
+      },
+      {
+        "run": 6,
+        "build": "candidate",
+        "engine_us": 48.9,
+        "allocated_kb": 27.31,
+        "completed_games": 128,
+        "wall_seconds": 19.269
+      },
+      {
+        "run": 7,
+        "build": "candidate",
+        "engine_us": 48.44,
+        "allocated_kb": 27.31,
+        "completed_games": 128,
+        "wall_seconds": 20.154
+      },
+      {
+        "run": 8,
+        "build": "baseline",
+        "engine_us": 49.89,
+        "allocated_kb": 27.31,
+        "completed_games": 128,
+        "wall_seconds": 19.644
+      }
+    ],
+    "summary": {
+      "baseline": {
+        "median_us": 50.65,
+        "range_us": [
+          47.72,
+          51.58
+        ]
+      },
+      "candidate": {
+        "median_us": 49.03,
+        "range_us": [
+          48.44,
+          49.59
+        ]
+      },
+      "median_change_percent": -3.2
+    },
+    "executables": {
+      "baseline": "b3fd239fde26235d8966dbed69f4d5aea76a431b675dd8908495eb225884185d",
+      "candidate": "151ba2713720235270703fd02f7c0be56af02491ca47d8d76ac17a25e3f879a3"
+    }
+  },
+  "temporary_baseline_checkout_removed": true,
+  "temporary_comparison_executables_removed": true,
+  "evidence_root": "/mnt/vizier/early-set-foundation-20261112/combat-reassignment",
+  "sha256": {
+    "core-tests.log": "b74494ba2321610b691a8e5bda8cbc3a5ef181dbba2431008d73f5be8c08025b",
+    "core-final-tests.log": "8247c1ddae9af4e369161c25c34d9c4469efdae4abd05dd4d50a697c3d1bd434",
+    "bench.log": "d6868902287cbd4f7628b88c86d56e8ecc7d58fca793af17d0ca17e0853643fa",
+    "baseline-build.log": "f7b7d1097be90f3f687f3f7fdb7f27357754d812fb085063da8394b9313b239c",
+    "benchmark-comparison.json": "fef02afa2bbd841253b3d6bdaca5ea2dbe31f1457064d6e204fa02bd2fba64a7",
+    "benchmark-comparison.log": "a7f317a17188dc81e6c27a59da59250e63098388a3c7d55b789a081df444e221",
+    "core-vocab.rs": "6c6cc7d170410c03bce62f1772da775d5f93c7fa8c14694bc372673b4aff9874",
+    "compare_bench.py": "8dd3e75f2a30d23bcfe3aa042d67ba5ddb3c231155fc7590fbff11000ab9c49d"
+  }
+}

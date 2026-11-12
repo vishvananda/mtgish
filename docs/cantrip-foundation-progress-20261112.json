@@ -1790,5 +1790,13 @@
       "nonmana-combat-costs",
       "other-player-targets"
     ]
+  },
+  "in_progress_native": {
+    "native_head": "3918b90ab422d7521c1c863227d1ae76974f1795",
+    "family": "combat-relationship-changes",
+    "complete": false,
+    "stage": "mutation authority validated; explicit legality and generator adapters pending",
+    "checkpoint": "docs/cantrip-foundation-combat-authority-20261112.md",
+    "validated_generator_native_head": "4712aa560"
   }
 }

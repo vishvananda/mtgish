@@ -7,8 +7,12 @@ dexterity and Shahrazad and including flavor-banned cards. The exact scope is
 capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
-The foundation branch is `engine/early-set-foundation-20261112`, now through
-`4712aa560`. Twenty-two focused feature groups are implemented. The step-deadline
+The foundation branch is `engine/early-set-foundation-20261112`. Generator
+validation is through `4712aa560`, with twenty-two completed feature groups.
+Native `3918b90ab` adds the [first stage of combat reassignment](cantrip-foundation-combat-authority-20261112.md):
+atomic relationship changes, trigger identity and first-strike provenance.
+Explicit legality checks and generator adapters remain pending for that family;
+the candidate counts below are unchanged. The step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
