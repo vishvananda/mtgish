@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`994d7b122`. Fifteen focused feature groups are implemented. The new step-deadline
+`cfac93547`. Fifteen focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -41,7 +41,7 @@ The ninth primitive gives rampage and cumulative upkeep typed family metadata.
 Rapid Fire and Balduvian Shaman now generate without gaps. Two native tests cover
 identity through grants, loss and copying; an Oracle audit verifies metadata on
 every implemented card. Two generated runtime scenarios cover both positive
-and negative keyword checks. The complete workspace gates below cover all twelve groups and the dependent-target repair.
+and negative keyword checks. The complete workspace gates below cover all fifteen groups and the dependent-target repair.
 
 Earthlore and Tourach's Gate required only a generator repair. Their typed
 “enchant land you control” restriction proves the host belongs to the payer
@@ -93,8 +93,7 @@ expiry. Skipping untap still begins the turn and expires turn-bound effects;
 phasing, day/night, exert and counted untap effects wait. Six native tests and
 two generated runtime scenarios pass. The first player's first draw step is
 also entirely skipped under CR 103.8a. Unsupported combat-step skips are rejected
-at table construction. The full gate and benchmark below cover `c97d4ac45`;
-the new skipped-step group has focused validation pending the next batched gate.
+at table construction. The complete workspace gate below includes this group and the hand-size and reselected-value groups.
 
 The fourteenth primitive applies static hand-size rules to the players they name,
 in timestamp order alongside existing resolved and granted rules. Cursed Rack's
@@ -129,9 +128,9 @@ the pristine foundation. The generated runtime suite now passes 48 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The complete generator suite now passes 1,584 tests (22 ignored) in a serialized
-run. The batched native workspace gate passes 22604 tests (15 ignored), through
-`c97d4ac45`, with verification enabled. The .NET SDK is unavailable, so no .NET
-pass is claimed.
+run. The batched native workspace gate passes 22616 tests (15 ignored), through
+`cfac93547`, with verification enabled. The .NET SDK is unavailable, so no .NET
+pass is claimed. Four AI golden headers changed only their diagnostic answer indices by two; their encoded tensors are byte for byte unchanged.
 
 The current 128-game benchmark allocates 27.04 KB per decision, versus 26.74 KB
 on the original base. Sequential controls measured 49.44 µs on the base and

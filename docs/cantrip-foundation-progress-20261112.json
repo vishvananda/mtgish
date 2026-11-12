@@ -1,5 +1,5 @@
 {
-  "native_foundation": "994d7b122",
+  "native_foundation": "cfac93547",
   "scoped_missing": 286,
   "generation_ready": [
     "Anti-Magic Aura",
@@ -1664,11 +1664,11 @@
       "log": "generator-fifteen-suite.log"
     },
     "full_native_last_pass": {
-      "passed": 22604,
+      "passed": 22616,
       "failed": 0,
       "ignored": 15,
-      "log": "workspace-thirteen-tests.log",
-      "revision": "c97d4ac45"
+      "log": "workspace-fifteen-tests-rerun.log",
+      "revision": "cfac93547"
     },
     "focused_keyword_families": 2,
     "all_card_keyword_family_oracle_test": 1,
@@ -1695,7 +1695,13 @@
       "log": "hand-size-rechoice-core-tests.log"
     },
     "focused_reselected_state": 2,
-    "generator_feature_profile_tests": 6
+    "generator_feature_profile_tests": 6,
+    "encode_goldens": {
+      "changed_headers": 4,
+      "encoded_payloads_changed": 0,
+      "reason": "Two fewer answered priority requests after the first draw step is skipped",
+      "revision": "cfac93547"
+    }
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1765,7 +1771,9 @@
     "generator-fifteen-suite.log": "bd9feaa6b0e6dd96eb64d44aa7d14663dad9a7f7e4ffdeceaf3958950ca6dbf6",
     "generator-player-values-native-runtime-final.log": "d87c526ee8aff410afeeb1e82c028775f2fbaa03d7ac624bcce9e8dae79f4cd7",
     "benchmark-fifteen-control.log": "91d3ef8ebbdf50e20b452d7dc241bdd5f8c8fd9772ab305bf545482e5bcf2ce8",
-    "benchmark-fifteen-after-control.log": "268d6a0024c6bddeee898202a700204bc8341c5b20e468729ddfa821380364b8"
+    "benchmark-fifteen-after-control.log": "268d6a0024c6bddeee898202a700204bc8341c5b20e468729ddfa821380364b8",
+    "workspace-fifteen-tests-rerun.log": "450c25500b431b074dfb0b80fbb56470e38b32381abdd866e6583e5f28f5071b",
+    "encode-goldens-skip-step-review.log": "138eb65281884ae20214219020829aeba6026f12a4cdfa691f743b91f8f2bac7"
   },
   "candidate_api_fingerprint": "6ad08f9f7bed0f018080845653f3ab7ce7f6806d78514579e765553d5f821fee",
   "benchmark_current_batch": {
