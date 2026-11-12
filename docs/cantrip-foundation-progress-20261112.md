@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`47fd50a31`. Eighteen focused feature groups are implemented. The step-deadline
+`adcd8efe8`. Nineteen focused feature groups are implemented. The step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **206 generate without recorded feature gaps and 80
-remain gapped**. Those 206 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **209 generate without recorded feature gaps and 77
+remain gapped**. Those 209 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 92 raw requirement labels
+remaining requirement and its affected cards. Its 91 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -202,3 +202,8 @@ passes 22,642 tests (15 ignored, 236 targets); the generated runtime probe passe
 type-check. These probes require the documented names-only Pin/Sleight counter
 overlay; the native branch's counter vocabulary is unchanged. The earlier
 202-module compilation receipt above describes the preceding checkpoint.
+
+The [revealed-hands checkpoint](cantrip-foundation-revealed-hands-20261112.md)
+clears Enduring Renewal, Revelation and Zur's Weirding. It records the current
+22,656-test native workspace pass, 59 generated runtime scenarios and the
+209-module compilation receipt. Five shared three-card families remain.

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Enduring Renewal",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Enduring Renewal",
+        "manaCost": "{2}{W}{W}",
+        "type": "Enchantment",
+        "text": "Play with your hand revealed.\nIf you would draw a card, reveal the top card of your library instead. If it's a creature card, put it into your graveyard. Otherwise, draw a card.\nWhenever a creature is put into your graveyard from the battlefield, return it to your hand."
+      }
+    ]
+  },
+  {
+    "name": "Revelation",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Revelation",
+        "manaCost": "{G}",
+        "type": "World Enchantment",
+        "text": "Players play with their hands revealed."
+      }
+    ]
+  },
+  {
+    "name": "Zur's Weirding",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Zur's Weirding",
+        "manaCost": "{3}{U}",
+        "type": "Enchantment",
+        "text": "Players play with their hands revealed.\nIf a player would draw a card, they reveal it instead. Then any other player may pay 2 life. If a player does, put that card into its owner's graveyard. Otherwise, that player draws a card."
+      }
+    ]
+  }
+]

@@ -8,7 +8,7 @@ the same primitive. Card workers remain paused and no upstream update is pulled.
 
 | Pending family | Affected cards | Related requirements |
 | --- | --- | --- |
-| Revealed hands | Enduring Renewal; Revelation; Zur's Weirding | Continuous visibility, moves and historical knowledge must agree across host, observation and hidden-world sampling. |
+| Revealed hands — complete | Enduring Renewal; Revelation; Zur's Weirding | [Checkpoint](cantrip-foundation-revealed-hands-20261112.md): native `adcd8efe8`, visibility and historical knowledge agree across all readers. |
 | Combat group constraints | Caverns of Despair; Errantry; Orcish Conscripts | Attacker and blocker counts are one declaration-validation family, including requirement maximization. |
 | Nonmana combat costs | Flooded Woodlands; Leviathan; Reclamation | Costs and their payments must use the shared combat declaration procedure. |
 | Targets chosen by another player | Cuombajj Witches; Nova Pentacle; Preacher | The effect's controller and target chooser differ; choices still obey targeting legality. |
@@ -39,3 +39,6 @@ Reflecting Mirror's invented target-mana-value-equals-X restriction was
 corrected and reported as [MTGish #274](https://github.com/i5jb/mtgish/issues/274).
 The corrected selector and separate twice-mana-value X definition are used in
 the checkpoint; the original frozen Source is preserved as evidence.
+
+Revealed hands is complete. Five pending three-card families (15 distinct
+cards) remain; the latest frozen scope is 209 ready / 77 gapped / 91 raw labels.
