@@ -41,8 +41,7 @@ The ninth primitive gives rampage and cumulative upkeep typed family metadata.
 Rapid Fire and Balduvian Shaman now generate without gaps. Two native tests cover
 identity through grants, loss and copying; an Oracle audit verifies metadata on
 every implemented card. Two generated runtime scenarios cover both positive
-and negative keyword checks. The latest complete workspace gates below cover
-the first eight feature groups; the ninth and tenth have focused and runtime validation.
+and negative keyword checks. All ten feature groups are covered by the complete workspace gates below.
 
 Earthlore and Tourach's Gate required only a generator repair. Their typed
 “enchant land you control” restriction proves the host belongs to the payer
@@ -71,9 +70,8 @@ the pristine foundation. The generated runtime suite now passes 40 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The complete generator suite now passes 1,577 tests (22 ignored) in a serialized
-run. The batched native workspace gate passes 22,577 tests (15 ignored), through
-`4deb96071`, with verification enabled. The ten-feature native workspace gate
-is running; its result is not yet claimed. The .NET SDK is unavailable, so no .NET
+run. The batched native workspace gate passes 22587 tests (15 ignored), through
+`d8d0d26b7`, with verification enabled. The .NET SDK is unavailable, so no .NET
 pass is claimed.
 
 The current 128-game benchmark allocates 26.74 KB per decision, unchanged.

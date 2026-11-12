@@ -1716,11 +1716,11 @@
       "log": "generator-ten-suite-serialized.log"
     },
     "full_native_last_pass": {
-      "passed": 22577,
+      "passed": 22587,
       "failed": 0,
       "ignored": 15,
-      "log": "workspace-eight-tests.log",
-      "revision": "4deb96071"
+      "log": "workspace-ten-tests.log",
+      "revision": "d8d0d26b7"
     },
     "focused_keyword_families": 2,
     "all_card_keyword_family_oracle_test": 1,
@@ -1733,6 +1733,13 @@
         "Delif's Cube": "Cube"
       },
       "log": "generator-eleven-ready183-compile.log"
+    },
+    "full_native_current_batch": {
+      "passed": 22587,
+      "failed": 0,
+      "ignored": 15,
+      "log": "workspace-ten-tests.log",
+      "revision": "d8d0d26b7"
     }
   },
   "evidence": {
@@ -1764,7 +1771,8 @@
     "generator-eleven-ready-compile.log": "a498b7a23b4a6b18ff8d04a5b3988e2d21c023f52707ce59f89f8f487b2798ab",
     "generator-eleven-ready183-compile.log": "ed6b407015160692a266818eb289ca0163e5391f48af439b81cbd3c37284d500",
     "benchmark-ten-control.log": "592c2277285e87eb5259f28bb046b76d648cdf0aea73bcbced4638cfab072c24",
-    "benchmark-ten-after-control.log": "5b8e9e160a4333649b784be966f47ea60440f62c2cada0b0878cf03e284c1e28"
+    "benchmark-ten-after-control.log": "5b8e9e160a4333649b784be966f47ea60440f62c2cada0b0878cf03e284c1e28",
+    "workspace-ten-tests.log": "fa8bf259339f8ae294e9bbc4e03dc927962b42b63fc8dabbda3e5ec4721a9848"
   },
   "candidate_api_fingerprint": "8ea43b005590aae51b9210657e270e1f808d3e0f1d7719cdb05528fe6255af0b",
   "benchmark_current_batch": {
