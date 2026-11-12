@@ -1,0 +1,26 @@
+{
+  "keyword_payloads_v182.jsonl": {
+    "Fossil Find": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/steps/0/objects/args/filter",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "Players": {
+              "zone": "Graveyard",
+              "players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "Any"
+        }
+      }
+    ]
+  }
+}

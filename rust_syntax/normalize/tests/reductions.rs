@@ -192,7 +192,7 @@ fn actions_read_as_zone_changes_and_plays() {
         Operation::DraftChangeZone {
             random: true,
             destination: Destination::OwnersHand,
-            count: Some(Count::Exactly(_)),
+            count: Some(Count::AsManyAsCan(Expr::Constant(1))),
             ..
         } => {}
         other => panic!("{other:?}"),

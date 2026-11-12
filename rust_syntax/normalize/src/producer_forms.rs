@@ -93,6 +93,60 @@ fn same_object(a: &ObjectRef, b: &ObjectRef) -> bool {
     }
 }
 
+/// Sufficient identity proofs for scoped pools, without serializing recursive
+/// expressions or treating different ways of choosing a player as identical.
+fn same_player_binding(a: &PlayerRef, b: &PlayerRef) -> bool {
+    match (a, b) {
+        (PlayerRef::AbilityController, PlayerRef::AbilityController)
+        | (PlayerRef::Active, PlayerRef::Active)
+        | (PlayerRef::Acting, PlayerRef::Acting)
+        | (PlayerRef::EventSubject, PlayerRef::EventSubject) => true,
+        (PlayerRef::Target { slot: a, index: i }, PlayerRef::Target { slot: b, index: j }) => {
+            a.0 == b.0 && i == j
+        }
+        (PlayerRef::ControllerOf(a), PlayerRef::ControllerOf(b))
+        | (PlayerRef::OwnerOf(a), PlayerRef::OwnerOf(b)) => same_object(a, b),
+        _ => false,
+    }
+}
+fn same_pool_scope(a: &ZoneScope, b: &ZoneScope) -> bool {
+    match (a, b) {
+        (ZoneScope::Shared(a), ZoneScope::Shared(b)) => a == b,
+        (
+            ZoneScope::Players { zone: a, players: PlayerSet::One(x) },
+            ZoneScope::Players { zone: b, players: PlayerSet::One(y) },
+        ) => a == b && same_player_binding(x, y),
+        (
+            ZoneScope::Players { zone: a, players: PlayerSet::All },
+            ZoneScope::Players { zone: b, players: PlayerSet::All },
+        ) => a == b,
+        _ => false,
+    }
+}
+fn random_pool(objects: &mut ObjectSet) {
+    let ObjectSet::Zone { scope, filter, .. } = objects else { return };
+    fn simplify(scope: &ZoneScope, filter: &mut ObjectFilter) {
+        match filter {
+            ObjectFilter::InZone(zone) if same_pool_scope(scope, zone) => {
+                *filter = ObjectFilter::Any;
+            }
+            ObjectFilter::AllOf(filters) => {
+                for filter in filters.iter_mut() {
+                    simplify(scope, filter);
+                }
+                filters.retain(|f| !matches!(f, ObjectFilter::Any));
+                match filters.len() {
+                    0 => *filter = ObjectFilter::Any,
+                    1 => *filter = filters.pop().unwrap(),
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+    simplify(scope, filter);
+}
+
 /// A filter's Candidate becomes its enclosing matched object when a free
 /// condition is lifted out. Nested filters introduce their own Candidate.
 struct Candidate {
@@ -337,6 +391,13 @@ impl VisitorMut for Normalize {
         true
     }
     fn operation(&mut self, op: &mut Operation) -> bool {
+        if let Operation::WithSelections { steps, .. } = op {
+            for step in steps {
+                if matches!(step.chooser, SelectionChooser::Chance) {
+                    random_pool(&mut step.objects);
+                }
+            }
+        }
         // Bind the captured event subject before visiting its body: population
         // cardinality then sees the final target reference on this same walk.
         if let Operation::CreateTrigger {

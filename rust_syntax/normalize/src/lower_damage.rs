@@ -1,4 +1,29 @@
 impl Context {
+    /// A created trigger establishes its own participant aliases just as a
+    /// printed trigger does. Never inherit the creator's damage roles.
+    fn bind_trigger_event(
+        &mut self,
+        trigger: &source::Trigger,
+        actions: &source::Actions,
+        event: &EventSpec,
+    ) -> Result<()> {
+        self.event = crate::semantics::event_bindings(event);
+        let recipient_alias = legacy_damage_recipient_alias(trigger, actions);
+        self.ambiguous_damage_permanent = legacy_damage_ambiguity(event) && !recipient_alias;
+        self.damage_permanent_recipient = recipient_alias
+            || legacy_damage_permanent_role(event) == Some(LegacyPermanentRef::Recipient);
+        self.state_subject = match trigger {
+            source::Trigger::WhenAPermanentHasNumberCountersOfType(objects, _, _) => {
+                match objects.as_ref() {
+                    source::Permanents::SinglePermanent(object) => Some(self.object(object)?),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        Ok(())
+    }
+
     fn damage_sources(&self, value: &source::DamageSources) -> Result<ObjectFilter> {
         use source::DamageSources as S;
         Ok(match value {

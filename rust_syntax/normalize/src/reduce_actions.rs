@@ -160,7 +160,9 @@ impl ZoneMove {
     }
     fn at_random(mut self) -> Self {
         self.random = true;
-        self.one()
+        // A resolving effect does as much as possible when its pool is empty.
+        // Randomness changes who chooses, not this cardinality contract.
+        self.choose(Count::AsManyAsCan(Expr::Constant(1)))
     }
     fn group(mut self, group: &Operand) -> Self {
         self.group = Some(group.clone());

@@ -1,0 +1,68 @@
+{
+  "base_commit": "a7cba94b9ea630d3f178b865e33b18573c8d9ec9",
+  "source_parser_changed": false,
+  "portable_schema": 190,
+  "source_and_layout_hashes": {
+    "data/mtgish.lines.ron": "a49b77ecf1ec4174eeace2abaad990c3b9e9d5d2e8ed730578df68b9c412860c",
+    "data/mtgish.lines.json": "75dea4dd00d1322f3f45124f88711b7debce6e97a438e12586b31d40058ba6ed",
+    "data/mtgish.pretty.ron": "ad27e85302872ad43789b0d2c7ff527c1e1aa4c98332f07dc07c25c54e76a178",
+    "grammars/english_grammar.json5": "a786d404c307ca97caf659ac6606bc8c4d2329c5ae02788374c59d64c281a876",
+    "rust_syntax/ir/src/ir.rs": "20a9822800f20f332db934f6c774e76e3a0ea285f4a56fce73c8d60328a1e04f"
+  },
+  "corpus": {
+    "total": 33529,
+    "changed": [
+      "Charmbreaker Devils",
+      "Chronicler of Worship",
+      "Exalted Flamer of Tzeentch",
+      "Fossil Find",
+      "Ghoulraiser",
+      "Nephalia",
+      "Phage the Untouchable Avatar",
+      "The Deck of Many Things",
+      "Trash Bin",
+      "Viconia, Drow Apostate",
+      "Woodland Sleuth"
+    ],
+    "unchanged": 33518,
+    "all_validate_and_roundtrip": true,
+    "unreduced": 0,
+    "primitive_dependent_records": 0
+  },
+  "early_set_foundation": {
+    "frozen_cards": 286,
+    "changed_faces": [],
+    "native_backend_edited": false
+  },
+  "date": "2026-11-12",
+  "workspace": {
+    "passed": 2072,
+    "failed": 0,
+    "ignored": 24,
+    "targets": 201,
+    "exit": 0
+  },
+  "regressions": {
+    "source_records": 23,
+    "focused_tests": 8,
+    "historical_inputs_unchanged": {
+      "keyword_payloads_v182.jsonl": "d24b6c35ce7363f292bcf91c17cc8365391c46d241b66ecfeb1026dedc0815a7",
+      "keyword_documents_v182.jsonl": "842da6b92d61a222ee475454d5c3636f6eb944480df546c7748fc7fb34764805"
+    },
+    "fresh_snapshot_changes": {
+      "keyword_payloads_v182.jsonl": {
+        "Fossil Find": "remove proven redundant own-graveyard filter only"
+      }
+    }
+  },
+  "evidence_root": "/mnt/vizier/reference-random-damage-20261112",
+  "sha256": {
+    "before.ronl": "94d82c89ee384666b663ce59f93b7d8245610e0a681d063aa7d0db3fbfdca34d",
+    "after.ronl": "b5f0207c7903c946724f98ec5b46ab5b9faf47305e6fb3f918d40a7438ac16e9",
+    "corpus-check.json": "b4cc40e45ed9240eaf9429e8273413e14c4811765082bd2349b12bd42d720b96",
+    "workspace-final2-tests.log": "e1319d513f163427137c6c4877dccba1f7b89f14e856718d84f5344d70dad526",
+    "changed-records.json": "59b44c085cc26d83154b939a93b8f99c399efca34d30e66820c83767aee09019"
+  },
+  "upstream_source_bug_found": false,
+  "upstream_followup_issue": 275
+}

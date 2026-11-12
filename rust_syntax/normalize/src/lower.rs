@@ -3269,7 +3269,7 @@ impl Context {
                 };
                 let mut child = self.clone();
                 child.open_searches.clear();
-                child.event = crate::semantics::event_bindings(&event);
+                child.bind_trigger_event(trigger, actions, &event)?;
                 let known = child.targets.len();
                 child.outer_targets = known;
                 let intervening_if = match value {
@@ -6383,27 +6383,11 @@ impl Context {
             | S::TriggerIOnce(trigger, _, actions)
             | S::TriggerIOnceEachTurn(trigger, _, actions) => {
                 let event = self.trigger(trigger)?;
-                self.event = crate::semantics::event_bindings(&event);
+                self.bind_trigger_event(trigger, actions, &event)?;
                 if matches!(trigger, source::Trigger::WhenAPermanentEntersTheBattlefield(p) | source::Trigger::WhenAPermanentEntersTheBattlefieldFromExile(p) if matches!(p.as_ref(), source::Permanents::SinglePermanent(p) if matches!(p.as_ref(), source::Permanent::ThisPermanent)))
                 {
                     self.cast_x = Some(ObjectRef::EventSubject);
                 }
-                let recipient_alias = legacy_damage_recipient_alias(trigger, actions);
-                self.ambiguous_damage_permanent =
-                    legacy_damage_ambiguity(&event) && !recipient_alias;
-                self.damage_permanent_recipient = recipient_alias
-                    || legacy_damage_permanent_role(&event) == Some(LegacyPermanentRef::Recipient);
-                self.state_subject = match trigger {
-                    source::Trigger::WhenAPermanentHasNumberCountersOfType(objects, _, _) => {
-                        match objects.as_ref() {
-                            source::Permanents::SinglePermanent(object) => {
-                                Some(self.object(object)?)
-                            }
-                            _ => None,
-                        }
-                    }
-                    _ => None,
-                };
                 let intervening_if = match value {
                     S::TriggerI(_, condition, _)
                     | S::TriggerOnceEachTurnI(_, condition, _)
