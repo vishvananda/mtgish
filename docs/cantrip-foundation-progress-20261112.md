@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`a6696b2ff`. Seven focused feature groups are implemented. The new step-deadline
+`4deb96071`. Eight focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **175 generate without recorded feature gaps and 111
-remain gapped**. Those 175 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **178 generate without recorded feature gaps and 108
+remain gapped**. Those 178 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 109 raw requirement labels
+remaining requirement and its affected cards. Its 107 raw requirement labels
 are not 109 independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -31,6 +31,12 @@ forced land-activation and lost-mana-capture gaps. A later-set Doubling Cube
 control verifies that the old shared diagnostic label does not enable mana
 doubling. Two native tests and two actual generated runtime scenarios pass.
 
+The eighth primitive supplies exact constant random discard costs for Coral
+Helm, Draconian Cylix and Stormbind. They are paid after nonrandom costs, use
+recorded random choices without replacement, and never offer a card-selection
+prompt. Four focused native tests and a generated scenario exercising all
+three cards pass. Variable-X random discard costs retain their explicit gap.
+
 The original roadmap still has bands with other, computed X constraints, and
 persistent public visibility pending. The full remaining ledger also identifies
 other needs, including untap limits, mana-pool emptying, random discard costs,
@@ -40,12 +46,17 @@ adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 33 scenarios,
+the pristine foundation. The generated runtime suite now passes 34 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
-spanning two untap steps. The full regression/benchmark gate is batched for the
-next foundation features; the preceding five-feature receipt passed 22,565
-native and 1,570 generator tests. No newer full-suite pass is claimed here.
+spanning two untap steps. The complete generator suite now passes 1,573 tests (22 ignored) in a serialized
+run. The batched native workspace gate is still running; its preceding full
+pass was 22,565 tests (15 ignored) at the five-feature revision.
+
+The 128-game benchmark's allocation remains 26.74 KB per decision. Sequential
+control runs measured 49.88 µs before and 44.79 µs after; an earlier after-run
+during builds measured 77.01. This shared-machine variability does not establish
+a statistically meaningful speed change.
 
 Candidate generation can now run from the CLI without advancing the normal
 upstream API pin:
@@ -55,7 +66,7 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --features cantri
   --bin ast -- cantrip-candidate subset.ronl subset.oracle.json rows.jsonl \
   landwalk-blocking-exceptions independent-pt-settings \
   no-combat-damage-assignment world-rule other-activators \
-  step-deadlines counted-untap-steps explicit-mana-loss
+  step-deadlines counted-untap-steps explicit-mana-loss random-discard-costs
 ```
 
 These flags explicitly select capabilities; they do not prove that an engine
@@ -65,3 +76,9 @@ checkout. The output still records the pinned API identifier; record the actual
 candidate revision separately, as these receipts do. The AST remains schema 190
 and quantity bounds are unchanged. Evidence and the reproducible 286-card
 subset are under `/mnt/vizier/early-set-foundation-20261112/full-scope`.
+
+Run the candidate CLI build and the generator suite sequentially when sharing
+`rust_syntax/target`: rebuilding the CLI in a different feature union while a
+test invokes `CARGO_BIN_EXE_ast` can replace its matched binary and produce a
+saved-artifact fingerprint mismatch. The isolated serialized check passes; the
+combined suite is rerun serialized for the batch receipt.

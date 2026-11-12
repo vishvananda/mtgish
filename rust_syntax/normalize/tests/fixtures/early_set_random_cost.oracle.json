@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Coral Helm",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Coral Helm",
+        "manaCost": "{3}",
+        "type": "Artifact",
+        "text": "{3}, Discard a card at random: Target creature gets +2/+2 until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "Draconian Cylix",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Draconian Cylix",
+        "manaCost": "{3}",
+        "type": "Artifact",
+        "text": "{2}, {T}, Discard a card at random: Regenerate target creature."
+      }
+    ]
+  },
+  {
+    "name": "Stormbind",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Stormbind",
+        "manaCost": "{1}{R}{G}",
+        "type": "Enchantment",
+        "text": "{2}, Discard a card at random: This enchantment deals 2 damage to any target."
+      }
+    ]
+  }
+]

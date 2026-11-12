@@ -1887,6 +1887,11 @@ impl Compiler {
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ q.state().obj(asker.source).attached_to == Some(id) }}").unwrap();
                 format!("Cost::sacrifice(1, {function})")
             }
+            CostPart::Discard { count: Expr::Constant(n), filter: ObjectFilter::Any, random: true }
+                if planned::switched_on("random-discard-costs") => {
+                let count = u8::try_from(*n).map_err(|_| gap("numeric range for random discard cost"))?;
+                field(&format!("discard_at_random: {count}"))
+            }
             CostPart::Discard {
                 count: Expr::Constant(n),
                 filter: ObjectFilter::Any,

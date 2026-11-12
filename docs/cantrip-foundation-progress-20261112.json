@@ -1,5 +1,5 @@
 {
-  "native_foundation": "a6696b2ff",
+  "native_foundation": "4deb96071",
   "scoped_missing": 286,
   "generation_ready": [
     "Anti-Magic Aura",
@@ -19,6 +19,7 @@
     "Clergy of the Holy Nimbus",
     "Cloak of Confusion",
     "Concordant Crossroads",
+    "Coral Helm",
     "Crevasse",
     "Curse Artifact",
     "Deadfall",
@@ -27,6 +28,7 @@
     "Delif's Cube",
     "Diamond Valley",
     "Disharmony",
+    "Draconian Cylix",
     "Dream Coat",
     "Dreams of the Dead",
     "Drop of Honey",
@@ -145,6 +147,7 @@
     "Staff of the Ages",
     "Stench of Evil",
     "Storm World",
+    "Stormbind",
     "Telekinesis",
     "Tetravus",
     "The Abyss",
@@ -224,9 +227,6 @@
       "object collection EventGroup",
       "trigger event ObjectBecomes"
     ],
-    "Coral Helm": [
-      "engine: no random discard cost"
-    ],
     "Cuombajj Witches": [
       "targets chosen by another player"
     ],
@@ -248,9 +248,6 @@
     ],
     "Divine Intervention": [
       "counter removal with a named removing player"
-    ],
-    "Draconian Cylix": [
-      "engine: no random discard cost"
     ],
     "Drain Power": [
       "keyword action ActivateManaAbility",
@@ -501,9 +498,6 @@
     "Stasis": [
       "skipping a step of the turn"
     ],
-    "Stormbind": [
-      "engine: no random discard cost"
-    ],
     "Sunglasses of Urza": [
       "player rule SpendColorAs"
     ],
@@ -599,16 +593,6 @@
         "Damping Field",
         "Smoke",
         "Winter Orb"
-      ]
-    },
-    {
-      "feature": "engine: no random discard cost",
-      "affected": 3,
-      "sole_blocker": 3,
-      "cards": [
-        "Coral Helm",
-        "Draconian Cylix",
-        "Stormbind"
       ]
     },
     {
@@ -1762,11 +1746,23 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 33,
+    "generated_runtime_scenarios": 34,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
-    "full_regression_last_run": "five-feature foundation: 22565 native / 1570 generator; rerun after next batch",
-    "focused_explicit_mana_loss": 2
+    "focused_explicit_mana_loss": 2,
+    "focused_random_discard_costs": 4,
+    "full_generator": {
+      "passed": 1573,
+      "failed": 0,
+      "ignored": 22,
+      "log": "generator-eight-suite-serialized.log"
+    },
+    "full_native_last_pass": {
+      "passed": 22565,
+      "ignored": 15,
+      "revision": "de790242f"
+    },
+    "full_native_current_batch": "running workspace-eight-tests.log"
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
@@ -1775,6 +1771,22 @@
     "generator-six-native-runtime.log": "32497f9f8a5aa12dded209159e0051ee9a58030a2de6b328b094ed2b76a6db3f",
     "empty-mana-tests.log": "4a247730faa1c2a737bab23c2f3e7525e8d332cf9c4393611aa9f5e5f6944bd4",
     "generator-mana-loss-tests.log": "5860cf5b1e502b3077a1673a9962200a66e22cc264c86094be64f3c79754d4fd",
-    "generator-seven-native-runtime.log": "6f1348a1afe622dc8e21fcdcdd8bbab7aec8cf0a94e08a1f225e39bb08a73187"
+    "generator-seven-native-runtime.log": "6f1348a1afe622dc8e21fcdcdd8bbab7aec8cf0a94e08a1f225e39bb08a73187",
+    "random-discard-tests.log": "0d8e1255cd683a2dd9bddcdf8b619b8a05b34b983f0cca8a4d0a0a7e562ff17f",
+    "generator-random-cost-tests.log": "3c38860d979d887b92a08105ef0c80376cfb83b2aea7d76a606dcbe899dc08ae",
+    "generator-eight-native-runtime.log": "29d0248eeaf7705d3051ce03785089336e1942460982ffc6d4fef24caf82f1b2",
+    "pipeline-fingerprint-recheck.log": "829e831d16e066ba23dcdc047ab57dce8e245ca519ab28f2f72baa793353bf25",
+    "generator-eight-suite-serialized.log": "9467b05fade6452f91f19495552ac1994b252646fa6eea9fae59e35d56fab507"
+  },
+  "candidate_api_fingerprint": "339e1feff503ccc66edccf4d7615b103fdf3d36b4f51486e0134ccfba5e36788",
+  "benchmark_current_batch": {
+    "games": 128,
+    "allocation_kb_per_decision": 26.74,
+    "control_engine_us": 49.88,
+    "after_control_engine_us": 44.79,
+    "initial_after_under_builds_engine_us": 77.01,
+    "statistical_speed_claim": false,
+    "shared_machine": true,
+    "sequential_control_runs": true
   }
 }
