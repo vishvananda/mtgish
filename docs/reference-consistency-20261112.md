@@ -12,7 +12,7 @@ alternate syntax. The user provided fresh upstream-parser comparisons confirming
 that several differences depend on template parameters rather than Oracle words.
 
 The [upstream consistency issue](https://github.com/i5jb/mtgish/issues/275)
-currently records seven concrete Source families: opponent-sacrifice filters,
+initially recorded seven concrete Source families: opponent-sacrifice filters,
 artifact-animation referents, self enters-or-attacks references, Graven Dominator's
 implicit self exclusion, target pronouns after control changes, countered-spell
 mana-value references, and counters on a sacrificed source. Additional confirmed
@@ -155,3 +155,5 @@ The [validation receipt](reference-consistency-20261112.proof.json) pins final
 inputs and successful logs. The documented 16 MB debug-test stack is required;
 runs without it exposed the existing parser/migration stack requirement and are
 not the final validation run.
+
+The [upstream implementation follow-up](https://github.com/i5jb/mtgish/issues/275#issuecomment-6818543002) links the pushed fixes and also flags the confirmed Nemesis Mask/Lure requirement-direction and optional-action control-form splits.

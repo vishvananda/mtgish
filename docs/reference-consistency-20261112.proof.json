@@ -68,5 +68,7 @@
     "source-delta.json": "792f1674f4e9456b79976fa6e86af396f5bf117c06753501aecd5ccf818606fa",
     "workspace-final-tests.log": "d83d75ff961177d102a086429e6a64a0dd8b1e01ddd091c924d99e00bdeb277e",
     "parser-final-tests.log": "045f959ebadf10e9cb0f34c5f401fbc35baf02805793b4d7c79e34e849c0ed6d"
-  }
+  },
+  "published_code_revision": "e1b51e1865624c6c74be8ff01ca1ee9417d0d635",
+  "upstream_followup": "https://github.com/i5jb/mtgish/issues/275#issuecomment-6818543002"
 }
