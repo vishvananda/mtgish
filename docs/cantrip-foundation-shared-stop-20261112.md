@@ -14,11 +14,11 @@ the same primitive. Card workers remain paused and no upstream update is pulled.
 | Nonmana attack costs — complete | Flooded Woodlands; Leviathan; Reclamation | Native `210d1eefa`; shared declaration payment scheduler. [Checkpoint](cantrip-foundation-nonmana-combat-20261112.md). |
 | Targets chosen by another player — complete | Cuombajj Witches; Nova Pentacle; Preacher | Native `4712aa560`; chooser provenance and targeting legality stay separate. [Checkpoint](cantrip-foundation-target-choosers-20261112.md). |
 | Changing combat relationships — complete | False Orders; General Jarkeld; Sorrow's Path | Native `5a4655b56`; atomic graph changes, explicit shared legality and generated runtime cases. [Checkpoint](cantrip-foundation-blocking-reassignment-20261112.md). |
-| Noted values | Ice Cauldron; Jeweled Amulet; Tawnos's Coffin | Remembered mana and noted objects require typed, linked provenance. |
+| Noted values — complete | Ice Cauldron; Jeweled Amulet; Tawnos's Coffin | Native `b5000fa91`; exact opted-in activation payments and immutable linked mana/counter notes. [Checkpoint](cantrip-foundation-noted-values-20261112.md). |
 
-One pending three-card family remains, covering three distinct cards. The
-latest frozen scope has **220 generation-ready candidates, 66 gapped cards and
-85 raw diagnostic labels**, out of the original 286 cards. These labels combine
+All seven shared families are complete; none remain pending. The
+latest frozen scope has **221 generation-ready candidates, 65 gapped cards and
+83 raw diagnostic labels**, out of the original 286 cards. These labels combine
 engine and generator requirements; they do not count independent engine features.
 
 The original seven-family milestone covers 23 distinct cards. Finishing a
@@ -30,9 +30,9 @@ blocker-payment procedure is still separate from the completed attack costs.
 
 Batch broad rebuilds across these families. Keep focused native commits and
 generator adapters reviewable, with targeted scenarios and performance checks;
-run the complete native and generator gates before the requested pause. The
-last full native pass covers feature 19; later focused passes do not replace
-that final gate. No card workers or card PRs restart at this milestone.
+the final complete native and generator gates pass: 22,724 native tests
+(15 ignored) and 2,079 generator tests (24 ignored). See the
+[stopping checkpoint](cantrip-foundation-shared-milestone-20261112.md). No card workers or card PRs restart at this milestone.
 
 Reflecting Mirror's invented target-mana-value-equals-X restriction was
 corrected and reported as [MTGish #274](https://github.com/i5jb/mtgish/issues/274).

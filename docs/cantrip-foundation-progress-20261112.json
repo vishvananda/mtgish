@@ -1,5 +1,5 @@
 {
-  "native_foundation": "5a4655b56",
+  "native_foundation": "b5000fa91",
   "scoped_missing": 286,
   "generation_ready": [
     "Adventurers' Guildhouse",
@@ -101,6 +101,7 @@
     "Island Sanctuary",
     "Island of Wak-Wak",
     "Jester's Cap",
+    "Jeweled Amulet",
     "Johtull Wurm",
     "Juxtapose",
     "Khab\u00e1l Ghoul",
@@ -316,9 +317,7 @@
       "static rule CombatCost Block"
     ],
     "Ice Cauldron": [
-      "mana production LastNoted",
-      "mana spending predicate",
-      "operation Note"
+      "mana spending predicate"
     ],
     "Illusionary Mask": [
       "duration WhileMatches",
@@ -335,10 +334,6 @@
     ],
     "Jade Monolith": [
       "target reference outside a resolving ability"
-    ],
-    "Jeweled Amulet": [
-      "mana production LastNoted",
-      "operation Note"
     ],
     "Johan": [
       "granted Static",
@@ -437,7 +432,6 @@
     "Tawnos's Coffin": [
       "a triggered ability carrying separate groups of objects",
       "move arrival state",
-      "operation Note",
       "several objects arriving attached"
     ],
     "Wall of Shadows": [
@@ -455,31 +449,12 @@
   },
   "features": [
     {
-      "feature": "operation Note",
-      "affected": 3,
-      "sole_blocker": 0,
-      "cards": [
-        "Ice Cauldron",
-        "Jeweled Amulet",
-        "Tawnos's Coffin"
-      ]
-    },
-    {
       "feature": "a triggered ability carrying separate groups of objects",
       "affected": 2,
       "sole_blocker": 0,
       "cards": [
         "Dance of the Dead",
         "Tawnos's Coffin"
-      ]
-    },
-    {
-      "feature": "mana production LastNoted",
-      "affected": 2,
-      "sole_blocker": 0,
-      "cards": [
-        "Ice Cauldron",
-        "Jeweled Amulet"
       ]
     },
     {
@@ -804,7 +779,7 @@
     {
       "feature": "mana spending predicate",
       "affected": 1,
-      "sole_blocker": 0,
+      "sole_blocker": 1,
       "cards": [
         "Ice Cauldron"
       ]
@@ -1464,35 +1439,37 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 74,
+    "generated_runtime_scenarios": 77,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
     "focused_random_discard_costs": 4,
     "full_generator": {
-      "passed": 2076,
+      "passed": 2079,
       "failed": 0,
       "ignored": 24,
       "targets": 202,
-      "log": "/mnt/vizier/early-set-foundation-20261112/combat-reassignment/full-rust.log",
-      "revision": "6f9f2ef98b9ab64cba5d57ef6510a60d40c3e05c",
-      "scope": "entire rust_syntax workspace with cantrip; exit 0"
+      "exit": 0,
+      "log": "/mnt/vizier/early-set-foundation-20261112/noted-values/full-rust.log",
+      "revision": "d7c4203d1e2ab4dfa2af07c74c1c18c1f9fdcba6",
+      "scope": "entire rust_syntax workspace with cantrip"
     },
     "full_native_last_pass": {
-      "passed": 22656,
+      "passed": 22724,
       "failed": 0,
       "ignored": 15,
       "targets": 238,
-      "log": "workspace-revealed-hands-tests.log",
-      "revision": "adcd8efe8",
-      "scope": "native workspace with CANTRIP_VERIFY=1"
+      "exit": 0,
+      "log": "/mnt/vizier/early-set-foundation-20261112/noted-values/full-native2.log",
+      "revision": "b5000fa915e3470c80b2063f29d42daa9c3a522a",
+      "scope": "tools/test.sh --engine; CANTRIP_VERIFY=1; complete checked workspace"
     },
     "focused_keyword_families": 2,
     "all_card_keyword_family_oracle_test": 1,
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 220,
+      "passed": 221,
       "partial_callback_controls": [
         "Reflecting Mirror"
       ],
@@ -1500,8 +1477,8 @@
         "Pin": 94,
         "Sleight": 95
       },
-      "log": "combat-reassignment/typecheck-defenders.log",
-      "revision": "5a4655b56c7b0e4becae361ca271b2cd372b54a2"
+      "log": "noted-values/typecheck-published.log",
+      "revision": "b5000fa915e3470c80b2063f29d42daa9c3a522a"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1534,24 +1511,48 @@
       "log": "combat-delayed-tests.log"
     },
     "all_rules_lib_current": {
-      "passed": 1526,
+      "passed": 1538,
       "ignored": 1,
-      "log": "combat-reassignment/legality-all-core.log"
+      "log": "noted-values/full-native2.log"
     },
     "generator_foundation_tests_current": {
-      "passed": 28,
+      "passed": 31,
       "ignored": 0,
       "includes_explicit_native_runtime": true,
-      "log": "combat-reassignment/runtime-defenders-final.log"
+      "log": "noted-values/runtime-final.log"
     },
-    "full_batch_pending": "After remaining shared five-card/three-card groups, before the user-requested pause.",
+    "full_batch_pending": false,
     "source_correction_audit": {
       "records": 286,
-      "ready": 220,
-      "gapped": 66,
+      "ready": 221,
+      "gapped": 65,
       "unchanged_other_gap_lists": true,
-      "partially_cleared": {},
-      "log": "combat-reassignment/audit-defenders.log"
+      "partially_cleared": {
+        "Ice Cauldron": [
+          [
+            "mana production LastNoted",
+            "mana spending predicate",
+            "operation Note"
+          ],
+          [
+            "mana spending predicate"
+          ]
+        ],
+        "Tawnos's Coffin": [
+          [
+            "a triggered ability carrying separate groups of objects",
+            "move arrival state",
+            "operation Note",
+            "several objects arriving attached"
+          ],
+          [
+            "a triggered ability carrying separate groups of objects",
+            "move arrival state",
+            "several objects arriving attached"
+          ]
+        ]
+      },
+      "log": "noted-values/audit-final.log"
     },
     "focused_computed_x": 10,
     "focused_revealed_hands": {
@@ -1566,9 +1567,9 @@
       "large_board_search_bound": true
     },
     "all_state_lib_current": {
-      "passed": 86,
+      "passed": 87,
       "ignored": 0,
-      "log": "combat-reassignment/legality-all-core.log"
+      "log": "noted-values/full-native2.log"
     },
     "focused_nonmana_attack_costs": {
       "passed": 11,
@@ -1581,13 +1582,20 @@
     "all_api_lib_current": {
       "passed": 12,
       "ignored": 0,
-      "log": "combat-reassignment/legality-all-core.log"
+      "log": "noted-values/full-native2.log"
     },
     "focused_blocking_reassignment": {
       "native": 26,
       "generated_scenarios": 7,
       "generator_profiles": 2,
       "defender_role_tests": 2
+    },
+    "focused_noted_values": {
+      "rules": 12,
+      "state": 1,
+      "generator_profiles": 3,
+      "runtime_scenarios": 3,
+      "log": "noted-values/focused-final.log"
     }
   },
   "evidence": {
@@ -1761,14 +1769,29 @@
     "combat-reassignment/counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
     "combat-reassignment/defenders-after.ronl": "2ff4deb90fbab562d234c8ff8657fdc25c8428a3c2804f9fd98d8708674f14b9",
     "combat-reassignment/defenders-check.json": "8abd9713d5575f65c1acd09fd4191d98d41ffa95c24c63bc188702d9f1634b11",
-    "combat-reassignment/defenders-delta.json": "09616e4e6f3772c0eb112fdb34dc7df371ed9870573ea5269b757313382b2d21"
+    "combat-reassignment/defenders-delta.json": "09616e4e6f3772c0eb112fdb34dc7df371ed9870573ea5269b757313382b2d21",
+    "noted-values/focused-final.log": "bf28761c4da7e9577f494f66596288688ec31cd567494dc05f1e0ed7c93f5cfb",
+    "noted-values/full-native2.log": "b87754499e721a4784a8ba7985aa6cdaec1ecda2ce5737e214c44a173c8bc48b",
+    "noted-values/full-rust.log": "8f18d37c3d69cadf28f88033f36bc287eaaec958dda18a00dd9515de3a5bc121",
+    "noted-values/runtime-final.log": "f238f189ddb6afa0d9da6cc50d199567741b9f1930dd229db175122178d2daa2",
+    "noted-values/audit-final.log": "9701dd79033835869f43008596c39b8af9ea145c140dc334eaefb9c1701f17b5",
+    "noted-values/typecheck-published.log": "a825072debc72e97419f4b0d383f3ff282a7bcca129e9a582e4793db4e6bab84",
+    "noted-values/final-scope-result.json": "2cf57d283a7878d30ea26f4a3f96777615cd98bc0b2dd03efa78b494b96f2471",
+    "noted-values/milestone-audit.json": "ae9ff70ce2909413a38d4a8e385bd4a5b11615a2abf57799b12b71a09d6b6580",
+    "noted-values/benchmark-final.log": "cea5a703bd9ca0f1e6b4b33de55f157b98ead6949059fd2190e0070717012f02",
+    "noted-values/vocab.rs": "83a0cc2a303151407bc88db9480b8d9827e3ce9a737a29e6d203a6c70d622b31",
+    "noted-values/counter-overlay-manifest.json": "93a1a367438b43dd06c31768669d6a2f371b391146ceae11c4894ca38909fc26",
+    "noted-values/counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49"
   },
-  "candidate_api_fingerprint": "bfbcc1fab73bec89bd4440f46558b9824cc8e9bfb68f9d171ac724d41adf9f95",
+  "candidate_api_fingerprint": "709ceb0a0f95cbc7aae89e55db1650f6724fbdde8db1c8aced4aa076f0e716fa",
   "benchmark_current_batch": {
     "games": 128,
-    "native_revision": "5a4655b56c7b0e4becae361ca271b2cd372b54a2",
-    "final_engine_us": 48.12,
+    "native_revision": "b5000fa915e3470c80b2063f29d42daa9c3a522a",
+    "final_engine_us": 50.74,
     "allocation_kb_per_decision": 27.31,
+    "control_native_revision": "5a4655b56",
+    "control_engine_us": 48.12,
+    "control_allocation_kb_per_decision": 27.31,
     "statistical_speed_claim": false,
     "shared_machine": true
   },
@@ -1776,16 +1799,39 @@
     "instruction": "Finish computed X and all six shared three-card groups, then pause.",
     "decision_doc": "cantrip-foundation-shared-stop-20261112.md",
     "defer": "Independent two-card and single-card features; prefer focused engine-plus-card PRs.",
-    "pending_families": [
-      "noted-values"
-    ],
+    "pending_families": [],
     "completed_families": [
       "computed-x",
       "revealed-hands",
       "combat-group-constraints",
       "nonmana-combat-costs",
       "other-player-targets",
-      "combat-relationship-changes"
-    ]
+      "combat-relationship-changes",
+      "noted-values"
+    ],
+    "status": "Shared milestone and full gates complete; pause requested before independent two-card/single-card features.",
+    "milestone_cards": 23,
+    "milestone_generation_ready": 19,
+    "residual_card_gaps": {
+      "Ice Cauldron": [
+        "mana spending predicate"
+      ],
+      "Nova Pentacle": [
+        "target reference outside a resolving ability"
+      ],
+      "Reflecting Mirror": [
+        "a spell's target changed to a player"
+      ],
+      "Tawnos's Coffin": [
+        "a triggered ability carrying separate groups of objects",
+        "move arrival state",
+        "several objects arriving attached"
+      ]
+    },
+    "checkpoint": "cantrip-foundation-shared-milestone-20261112.md",
+    "remaining_label_card_counts": {
+      "1": 75,
+      "2": 8
+    }
   }
 }

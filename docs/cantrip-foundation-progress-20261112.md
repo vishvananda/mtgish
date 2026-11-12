@@ -8,7 +8,9 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`. Generator
-validation is through `5a4655b56`, with twenty-three completed feature groups.
+validation is through `b5000fa91`, with twenty-four completed feature groups.
+All seven selected shared families and the final full gates are complete; see
+the [requested stopping checkpoint](cantrip-foundation-shared-milestone-20261112.md).
 The [combat-reassignment checkpoint](cantrip-foundation-blocking-reassignment-20261112.md)
 adds atomic relationship changes, explicit legality checks and generator adapters
 for False Orders, General Jarkeld and Sorrow's Path. The step-deadline
@@ -19,11 +21,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **220 generate without recorded feature gaps and 66
-remain gapped**. Those 220 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **221 generate without recorded feature gaps and 65
+remain gapped**. Those 221 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 85 raw requirement labels
+remaining requirement and its affected cards. Its 83 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -119,8 +121,8 @@ explicit pinned-profile sentinel. Six profile tests include the word boundary
 and thread-local restoration. This is generator configuration, with no change
 to card numbers or native state storage.
 
-The original roadmap still has computed X constraints and persistent public
-visibility pending. The sixteenth group, [bands with other](cantrip-foundation-banding-20261112.md),
+At the following historical checkpoint, computed X constraints and persistent
+public visibility were still pending. The sixteenth group, [bands with other](cantrip-foundation-banding-20261112.md),
 clears all eight affected cards and covers the distinct formation and damage-assignment rules,
 ordinary banding loss, copying, grants and band persistence without per-object fields. The seventeenth group adds combat-limited delayed event watchers for Goblin
 Flotilla and Melee. Seven focused native tests, all 1,457 rules unit tests
@@ -247,3 +249,15 @@ uses the existing combat role consistently for False Orders, Blaze of Glory
 and Yare, with all 33,529 corpus records validating. Only the noted-values
 three-card family remains before the final complete native gate and requested
 pause. The normal API pin, numeric widths and AST layout stay unchanged.
+
+The twenty-fourth primitive completes [typed noted values](cantrip-foundation-noted-values-20261112.md).
+Jeweled Amulet clears; Ice Cauldron and Tawnos's Coffin clear their note
+requirements and retain their explicit independent diagnostics. All 221 ready
+modules plus Mirror's partial control compile; 77 generated runtime scenarios
+pass. The final full native gate passes **22,724 tests** (15 ignored, 238 targets)
+on `b5000fa91`; the complete generator workspace passes **2,079 tests** (24
+ignored, 202 targets) on `d7c4203`. These supersede the preceding partial/full
+checkpoint receipts. All seven shared groups are finished. The requested pause
+precedes independent two-card and single-card features. The
+[milestone audit](cantrip-foundation-shared-milestone-20261112.md) names the four
+partially cleared milestone cards.

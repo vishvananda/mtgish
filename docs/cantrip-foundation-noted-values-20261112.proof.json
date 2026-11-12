@@ -1,0 +1,306 @@
+{
+  "date": "2026-11-12",
+  "generator_revision": "d7c4203d1e2ab4dfa2af07c74c1c18c1f9fdcba6",
+  "native_parent": "5a4655b56c7b0e4becae361ca271b2cd372b54a2",
+  "native_commits": [
+    "7815d013f9c10ed562e42edf0bb0a548f39f7420",
+    "714048e93fed80b5c984b9f3c4b8abe256af5803",
+    "b5000fa915e3470c80b2063f29d42daa9c3a522a"
+  ],
+  "family_complete": true,
+  "frozen_scope": 286,
+  "generation_ready": 221,
+  "remaining_gapped": 65,
+  "raw_labels": 83,
+  "newly_ready": [
+    "Jeweled Amulet"
+  ],
+  "partially_cleared": {
+    "Ice Cauldron": [
+      [
+        "mana production LastNoted",
+        "mana spending predicate",
+        "operation Note"
+      ],
+      [
+        "mana spending predicate"
+      ]
+    ],
+    "Tawnos's Coffin": [
+      [
+        "a triggered ability carrying separate groups of objects",
+        "move arrival state",
+        "operation Note",
+        "several objects arriving attached"
+      ],
+      [
+        "a triggered ability carrying separate groups of objects",
+        "move arrival state",
+        "several objects arriving attached"
+      ]
+    ]
+  },
+  "other_gap_lists_unchanged": true,
+  "focused_native": {
+    "rules": 12,
+    "state": 1,
+    "passed": 13
+  },
+  "generator_foundation_tests": 31,
+  "generated_runtime_scenarios": 77,
+  "new_runtime_scenarios": 3,
+  "runtime_partial_control": "Coffin exile and counter-note instructions only; delayed return remains gapped",
+  "ready_module_typecheck": 221,
+  "partial_callback_control": [
+    "Reflecting Mirror"
+  ],
+  "complete_native_workspace": {
+    "passed": 22724,
+    "failed": 0,
+    "ignored": 15,
+    "targets": 238,
+    "exit": 0
+  },
+  "complete_rust_workspace": {
+    "passed": 2079,
+    "failed": 0,
+    "ignored": 24,
+    "targets": 202,
+    "exit": 0
+  },
+  "portable_schema": 190,
+  "ast_layout_changed": false,
+  "source_changed": false,
+  "numeric_widths_changed": false,
+  "source_sha256": "a49b77ecf1ec4174eeace2abaad990c3b9e9d5d2e8ed730578df68b9c412860c",
+  "candidate_api_fingerprint": "709ceb0a0f95cbc7aae89e55db1650f6724fbdde8db1c8aced4aa076f0e716fa",
+  "default_api_pin_advanced": false,
+  "storage": {
+    "empty_arena_header_bytes": 24,
+    "payload_record_bytes": 48,
+    "object_bytes": 848,
+    "stack_item_bytes": 320,
+    "event_bytes": 28,
+    "per_object_fields_added": 0,
+    "untracked_activations_allocate_payload": false
+  },
+  "counter_overlay": {
+    "engine_commit": "b5000fa915e3470c80b2063f29d42daa9c3a522a",
+    "declarations": {
+      "Pin": 94,
+      "Sleight": 95
+    },
+    "original_ids": {
+      "PlusOne": 0,
+      "MinusOne": 1,
+      "Loyalty": 2,
+      "Time": 3,
+      "Lore": 4,
+      "Stun": 5,
+      "Charge": 6,
+      "Defense": 7,
+      "Finality": 8,
+      "Flying": 9,
+      "Lifelink": 10,
+      "Indestructible": 11,
+      "Hexproof": 12,
+      "Corpse": 13,
+      "Fade": 14,
+      "Level": 15,
+      "Story": 16,
+      "Wish": 17,
+      "Rev": 18,
+      "Mining": 19,
+      "Influence": 20,
+      "Oil": 21,
+      "Shield": 22,
+      "Fellowship": 23,
+      "Hope": 24,
+      "Void": 25,
+      "Luck": 26,
+      "Silver": 27,
+      "Chorus": 28,
+      "Burden": 29,
+      "Incubation": 30,
+      "Plan": 31,
+      "Hone": 32,
+      "Quest": 33,
+      "FirstStrike": 34,
+      "DoubleStrike": 35,
+      "Deathtouch": 36,
+      "Decayed": 37,
+      "Haste": 38,
+      "Menace": 39,
+      "Reach": 40,
+      "Shadow": 41,
+      "Trample": 42,
+      "Vigilance": 43,
+      "Page": 44,
+      "Flood": 45,
+      "Ingenuity": 46,
+      "Net": 47,
+      "Blight": 48,
+      "Ice": 49,
+      "Soul": 50,
+      "Invitation": 51,
+      "Age": 52,
+      "Growth": 53,
+      "Invasion": 54,
+      "Dream": 55,
+      "Promotion": 56,
+      "Bounty": 57,
+      "Pupa": 58,
+      "Matrix": 59,
+      "Scream": 60,
+      "Vitality": 61,
+      "Fire": 62,
+      "Conqueror": 63,
+      "Film": 64,
+      "Peace": 65,
+      "Mire": 66,
+      "Wind": 67,
+      "Hatchling": 68,
+      "Sleep": 69,
+      "Plus1Plus0": 70,
+      "Plus0Plus1": 71,
+      "Plus2Plus2": 72,
+      "Minus2Minus2": 73,
+      "Plus0Minus1": 74,
+      "Plus0Minus2": 75,
+      "Plus1Plus2": 76,
+      "Minus2Minus1": 77,
+      "Plus2Plus0": 78,
+      "Plus0Plus2": 79,
+      "Minus1Plus0": 80,
+      "Carrion": 81,
+      "Credit": 82,
+      "Depletion": 83,
+      "Healing": 84,
+      "Javelin": 85,
+      "Paralyzation": 86,
+      "Spore": 87,
+      "Storage": 88,
+      "Tide": 89,
+      "Music": 90,
+      "Cube": 91,
+      "Doom": 92,
+      "Glyph": 93
+    },
+    "all_original_ids_unchanged": true,
+    "behavior_changes": false,
+    "patch_sha256": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
+    "overlay_build": "dev-dependencies omitted; four native crates only"
+  },
+  "benchmark": {
+    "games": 128,
+    "unfinished": 0,
+    "engine_us": 50.74,
+    "allocation_kb_per_decision": 27.31,
+    "prior_checkpoint_engine_us": 48.12,
+    "prior_checkpoint_allocation_kb_per_decision": 27.31,
+    "statistical_speed_claim": false,
+    "shared_host": true
+  },
+  "compatibility_edits": {
+    "files": 4,
+    "change": "Initialize existing StackItem target_choosers with an empty Span",
+    "gameplay_expectations_changed": false
+  },
+  "shared_milestone": {
+    "scope": 286,
+    "ready": 221,
+    "gapped": 65,
+    "raw_labels": 83,
+    "families": {
+      "computed-x": [
+        "Chromatic Armor",
+        "Reflecting Mirror",
+        "Voodoo Doll",
+        "Spoils of War",
+        "Winter's Chill"
+      ],
+      "revealed-hands": [
+        "Enduring Renewal",
+        "Revelation",
+        "Zur's Weirding"
+      ],
+      "combat-group-constraints": [
+        "Caverns of Despair",
+        "Errantry",
+        "Orcish Conscripts"
+      ],
+      "nonmana-combat-costs": [
+        "Flooded Woodlands",
+        "Leviathan",
+        "Reclamation"
+      ],
+      "other-player-targets": [
+        "Cuombajj Witches",
+        "Nova Pentacle",
+        "Preacher"
+      ],
+      "combat-relationship-changes": [
+        "False Orders",
+        "General Jarkeld",
+        "Sorrow's Path"
+      ],
+      "noted-values": [
+        "Ice Cauldron",
+        "Jeweled Amulet",
+        "Tawnos's Coffin"
+      ]
+    },
+    "milestone_cards": 23,
+    "milestone_gapless": 19,
+    "milestone_residuals": {
+      "Ice Cauldron": [
+        "mana spending predicate"
+      ],
+      "Nova Pentacle": [
+        "target reference outside a resolving ability"
+      ],
+      "Reflecting Mirror": [
+        "a spell's target changed to a player"
+      ],
+      "Tawnos's Coffin": [
+        "a triggered ability carrying separate groups of objects",
+        "move arrival state",
+        "several objects arriving attached"
+      ]
+    },
+    "remaining_shared_families": [],
+    "remaining_label_card_counts": {
+      "1": 75,
+      "2": 8
+    },
+    "no_three_or_more_card_diagnostic_labels_remain": true
+  },
+  "reference_packet": {
+    "receipt": "reference-remaining30-20261112.proof.json",
+    "sha256": "138aa02f253d94d13405000bef5fc1b9857b4b55c33bcc236c028d04309e2e71",
+    "completed_reopened_faces": 36,
+    "pending_reopened_faces": 0,
+    "remaining_packet_faces_closed": 30
+  },
+  "dotnet_tests": "SDK unavailable; no .NET pass claimed",
+  "evidence": {
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/focused-final.log": "bf28761c4da7e9577f494f66596288688ec31cd567494dc05f1e0ed7c93f5cfb",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/full-native2.log": "b87754499e721a4784a8ba7985aa6cdaec1ecda2ce5737e214c44a173c8bc48b",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/full-rust.log": "8f18d37c3d69cadf28f88033f36bc287eaaec958dda18a00dd9515de3a5bc121",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/runtime-final.log": "f238f189ddb6afa0d9da6cc50d199567741b9f1930dd229db175122178d2daa2",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/audit-final.log": "9701dd79033835869f43008596c39b8af9ea145c140dc334eaefb9c1701f17b5",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/typecheck-published.log": "a825072debc72e97419f4b0d383f3ff282a7bcca129e9a582e4793db4e6bab84",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/final-scope-result.json": "2cf57d283a7878d30ea26f4a3f96777615cd98bc0b2dd03efa78b494b96f2471",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/milestone-audit.json": "ae9ff70ce2909413a38d4a8e385bd4a5b11615a2abf57799b12b71a09d6b6580",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/benchmark-final.log": "cea5a703bd9ca0f1e6b4b33de55f157b98ead6949059fd2190e0070717012f02",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/vocab.rs": "83a0cc2a303151407bc88db9480b8d9827e3ce9a737a29e6d203a6c70d622b31",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/counter-overlay-manifest.json": "93a1a367438b43dd06c31768669d6a2f371b391146ceae11c4894ca38909fc26",
+    "/mnt/vizier/early-set-foundation-20261112/noted-values/counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
+    "/home/vishvananda/mtgish/rust_syntax/normalize/tests/fixtures/early_set_notes.ronl": "b57eb6f7f01a828d76b9fc882f05000f87437fc703f6b4444730bd730f3312bf",
+    "/home/vishvananda/mtgish/rust_syntax/normalize/tests/fixtures/early_set_notes.oracle.json": "3d61688a51069e3abcfa8e6028766fa9f8ef34c551c269574c081834118f82f2",
+    "/home/vishvananda/mtgish/rust_syntax/normalize/tests/fixtures/early_set_notes_scenarios.rs": "61bf7caa6df93b2c573ce249602c5c354436a298e9042992aa09ac3ba254a4e4",
+    "/mnt/vizier/card-lane/early-set-foundation-20261112/crates/cantrip-mechanics/src/notes.rs": "595a22ce469478d6f8a04ce8703278bed9be8cccc6e0ab099da88aaa7da1cdb3",
+    "/mnt/vizier/card-lane/early-set-foundation-20261112/crates/cantrip-rules/src/noted_value_tests.rs": "a003d73080afe6ed80695d2a59534c89292b414c2e2ded13e342fe3995bf2657",
+    "/mnt/vizier/card-lane/early-set-foundation-20261112/crates/cantrip-state/src/noted_value.rs": "1e4f9c926e9530987fc05069b46af2f95cf5798d15d78ea32e784486d414a005"
+  }
+}
