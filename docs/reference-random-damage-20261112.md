@@ -77,3 +77,6 @@ for ordinary cards, serialization round trips, equivalent return templates,
 different-player pool filters, both Phage abilities, distinct damage participants,
 and a created trigger that must not inherit its creator's damage role.
 Evidence is in `/mnt/vizier/reference-random-damage-20261112`.
+
+Published implementation: `d67e6d0e4133be9006008161c6afdc397c4e423f`.
+Upstream follow-up: [MTGish #275](https://github.com/i5jb/mtgish/issues/275#issuecomment-6834821245).

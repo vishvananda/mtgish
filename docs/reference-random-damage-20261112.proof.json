@@ -61,8 +61,11 @@
     "after.ronl": "b5f0207c7903c946724f98ec5b46ab5b9faf47305e6fb3f918d40a7438ac16e9",
     "corpus-check.json": "b4cc40e45ed9240eaf9429e8273413e14c4811765082bd2349b12bd42d720b96",
     "workspace-final2-tests.log": "e1319d513f163427137c6c4877dccba1f7b89f14e856718d84f5344d70dad526",
-    "changed-records.json": "59b44c085cc26d83154b939a93b8f99c399efca34d30e66820c83767aee09019"
+    "changed-records.json": "59b44c085cc26d83154b939a93b8f99c399efca34d30e66820c83767aee09019",
+    "upstream-comment.md": "cd11ff8652f3c355db5209824295b8db57b09e7b2b29e5bae629e800ac7fa470"
   },
   "upstream_source_bug_found": false,
-  "upstream_followup_issue": 275
+  "upstream_followup_issue": 275,
+  "implementation_commit": "d67e6d0e4133be9006008161c6afdc397c4e423f",
+  "upstream_comment": "https://github.com/i5jb/mtgish/issues/275#issuecomment-6834821245"
 }
