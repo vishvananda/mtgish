@@ -2754,7 +2754,7 @@ impl Compiler {
             ),
             // The defending players of a combat are the active player's opponents still in the game (CR 506.2).
             PlayerState::PossibleDefender => {
-                "q.state().opponents(q.state().turn.active).any(|o| o == player)".into()
+                "(matches!(q.state().turn.step(), Step::BeginCombat | Step::DeclareAttackers | Step::DeclareBlockers | Step::CombatDamage | Step::EndOfCombat) && q.state().opponents(q.state().turn.active).any(|o| o == player))".into()
             }
             PlayerState::RolledHighest => planned::planned_value(
                 "player state RolledHighest",

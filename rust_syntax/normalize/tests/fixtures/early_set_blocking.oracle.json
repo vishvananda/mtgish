@@ -1,0 +1,39 @@
+[
+  {
+    "name": "False Orders",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "False Orders",
+        "manaCost": "{R}",
+        "type": "Instant",
+        "text": "Cast this spell only during the declare blockers step.\nRemove target creature defending player controls from combat. Creatures it was blocking that had become blocked by only that creature this combat become unblocked. You may have it block an attacking creature of your choice."
+      }
+    ]
+  },
+  {
+    "name": "General Jarkeld",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "General Jarkeld",
+        "manaCost": "{3}{W}",
+        "type": "Legendary Creature — Human Soldier",
+        "text": "{T}: Choose two target blocked attacking creatures. If each of those creatures could be blocked by all creatures that the other is blocked by, each creature that's blocking exactly one of those attacking creatures stops blocking it and is blocking the other attacking creature. Activate only during the declare blockers step.",
+        "power": "1",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Sorrow's Path",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sorrow's Path",
+        "type": "Land",
+        "text": "{T}: Choose two target blocking creatures controlled by the same opponent. If each of those creatures could block all creatures that the other is blocking, remove both of them from combat. Each one then blocks all creatures the other was blocking.\nWhenever this land becomes tapped, it deals 2 damage to you and each creature you control."
+      }
+    ]
+  }
+]

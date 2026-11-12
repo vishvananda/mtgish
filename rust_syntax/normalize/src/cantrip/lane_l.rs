@@ -2117,7 +2117,6 @@ impl Compiler {
             Operation::ChangeCombat { change } => {
                 // The objects it is about are the call's, read as it resolves
                 // (`&[ObjectId]`, as `exile_all` takes them); the change is data.
-                let none = "Vec::<ObjectId>::new()".to_string();
                 let (objects, change) = match change {
                     CombatChange::Reselect {
                         objects,
@@ -2128,12 +2127,24 @@ impl Compiler {
                         let to = self.operand_code(to);
                         (self.fetch(self.objects(objects)?), format!("CombatChange::AssignAttack {{ to: {to} }}"))
                     }
-                    CombatChange::Block { blocker, attackers } => (self.fetch(self.objects(attackers)?), format!("CombatChange::Block {{ blocker: {} }}", self.fetch(self.object(blocker)?))),
+                    CombatChange::Block { blocker, attackers } => {
+                        let blocker = format!("({}).into_iter().next()", self.acted_on(&ObjectSet::One(blocker.clone()))?);
+                        let attackers = self.fetch(self.objects(attackers)?);
+                        self.plan_switched("blocking-reassignment", &feature,
+                            &format!("let blocker_{id} = {blocker}; let attackers_{id} = {attackers}; {M}::combat::choose_attacker_to_block(g, asker, blocker_{id}, &attackers_{id})?;"), out);
+                        return Ok(());
+                    }
                     CombatChange::SwapBlocks {
                         first,
                         second,
                         attacking,
-                    } => (none, format!("CombatChange::SwapBlocks {{ first: {}, second: {}, attacking: {attacking} }}", self.fetch(self.object(first)?), self.fetch(self.object(second)?))),
+                    } => {
+                        let first = format!("({}).into_iter().next()", self.acted_on(&ObjectSet::One(first.clone()))?);
+                        let second = format!("({}).into_iter().next()", self.acted_on(&ObjectSet::One(second.clone()))?);
+                        self.plan_switched("blocking-reassignment", &feature,
+                            &format!("let first_{id} = {first}; let second_{id} = {second}; {M}::combat::swap_blocks(g, first_{id}, second_{id}, {attacking});"), out);
+                        return Ok(());
+                    }
                     CombatChange::OnlyAttackers { objects, during } => (self.fetch(self.objects(objects)?), format!("CombatChange::OnlyAttackers {{ added_phase: {} }}", during.is_some())),
                     CombatChange::OnlyBlockers(objects) => (self.fetch(self.objects(objects)?), "CombatChange::OnlyBlockers".to_string()),
                 };

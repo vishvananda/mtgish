@@ -109,6 +109,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("keyword-family-metadata", "pub keyword_family: Option<KeywordFamily>,", &[]),
     ("combat-event-delays", "DelayedWhen::ThisCombat", &["event-trigger-for-end-of-combat"]),
     ("other-player-targets", "pub chooser: Option<TargetChooser>,", &["targets-chosen-by-another-player"]),
+    ("blocking-reassignment", "pub fn swap_blocks(g: &mut dyn Game,", &[]),
     ("nonmana-combat-costs", "pub attack_cost_rules: &'static [AttackPayment],", &["static-rule-combat-cost-other-than-mana"]),
     ("combat-group-constraints", "pub combat_groups: &'static [CombatGroupRule],", &["static-rule-combat-group-attacker", "static-rule-combat-group-blocker"]),
     ("revealed-hands", "HandRevealed(fn(&dyn Query, &Asker, PlayerId) -> bool)", &["a-hand-played-revealed"]),

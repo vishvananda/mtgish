@@ -1907,7 +1907,9 @@ fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<
         ("PossibleDefendingPlayerThisCombat", []) => return state(PlayerState::PossibleDefender),
         ("RolledHighestD20Value", []) => return state(PlayerState::RolledHighest),
         ("ShuffledLibraryThisWay", []) => return state(PlayerState::ShuffledThisWay),
-        ("SpellDefendingPlayer", []) => return state(PlayerState::BeingAttacked),
+        // A defending player is a combat role (CR 506.2, 802.2), including when only their planeswalker or protected
+        // battle is attacked. It is distinct from the player personally being attacked.
+        ("SpellDefendingPlayer", []) => return state(PlayerState::PossibleDefender),
         _ => return None,
     })
 }
