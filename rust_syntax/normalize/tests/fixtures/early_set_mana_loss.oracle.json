@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Drain Power",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Drain Power",
+        "manaCost": "{U}{U}",
+        "type": "Sorcery",
+        "text": "Target player activates a mana ability of each land they control. Then that player loses all unspent mana and you add the mana lost this way."
+      }
+    ]
+  },
+  {
+    "name": "Mana Short",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mana Short",
+        "manaCost": "{2}{U}",
+        "type": "Instant",
+        "text": "Tap all lands target player controls and that player loses all unspent mana."
+      }
+    ]
+  },
+  {
+    "name": "Power Sink",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Power Sink",
+        "manaCost": "{X}{U}",
+        "type": "Instant",
+        "text": "Counter target spell unless its controller pays {X}. If that player doesn't, they tap all lands with mana abilities they control and lose all unspent mana."
+      }
+    ]
+  },
+  {
+    "name": "Doubling Cube",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Doubling Cube",
+        "manaCost": "{2}",
+        "type": "Artifact",
+        "text": "{3}, {T}: Double the amount of each type of unspent mana you have."
+      }
+    ]
+  }
+]

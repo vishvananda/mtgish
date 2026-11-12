@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`452a0593b`. Six focused feature groups are implemented. The new step-deadline
+`a6696b2ff`. Seven focused feature groups are implemented. The new step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,13 +16,20 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **173 generate without recorded feature gaps and 113
-remain gapped**. Those 173 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **175 generate without recorded feature gaps and 111
+remain gapped**. Those 175 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
 remaining requirement and its affected cards. Its 109 raw requirement labels
 are not 109 independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
+
+The seventh primitive explicitly empties unspent mana for Mana Short and Power
+Sink. It clears restricted, extended-duration and source/snow-tracked mana,
+ignoring keep rules that apply only at step boundaries. Drain Power retains its
+forced land-activation and lost-mana-capture gaps. A later-set Doubling Cube
+control verifies that the old shared diagnostic label does not enable mana
+doubling. Two native tests and two actual generated runtime scenarios pass.
 
 The original roadmap still has bands with other, computed X constraints, and
 persistent public visibility pending. The full remaining ledger also identifies
@@ -33,7 +40,7 @@ adding a core feature.
 
 Six focused native step-deadline tests pass with verification enabled, and the
 workspace type-checks. All six affected generated modules type-check against
-the pristine foundation. The generated runtime suite now passes 31 scenarios,
+the pristine foundation. The generated runtime suite now passes 33 scenarios,
 including actual Elkin Bottle permission expiry, Halfdane lasting through the
 next upkeep after losing its ability, Xenic animation expiring, and Telekinesis
 spanning two untap steps. The full regression/benchmark gate is batched for the
@@ -48,7 +55,7 @@ cargo run --manifest-path rust_syntax/Cargo.toml -p mtgish-ast --features cantri
   --bin ast -- cantrip-candidate subset.ronl subset.oracle.json rows.jsonl \
   landwalk-blocking-exceptions independent-pt-settings \
   no-combat-damage-assignment world-rule other-activators \
-  step-deadlines counted-untap-steps
+  step-deadlines counted-untap-steps explicit-mana-loss
 ```
 
 These flags explicitly select capabilities; they do not prove that an engine

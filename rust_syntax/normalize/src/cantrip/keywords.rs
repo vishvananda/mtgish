@@ -698,6 +698,8 @@ impl Compiler {
                 "g.planeswalk(player)",
                 out,
             )?,
+            K::LoseUnspentMana if planned::switched_on("explicit-mana-loss") =>
+                self.actor_action(action, "g.empty_mana_pool(player)", out)?,
             K::LoseUnspentMana => self.plan_for_actor(
                 "engine: no effect empties a mana pool",
                 action,

@@ -1,5 +1,5 @@
 {
-  "native_foundation": "452a0593b",
+  "native_foundation": "a6696b2ff",
   "scoped_missing": 286,
   "generation_ready": [
     "Anti-Magic Aura",
@@ -95,6 +95,7 @@
     "Lord Magnus",
     "Lost Order of Jarkeld",
     "Magus of the Unseen",
+    "Mana Short",
     "Mana Vortex",
     "Mercenaries",
     "Merieke Ri Berit",
@@ -120,6 +121,7 @@
     "Orcish Squatters",
     "Phantasmal Mount",
     "Polar Kraken",
+    "Power Sink",
     "Pox",
     "Primordial Ooze",
     "Psychic Allergy",
@@ -251,7 +253,6 @@
       "engine: no random discard cost"
     ],
     "Drain Power": [
-      "engine: no effect empties a mana pool",
       "keyword action ActivateManaAbility",
       "mana production LostThisWay"
     ],
@@ -374,9 +375,6 @@
     "Library of Leng": [
       "replacement event Discard"
     ],
-    "Mana Short": [
-      "engine: no effect empties a mana pool"
-    ],
     "Manabarbs": [
       "engine: only a mana ability triggers on tapping for mana"
     ],
@@ -421,9 +419,6 @@
     ],
     "Power Leak": [
       "operation DealDamageWith"
-    ],
-    "Power Sink": [
-      "engine: no effect empties a mana pool"
     ],
     "Power Surge": [
       "engine: no record of the board as the turn began"
@@ -604,16 +599,6 @@
         "Damping Field",
         "Smoke",
         "Winter Orb"
-      ]
-    },
-    {
-      "feature": "engine: no effect empties a mana pool",
-      "affected": 3,
-      "sole_blocker": 2,
-      "cards": [
-        "Drain Power",
-        "Mana Short",
-        "Power Sink"
       ]
     },
     {
@@ -1777,15 +1762,19 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 31,
+    "generated_runtime_scenarios": 33,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
-    "full_regression_last_run": "five-feature foundation: 22565 native / 1570 generator; rerun after next batch"
+    "full_regression_last_run": "five-feature foundation: 22565 native / 1570 generator; rerun after next batch",
+    "focused_explicit_mana_loss": 2
   },
   "evidence": {
     "step-deadline-tests.log": "88eced1100032e8d56a6424694f237bb5b6e34ce0a1c809e29be12b1a849f964",
     "generator-steps-tests.log": "0c3243823454e01b6bb8a1bba9e2c7d698fb9b2377653293c41bc00f4c0d14bc",
     "generator-steps-compile.log": "243707dca001a70ec7808df04c623c79545aa9e5f0d6599cb8fd1af49583c942",
-    "generator-six-native-runtime.log": "32497f9f8a5aa12dded209159e0051ee9a58030a2de6b328b094ed2b76a6db3f"
+    "generator-six-native-runtime.log": "32497f9f8a5aa12dded209159e0051ee9a58030a2de6b328b094ed2b76a6db3f",
+    "empty-mana-tests.log": "4a247730faa1c2a737bab23c2f3e7525e8d332cf9c4393611aa9f5e5f6944bd4",
+    "generator-mana-loss-tests.log": "5860cf5b1e502b3077a1673a9962200a66e22cc264c86094be64f3c79754d4fd",
+    "generator-seven-native-runtime.log": "6f1348a1afe622dc8e21fcdcdd8bbab7aec8cf0a94e08a1f225e39bb08a73187"
   }
 }
