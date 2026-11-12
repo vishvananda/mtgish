@@ -1,0 +1,40 @@
+[
+  {
+    "name": "Caverns of Despair",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Caverns of Despair",
+        "manaCost": "{2}{R}{R}",
+        "type": "World Enchantment",
+        "text": "No more than two creatures can attack each combat.\nNo more than two creatures can block each combat."
+      }
+    ]
+  },
+  {
+    "name": "Errantry",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Errantry",
+        "manaCost": "{1}{R}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\nEnchanted creature gets +3/+0 and can only attack alone."
+      }
+    ]
+  },
+  {
+    "name": "Orcish Conscripts",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Orcish Conscripts",
+        "manaCost": "{R}",
+        "type": "Creature — Orc",
+        "text": "This creature can't attack unless at least two other creatures attack.\nThis creature can't block unless at least two other creatures block.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  }
+]

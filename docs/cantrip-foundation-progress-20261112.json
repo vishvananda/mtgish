@@ -1,5 +1,5 @@
 {
-  "native_foundation": "adcd8efe8",
+  "native_foundation": "a09922634",
   "scoped_missing": 286,
   "generation_ready": [
     "Adventurers' Guildhouse",
@@ -17,6 +17,7 @@
     "Boris Devilboon",
     "Call to Arms",
     "Cathedral of Serra",
+    "Caverns of Despair",
     "Chaos Lord",
     "Chaos Moon",
     "Chromatic Armor",
@@ -52,6 +53,7 @@
     "Erg Raiders",
     "Erhnam Djinn",
     "Erosion",
+    "Errantry",
     "Eureka",
     "Farrel's Mantle",
     "Farrel's Zealot",
@@ -135,6 +137,7 @@
     "Necropotence",
     "Nether Void",
     "Oath of Lim-Dûl",
+    "Orcish Conscripts",
     "Orcish Farmer",
     "Orcish Squatters",
     "Phantasmal Mount",
@@ -232,10 +235,6 @@
     "Camouflage": [
       "operation GameEffect"
     ],
-    "Caverns of Despair": [
-      "static rule CombatGroup Attacker",
-      "static rule CombatGroup Blocker"
-    ],
     "City in a Bottle": [
       "object collection EventGroup",
       "trigger event ObjectBecomes"
@@ -271,9 +270,6 @@
     ],
     "Errant Minion": [
       "operation DealDamageWith"
-    ],
-    "Errantry": [
-      "static rule CombatGroup Attacker"
     ],
     "False Orders": [
       "operation ChangeCombat"
@@ -384,10 +380,6 @@
     "Nova Pentacle": [
       "target reference outside a resolving ability",
       "targets chosen by another player"
-    ],
-    "Orcish Conscripts": [
-      "static rule CombatGroup Attacker",
-      "static rule CombatGroup Blocker"
     ],
     "Personal Incarnation": [
       "replacement of damage to a named recipient"
@@ -511,16 +503,6 @@
       ]
     },
     {
-      "feature": "static rule CombatGroup Attacker",
-      "affected": 3,
-      "sole_blocker": 1,
-      "cards": [
-        "Caverns of Despair",
-        "Errantry",
-        "Orcish Conscripts"
-      ]
-    },
-    {
       "feature": "targets chosen by another player",
       "affected": 3,
       "sole_blocker": 1,
@@ -600,15 +582,6 @@
       "cards": [
         "Dark Sphere",
         "Forcefield"
-      ]
-    },
-    {
-      "feature": "static rule CombatGroup Blocker",
-      "affected": 2,
-      "sole_blocker": 0,
-      "cards": [
-        "Caverns of Despair",
-        "Orcish Conscripts"
       ]
     },
     {
@@ -1547,7 +1520,7 @@
   },
   "current_engine_tests": {
     "focused_step_deadlines": 6,
-    "generated_runtime_scenarios": 59,
+    "generated_runtime_scenarios": 62,
     "six_card_modules_typecheck": 6,
     "workspace_typecheck": true,
     "focused_explicit_mana_loss": 2,
@@ -1575,7 +1548,7 @@
     "focused_controlled_attachment_generator": 2,
     "focused_untap_limits": 7,
     "generation_ready_module_typecheck": {
-      "passed": 209,
+      "passed": 212,
       "partial_callback_controls": [
         "Reflecting Mirror"
       ],
@@ -1583,8 +1556,8 @@
         "Pin": 94,
         "Sleight": 95
       },
-      "log": "generator-revealed-hands-ready-compile.log",
-      "revision": "adcd8efe8"
+      "log": "generator-combat-groups-ready-compile.log",
+      "revision": "a09922634"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1617,28 +1590,39 @@
       "log": "combat-delayed-tests.log"
     },
     "all_rules_lib_current": {
-      "passed": 1476,
+      "passed": 1479,
       "ignored": 1,
-      "log": "revealed-hands-final-rules-tests.log"
+      "log": "combat-groups-all-core-tests.log"
     },
     "generator_foundation_tests_current": {
-      "passed": 21,
+      "passed": 22,
       "ignored": 1,
-      "log": "revealed-hands-foundation-tests.log"
+      "log": "combat-groups-foundation-tests.log"
     },
     "full_batch_pending": "After remaining shared five-card/three-card groups, before the user-requested pause.",
     "source_correction_audit": {
       "records": 286,
-      "ready": 209,
-      "gapped": 77,
+      "ready": 212,
+      "gapped": 74,
       "unchanged_other_gap_lists": true,
-      "log": "revealed-hands-final-scope.log"
+      "log": "combat-groups-final-scope.log"
     },
     "focused_computed_x": 10,
     "focused_revealed_hands": {
       "rules": 9,
       "ai": 3,
       "host": 2
+    },
+    "focused_combat_groups": {
+      "state": 3,
+      "rules": 3,
+      "exhaustive_completion_checks": true,
+      "large_board_search_bound": true
+    },
+    "all_state_lib_current": {
+      "passed": 84,
+      "ignored": 0,
+      "log": "combat-groups-all-core-tests.log"
     }
   },
   "evidence": {
@@ -1755,19 +1739,30 @@
     "full-scope/revealed-hands-feature-rows.jsonl": "cfbb32a3679ff8a5a81b0a396fc2ac327405b157d3f753f13701d5fef8fb5563",
     "counter-overlay-manifest.json": "871509163cd8756c8b84a758b2694771bcc42da3ab683dff3456b3e84eb56f9a",
     "counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
-    "full-scope/source-corrected.ronl": "1037ba5d73a9e4a9c5e8e179119252bf3bda99cc73d78ba2db95960051f1108c"
+    "full-scope/source-corrected.ronl": "1037ba5d73a9e4a9c5e8e179119252bf3bda99cc73d78ba2db95960051f1108c",
+    "combat-groups-all-core-tests.log": "bcdec184eaa6afe1cd92e9ab53840d4dcbb810cb4c2cb4f42e9658405e76aef3",
+    "combat-groups-native-runtime.log": "74844f73e378394cec8c023609d7ff4da1ce44d01fdcd0dd3a22c0b4686662c9",
+    "generator-combat-groups-ready-compile.log": "3f9a3e120b93e4e454ae7a306a1622df2e35a8c9adacae6eceaeae520da99996",
+    "combat-groups-final-scope-result.json": "fadee97481fd02ff6a40b5330c97683440827f9a9924358875f03572d2db7367",
+    "combat-groups-final-scope.log": "9e621985b8a0995cf2ae1af8f316c4c58d0a42e9ad73d41b2ab54890d7e2c18c",
+    "combat-groups-foundation-tests.log": "725aeeeb16b7e5c5b09c254b2f6d26dfeabcd780928cc5dd2ea68eb33ae24df8",
+    "benchmark-combat-groups-final.log": "2b2af05b0de1b74d56a01dca09eef585ae2e83f145e2f0b3c0366ed49b8d0edf",
+    "combat-groups-vocab.rs": "18f135f0f3d64917ef59e2a62980a86129c200b7d44ecc56afdccdea1a858fc1",
+    "full-scope/combat-groups-feature-rows.jsonl": "1acefaa151a0baf41f4f0cc4220bf4ed3a1b58d818afb47e48621927731665c7",
+    "combat-groups-counter-overlay-manifest.json": "882f87b10269314473025b3cefd43505370918e0f2a5f725046711314de66d20",
+    "combat-groups-counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49"
   },
-  "candidate_api_fingerprint": "60a7bcd6db5be4e9c32fe0a90bc163c8bd162a231dcb3967dce71853633eccec",
+  "candidate_api_fingerprint": "00a329f7df14576e2c5297577f999ee4046d8773dca19bee3a8f7ed5144c3888",
   "benchmark_current_batch": {
     "games": 128,
-    "control_native_revision": "47fd50a31",
-    "native_revision": "adcd8efe8",
-    "control_engine_us": 43.6,
-    "final_engine_us": 48.06,
-    "allocation_kb_per_decision": 27.04,
+    "native_revision": "a09922634",
+    "control_native_revision": "adcd8efe8",
+    "control_engine_us": 48.06,
+    "final_engine_us": 50.26,
+    "allocation_kb_per_decision": 27.3,
     "control_allocation_kb_per_decision": 27.04,
-    "shared_machine": true,
-    "statistical_speed_claim": false
+    "statistical_speed_claim": false,
+    "shared_machine": true
   },
   "stopping_milestone": {
     "instruction": "Finish computed X and all six shared three-card groups, then pause.",

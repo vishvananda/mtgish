@@ -9,7 +9,7 @@ the same primitive. Card workers remain paused and no upstream update is pulled.
 | Pending family | Affected cards | Related requirements |
 | --- | --- | --- |
 | Revealed hands — complete | Enduring Renewal; Revelation; Zur's Weirding | [Checkpoint](cantrip-foundation-revealed-hands-20261112.md): native `adcd8efe8`, visibility and historical knowledge agree across all readers. |
-| Combat group constraints | Caverns of Despair; Errantry; Orcish Conscripts | Attacker and blocker counts are one declaration-validation family, including requirement maximization. |
+| Combat group constraints — complete | Caverns of Despair; Errantry; Orcish Conscripts | Attacker and blocker counts are one declaration-validation family, including requirement maximization. |
 | Nonmana combat costs | Flooded Woodlands; Leviathan; Reclamation | Costs and their payments must use the shared combat declaration procedure. |
 | Targets chosen by another player | Cuombajj Witches; Nova Pentacle; Preacher | The effect's controller and target chooser differ; choices still obey targeting legality. |
 | Changing combat relationships | False Orders; General Jarkeld; Sorrow's Path | Existing combat relationships, legal reassignment and resulting events must stay consistent. |
@@ -42,3 +42,7 @@ the checkpoint; the original frozen Source is preserved as evidence.
 
 Revealed hands is complete. Five pending three-card families (15 distinct
 cards) remain; the latest frozen scope is 209 ready / 77 gapped / 91 raw labels.
+
+Combat group constraints are complete at native `a09922634`. Four pending
+three-card families (12 distinct cards) remain. The latest frozen scope is
+212 ready / 74 gapped / 89 raw labels; see the [checkpoint](cantrip-foundation-combat-groups-20261112.md).

@@ -8,7 +8,7 @@ capability happens to clear a card. This work adds engine primitives and
 generator adapters, without starting card workers or submitting card PRs.
 
 The foundation branch is `engine/early-set-foundation-20261112`, now through
-`adcd8efe8`. Nineteen focused feature groups are implemented. The step-deadline
+`a09922634`. Twenty focused feature groups are implemented. The step-deadline
 commit supplies start-of-step expiry, through-next-step expiry, corresponding
 play permissions, and counted future untap steps. Erhnam Djinn, Gabriel
 Angelfire, Xenic Poltergeist, Elkin Bottle, Halfdane and Telekinesis now generate
@@ -16,11 +16,11 @@ without recorded gaps. Telekinesis also needed a generator-only adapter from its
 explicit permanent rule to the existing `EffectKind::DoesntUntap` interface.
 That rule does not grant an ability or forbid untapping outside those steps.
 
-Of the 286 scoped cards, **209 generate without recorded feature gaps and 77
-remain gapped**. Those 209 are candidates, not installed or fully reviewed cards;
+Of the 286 scoped cards, **212 generate without recorded feature gaps and 74
+remain gapped**. Those 212 are candidates, not installed or fully reviewed cards;
 ordinary named-counter/token prerequisites still need to accompany card delivery.
 The [per-card ledger](cantrip-foundation-progress-20261112.json) includes every
-remaining requirement and its affected cards. Its 91 raw requirement labels
+remaining requirement and its affected cards. Its 89 raw requirement labels
 are not independent engine features: some are generator gaps, some overlap,
 and several labels belong to the same native primitive.
 
@@ -207,3 +207,8 @@ The [revealed-hands checkpoint](cantrip-foundation-revealed-hands-20261112.md)
 clears Enduring Renewal, Revelation and Zur's Weirding. It records the current
 22,656-test native workspace pass, 59 generated runtime scenarios and the
 209-module compilation receipt. Five shared three-card families remain.
+
+The [combat-group checkpoint](cantrip-foundation-combat-groups-20261112.md)
+clears Caverns of Despair, Errantry and Orcish Conscripts. It records the current
+1,479 rules and 84 state unit-test pass, 62 generated runtime scenarios and the
+212-module compilation receipt. Four shared three-card families remain.

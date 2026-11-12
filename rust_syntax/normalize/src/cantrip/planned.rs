@@ -108,6 +108,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("nonmana-mana-tap-triggers", "pub const TAPPED_FOR_MANA: EventMask", &[]),
     ("keyword-family-metadata", "pub keyword_family: Option<KeywordFamily>,", &[]),
     ("combat-event-delays", "DelayedWhen::ThisCombat", &["event-trigger-for-end-of-combat"]),
+    ("combat-group-constraints", "pub combat_groups: &'static [CombatGroupRule],", &["static-rule-combat-group-attacker", "static-rule-combat-group-blocker"]),
     ("revealed-hands", "HandRevealed(fn(&dyn Query, &Asker, PlayerId) -> bool)", &["a-hand-played-revealed"]),
     ("computed-x", "pub x_rule: Option<XRule>,", &["engine-no-rule-on-an-ability-s-x"]),
     ("bands-with-other", "pub struct BandsWithOthersDef {", &["engine-no-bands-with-others", "engine-no-bands-with-others-granted", "losing-ability-any-bands-with-others"]),

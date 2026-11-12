@@ -156,8 +156,8 @@
     "benchmark-hands-final-cache.log": "765ab6ebcc6d369ecbb6798ba7a6a17bd6023d4992aac19019db252d49789002",
     "revealed-hands-vocab.rs": "e29f95f3601686e9dcbe28a6af6bdca7713b2945217b3d01efc5e77524352aeb",
     "full-scope/revealed-hands-feature-rows.jsonl": "cfbb32a3679ff8a5a81b0a396fc2ac327405b157d3f753f13701d5fef8fb5563",
-    "counter-overlay-manifest.json": "871509163cd8756c8b84a758b2694771bcc42da3ab683dff3456b3e84eb56f9a",
-    "counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
-    "full-scope/source-corrected.ronl": "1037ba5d73a9e4a9c5e8e179119252bf3bda99cc73d78ba2db95960051f1108c"
+    "full-scope/source-corrected.ronl": "1037ba5d73a9e4a9c5e8e179119252bf3bda99cc73d78ba2db95960051f1108c",
+    "revealed-hands-counter-overlay-manifest.json": "871509163cd8756c8b84a758b2694771bcc42da3ab683dff3456b3e84eb56f9a",
+    "revealed-hands-counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49"
   }
 }
